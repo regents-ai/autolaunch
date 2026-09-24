@@ -115,6 +115,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       id={@id}
       class="bid-panel rg-panel rg-panel--surface"
       phx-hook="AutolaunchReviewedSteps"
+      data-reports-opening
       phx-target={@myself}
     >
       <header class="bid-heading">
