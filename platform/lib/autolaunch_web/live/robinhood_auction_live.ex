@@ -171,7 +171,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             id="robinhood-token-link"
             class="autolaunch-live-market"
           >
-            This auction graduated.
+            This auction launched.
             <.link navigate={"/robinhood/tokens/#{@launch.token_address}"}>
               Open {@launch.token_symbol}, its token, to trade and stake it
             </.link>

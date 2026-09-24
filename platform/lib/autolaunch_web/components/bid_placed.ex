@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.Components.BidPlaced do
 
     ~H"""
     <div class="bid-placed" role="status">
-      <p class="bid-placed__news">Your bid on ${@token_symbol} was placed successfully.</p>
+      <p class="bid-placed__news">Your bid on {@token_symbol} was placed successfully.</p>
       <p :if={@test_chain} class="bid-form__note">
         This was on a test network. Test assets have no real value.
       </p>

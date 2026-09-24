@@ -321,7 +321,7 @@ defmodule AutolaunchWeb.AuctionLive do
             id="auction-pool-link"
             class="autolaunch-live-market"
           >
-            This auction graduated into its pool.
+            This auction launched into its pool.
             <.link navigate={"/tokens/#{@graduated_token.id}#pool"}>View the pool and its trading fees</.link>
           </p>
           <.treasury_security

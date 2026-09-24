@@ -104,7 +104,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign(assigns)
      |> assign_new(:ended, fn -> nil end)
      |> assign_new(:stake_path, fn -> nil end)
-     |> assign_new(:token_symbol, fn -> "tokens" end)
      |> assign_book_and_supply()
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
