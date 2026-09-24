@@ -458,8 +458,12 @@ defmodule Autolaunch.Auction do
   end
 
   relationships do
+    # The account whose signed-in wallet launched the auction. Every Base
+    # auction the site lists has one; a Robinhood launch is listed from the
+    # launchpad's own records and names one only when exactly one account's
+    # signed-in wallet is its launcher (`Autolaunch.Robinhood.MarketFeed`).
     belongs_to :creator_human_account, Autolaunch.Accounts.HumanAccount do
-      allow_nil? false
+      allow_nil? true
       attribute_public? true
       attribute_type :integer
     end

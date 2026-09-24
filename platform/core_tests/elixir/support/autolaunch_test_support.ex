@@ -136,13 +136,8 @@ defmodule Autolaunch.TestSupport do
     id = Ecto.UUID.generate()
     now = DateTime.utc_now()
 
-    # The resource and migration refuse NULL; AE6 still has to prove a
-    # beneath-the-resource row is filtered from every public read.
-    {:ok, _} =
-      Autolaunch.Repo.query(
-        "ALTER TABLE auctions ALTER COLUMN creator_human_account_id DROP NOT NULL"
-      )
-
+    # A row without a creator is not a site-created Base auction; AE6 has to
+    # prove it is filtered from every public read.
     {1, nil} =
       Autolaunch.Repo.insert_all("auctions", [
         %{

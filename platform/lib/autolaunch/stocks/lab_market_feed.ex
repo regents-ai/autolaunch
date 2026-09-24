@@ -145,7 +145,9 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     with {:ok, next} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
       from = if from > next, do: 0, else: from
       ids = from..min(next - 1, from + @launch_page - 1)//1
-      results = Enum.map(ids, &{&1, project_launch(config, &1, block, opts)})
+
+      results =
+        Enum.map(ids, fn id -> {id, safely(fn -> project_launch(config, id, block, opts) end)} end)
 
       {:ok, Enum.flat_map(results, &projected/1),
        settled_through(results, from + Enum.count(ids))}
