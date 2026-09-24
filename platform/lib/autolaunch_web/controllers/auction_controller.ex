@@ -19,7 +19,8 @@ defmodule AutolaunchWeb.AuctionController do
         data:
           Enum.map(page.robinhood, &robinhood_auction/1) ++
             Enum.map(page.records, &public_auction/1),
-        pagination: page.pagination
+        pagination: page.pagination,
+        robinhood_unavailable: page.robinhood_unavailable
       })
     else
       {:error, :invalid_query} -> invalid_request(conn)

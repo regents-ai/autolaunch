@@ -14,7 +14,8 @@ defmodule AutolaunchWeb.TokenController do
         data:
           Enum.map(page.robinhood, &robinhood_token/1) ++
             Enum.map(page.records, &public_token/1),
-        pagination: page.pagination
+        pagination: page.pagination,
+        robinhood_unavailable: page.robinhood_unavailable
       })
     else
       {:error, :invalid_query} -> invalid_request(conn)

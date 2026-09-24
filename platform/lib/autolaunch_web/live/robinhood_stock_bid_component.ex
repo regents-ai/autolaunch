@@ -37,7 +37,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     robinhood_unavailable: "Robinhood auctions are not open on this site.",
     invalid_auction: "This is not an auction address.",
     unknown_auction: "No Robinhood auction was found at this address.",
-    auction_not_open: "Bidding is not open on this auction right now.",
     amount_required: "Enter a USDG amount above zero.",
     invalid_amount: "Enter a USDG amount above zero.",
     amount_not_representable: "USDG amounts have at most 6 decimal places.",
