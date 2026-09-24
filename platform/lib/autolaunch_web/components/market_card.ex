@@ -50,7 +50,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
-  attr :rate, :any, default: nil, doc: "an auction's currency in USD, for its figures"
+
+  attr :rate, :any,
+    default: nil,
+    doc: "the USD price of one unit of the record's currency, for its figures"
 
   def explore_card(assigns) do
     assigns =
@@ -79,7 +82,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <h2 class="home-coin__name">{@view.name}</h2>
         <p class="home-coin__symbol">${@view.symbol}</p>
         <div :if={@kind == :token} class="home-coin__metric">
-          <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /><span>{@view.metric_label}</span>
+          <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>{@view.metric_label}</span>
         </div>
       </.link>
       <.auction_figures :if={@kind == :auction} auction={@record} rate={@rate} />

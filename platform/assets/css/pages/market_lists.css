@@ -58,9 +58,18 @@
 @media (max-width: 42rem) {
   .market-list__search { flex-basis: 100%; max-width: none; }
   .market-list__table { min-width: 0; }
-  .market-list__table :is(th, td) { padding: 10px 12px; }
+  /* The token column takes the room the figures leave; the figures never wrap. */
+  .market-list__table :is(th, td) { padding: 10px 8px; }
+  .market-list__table :is(th, td):first-child { padding-left: 12px; }
+  .market-list__table :is(th, td):last-child { padding-right: 12px; }
+  .market-list__table thead th { white-space: normal; }
+  .market-list__table td { white-space: nowrap; }
+  .market-list__table tbody th { width: 100%; }
   .market-list__table--auctions :is(th, td):is(:nth-child(2), :nth-child(3)),
   .market-list__table--tokens :is(th, td):nth-child(3) { display: none; }
-  .market-list__name strong { max-width: 120px; }
-  .auction-figures__progress { width: 72px; }
+  .market-list__token { gap: 10px; }
+  .market-list__name { grid-template-columns: minmax(0, auto) auto; }
+  .market-list__name strong { display: -webkit-box; max-width: none; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .market-list__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .auction-figures__progress { width: 100%; }
 }
