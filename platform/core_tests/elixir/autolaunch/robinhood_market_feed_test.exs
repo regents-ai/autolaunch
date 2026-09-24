@@ -15,7 +15,6 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   @outside_launcher "0x5000000000000000000000000000000000000005"
   @graduated_auction "0x7000000000000000000000000000000000000007"
   @splitter "0x8000000000000000000000000000000000000008"
-  @pool_id "0x" <> String.duplicate("9a", 32)
 
   defmodule Chain do
     @moduledoc """
@@ -44,6 +43,14 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     def next_launch_id(_head), do: {:ok, length(chain().launches) + 1}
     def launch(_head, id), do: {:ok, Enum.at(chain().launches, id - 1)}
     def market(_head, auction), do: Map.fetch(chain().markets, auction)
+
+    def price_quote(_head, %{pool_id: pool_id}, 18) do
+      case Map.fetch(chain().prices, pool_id) do
+        {:ok, :unreadable} -> {:error, :chain_unavailable}
+        {:ok, price} -> {:ok, price}
+        :error -> {:ok, nil}
+      end
+    end
   end
 
   setup do
@@ -52,6 +59,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     Chain.put(%{
       down?: false,
       clock: 250,
+      prices: %{},
       launches: [
         # A checksummed launcher still names its creator.
         launch(
@@ -155,7 +163,9 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert tokens(@graduated_auction) == 1
     assert tokens(@outside_auction) == 0
 
-    assert %{state: :graduated, pool: %{pool_id: @pool_id, splitter: @splitter}} =
+    site_pool = pool_id(1)
+
+    assert %{state: :graduated, pool: %{pool_id: ^site_pool, splitter: @splitter}} =
              second.snapshots[@site_auction]
 
     # Replaying every record and every market leaves one token each.
@@ -172,6 +182,61 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
 
     assert token.treasury_address == @launchpad
   end
+
+  test "a graduated token takes its pool's price on each finished pass, and one unreadable price leaves the others" do
+    Chain.put(%{
+      Chain.chain()
+      | launches: Chain.chain().launches ++ [launch(3, @graduated_auction, @outside_launcher, 2)],
+        markets:
+          Chain.chain().markets
+          |> Map.put(@site_auction, market(1, 2, true))
+          |> Map.put(@graduated_auction, market(3, 2, true)),
+        prices: %{pool_id(1) => "1.5", pool_id(3) => "0.25"}
+    })
+
+    assert {:ok, first} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert price(@site_auction) == "1.5"
+    assert price(@graduated_auction) == "0.25"
+
+    # The site pool moves; the other pool cannot be read on the next pass that
+    # reads finished auctions.
+    Chain.put(%{Chain.chain() | prices: %{pool_id(1) => "2", pool_id(3) => :unreadable}})
+    site = row(@site_auction)
+
+    assert {:ok, second} = finished_pass(first.cursors)
+    assert second.changed == [site.id]
+    assert price(@site_auction) == "2"
+    assert price(@graduated_auction) == "0.25"
+    assert %{state: :graduated} = second.snapshots[@graduated_auction]
+
+    # An unchanged price changes nothing.
+    Chain.put(%{Chain.chain() | prices: %{pool_id(1) => "2", pool_id(3) => "0.25"}})
+    assert {:ok, %{changed: []}} = finished_pass(second.cursors)
+  end
+
+  # Finished auctions are read on every fourth pass; the passes between read
+  # only the open ones, so they leave these prices alone.
+  defp finished_pass(cursors) do
+    Enum.reduce(1..3, cursors, fn _pass, cursors ->
+      assert {:ok, %{changed: [], cursors: next}} = MarketFeed.poll(Chain, cursors)
+      next
+    end)
+    |> then(&MarketFeed.poll(Chain, &1))
+  end
+
+  defp price(auction_address) do
+    {:ok, token} =
+      Autolaunch.get_token_for_projection(row(auction_address).id, actor: %System{})
+
+    assert token.price_source == "pool"
+    token.price_quote
+  end
+
+  defp row(auction_address),
+    do: Enum.find(robinhood_rows(), &(&1.auction_address == auction_address))
+
+  defp pool_id(launch_id),
+    do: "0x" <> String.pad_leading(Integer.to_string(launch_id, 16), 64, "0")
 
   defp tokens(auction_address) do
     Repo.one(
@@ -214,7 +279,14 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       currency_raised: 2 * 10 ** 18,
       pool:
         if(lifecycle == 2,
-          do: %{pool_id: @pool_id, splitter: @splitter, lp_token_id: 7, locker: @launchpad}
+          do: %{
+            pool_id: pool_id(launch_id),
+            token: "0x6000000000000000000000000000000000000006",
+            stock: @stock.address,
+            splitter: @splitter,
+            lp_token_id: 7,
+            locker: @launchpad
+          }
         )
     }
   end

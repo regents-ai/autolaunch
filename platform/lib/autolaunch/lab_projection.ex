@@ -361,12 +361,8 @@ defmodule Autolaunch.LabProjection do
     |> present(:launch_not_found)
   end
 
-  defp read_token(auction_id) do
-    Token
-    |> Ash.Query.new(domain: @domain)
-    |> Ash.Query.filter(auction_id == ^auction_id)
-    |> Ash.read_one(domain: @domain, actor: @actor)
-  end
+  defp read_token(auction_id),
+    do: Autolaunch.get_token_for_projection(auction_id, actor: @actor)
 
   defp create(resource, action, attributes) do
     resource
