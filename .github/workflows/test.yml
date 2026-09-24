@@ -19,7 +19,8 @@ on:
 # The only check this workflow runs is contracts/v1/bin/gate.sh, from contracts/v1. Every step
 # before it materializes pinned material over the network so the gate itself can stay offline
 # and fail closed. Every version comes from requirements/frozen-identity.json, never from a
-# literal repeated here.
+# literal repeated here; Foundry is instead pinned by the digest of the one build whose
+# `forge --version` matches that file, which the gate reconciles.
 jobs:
   gate:
     runs-on: ubuntu-latest
@@ -41,7 +42,6 @@ jobs:
             python3 -c "import json;print(json.load(open('requirements/frozen-identity.json'))$1)"
           }
           {
-            printf 'forge=%s\n' "$(read_frozen "['toolchain']['forge_version']" | sed 's/-stable$//')"
             printf 'slither=%s\n' "$(read_frozen "['toolchain']['slither_version']")"
             printf 'python=%s\n' "$(read_frozen "['toolchain']['python_version']")"
             printf 'solc=%s\n' "$(read_frozen "['build']['solc_version']")"
@@ -61,13 +61,14 @@ jobs:
       - name: Materialize the pinned Foundry
         run: |
           set -eu
-          # The digest is that of the frozen version's linux_amd64 release tarball, so a new
-          # frozen version fails here until this digest is updated with it.
-          version='${{ steps.frozen.outputs.forge }}'
+          # The frozen forge identity is 1.5.1-stable at b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2.
+          # Only Foundry's stable-channel build reports that version string (the v1.5.1 build of
+          # the same commit reports 1.5.1-v1.5.1). The stable channel moves with each Foundry
+          # stable release, so this digest fails closed once it no longer serves that build.
           tarball="$RUNNER_TEMP/foundry.tar.gz"
           curl -fsSL -o "$tarball" \
-            "https://github.com/foundry-rs/foundry/releases/download/v$version/foundry_v${version}_linux_amd64.tar.gz"
-          printf '%s  %s\n' 73640b01bd9ed29fdb4965085099371f8cf0dbbec3e2086cf54564efc4dcfe88 "$tarball" |
+            https://github.com/foundry-rs/foundry/releases/download/stable/foundry_stable_linux_amd64.tar.gz
+          printf '%s  %s\n' 9cb14a30fa95c1af1cbeb035272baec0e85298dc18e6a45ca7236eca5ce95474 "$tarball" |
             sha256sum -c -
           mkdir -p "$HOME/.foundry/bin"
           tar -xzf "$tarball" -C "$HOME/.foundry/bin"
