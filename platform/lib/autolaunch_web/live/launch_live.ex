@@ -32,7 +32,7 @@ defmodule AutolaunchWeb.LaunchLive do
         </Regent.Structure.section_bar>
         <p>
           <Regent.Primitives.status>{display_action(@page_record.status)}</Regent.Primitives.status>
-          · Chain {@page_record.chain_id}
+          · {chain_name(@page_record)}
         </p>
       </header>
 
@@ -154,4 +154,6 @@ defmodule AutolaunchWeb.LaunchLive do
     </section>
     """
   end
+
+  defp chain_name(record), do: if(robinhood?(record), do: "Robinhood", else: "Base")
 end
