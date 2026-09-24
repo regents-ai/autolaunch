@@ -7,6 +7,8 @@ defmodule Autolaunch.MarketFeedTest do
   alias Autolaunch.Auction.MarketState
   alias Autolaunch.{BaseRpcStub, LabAbi, LabMarketFeed, MarketWatch}
   alias Autolaunch.LabMarketFeed.{Projector, Reader}
+  alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
+  alias Autolaunch.Stocks.LabProjection, as: StocksProjection
   alias Autolaunch.TestSupport
 
   @head %{binding: :lab, block: %{number: 150, hash: "0x" <> String.duplicate("ab", 32)}}
@@ -82,7 +84,13 @@ defmodule Autolaunch.MarketFeedTest do
           LabAbi.selector("currencyRaised()") => [10 ** 18],
           LabAbi.selector("remainingSupply()") => [0],
           # Lifecycle 1 (Active) and no pool yet.
-          LabAbi.selector("distribution(address)") => [1 | List.duplicate(0, 17)]
+          LabAbi.selector("distribution(address)") => [1 | List.duplicate(0, 17)],
+          # The Memestake launchpad: no launch records to discover, and every
+          # auction's record Active (lifecycle word 11).
+          LabAbi.selector("nextLaunchId()") => [0],
+          LabAbi.selector("launchIdOfAuction(address)") => [1],
+          LabAbi.selector("launches(uint256)") =>
+            List.duplicate(0, 11) ++ [1] ++ List.duplicate(0, 8)
         }
         |> Map.fetch!(selector)
 
@@ -147,6 +155,24 @@ defmodule Autolaunch.MarketFeedTest do
                readable |> Enum.map(& &1.id) |> Enum.sort()
 
       assert Enum.all?(snapshots, &(&1.state == :active and &1.minimum_reached))
+    end
+  end
+
+  describe "one Memestake auction that cannot be read" do
+    test "is skipped and every other auction is still read and written" do
+      creator = TestSupport.register_creator!().id
+      auctions = for _n <- 1..3, do: stocks_auction(creator)
+      [broken | readable] = auctions
+      ChainStub.install(%{broken: MapSet.new([String.downcase(broken.auction_address)])})
+
+      assert {:ok, %{snapshots: snapshots, changed: changed}} =
+               StocksMarketFeed.refresh(%{watch: MarketWatch.new(), next_launch_id: 0})
+
+      readable_ids = readable |> Enum.map(& &1.id) |> Enum.sort()
+      assert snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.sort() == readable_ids
+      assert Enum.sort(changed) == readable_ids
+      assert Enum.map(readable, &reload(&1).minimum_reached) == [true, true]
+      refute reload(broken).minimum_reached
     end
   end
 
@@ -220,6 +246,32 @@ defmodule Autolaunch.MarketFeedTest do
       price_quote: nil,
       positions: []
     }
+  end
+
+  defp stocks_auction(creator) do
+    {:ok, auction} =
+      StocksProjection.project_observed(%{
+        chain_id: 8453,
+        auction_address:
+          "0x" <>
+            (Elixir.System.unique_integer([:positive])
+             |> Integer.to_string(16)
+             |> String.pad_leading(40, "0")),
+        creator_human_account_id: creator,
+        title: "Memestake",
+        summary: nil,
+        token_symbol: "MEME",
+        website: nil,
+        image: nil,
+        quote_token_address: "0xb200000000000000000000c2e324d24d7eecd1fb",
+        quote_token_symbol: "AAPLc",
+        quote_token_decimals: 8,
+        required_currency_raised: "1000",
+        state: :active,
+        treasury_address: "0x1d36a95112835f81b1b499a808e556020c64cac2"
+      })
+
+    auction
   end
 
   defp reload(auction) do
