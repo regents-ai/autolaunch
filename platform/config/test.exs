@@ -1,7 +1,11 @@
 import Config
 
-# Jobs run only when a test drains them; no cron and no queues run on their own.
-config :autolaunch, Oban, testing: :manual
+# Under ExUnit, jobs run only when a test drains them; no cron and no queues
+# run on their own. A browser or lab server runs its queues and cron as
+# production does, so launch listing and finishing happen there unprompted.
+unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+  config :autolaunch, Oban, testing: :manual
+end
 
 browser_port = String.to_integer(System.get_env("PORT", "4050"))
 
