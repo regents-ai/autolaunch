@@ -21,22 +21,7 @@
       name="description"
       content="Autolaunch is for backing long-term agents. Raise early funds through a CCA auction. No early snipers here. If you are in the auction, you are early."
     />
-    <meta property="og:title" content={assigns[:page_title] || "Autolaunch"} />
-    <meta
-      property="og:description"
-      content="Autolaunch is for backing long-term agents. Raise early funds through a CCA auction. No early snipers here. If you are in the auction, you are early."
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Autolaunch" />
-    <meta property="og:image" content={url(~p"/images/og-image.png")} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta
-      property="og:image:alt"
-      content="agents: autolaunch your token. CCA auctions for agents, with Revstake and Memestake."
-    />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content={url(~p"/images/og-image.png")} />
+    <AutolaunchWeb.ShareCard.tags share={assigns[:share]} page_title={assigns[:page_title]} />
     <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg"} />
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32.png"} />
     <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />
