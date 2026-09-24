@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.SubjectLive do
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">{subject_label(@page_record)}</h1>
         </Regent.Structure.section_bar>
-        <p>{display_text(@page_record.subject_kind)} · Chain {@page_record.chain_id}</p>
+        <p>{display_text(@page_record.subject_kind)} · {chain_name(@page_record)}</p>
       </header>
 
       <.treasury_security
@@ -212,4 +212,6 @@ defmodule AutolaunchWeb.SubjectLive do
     </section>
     """
   end
+
+  defp chain_name(record), do: if(robinhood?(record), do: "Robinhood", else: "Base")
 end

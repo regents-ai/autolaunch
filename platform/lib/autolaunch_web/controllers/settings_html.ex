@@ -10,6 +10,7 @@ defmodule AutolaunchWeb.SettingsHTML do
         <Regent.Primitives.button
           :if={@account_control.kind == :sign_in}
           type="button"
+          class="autolaunch-profile-page__sign-in"
           data-account-target="sign-in"
         >
           Sign in
@@ -21,7 +22,7 @@ defmodule AutolaunchWeb.SettingsHTML do
           <dd>{@account_control.wallet_address}</dd>
         </dl>
         <p :if={@account_control.kind == :signed_in}>
-          Your name, wallet choice and X connection live on your <.link href="/profile">profile</.link>. There is nothing else to set yet.
+          Your name, wallet choice and connected accounts (X, GitHub and ENS) live on your <.link href="/profile">profile</.link>. There is nothing else to set yet.
         </p>
         <Regent.Primitives.button
           :if={@account_control.kind == :signed_in}
