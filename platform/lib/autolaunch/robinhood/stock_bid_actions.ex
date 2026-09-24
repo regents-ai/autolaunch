@@ -197,10 +197,6 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   defp biddable(_usdg_amount, %{stock_quote: 0}), do: unavailable(:usdg_route_unavailable)
 
-  defp biddable(_usdg_amount, %{clock: clock, auction: auction})
-       when clock < auction.start_block or clock >= auction.end_block,
-       do: unavailable(:auction_not_open)
-
   defp biddable(_usdg_amount, _snapshot), do: :ok
 
   defp bounded(value, max, _reason) when is_integer(value) and value > 0 and value <= max,
