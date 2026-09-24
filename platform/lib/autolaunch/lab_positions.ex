@@ -68,16 +68,17 @@ defmodule Autolaunch.LabPositions do
   # The feed's reading was taken before this write, and a wallet verification
   # may have recorded the same settlement meanwhile. The row is re-read under a
   # lock inside the write transaction and its recorded amounts are kept; only a
-  # status the chain now contradicts is corrected.
+  # status the chain now contradicts is corrected. One Ash transaction, so any
+  # notification of the write goes out once it is committed.
   defp write(%{position: stale, status: status} = reading) do
-    Autolaunch.Repo.transaction(fn ->
+    Ash.transaction(Bid, fn ->
       with {:ok, position} <- locked(stale.bid_id),
            false <- position.status == status,
            {:ok, bid} <- upsert(position, status, reading) do
         bid
       else
         true -> stale
-        {:error, reason} -> Autolaunch.Repo.rollback(reason)
+        {:error, reason} -> Ash.DataLayer.rollback(Bid, reason)
       end
     end)
   end

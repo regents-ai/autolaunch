@@ -260,8 +260,10 @@ defmodule Autolaunch.TreasurySecurity do
 
   defp evidence_value(evidence, key), do: evidence[key] || evidence[to_string(key)]
 
+  # One Ash transaction, so any notification of the write goes out once it is
+  # committed.
   defp persist_observation(attrs) do
-    Repo.transaction(fn ->
+    Ash.transaction(TreasurySecurityReport, fn ->
       with :ok <- lock_address(attrs.address),
            {:ok, reports} <-
              Autolaunch.list_treasury_security_reports(attrs.address, actor: nil) do
