@@ -37,6 +37,10 @@ defmodule Autolaunch.Auction do
 
     # Each public list reads its page straight off one of these in order.
     custom_indexes do
+      index [:activity_due_at, :id], name: "auctions_activity_due_index"
+      index [:estimated_end_at, :id], name: "auctions_ending_index"
+      index ["bid_volume_usd DESC NULLS LAST", "id"], name: "auctions_bid_volume_index"
+
       index ["opened_at DESC NULLS LAST", "inserted_at DESC", "id"],
         name: "auctions_public_newest_index"
 
@@ -48,6 +52,40 @@ defmodule Autolaunch.Auction do
   end
 
   actions do
+    read :activity_due do
+      argument :historical, :boolean, default: false
+
+      filter expr(
+               if ^arg(:historical),
+                 do: state in [:graduated, :failed],
+                 else: state not in [:graduated, :failed]
+             )
+
+      filter expr(is_nil(activity_due_at) or activity_due_at <= now())
+      prepare Autolaunch.Auction.Preparations.Listed
+
+      prepare build(
+                sort: [activity_due_at: :asc_nils_first, id: :asc],
+                limit: 1,
+                lock: :for_update
+              )
+    end
+
+    update :schedule_activity do
+      accept [:activity_due_at]
+    end
+
+    update :refresh_activity do
+      accept [
+        :activity_next_block,
+        :activity_last_hash,
+        :activity_due_at,
+        :bid_volume,
+        :bid_volume_usd,
+        :estimated_end_at
+      ]
+    end
+
     read :read do
       primary? true
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
@@ -64,14 +102,26 @@ defmodule Autolaunch.Auction do
     end
 
     read :home_market do
+      argument :x, :boolean, default: false
+      argument :ens, :boolean, default: false
+      argument :github, :boolean, default: false
       argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
       argument :view, :string, default: "active", constraints: [match: ~r/\A(active|new)\z/]
 
       argument :state, :string,
         default: "all",
-        constraints: [match: ~r/\A(all|created|active|ended|failed)\z/]
+        constraints: [match: ~r/\A(all|created|active|ended|failed|graduated)\z/]
 
-      argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
+      argument :sort, :string,
+        default: "newest",
+        constraints: [match: ~r/\A(newest|oldest|ending|volume)\z/]
+
+      argument :chain, :string, default: "all", constraints: [match: ~r/\A(all|base|robinhood)\z/]
+
+      argument :kind, :string,
+        default: "all",
+        constraints: [match: ~r/\A(all|revstake|memestake)\z/]
+
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
       prepare Autolaunch.Auction.Preparations.Listed
 
@@ -79,7 +129,7 @@ defmodule Autolaunch.Auction do
         states =
           if query.arguments.view == "active",
             do: [:created, :active, :ended],
-            else: [:created, :active, :ended, :failed]
+            else: [:created, :active, :ended, :failed, :graduated]
 
         states =
           Enum.filter(
@@ -87,12 +137,62 @@ defmodule Autolaunch.Auction do
             &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state)
           )
 
-        direction = if query.arguments.sort == "oldest", do: :asc, else: :desc
+        query =
+          case query.arguments.chain do
+            "base" ->
+              Ash.Query.filter(query, chain_id == ^Autolaunch.Lab.chain_id())
+
+            "robinhood" ->
+              Ash.Query.filter(query, chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
+
+            "all" ->
+              query
+          end
+
+        query =
+          case query.arguments.kind do
+            "revstake" -> Ash.Query.filter(query, kind == :agent)
+            "memestake" -> Ash.Query.filter(query, kind == :stocks)
+            "all" -> query
+          end
+
+        query =
+          if query.arguments.x,
+            do:
+              Ash.Query.filter(
+                query,
+                exists(creator_x_connections, not is_nil(verified_at)) or
+                  exists(creator_identities, provider == :x)
+              ),
+            else: query
+
+        query =
+          if query.arguments.ens,
+            do: Ash.Query.filter(query, exists(creator_identities, provider == :ens)),
+            else: query
+
+        query =
+          if query.arguments.github,
+            do: Ash.Query.filter(query, exists(creator_identities, provider == :github)),
+            else: query
+
+        order =
+          case query.arguments.sort do
+            "oldest" -> [inserted_at: :asc, id: :asc]
+            "ending" -> [estimated_end_at: :asc_nils_last, id: :asc]
+            "volume" -> [bid_volume_usd: :desc_nils_last, id: :asc]
+            _ -> [inserted_at: :desc, id: :asc]
+          end
+
+        query =
+          if query.arguments.sort == "ending",
+            do: Ash.Query.filter(query, state == :active),
+            else: query
 
         query
         |> market_query(states, nil)
         |> Ash.Query.unset([:sort, :limit])
-        |> Ash.Query.sort([{:inserted_at, direction}, {:id, :asc}])
+        |> Ash.Query.sort(order)
       end
     end
 
@@ -313,6 +413,10 @@ defmodule Autolaunch.Auction do
   end
 
   policies do
+    policy action([:activity_due, :schedule_activity, :refresh_activity]) do
+      authorize_if Autolaunch.Checks.SystemActor
+    end
+
     policy action([
              :read,
              :listed,
@@ -368,6 +472,7 @@ defmodule Autolaunch.Auction do
     transform fn notification -> {:autolaunch_listings_changed, notification.data.id} end
 
     publish_all :create, "listings"
+    publish :refresh_activity, "listings"
     publish :set_bid_terms, "listings"
     publish :set_treasury_security_report, "listings"
 
@@ -379,6 +484,12 @@ defmodule Autolaunch.Auction do
   end
 
   attributes do
+    attribute :activity_next_block, :integer
+    attribute :activity_last_hash, :string
+    attribute :activity_due_at, :utc_datetime_usec
+    attribute :bid_volume, :decimal, public?: true
+    attribute :bid_volume_usd, :decimal, public?: true
+    attribute :estimated_end_at, :utc_datetime_usec, public?: true
     uuid_primary_key :id
 
     attribute :title, :string do
@@ -530,6 +641,11 @@ defmodule Autolaunch.Auction do
       allow_nil? true
       attribute_public? true
       attribute_type :integer
+    end
+
+    has_many :creator_identities, Autolaunch.Accounts.LinkedIdentity do
+      source_attribute :creator_human_account_id
+      destination_attribute :human_account_id
     end
 
     has_many :creator_x_connections, Autolaunch.Accounts.XConnection do

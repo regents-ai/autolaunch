@@ -58,6 +58,8 @@ defmodule Autolaunch.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
+      {:ens_elixir,
+       path: System.get_env("REGENT_ENS_PATH", Path.join(shared, "elixir-utils/ens"))},
       {:regent_privy,
        path: System.get_env("REGENT_PRIVY_PATH", Path.join(shared, "elixir-utils/privy"))},
       {:regent_identity,

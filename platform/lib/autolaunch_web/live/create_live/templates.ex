@@ -3,7 +3,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   use AutolaunchWeb, :html
 
   import AutolaunchWeb.Components.MarketCard
-  import AutolaunchWeb.Components.XConnections
 
   alias Autolaunch.LaunchDraft
 
@@ -205,11 +204,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             {if @image_notice, do: @image_notice.message}
           </p>
 
-          <.x_connections
-            id="autolaunch-create-x-connections"
-            connections={@x_connections}
-            enabled={@x_oauth_enabled}
-            compact
+          <.live_component
+            module={AutolaunchWeb.CreatorConnectionsComponent}
+            id="creator-connections"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
           />
 
           <form

@@ -76,7 +76,9 @@ The expected layout is `<workspace>/<product>/platform`,
 `<workspace>/regents/identity`.
 From this component directory, `REGENT_DEPS_ROOT` may point at `<workspace>` when
 it is elsewhere. Individual packages may instead be selected with `REGENT_UI_PATH`,
-`REGENT_PRIVY_PATH` and `REGENT_IDENTITY_PATH`. Record all three repository commit IDs with check results;
+`REGENT_PRIVY_PATH`, `REGENT_IDENTITY_PATH`, `REGENT_BLOG_PATH` and `REGENT_ENS_PATH`.
+ENS uses `elixir-utils/ens` and its sibling SIWA package at
+`elixir-utils/siwa/siwa-elixir/apps/siwa`. Record the selected repository commit IDs with check results;
 release builds and isolated agent worktrees must use their selected immutable
 revisions, rather than updating sibling checkouts during verification.
 Do not clone recursive Solidity submodules for a web-only change.
@@ -204,7 +206,7 @@ fly deploy --app autolaunch-sh --config fly.toml \
 does not.
 
 The image is built from `Dockerfile`. The context contains the application and
-three selected shared packages; Docker installs `mix.lock` and `package-lock.json`
+the selected shared packages below; Docker installs `mix.lock` and `package-lock.json`
 dependencies for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
 `fly.staging.toml` (`autolaunch-staging`); `fly.preview.toml` (`autolaunch-preview`) and
@@ -217,6 +219,9 @@ Use clean dependency checkouts when preparing a release:
 - `REGENT_PRIVY_PATH` and `REGENT_PRIVY_REVISION`: `elixir-utils/privy` and its repository commit.
 - `REGENT_IDENTITY_PATH` and `REGENT_IDENTITY_REVISION`: `regents/identity` and its repository commit.
 - `REGENT_UI_PATH` and `REGENT_UI_REVISION`: `design-system/regent_ui` and its repository commit.
+- `REGENT_BLOG_PATH` and `REGENT_BLOG_REVISION`: `elixir-utils/blog` and its repository commit.
+- `REGENT_ENS_PATH` and `REGENT_ENS_REVISION`: `elixir-utils/ens` and its repository commit.
+- `REGENT_SIWA_PATH` and `REGENT_SIWA_REVISION`: `elixir-utils/siwa/siwa-elixir/apps/siwa` and its repository commit.
 
 ```sh
 bash scripts/build-release-context.sh /absolute/new-context arm64
@@ -229,6 +234,31 @@ build tools. `BUILD-INPUTS.txt` records shared revisions and lockfile hashes.
 Existing destinations are refused, so interruption or a repeated command cannot
 remove an earlier context. Build and run the exact image before release; local
 source tests alone do not verify Linux native dependencies or production sign-in.
+
+### Creator connections and bid activity
+
+The creator form connects X through the existing X OAuth configuration, GitHub
+through the configured Privy application, and ENS through an Ethereum read.
+ENS must be controlled by and resolve to the signed-in wallet. The optional
+`:ens_rpc_url` application setting defaults to `https://ethereum.publicnode.com`.
+No resolver write or wallet signature is made to connect an ENS name.
+
+Auction and token lists filter these verified connections in PostgreSQL before
+cursor pagination. Selected connections combine with AND. Auction volume ordering
+uses confirmed bid commitments valued at the latest available USD price; it is
+not net funds raised or a historical execution price. Unknown or incomplete totals
+sort last. Closing time is estimated from the contract's block clock.
+
+Migration `20260924134726_auction_activity` adds the bid projection and indexed
+auction totals. When the site is open and database startup is enabled, a bounded
+reader updates those rows and notifies LiveViews. Separate live and historical
+queues advance persisted cursors without a lifetime auction cap. The footer shows
+up to 20 confirmed bids from the last hour, with pause and reduced-motion support;
+it stays absent when none are available. A changed cursor block invalidates that
+auction's derived bids for replay. This reader does not submit transactions.
+
+See [the candidate handoff](docs/astra-user-journeys-2026-09-24.md) for local
+verification and the remaining release checks.
 
 ### Environment
 

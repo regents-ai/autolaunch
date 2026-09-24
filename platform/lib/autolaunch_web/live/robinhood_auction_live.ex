@@ -146,6 +146,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             id="autolaunch-robinhood-bid"
             auction={@auction}
             ended={ended_copy(@launch)}
+            token_symbol={@launch.token_symbol}
+            stake_path={
+              if @launch.state == :graduated, do: "/robinhood/tokens/#{@launch.token_address}#stake"
+            }
             book={(@book.ok? && @book.result) || nil}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}

@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="home-coin__meta">
         <a
           :if={@view.connections != []}
-          href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
+          href={hd(@view.connections).url}
           target="_blank"
           rel="noopener noreferrer"
         >{@view.creator}</a>
@@ -87,6 +87,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span class={["home-coin__status", graduated(@view.status)]}>{@view.status}</span>
         <span :if={@view.chain == "Robinhood"} class="home-coin__status">Robinhood</span>
       </div>
+      <.card_socials connections={@view.connections} compact />
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
       <.quick_actions
         :if={@trade_event && @view.quick}
@@ -179,7 +180,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <dt>Creator</dt>
           <dd>
             <a
-              href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
+              href={hd(@view.connections).url}
               target="_blank"
               rel="noopener noreferrer"
             >{@view.creator}</a>
@@ -193,6 +194,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         name={@view.name}
         quick={@view.quick}
       />
+      <.card_socials connections={@view.connections} compact />
       <.link :if={!@view.quick} navigate={@view.path} class="auction-card__more">
         View auction <span aria-hidden="true">→</span>
       </.link>
@@ -233,7 +235,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <td data-label="Creator">
         <a
           :if={@view.connections != []}
-          href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
+          href={hd(@view.connections).url}
           target="_blank"
           rel="noopener noreferrer"
         >{@view.creator}</a><span :if={@view.connections == []}>—</span>
@@ -395,6 +397,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :connections, :list, required: true
   attr :website, :string, default: nil
+  attr :compact, :boolean, default: false
 
   # A website shows only as an ordinary web link; anything else a launch
   # recorded there is left off the page.
@@ -412,11 +415,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </a>
       <a
         :for={connection <- @connections}
-        href={"https://x.com/#{URI.encode_www_form(connection.username)}"}
+        href={connection.url}
+        title={connection.username}
+        aria-label={"#{connection.label}: #{connection.username}"}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
       >
-        <span>{role_label(connection.role)}</span> @{connection.username}
+        <span>{connection.label}</span><span :if={!@compact}>{connection.username}</span>
       </a>
     </div>
     """
@@ -586,25 +591,35 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
   defp connection_list(connections) when is_map(connections) do
-    [:profile, :company]
-    |> Enum.map(&Map.get(connections, &1))
-    |> Enum.filter(&verified?/1)
-    |> Enum.uniq_by(& &1.x_user_id)
+    [:profile, :company, :x, :ens, :github]
+    |> Enum.flat_map(fn key ->
+      case Map.get(connections, key) do
+        %{verified_at: %DateTime{}, username: name} when is_binary(name) and name != "" ->
+          {label, base} =
+            case key do
+              :ens -> {"ENS", "https://app.ens.domains/"}
+              :github -> {"GitHub", "https://github.com/"}
+              :company -> {"Company X", "https://x.com/"}
+              _ -> {"X", "https://x.com/"}
+            end
+
+          [%{username: name, label: label, url: base <> URI.encode_www_form(name)}]
+
+        _ ->
+          []
+      end
+    end)
+    |> Enum.uniq_by(& &1.url)
   end
 
   defp connection_list(_connections), do: []
-
-  defp verified?(%{verified_at: %DateTime{}, username: username}) when is_binary(username),
-    do: true
-
-  defp verified?(_connection), do: false
 
   defp creator_name(connections) do
     connections
     |> connection_list()
     |> List.first()
     |> case do
-      %{username: username} -> "@" <> username
+      %{username: username} -> username
       _ -> nil
     end
   end
@@ -640,7 +655,4 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
   defp present(value, fallback), do: if(present?(value), do: value, else: fallback)
-
-  defp role_label(:profile), do: "Creator"
-  defp role_label(:company), do: "Company"
 end

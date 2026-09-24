@@ -43,12 +43,60 @@ defmodule Autolaunch.Token do
     end
 
     read :home_market do
+      argument :x, :boolean, default: false
+      argument :ens, :boolean, default: false
+      argument :github, :boolean, default: false
       argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
       argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
+      argument :chain, :string, default: "all", constraints: [match: ~r/\A(all|base|robinhood)\z/]
+
+      argument :kind, :string,
+        default: "all",
+        constraints: [match: ~r/\A(all|revstake|memestake)\z/]
+
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
       prepare Autolaunch.Token.Preparations.ListedAuction
 
       prepare fn query, _context ->
+        query =
+          case query.arguments.chain do
+            "base" ->
+              Ash.Query.filter(query, auction.chain_id == ^Autolaunch.Lab.chain_id())
+
+            "robinhood" ->
+              Ash.Query.filter(query, auction.chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
+
+            "all" ->
+              query
+          end
+
+        query =
+          case query.arguments.kind do
+            "revstake" -> Ash.Query.filter(query, auction.kind == :agent)
+            "memestake" -> Ash.Query.filter(query, auction.kind == :stocks)
+            "all" -> query
+          end
+
+        query =
+          if query.arguments.x,
+            do:
+              Ash.Query.filter(
+                query,
+                exists(auction.creator_x_connections, not is_nil(verified_at)) or
+                  exists(auction.creator_identities, provider == :x)
+              ),
+            else: query
+
+        query =
+          if query.arguments.ens,
+            do: Ash.Query.filter(query, exists(auction.creator_identities, provider == :ens)),
+            else: query
+
+        query =
+          if query.arguments.github,
+            do: Ash.Query.filter(query, exists(auction.creator_identities, provider == :github)),
+            else: query
+
         direction = if query.arguments.sort == "oldest", do: :asc, else: :desc
 
         query

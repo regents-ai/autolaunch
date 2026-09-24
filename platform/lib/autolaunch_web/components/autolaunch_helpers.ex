@@ -30,9 +30,25 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       |> Enum.filter(&is_integer/1)
       |> Enum.uniq()
 
-    case XOAuth.public_for_humans(ids) do
-      {:ok, connections} -> group_x_connections(connections)
-      {:error, _reason} -> %{}
+    x =
+      case XOAuth.public_for_humans(ids) do
+        {:ok, connections} -> group_x_connections(connections)
+        {:error, _reason} -> %{}
+      end
+
+    case Autolaunch.Accounts.list_public_linked_identities(ids, actor: nil) do
+      {:ok, identities} ->
+        Enum.reduce(identities, x, fn identity, grouped ->
+          Map.update(
+            grouped,
+            identity.human_account_id,
+            %{identity.provider => identity},
+            &Map.put(&1, identity.provider, identity)
+          )
+        end)
+
+      {:error, _reason} ->
+        x
     end
   end
 
@@ -74,7 +90,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <nav class="market-route-tabs" aria-label="Market collections">
           <.link navigate="/auctions" aria-current={if @kind == :auctions, do: "page"}>Auctions</.link>
           <.link navigate="/tokens" aria-current={if @kind == :tokens, do: "page"}>Tokens</.link>
-          <.link navigate="/" class="market-route-tabs__explore">Explore all</.link>
+          <.link navigate={"/?view=#{@kind}"} class="market-route-tabs__explore">Search and filter</.link>
         </nav>
       </header>
       <section

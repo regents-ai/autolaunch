@@ -82,6 +82,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         aria-labelledby="stocks-draft-title"
       >
         <div class="launchpad-create__form-column">
+          <.live_component
+            module={AutolaunchWeb.CreatorConnectionsComponent}
+            id="creator-connections"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+          />
           <form
             id="stocks-token-details"
             phx-change="autosave_stocks_token_details"

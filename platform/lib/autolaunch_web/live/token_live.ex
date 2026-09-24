@@ -20,7 +20,9 @@ defmodule AutolaunchWeb.TokenLive do
 
   # The identifier is read here so a patch to another token reloads the page
   # instead of keeping the previous record on screen.
-  def handle_params(%{"token_id" => id}, _uri, socket) do
+  def handle_params(%{"token_id" => id} = params, _uri, socket) do
+    amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
+    socket = assign(socket, :stake_amount, amount)
     {:noreply, socket |> assign(:record_id, id) |> load_page()}
   end
 
@@ -50,6 +52,9 @@ defmodule AutolaunchWeb.TokenLive do
 
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> refresh()}
+
+  # LabMarket subscribes to both networks; this page represents a Base token.
+  def handle_info({:robinhood_market_updated, _update}, socket), do: {:noreply, socket}
 
   def render(assigns) do
     page_record = page_record(assigns.page)
@@ -109,16 +114,20 @@ defmodule AutolaunchWeb.TokenLive do
         <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token graduated from</.link>
       </p>
       <.pool_facts pool={@pool} />
-      <.live_component
-        :if={@pool.ok?}
-        module={AutolaunchWeb.StakeComponent}
-        id={"token-stake-#{@page_record.id}"}
-        launch={%{chain: :base, auction: @page_record.auction}}
-        pool={@pool.result}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
+      <section id="stake" aria-label="Staking">
+        <.live_component
+          :if={@pool.ok?}
+          module={AutolaunchWeb.StakeComponent}
+          id={"token-stake-#{@page_record.id}"}
+          launch={%{chain: :base, auction: @page_record.auction}}
+          pool={@pool.result}
+          initial_amount={@stake_amount}
+          token_path={"/tokens/#{@page_record.id}"}
+          authenticated={@account_control.kind == :signed_in}
+          current_human_id={current_human_id(@access_context)}
+          session_lease={@session_lease}
+        />
+      </section>
       <.live_component
         :if={@pool.ok? && @pool.result.kind == :stocks}
         module={AutolaunchWeb.ConvertComponent}

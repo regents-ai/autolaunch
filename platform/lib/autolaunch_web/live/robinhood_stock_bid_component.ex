@@ -68,6 +68,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      socket
      |> assign(assigns)
      |> assign_new(:ended, fn -> nil end)
+     |> assign_new(:stake_path, fn -> nil end)
+     |> assign_new(:token_symbol, fn -> "tokens" end)
      |> assign_new(:book, fn -> nil end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
@@ -307,7 +309,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <p>
                 Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
-                · {bid_state(bid, @book)}
+                · {bid_state(bid, @book, @reading)}
               </p>
               <.live_component
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
@@ -316,6 +318,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
                 auction={@auction}
                 bid={bid}
                 graduated?={@reading.graduated?}
+                stake_path={@stake_path}
+                token_symbol={@token_symbol}
                 usd_rate={@usd_rate}
                 wallet={@wallet}
                 current_human_id={@current_human_id}
@@ -548,12 +552,20 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp window_copy(_reading), do: "Ended."
 
-  defp bid_state(%{"exited_block" => "0"}, nil), do: "In the auction"
+  defp bid_state(%{"exited_block" => block, "tokens_filled_now" => filled}, _book, _reading)
+       when block != "0" do
+    if filled != "0", do: "Bid settled · tokens allocated", else: "Bid settled"
+  end
 
-  defp bid_state(%{"exited_block" => "0", "max_price_q96" => price}, book),
+  defp bid_state(_bid, _book, %{clock: clock, window: %{"end_block" => end_block}})
+       when clock >= end_block, do: "Bidding ended · review your return and token allocation"
+
+  defp bid_state(%{"exited_block" => "0"}, nil, _reading), do: "In the auction"
+
+  defp bid_state(%{"exited_block" => "0", "max_price_q96" => price}, book, _reading),
     do: price |> String.to_integer() |> AuctionBook.standing(book) |> Book.bid_status()
 
-  defp bid_state(%{"exited_block" => block}, _book), do: "Exited at block #{block}"
+  defp bid_state(%{"exited_block" => block}, _book, _reading), do: "Exited at block #{block}"
 
   attr :outlook, :map, default: nil
   attr :book, :map, default: nil

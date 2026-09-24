@@ -113,6 +113,7 @@ defmodule AutolaunchWeb.SwapComponent do
         :if={@swapped}
         id={"#{@id}-swapped"}
         swapped={@swapped}
+        stake_href={@swapped["stake_href"]}
         dismiss_event="dismiss_swapped"
         target={@myself}
       />
@@ -361,6 +362,13 @@ defmodule AutolaunchWeb.SwapComponent do
   defp read(socket, "swap", _hash, _attempts, {:ok, %{outcome: :confirmed, result: result}}) do
     send(self(), :reload_pool)
 
+    result =
+      if socket.assigns.review.envelope["arguments"]["direction"] == "buy" do
+        Map.put(result, "stake_href", purchased_stake_path(socket.assigns.launch, result))
+      else
+        result
+      end
+
     socket
     |> assign(amount: "", estimate: nil, notice: nil, swapped: result)
     |> closed()
@@ -455,6 +463,27 @@ defmodule AutolaunchWeb.SwapComponent do
   defp action(%{wallet: nil}), do: :connect_wallet
   defp action(%{amount: amount, error: nil}) when amount != "", do: :review
   defp action(_assigns), do: :enter_amount
+
+  defp purchased_stake_path(%{chain: :base, auction: auction}, result) do
+    case Autolaunch.get_public_token_by_auction(auction.id) do
+      {:ok, %{id: id}} ->
+        "/tokens/#{id}?" <> URI.encode_query(%{stake: result["received_units"]}) <> "#stake"
+
+      _ ->
+        nil
+    end
+  end
+
+  defp purchased_stake_path(%{chain: :robinhood, auction: address}, result) do
+    case Autolaunch.get_robinhood_auction(address) do
+      {:ok, %{token_address: token}} when is_binary(token) ->
+        "/robinhood/tokens/#{token}?" <>
+          URI.encode_query(%{stake: result["received_units"]}) <> "#stake"
+
+      _ ->
+        nil
+    end
+  end
 
   defp sell(%{direction: :buy, currency: currency}), do: currency
   defp sell(%{symbol: symbol}), do: symbol

@@ -57,7 +57,10 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   def handle_event("filter", params, socket) do
-    changes = %{sort: Map.get(params, "sort", "newest"), state: Map.get(params, "state", "all")}
+    changes =
+      Map.take(params, ~w(sort state chain kind x ens github))
+      |> Map.new(fn {key, value} -> {String.to_existing_atom(key), value} end)
+
     {:noreply, push_patch(socket, to: HomeMarket.path(socket.assigns.market_options, changes))}
   end
 
@@ -190,6 +193,10 @@ defmodule AutolaunchWeb.HomeLive do
     end)
   end
 
+  defp network_label("base"), do: "Base"
+  defp network_label("robinhood"), do: "Robinhood"
+  defp network_label(_), do: "Base + Robinhood"
+
   def render(assigns) do
     assigns =
       assign(assigns,
@@ -218,7 +225,9 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
         <span class="home-network" title="The network these listings belong to">
           <span aria-hidden="true" class="home-network__dot"></span>
-          {if @local_lab, do: "#{Autolaunch.ChainMode.label()} · test assets", else: "Base"}
+          {if @local_lab,
+            do: "#{Autolaunch.ChainMode.label()} · test assets",
+            else: network_label(@market_options.chain)}
         </span>
       </header>
 
@@ -229,24 +238,46 @@ defmodule AutolaunchWeb.HomeLive do
               <span class="visually-hidden">Sort coins</span>
               <select name="sort" aria-label="Sort coins">
                 <option value="newest" selected={@market_options.sort == "newest"}>
-                  Newest first
+                  Recently launched
+                </option>
+                <option
+                  :if={@market_options.view == "auctions"}
+                  value="ending"
+                  selected={@market_options.sort == "ending"}
+                >
+                  Closing soon · live auctions
+                </option>
+                <option
+                  :if={@market_options.view == "auctions"}
+                  value="volume"
+                  selected={@market_options.sort == "volume"}
+                >
+                  Highest bid volume · USD estimate
                 </option>
                 <option value="oldest" selected={@market_options.sort == "oldest"}>
                   Oldest first
                 </option>
               </select>
             </label>
-            <details :if={@market_options.view != "tokens"} class="home-filter">
+            <details
+              id="home-filters"
+              class="home-filter"
+              phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+            >
               <summary>
                 Filter<span
-                  :if={@market_options.state != "all"}
+                  :if={
+                    @market_options.state != "all" or @market_options.chain != "all" or
+                      @market_options.kind != "all" or @market_options.x or @market_options.ens or
+                      @market_options.github
+                  }
                   class="home-filter__active"
                   aria-label="Filter active"
                 ></span>
               </summary>
               <div class="home-filter__panel">
-                <label for="home-state">Auction state</label>
-                <select name="state" id="home-state">
+                <label :if={@market_options.view != "tokens"} for="home-state">Auction state</label>
+                <select :if={@market_options.view != "tokens"} name="state" id="home-state">
                   <option value="all" selected={@market_options.state == "all"}>
                     All auctions
                   </option>
@@ -263,8 +294,66 @@ defmodule AutolaunchWeb.HomeLive do
                   >
                     Failed
                   </option>
+                  <option value="graduated" selected={@market_options.state == "graduated"}>
+                    Graduated
+                  </option>
                 </select>
-                <.link patch={HomeMarket.path(@market_options, %{state: "all"})}>Reset filter</.link>
+                <label for="home-chain">Network</label>
+                <select name="chain" id="home-chain">
+                  <option
+                    :for={
+                      {value, label} <- [
+                        {"all", "All networks"},
+                        {"base", "Base"},
+                        {"robinhood", "Robinhood"}
+                      ]
+                    }
+                    value={value}
+                    selected={@market_options.chain == value}
+                  >
+                    {label}
+                  </option>
+                </select>
+                <label for="home-launch-kind">Auction type</label>
+                <select name="kind" id="home-launch-kind">
+                  <option
+                    :for={
+                      {value, label} <- [
+                        {"all", "All types"},
+                        {"revstake", "Revstake"},
+                        {"memestake", "Memestake"}
+                      ]
+                    }
+                    value={value}
+                    selected={@market_options.kind == value}
+                  >
+                    {label}
+                  </option>
+                </select>
+                <fieldset class="home-social-filters">
+                  <legend>Creator connections</legend>
+                  <label :for={{key, label} <- [x: "X", ens: "ENS", github: "GitHub"]}>
+                    <input type="hidden" name={key} value="false" />
+                    <input
+                      type="checkbox"
+                      name={key}
+                      value="true"
+                      checked={Map.fetch!(@market_options, key)}
+                    />
+                    {label}
+                  </label>
+                  <small>Match every selected connection.</small>
+                </fieldset>
+                <.link patch={
+                  HomeMarket.path(@market_options, %{
+                    state: "all",
+                    chain: "all",
+                    kind: "all",
+                    x: false,
+                    ens: false,
+                    github: false
+                  })
+                }>Reset filters</.link>
               </div>
             </details>
           </form>
@@ -278,6 +367,12 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
       </div>
 
+      <p :if={@market_options.sort == "volume"} class="home-search-context">
+        Confirmed bids, valued at the latest available currency price. Auctions awaiting indexing or a price appear last.
+      </p>
+      <p :if={@market_options.sort == "ending"} class="home-search-context">
+        Live auctions, ordered by estimated closing time. Timing follows each network's block clock.
+      </p>
       <div :if={@market_options.q != ""} class="home-search-context">
         <span>Results for “{@market_options.q}”</span>
         <.link patch={HomeMarket.path(@market_options, %{q: ""})}>Clear search</.link>
@@ -343,24 +438,47 @@ defmodule AutolaunchWeb.HomeLive do
           role="status"
         >
           <h2>
-            {if @market_options.q != "" or @market_options.state != "all",
-              do: "No matching coins",
-              else: "No coins in this category yet"}
+            {if @market_options.q != "" or
+                  (@market_options.state != "all" or @market_options.chain != "all" or
+                     @market_options.kind != "all" or @market_options.x or @market_options.ens or
+                     @market_options.github),
+                do: "No matching coins",
+                else: "No coins in this category yet"}
           </h2>
           <p>
-            {if @market_options.q != "" or @market_options.state != "all",
-              do: "Try a different name, symbol, address or creator—or clear your filters.",
-              else: "New auctions and graduated tokens will appear here as they become available."}
+            {if @market_options.q != "" or
+                  (@market_options.state != "all" or @market_options.chain != "all" or
+                     @market_options.kind != "all" or @market_options.x or @market_options.ens or
+                     @market_options.github),
+                do: "Try a different name, symbol, address or creator—or clear your filters.",
+                else: "New auctions and graduated tokens will appear here as they become available."}
           </p>
           <.link
-            :if={@market_options.q != "" or @market_options.state != "all"}
-            patch={HomeMarket.path(@market_options, %{q: "", state: "all"})}
+            :if={
+              @market_options.q != "" or
+                (@market_options.state != "all" or @market_options.chain != "all" or
+                   @market_options.kind != "all" or @market_options.x or @market_options.ens or
+                   @market_options.github)
+            }
+            patch={
+              HomeMarket.path(@market_options, %{
+                q: "",
+                state: "all",
+                chain: "all",
+                kind: "all",
+                x: false,
+                ens: false,
+                github: false
+              })
+            }
             class="rg-button rg-button--secondary"
           >Clear filters</.link>
           <Regent.Primitives.button
             :if={
               Autolaunch.Prelaunch.read_only?() && @market_options.q == "" &&
-                @market_options.state == "all"
+                @market_options.state == "all" && @market_options.chain == "all" &&
+                @market_options.kind == "all" && !@market_options.x && !@market_options.ens &&
+                !@market_options.github
             }
             disabled
             title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
@@ -368,7 +486,9 @@ defmodule AutolaunchWeb.HomeLive do
           <.link
             :if={
               !Autolaunch.Prelaunch.read_only?() && @market_options.q == "" &&
-                @market_options.state == "all"
+                @market_options.state == "all" && @market_options.chain == "all" &&
+                @market_options.kind == "all" && !@market_options.x && !@market_options.ens &&
+                !@market_options.github
             }
             navigate="/create"
             class="rg-button rg-button--primary"

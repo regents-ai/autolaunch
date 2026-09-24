@@ -65,6 +65,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
+     |> assign_new(:after_claim, fn -> :wallet end)
+     |> assign(:stake_path, stake_path(assigns.position.auction))
      |> assign_usd_rate()}
   end
 
@@ -121,7 +123,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         </div>
         <div>
           <dt>Wallet</dt>
-          <dd class="bid-mono">{short(@position.owner_address)}</dd>
+          <dd class="autolaunch-exact-value">{@position.owner_address}</dd>
         </div>
         <div>
           <dt>Updated</dt>
@@ -138,6 +140,16 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       </p>
 
       <p :for={reason <- reasons(@position, @market, @auction)} role="status">{reason}</p>
+      <p :if={@auction.state == :failed && @position.status == "returnable"}>
+        The auction for {@auction.token_symbol} did not meet its minimum raise. Your bid returns in {@auction.quote_token_symbol} to the wallet shown above.
+      </p>
+      <.link
+        :if={@stake_path && positive?(@position.tokens_claimed)}
+        navigate={@stake_path}
+        class="rg-button rg-button--primary"
+      >
+        {stake_label(@auction)} {@auction.token_symbol}
+      </.link>
 
       <p :if={@actions != [] && !@authenticated} class="bid-empty">Sign in to settle this bid.</p>
 
@@ -160,6 +172,16 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         >
           {label}
         </Regent.Primitives.button>
+        <Regent.Primitives.button
+          :if={@stake_path && @position.status == "claimable"}
+          type="button"
+          phx-click="review_settlement"
+          phx-value-after="stake"
+          phx-target={@myself}
+          variant="secondary"
+        >
+          {stake_label(@auction)} {@auction.token_symbol}
+        </Regent.Primitives.button>
       </div>
 
       <section
@@ -168,6 +190,10 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         class="bid-review"
         aria-label="Settlement review"
       >
+        <p :if={@after_claim == :stake}>
+          First claim to your wallet, then continue to staking. Your wallet confirms each step. Tokens are not locked.
+        </p>
+        <p class="autolaunch-exact-value">Receiving wallet: {@position.owner_address}</p>
         <dl>
           <div :if={argument(@operation, "currency_refunded")}>
             <dt>Returned to you</dt>
@@ -302,7 +328,10 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   def handle_event("settlement_active_wallet", %{"address" => address}, socket),
     do: {:noreply, assign(socket, wallet: normalized(address), notice: nil)}
 
-  def handle_event("review_settlement", _params, socket) do
+  def handle_event("review_settlement", params, socket) do
+    socket =
+      assign(socket, :after_claim, if(params["after"] == "stake", do: :stake, else: :wallet))
+
     {:noreply,
      socket.assigns.position.id
      |> BidSettlementActions.prepare(socket.assigns.wallet, opts(socket))
@@ -322,13 +351,24 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   # The exact action the position's status admits. A failed auction returns
   # the whole bid; a graduated one returns what the fill did not spend.
+  defp stake_path(%{state: :graduated, id: id}) do
+    case Autolaunch.get_public_token_by_auction(id) do
+      {:ok, %{id: token_id}} -> "/tokens/#{token_id}#stake"
+      _ -> nil
+    end
+  end
+
+  defp stake_path(_auction), do: nil
+  defp stake_label(%{kind: :agent}), do: "Revstake"
+  defp stake_label(_auction), do: "Memestake"
+
   defp actions(%{status: "returnable"}, %{state: :failed, quote_token_symbol: symbol}),
     do: ["Return #{symbol}"]
 
   defp actions(%{status: "returnable"}, %{quote_token_symbol: symbol}),
     do: ["Return unspent #{symbol}"]
 
-  defp actions(%{status: "claimable"}, %{token_symbol: symbol}), do: ["Claim #{symbol} tokens"]
+  defp actions(%{status: "claimable"}, %{token_symbol: symbol}), do: ["Claim #{symbol} to wallet"]
   defp actions(_position, _auction), do: []
 
   # The reason nothing can be done yet, from the auction's own blocks.
@@ -383,6 +423,25 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   # A verified step changed the stored position, so the page that owns the
   # card reloads it; the card itself never guesses a status.
+  defp notify_settled(
+         %{
+           assigns: %{
+             operation: %{state: :confirmed, step: :claim},
+             after_claim: :stake,
+             stake_path: path
+           }
+         } = socket
+       )
+       when is_binary(path) do
+    amount = argument(socket.assigns.operation, "tokens_claimed") || ""
+
+    path =
+      String.replace_suffix(path, "#stake", "?" <> URI.encode_query(%{stake: amount}) <> "#stake")
+
+    send(self(), {:stake_claimed_tokens, path})
+    assign(socket, after_claim: :wallet)
+  end
+
   defp notify_settled(%{assigns: %{operation: %{state: :confirmed}}} = socket),
     do: refreshed(socket)
 
@@ -427,19 +486,21 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       )
 
   defp send_label(%{step: :exit} = operation),
-    do: "Return #{unspent(operation)}#{argument(operation, "currency_symbol")}"
+    do:
+      "Withdraw #{argument(operation, "currency_refunded")} #{argument(operation, "currency_symbol")}"
 
   defp send_label(%{step: :claim} = operation),
-    do: "Claim #{argument(operation, "token_symbol")} tokens"
+    do: "Claim #{argument(operation, "token_symbol")} to wallet"
 
   # A failed auction returns the whole bid; a graduated one returns what the
   # fill did not spend.
   defp unspent(operation), do: if(argument(operation, "graduated"), do: "unspent ", else: "")
 
   defp step_label("exit", operation),
-    do: "Return #{unspent(operation)}#{argument(operation, "currency_symbol")}"
+    do: "Withdraw #{unspent(operation)}#{argument(operation, "currency_symbol")}"
 
-  defp step_label("claim", operation), do: "Claim #{argument(operation, "token_symbol")} tokens"
+  defp step_label("claim", operation),
+    do: "Claim #{argument(operation, "token_symbol")} to wallet"
 
   defp step_state(%{step: step} = operation, step_name) do
     cond do
@@ -511,9 +572,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp compact(value) when is_binary(value) and value != "", do: Amounts.compact_decimal(value)
   defp compact(_value), do: "—"
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
