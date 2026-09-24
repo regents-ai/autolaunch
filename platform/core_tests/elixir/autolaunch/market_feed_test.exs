@@ -330,6 +330,7 @@ defmodule Autolaunch.MarketFeedTest do
       Autolaunch.record_launch_auction(
         %{
           kind: :stocks,
+          origin: :site,
           featured: false,
           current_clearing_price: "0",
           chain_id: 8453,

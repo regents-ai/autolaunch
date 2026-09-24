@@ -4,8 +4,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   Preparation reads the local Robinhood lab once and returns the whole reviewed
   sequence as a single immutable envelope: the one `launch(LaunchParams)` call.
-  Nothing is written anywhere. The chain is the only record of what a wallet
-  launched: confirmation reads the canonical receipt through
+  The review is stored (`Autolaunch.Robinhood.LaunchReview`) so the market feed
+  can tell this site's launches from launches seen only on chain. Confirmation
+  reads the canonical receipt through
   `Autolaunch.Robinhood.StocksLaunchChainClient`, and a wallet's launches are the
   launchpad's own `StockLaunchCreated` records for that wallet.
 
@@ -90,8 +91,27 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          {:ok, config} <- robinhood_lab(),
          {:ok, snapshot} <- snapshot(fields.stock),
          {:ok, executable} <- executable(fields, snapshot),
+         {:ok, _review} <- record_review(actor, signer, fields, executable),
          do: {:ok, build(draft, fields, executable, signer, snapshot, config)}
   end
+
+  # The launch this review would carry out, kept so the market feed knows it
+  # as this site's launch whether or not the browser reports it back.
+  defp record_review(%Human{human_account_id: account_id}, signer, fields, executable),
+    do:
+      Autolaunch.record_robinhood_launch_review(
+        %{
+          chain_id: Lab.chain_id(),
+          signer: String.downcase(signer),
+          human_account_id: account_id,
+          name: fields.name,
+          symbol: fields.symbol,
+          stock: String.downcase(fields.stock),
+          required_stock_raised: Integer.to_string(executable.required_stock_raised),
+          floor_price_q96: Integer.to_string(executable.floor_price_q96)
+        },
+        actor: %Autolaunch.Actors.System{}
+      )
 
   @doc """
   Reads the sent launch back from the chain for the signed-in wallet. The

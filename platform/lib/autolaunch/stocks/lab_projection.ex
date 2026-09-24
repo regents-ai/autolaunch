@@ -35,6 +35,7 @@ defmodule Autolaunch.Stocks.LabProjection do
       current_clearing_price: "0",
       chain_id: chain_id,
       auction_address: result["auction"],
+      origin: :site,
       creator_human_account_id: Map.get(operation, :human_account_id),
       title: arguments["name"],
       summary: arguments["description"],

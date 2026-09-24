@@ -16,6 +16,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   @graduated_auction "0x7000000000000000000000000000000000000007"
   @splitter "0x8000000000000000000000000000000000000008"
   @token "0x6000000000000000000000000000000000000006"
+  @floor 7 * 2 ** 96
 
   defmodule Chain do
     @moduledoc """
@@ -64,12 +65,16 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   setup do
     creator = TestSupport.register_creator!()
 
+    # The site prepared launch 1 for this creator; nothing else was prepared
+    # here, and no browser ever reports a launch in these tests.
+    review(creator, "Launch 1", "L1")
+
     Chain.put(%{
       down?: false,
       clock: 250,
       prices: %{},
       launches: [
-        # A checksummed launcher still names its creator.
+        # A checksummed launcher still matches its review.
         launch(
           1,
           @site_auction,
@@ -88,9 +93,10 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     %{creator: creator}
   end
 
-  test "every launchpad record becomes one row, and replaying it changes nothing", %{
-    creator: creator
-  } do
+  test "every launchpad record becomes one row, the site's own marked apart, and replaying it changes nothing",
+       %{
+         creator: creator
+       } do
     assert {:ok, first} =
              MarketFeed.poll(Chain, %{
                watch: MarketWatch.new(),
@@ -106,7 +112,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     site = Enum.find(rows, &(&1.auction_address == @site_auction))
     outside = Enum.find(rows, &(&1.auction_address == @outside_auction))
 
-    assert %{kind: :stocks, state: :ended, minimum_reached: true} = site
+    assert %{kind: :stocks, origin: :site, state: :ended, minimum_reached: true} = site
     assert site.creator_human_account_id == creator.id
     assert site.quote_token_symbol == "TSLA"
     assert site.required_currency_raised == "1000"
@@ -117,7 +123,8 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert %{token_address: @token, launch_id: 1, start_block: 100, end_block: 200} = site
     assert %{token_address: @token, launch_id: 2, start_block: 100, end_block: 200} = outside
 
-    assert %{state: :failed, minimum_reached: false, creator_human_account_id: nil} = outside
+    assert %{origin: :chain, state: :failed, minimum_reached: false} = outside
+    assert outside.creator_human_account_id == nil
 
     # The next poll reads no record twice; a restarted feed reads them all
     # again, and neither duplicates a row nor moves a state back.
@@ -210,6 +217,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   test "a row another writer wrote first keeps its details and state" do
     first = %{
       kind: :stocks,
+      origin: :site,
       chain_id: @chain_id,
       auction_address: @site_auction,
       title: "Written first",
@@ -287,11 +295,12 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert [%{id: base_id, state: :active}] = base_rows()
     assert base_id == base.id
 
-    # The public list carries the Robinhood rows as last stored, beside Base.
+    # The public list carries the site's Robinhood launch as last stored,
+    # beside Base; the launch seen only on chain is stored but not listed.
     listed = Autolaunch.page_public_auctions!("all", "newest", actor: nil)
+    site = Enum.find(rows, &(&1.auction_address == @site_auction))
 
-    assert Enum.sort(Enum.map(listed.results, & &1.id)) ==
-             Enum.sort([base.id | Enum.map(rows, & &1.id)])
+    assert Enum.sort(Enum.map(listed.results, & &1.id)) == Enum.sort([base.id, site.id])
   end
 
   test "a launch that graduates gets exactly one token, and a failed one gets none" do
@@ -432,8 +441,54 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       start_block: 100,
       end_block: 200,
       required: 1_000,
+      floor_price_q96: @floor,
       lifecycle: lifecycle
     }
+  end
+
+  test "a launch from a creator's wallet that no review of this site prepared is seen on chain only",
+       %{creator: creator} do
+    # The same wallet launches again, directly, with terms it never reviewed
+    # here.
+    direct = %{
+      launch(3, @graduated_auction, creator.wallet_address)
+      | floor_price_q96: @floor + 1
+    }
+
+    Chain.put(%{
+      Chain.chain()
+      | launches: Chain.chain().launches ++ [direct],
+        markets: Map.put(Chain.chain().markets, @graduated_auction, market(3, 1, false))
+    })
+
+    assert {:ok, _poll} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
+
+    assert %{origin: :chain, creator_human_account_id: nil} = row(@graduated_auction)
+    assert %{origin: :site} = row(@site_auction)
+
+    listed = Autolaunch.page_public_auctions!("all", "newest", actor: nil)
+    assert Enum.map(listed.results, & &1.auction_address) == [@site_auction]
+  end
+
+  defp review(creator, name, symbol) do
+    Autolaunch.record_robinhood_launch_review!(
+      %{
+        chain_id: @chain_id,
+        signer: String.downcase(creator.wallet_address),
+        human_account_id: creator.id,
+        name: name,
+        symbol: symbol,
+        stock: @stock.address,
+        required_stock_raised: "1000",
+        floor_price_q96: Integer.to_string(@floor)
+      },
+      actor: %System{}
+    )
   end
 
   defp market(launch_id, lifecycle, minimum_reached) do

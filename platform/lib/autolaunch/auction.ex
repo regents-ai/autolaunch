@@ -12,6 +12,7 @@ defmodule Autolaunch.Auction do
 
   @projection_accept [
     :kind,
+    :origin,
     :title,
     :summary,
     :token_symbol,
@@ -34,6 +35,10 @@ defmodule Autolaunch.Auction do
   postgres do
     table "auctions"
     repo Autolaunch.Repo
+
+    # Every auction stored before origins were recorded was launched through
+    # this site.
+    migration_defaults origin: "\"site\""
 
     # Each public list reads its page straight off one of these in order.
     custom_indexes do
@@ -427,6 +432,16 @@ defmodule Autolaunch.Auction do
       public? true
       default :agent
       constraints one_of: [:agent, :stocks]
+    end
+
+    # Where the launch came from: `:site` when this site prepared it (on Base,
+    # a review this site's account carried out; on Robinhood, a review stored
+    # when the site prepared it), `:chain` when it was only seen on chain.
+    # Only site launches are listed.
+    attribute :origin, :atom do
+      allow_nil? false
+      public? true
+      constraints one_of: [:site, :chain]
     end
 
     attribute :state, :atom do

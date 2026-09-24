@@ -9,13 +9,12 @@ defmodule Autolaunch.Token.Preparations.SiteCreatedAuctionOnly do
   def prepare(query, _opts, _context),
     do: site_created(query, Autolaunch.Robinhood.Lab.chain_id())
 
-  defp site_created(query, nil),
-    do: Ash.Query.filter(query, exists(auction, not is_nil(creator_human_account_id)))
+  defp site_created(query, nil), do: Ash.Query.filter(query, exists(auction, origin == :site))
 
   defp site_created(query, robinhood),
     do:
       Ash.Query.filter(
         query,
-        exists(auction, not is_nil(creator_human_account_id) and chain_id != ^robinhood)
+        exists(auction, origin == :site and chain_id != ^robinhood)
       )
 end

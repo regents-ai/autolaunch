@@ -39,6 +39,7 @@ defmodule Autolaunch.LabProjection do
       arguments
       |> auction_attrs(%{
         chain_id: envelope["chain_id"],
+        origin: :site,
         creator_human_account_id: Map.get(operation, :human_account_id),
         state: :created,
         auction_address: result["auction"],

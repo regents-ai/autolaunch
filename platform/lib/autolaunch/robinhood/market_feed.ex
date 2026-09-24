@@ -10,9 +10,10 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     once on the chain-and-address identity with the launch's token, launch id
     and schedule (start and end blocks in the rollup clock): a row that
     already exists is never overwritten. This feed is the only writer that creates Robinhood rows.
-    Robinhood lists every launchpad record, so a launch made outside the site
-    is a row too; it names a creator only
-    when exactly one account's signed-in wallet is its launcher. Launch ids only
+    A launch made outside the site is a row too, with origin `:chain`; one
+    that matches a review this site stored
+    (`Autolaunch.Robinhood.LaunchReview`) has origin `:site` and names that
+    review's account as its creator. Only site launches are listed. Launch ids only
     grow, so a cursor remembers the next id to read; a record that cannot be
     read is read again on later polls without holding the cursor back.
   - Refresh. A bounded page of Robinhood rows (`Autolaunch.MarketWatch`) is
@@ -204,8 +205,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   defp discover_launch(reader, head, launch_id) do
     with {:ok, launch} <- reader.launch(head, launch_id),
          {:ok, nil} <- existing(head.chain_id, launch.auction),
-         {:ok, creator_id} <- creator(launch.launcher),
-         {:ok, auction} <- transaction(fn -> project(head, launch, creator_id) end) do
+         {:ok, origin} <- origin(head.chain_id, launch),
+         {:ok, auction} <- transaction(fn -> project(head, launch, origin) end) do
       {:ok, auction.id}
     else
       {:ok, :exists} -> {:ok, nil}
@@ -235,31 +236,36 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     end
   end
 
-  # The launcher had to be its creator's signed-in wallet; the row names that
-  # account when exactly one account's signed-in wallet it still is.
-  defp creator(launcher) do
-    with {:ok, accounts} <-
-           Autolaunch.Accounts.list_human_accounts_by_signed_in_wallets(
-             [String.downcase(launcher)],
-             actor: @actor
-           ) do
-      case accounts do
-        [%{id: id}] -> {:ok, id}
-        _none_or_several -> {:ok, nil}
-      end
+  # A launch this site prepared is the site's, in the account the review was
+  # for; any other launch was only seen on chain.
+  defp origin(chain_id, launch) do
+    case Autolaunch.matching_robinhood_launch_review(
+           chain_id,
+           String.downcase(launch.launcher),
+           launch.name,
+           launch.symbol,
+           String.downcase(launch.stock.address),
+           Integer.to_string(launch.required),
+           Integer.to_string(launch.floor_price_q96),
+           actor: @actor
+         ) do
+      {:ok, %{human_account_id: account_id}} -> {:ok, {:site, account_id}}
+      {:ok, nil} -> {:ok, {:chain, nil}}
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp project(head, launch, creator_id) do
-    with {:ok, auction} <- project_auction(head, launch, creator_id),
+  defp project(head, launch, origin) do
+    with {:ok, auction} <- project_auction(head, launch, origin),
          :ok <- LabProjection.project_graduated_token(auction),
          do: {:ok, auction}
   end
 
-  defp project_auction(head, launch, creator_id) do
+  defp project_auction(head, launch, {origin, creator_id}) do
     Autolaunch.record_launch_auction(
       %{
         kind: :stocks,
+        origin: origin,
         chain_id: head.chain_id,
         auction_address: launch.auction,
         creator_human_account_id: creator_id,
@@ -472,6 +478,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
            start_block: Enum.at(words, 4),
            end_block: Enum.at(words, 5),
            required: Enum.at(words, 8),
+           floor_price_q96: Enum.at(words, 9),
            lifecycle: Enum.at(words, @lifecycle_index)
          }}
       else

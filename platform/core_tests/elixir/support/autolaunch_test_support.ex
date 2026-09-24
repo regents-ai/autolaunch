@@ -15,6 +15,7 @@ defmodule Autolaunch.TestSupport do
     Autolaunch.record_launch_auction!(
       %{
         chain_id: Map.get(opts, :chain_id, 31_337),
+        origin: Map.get(opts, :origin, :site),
         auction_address: Map.get(opts, :address) || unique_address(),
         title: Map.get(opts, :title, "Auction"),
         summary: Map.get(opts, :summary),

@@ -363,6 +363,23 @@ defmodule Autolaunch do
         not_found_error?: false
     end
 
+    resource Autolaunch.Robinhood.LaunchReview do
+      define :record_robinhood_launch_review, action: :record
+
+      define :matching_robinhood_launch_review,
+        action: :matching,
+        args: [
+          :chain_id,
+          :signer,
+          :name,
+          :symbol,
+          :stock,
+          :required_stock_raised,
+          :floor_price_q96
+        ],
+        not_found_error?: false
+    end
+
     resource Autolaunch.LaunchDiscovery do
       define :record_launch_discovery, action: :record
 
