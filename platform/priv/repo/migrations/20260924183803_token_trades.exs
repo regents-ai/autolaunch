@@ -26,7 +26,8 @@ defmodule Autolaunch.Repo.Migrations.TokenTrades do
             name: "token_trades_token_id_fkey",
             type: :uuid,
             prefix: "autolaunch_app"
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:token_trades, [:token_id, :transaction_hash, :log_index],
