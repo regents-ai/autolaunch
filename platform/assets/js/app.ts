@@ -15,7 +15,6 @@ import {
 } from "./auth_lazy"
 import {AutolaunchBidSettlement} from "./hooks/autolaunch_bid_settlement"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
-import {AutolaunchFire} from "./hooks/autolaunch_fire"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchReviewedSteps} from "./hooks/autolaunch_reviewed_steps"
@@ -38,7 +37,6 @@ const hooks = {
   ...colocatedHooks,
   AutolaunchBidSettlement,
   AutolaunchBidWallet,
-  AutolaunchFire,
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchReviewedSteps,

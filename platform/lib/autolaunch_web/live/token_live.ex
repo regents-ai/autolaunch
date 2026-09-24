@@ -157,11 +157,14 @@ defmodule AutolaunchWeb.TokenLive do
         session_lease={@session_lease}
       />
       <.treasury_security
-        :if={!@local_lab?}
+        :if={@page_record.auction.kind == :agent && !@local_lab?}
         report={report(@page_record)}
         surface="token-detail"
       />
-      <.lab_treasury_unavailable :if={@local_lab?} surface="token-detail" />
+      <.lab_treasury_unavailable
+        :if={@page_record.auction.kind == :agent && @local_lab?}
+        surface="token-detail"
+      />
     </article>
 
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>

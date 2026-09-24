@@ -3,6 +3,18 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## Next (not live yet)
+- The bid box is laid out like a swap: a Max budget box with the currency beside the figure, a
+  Max FDV box with a slider, and a Receive box showing about how many tokens the budget buys.
+  The slider starts a quarter above the price to start buying, and its tip shows the price per
+  token. On Base stock auctions, a USDC or stock switch sits above the currency.
+- "Place a bid" has a ? beside it with a short note on how bidding works. The wallet line, the
+  balance list, the price mode choice and the Advanced section are gone.
+- The bid help under the auction book uses the new wording on budget, max price, per-block
+  buying, withdrawals and returned bids.
+- Clicking an auction no longer sends up fire.
+- Treasury security shows only on Revstake auctions and tokens, not on Memestake.
+
 ## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so
   the bar shows how much of its time has passed.

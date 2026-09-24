@@ -126,21 +126,23 @@ defmodule AutolaunchWeb.BidComponent do
     ~H"""
     <section
       id={@id}
-      class="bid-panel rg-panel rg-panel--surface"
+      class="bid-panel"
       data-wallet-scope={AutolaunchWeb.WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchBidWallet"
       data-press-form={"#{@id}-form"}
       phx-target={@myself}
     >
-      <header class="bid-heading">
-        <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">{@heading}</h2>
-        </Regent.Structure.section_bar>
-        <p>
-          Bid {if @usdc_bids?, do: "USDC or "}{@auction.quote_token_symbol} for this launch. Your wallet confirms every step.
-        </p>
-        <.regent_market_links :if={@auction.kind == :agent} />
-      </header>
+      <BidForm.title id={@id} title={@heading}>
+        <:help>
+          <p>
+            Bid {if @usdc_bids?, do: "USDC or "}{@auction.quote_token_symbol} for this launch.
+            Your max budget is the most you'll spend. Your max FDV is the most the whole token
+            supply may be worth while your bid keeps buying.
+          </p>
+          <p>Your wallet confirms every step.</p>
+        </:help>
+      </BidForm.title>
+      <.regent_market_links :if={@auction.kind == :agent} />
 
       <.notice :if={@notice} notice={@notice} />
 
@@ -154,19 +156,6 @@ defmodule AutolaunchWeb.BidComponent do
       </div>
 
       <div :if={@authenticated && @wallet} class="bid-body">
-        <dl class="bid-wallet">
-          <div>
-            <dt>Wallet</dt><dd class="bid-mono">{short(@wallet)}</dd>
-          </div>
-          <div>
-            <dt>{@auction.quote_token_symbol}</dt>
-            <dd>
-              {balance(@balance, @auction)}
-              <UsdValue.usd amount={balance(@balance, @auction)} rate={@rate} />
-            </dd>
-          </div>
-        </dl>
-
         <BidForm.bid_form
           :if={editable?(@operation) && @balance}
           id={@id}
@@ -175,11 +164,11 @@ defmodule AutolaunchWeb.BidComponent do
           amount_unit={@form.pay_with}
           pay_with={pay_with(@auction, @usdc_bids?)}
           price_unit={@auction.quote_token_symbol}
+          token_symbol={@auction.token_symbol}
           book={@book}
           supply={@auction.token_supply}
           rate={@rate}
-          amount_in_price_unit?={@form.pay_with == @auction.quote_token_symbol}
-          max={@form.pay_with == @auction.quote_token_symbol}
+          balance={@form.pay_with == @auction.quote_token_symbol && balance(@balance, @auction)}
         >
           <:action>
             <.ready
@@ -292,17 +281,16 @@ defmodule AutolaunchWeb.BidComponent do
     do: {:noreply, socket |> adopt(address) |> prepare_when_ready()}
 
   def handle_event("bid_form_changed", params, socket) do
-    {:noreply,
-     socket
-     |> assign(form: BidForm.values(params, socket.assigns.form), notice: nil)
-     |> prepare_when_ready()}
+    form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
+    {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
   end
 
   # A press made while the form on screen differs from the review the browser
   # holds. The bid is prepared for exactly the values pressed and handed back to
   # press; a review already prepared for them is handed back as it is.
   def handle_event("prepare_and_send", %{"form" => params}, socket) do
-    socket = assign(socket, form: BidForm.values(params, socket.assigns.form), notice: nil)
+    form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
+    socket = assign(socket, form: form, notice: nil)
     {:noreply, pressed(socket, bid_key(socket.assigns))}
   end
 
@@ -317,7 +305,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The price to beat, entered from the auction's price panel as the limit.
   def handle_event("use_price", %{"price" => price}, socket) do
-    form = %{socket.assigns.form | at_price: false, limit_mode: "price", limit: price}
+    form = BidForm.at_price(socket.assigns.form, price)
     {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
   end
 
@@ -620,13 +608,19 @@ defmodule AutolaunchWeb.BidComponent do
   defp bid_key(%{wallet: wallet, balance: balance, form: form} = assigns)
        when is_binary(wallet) and is_binary(balance) do
     with amount when amount != "" <- form.amount,
-         max_price when is_binary(max_price) <-
-           BidForm.max_price(form, assigns.book, assigns.auction.token_supply),
+         max_price when is_binary(max_price) <- max_price(assigns),
          do: {wallet, form.pay_with, amount, max_price},
          else: (_incomplete -> nil)
   end
 
   defp bid_key(_assigns), do: nil
+
+  defp max_price(%{form: form, auction: auction} = assigns) do
+    {_unit, factor} =
+      BidForm.fdv_currency(form.pay_with, auction.quote_token_symbol, assigns.usd_rate.result)
+
+    BidForm.max_price(form, assigns.book, auction.token_supply, factor)
+  end
 
   # The form is open while this panel has no bid with the wallet or on its way.
   defp editable?(nil), do: true
@@ -816,7 +810,7 @@ defmodule AutolaunchWeb.BidComponent do
       end)
 
   # An amount, and a most per token, chosen before the panel opened are entered
-  # once. A preset most per token replaces bidding at the current price.
+  # once. A preset most per token replaces the slider.
   defp preset(%{assigns: %{form: form} = assigns} = socket)
        when not is_map_key(assigns, :preset_entered?) do
     form =
@@ -832,8 +826,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp preset_amount(form, amount) when is_binary(amount), do: %{form | amount: amount}
   defp preset_amount(form, nil), do: form
 
-  defp preset_limit(form, limit) when is_binary(limit),
-    do: %{form | at_price: false, limit_mode: "price", limit: limit}
+  defp preset_limit(form, limit) when is_binary(limit), do: BidForm.at_price(form, limit)
 
   defp preset_limit(form, nil), do: form
 
@@ -879,7 +872,4 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp balance(atomic, %{quote_token_decimals: decimals}),
     do: atomic |> String.to_integer() |> Autolaunch.bid_amount_units(decimals)
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 end

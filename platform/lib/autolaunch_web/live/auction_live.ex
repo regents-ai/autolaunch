@@ -12,7 +12,6 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
-  alias Autolaunch.AuctionFire
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
@@ -25,14 +24,13 @@ defmodule AutolaunchWeb.AuctionLive do
        socket
        |> assign_market()
        |> LiveListings.subscribe()
-       |> assign(my_positions: [], fire_allowed_at: nil)}
+       |> assign(my_positions: [])}
 
   # The identifier is read here so a patch to another auction reloads the page
   # instead of keeping the previous record on screen.
   def handle_params(%{"auction_id" => id}, _uri, socket) do
     {:noreply,
      socket
-     |> follow_fire(id)
      |> assign(:record_id, id)
      |> assign_share()
      |> assign_positions()
@@ -43,32 +41,6 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
-
-  # One flame per page every two seconds. An earlier click, a click before the
-  # auction loaded, or a point outside the page lights nothing and starts no
-  # cooldown.
-  def handle_event("fire", point, socket) do
-    now = System.monotonic_time(:millisecond)
-    allowed_at = socket.assigns.fire_allowed_at
-
-    with record when not is_nil(record) <- page_record(socket.assigns.page),
-         true <- is_nil(allowed_at) or now >= allowed_at,
-         :ok <- AuctionFire.light(socket.assigns.record_id, point) do
-      {:noreply, assign(socket, :fire_allowed_at, now + AuctionFire.cooldown_ms())}
-    else
-      _not_lit -> {:noreply, socket}
-    end
-  end
-
-  # A flame for the auction on screen reaches the page; one queued for an
-  # auction this page has left is dropped.
-  def handle_info({:auction_fire, auction_id, point}, socket) do
-    if auction_id == socket.assigns.record_id do
-      {:noreply, push_event(socket, "auction-fire", Map.put(point, :auction, auction_id))}
-    else
-      {:noreply, socket}
-    end
-  end
 
   # Either feed may have moved; the combined reading decides whether the page
   # has anything new to show.
@@ -147,8 +119,6 @@ defmodule AutolaunchWeb.AuctionLive do
       :if={@page_status == :ready && @page_record}
       id="autolaunch-auction-detail"
       class="autolaunch-page"
-      phx-hook="AutolaunchFire"
-      data-auction-id={@record_id}
     >
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
@@ -221,7 +191,7 @@ defmodule AutolaunchWeb.AuctionLive do
           <section
             :if={bidding_open?(@bidding_ended?) && @book.ok? && @my_positions != []}
             id="autolaunch-my-bids"
-            class="bid-panel rg-panel rg-panel--surface"
+            class="bid-panel"
             aria-label="Your bids"
           >
             <h3>Your bids on this auction</h3>
@@ -242,15 +212,14 @@ defmodule AutolaunchWeb.AuctionLive do
           <section
             :if={!Autolaunch.Prelaunch.read_only?() && @bidding_ended?}
             id="autolaunch-settlement"
-            class="bid-panel rg-panel rg-panel--surface"
+            class="bid-panel"
             aria-label="Bidding has ended"
           >
-            <header class="bid-heading">
-              <Regent.Structure.section_bar>
-                <h2 class="rg-section-bar__label">Bidding has ended</h2>
-              </Regent.Structure.section_bar>
-              <p>{ended_copy(@page_record)}</p>
-            </header>
+            <AutolaunchWeb.Components.BidForm.title
+              id="autolaunch-settlement"
+              title="Bidding has ended"
+            />
+            <p class="bid-ended">{ended_copy(@page_record)}</p>
             <p :if={@account_control.kind != :signed_in} class="bid-empty">
               <Regent.Primitives.button type="button" data-account-target="sign-in">
                 Sign in to see your bids
@@ -331,11 +300,14 @@ defmodule AutolaunchWeb.AuctionLive do
               <.link navigate={"/tokens/#{@graduated_token.id}#pool"}>View the pool and its trading fees</.link>
             </p>
             <.treasury_security
-              :if={!@local_lab?}
+              :if={@page_record.kind == :agent && !@local_lab?}
               report={report(@page_record)}
               surface="auction-detail"
             />
-            <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
+            <.lab_treasury_unavailable
+              :if={@page_record.kind == :agent && @local_lab?}
+              surface="auction-detail"
+            />
           </section>
         </div>
       </div>
@@ -542,26 +514,6 @@ defmodule AutolaunchWeb.AuctionLive do
         _missing -> {:error, :no_auction}
       end
     end)
-  end
-
-  # Flames travel per auction: the page follows one auction at a time, and a
-  # patch to the same auction keeps the one subscription it already has.
-  defp follow_fire(socket, id) do
-    if connected?(socket) do
-      case socket.assigns[:record_id] do
-        ^id ->
-          :ok
-
-        nil ->
-          AuctionFire.subscribe(id)
-
-        previous ->
-          AuctionFire.unsubscribe(previous)
-          AuctionFire.subscribe(id)
-      end
-    end
-
-    socket
   end
 
   # The signed-in bidder's own positions on this auction, for settlement once

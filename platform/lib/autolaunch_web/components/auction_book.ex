@@ -64,7 +64,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
           phx-click={
             "use_price"
             |> JS.push(value: %{price: @book.price_to_beat}, target: "##{@bid_form}")
-            |> JS.focus(to: "##{@bid_form}-max-price")
+            |> JS.focus(to: "##{@bid_form}-max-fdv")
           }
         >
           Use this price
@@ -101,10 +101,16 @@ defmodule AutolaunchWeb.Components.AuctionBook do
       </p>
 
       <ul class="auction-book__how" role="list" aria-label="How a bid works">
-        <li>You set a budget and the most you'll pay per token.</li>
-        <li>Your budget is spent a little every block, at the one price everyone pays.</li>
-        <li>If the price passes your maximum, you stop buying and the rest comes back to you.</li>
-        <li>If the auction doesn't reach its minimum, every bid comes back in full.</li>
+        <li>
+          You set a max budget (analogy to swaps: how much you are trading) and a max price you'll pay per token (analogy: buy a little every block, but stop when the FDV is higher than your limit).
+        </li>
+        <li>
+          Your budget is spent a little every block. Every bidder pays the same price per block.
+        </li>
+        <li>
+          If the price passes your maximum, you stop buying and the remainder of your budget can be withdrawn.
+        </li>
+        <li>If the auction doesn't reach the minimum set by the creator, every bid is returned.</li>
       </ul>
     </section>
     """

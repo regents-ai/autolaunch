@@ -60,6 +60,9 @@ defmodule AutolaunchWeb.TokenDisplay do
     |> figure()
   end
 
+  @doc "A plain decimal cut to four significant digits, as `price/1` shows it, as text."
+  def short(amount, round \\ :nearest), do: significant(amount, round)
+
   # Four or more zeros straight after the point are hard to count, so the run
   # is written as one zero with its length below it: 0.0000000444 is 0.0₇444.
   @zero_run ~r/(?<![\d.])0\.(0{4,})(\d+)/

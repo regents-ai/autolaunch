@@ -34,8 +34,6 @@
   .auction-book__level { row-gap: 2px; }
   .auction-book__level-amount { grid-column: 2; text-align: left; }
 }
-.bid-estimate { display: grid; gap: 4px; }
-.bid-estimate p { margin: 0; }
 .bid-positions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .875rem; overflow-wrap: anywhere; }
 .bid-positions > li + li { padding-top: 10px; border-top: 1px solid var(--hairline); }
 
@@ -59,9 +57,9 @@
 .auction-details-open:focus-visible, .auction-tabs__tab:focus-visible, .auction-details-window__close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .auction-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-rows: auto 1fr; align-items: start; gap: 32px; }
 .auction-layout__chart { grid-column: 1; grid-row: 1; display: grid; gap: 16px; min-width: 0; }
-.auction-layout__bid { grid-column: 2; grid-row: 1 / span 2; min-width: 0; border: 1px solid var(--hairline); border-radius: 8px; }
+.auction-layout__bid { grid-column: 2; grid-row: 1 / span 2; min-width: 0; border: 1px solid var(--hairline); border-radius: 20px; background: var(--color-surface); }
 .auction-layout__rest { grid-column: 1; grid-row: 2; display: grid; gap: 32px; min-width: 0; }
-.auction-layout__bid .bid-panel { gap: 16px; padding: 20px; }
+.auction-layout__bid .bid-panel { gap: 12px; padding: 16px; }
 .auction-layout__bid .bid-empty { margin: 0; }
 @media (max-width: 75rem) {
   .auction-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
@@ -113,18 +111,11 @@
 .auction-outbid-banner p { margin: 0; }
 .auction-outbid-banner__links { display: flex; flex-wrap: wrap; gap: 8px 16px; font-weight: 600; }
 
-/* Shared flames on an auction page: a fixed layer no pointer can reach. */
-.auction-fire { position: fixed; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
-.auction-fire__flame { position: absolute; font-size: 1.75rem; line-height: 1; opacity: 1; transform: translate(-50%, -50%); transition: opacity .5s ease; animation: auction-fire-rise 2s ease-out forwards; }
-.auction-fire__flame--fading { opacity: 0; }
-.auction-fire__flame--still { animation: none; transition: none; }
-@keyframes auction-fire-rise { from { transform: translate(-50%, -30%) scale(.6); } to { transform: translate(-50%, -90%) scale(1); } }
 
 /* Progress to an auction's minimum raise: auction pages. */
 .raise-progress { display: grid; gap: var(--space-1); padding-block: var(--space-2); }
 .raise-progress__figure { margin: 0; font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .raise-progress__figure strong { font-size: 1.125rem; }
-.bid-usd { display: block; font-size: .875rem; }
 .raise-progress__bar { appearance: none; width: 100%; height: 10px; border: 0; border-radius: 999px; overflow: hidden; background: var(--hairline); color: var(--brand-accent); }
 .raise-progress__bar::-webkit-progress-bar { background: var(--hairline); border-radius: 999px; }
 .raise-progress__bar::-webkit-progress-value { background: var(--brand-accent); border-radius: 999px; }
@@ -169,23 +160,67 @@
 .auction-history__bids { display: grid; gap: 6px; min-width: 0; }
 
 
-/* The one bid form: a total, the current-price box, and the advanced limit. */
-.bid-form__unit { align-self: center; color: var(--color-fg-muted); font-size: .875rem; }
-.bid-form__check { display: flex; align-items: center; gap: var(--space-1); font-weight: 500; cursor: pointer; }
-.bid-form__check input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-accent); }
-.bid-form__choice { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: 0; padding: 0; border: 0; min-width: 0; }
-.bid-form__choice legend { margin-bottom: 4px; font-size: .8125rem; color: var(--color-fg-muted); }
-.bid-form__choice label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.bid-form__choice input { margin: 0; accent-color: var(--brand-accent); }
-.bid-form__limit { display: grid; gap: 4px; padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
-.bid-form__limit p { margin: 0; }
-.bid-form__advanced { display: grid; gap: var(--space-2); min-width: 0; margin: 0; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: 8px; }
-.bid-form__advanced legend { padding: 0 4px; font-size: .8125rem; color: var(--color-fg-muted); }
+/* The one bid form: soft boxes for the max budget, the max FDV and what the
+   bid can expect, with big figures and quiet labels. */
+.bid-panel { gap: 12px; }
+.bid-title { display: flex; align-items: center; gap: 8px; position: relative; }
+.bid-title h2 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+.bid-help summary { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; line-height: 1; list-style: none; cursor: pointer; transition: transform 160ms var(--ease-out); }
+.bid-help summary::-webkit-details-marker { display: none; }
+.bid-help summary:active { transform: scale(.94); }
+.bid-help summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.bid-help__panel { position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface-elevated); color: var(--color-fg); font-size: .875rem; line-height: 1.45; box-shadow: 0 12px 32px color-mix(in srgb, var(--color-bg) 60%, transparent); transform-origin: top left; transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); }
+@starting-style { .bid-help[open] .bid-help__panel { opacity: 0; transform: scale(.97); } }
+.bid-help__panel p { margin: 0; }
+.bid-ended { margin: 0; color: var(--color-fg-muted); }
+
+.bid-form { display: grid; gap: 6px; min-width: 0; }
+.bid-form > .bid-primary, .bid-form__pending { margin-top: 8px; }
+.bid-form .bid-primary { width: 100%; }
+.bid-box { display: grid; gap: 6px; min-width: 0; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 16px; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); transition: border-color 150ms ease; }
+.bid-box:focus-within { border-color: var(--hairline-strong); }
+.bid-box__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.bid-box__main { display: grid; gap: 4px; flex: 1 1 0; min-width: 0; }
+.bid-box__label { margin: 0; color: var(--color-fg-muted); font-size: .875rem; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.bid-box__figure { margin: 0; font-size: 1.75rem; font-weight: 500; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+input.bid-box__figure { width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-fg); font-family: inherit; }
+input.bid-box__figure:focus-visible { outline: none; }
+input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; }
+.bid-box__sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 1.25rem; margin: 0; color: var(--color-fg-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.bid-box__side { display: grid; justify-items: end; gap: 6px; flex: none; }
+.bid-box__balance { margin-inline-start: auto; padding: 0; border: 0; background: none; color: var(--color-fg-muted); font: inherit; cursor: pointer; transition: color 150ms ease; }
+@media (hover: hover) and (pointer: fine) { .bid-box__balance:hover { color: var(--color-fg); } }
+.bid-box__balance:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.bid-box__fdv { display: flex; align-items: baseline; gap: 2px; min-width: 0; }
+.bid-box__prefix { flex: none; color: var(--color-fg); }
+.bid-box__unit { flex: none; margin-inline-start: 6px; color: var(--color-fg-muted); font-size: .9375rem; }
+.bid-box__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
+.bid-box--receive .bid-box__figure { font-size: 1.25rem; }
+
+/* The currency paid in: a chip, with the switch between two above it. */
+.bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--color-surface-elevated); font-weight: 600; font-size: .9375rem; white-space: nowrap; }
+.bid-switch { display: flex; margin: 0; padding: 2px; border: 1px solid var(--hairline); border-radius: 999px; }
+.bid-switch label { position: relative; margin: 0; cursor: pointer; }
+.bid-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.bid-switch span { display: block; padding: 2px 10px; border-radius: 999px; color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; letter-spacing: normal; text-transform: none; transition: background-color 150ms ease, color 150ms ease; }
+.bid-switch input:checked + span { background: var(--color-fg); color: var(--color-bg); }
+.bid-switch input:focus-visible + span { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+
+/* The max FDV slider: dotted stops over the price to beat, its price above the thumb. */
+.bid-slider { --thumb: 18px; position: relative; display: grid; margin-top: 30px; }
+.bid-slider > * { grid-area: 1 / 1; }
+.bid-slider__dots { display: flex; justify-content: space-between; align-self: center; padding-inline: calc(var(--thumb) / 2 - 2px); pointer-events: none; }
+.bid-slider__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--hairline-strong); }
+.bid-slider input[type="range"] { width: 100%; height: var(--thumb); margin: 0; background: transparent; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.bid-slider input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--hairline); border-radius: 1px; }
+.bid-slider input[type="range"]::-moz-range-track { height: 2px; background: var(--hairline); border-radius: 1px; }
+.bid-slider input[type="range"]::-webkit-slider-thumb { width: var(--thumb); height: var(--thumb); margin-top: calc(1px - var(--thumb) / 2); border: 3px solid var(--color-surface); border-radius: 50%; background: var(--brand-accent); -webkit-appearance: none; transition: transform 120ms var(--ease-out); }
+.bid-slider input[type="range"]::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border: 3px solid var(--color-surface); border-radius: 50%; background: var(--brand-accent); }
+.bid-slider input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.1); }
+.bid-slider input[type="range"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: 4px; }
+.bid-slider__tip { position: absolute; bottom: calc(100% + 6px); left: calc(var(--thumb) / 2 + var(--at) * (100% - var(--thumb))); padding: 3px 8px; border-radius: 8px; background: var(--color-fg); color: var(--color-bg); font-size: .75rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(clamp(-100%, calc(var(--at) * -100%), 0%)); pointer-events: none; }
+.bid-slider__tip:empty { display: none; }
 .bid-form__note { display: block; margin: 0; font-size: .8125rem; color: var(--color-fg-muted); overflow-wrap: anywhere; }
-/* The total, its currency and Max stay on one line, even on a phone. */
-.bid-form .bid-amount { flex-wrap: nowrap; align-items: stretch; }
-.bid-form .bid-amount input { flex: 1 1 0; min-width: 0; }
-.bid-form .bid-amount .bid-form__unit { flex: none; }
 /* The prepared bid in three lines, right above the button that opens the wallet. */
 .bid-form__summary { display: grid; margin: 0; font-size: .875rem; }
 .bid-form__summary div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); padding: 6px 0; }

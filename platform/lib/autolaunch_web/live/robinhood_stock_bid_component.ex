@@ -150,23 +150,26 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     ~H"""
     <section
       id={@id}
-      class="bid-panel rg-panel rg-panel--surface"
+      class="bid-panel"
       phx-hook="AutolaunchReviewedSteps"
       data-reports-opening
       data-press-form={"#{@id}-form"}
       phx-target={@myself}
     >
-      <header class="bid-heading">
-        <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">
-            {if @ended, do: "Bidding has ended", else: "Place a bid"}
-          </h2>
-        </Regent.Structure.section_bar>
-        <p :if={@ended}>{@ended}</p>
-        <p :if={!@ended}>
-          Bid with USDG. It is converted into the auction's stock inside the bid, and any unspent part comes straight back. Your wallet confirms every step.
-        </p>
-      </header>
+      <BidForm.title id={@id} title={if @ended, do: "Bidding has ended", else: "Place a bid"}>
+        <:help :if={!@ended}>
+          <p>
+            Bid with USDG. It is converted into the auction's stock inside the bid, and any
+            unspent part comes straight back.
+          </p>
+          <p>
+            Your max budget is the most you'll spend. Your max FDV is the most the whole token
+            supply may be worth while your bid keeps buying.
+          </p>
+          <p>Your wallet confirms every step.</p>
+        </:help>
+      </BidForm.title>
+      <p :if={@ended} class="bid-ended">{@ended}</p>
 
       <p
         :if={@notice}
@@ -194,21 +197,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       </div>
 
       <div :if={@authenticated && @wallet} class="bid-body">
-        <dl class="bid-wallet">
-          <div>
-            <dt>Wallet</dt>
-            <dd class="bid-mono">{short(@wallet)}</dd>
-          </div>
-          <div :if={@reading}>
-            <dt>Auction currency</dt>
-            <dd>{@reading.stock["symbol"]}</dd>
-          </div>
-          <div :if={@reading}>
-            <dt>Bidding</dt>
-            <dd>{window_copy(@reading)}</dd>
-          </div>
-        </dl>
-
         <p :if={@ended && @reading && @reading.bids == []} class="bid-empty">
           This wallet placed no bids on this auction.
         </p>
@@ -223,6 +211,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           form={@form}
           amount_unit="USDG"
           price_unit={stock_symbol(@reading)}
+          token_symbol={@token_symbol}
           book={@book}
           supply={supply(@supply)}
           rate={@usd_rate}
@@ -389,15 +378,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     do: {:noreply, socket |> adopt(address) |> prepare_when_ready()}
 
   def handle_event("bid_form_changed", params, socket) do
-    {:noreply,
-     socket
-     |> assign(form: BidForm.values(params, socket.assigns.form), notice: nil)
-     |> prepare_when_ready()}
+    form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
+    {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
   end
 
   # The price to beat, entered from the auction's price panel as the limit.
   def handle_event("use_price", %{"price" => price}, socket) do
-    form = %{socket.assigns.form | at_price: false, limit_mode: "price", limit: price}
+    form = BidForm.at_price(socket.assigns.form, price)
     {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
   end
 
@@ -421,7 +408,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # holds. The bid is built for exactly the values pressed and goes straight to
   # the wallet; a review already built or being built for them is used as it is.
   def handle_event("prepare_and_send", %{"form" => params}, socket) do
-    socket = assign(socket, form: BidForm.values(params, socket.assigns.form), notice: nil)
+    form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
+    socket = assign(socket, form: form, notice: nil)
     {:noreply, pressed(socket, bid_key(socket.assigns))}
   end
 
@@ -436,8 +424,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # A new bid beside one still buying, up to the same most per token.
   def handle_event("add_to_bid", %{"bid_id" => bid_id}, socket) do
-    limit = socket.assigns |> own_bid(bid_id) |> max_price(socket.assigns.book)
-    form = %{BidForm.blank() | at_price: false, limit_mode: "price", limit: limit}
+    limit = socket.assigns |> own_bid(bid_id) |> bid_max_price(socket.assigns.book)
+    form = BidForm.at_price(BidForm.blank(), limit)
     {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> new_bid_entered()}
   end
 
@@ -569,13 +557,18 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp bid_key(%{wallet: wallet, form: form} = assigns) when is_binary(wallet) do
     with amount when amount != "" <- form.amount,
-         max_price when is_binary(max_price) <-
-           BidForm.max_price(form, assigns.book, supply(assigns.supply)),
+         max_price when is_binary(max_price) <- max_price(assigns),
          do: {wallet, amount, max_price},
          else: (_incomplete -> nil)
   end
 
   defp bid_key(_assigns), do: nil
+
+  defp max_price(%{usd_prices: prices, reading: reading} = assigns) do
+    rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
+    {_unit, factor} = BidForm.fdv_currency("USDG", stock_symbol(reading), rate)
+    BidForm.max_price(assigns.form, assigns.book, supply(assigns.supply), factor)
+  end
 
   defp ready?(%{review: review} = assigns) when is_map(review),
     do: assigns.prepared_for == bid_key(assigns)
@@ -880,16 +873,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp stock_symbol(%{stock: %{"symbol" => symbol}}), do: symbol
   defp stock_symbol(nil), do: "the auction's stock"
 
-  defp window_copy(%{clock: now, window: %{"start_block" => start_block}})
-       when now < start_block,
-       do: "Opens at block #{start_block}. Robinhood is at block #{now}."
-
-  defp window_copy(%{clock: now, window: %{"end_block" => end_block}})
-       when now < end_block,
-       do: "Open until block #{end_block}. Robinhood is at block #{now}."
-
-  defp window_copy(_reading), do: "Ended."
-
   defp bid_state(%{"exited_block" => block, "tokens_filled_now" => filled}, _book, _reading)
        when block != "0" do
     if filled != "0", do: "Bid settled · tokens allocated", else: "Bid settled"
@@ -961,7 +944,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # The bid's own most per token, rounded up in its eighteenth decimal place:
   # a review brings a price down to the tick below it, which is the bid's own.
-  defp max_price(%{"max_price_q96" => price}, %AsyncResult{
+  defp bid_max_price(%{"max_price_q96" => price}, %AsyncResult{
          ok?: true,
          result: %{decimals: decimals}
        }),
@@ -975,7 +958,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
          |> String.trim_trailing("0")
          |> String.trim_trailing(".")
 
-  defp max_price(_bid, _book), do: ""
+  defp bid_max_price(_bid, _book), do: ""
 
   # The page hears when one of the wallet's bids is outbid, and which, so it
   # can say so at the top. Only a page that asked is told, and only of changes.
@@ -1023,7 +1006,4 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 end

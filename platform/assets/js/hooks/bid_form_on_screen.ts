@@ -7,10 +7,11 @@
 /** The form's fields as the server kept them when it built a review. */
 export type BidInputs = {
   amount: string
-  at_price: boolean
-  limit_mode: string
-  limit: string
   pay_with: string | null
+  basis: string
+  stop: number
+  fdv: string
+  price: string
 }
 
 /** The fields exactly as the form would submit them, or null when the panel shows no form. */
@@ -27,15 +28,35 @@ export function formOnScreen(panel: HTMLElement): Record<string, string> | null 
   return params
 }
 
-/** Whether a review built for `inputs` is the bid these fields describe, read as BidForm.values/2 reads them. */
+const trimmed = (value: string | undefined) => (value ?? "").trim()
+
+/**
+ * What sets the bid's limit, read as BidForm.values/3 reads it: the slider or
+ * the FDV box when either differs from what it last showed, else the basis the
+ * server kept.
+ */
+function basis(params: Record<string, string>): string {
+  if (params.stop !== params.stop_shown) return "stop"
+  if (trimmed(params.fdv) !== trimmed(params.fdv_shown)) return "fdv"
+  return ["stop", "fdv", "price"].includes(params.basis) ? params.basis : "stop"
+}
+
+/** Whether a review built for `inputs` is the bid these fields describe. */
 export function builtFor(inputs: BidInputs | undefined, params: Record<string, string>): boolean {
   if (!inputs) return false
 
+  const onScreen = basis(params)
+  const limit =
+    onScreen === "stop"
+      ? String(inputs.stop) === params.stop
+      : onScreen === "fdv"
+        ? inputs.fdv === trimmed(params.fdv)
+        : inputs.price === trimmed(params.price)
+
   return (
-    inputs.amount === (params.amount ?? "").trim() &&
-    inputs.at_price === (params.at_price === "true") &&
-    inputs.limit_mode === (params.limit_mode === "price" ? "price" : "fdv") &&
-    inputs.limit === (params.limit ?? "").trim() &&
-    (params.pay_with === undefined || inputs.pay_with === params.pay_with)
+    inputs.amount === trimmed(params.amount) &&
+    (params.pay_with === undefined || inputs.pay_with === params.pay_with) &&
+    inputs.basis === onScreen &&
+    limit
   )
 }

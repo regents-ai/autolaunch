@@ -185,8 +185,8 @@ defmodule AutolaunchWeb.Components.AuctionPage do
         <li>
           <h3>Choose your budget and the most you'll pay</h3>
           <p>
-            Enter the total you want to spend. Bid at the current price, or set the most
-            you'll pay per token.
+            Enter the most you want to spend, and a max FDV: the most the whole token supply
+            may be worth while your bid keeps buying.
           </p>
         </li>
         <li>
