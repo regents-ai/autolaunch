@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.ConvertLive do
       <p :if={@open? && @rows.failed && is_nil(@rows.result)} role="alert">
         The launches could not be read just now.
       </p>
-      <p :if={@open? && @rows.result == []}>No Memestake launch has graduated yet.</p>
+      <p :if={@open? && @rows.result == []}>No Memestake token has launched yet.</p>
       <p :if={converter(@rows.result)} class="autolaunch-convert__muted">
         Converter wallet <span class="autolaunch-exact-value">{converter(@rows.result)}</span>
       </p>

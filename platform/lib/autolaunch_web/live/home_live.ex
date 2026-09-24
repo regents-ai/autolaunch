@@ -214,7 +214,7 @@ defmodule AutolaunchWeb.HomeLive do
       <header class="home-heading">
         <div class="home-heading__discovery">
           <h1 id="home-explore-title">Explore</h1>
-          <nav class="home-kind-toggle" aria-label="Explore auctions or graduated tokens">
+          <nav class="home-kind-toggle" aria-label="Explore auctions or launched tokens">
             <.link
               patch={HomeMarket.path(@market_options, %{view: "auctions", state: "all"})}
               aria-current={if @kind == :auction, do: "page"}
@@ -298,7 +298,7 @@ defmodule AutolaunchWeb.HomeLive do
                     Failed
                   </option>
                   <option value="graduated" selected={@market_options.state == "graduated"}>
-                    Graduated
+                    Launched
                   </option>
                 </select>
                 <label for="home-chain">Network</label>
@@ -461,7 +461,7 @@ defmodule AutolaunchWeb.HomeLive do
                      @market_options.kind != "all" or @market_options.x or @market_options.ens or
                      @market_options.github),
                 do: "Try a different name, symbol, address or creator—or clear your filters.",
-                else: "New auctions and graduated tokens will appear here as they become available."}
+                else: "New auctions and launched tokens will appear here as they become available."}
           </p>
           <.link
             :if={
