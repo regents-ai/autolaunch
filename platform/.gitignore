@@ -91,3 +91,6 @@ Thumbs.db
 /vendor/regent_blog_content/
 /vendor/.regent-blog-history/
 /vendor/.regent-blog-stage-*/
+
+# Deployment descriptions carry the private RPC door; fly.toml places them on the machine.
+/deployment/

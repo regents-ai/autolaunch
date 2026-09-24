@@ -31,8 +31,8 @@ existing bid-quote POST is a read-only calculation and remains available too.
   public listings remain readable; the database itself is not changed or locked.
 
 `Autolaunch.Prelaunch.read_only?/0` is fail-closed: missing or malformed configuration
-keeps the site read-only. Only an explicit `config :autolaunch, prelaunch_read_only: false`
-and a full application restart enable writes. Do not enable this before contract
+keeps the site read-only. Only `AUTOLAUNCH_LAUNCHES_OPEN=true` (or fork chain mode) and a full
+application restart enable writes; any other value of that variable stops the boot. Do not enable this before contract
 addresses, chain configuration and real user journeys have been accepted. The two
 planned sidebar options remain disabled independently; contract deployment does not
 implement those products automatically. Deployment and migrations are separate approvals.

@@ -8,6 +8,25 @@ primary_region = "iad"
   PORT = "4000"
   PHX_HOST = "autolaunch.sh"
   AUTOLAUNCH_DEPLOYMENT_ROLE = "production"
+  AUTOLAUNCH_BASE_DEPLOYMENT = "/app/deployment/base-revstake.json"
+  AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT = "/app/deployment/base-memestake.json"
+  AUTOLAUNCH_ROBINHOOD_DEPLOYMENT = "/app/deployment/robinhood.json"
+  AUTOLAUNCH_BASE_DEPLOYMENT_ID = "base-mainnet"
+
+# The three deployment descriptions the contracts ceremony writes. Each carries
+# the site's private RPC door, so they are placed on the machine from the
+# deployer's disk at `fly deploy` and never enter the image or git.
+[[files]]
+  guest_path = "/app/deployment/base-revstake.json"
+  local_path = "deployment/base-revstake.json"
+
+[[files]]
+  guest_path = "/app/deployment/base-memestake.json"
+  local_path = "deployment/base-memestake.json"
+
+[[files]]
+  guest_path = "/app/deployment/robinhood.json"
+  local_path = "deployment/robinhood.json"
 
 [http_service]
   internal_port = 4000

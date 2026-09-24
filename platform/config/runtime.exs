@@ -69,6 +69,14 @@ if chain_mode == :fork do
   config :autolaunch, :prelaunch_read_only, false
 end
 
+# Opening: the site leaves read-only mode only when this is exactly `true`.
+# Unset keeps the fail-closed default; anything else stops the boot.
+case System.get_env("AUTOLAUNCH_LAUNCHES_OPEN") do
+  nil -> :ok
+  "true" -> config :autolaunch, :prelaunch_read_only, false
+  other -> raise "AUTOLAUNCH_LAUNCHES_OPEN must be true or unset, got #{inspect(other)}"
+end
+
 # One deployment description per network, in the shape the lab controllers
 # write and the contracts thread writes at mainnet deployment, loaded in every
 # environment. A network whose variable is unset keeps whatever the
