@@ -8,6 +8,10 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   the bar shows how much of its time has passed.
 - Card links show a small logo for what each is (X, ENS, GitHub, website, wallet) and no
   underline. The creator's wallet shows as its logo alone, with the full address on hover.
+- Changing a gallery setting (sort, chain, type, Auctions or Tokens) no longer blanks the
+  gallery for a moment: the cards shown stay until the new ones replace them.
+- A stock price that could not be read is tried again after one second, then two, four and so
+  on, instead of staying missing for ten minutes.
 
 ## v24, 24 September 2026 (b97e278)
 - A launch threshold met many times over reads "100% met" instead of a huge percentage.

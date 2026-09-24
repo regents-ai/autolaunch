@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.HomeLive do
        market_options: nil,
        trade: nil,
        records: [],
+       records_kind: :auction,
        creators: %{},
        market: LabMarket.subscribe(socket),
        market_loading: true,
@@ -83,7 +84,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("open_trade", %{"id" => id}, socket) do
     trade =
-      case !socket.assigns.market_loading && Enum.find(socket.assigns.records, &(&1.id == id)) do
+      case Enum.find(socket.assigns.records, &(&1.id == id)) do
         %{} = record -> %{record: record}
         _none -> nil
       end
@@ -119,6 +120,7 @@ defmodule AutolaunchWeb.HomeLive do
     {:noreply,
      assign(socket,
        records: records,
+       records_kind: kind(socket.assigns.market_options),
        creators: creators,
        next_cursor: page.next_cursor,
        has_more: page.has_more,
@@ -127,8 +129,22 @@ defmodule AutolaunchWeb.HomeLive do
      )}
   end
 
-  def handle_async(:home_market, _failure, socket),
+  # A failed "Load more" keeps what is shown; a failed new listing clears the
+  # previous one, which no longer matches what was asked for.
+  def handle_async(:home_market, _failure, %{assigns: %{market_append: true}} = socket),
     do: {:noreply, assign(socket, market_loading: false, market_failed: true)}
+
+  def handle_async(:home_market, _failure, socket) do
+    {:noreply,
+     assign(socket,
+       records: [],
+       creators: %{},
+       next_cursor: nil,
+       has_more: false,
+       market_loading: false,
+       market_failed: true
+     )}
+  end
 
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
@@ -163,14 +179,11 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> reread_market() |> assign_auction_stats()}
 
+  # The cards already shown stay until the new listing arrives and replaces
+  # them, so changing a setting never blanks the gallery.
   defp load_market(socket, append?) do
     options = socket.assigns.market_options
     cursor = if append?, do: socket.assigns.next_cursor
-
-    socket =
-      if append?,
-        do: socket,
-        else: assign(socket, records: [], creators: %{}, has_more: false, next_cursor: nil)
 
     socket
     |> assign(
@@ -202,6 +215,9 @@ defmodule AutolaunchWeb.HomeLive do
     end)
   end
 
+  defp kind(%{view: "tokens"}), do: :token
+  defp kind(_options), do: :auction
+
   defp network_label("base"), do: "Base"
   defp network_label("robinhood"), do: "Robinhood"
   defp network_label(_), do: "Base + Robinhood"
@@ -209,7 +225,7 @@ defmodule AutolaunchWeb.HomeLive do
   def render(assigns) do
     assigns =
       assign(assigns,
-        kind: if(assigns.market_options.view == "tokens", do: :token, else: :auction),
+        kind: kind(assigns.market_options),
         listed?: assigns.records != []
       )
 
@@ -427,21 +443,23 @@ defmodule AutolaunchWeb.HomeLive do
         <div :if={@listed? && @market_options.display == "grid"} class="home-coin-grid">
           <.explore_card
             :for={record <- @records}
-            kind={@kind}
+            kind={@records_kind}
             record={record}
             creator_connections={connections_for(record, @creators)}
             trade_event="open_trade"
-            rate={figure_rate(@rates, if(@kind == :auction, do: record, else: record.auction))}
+            rate={
+              figure_rate(@rates, if(@records_kind == :auction, do: record, else: record.auction))
+            }
           />
         </div>
         <.auction_list
-          :if={@listed? && @market_options.display == "table" && @kind == :auction}
+          :if={@listed? && @market_options.display == "table" && @records_kind == :auction}
           records={@records}
           creators={@creators}
           rates={@rates}
         />
         <.token_list
-          :if={@listed? && @market_options.display == "table" && @kind == :token}
+          :if={@listed? && @market_options.display == "table" && @records_kind == :token}
           records={@records}
           creators={@creators}
           rates={@rates}
@@ -529,14 +547,14 @@ defmodule AutolaunchWeb.HomeLive do
           class="home-result-count"
           role="status"
         >
-          Showing {length(@records)} {if @kind == :token,
+          Showing {length(@records)} {if @records_kind == :token,
             do: "tokens",
             else: "auctions"}{if !@has_more,
             do: " · All results loaded"}
         </p>
       </section>
       <.swap_modal
-        :if={@trade && @kind == :token}
+        :if={match?(%{record: %Autolaunch.Token{}}, @trade)}
         id={"home-trade-#{@trade.record.id}"}
         token={@trade.record}
         authenticated={@account_control.kind == :signed_in}

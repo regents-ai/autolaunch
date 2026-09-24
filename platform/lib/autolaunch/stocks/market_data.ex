@@ -9,9 +9,11 @@ defmodule Autolaunch.Stocks.MarketData do
   pair listings. On Base the venues are the stock token's
   deepest Aerodrome pool and its deepest Uniswap pool, each linked to that
   venue's swap page; on Robinhood it is the single pair with the most volume
-  in the last day, linked to its DexScreener page. Every answer is kept for ten
-  minutes, and the reads happen in whichever process asks, so a page that asks
-  from a background task never waits on them.
+  in the last day, linked to its DexScreener page. A full answer is kept for
+  ten minutes. A read that failed, or left a stock's price out, is tried again
+  after one second, then two, four and so on, up to ten minutes. The reads
+  happen in whichever process asks, so a page that asks from a background task
+  never waits on them.
   """
 
   use GenServer
@@ -20,6 +22,7 @@ defmodule Autolaunch.Stocks.MarketData do
   alias Autolaunch.Stocks.{Assets, PriceFeeds}
 
   @ttl_ms 600_000
+  @first_retry_ms 1_000
   @latest_round_data "0xfeaf968c"
   @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   @dexscreener "https://api.dexscreener.com"
@@ -56,46 +59,51 @@ defmodule Autolaunch.Stocks.MarketData do
   @impl true
   def handle_call({:lookup, key}, _from, state) do
     case Map.fetch(state, key) do
-      {:ok, {value, read_at}} ->
-        if read_at + @ttl_ms > now(),
+      {:ok, {value, expires_at, misses}} ->
+        if expires_at > now(),
           do: {:reply, {:ok, value}, state},
-          else: {:reply, :stale, state}
+          else: {:reply, {:stale, misses}, state}
 
       :error ->
-        {:reply, :stale, state}
+        {:reply, {:stale, 0}, state}
     end
   end
 
   def handle_call(:reset, _from, _state), do: {:reply, :ok, %{}}
 
   @impl true
-  def handle_cast({:store, key, value}, state),
-    do: {:noreply, Map.put(state, key, {value, now()})}
+  def handle_cast({:store, key, entry}, state),
+    do: {:noreply, Map.put(state, key, entry)}
 
+  # A full answer is kept for the whole ten minutes; a partial answer or none
+  # is kept only until the next try, each wait twice the last.
   defp cached(key, read, empty) do
     case GenServer.call(__MODULE__, {:lookup, key}) do
       {:ok, value} ->
         value
 
-      :stale ->
-        case read.() do
-          {:ok, value} ->
-            GenServer.cast(__MODULE__, {:store, key, value})
-            value
+      {:stale, misses} ->
+        {value, entry} =
+          case read.() do
+            {:ok, value} -> {value, {value, now() + @ttl_ms, 0}}
+            {:partial, value} -> {value, {value, now() + retry_ms(misses), misses + 1}}
+            :error -> {empty, {empty, now() + retry_ms(misses), misses + 1}}
+          end
 
-          :error ->
-            empty
-        end
+        GenServer.cast(__MODULE__, {:store, key, entry})
+        value
     end
   end
 
+  defp retry_ms(misses), do: min(@first_retry_ms * Integer.pow(2, misses), @ttl_ms)
+
   # One `latestRoundData()` per listed stock, read concurrently; a feed that
-  # does not answer leaves its ticker out, and no answer at all is not kept.
+  # does not answer leaves its ticker out and makes the answer partial.
   defp read_prices(chain) do
+    feeds = chain |> Assets.all() |> Map.new(&{PriceFeeds.ticker(&1.symbol), &1.feed})
+
     prices =
-      chain
-      |> Assets.all()
-      |> Enum.map(&{PriceFeeds.ticker(&1.symbol), &1.feed})
+      feeds
       |> Task.async_stream(fn {ticker, feed} -> {ticker, read_price(chain, feed)} end,
         max_concurrency: 4,
         timeout: 10_000,
@@ -107,7 +115,11 @@ defmodule Autolaunch.Stocks.MarketData do
       end)
       |> Map.new()
 
-    if prices == %{}, do: :error, else: {:ok, prices}
+    cond do
+      prices == %{} -> :error
+      map_size(prices) < map_size(feeds) -> {:partial, prices}
+      true -> {:ok, prices}
+    end
   end
 
   defp read_price(chain, feed) do
