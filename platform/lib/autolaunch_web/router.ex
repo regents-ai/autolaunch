@@ -21,6 +21,10 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     # The platform health check answers before sessions, flash or CSRF.
     get "/healthz", HealthController, :show
+
+    # The pictures shared auction links show, read by sites without a session.
+    get "/auctions/:auction_id/share.png", ShareCardController, :base
+    get "/robinhood/auctions/:auction/share.png", ShareCardController, :robinhood
   end
 
   scope "/api/v1" do

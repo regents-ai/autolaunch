@@ -62,7 +62,7 @@ defmodule Autolaunch.HomeMarket do
             Map.merge(arguments, %{view: "new", state: options.state}),
             actor: nil
           )
-          |> Ash.Query.load(:fdv_at_floor),
+          |> Ash.Query.load(:fdv),
         else: Ash.Query.for_read(Token, :home_market, arguments, actor: nil)
 
     with {:ok, page_options} <- PublicPage.options(cursor, scope, 24),
