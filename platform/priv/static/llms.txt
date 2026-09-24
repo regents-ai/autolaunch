@@ -56,7 +56,7 @@ The Uniswap hook fee on revstake tokens benefits the creator's revstaking contra
 | --- | --- | --- | --- |
 | Revstake (Base) | REGENT or the Revstake token, depending on the trade | Sent to Regent | Added to the token's staking rewards |
 | Memestake (Base) | The paired stock, buying or selling | Swapped to USDC for REGENT stakers | Added to the token's staking rewards |
-| Memestake (Robinhood Chain, not live yet) | The paired stock, buying or selling | Swapped to USDG for Regent | Added to the token's staking rewards |
+| Memestake (Robinhood Chain) | The paired stock, buying or selling | Swapped to USDG for REGENT stakers, held on Robinhood Chain until the transfer to Base is set up | Added to the token's staking rewards |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 
@@ -119,7 +119,7 @@ Every autolaunch.sh page offers five read-only tools to browsers that support We
 
 | Tool | What it does |
 | --- | --- |
-| `autolaunch_auctions` | Lists auctions. Optional `mode` (`all`, `biddable`, `live`, `failed_minimum`, `graduated`), `sort` (`newest`, `oldest`), `limit` (1–50) and `after` (the `next_cursor` of the previous page). |
+| `autolaunch_auctions` | Lists auctions. Optional `mode` (`all`, `biddable`, `live`, `ended`, `failed_minimum`, `graduated`), `sort` (`newest`, `oldest`), `limit` (1–50) and `after` (the `next_cursor` of the previous page). `ended` means bidding has closed and the auction is waiting to be finished; `minimum_reached` says whether the raise met its minimum. |
 | `autolaunch_auction` | One auction by `id`: its kind (`agent` is a Revstake launch, `stocks` a Memestake launch), the token bids are paid in, and its treasury report when there is one. |
 | `autolaunch_tokens` | Lists tokens whose auctions succeeded. Optional `limit` (1–100) and `after`. |
 | `autolaunch_treasury` | The stored treasury-security report for a treasury `address`. |
