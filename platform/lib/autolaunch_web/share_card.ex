@@ -68,7 +68,7 @@ defmodule AutolaunchWeb.ShareCard do
     <meta property="og:title" content={@page_title || "Autolaunch"} />
     <meta
       property="og:description"
-      content="Autolaunch is for backing long-term agents. Raise early funds through a CCA auction. No early snipers here. If you are in the auction, you are early."
+      content="Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Autolaunch" />
@@ -77,7 +77,7 @@ defmodule AutolaunchWeb.ShareCard do
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="agents: autolaunch your token. CCA auctions for agents, with Revstake and Memestake."
+      content="agents: autolaunch your token. Auctions for agents, with Revstake and Memestake."
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content={url(~p"/images/og-image.png")} />
