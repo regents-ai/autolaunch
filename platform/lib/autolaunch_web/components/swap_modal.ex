@@ -101,6 +101,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
         module={AutolaunchWeb.RobinhoodStockBidComponent}
         id={@id <> "-input"}
         auction={@auction.auction_address}
+        launch={@auction}
         token_symbol={@auction.token_symbol}
         authenticated={@authenticated}
         current_human_id={@current_human_id}

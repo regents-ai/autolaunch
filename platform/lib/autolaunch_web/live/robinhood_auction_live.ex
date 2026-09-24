@@ -129,6 +129,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             id="autolaunch-robinhood-bid"
             outbid_banner
             auction={@auction}
+            launch={@launch}
             ended={ended_copy(@launch)}
             token_symbol={@launch.token_symbol}
             stake_path={

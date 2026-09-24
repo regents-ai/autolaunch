@@ -24,7 +24,9 @@ defmodule Autolaunch.Chain.CcaSettlement do
   above a bid's maximum returns that bid's unspent money early through
   `exitPartiallyFilledBid`, but only against a stored checkpoint priced above
   the maximum. Until the auction has stored one, the exit is refused as
-  `:bid_needs_partial_exit_hints_unavailable`.
+  `:price_not_recorded`: anyone's `checkpoint()` stores the current price, and
+  the exit is accepted from then on. `return_status/1` reads, from one
+  snapshot, when a bid's unspent money can come back.
 
   `exited/5` and `claimed/5` decode `BidExited` and `TokensClaimed` from a
   canonical receipt's logs and check the owner is the reviewed signer.
@@ -119,17 +121,20 @@ defmodule Autolaunch.Chain.CcaSettlement do
       %{to: auction, data: LabAbi.encode(venue.abi, "checkpoint()", [])},
       %{to: auction, data: LabAbi.encode(venue.abi, "isGraduated()", [])},
       %{to: auction, data: LabAbi.encode(venue.abi, "clearingPrice()", [])},
+      %{to: auction, data: LabAbi.encode(venue.abi, "currencyRaised()", [])},
       %{to: auction, data: exit_data, from: bid.owner},
       %{to: auction, data: claim_data, from: bid.owner}
     ]
 
-    with {:ok, [_checkpoint, graduated, clearing, exit_call, claim_call]} <-
+    with {:ok, [_checkpoint, graduated, clearing, raised, exit_call, claim_call]} <-
            simulate_calls(venue, calls),
          {:ok, graduated?} <- returned_bool(graduated),
-         {:ok, clearing_price} <- returned_uint(clearing) do
+         {:ok, clearing_price} <- returned_uint(clearing),
+         {:ok, currency_raised} <- returned_uint(raised) do
       base = %{
         graduated?: graduated?,
         final_clearing_price_q96: clearing_price,
+        currency_raised: currency_raised,
         claim: claim_outcome(venue.abi, auction, claim_call, claim_data)
       }
 
@@ -151,6 +156,39 @@ defmodule Autolaunch.Chain.CcaSettlement do
       end
     end
   end
+
+  @doc """
+  When the unspent money of a bid still in the auction can come back, from one
+  `simulate/4` snapshot:
+
+    * `:now`: the auction accepts the exit now (always so once bidding ended);
+    * `{:minimum, raised}`: the auction has not reached its minimum, of which
+      `raised` (in the currency's smallest unit) is raised so far;
+    * `:record`: the price has passed the bid's maximum, but the auction
+      accepts the exit only once that price is recorded, which `checkpoint()`
+      does;
+    * `:buying`: the maximum equals the price, so the bid is still buying and
+      comes back after bidding ends;
+    * `:in`: the maximum is above the price;
+    * `{:refused, reason}`: the auction's own reason, such as an exited bid.
+  """
+  @spec return_status(map()) ::
+          :now | {:minimum, non_neg_integer()} | :record | :buying | :in | {:refused, atom()}
+  def return_status(%{exit: %{}}), do: :now
+  def return_status(%{exit: {:refused, :price_not_recorded}}), do: :record
+
+  def return_status(%{exit: {:refused, :auction_not_ended}, graduated?: false} = snapshot),
+    do: {:minimum, snapshot.currency_raised}
+
+  def return_status(%{
+        exit: {:refused, :auction_not_ended},
+        final_clearing_price_q96: price,
+        bid: %{max_price_q96: price}
+      }),
+      do: :buying
+
+  def return_status(%{exit: {:refused, :auction_not_ended}}), do: :in
+  def return_status(%{exit: {:refused, reason}}), do: {:refused, reason}
 
   @doc """
   The auction's own `BidExited` for this bid and this owner, or `:unverified`
@@ -233,8 +271,9 @@ defmodule Autolaunch.Chain.CcaSettlement do
          claim: claim_outcome(venue.abi, auction, claim_call, claim_data)
        })}
     else
-      {:error, :bid_needs_partial_exit_hints_unavailable} ->
-        {:ok, Map.put(base, :exit, {:refused, :bid_needs_partial_exit_hints_unavailable})}
+      {:error, reason}
+      when reason in [:bid_needs_partial_exit_hints_unavailable, :price_not_recorded] ->
+        {:ok, Map.put(base, :exit, {:refused, reason})}
 
       {:error, reason} ->
         {:error, reason}
@@ -243,7 +282,8 @@ defmodule Autolaunch.Chain.CcaSettlement do
 
   # `final_block` is the end block once bidding has ended, when the settlement
   # itself writes the final checkpoint; while bidding is open it is `nil` and
-  # only a stored checkpoint above the maximum can be the outbid block.
+  # only a stored checkpoint above the maximum can be the outbid block: until
+  # one is stored, the current price is not recorded yet.
   defp checkpoint_hints(venue, auction, bid, %{
          clearing_price: clearing_price,
          final_block: final_block
@@ -258,8 +298,7 @@ defmodule Autolaunch.Chain.CcaSettlement do
   defp outbid_block(_outbid, price, %{max_price_q96: price}, _final_block), do: {:ok, 0}
   defp outbid_block(outbid, _price, _bid, _final_block) when is_integer(outbid), do: {:ok, outbid}
 
-  defp outbid_block(:final, _price, _bid, nil),
-    do: {:error, :bid_needs_partial_exit_hints_unavailable}
+  defp outbid_block(:final, _price, _bid, nil), do: {:error, :price_not_recorded}
 
   defp outbid_block(:final, _price, _bid, final_block), do: {:ok, final_block}
 

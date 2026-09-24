@@ -4,12 +4,12 @@ defmodule AutolaunchWeb.OutbidComponent do
   open, and what they can do next.
 
   A bid still buying can be added to. An outbid bid can be bid again at the
-  current price, and once the auction has reached its minimum, the money it
-  has not spent can come back early. The auction cannot change a bid, so
-  adding and raising both open the one bid form (`BidComponent`) with the old
-  bid's figures entered, and each places a new bid with new money. The early
-  return is `BidSettlementComponent`'s, which says here whether the auction
-  offers it yet.
+  current price, and the money it has not spent can come back early once the
+  auction allows it. The auction cannot change a bid, so adding and raising
+  both open the one bid form (`BidComponent`) with the old bid's figures
+  entered, and each places a new bid with new money. Under an outbid bid, or
+  one sharing at the price, `BidSettlementComponent` says when the unspent
+  money can come back and offers the early return.
 
   Hosts pass the auction's price book when they already read it; anywhere
   else the component reads it once.
@@ -25,15 +25,11 @@ defmodule AutolaunchWeb.OutbidComponent do
   alias Phoenix.LiveView.AsyncResult
 
   @impl true
-  def update(%{early_return: early_return}, socket),
-    do: {:ok, assign(socket, :early_return, early_return)}
-
   def update(assigns, socket) do
     {:ok,
      socket
      |> assign(assigns)
      |> assign_new(:open, fn -> nil end)
-     |> assign_new(:early_return, fn -> nil end)
      |> assign_book()}
   end
 
@@ -70,17 +66,15 @@ defmodule AutolaunchWeb.OutbidComponent do
         :if={@standing == :outbid}
         price={@book.result.clearing}
         unit={@auction.quote_token_symbol}
-        back={back(@auction, @early_return)}
       />
 
       <.live_component
-        :if={@standing == :outbid && @auction.minimum_reached}
+        :if={@standing in [:outbid, :sharing]}
         module={AutolaunchWeb.BidSettlementComponent}
         id={"#{@id}-early"}
         position={@position}
         early
         recheck={@book.result.block}
-        parent={@id}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
@@ -144,12 +138,6 @@ defmodule AutolaunchWeb.OutbidComponent do
     {:ok, price_q96} = BidActions.price_q96(position.max_price, decimals)
     AuctionBook.standing(price_q96, book)
   end
-
-  # The rest comes back early only once the auction has reached its minimum, and
-  # only once it has recorded a price above this bid.
-  defp back(%{minimum_reached: true}, :ready), do: :now
-  defp back(%{minimum_reached: true}, _not_yet), do: :price_recorded
-  defp back(_auction, _early_return), do: :after_end
 
   defp heading(:raise), do: "Raise my bid"
   defp heading(:add), do: "Add to this bid"
