@@ -111,3 +111,36 @@
   .market-detail-layout { grid-template-rows: none; }
   .market-detail-layout > .market-identity, .market-detail-layout > .market-detail-action, .market-detail-layout > .market-detail-summary { grid-column: auto; grid-row: auto; }
 }
+
+/* The one bid form: a total, the current-price box, and the advanced limit. */
+.bid-form__unit { align-self: center; color: var(--color-fg-muted); font-size: .875rem; }
+.bid-form__check { display: flex; align-items: center; gap: var(--space-1); font-weight: 500; cursor: pointer; }
+.bid-form__check input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand-accent); }
+.bid-form__choice { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: 0; padding: 0; border: 0; min-width: 0; }
+.bid-form__choice legend { margin-bottom: 4px; font-size: .8125rem; color: var(--color-fg-muted); }
+.bid-form__choice label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.bid-form__choice input { margin: 0; accent-color: var(--brand-accent); }
+.bid-form__limit { display: grid; gap: 4px; padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
+.bid-form__limit p { margin: 0; }
+.bid-form__advanced { display: grid; gap: var(--space-2); min-width: 0; margin: 0; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: 8px; }
+.bid-form__advanced legend { padding: 0 4px; font-size: .8125rem; color: var(--color-fg-muted); }
+.bid-form__note { display: block; margin: 0; font-size: .8125rem; color: var(--color-fg-muted); overflow-wrap: anywhere; }
+/* The total, its currency and Max stay on one line, even on a phone. */
+.bid-form .bid-amount { flex-wrap: nowrap; align-items: stretch; }
+.bid-form .bid-amount input { flex: 1 1 0; min-width: 0; }
+.bid-form .bid-amount .bid-form__unit { flex: none; }
+/* The prepared bid in three lines, right above the button that opens the wallet. */
+.bid-form__summary { display: grid; margin: 0; font-size: .875rem; }
+.bid-form__summary div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); padding: 6px 0; }
+.bid-form__summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.bid-form__pending { display: grid; gap: var(--space-1); }
+
+/* After the wallet: the bid on its way, or placed with its share. */
+.bid-progress, .bid-placed, .bid-share, .bid-share__account, .bid-share form { display: grid; gap: var(--space-2); min-width: 0; }
+.bid-progress__status { margin: 0; padding: var(--space-2); border-left: 3px solid var(--brand-accent); font-weight: 500; }
+.bid-placed p { margin: 0; }
+.bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); font-weight: 600; overflow-wrap: anywhere; }
+.bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.bid-placed__actions > * { flex: 1 1 8rem; }
+.bid-share { padding: var(--space-2); border: 1px solid var(--hairline); border-radius: 8px; }
+.bid-share textarea { width: 100%; min-width: 0; resize: vertical; font: inherit; }

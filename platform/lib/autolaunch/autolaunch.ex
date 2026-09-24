@@ -157,7 +157,6 @@ defmodule Autolaunch do
         args: [:auction_id, :expected_signer, :usdc_amount, :max_price]
 
       define :cancel_bid_review, action: :cancel_bid_review, args: [:action_id]
-      define :start_new_bid, action: :start_new_bid, args: [:action_id]
     end
 
     # The durable bidder operation is written only by `BidActions` under a

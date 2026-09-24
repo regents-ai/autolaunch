@@ -61,7 +61,6 @@ defmodule Autolaunch.BidActions do
   @replaced "replaced by a newer review"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed bid expired before it was sent"
-  @unresolved "account started a new bid while this one was unresolved"
 
   # A Base read that may answer differently later never settles anything.
   @transient [
@@ -219,17 +218,6 @@ defmodule Autolaunch.BidActions do
 
   def cancel(input, context),
     do: write(context, input.arguments.action_id, transition(:cancel, %{reason: @withdrawn}))
-
-  @doc """
-  Ends an operation whose presses have not resolved, at the account's request.
-
-  Withdrawing the review cancels future admission only: every issued press keeps
-  its own record and its hash, and nothing is ever resent. The row remains for
-  the canonical projector; only the account's open slot is released, and a new
-  review is a new bid, which the protocol permits.
-  """
-  def start_new_bid(input, context),
-    do: write(context, input.arguments.action_id, transition(:cancel, %{reason: @unresolved}))
 
   @doc "The presenter's whole view of one operation. Everything else stays server-side."
   @spec view(Ash.Resource.record() | nil) :: map() | nil

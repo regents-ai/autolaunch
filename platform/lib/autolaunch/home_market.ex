@@ -68,7 +68,10 @@ defmodule Autolaunch.HomeMarket do
             actor: nil
           )
           |> Ash.Query.load(:fdv),
-        else: Ash.Query.for_read(Token, :home_market, arguments, actor: nil)
+        else:
+          Token
+          |> Ash.Query.for_read(:home_market, arguments, actor: nil)
+          |> Ash.Query.load(:market_cap)
 
     with {:ok, page_options} <- PublicPage.options(cursor, scope, 24),
          {:ok, page} <- Ash.read(query, page: page_options) do

@@ -362,6 +362,13 @@ defmodule Autolaunch.Token do
     end
   end
 
+  calculations do
+    # What every token is worth at its current price, in the pool currency's units.
+    calculate :market_cap, :decimal, Autolaunch.Token.Calculations.MarketCap do
+      public? true
+    end
+  end
+
   identities do
     identity :unique_auction, [:auction_id]
   end

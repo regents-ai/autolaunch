@@ -431,11 +431,6 @@ defmodule Autolaunch.Auction do
       argument :action_id, :string, allow_nil?: false
       run fn input, context -> BidActions.cancel(input, context) end
     end
-
-    action :start_new_bid, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> BidActions.start_new_bid(input, context) end
-    end
   end
 
   policies do
@@ -482,8 +477,7 @@ defmodule Autolaunch.Auction do
              :bid_position,
              :prepare_bid,
              :prepare_usdc_bid,
-             :cancel_bid_review,
-             :start_new_bid
+             :cancel_bid_review
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
