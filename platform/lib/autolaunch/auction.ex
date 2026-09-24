@@ -72,11 +72,16 @@ defmodule Autolaunch.Auction do
               )
     end
 
+    # Not atomic: an atomic update re-reads through the primary read, which
+    # hides Robinhood rows, so a Robinhood auction would never be claimed.
     update :schedule_activity do
+      require_atomic? false
       accept [:activity_due_at]
     end
 
     update :refresh_activity do
+      require_atomic? false
+
       accept [
         :activity_next_block,
         :activity_last_hash,
