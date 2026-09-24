@@ -5,8 +5,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.Token
   alias Autolaunch.Stocks.MarketData
+  alias Autolaunch.Token
   alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
 
