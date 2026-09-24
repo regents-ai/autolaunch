@@ -6,6 +6,8 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 ## v25, 24 September 2026
 - The time bar on auction cards fills again: the site now records when each auction opened, so
   the bar shows how much of its time has passed.
+- Card links show a small logo for what each is (X, ENS, GitHub, website, wallet) and no
+  underline. The creator's wallet shows as its logo alone, with the full address on hover.
 
 ## v24, 24 September 2026 (b97e278)
 - A launch threshold met many times over reads "100% met" instead of a huge percentage.

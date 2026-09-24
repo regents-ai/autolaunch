@@ -2,6 +2,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   @moduledoc false
   use Phoenix.Component
 
+  import AutolaunchWeb.Components.LinkIcon
+
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -896,7 +898,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :website, :string, default: nil
   attr :wallet, :map, default: nil, doc: "the creator's wallet and its explorer page"
 
-  # At most six links, each written as its handle or site, in this order: the
+  # At most six links, each its kind's mark then its handle or site (the
+  # wallet only its mark, with its address on hover), in this order: the
   # accounts, the website, then the wallet; any past six are left to the
   # coin's page. A website shows only as an ordinary web link; anything else
   # a launch recorded there is left off the card.
@@ -904,6 +907,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     connections =
       Enum.map(assigns.connections, fn connection ->
         %{
+          icon: connection.kind,
           url: connection.url,
           text: connection.handle,
           label: "#{connection.label} #{connection.handle}",
@@ -920,6 +924,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         link ->
           [
             %{
+              icon: :web,
               url: link.url,
               text: link.label,
               label: nil,
@@ -937,8 +942,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
         wallet ->
           [
             %{
+              icon: :wallet,
               url: wallet.url,
-              text: wallet.short,
+              text: nil,
               label: "Creator wallet #{wallet.short}",
               title: wallet.address,
               rel: "noopener noreferrer"
@@ -957,7 +963,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         aria-label={link.label}
         target="_blank"
         rel={link.rel}
-      >{link.text}</a>
+      ><.link_icon kind={link.icon} /><span :if={link.text}>{link.text}</span></a>
     </div>
     """
   end
@@ -1103,8 +1109,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
   @doc """
-  The accounts a creator connected and proved they own, each with its label,
-  handle and link, in the order X, Company X, ENS, GitHub.
+  The accounts a creator connected and proved they own, each with its kind,
+  label, handle and link, in the order X, Company X, ENS, GitHub.
   """
   def connection_list(connections) when is_map(connections) do
     [:profile, :x, :company, :ens, :github]
@@ -1116,15 +1122,23 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp connection(key, %{verified_at: %DateTime{}, username: name})
        when is_binary(name) and name != "" do
-    {label, base, handle} =
+    {kind, label, base, handle} =
       case key do
-        :ens -> {"ENS", "https://app.ens.domains/", name}
-        :github -> {"GitHub", "https://github.com/", name}
-        :company -> {"Company X", "https://x.com/", "@" <> name}
-        _ -> {"X", "https://x.com/", "@" <> name}
+        :ens -> {:ens, "ENS", "https://app.ens.domains/", name}
+        :github -> {:github, "GitHub", "https://github.com/", name}
+        :company -> {:x, "Company X", "https://x.com/", "@" <> name}
+        _ -> {:x, "X", "https://x.com/", "@" <> name}
       end
 
-    [%{username: name, label: label, handle: handle, url: base <> URI.encode_www_form(name)}]
+    [
+      %{
+        kind: kind,
+        username: name,
+        label: label,
+        handle: handle,
+        url: base <> URI.encode_www_form(name)
+      }
+    ]
   end
 
   defp connection(_key, _value), do: []

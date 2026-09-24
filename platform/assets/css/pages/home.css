@@ -68,7 +68,8 @@
 #home-explore .home-coin__figure span { color: var(--color-fg); }
 #home-explore .home-coin__links { --link-rows: 3; box-sizing: content-box; height: calc(var(--link-rows) * 1.5em + (var(--link-rows) - 1) * 2px); margin-top: 6px; padding: 6px 0 8px; border-bottom: 1px solid var(--hairline); font-size: .75rem; line-height: 1.5; }
 #home-explore .home-coin__links .launchpad-card__socials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1.5em; gap: 2px 12px; padding: 0; border: 0; font-size: inherit; }
-#home-explore .home-coin__links a { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg-muted); text-underline-offset: 2px; }
+#home-explore .home-coin__links a { justify-self: start; display: inline-flex; align-items: center; gap: .4em; max-width: 100%; color: var(--color-fg-muted); text-decoration: none; }
+#home-explore .home-coin__links a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #home-explore .home-coin__links a:is(:hover, :focus-visible) { color: var(--color-fg); }
 #home-explore .home-coin__description { --text-lines: 5; display: -webkit-box; -webkit-line-clamp: var(--text-lines); -webkit-box-orient: vertical; height: calc(var(--text-lines) * 1.5em); overflow: hidden; overflow-wrap: anywhere; margin: 8px 0 0; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); }
 /* An auction's figures row: the bid volume and launch threshold at the left, shown while the pointer is over the card or the keyboard is inside it; the FDV at the lower right, always. */
