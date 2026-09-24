@@ -200,6 +200,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   defp reload_launch(%{assigns: %{open?: false}} = socket), do: socket
 
+  # Not an address: there is no auction to read again.
+  defp reload_launch(%{assigns: %{auction: nil}} = socket), do: socket
+
   defp reload_launch(socket) do
     {:ok, launch} = Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil)
     assign(socket, :launch, launch)

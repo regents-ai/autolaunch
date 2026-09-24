@@ -42,7 +42,7 @@ defmodule AutolaunchWeb.AuctionController do
 
   defp auction_entry(conn, id) do
     case Ash.Type.UUID.cast_input(id, []) do
-      {:ok, _id} -> entry(autolaunch(conn).get_public_auction(id, actor: nil))
+      {:ok, _id} -> entry(autolaunch(conn).get_listed_auction(id, actor: nil))
       :error -> robinhood_entry(conn, Address.normalize(id))
     end
   end

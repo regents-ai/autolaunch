@@ -9,8 +9,10 @@ defmodule Autolaunch.Robinhood.Positions do
   only the wallets the signed-in account has verified are ever read.
 
   Where a bid stands follows the auction's own rules. While bidding is open the
-  bid is in the auction. Once the auction has ended without graduating, an
-  un-exited bid is refundable in full. Once it has graduated, an un-exited bid
+  bid is in the auction. Once bidding has ended, the bid waits until the
+  launch is finished, since the raise is not final before then. Once the
+  launch has failed, an un-exited bid is refundable in full. Once it has
+  graduated, an un-exited bid
   still has whatever it did not spend to come back, an amount only the exit
   itself states. An exited bid with tokens filled can claim them from the
   claim block. After a claim clears the stored fill, a positive `TokensClaimed`
@@ -25,7 +27,15 @@ defmodule Autolaunch.Robinhood.Positions do
 
   @bid_record_words 7
 
-  @type standing :: :bidding | :refundable | :ended | :returned | :filled | :claimable | :claimed
+  @type standing ::
+          :bidding
+          | :ended
+          | :refundable
+          | :graduated
+          | :returned
+          | :filled
+          | :claimable
+          | :claimed
 
   @type position :: %{
           auction: String.t(),
@@ -197,24 +207,20 @@ defmodule Autolaunch.Robinhood.Positions do
   end
 
   # The auction's own rules, in order: an un-exited bid is in the auction until
-  # the end block; after it, refundable in full when the raise stayed below its
-  # minimum (whether or not the launch has been finished yet), and otherwise
-  # waiting on its exit; an exited bid with fill claims from the claim block.
+  # the end block; after it, the raise is only final once the launch is
+  # finished, so the bid waits on that; a failed launch refunds it in full and
+  # a graduated one owes it whatever it did not spend, which its exit states;
+  # an exited bid with fill claims from the claim block.
   defp standing(%{exited_block: 0}, %{state: state}, _venue) when state in [:created, :active],
     do: {:ok, :bidding, nil, nil}
+
+  defp standing(%{exited_block: 0}, %{state: :ended}, _venue), do: {:ok, :ended, nil, nil}
 
   defp standing(%{exited_block: 0, amount: amount}, %{state: :failed}, _venue),
     do: {:ok, :refundable, amount, nil}
 
-  defp standing(
-         %{exited_block: 0, amount: amount},
-         %{state: :ended, minimum_reached: false},
-         _venue
-       ),
-       do: {:ok, :refundable, amount, nil}
-
-  defp standing(%{exited_block: 0}, %{state: state}, _venue) when state in [:ended, :graduated],
-    do: {:ok, :ended, nil, nil}
+  defp standing(%{exited_block: 0}, %{state: :graduated}, _venue),
+    do: {:ok, :graduated, nil, nil}
 
   defp standing(%{tokens_filled: 0} = bid, auction, venue) do
     with {:ok, claimed?} <- claimed?(bid, auction.auction, venue) do

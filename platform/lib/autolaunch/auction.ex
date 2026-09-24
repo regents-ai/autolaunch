@@ -177,6 +177,15 @@ defmodule Autolaunch.Auction do
       prepare build(load: [:treasury_security_report])
     end
 
+    # Any auction the public lists carry, by the id they give it.
+    read :listed_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:treasury_security_report])
+    end
+
     # A listed Robinhood auction, which its address names on the site.
     read :robinhood_by_address do
       get? true
@@ -307,6 +316,7 @@ defmodule Autolaunch.Auction do
     policy action([
              :read,
              :listed,
+             :listed_by_id,
              :robinhood_by_address,
              :list_public,
              :page_public,

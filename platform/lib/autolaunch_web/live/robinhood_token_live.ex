@@ -208,6 +208,9 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   defp reload_token(%{assigns: %{open?: false}} = socket), do: socket
 
+  # Not an address: there is no token to read again.
+  defp reload_token(%{assigns: %{token_address: nil}} = socket), do: socket
+
   defp reload_token(socket) do
     {:ok, token} = Autolaunch.get_robinhood_token(socket.assigns.token_address, actor: nil)
     assign(socket, :token, token)
