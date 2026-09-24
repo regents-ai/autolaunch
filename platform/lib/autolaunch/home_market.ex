@@ -1,5 +1,5 @@
 defmodule Autolaunch.HomeMarket do
-  @moduledoc "Homepage-only public discovery and cursor scope."
+  @moduledoc "Public discovery and cursor scope for the home page and the auctions list."
   alias Autolaunch.{Auction, Token}
   alias AutolaunchWeb.PublicPage
 
@@ -26,7 +26,7 @@ defmodule Autolaunch.HomeMarket do
     }
   end
 
-  def path(options, changes \\ %{}) do
+  def path(options, changes \\ %{}, base \\ "/") do
     params =
       options
       |> Map.merge(changes)
@@ -36,7 +36,7 @@ defmodule Autolaunch.HomeMarket do
     query =
       params |> Enum.reject(fn {_, value} -> value == "" end) |> Enum.sort() |> URI.encode_query()
 
-    "/?" <> query
+    base <> "?" <> query
   end
 
   def read(options, cursor \\ nil) do
@@ -53,16 +53,20 @@ defmodule Autolaunch.HomeMarket do
       github: options.github
     }
 
-    arguments =
+    query =
       if resource == Auction,
-        do: Map.merge(arguments, %{view: "new", state: options.state}),
-        else: arguments
+        do:
+          Auction
+          |> Ash.Query.for_read(
+            :home_market,
+            Map.merge(arguments, %{view: "new", state: options.state}),
+            actor: nil
+          )
+          |> Ash.Query.load(:fdv_at_floor),
+        else: Ash.Query.for_read(Token, :home_market, arguments, actor: nil)
 
     with {:ok, page_options} <- PublicPage.options(cursor, scope, 24),
-         {:ok, page} <-
-           resource
-           |> Ash.Query.for_read(:home_market, arguments, actor: nil)
-           |> Ash.read(page: page_options) do
+         {:ok, page} <- Ash.read(query, page: page_options) do
       {:ok,
        Map.merge(PublicPage.metadata(page, scope), %{
          records: page.results,

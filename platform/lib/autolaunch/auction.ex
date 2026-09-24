@@ -383,7 +383,15 @@ defmodule Autolaunch.Auction do
 
     update :refresh_lab_market do
       require_atomic? false
-      accept [:state, :current_clearing_price, :minimum_reached]
+
+      accept [
+        :state,
+        :current_clearing_price,
+        :minimum_reached,
+        :currency_raised,
+        :floor_price,
+        :token_supply
+      ]
     end
 
     update :set_treasury_security_report do
@@ -621,6 +629,24 @@ defmodule Autolaunch.Auction do
       constraints max_length: 100, trim?: true
     end
 
+    # The market feed's latest reading of what the auction has raised, in
+    # whole quote-token units.
+    attribute :currency_raised, :decimal do
+      public? true
+    end
+
+    # The lowest price the auction sells at, in quote-token units per token,
+    # and the launch token's total supply in whole tokens. Both are fixed when
+    # the auction is created; the market feed reads them once.
+    attribute :floor_price, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    attribute :token_supply, :decimal do
+      public? true
+    end
+
     attribute :treasury_address, :string do
       public? true
       constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
@@ -730,6 +756,13 @@ defmodule Autolaunch.Auction do
        |> String.replace("\\", "\\\\")
        |> String.replace("%", "\\%")
        |> String.replace("_", "\\_")) <> "%"
+  end
+
+  calculations do
+    # What every token is worth at the floor price, in quote-token units.
+    calculate :fdv_at_floor, :decimal, Autolaunch.Auction.Calculations.FdvAtFloor do
+      public? true
+    end
   end
 
   identities do

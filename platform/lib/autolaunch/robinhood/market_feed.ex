@@ -38,6 +38,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction
   alias Autolaunch.Auction.MarketState
+  alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{LabProjection, MarketWatch}
   alias Autolaunch.Stocks.Amounts
@@ -314,9 +315,11 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   defp refresh_auction(reader, head, auction) do
-    with {:ok, market} <- reader.market(head, auction.auction_address) do
-      decimals = auction.quote_token_decimals
+    decimals = auction.quote_token_decimals
+    price = &Amounts.format_cca_price(&1, decimals, @token_decimals)
 
+    with {:ok, market} <- reader.market(head, auction.auction_address),
+         {:ok, terms} <- reader.terms(head, auction, price) do
       observed =
         MarketState.observed(market.lifecycle, head.clock, market.start_block, market.end_block)
 
@@ -329,6 +332,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         current_clearing_price:
           Amounts.format_cca_price(market.clearing_price_q96, decimals, @token_decimals),
         currency_raised: Rpc.format_units(market.currency_raised, decimals),
+        terms: terms,
         start_block: market.start_block,
         end_block: market.end_block,
         clock: head.clock,
@@ -366,7 +370,9 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   defp write(auction, reading) do
     if auction.state == reading.state and
          auction.current_clearing_price == reading.current_clearing_price and
-         auction.minimum_reached == reading.minimum_reached do
+         auction.minimum_reached == reading.minimum_reached and
+         not AuctionTerms.raised_changed?(auction, reading.currency_raised) and
+         not AuctionTerms.missing?(auction) do
       {:ok, nil}
     else
       transaction(fn -> refresh_row(auction, reading) end)
@@ -382,7 +388,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
              auction,
              reading.state,
              reading.current_clearing_price,
-             %{minimum_reached: reading.minimum_reached},
+             AuctionTerms.fields(reading),
              actor: @actor
            ),
          :ok <- LabProjection.project_graduated_token(row),
@@ -426,9 +432,11 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     @moduledoc """
     The Robinhood chain as the feed reads it, all at one pinned block: the
     head and its rollup clock, one launch record with its token's name,
-    symbol and metadata, and one auction's market.
+    symbol and metadata, one auction's market, and its floor price and token
+    supply.
     """
 
+    alias Autolaunch.AuctionTerms
     alias Autolaunch.Chain.{Abi, Rpc}
     alias Autolaunch.LabAbi
     alias Autolaunch.Robinhood.{BlockClock, Lab}
@@ -487,6 +495,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         {:error, reason} -> {:error, reason}
       end
     end
+
+    def terms(head, auction, price), do: AuctionTerms.read(auction, price, head.block, head.opts)
 
     def market(head, auction) do
       with {:ok, launch_id} <- launchpad_uint(head, "launchIdOfAuction(address)", [auction]),

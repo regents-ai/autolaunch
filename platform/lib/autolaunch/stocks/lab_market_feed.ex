@@ -19,6 +19,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction
   alias Autolaunch.Auction.MarketState
+  alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
@@ -185,6 +186,13 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          {:ok, clearing} <- auction_uint(config, address, "clearingPrice()", block, opts),
          {:ok, raised} <- auction_uint(config, address, "currencyRaised()", block, opts),
          {:ok, remaining} <- auction_uint(config, address, "remainingSupply()", block, opts),
+         {:ok, terms} <-
+           AuctionTerms.read(
+             auction,
+             &Amounts.format_cca_price(&1, decimals, @new_decimals),
+             block,
+             opts
+           ),
          {:ok, launch_id} <-
            launchpad_uint(config, "launchIdOfAuction(address)", [address], block, opts),
          {:ok, record} <-
@@ -220,6 +228,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          currency_raised: Rpc.format_units(raised, decimals),
          currency_symbol: auction.quote_token_symbol,
          remaining_supply: Rpc.format_units(remaining, @new_decimals),
+         terms: terms,
          minimum_reached: minimum_reached,
          positions: positions
        }}
@@ -249,12 +258,16 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     market = %{
       state: MarketState.join(auction.state, snapshot.state),
       price: snapshot.current_clearing_price,
-      minimum_reached: snapshot.minimum_reached
+      minimum_reached: snapshot.minimum_reached,
+      currency_raised: snapshot.currency_raised,
+      terms: snapshot.terms
     }
 
     market_changed? =
       auction.state != market.state or auction.current_clearing_price != market.price or
-        auction.minimum_reached != market.minimum_reached
+        auction.minimum_reached != market.minimum_reached or
+        AuctionTerms.raised_changed?(auction, market.currency_raised) or
+        AuctionTerms.missing?(auction)
 
     with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
          :ok <- refresh_market(auction, market_changed?, market),
@@ -277,7 +290,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              auction,
              market.state,
              market.price,
-             %{minimum_reached: market.minimum_reached},
+             AuctionTerms.fields(market),
              actor: @actor
            ),
          do: LabProjection.project_graduated_token(row)

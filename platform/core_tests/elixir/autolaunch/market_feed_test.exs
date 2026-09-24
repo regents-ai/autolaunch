@@ -77,6 +77,10 @@ defmodule Autolaunch.MarketFeedTest do
           LabAbi.selector("clearingPrice()") => [0],
           LabAbi.selector("currencyRaised()") => [10 ** 18],
           LabAbi.selector("remainingSupply()") => [0],
+          # The floor, the token it sells and that token's supply.
+          LabAbi.selector("floorPrice()") => [2 ** 96],
+          LabAbi.selector("token()") => [0x61],
+          LabAbi.selector("totalSupply()") => [100 * 10 ** 18],
           # Lifecycle 1 (Active) and no pool yet.
           LabAbi.selector("distribution(address)") => [1 | List.duplicate(0, 17)],
           # The Memestake launchpad: every auction's record at `lifecycle`
@@ -215,7 +219,17 @@ defmodule Autolaunch.MarketFeedTest do
 
       after_refresh = reload(auction)
       assert %{state: :active, minimum_reached: true} = after_refresh
-      market = [:state, :minimum_reached, :current_clearing_price, :updated_at]
+
+      market = [
+        :state,
+        :minimum_reached,
+        :current_clearing_price,
+        :currency_raised,
+        :floor_price,
+        :token_supply,
+        :updated_at
+      ]
+
       assert Map.drop(after_refresh, market) == Map.drop(before, market)
       assert stocks_rows() == rows
     end
@@ -320,6 +334,8 @@ defmodule Autolaunch.MarketFeedTest do
       state: state,
       minimum_reached: minimum_reached,
       current_clearing_price: auction.current_clearing_price,
+      currency_raised: "1",
+      terms: %{floor_price: "1", token_supply: Decimal.new(100)},
       price_quote: nil,
       positions: []
     }
