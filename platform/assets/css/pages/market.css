@@ -1,0 +1,104 @@
+/* Browsing and trading: home, auction gallery, tokens, portfolio, convert and REGENT. */
+
+/* Market wrappers pass shared aligned heading/media/caption tracks through. */
+.launchpad-card { display: grid; grid-row: span 4; grid-template-rows: subgrid; min-width: 0; }
+.launchpad-card__link { display: grid; grid-row: span 3; grid-template-rows: subgrid; min-width: 0; color: inherit; text-decoration: none; }
+.launchpad-card__link:hover { text-decoration: none; }
+.launchpad-card__feature { min-width: 0; }
+.launchpad-card .rg-panel__heading h3 { font-size: clamp(1.25rem, 2vw, 1.75rem); }
+.launchpad-card .rg-panel__index { font-size: .6875rem; }
+.launchpad-card .rg-feature__actions { display: grid; width: 100%; }
+.launchpad-card__placeholder { display: grid; place-items: center; aspect-ratio: 1; background: var(--support-figure-surface); color: var(--support-figure-ink); font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; font-size: 4rem; }
+.launchpad-card__metric { display: grid; gap: var(--space-1); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.launchpad-card__meta, .launchpad-card__socials { display: flex; flex-wrap: wrap; gap: var(--space-1); font-size: .8125rem; }
+.launchpad-card__socials { padding: var(--space-2); border-bottom: 1px solid var(--hairline); }
+.launchpad-card__socials a { color: inherit; }
+.launchpad-card--detail, .launchpad-card--preview { width: 100%; max-width: 36rem; grid-template-rows: auto auto auto auto; }
+.autolaunch-convert { display: grid; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--hairline); min-width: 0; }
+.autolaunch-convert > p { margin: 0; }
+.autolaunch-convert__title { margin: 0; font-size: 1.25rem; }
+.autolaunch-convert__muted { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.autolaunch-convert__row { display: grid; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--hairline); min-width: 0; }
+.autolaunch-convert__row .token-stake { margin-top: var(--space-2); }
+.autolaunch-convert__name { margin: 0; font-size: 1rem; }
+#portfolio-refresh { justify-self: start; }
+.market-identity { display: grid; grid-template-columns: minmax(120px, 240px) minmax(0, 1fr); gap: 24px; align-items: start; max-width: 850px; min-width: 0; }
+.market-identity__image { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
+.market-identity__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.market-identity__image > span { color: var(--color-fg-muted); font-size: 3rem; }
+.market-identity__body { display: grid; gap: 14px; min-width: 0; }
+.market-identity__symbol { font-size: 1.25rem; margin: 0; overflow-wrap: anywhere; }
+.market-identity__meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--color-fg-muted); font-size: .8125rem; }
+/* The coin overview of a coin whose image has a known colour: a card whose background the ImageGradient hook paints from that colour into the theme's. */
+.market-identity--tinted { position: relative; isolation: isolate; overflow: hidden; padding: 24px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
+.market-identity__gradient { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+.market-identity--tinted .market-graduated { padding: 1px 9px; border: 1px solid var(--image-color); border-radius: 999px; background: color-mix(in srgb, var(--image-color) 22%, var(--color-surface)); color: var(--color-fg); }
+.market-identity__price { display: grid; gap: 4px; font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.market-identity__price > span:first-child { color: var(--color-fg-muted); font-size: .75rem; }
+.price-chart__caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--color-fg-muted); font-size: .75rem; }
+.price-chart__change { color: var(--color-fg); font-variant-numeric: tabular-nums; }
+.price-chart__line { display: block; width: 100%; height: 140px; }
+.price-chart__line[data-unavailable] { display: none; }
+.price-chart__facts { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.price-chart__facts div { display: flex; gap: 6px; min-width: 0; }
+.price-chart__facts dt { color: var(--color-fg-muted); }
+.price-chart__facts dd { margin: 0; overflow-wrap: anywhere; }
+.market-identity__description { margin: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.market-identity__trade { position: relative; justify-self: start; max-width: 100%; overflow: hidden; }
+.market-identity__trade .rg-button__label { overflow-wrap: anywhere; }
+.market-identity__trade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .38) 50%, transparent 65%);
+  transform: translateX(-110%);
+  pointer-events: none;
+}
+.market-identity__trade-arrow { display: inline-block; transition: transform .18s ease; }
+.market-identity__trade:hover::after, .market-identity__trade:focus-visible::after { transform: translateX(110%); transition: transform .55s ease; }
+.market-identity__trade:hover .market-identity__trade-arrow,
+.market-identity__trade:focus-visible .market-identity__trade-arrow { transform: translateX(4px); }
+@media (prefers-reduced-motion: reduce) {
+  .market-identity__trade::after { display: none; }
+  .market-identity__trade-arrow { transition: none; }
+}
+.market-identity .launchpad-card__socials { padding: 0; border: 0; }
+.portfolio-sign-in { display: grid; justify-items: start; gap: 16px; }
+.portfolio-sign-in > * { margin: 0; }
+.portfolio-sign-in h2 { font-size: 1.25rem; color: var(--color-fg); }
+@media (max-width: 42rem) { .market-identity { grid-template-columns: minmax(0,1fr); } .market-identity--tinted { padding: 16px; } .market-identity__image { width: min(100%, 320px); } }
+@media (max-width: 42rem) {
+  .market-identity__image { width: min(100%, 220px); }
+}
+
+/* Auction counts band: home, auctions and create pages. */
+.auction-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); width: 100%; min-width: 0; margin: 0; padding-block: 10px; border-radius: 6px; }
+.auction-stats__group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); min-width: 0; }
+.auction-stats__group + .auction-stats__group { padding-left: var(--space-4); border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+.auction-stats__title { margin: 0; font-family: var(--font-family-title); font-size: .875rem; line-height: 1.3; }
+.auction-stats__counts { display: flex; gap: var(--space-2); margin: 0; }
+.auction-stats__counts > div { display: flex; align-items: baseline; gap: 6px; }
+.auction-stats__counts dt { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; }
+.auction-stats__counts dd { margin: 0; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.auction-stats__note { margin: 0; font-size: .75rem; }
+@media (max-width: 42rem) {
+  .auction-stats { flex-direction: column; align-items: stretch; gap: 0; }
+  .auction-stats__group { justify-content: space-between; padding-block: 6px; }
+  .auction-stats__group + .auction-stats__group { padding-left: 0; border-left: 0; border-top: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+}
+
+/* The chain an auction or token lives on, bordered in that chain's colour. */
+.chain-chip { display: inline-flex; align-items: center; padding: 1px 8px; border: 2px solid var(--chain-color); border-radius: 4px; color: var(--color-fg); font-size: .75rem; font-weight: 600; line-height: 1.4; }
+.chain-chip--base { --chain-color: #0052ff; }
+.chain-chip--robinhood { --chain-color: #00c805; }
+.auction-card__tags .chain-chip { background: none; color: var(--color-fg); }
+
+/* Who launched it, and each account they could connect. */
+.market-creator { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.market-creator > h2 { margin: 0; }
+.market-creator > p { margin: 0; font-size: .8125rem; overflow-wrap: anywhere; }
+.market-creator__accounts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: .8125rem; }
+.market-creator__accounts > div { display: contents; }
+.market-creator__accounts dt { color: var(--color-fg-muted); }
+.market-creator__accounts dd { margin: 0; overflow-wrap: anywhere; }
+.market-creator__missing { color: var(--color-fg-muted); }

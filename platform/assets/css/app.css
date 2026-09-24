@@ -8,6 +8,9 @@
 @import "./shell/account_control.css";
 @import "./pages/regent.css";
 @import "./pages/autolaunch.css";
+@import "./pages/auction.css";
+@import "./pages/market.css";
+@import "./pages/create.css";
 @import "./pages/home.css";
 @import "./pages/facts.css";
 
