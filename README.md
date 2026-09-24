@@ -136,10 +136,10 @@ every bid, trade, stake and claim is a transaction you approve in your own walle
 
 | | |
 | --- | --- |
-| Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches open on 24 September 2026, 15:00 UTC |
-| Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches open on 24 September 2026, 15:00 UTC |
-| Memestake on Robinhood Chain | Contracts deployed on 23–24 September 2026 ([addresses](contracts/robinhood/deployments/robinhood-mainnet/README.md)). Launches open on 24 September 2026, 15:00 UTC |
-| autolaunch.sh | You can browse it now. Launching, bidding and trading open on 24 September 2026, 15:00 UTC, when the contracts are unpaused |
+| Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches opened on 24 September 2026, 15:00 UTC |
+| Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches opened on 24 September 2026, 15:00 UTC |
+| Memestake on Robinhood Chain | Contracts deployed on 23–24 September 2026 ([addresses](contracts/robinhood/deployments/robinhood-mainnet/README.md)). Launches opened on 24 September 2026, 15:00 UTC |
+| autolaunch.sh | Live. Launching, bidding and trading opened on 24 September 2026, 15:00 UTC. What changed in each release is in [CHANGELOG.md](CHANGELOG.md) |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
 
 ## More
