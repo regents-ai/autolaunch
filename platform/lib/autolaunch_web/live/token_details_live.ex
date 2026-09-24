@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.TokenDetailsLive do
         </h2>
         <p>
           Revstake token auctions have a 48 hour duration, with 10% of tokens for the auction, 5%
-          locked in the Uni v4 pool, and 85% vesting to the creator over one year. This small amount
+          locked in the Uni v4 pool, and 85% vesting to the launch's treasury over one year. This small amount
           of float is because launching a revstake is close in concept to a company doing a preseed
           round. Best practice is for the founders to retain 80-90% of equity.
         </p>
@@ -137,7 +137,7 @@ defmodule AutolaunchWeb.TokenDetailsLive do
           (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
           to participate. The hook fee on memestake tokens benefits the memestakers
-          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). LP providers in the Uni v4 pool get the standard <strong class="fact-page__hi">0.3%</strong>.
+          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). The Uni v4 pool also charges the standard <strong class="fact-page__hi">0.3%</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
         </p>
         <table class="fact-table">
           <thead>

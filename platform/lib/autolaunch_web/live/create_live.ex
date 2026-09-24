@@ -220,7 +220,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp choice_summary(:robinhood, :stocks) do
     summary =
-      "A 24 hour auction for a new token paired with an onchain stock. Stakers earn the onchain stock from fees. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
+      "A 24 hour auction for a new token paired with an onchain stock. Stakers earn the onchain stock from fees. Bidders pay in USDG, which is converted into the stock you choose, and you set the required raise in that stock. There is no launch fee."
 
     if Autolaunch.Robinhood.Lab.configured?(),
       do: summary,

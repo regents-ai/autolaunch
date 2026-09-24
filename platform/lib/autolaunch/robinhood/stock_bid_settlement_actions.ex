@@ -233,7 +233,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
     do: "The launch raised enough. Tokens are on their way."
 
   defp outcome_copy(_arguments),
-    do: "The launch did not raise enough. Every bid is returned in full."
+    do:
+      "The launch did not raise enough. Every bid is returned in full, in the stock it was converted into."
 
   defp risk_copy(exit, claim, asset) do
     parts =

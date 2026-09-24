@@ -20,7 +20,7 @@ Two main differences from other launchpads:
 1. The point of buying a revstake token is to stake it in the Autolaunch staking contract, which is easy to do through the site.
 2. No early snipers here. If you are in the auction, you are early. Most of the tokens in an auction go at the end of it, and since your bid amount is split up by block, there is never a disadvantage to bidding your true value bid in full, as early as possible. More on CCA mechanics from Hayden Adams, reflecting on Aztec's launch: https://x.com/haydenzadams/status/1997358255442440584
 
-Revstake token auctions have a 48 hour duration and are priced in REGENT, with 10% of tokens for the auction, 5% locked in the Uni v4 pool, and 85% vesting to the creator over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain 80-90% of equity.
+Revstake token auctions have a 48 hour duration and are priced in REGENT, with 10% of tokens for the auction, 5% locked in the Uni v4 pool, and 85% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain 80-90% of equity.
 
 Revstake supply: 100 billion tokens.
 
@@ -50,7 +50,7 @@ Memestake supply: 1 billion tokens.
 
 ## Trading fees
 
-The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (1%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (1%) and Regents Labs revstakers (1%). LP providers in the Uni v4 pool get the standard 0.3%.
+The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (1%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (1%) and Regents Labs revstakers (1%). The Uni v4 pool also charges the standard 0.3%, and what the locked liquidity earns from it is added to the token's staking rewards.
 
 | Launch | Fee paid in | First 1% | Second 1% |
 | --- | --- | --- | --- |
