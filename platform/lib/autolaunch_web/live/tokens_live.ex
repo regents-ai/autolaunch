@@ -31,13 +31,14 @@ defmodule AutolaunchWeb.TokensLive do
 
     assign_async(
       socket,
-      [:records, :creators, :pagination, :robinhood],
+      [:records, :creators, :pagination, :robinhood, :robinhood_unavailable],
       fn ->
         with {:ok, page} <- AutolaunchWeb.MarketPage.tokens(cursor, 24) do
           {:ok,
            %{
              records: page.records,
              robinhood: page.robinhood,
+             robinhood_unavailable: page.robinhood_unavailable,
              creators: creator_connections_for(page.records ++ page.robinhood),
              pagination: page.pagination
            }}
@@ -57,6 +58,7 @@ defmodule AutolaunchWeb.TokensLive do
       cursor={@cursor}
       trade_event="open_trade"
       robinhood={@robinhood}
+      robinhood_unavailable={@robinhood_unavailable.ok? && @robinhood_unavailable.result}
     />
     <.swap_modal
       :if={@trade}

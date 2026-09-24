@@ -391,9 +391,10 @@ components:
     AuctionListEnvelope:
       type: object
       additionalProperties: false
-      required: [data, pagination]
+      required: [data, pagination, robinhood_unavailable]
       properties:
         pagination: {$ref: "#/components/schemas/Pagination"}
+        robinhood_unavailable: {type: boolean, description: "Robinhood could not be read just now, so this page lists Base entries only. Read the list again later for Robinhood entries."}
         data:
           type: array
           items:
@@ -454,9 +455,10 @@ components:
     TokenListEnvelope:
       type: object
       additionalProperties: false
-      required: [data, pagination]
+      required: [data, pagination, robinhood_unavailable]
       properties:
         pagination: {$ref: "#/components/schemas/Pagination"}
+        robinhood_unavailable: {type: boolean, description: "Robinhood could not be read just now, so this page lists Base entries only. Read the list again later for Robinhood entries."}
         data:
           type: array
           items:
