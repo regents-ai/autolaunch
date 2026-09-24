@@ -42,7 +42,14 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     end
 
     def next_launch_id(_head), do: {:ok, length(chain().launches) + 1}
-    def launch(_head, id), do: {:ok, Enum.at(chain().launches, id - 1)}
+
+    def launch(_head, id) do
+      case Enum.at(chain().launches, id - 1) do
+        :unreadable -> {:error, :chain_unavailable}
+        launch -> {:ok, launch}
+      end
+    end
+
     def market(_head, auction), do: Map.fetch(chain().markets, auction)
 
     def price_quote(_head, %{pool_id: pool_id}, 18) do
@@ -84,7 +91,13 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   test "every launchpad record becomes one row, and replaying it changes nothing", %{
     creator: creator
   } do
-    assert {:ok, first} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert {:ok, first} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
+
     assert first.cursors.next_launch_id == 3
 
     rows = robinhood_rows()
@@ -111,7 +124,11 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert {:ok, %{changed: []}} = MarketFeed.poll(Chain, first.cursors)
 
     assert {:ok, _replayed} =
-             MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
 
     facts = &Map.take(&1, [:id, :state, :token_address, :launch_id, :start_block, :end_block])
 
@@ -119,6 +136,43 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
              rows |> Enum.map(facts) |> Enum.sort_by(& &1.id)
 
     assert first.snapshots[@site_auction].currency_raised == "2"
+  end
+
+  test "an unreadable record is read again later without holding back the launches after it" do
+    [first_launch, second_launch] = Chain.chain().launches
+    Chain.put(%{Chain.chain() | launches: [:unreadable, second_launch]})
+
+    assert {:ok, first} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
+
+    assert %{next_launch_id: 3, retry_launch_ids: [1]} = first.cursors
+    assert Enum.map(robinhood_rows(), & &1.auction_address) == [@outside_auction]
+
+    # A third launch arrives while the first still cannot be read.
+    Chain.put(%{
+      Chain.chain()
+      | launches: [
+          :unreadable,
+          second_launch,
+          launch(3, @graduated_auction, @outside_launcher, 2)
+        ],
+        markets: Map.put(Chain.chain().markets, @graduated_auction, market(3, 2, true))
+    })
+
+    assert {:ok, second} = MarketFeed.poll(Chain, first.cursors)
+    assert %{next_launch_id: 4, retry_launch_ids: [1]} = second.cursors
+    assert length(robinhood_rows()) == 2
+
+    # Once the first record reads, it is listed and no longer retried.
+    Chain.put(%{Chain.chain() | launches: [first_launch | tl(Chain.chain().launches)]})
+
+    assert {:ok, third} = MarketFeed.poll(Chain, second.cursors)
+    assert %{next_launch_id: 4, retry_launch_ids: []} = third.cursors
+    assert length(robinhood_rows()) == 3
   end
 
   test "a launch whose name and symbol are the chain's own graduates with its token" do
@@ -136,7 +190,13 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
         markets: Map.put(Chain.chain().markets, @graduated_auction, market(3, 2, true))
     })
 
-    assert {:ok, _poll} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert {:ok, _poll} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
+
     assert %{state: :graduated, token_symbol: "meme"} = row(@graduated_auction)
 
     assert {:ok, token} =
@@ -190,7 +250,12 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert stored.website == "https://example.com"
 
     # A poll reads it as an existing row: only its market fields move.
-    assert {:ok, _poll} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert {:ok, _poll} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
 
     assert %{title: "Written first", summary: "Its own words", state: :ended} =
              row(@site_auction)
@@ -230,7 +295,13 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   end
 
   test "a launch that graduates gets exactly one token, and a failed one gets none" do
-    assert {:ok, first} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert {:ok, first} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
+
     assert tokens(@site_auction) == 0
     assert tokens(@outside_auction) == 0
 
@@ -257,7 +328,11 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
 
     # Replaying every record and every market leaves one token each.
     assert {:ok, _replayed} =
-             MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
 
     assert {:ok, _again} = MarketFeed.poll(Chain, second.cursors)
     assert Enum.map([@site_auction, @graduated_auction, @outside_auction], &tokens/1) == [1, 1, 0]
@@ -281,7 +356,13 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
         prices: %{pool_id(1) => "1.5", pool_id(3) => "0.25"}
     })
 
-    assert {:ok, first} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert {:ok, first} =
+             MarketFeed.poll(Chain, %{
+               watch: MarketWatch.new(),
+               next_launch_id: 1,
+               retry_launch_ids: []
+             })
+
     assert price(@site_auction) == "1.5"
     assert price(@graduated_auction) == "0.25"
 

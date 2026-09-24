@@ -13,7 +13,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     Robinhood lists every launchpad record, so a launch made outside the site
     is a row too; it names a creator only
     when exactly one account's signed-in wallet is its launcher. Launch ids only
-    grow, so a cursor remembers the next id to read.
+    grow, so a cursor remembers the next id to read; a record that cannot be
+    read is read again on later polls without holding the cursor back.
   - Refresh. A bounded page of Robinhood rows (`Autolaunch.MarketWatch`) is
     read against the rollup block clock the contracts keep time by
     (`Autolaunch.Robinhood.BlockClock`): state (`Autolaunch.Auction.MarketState`),
@@ -78,7 +79,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
       head: nil,
       stale?: false,
       snapshots: %{},
-      cursors: %{watch: MarketWatch.new(), next_launch_id: 1},
+      cursors: %{watch: MarketWatch.new(), next_launch_id: 1, retry_launch_ids: []},
       in_flight: false,
       timer: nil
     }
@@ -159,9 +160,10 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   @doc false
-  def poll(reader, %{watch: watch, next_launch_id: from}) do
+  def poll(reader, %{watch: watch, next_launch_id: from, retry_launch_ids: retry}) do
     with {:ok, head} <- reader.head(),
-         {:ok, discovered, next_launch_id} <- discover(reader, head, from),
+         {:ok, discovered, next_launch_id, retry_launch_ids} <-
+           discover(reader, head, from, retry),
          {:ok, auctions, next_watch} <- MarketWatch.next(watch, head.chain_id, :stocks) do
       {snapshots, changed} = refresh_auctions(reader, head, auctions)
 
@@ -170,25 +172,32 @@ defmodule Autolaunch.Robinhood.MarketFeed do
          head: head.block,
          snapshots: snapshots,
          changed: discovered ++ changed,
-         cursors: %{watch: next_watch, next_launch_id: next_launch_id}
+         cursors: %{
+           watch: next_watch,
+           next_launch_id: next_launch_id,
+           retry_launch_ids: retry_launch_ids
+         }
        }}
     end
   end
 
   # Launch ids start at 1 and only grow, so each poll reads the records after
-  # the last one it settled, a bounded number at a time. A record that cannot
-  # be read is logged and read again next poll; the ones after it are still
-  # read. A launchpad with fewer launches than the cursor is a new lab run.
-  defp discover(reader, head, from) do
+  # the last one it read, a bounded number at a time. A record that cannot be
+  # read is logged and read again on every later poll beside the new ones, so
+  # it never holds later launches back. A launchpad with fewer launches than
+  # the cursor is a new lab run.
+  defp discover(reader, head, from, retry) do
     with {:ok, next} <- reader.next_launch_id(head) do
-      from = if from > next, do: 1, else: from
-      ids = from..min(next - 1, from + @launch_page - 1)//1
+      {from, retry} = if from > next, do: {1, []}, else: {from, retry}
+      page = Enum.to_list(from..min(next - 1, from + @launch_page - 1)//1)
 
       results =
-        Enum.map(ids, fn id -> {id, safely(fn -> discover_launch(reader, head, id) end)} end)
+        Enum.map(retry ++ page, fn id ->
+          {id, safely(fn -> discover_launch(reader, head, id) end)}
+        end)
 
-      {:ok, Enum.flat_map(results, &discovered/1),
-       settled_through(results, from + Enum.count(ids))}
+      {:ok, Enum.flat_map(results, &discovered/1), from + length(page),
+       for({id, result} <- results, unsettled?(result), do: id)}
     end
   end
 
@@ -213,16 +222,9 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   # A record the auctions table refuses (metadata outside its limits) will
-  # never fit, so it is settled; any other failure is read again.
-  defp settled_through(results, next_id) do
-    case Enum.find(results, &unsettled?/1) do
-      {id, _error} -> id
-      nil -> next_id
-    end
-  end
-
-  defp unsettled?({_id, {:error, %Ash.Error.Invalid{}}}), do: false
-  defp unsettled?({_id, {:error, _reason}}), do: true
+  # never fit, so it is not read again; any other failure is.
+  defp unsettled?({:error, %Ash.Error.Invalid{}}), do: false
+  defp unsettled?({:error, _reason}), do: true
   defp unsettled?(_result), do: false
 
   defp existing(chain_id, auction_address) do
