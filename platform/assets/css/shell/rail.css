@@ -7,7 +7,7 @@
 :where(.shell-rail__link) { display: flex; min-height: 3rem; padding: var(--space-1); color: inherit; text-decoration: none; border-left: 3px solid transparent; }
 .shell-rail__content { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .shell-rail__link[aria-current="page"] { border-left-color: currentColor; font-weight: 600; text-decoration: underline; }
-.shell-rail__item--create { margin-top: var(--space-3); border: 0; }
+.shell-rail__link--closed { opacity: .55; cursor: not-allowed; }
 .shell-rail__toggle { display: none; }
 .shell-rail__icon { flex: 0 0 24px; }
 .shell-rail__label { font-size: .875rem; line-height: 1.3; overflow-wrap: anywhere; }
@@ -18,7 +18,6 @@
  .shell-rail__toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
  .shell-rail__toggle[aria-expanded="true"] .shell-rail__toggle-open, .shell-rail__toggle[aria-expanded="false"] .shell-rail__toggle-close { display: none; }
  .shell-rail:has(.shell-rail__toggle[aria-expanded="false"]) .shell-rail__list { display: none; }
- .shell-rail__list { grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-1); }
- .shell-rail__item--create { display: none; }
+ .shell-rail__list { grid-template-columns: repeat(4, minmax(0,1fr)); gap: var(--space-1); }
 }
 @media (max-width: 35rem) { .shell-rail__list { grid-template-columns: repeat(2, minmax(0,1fr)); } }

@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.Live.PageTitle do
     AutolaunchWeb.RobinhoodTokenLive => "Robinhood token",
     AutolaunchWeb.PortfolioLive => "Portfolio",
     AutolaunchWeb.RegentLive => "REGENT",
-    AutolaunchWeb.TokenDetailsLive => "Token details",
+    AutolaunchWeb.HowItWorksLive => "How Autolaunch works",
     AutolaunchWeb.ConvertLive => "REGENT's share of fees"
   }
 

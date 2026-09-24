@@ -7,7 +7,7 @@ Auction creation and bidding opened Thursday, 24 September 2026 at 15:00 UTC.
 autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 
 - [Website](https://autolaunch.sh)
-- [Token details](https://autolaunch.sh/token-details): supply, trading fees and staking rewards for every Autolaunch token.
+- [How Autolaunch works](https://autolaunch.sh/how-it-works): supply, trading fees and staking rewards for every Autolaunch token.
 - [REGENT](https://autolaunch.sh/regent): the Regents Labs token, with live staking figures.
 - [Source](https://github.com/regents-ai/autolaunch)
 
