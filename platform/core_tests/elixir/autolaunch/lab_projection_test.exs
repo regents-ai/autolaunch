@@ -12,8 +12,7 @@ defmodule Autolaunch.LabProjectionTest do
     Bid,
     LabProjection,
     LaunchJob,
-    Subject,
-    Token
+    Subject
   }
 
   @domain Autolaunch
@@ -26,8 +25,6 @@ defmodule Autolaunch.LabProjectionTest do
   @subject "0x6666666666666666666666666666666666666666"
   @escrow "0x7777777777777777777777777777777777777777"
   @treasury "0x8888888888888888888888888888888888888888"
-  @splitter "0x9999999999999999999999999999999999999999"
-  @receiver "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
   test "a verified local launch and bid project once under exact deterministic identities" do
     assert :ok = LabProjection.project_launch(launch_operation(), launch_result())
@@ -66,83 +63,51 @@ defmodule Autolaunch.LabProjectionTest do
     assert bid.onchain_bid_id == "9"
   end
 
-  test "out-of-order position receipts cannot rewind claimed or graduated chain state" do
+  test "a launch row written first keeps its details and state when a second confirmation arrives" do
+    creator = account!("first-confirmation")
+    assert :ok = LabProjection.project_launch(launch_operation(creator.id), launch_result())
+
+    {:ok, _active} =
+      Autolaunch.refresh_lab_market_auction(one(Auction), :active, "1.5", %{}, actor: @actor)
+
+    # The launch has moved on since it was written.
+    {1, _rows} =
+      Autolaunch.Repo.update_all("launch_jobs", set: [status: "complete", step: "graduated"])
+
+    written = one(Auction)
+
+    second =
+      account!("second-confirmation").id
+      |> launch_operation()
+      |> update_in([:envelope, "arguments"], fn arguments ->
+        Map.merge(arguments, %{
+          "name" => "Other Name",
+          "description" => "Other words.",
+          "website" => "https://example.test/other",
+          "image" => "https://example.test/other.png"
+        })
+      end)
+
+    assert :ok = LabProjection.project_launch(second, launch_result())
+
+    assert one(Auction) == written
+    assert %{state: :active, current_clearing_price: "1.5"} = written
+    assert %{title: "Local Regent", creator_human_account_id: creator_id} = written
+    assert creator_id == creator.id
+    assert %{agent_name: "Local Regent", status: "complete", step: "graduated"} = one(LaunchJob)
+    assert one(Subject).subject_id == LabProjection.subject_identity(@subject)
+  end
+
+  test "pages hear of a launch only once it is committed, and never of one rolled back" do
+    Autolaunch.Listings.subscribe()
+    refused = put_in(launch_operation(), [:envelope, "arguments", "symbol"], "not-valid")
+
+    assert {:error, _reason} = LabProjection.project_launch(refused, launch_result())
+    refute_received {:autolaunch_listings_changed, _auction_id}
+
     assert :ok = LabProjection.project_launch(launch_operation(), launch_result())
-    [%{id: auction_id}] = all(Auction)
-    assert :ok = LabProjection.project_bid(bid_operation(auction_id), bid_result())
-    [bid] = all(Bid)
-
-    exit = %{
-      "bid_status" => "exited",
-      "exited" => true,
-      "claimed" => false,
-      "current_clearing_price" => "1.25"
-    }
-
-    assert :ok = LabProjection.project_position(bid, exit)
-    exited = one(Bid)
-    assert exited.status == "exited"
-    assert exited.exited_at
-    refute exited.claimed_at
-
-    assert :ok = LabProjection.project_position(exited, exit)
-    replayed_exit = one(Bid)
-    assert replayed_exit.exited_at == exited.exited_at
-
-    claim = %{
-      "bid_status" => "claimed",
-      "exited" => true,
-      "claimed" => true
-    }
-
-    assert :ok = LabProjection.project_position(replayed_exit, claim)
-    claimed = one(Bid)
-    assert claimed.status == "claimed"
-    assert claimed.claimed_at
-
-    assert :ok = LabProjection.project_position(replayed_exit, exit)
-    late_exit = one(Bid)
-    assert late_exit.status == "claimed"
-    assert late_exit.claimed_at == claimed.claimed_at
-
-    graduated = %{
-      "auction_state" => "graduated",
-      "subject" => @subject,
-      "splitter" => @splitter,
-      "receiver" => @receiver,
-      "token_symbol" => "DIVERGENT"
-    }
-
-    assert :ok = LabProjection.project_position(late_exit, graduated)
-
-    final_bid = one(Bid)
-    final_auction = one(Auction)
-    final_subject = one(Subject)
-    final_launch = one(LaunchJob)
-    final_token = one(Token)
-
-    assert final_bid.status == "claimed"
-    assert final_bid.exited_at == exited.exited_at
-    assert final_auction.state == :graduated
-    assert final_subject.splitter_address == @splitter
-    assert final_subject.canonical_receiver_address == @receiver
-    assert final_launch.status == "complete"
-    assert final_launch.step == "graduated"
-    assert final_token.auction_id == final_auction.id
-    assert final_token.subject_id == final_subject.subject_id
-    assert final_token.symbol == "LOCAL"
-
-    finished_at = final_launch.finished_at
-    graduated_at = final_token.graduated_at
-
-    assert :ok = LabProjection.project_position(replayed_exit, exit)
-    assert one(Bid).status == "claimed"
-    assert one(Auction).state == :graduated
-    assert one(LaunchJob).status == "complete"
-
-    assert :ok = LabProjection.project_position(final_bid, graduated)
-    assert one(LaunchJob).finished_at == finished_at
-    assert one(Token).graduated_at == graduated_at
+    auction_id = one(Auction).id
+    assert_received {:autolaunch_listings_changed, ^auction_id}
   end
 
   test "a later invalid resource refuses and rolls the whole launch projection back" do

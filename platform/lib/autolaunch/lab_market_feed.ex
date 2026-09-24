@@ -209,7 +209,7 @@ defmodule Autolaunch.LabMarketFeed do
   # nothing is published from a block the chain has since left.
   defp projection(reader, projector, head, snapshots) do
     with :ok <- safely(fn -> reader.verify_head(head) end),
-         {:ok, durable_changed_ids} <- safely(fn -> projector.project(snapshots, head) end),
+         {:ok, durable_changed_ids} <- safely(fn -> projector.project(snapshots) end),
          :ok <- safely(fn -> reader.verify_head(head) end) do
       {:ok, durable_changed_ids}
     end
@@ -679,51 +679,56 @@ defmodule Autolaunch.LabMarketFeed do
   defmodule Projector do
     @moduledoc false
 
+    require Logger
+
     alias Autolaunch
     alias Autolaunch.Actors.System, as: SystemActor
     alias Autolaunch.Auction
     alias Autolaunch.Auction.MarketState
-    alias Autolaunch.LabMarketFeed.Reader
 
-    def project(snapshots, head, verifier \\ Reader) do
+    @doc """
+    Writes one pass's readings and returns the ids of the auctions whose rows
+    changed. Each auction is written in its own Ash transaction: its
+    positions, market fields, token and token price land together or not at
+    all, and pages hear of them once they are committed. An auction whose
+    write fails is logged and left as it was; every other auction still
+    refreshes.
+    """
+    def project(snapshots) do
       actor = %SystemActor{}
 
-      Ash.DataLayer.transaction(Auction, fn ->
-        snapshots
-        |> project_all(actor, head)
-        |> verify_before_commit(verifier, head)
-      end)
+      {:ok,
+       snapshots
+       |> Enum.sort_by(& &1.auction_id)
+       |> Enum.flat_map(&project_snapshot(&1, actor))}
     end
 
-    defp project_all(snapshots, actor, head) do
-      snapshots
-      |> Enum.sort_by(& &1.auction_id)
-      |> Enum.reduce_while({:ok, []}, fn snapshot, {:ok, changed} ->
-        project_snapshot(snapshot, actor, changed)
-      end)
-      |> case do
-        {:ok, changed} ->
-          %{
-            changed_ids: Enum.reverse(changed),
-            block_number: head.block.number,
-            block_hash: head.block.hash
-          }
+    defp project_snapshot(snapshot, actor) do
+      case Ash.transaction(Auction, fn -> commit(write_snapshot(snapshot, actor)) end) do
+        {:ok, true} ->
+          [snapshot.auction_id]
 
-        other ->
-          other
+        {:ok, false} ->
+          []
+
+        {:error, error} ->
+          Logger.warning(
+            "revstake market feed skipped auction #{snapshot.auction_address}: #{inspect(error)}"
+          )
+
+          []
       end
-      |> changed_ids()
     end
 
-    defp project_snapshot(snapshot, actor, changed) do
+    defp write_snapshot(snapshot, actor) do
       case Autolaunch.get_lab_market_auction_for_update(snapshot.auction_id, actor: actor) do
-        {:ok, %Auction{} = auction} -> refresh_snapshot(auction, snapshot, actor, changed)
-        {:ok, nil} -> rollback(:lab_auction_not_found)
-        {:error, reason} -> rollback(reason)
+        {:ok, %Auction{} = auction} -> refresh_snapshot(auction, snapshot, actor)
+        {:ok, nil} -> {:error, :lab_auction_not_found}
+        {:error, reason} -> {:error, reason}
       end
     end
 
-    defp refresh_snapshot(auction, snapshot, actor, changed) do
+    defp refresh_snapshot(auction, snapshot, actor) do
       market = %{
         state: MarketState.join(auction.state, snapshot.state),
         price: snapshot.current_clearing_price,
@@ -738,11 +743,7 @@ defmodule Autolaunch.LabMarketFeed do
            :ok <- refresh_market(auction, market_changed?, market, actor),
            {:ok, price_changed?} <-
              Autolaunch.LabProjection.project_token_price(auction.id, snapshot.price_quote) do
-        if market_changed? or positions_changed? or price_changed?,
-          do: {:cont, {:ok, [auction.id | changed]}},
-          else: {:cont, {:ok, changed}}
-      else
-        {:error, reason} -> rollback(reason)
+        {:ok, market_changed? or positions_changed? or price_changed?}
       end
     end
 
@@ -763,27 +764,7 @@ defmodule Autolaunch.LabMarketFeed do
            do: Autolaunch.LabProjection.project_graduated_token(refreshed)
     end
 
-    defp changed_ids(%{changed_ids: ids}), do: ids
-    defp changed_ids(other), do: other
-
-    defp verify_before_commit(changed_ids, verifier, head) when is_list(changed_ids) do
-      case safely_verify(verifier, head) do
-        :ok -> changed_ids
-        {:error, reason} -> rollback(reason)
-        _other -> rollback(:head_verification_failed)
-      end
-    end
-
-    defp verify_before_commit(other, _verifier, _head), do: other
-
-    defp safely_verify(verifier, head) do
-      verifier.verify_head(head)
-    rescue
-      _error -> {:error, :head_verification_failed}
-    catch
-      _kind, _reason -> {:error, :head_verification_failed}
-    end
-
-    defp rollback(reason), do: Ash.DataLayer.rollback(Auction, reason)
+    defp commit({:ok, value}), do: value
+    defp commit({:error, reason}), do: Ash.DataLayer.rollback(Auction, reason)
   end
 end

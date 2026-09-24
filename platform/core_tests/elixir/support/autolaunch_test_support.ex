@@ -5,14 +5,14 @@ defmodule Autolaunch.TestSupport do
   alias Autolaunch.Actors.{Human, System}
 
   @doc """
-  Projects one Auction through `project_lab_auction` as the system actor. An
-  auction is one row per chain and contract address, so each projection gets
-  its own address unless the test names one.
+  Writes one Auction through `record_launch_auction` as the system actor. An
+  auction is one row per chain and contract address, written once, so each
+  call gets its own address unless the test names one.
   """
   def project_auction(opts \\ []) do
     opts = Map.new(opts)
 
-    Autolaunch.project_lab_auction!(
+    Autolaunch.record_launch_auction!(
       %{
         chain_id: Map.get(opts, :chain_id, 31_337),
         auction_address: Map.get(opts, :address) || unique_address(),

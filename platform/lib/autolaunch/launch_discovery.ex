@@ -11,10 +11,10 @@ defmodule Autolaunch.LaunchDiscovery do
     launch and the transaction that created it.
 
   Every minute the `:resolve` trigger takes each launch still `pending` and
-  looks for the reviewed launch it carried out: a review by an account whose
-  verified wallet is the launch's signer, whose exact target and calldata that
-  transaction sent. A match lists the launch for that account, through the same
-  verified press a browser report would have recorded. A launch no review of
+  looks for the reviewed launch it carried out: a review whose signer is the
+  launch's signer, whose exact target and calldata that transaction sent. A
+  match lists the launch for that review's account, through the same verified
+  press a browser report would have recorded. A launch no review of
   this site carried out is `unlisted`. A launch the chain cannot answer for yet
   stays `pending`, with the reason, until it can.
   """
