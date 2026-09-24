@@ -35,6 +35,7 @@ defmodule AutolaunchWeb.BidComponent do
     auction_currency_changed:
       "This auction's currency does not match its record. Bidding is paused here.",
     amount_above_balance: "That is more than this wallet holds.",
+    amount_required: "Enter an amount above zero.",
     invalid_amount: "Enter an amount with no more decimal places than the currency allows.",
     invalid_price: "Enter a maximum price above zero.",
     stock_not_admitted: "This stock token is not admitted for USDC bids right now.",
@@ -93,6 +94,7 @@ defmodule AutolaunchWeb.BidComponent do
      socket
      |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
+     |> assign_new(:heading, fn -> "Place a bid" end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:balance, fn -> nil end)
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
@@ -110,6 +112,8 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:x_enabled, fn -> false end)
      |> assign_new(:prepared_for, fn -> nil end)
      |> assign_new(:preparing, fn -> nil end)
+     |> assign_new(:owed, fn -> [] end)
+     |> assign_new(:inputs, fn -> nil end)
      |> assign_usd_rate()
      |> preset()
      |> prepare_when_ready()}
@@ -125,11 +129,12 @@ defmodule AutolaunchWeb.BidComponent do
       class="bid-panel rg-panel rg-panel--surface"
       data-wallet-scope={AutolaunchWeb.WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchBidWallet"
+      data-press-form={"#{@id}-form"}
       phx-target={@myself}
     >
       <header class="bid-heading">
         <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">Place a bid</h2>
+          <h2 class="rg-section-bar__label">{@heading}</h2>
         </Regent.Structure.section_bar>
         <p>
           Bid {if @usdc_bids?, do: "USDC or "}{@auction.quote_token_symbol} for this launch. Your wallet confirms every step.
@@ -293,6 +298,14 @@ defmodule AutolaunchWeb.BidComponent do
      |> prepare_when_ready()}
   end
 
+  # A press made while the form on screen differs from the review the browser
+  # holds. The bid is prepared for exactly the values pressed and handed back to
+  # press; a review already prepared for them is handed back as it is.
+  def handle_event("prepare_and_send", %{"form" => params}, socket) do
+    socket = assign(socket, form: BidForm.values(params, socket.assigns.form), notice: nil)
+    {:noreply, pressed(socket, bid_key(socket.assigns))}
+  end
+
   def handle_event("fill_bid_amount", _params, socket) do
     amount = balance(socket.assigns.balance, socket.assigns.auction)
 
@@ -332,28 +345,33 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("refresh_x_connections", _params, socket), do: {:noreply, load_x(socket)}
 
   @impl true
-  def handle_async(:prepare, {:ok, {key, result}}, socket) do
-    socket = assign(socket, preparing: nil)
+  def handle_async(:prepare, {:ok, {key, inputs, result}}, socket) do
+    {presses, owed} = Enum.split_with(socket.assigns.owed, &match?({^key, _inputs}, &1))
+    socket = assign(socket, preparing: nil, owed: owed)
 
     cond do
+      # Presses wait for this review: it goes back to be pressed once for each.
+      presses != [] ->
+        {:noreply, socket |> reviewed(key, inputs, result, length(presses)) |> prepare_owed()}
+
       # A press reached the wallet while this was prepared: the panel keeps
       # that bid, and the unused review lapses on its own.
       !editable?(socket.assigns.operation) ->
-        {:noreply, socket}
+        {:noreply, prepare_owed(socket)}
+
+      owed != [] ->
+        {:noreply, prepare_owed(socket)}
 
       key != bid_key(socket.assigns) ->
         {:noreply, prepare_when_ready(socket)}
 
-      match?({:ok, _}, result) ->
-        {:noreply, result |> settled(assign(socket, prepared_for: key)) |> refresh_later()}
-
       true ->
-        {:noreply, settled(result, assign(socket, prepared_for: {:refused, key}))}
+        {:noreply, reviewed(socket, key, inputs, result, 0)}
     end
   end
 
   def handle_async(:prepare, {:exit, _reason}, socket),
-    do: {:noreply, assign(socket, preparing: nil, notice: notice(:error, :unavailable))}
+    do: {:noreply, assign(socket, preparing: nil, owed: [], notice: notice(:error, :unavailable))}
 
   attr :operation, :map, required: true
   attr :rate, :any, required: true
@@ -428,20 +446,33 @@ defmodule AutolaunchWeb.BidComponent do
     """
   end
 
-  defp settled({:ok, %{operation: operation}}, socket),
-    do: socket |> assign(operation: operation, notice: nil) |> published()
+  defp reviewed(socket, key, inputs, {:ok, _prepared} = result, presses),
+    do:
+      result
+      |> settled(assign(socket, prepared_for: key, inputs: inputs), presses)
+      |> refresh_later()
 
-  defp settled({:error, error}, socket),
+  defp reviewed(socket, key, _inputs, result, _presses),
+    do: settled(result, assign(socket, prepared_for: {:refused, key}))
+
+  defp settled(result, socket, presses \\ 0)
+
+  defp settled({:ok, %{operation: operation}}, socket, presses),
+    do: socket |> assign(operation: operation, notice: nil) |> published(presses)
+
+  defp settled({:error, error}, socket, _presses),
     do: assign(socket, notice: notice(:error, refusal(error)))
 
   # The one acknowledgement the browser waits for before it drops its own copy
   # of a reported hash: this exact hash is durable on this exact step.
   # The whole reviewed sequence, so the browser can check that what it is asked
   # to send really belongs to the operation it is holding.
-  defp published(%{assigns: %{operation: nil}} = socket), do: cleared(socket)
+  # It carries the form values it was prepared for. Answering presses, it is
+  # handed over once per press, each naming the step that press sends.
+  defp published(%{assigns: %{operation: nil}} = socket, _presses), do: cleared(socket)
 
-  defp published(%{assigns: %{operation: operation}} = socket) do
-    push_event(socket, "autolaunch-bid:operation", %{
+  defp published(%{assigns: %{operation: operation}} = socket, presses) do
+    payload = %{
       component_id: socket.assigns.id,
       action_id: operation.action_id,
       signer: operation.signer,
@@ -449,8 +480,20 @@ defmodule AutolaunchWeb.BidComponent do
       lab: operation.envelope["metadata"]["lab"],
       lab_anchor: lab_anchor(operation.envelope),
       terminal: not is_nil(operation.terminal_at),
-      steps: BidActions.steps(operation)
-    })
+      steps: BidActions.steps(operation),
+      inputs: socket.assigns.inputs
+    }
+
+    if presses == 0,
+      do: push_event(socket, "autolaunch-bid:operation", payload),
+      else:
+        Enum.reduce(1..presses, socket, fn _press, socket ->
+          push_event(
+            socket,
+            "autolaunch-bid:operation",
+            Map.put(payload, :send, Atom.to_string(operation.step))
+          )
+        end)
   end
 
   defp lab_anchor(envelope),
@@ -524,27 +567,55 @@ defmodule AutolaunchWeb.BidComponent do
   # The bid is prepared in the background whenever what it would send changes:
   # the wallet, the currency, the total or the most per token (which moves with
   # the price to beat). Nothing is prepared while a bid of this panel is with
-  # the wallet or on its way, since a new review would retire it.
+  # the wallet or on its way, since a new review would retire it. Each review
+  # retires the one before, so one is prepared at a time, in the order asked
+  # for, and presses waiting for theirs come first.
   defp prepare_when_ready(%{assigns: assigns} = socket) do
     key = bid_key(assigns)
 
     cond do
       !editable?(assigns.operation) -> socket
       is_nil(key) -> socket
-      assigns.preparing == key -> socket
+      assigns.preparing || assigns.owed != [] -> socket
       assigns.prepared_for in [key, {:refused, key}] -> socket
-      true -> start_prepare(socket, key)
+      true -> start_prepare(socket, key, assigns.form)
     end
   end
 
-  defp start_prepare(socket, {wallet, _pay_with, _amount, max_price} = key) do
-    %{auction: %{id: auction_id}, form: form} = socket.assigns
+  defp start_prepare(socket, {wallet, _pay_with, _amount, max_price} = key, form) do
+    %{auction: %{id: auction_id}} = socket.assigns
     opts = opts(socket)
 
     socket
     |> assign(preparing: key)
-    |> start_async(:prepare, fn -> {key, prepare(auction_id, form, wallet, max_price, opts)} end)
+    |> start_async(:prepare, fn ->
+      {key, form, prepare(auction_id, form, wallet, max_price, opts)}
+    end)
   end
+
+  # A press is answered by the review for its values: the one already
+  # prepared, or the next one prepared.
+  defp pressed(socket, nil), do: assign(socket, notice: notice(:error, incomplete(socket)))
+
+  defp pressed(%{assigns: %{prepared_for: key} = assigns} = socket, key)
+       when is_map(assigns.operation) do
+    if ready?(assigns),
+      do: published(socket, 1),
+      else: socket |> owe(key) |> prepare_owed()
+  end
+
+  defp pressed(socket, key), do: socket |> owe(key) |> prepare_owed()
+
+  defp owe(socket, key),
+    do: assign(socket, owed: socket.assigns.owed ++ [{key, socket.assigns.form}])
+
+  defp prepare_owed(%{assigns: %{preparing: nil, owed: [{key, form} | _rest]}} = socket),
+    do: start_prepare(socket, key, form)
+
+  defp prepare_owed(socket), do: socket
+
+  defp incomplete(%{assigns: %{form: %{amount: ""}}}), do: :amount_required
+  defp incomplete(_socket), do: :invalid_price
 
   defp bid_key(%{wallet: wallet, balance: balance, form: form} = assigns)
        when is_binary(wallet) and is_binary(balance) do
@@ -744,13 +815,27 @@ defmodule AutolaunchWeb.BidComponent do
         with {:ok, book} <- AuctionBook.base(auction), do: {:ok, %{book: book}}
       end)
 
-  # An amount chosen before the panel opened is entered once, in the form that
-  # pays in the auction's bid currency.
-  defp preset(%{assigns: %{preset_amount: amount, form: form}} = socket)
-       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?),
-       do: assign(socket, form: %{form | amount: amount}, preset_entered?: true)
+  # An amount, and a most per token, chosen before the panel opened are entered
+  # once. A preset most per token replaces bidding at the current price.
+  defp preset(%{assigns: %{form: form} = assigns} = socket)
+       when not is_map_key(assigns, :preset_entered?) do
+    form =
+      form
+      |> preset_amount(assigns[:preset_amount])
+      |> preset_limit(assigns[:preset_limit])
+
+    assign(socket, form: form, preset_entered?: true)
+  end
 
   defp preset(socket), do: socket
+
+  defp preset_amount(form, amount) when is_binary(amount), do: %{form | amount: amount}
+  defp preset_amount(form, nil), do: form
+
+  defp preset_limit(form, limit) when is_binary(limit),
+    do: %{form | at_price: false, limit_mode: "price", limit: limit}
+
+  defp preset_limit(form, nil), do: form
 
   # The press whose transaction the card is waiting on: the submitted attempt of
   # the current step, whose hash the chain has not answered about yet.

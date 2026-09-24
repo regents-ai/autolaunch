@@ -135,11 +135,54 @@ defmodule AutolaunchWeb.Components.AuctionBook do
   def standing_label(:sharing), do: "Sharing at the current price"
   def standing_label(:outbid), do: "Outbid"
 
-  @doc "The same for one of the bidder's own bids, which also says when an outbid one is repaid."
-  def bid_status(:outbid),
-    do: "Outbid: the rest comes back when the auction reaches its minimum or ends"
+  attr :price, :any, required: true, doc: "the price everyone pays now"
+  attr :unit, :string, required: true, doc: "the currency prices are in"
 
-  def bid_status(standing), do: standing_label(standing)
+  attr :back, :atom,
+    required: true,
+    values: [:now, :price_recorded, :after_end],
+    doc: "when the rest of the bid can come back"
+
+  @doc """
+  One of the bidder's own bids after the price passed its maximum: it has
+  stopped buying, keeps what it bought, and can be bid again or have the rest
+  come back.
+  """
+  def outbid_status(assigns) do
+    ~H"""
+    <p class="auction-book__outbid">
+      <strong>Outbid: no longer buying.</strong>
+      You keep what you've bought so far. Bid again above
+      <TokenDisplay.price amount={@price} unit={@unit} />, or get the rest back {back(@back)}.
+    </p>
+    """
+  end
+
+  attr :bid_form, :string, required: true, doc: "the id of the page's bid form"
+
+  attr :return_to, :string,
+    default: nil,
+    doc: "the id of the outbid bid, once the auction has reached its minimum"
+
+  @doc "The top of an auction page when one of the signed-in bidder's bids is outbid."
+  def outbid_banner(assigns) do
+    ~H"""
+    <section id="auction-outbid" class="auction-outbid-banner" aria-label="You were outbid">
+      <p>
+        <strong>You were outbid.</strong>
+        The price passed the most your bid pays per token, so it has stopped buying. You keep what it bought so far.
+      </p>
+      <p class="auction-outbid-banner__links">
+        <a href={"##{@bid_form}"}>Bid again</a>
+        <a :if={@return_to} href={"##{@return_to}"}>Get my unspent money back</a>
+      </p>
+    </section>
+    """
+  end
+
+  defp back(:now), do: "now"
+  defp back(:price_recorded), do: "once the auction records a price above your bid"
+  defp back(:after_end), do: "after bidding ends"
 
   @doc """
   The same once bidding has ended with the minimum reached: a bid still in at
