@@ -4,6 +4,8 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 (`autolaunch-sh`) and the commit it was built from.
 
 ## Next (not live yet)
+
+## v26, 24 September 2026 (40327e4)
 - The bid box is laid out like a swap: a Max budget box with the currency beside the figure, a
   Max FDV box with a slider, and a Receive box showing about how many tokens the budget buys.
   The slider starts a quarter above the price to start buying, and its tip shows the price per
