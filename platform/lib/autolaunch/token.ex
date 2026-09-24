@@ -14,6 +14,11 @@ defmodule Autolaunch.Token do
   postgres do
     table "tokens"
     repo Autolaunch.Repo
+
+    # The public token lists read their page straight off this in order.
+    custom_indexes do
+      index ["graduated_at DESC", "id"], name: "tokens_graduated_newest_index"
+    end
   end
 
   actions do
