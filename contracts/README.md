@@ -17,7 +17,7 @@ contracts set and every one the launcher chooses.
 | --- | --- | --- | --- | --- |
 | [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | **Deployed** on Base on 22 September 2026 (eight contracts, verified on Basescan); launches paused until the Governance and Regent Safe calls `unpauseLaunches()` | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
 | [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | **Deployed** on Base on 23 September 2026 (launchpad, bid adapter, hook, locker, splitter implementation); ten stocks admitted with `AerodromeStockRouteV2` routes and the hook executor set by the Safe; launches paused until `unpauseLaunches()` | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
-| [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | **Being deployed.** The founder approved packet digest `0x410d7a8a45b9b2e31ab0d96a74b56df1750f7cb66d9730d2a1e7d6cdfa8eb811` (launchpad graph, 25 `UniswapV3StockRouteV1` routes, the Base receiver). Addresses will be recorded in `robinhood/deployments/robinhood-mainnet/deployed-manifest.json` once the receipts are confirmed | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
+| [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | **Deployed** on 23–24 September 2026 (launchpad graph, 25 `UniswapV3StockRouteV1` routes, the Base receiver; addresses in `robinhood/deployments/robinhood-mainnet/deployed-manifest.json`); no stock admitted yet; launches paused until the admin Safe admits the stocks and calls `unpauseLaunches()` | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
 | [revenue-mesh/](revenue-mesh/README.md) | Immutable USDC payment routes over Circle CCTP from other chains into a Base `PaymentReceiverV1` | Source chains into Base | **Experimental.** Not deployed and not on the launch path | `cd revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
 
 The website's runtime copies of the ABIs and the chain manifest live in
@@ -129,15 +129,22 @@ non-positive answer.
 
 ### Robinhood Chain (4663): Memestake
 
-Being deployed. The approved packet
-([robinhood/deployments/robinhood-mainnet/](robinhood/deployments/robinhood-mainnet/README.md),
-digest `0x410d7a8a45b9b2e31ab0d96a74b56df1750f7cb66d9730d2a1e7d6cdfa8eb811`) names the deployer,
-the six Robinhood creations (`UERC20Factory`, `RobinhoodProtocolRevenueInboxV1`,
-`RobinhoodPositionsLib`, `RobinhoodFeeHookFactory`, `RobinhoodStocksLaunchpadV1`,
-`RobinhoodStockBidAdapterV1`), the 25 `UniswapV3StockRouteV1` routes and the one Base creation
-(`RobinhoodBaseRevenueReceiverV1`). Addresses will be in that directory's `deployed-manifest.json`
-once `bin/ceremony.py record` has proved the receipts. Until then no Robinhood address in this
-repository is a deployed fact.
+Deployed on 23–24 September 2026 from packet digest
+`0x410d7a8a45b9b2e31ab0d96a74b56df1750f7cb66d9730d2a1e7d6cdfa8eb811`. Every address, block and
+transaction is in [robinhood/deployments/robinhood-mainnet/](robinhood/deployments/robinhood-mainnet/README.md)
+and its `deployed-manifest.json`; the 25 routes are listed there by stock.
+
+| Contract | Chain | Address |
+| --- | --- | --- |
+| `RobinhoodStocksLaunchpadV1` | Robinhood Chain | `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e` |
+| `RobinhoodFeeHookV1` | Robinhood Chain | `0xea3Bea7E546CB12aBf6eCB168Cb4bb17fc9A60CC` |
+| `RobinhoodStockBidAdapterV1` | Robinhood Chain | `0x1d36a95112835f81b1B499A808e556020C64Cac2` |
+| `RobinhoodProtocolRevenueInboxV1` | Robinhood Chain | `0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d` |
+| `UERC20Factory` | Robinhood Chain | `0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563` |
+| `RobinhoodBaseRevenueReceiverV1` | Base | `0xbF73B915Baf7EBbbBA26cf51eEb64a6A23c81481` |
+
+The launchpad is paused and no stock is admitted yet. The admin Safe names the inbox's Base
+destination, admits each stock with its route, names the hook executor, then unpauses launches.
 
 ## Which contracts each launch type uses
 
@@ -201,7 +208,7 @@ Every project keeps two files apart: a **packet** (`mainnet-no-go-packet.json`),
 describes what a ceremony would do and the only committed ceremony authority, and a **deployed
 manifest** (`deployed-manifest.json`), the record of what was actually created, populated only from
 confirmed receipts. The v1 and Base Memestake manifests record the Base deployments; the Robinhood
-manifest is written when its receipts are confirmed. The founder signs and sends every creation by
+manifest records the Robinhood deployment. The founder signs and sends every creation by
 hand; no key, endpoint or credential appears in this repository.
 
 1. **Base Revstake first** ([v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md)).
@@ -231,9 +238,11 @@ hand; no key, endpoint or credential appears in this repository.
 3. **Robinhood as its own track** ([robinhood/deployments/robinhood-mainnet/](robinhood/deployments/robinhood-mainnet/README.md)).
    Six creations on Robinhood Chain (`UERC20Factory`, the revenue inbox, the positions library,
    the hook factory, the launchpad and the bid adapter), 25 `UniswapV3StockRouteV1` routes, and
-   one creation on Base (the revenue receiver). The founder approved the packet; the ceremony is
-   in progress. The Safe then admits each stock with its route, names the hook executor and
-   unpauses the launchpad. The bridge adapter the inbox needs to move USDG to Base is not built.
+   one creation on Base (the revenue receiver). The founder approved digest
+   `0x410d7a8a45b9b2e31ab0d96a74b56df1750f7cb66d9730d2a1e7d6cdfa8eb811` and sent the 32 creations on
+   23–24 September 2026 (Robinhood Chain blocks 70983138–71059634, Base block 51716506); `record`
+   proved the receipts and wrote the deployed manifest. The Safe then admits each stock with its
+   route, names the hook executor and unpauses the launchpad. The bridge adapter the inbox needs to move USDG to Base is not built.
 
 The revenue mesh has no deployment script and no production address.
 

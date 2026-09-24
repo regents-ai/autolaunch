@@ -130,13 +130,13 @@ claim is a transaction you approve in your own wallet.
   GPT 6 Astra. They were also tested against the real Base contracts they rely on. Their source code
   is public, and the deployed Revstake contracts are verified on Basescan.
 
-## Status (23 September 2026)
+## Status (24 September 2026)
 
 | | |
 | --- | --- |
 | Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches are not open yet |
 | Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches are not open yet |
-| Memestake on Robinhood Chain | Not deployed yet |
+| Memestake on Robinhood Chain | Contracts deployed on 23–24 September 2026 ([addresses](contracts/robinhood/deployments/robinhood-mainnet/README.md)). Launches are paused until 24 September 2026, 15:00 UTC |
 | autolaunch.sh | You can browse it now. Launching, bidding and trading turn on when the contracts open |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
 
