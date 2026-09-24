@@ -3,12 +3,12 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   Polls the Stocks chain for launches and their auctions: every second on a
   lab, every fifteen seconds on mainnet.
 
-  Two things happen per poll. Every `launches(id)` record the launchpad holds is
-  projected into an `Auction` row when its launcher is a wallet this site's
-  accounts hold and no row exists yet. Every Stocks auction row is then read
-  from its own contract and the launchpad's lifecycle, and its state and
-  clearing price are refreshed. Changes are broadcast on the shared market
-  topic so open pages reload.
+  Two things happen per poll. Each new `launches(id)` record the launchpad holds
+  is projected into an `Auction` row when its launcher is a wallet this site's
+  accounts hold and no row exists yet. A bounded page of Stocks auction rows is
+  then read from their own contracts and the launchpad's lifecycle, and their
+  state, minimum and clearing price are refreshed (`Autolaunch.MarketWatch`).
+  Changes are broadcast on the shared market topic so open pages reload.
   """
 
   use GenServer
@@ -17,8 +17,9 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   require Logger
 
   alias Autolaunch.Actors.System
+  alias Autolaunch.Auction.MarketState
   alias Autolaunch.Chain.{Abi, Rpc}
-  alias Autolaunch.{LabAbi, LabProjection, Pool}
+  alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias Autolaunch.Stocks.LabProjection, as: StocksProjection
@@ -29,6 +30,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   @actor %System{}
   @new_decimals 18
   @lifecycle_index 11
+  @launch_page 200
 
   def topic, do: @topic
 
@@ -45,6 +47,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
       generation: 0,
       head: nil,
       snapshots: %{},
+      cursors: %{watch: MarketWatch.new(), next_launch_id: 0},
       in_flight: false,
       timer: nil
     }
@@ -66,18 +69,20 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   @impl true
   def handle_info(:poll, %{in_flight: false} = state) do
     parent = self()
-    Task.start(fn -> send(parent, {:refreshed, safely(&refresh/0)}) end)
+    cursors = state.cursors
+    Task.start(fn -> send(parent, {:refreshed, safely(fn -> refresh(cursors) end)}) end)
     {:noreply, %{state | in_flight: true, timer: nil}}
   end
 
   def handle_info(:poll, state), do: {:noreply, state}
 
-  def handle_info(
-        {:refreshed, {:ok, %{head: head, snapshots: snapshots, changed: changed}}},
-        state
-      ) do
-    changed_ids =
-      Enum.uniq(changed ++ changed_snapshot_ids(state.snapshots, snapshots))
+  # A pass reads only part of the auctions, so its readings join the ones
+  # earlier passes took; each reading names the block it was taken at.
+  def handle_info({:refreshed, {:ok, refresh}}, state) do
+    %{head: head, snapshots: readings, changed: changed, cursors: cursors} = refresh
+    snapshots = Map.merge(state.snapshots, readings)
+    changed_ids = Enum.uniq(changed ++ changed_snapshot_ids(state.snapshots, snapshots))
+    state = %{state | cursors: cursors}
 
     state =
       if changed_ids == [] and state.head == head do
@@ -104,38 +109,65 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
-    Logger.debug("stocks lab market feed skipped a poll: #{inspect(reason)}")
+    Logger.warning("memestake market feed skipped a poll: #{inspect(reason)}")
     {:noreply, schedule(%{state | in_flight: false}, interval())}
   end
 
   defp interval,
     do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
 
-  # One poll: the launchpad's records, then every known Stocks auction.
+  # One poll: the launchpad's launch records not yet seen, then this pass's
+  # page of Stocks auctions (`Autolaunch.MarketWatch`).
   @doc false
-  def refresh do
+  def refresh(%{watch: watch, next_launch_id: from}) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config, "autolaunch stocks market feed"),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, projected} <- project_launches(config, block, opts),
-         {:ok, auctions} <-
-           Autolaunch.list_stocks_lab_market_auctions(config.chain_id, actor: @actor),
+         {:ok, projected, next_launch_id} <- project_launches(config, block, opts, from),
+         {:ok, auctions, next_watch} <- MarketWatch.next(watch, config.chain_id, :stocks),
          {:ok, snapshots, changed} <- refresh_auctions(config, block, opts, auctions) do
-      {:ok, %{head: block, snapshots: snapshots, changed: projected ++ changed}}
+      {:ok,
+       %{
+         head: block,
+         snapshots: snapshots,
+         changed: projected ++ changed,
+         cursors: %{watch: next_watch, next_launch_id: next_launch_id}
+       }}
     end
   end
 
-  defp project_launches(config, block, opts) do
+  # Launch ids only grow, so each poll reads only the records after the last
+  # one it settled, a bounded number at a time. A record that cannot be read
+  # is logged and read again next poll; the ones after it still project. A
+  # launchpad with fewer launches than the cursor is a new lab run, read from
+  # its first launch.
+  defp project_launches(config, block, opts, from) do
     with {:ok, next} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
-      Enum.reduce_while(0..(next - 1)//1, {:ok, []}, fn id, {:ok, changed} ->
-        collect(project_launch(config, id, block, opts), changed)
-      end)
+      from = if from > next, do: 0, else: from
+      ids = from..min(next - 1, from + @launch_page - 1)//1
+
+      results =
+        Enum.map(ids, fn id -> {id, safely(fn -> project_launch(config, id, block, opts) end)} end)
+
+      {:ok, Enum.flat_map(results, &projected/1),
+       settled_through(results, from + Enum.count(ids))}
     end
   end
 
-  defp collect({:ok, nil}, changed), do: {:cont, {:ok, changed}}
-  defp collect({:ok, auction_id}, changed), do: {:cont, {:ok, [auction_id | changed]}}
-  defp collect({:error, reason}, _changed), do: {:halt, {:error, reason}}
+  defp projected({_id, {:ok, nil}}), do: []
+  defp projected({_id, {:ok, auction_id}}), do: [auction_id]
+
+  defp projected({id, {:error, reason}}) do
+    Logger.warning("memestake market feed skipped launch #{id}: #{inspect(reason)}")
+    []
+  end
+
+  defp settled_through(results, next_id) do
+    case Enum.find(results, &match?({_id, {:error, _reason}}, &1)) do
+      {id, _error} -> id
+      nil -> next_id
+    end
+  end
 
   defp project_launch(config, id, block, opts) do
     with {:ok, record} <-
@@ -216,21 +248,37 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     end
   end
 
+  # Each auction is read and written on its own: one that fails is logged and
+  # left as it is, and every other auction still refreshes.
   defp refresh_auctions(config, block, opts, auctions) do
-    Enum.reduce_while(auctions, {:ok, %{}, []}, fn auction, {:ok, snapshots, changed} ->
-      with {:ok, snapshot} <- market_snapshot(config, block, opts, auction),
-           {:ok, changed_id} <- refresh_row(auction, snapshot) do
-        {:cont,
-         {:ok, Map.put(snapshots, snapshot.auction_address, snapshot),
-          List.wrap(changed_id) ++ changed}}
-      else
-        # A row whose contract does not exist at this head has no market to
-        # read (a launch mined on another lab run, or one a reorg removed); it
-        # is left as it is so one such row never stops the others refreshing.
-        {:error, :lab_contract_missing} -> {:cont, {:ok, snapshots, changed}}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+    {snapshots, changed} =
+      Enum.reduce(auctions, {%{}, []}, fn auction, collected ->
+        result = safely(fn -> refresh_auction(config, block, opts, auction) end)
+        collect_reading(result, auction, collected)
+      end)
+
+    {:ok, snapshots, changed}
+  end
+
+  defp collect_reading({:ok, snapshot, changed_id}, _auction, {snapshots, changed}),
+    do: {Map.put(snapshots, snapshot.auction_address, snapshot), List.wrap(changed_id) ++ changed}
+
+  # A row whose contract does not exist at this head has no market to read (a
+  # launch mined on another lab run, or one a reorg removed).
+  defp collect_reading({:error, :lab_contract_missing}, _auction, collected), do: collected
+
+  defp collect_reading({:error, reason}, auction, collected) do
+    Logger.warning(
+      "memestake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+    )
+
+    collected
+  end
+
+  defp refresh_auction(config, block, opts, auction) do
+    with {:ok, snapshot} <- market_snapshot(config, block, opts, auction),
+         {:ok, changed_id} <- refresh_row(auction, snapshot),
+         do: {:ok, snapshot, changed_id}
   end
 
   defp market_snapshot(config, block, opts, auction) do
@@ -241,7 +289,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          {:ok, start_block} <- auction_uint(config, address, "startBlock()", block, opts),
          {:ok, end_block} <- auction_uint(config, address, "endBlock()", block, opts),
          {:ok, claim_block} <- auction_uint(config, address, "claimBlock()", block, opts),
-         {:ok, graduated?} <- auction_bool(config, address, "isGraduated()", block, opts),
+         {:ok, minimum_reached} <- auction_bool(config, address, "isGraduated()", block, opts),
          {:ok, clearing} <- auction_uint(config, address, "clearingPrice()", block, opts),
          {:ok, raised} <- auction_uint(config, address, "currencyRaised()", block, opts),
          {:ok, remaining} <- auction_uint(config, address, "remainingSupply()", block, opts),
@@ -264,7 +312,12 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          auction_id: auction.id,
          auction_address: String.downcase(address),
          state:
-           market_state(Enum.at(record, @lifecycle_index), graduated?, block.number, start_block),
+           MarketState.observed(
+             Enum.at(record, @lifecycle_index),
+             block.number,
+             start_block,
+             end_block
+           ),
          current_clearing_price: Amounts.format_cca_price(clearing, decimals, @new_decimals),
          price_quote: price_quote,
          block_number: block.number,
@@ -275,7 +328,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          currency_raised: Rpc.format_units(raised, decimals),
          currency_symbol: auction.quote_token_symbol,
          remaining_supply: Rpc.format_units(remaining, @new_decimals),
-         graduated?: graduated?,
+         minimum_reached: minimum_reached,
          positions: positions
        }}
     end
@@ -301,12 +354,18 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   end
 
   defp refresh_row(auction, snapshot) do
-    state = join_state(auction.state, snapshot.state)
-    price = snapshot.current_clearing_price
-    market_changed? = auction.state != state or auction.current_clearing_price != price
+    market = %{
+      state: MarketState.join(auction.state, snapshot.state),
+      price: snapshot.current_clearing_price,
+      minimum_reached: snapshot.minimum_reached
+    }
+
+    market_changed? =
+      auction.state != market.state or auction.current_clearing_price != market.price or
+        auction.minimum_reached != market.minimum_reached
 
     with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
-         :ok <- refresh_market(auction, market_changed?, state, price),
+         :ok <- refresh_market(auction, market_changed?, market),
          {:ok, price_changed?} <-
            LabProjection.project_token_price(auction.id, snapshot.price_quote) do
       if market_changed? or positions_changed? or price_changed?,
@@ -318,22 +377,19 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   # A graduation projects the public token row at once, so the pool page exists
   # as soon as the auction row says the launch graduated, and the token's price
   # is the pool's from the same reading.
-  defp refresh_market(_auction, false, _state, _price), do: :ok
+  defp refresh_market(_auction, false, _market), do: :ok
 
-  defp refresh_market(auction, true, state, price) do
-    with {:ok, row} <- Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
+  defp refresh_market(auction, true, market) do
+    with {:ok, row} <-
+           Autolaunch.refresh_lab_market_auction(
+             auction,
+             market.state,
+             market.price,
+             %{minimum_reached: market.minimum_reached},
+             actor: @actor
+           ),
          do: LabProjection.project_graduated_token(row)
   end
-
-  defp join_state(current, _observed) when current in [:graduated, :failed], do: current
-  defp join_state(:active, :created), do: :active
-  defp join_state(_current, observed), do: observed
-
-  defp market_state(2, _graduated?, _block, _start), do: :graduated
-  defp market_state(3, _graduated?, _block, _start), do: :failed
-  defp market_state(_lifecycle, true, _block, _start), do: :graduated
-  defp market_state(_lifecycle, _graduated?, block, start) when block >= start, do: :active
-  defp market_state(_lifecycle, _graduated?, _block, _start), do: :created
 
   defp launchpad_uint(config, signature, arguments, block, opts) do
     Rpc.call_uint(

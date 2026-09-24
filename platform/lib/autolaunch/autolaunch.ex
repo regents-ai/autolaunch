@@ -106,8 +106,9 @@ defmodule Autolaunch do
         action: :set_treasury_security_report,
         args: [:treasury_security_report_id]
 
-      define :list_lab_market_auctions, action: :watchable_lab, args: [:chain_id]
-      define :list_stocks_lab_market_auctions, action: :watchable_stocks_lab, args: [:chain_id]
+      define :list_market_watch_auctions,
+        action: :market_watch,
+        args: [:chain_id, :kind, :finished, :after_id, :limit]
 
       define :get_auction_by_chain_address,
         action: :by_chain_address,
