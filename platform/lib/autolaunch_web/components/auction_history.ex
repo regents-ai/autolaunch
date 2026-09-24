@@ -17,6 +17,11 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
   attr :symbol, :string, required: true, doc: "the auction's currency"
   attr :token_symbol, :string, required: true
   attr :usd_rate, :any, required: true
+
+  attr :raised, :string,
+    required: true,
+    doc: "sold so far, read from the chain now, in whole units"
+
   attr :block, :integer, required: true, doc: "the auction clock's current block"
   attr :start_block, :integer, required: true
   attr :end_block, :integer, required: true
@@ -33,7 +38,8 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
         elapsed: min(div((now - assigns.start_block) * 100, span), 100),
         marks: Enum.map(assigns.bids, &share(&1.clock_block, assigns.start_block, span)),
         price_chart: price_chart(assigns.points, assigns.start_block, now),
-        total_chart: total_chart(assigns.bids, assigns.points, assigns.start_block, now),
+        total_chart:
+          total_chart(assigns.bids, assigns.points, assigns.raised, assigns.start_block, now),
         newest: Enum.reverse(assigns.bids)
       )
 
@@ -85,7 +91,7 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
           <li class="auction-history__key auction-history__key--bids">
             Bids placed <TokenDisplay.price amount={@total_chart.last} unit={@symbol} />
           </li>
-          <li :if={@total_chart.sold} class="auction-history__key auction-history__key--sold">
+          <li class="auction-history__key auction-history__key--sold">
             Sold so far <TokenDisplay.price amount={@total_chart.sold} unit={@symbol} />
           </li>
         </ul>
@@ -200,26 +206,21 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
   end
 
   # The running total bidders committed, one step per bid, beside what the
-  # auction had sold at each price event.
-  defp total_chart([], _points, _start, _now), do: nil
+  # auction had sold at each price event and what it has sold now.
+  defp total_chart([], _points, _raised, _start, _now), do: nil
 
-  defp total_chart(bids, points, start, now) do
+  defp total_chart(bids, points, raised, start, now) do
     {steps, total} =
       Enum.map_reduce(bids, Decimal.new(0), fn bid, total ->
         total = Decimal.add(total, bid.amount)
         {{bid.clock_block, total}, total}
       end)
 
-    sold = Enum.map(points, &{&1.clock_block, &1.sold})
-    lines = [bids: [{start, Decimal.new(0)} | steps]]
-    lines = if sold == [], do: lines, else: lines ++ [sold: [{start, Decimal.new(0)} | sold]]
+    sold = Enum.map(points, &{&1.clock_block, &1.sold}) ++ [{now, Decimal.new(raised)}]
 
     start
-    |> chart(now, lines)
-    |> Map.merge(%{
-      last: plain(total),
-      sold: sold != [] && sold |> List.last() |> elem(1) |> plain()
-    })
+    |> chart(now, bids: [{start, Decimal.new(0)} | steps], sold: [{start, Decimal.new(0)} | sold])
+    |> Map.merge(%{last: plain(total), sold: raised})
   end
 
   # Step lines over the window from the opening to now, on one value axis from

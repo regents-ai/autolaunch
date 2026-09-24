@@ -10,8 +10,12 @@ defmodule Autolaunch.Repo.Migrations.BidHistory do
   # Bid activity is derived from chain events. Stored bids lack their bidder,
   # clock block and maximum price, so they are removed and every auction's
   # activity cursor is reset: the activity runner reads each auction again from
-  # its start and fills the new columns and the price points.
+  # its start and fills the new columns and the price points. Both tables are
+  # locked first, in the order the runner takes them, so no bid can be written
+  # between the delete and the new required columns.
   def up do
+    execute ~s|LOCK TABLE "#{prefix()}".auctions, "#{prefix()}".bid_activity IN ACCESS EXCLUSIVE MODE|
+
     execute ~s|DELETE FROM "#{prefix()}".bid_activity|
 
     execute """

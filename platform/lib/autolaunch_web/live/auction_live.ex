@@ -277,6 +277,7 @@ defmodule AutolaunchWeb.AuctionLive do
             symbol={@page_record.quote_token_symbol}
             token_symbol={@page_record.token_symbol}
             usd_rate={@usd_rate}
+            raised={@market_snapshot.currency_raised}
             block={@market_snapshot.block_number}
             start_block={@market_snapshot.start_block}
             end_block={@market_snapshot.end_block}

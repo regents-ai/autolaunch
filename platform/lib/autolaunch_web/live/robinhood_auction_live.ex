@@ -133,6 +133,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             symbol={@launch.quote_token_symbol}
             token_symbol={@launch.token_symbol}
             usd_rate={@usd_rate}
+            raised={@reading.currency_raised}
             block={@reading.clock}
             start_block={@launch.start_block}
             end_block={@launch.end_block}
