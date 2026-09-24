@@ -2,7 +2,6 @@ defmodule AutolaunchWeb.BidTickerLive do
   @moduledoc false
   use Phoenix.LiveView, layout: false
   alias Autolaunch.BidActivity
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.MarketCard
 
   def mount(_, _, socket) do
@@ -64,10 +63,8 @@ defmodule AutolaunchWeb.BidTickerLive do
               tabindex={if copy == 1, do: "-1"}
               class="bid-ticker__bid"
             >
-              <strong>{amount(bid.display_amount, bid.display_symbol)} {bid.display_symbol} bid</strong>
-              <span :if={bid.max_fdv}>
-                @ {max_fdv(bid, MarketCard.figure_rate(@rates, bid.auction))} max FDV ·
-              </span>
+              <strong>{short(bid.display_amount)} {bid.display_symbol}</strong>
+              <span :if={max_fdv(bid, @rates)}>@ {max_fdv(bid, @rates)} FDV ·</span>
               <img
                 :if={bid.auction.image}
                 src={bid.auction.image}
@@ -85,28 +82,19 @@ defmodule AutolaunchWeb.BidTickerLive do
     """
   end
 
-  def amount(value, "REGENT") do
-    if Decimal.compare(value, Decimal.new(1_000_000)) != :lt,
-      do:
-        Decimal.div(value, 1_000_000)
-        |> Decimal.round(1)
-        |> Decimal.to_string(:normal)
-        |> Kernel.<>("mil"),
-      else: rounded(value, 0)
+  # Three significant digits with a short suffix: 2.37, 59, 67.6k, 1.2M.
+  defp short(value), do: value |> MarketCard.compact() |> String.replace_suffix("K", "k")
+
+  # The bid's maximum price for the whole token, in dollars at the auction
+  # currency's market price; left out while no price is known.
+  defp max_fdv(%{max_fdv: %Decimal{} = fdv} = bid, rates) do
+    case MarketCard.figure_rate(rates, bid.auction) do
+      %Decimal{} = rate -> fdv |> Decimal.mult(rate) |> short()
+      nil -> nil
+    end
   end
 
-  def amount(value, symbol) when symbol in ["USDC", "USDG"],
-    do: value |> rounded(0) |> Amounts.grouped()
-
-  def amount(value, _), do: rounded(value, 3)
-  # In dollars, approximately, at the auction currency's market price; in the
-  # auction's own currency while no price is known.
-  defp max_fdv(bid, %Decimal{} = rate), do: "≈" <> MarketCard.dollars(bid.max_fdv, rate)
-
-  defp max_fdv(bid, _rate),
-    do: MarketCard.compact(bid.max_fdv) <> " " <> bid.auction.quote_token_symbol
-
-  defp rounded(value, places), do: value |> Decimal.round(places) |> Decimal.to_string(:normal)
+  defp max_fdv(_bid, _rates), do: nil
 
   defp path(auction) do
     if Autolaunch.Robinhood.Lab.chain?(auction.chain_id),

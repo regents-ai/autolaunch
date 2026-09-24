@@ -504,17 +504,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  @doc """
-  A dollar figure shortened the way market lists write them, to three
-  significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M; "-" while no
-  price is known.
-  """
-  def dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
+  # Dollar figures are shortened the way market lists write them, to three
+  # significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M.
+  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
     value = Decimal.mult(amount, rate)
     if Decimal.eq?(value, 0), do: "$0", else: "$" <> compact(value)
   end
 
-  def dollars(_amount, _rate), do: "-"
+  defp dollars(_amount, _rate), do: "-"
 
   @doc "An amount shortened to three significant digits: 0.0000123, 1.48, 24.7K, 1.48M."
   def compact(value) do
