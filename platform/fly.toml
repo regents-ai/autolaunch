@@ -34,9 +34,10 @@ primary_region = "iad"
   internal_port = 4000
   force_https = true
 
-# BEAM release + migrations OOM at Fly's 256MB default.
+# Keep the production capacity when the next image is deployed.
 [[vm]]
-  memory_mb = 1024
+  size = "performance-2x"
+  memory_mb = 4096
 
 [[http_service.checks]]
   grace_period = "30s"
