@@ -3,12 +3,12 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   Polls the Stocks chain for launches and their auctions: every second on a
   lab, every fifteen seconds on mainnet.
 
-  Two things happen per poll. Every `launches(id)` record the launchpad holds is
-  projected into an `Auction` row when its launcher is a wallet this site's
-  accounts hold and no row exists yet. Every Stocks auction row is then read
-  from its own contract and the launchpad's lifecycle, and its state and
-  clearing price are refreshed. Changes are broadcast on the shared market
-  topic so open pages reload.
+  Two things happen per poll. Each new `launches(id)` record the launchpad holds
+  is projected into an `Auction` row when its launcher is a wallet this site's
+  accounts hold and no row exists yet. A bounded page of Stocks auction rows is
+  then read from their own contracts and the launchpad's lifecycle, and their
+  state, minimum and clearing price are refreshed (`Autolaunch.MarketWatch`).
+  Changes are broadcast on the shared market topic so open pages reload.
   """
 
   use GenServer
@@ -19,7 +19,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction.MarketState
   alias Autolaunch.Chain.{Abi, Rpc}
-  alias Autolaunch.{LabAbi, LabProjection, Pool}
+  alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias Autolaunch.Stocks.LabProjection, as: StocksProjection
@@ -30,6 +30,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   @actor %System{}
   @new_decimals 18
   @lifecycle_index 11
+  @launch_page 200
 
   def topic, do: @topic
 
@@ -46,6 +47,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
       generation: 0,
       head: nil,
       snapshots: %{},
+      cursors: %{watch: MarketWatch.new(), next_launch_id: 0},
       in_flight: false,
       timer: nil
     }
@@ -67,18 +69,20 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   @impl true
   def handle_info(:poll, %{in_flight: false} = state) do
     parent = self()
-    Task.start(fn -> send(parent, {:refreshed, safely(&refresh/0)}) end)
+    cursors = state.cursors
+    Task.start(fn -> send(parent, {:refreshed, safely(fn -> refresh(cursors) end)}) end)
     {:noreply, %{state | in_flight: true, timer: nil}}
   end
 
   def handle_info(:poll, state), do: {:noreply, state}
 
-  def handle_info(
-        {:refreshed, {:ok, %{head: head, snapshots: snapshots, changed: changed}}},
-        state
-      ) do
-    changed_ids =
-      Enum.uniq(changed ++ changed_snapshot_ids(state.snapshots, snapshots))
+  # A pass reads only part of the auctions, so its readings join the ones
+  # earlier passes took; each reading names the block it was taken at.
+  def handle_info({:refreshed, {:ok, refresh}}, state) do
+    %{head: head, snapshots: readings, changed: changed, cursors: cursors} = refresh
+    snapshots = Map.merge(state.snapshots, readings)
+    changed_ids = Enum.uniq(changed ++ changed_snapshot_ids(state.snapshots, snapshots))
+    state = %{state | cursors: cursors}
 
     state =
       if changed_ids == [] and state.head == head do
@@ -112,34 +116,55 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   defp interval,
     do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
 
-  # One poll: the launchpad's records, then every known Stocks auction.
+  # One poll: the launchpad's launch records not yet seen, then this pass's
+  # page of Stocks auctions (`Autolaunch.MarketWatch`).
   @doc false
-  def refresh do
+  def refresh(%{watch: watch, next_launch_id: from}) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config, "autolaunch stocks market feed"),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, projected} <- project_launches(config, block, opts),
-         {:ok, auctions} <-
-           Autolaunch.list_stocks_lab_market_auctions(config.chain_id, actor: @actor),
+         {:ok, projected, next_launch_id} <- project_launches(config, block, opts, from),
+         {:ok, auctions, next_watch} <- MarketWatch.next(watch, config.chain_id, :stocks),
          {:ok, snapshots, changed} <- refresh_auctions(config, block, opts, auctions) do
-      {:ok, %{head: block, snapshots: snapshots, changed: projected ++ changed}}
-    end
-  end
-
-  defp project_launches(config, block, opts) do
-    with {:ok, next} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
       {:ok,
-       Enum.flat_map(0..(next - 1)//1, &collect(&1, project_launch(config, &1, block, opts)))}
+       %{
+         head: block,
+         snapshots: snapshots,
+         changed: projected ++ changed,
+         cursors: %{watch: next_watch, next_launch_id: next_launch_id}
+       }}
     end
   end
 
-  # One launch that cannot be read is logged and skipped; the others still project.
-  defp collect(_id, {:ok, nil}), do: []
-  defp collect(_id, {:ok, auction_id}), do: [auction_id]
+  # Launch ids only grow, so each poll reads only the records after the last
+  # one it settled, a bounded number at a time. A record that cannot be read
+  # is logged and read again next poll; the ones after it still project. A
+  # launchpad with fewer launches than the cursor is a new lab run, read from
+  # its first launch.
+  defp project_launches(config, block, opts, from) do
+    with {:ok, next} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
+      from = if from > next, do: 0, else: from
+      ids = from..min(next - 1, from + @launch_page - 1)//1
+      results = Enum.map(ids, &{&1, project_launch(config, &1, block, opts)})
 
-  defp collect(id, {:error, reason}) do
+      {:ok, Enum.flat_map(results, &projected/1),
+       settled_through(results, from + Enum.count(ids))}
+    end
+  end
+
+  defp projected({_id, {:ok, nil}}), do: []
+  defp projected({_id, {:ok, auction_id}}), do: [auction_id]
+
+  defp projected({id, {:error, reason}}) do
     Logger.warning("memestake market feed skipped launch #{id}: #{inspect(reason)}")
     []
+  end
+
+  defp settled_through(results, next_id) do
+    case Enum.find(results, &match?({_id, {:error, _reason}}, &1)) do
+      {id, _error} -> id
+      nil -> next_id
+    end
   end
 
   defp project_launch(config, id, block, opts) do

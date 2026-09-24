@@ -5,7 +5,7 @@ defmodule Autolaunch.MarketFeedTest do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction.MarketState
-  alias Autolaunch.{BaseRpcStub, LabAbi, LabMarketFeed}
+  alias Autolaunch.{BaseRpcStub, LabAbi, LabMarketFeed, MarketWatch}
   alias Autolaunch.LabMarketFeed.{Projector, Reader}
   alias Autolaunch.TestSupport
 
@@ -23,7 +23,9 @@ defmodule Autolaunch.MarketFeedTest do
     def install(test_pid), do: :persistent_term.put(__MODULE__, test_pid)
 
     def head, do: {:ok, @head}
-    def snapshots(_head, _capacity, attempted), do: {:ok, %{snapshots: [], attempted: attempted}}
+
+    def snapshots(_head, watch, attempted),
+      do: {:ok, %{snapshots: [], attempted: attempted, watch: watch}}
 
     def verify_head(_head) do
       send(:persistent_term.get(__MODULE__), {:verifying, self()})
@@ -137,7 +139,9 @@ defmodule Autolaunch.MarketFeedTest do
       ChainStub.install(%{broken: MapSet.new([String.downcase(broken.auction_address)])})
 
       assert {:ok, head} = Reader.head()
-      assert {:ok, %{snapshots: snapshots}} = Reader.snapshots(head, 256, MapSet.new())
+
+      assert {:ok, %{snapshots: snapshots}} =
+               Reader.snapshots(head, MarketWatch.new(), MapSet.new())
 
       assert snapshots |> Enum.map(& &1.auction_id) |> Enum.sort() ==
                readable |> Enum.map(& &1.id) |> Enum.sort()
@@ -156,6 +160,53 @@ defmodule Autolaunch.MarketFeedTest do
 
       reply = Task.async(fn -> LabMarketFeed.snapshot(feed) end)
       assert {:ok, %{auctions: %{}, generation: 0}} = Task.yield(reply, 200)
+    end
+  end
+
+  describe "more auctions than one pass reads" do
+    test "every one is read over successive passes, open ones first and every pass" do
+      creator = TestSupport.register_creator!().id
+
+      open =
+        for _n <- 1..150,
+            do:
+              TestSupport.project_auction(
+                chain_id: 8453,
+                state: :active,
+                creator_human_account_id: creator
+              )
+
+      finished =
+        for state <- List.duplicate(:graduated, 90) ++ List.duplicate(:failed, 70),
+            do:
+              TestSupport.project_auction(
+                chain_id: 8453,
+                state: state,
+                creator_human_account_id: creator
+              )
+
+      ChainStub.install(%{broken: MapSet.new()})
+      assert {:ok, head} = Reader.head()
+
+      {passes, _watch} =
+        Enum.map_reduce(1..8, MarketWatch.new(), fn _pass, watch ->
+          assert {:ok, %{snapshots: snapshots, watch: next}} =
+                   Reader.snapshots(head, watch, MapSet.new())
+
+          {MapSet.new(snapshots, & &1.auction_id), next}
+        end)
+
+      open_ids = MapSet.new(open, & &1.id)
+      all_ids = MapSet.union(open_ids, MapSet.new(finished, & &1.id))
+
+      assert Enum.all?(passes, &(MapSet.size(&1) <= 200))
+
+      assert open_ids
+             |> MapSet.difference(Enum.at(passes, 0))
+             |> MapSet.subset?(Enum.at(passes, 1))
+
+      assert Enum.reduce(passes, &MapSet.union/2) == all_ids
+      assert MapSet.size(all_ids) > 257
     end
   end
 

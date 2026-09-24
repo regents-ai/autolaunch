@@ -8,7 +8,6 @@ defmodule Autolaunch.LabMarketFeed do
   alias __MODULE__.{Projector, Reader}
 
   @topic "autolaunch:lab_market"
-  @capacity 256
   # A lab moves every second; a mainnet reading is fresh enough every fifteen.
   @lab_delay 1_000
   @mainnet_delay 15_000
@@ -41,6 +40,7 @@ defmodule Autolaunch.LabMarketFeed do
       poll?: Keyword.get(options, :poll?, true),
       delay: Keyword.get(options, :initial_delay, initial_delay()),
       generation: 0,
+      watch: Autolaunch.MarketWatch.new(),
       binding: nil,
       accepted_head: nil,
       failed_head: nil,
@@ -101,7 +101,7 @@ defmodule Autolaunch.LabMarketFeed do
       ) do
     case result do
       {:ok, refresh} ->
-        finish_refresh(state, head, refresh)
+        finish_refresh(%{state | watch: refresh.watch}, head, refresh)
 
       {:error, reason} ->
         Logger.warning("revstake market feed could not read its auctions: #{inspect(reason)}")
@@ -154,12 +154,12 @@ defmodule Autolaunch.LabMarketFeed do
     parent = self()
     reader = state.reader
     attempted_addresses = attempted_addresses(state, head)
+    watch = state.watch
 
     Task.start(fn ->
       send(
         parent,
-        {:snapshots, token,
-         safely(fn -> reader.snapshots(head, @capacity, attempted_addresses) end)}
+        {:snapshots, token, safely(fn -> reader.snapshots(head, watch, attempted_addresses) end)}
       )
     end)
 
@@ -226,13 +226,11 @@ defmodule Autolaunch.LabMarketFeed do
     {:noreply, retry_projection(state, head, snapshots)}
   end
 
+  # A pass reads only part of the auctions, so its readings join the ones
+  # earlier passes accepted; each reading names the block it was taken at. A
+  # head the chain left clears them all (`displace_cache/2`, `invalidate_for/2`).
   defp accept_refresh(state, head, snapshots, durable_changed_ids) do
-    partial_snapshots = Map.new(snapshots, &{&1.auction_address, &1})
-
-    next_snapshots =
-      if same_head?(state.accepted_head, head.block),
-        do: Map.merge(state.snapshots, partial_snapshots),
-        else: partial_snapshots
+    next_snapshots = Map.merge(state.snapshots, Map.new(snapshots, &{&1.auction_address, &1}))
 
     cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
     changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
@@ -516,11 +514,9 @@ defmodule Autolaunch.LabMarketFeed do
     @read_concurrency 8
     @read_timeout 10_000
 
-    alias Autolaunch
-    alias Autolaunch.Actors.System, as: SystemActor
     alias Autolaunch.Auction.MarketState
     alias Autolaunch.Chain.Rpc
-    alias Autolaunch.{Lab, LabRpc}
+    alias Autolaunch.{Lab, LabRpc, MarketWatch}
 
     def head do
       with {:ok, config, block, opts} <- LabRpc.current([:strategy]) do
@@ -540,10 +536,8 @@ defmodule Autolaunch.LabMarketFeed do
       end
     end
 
-    def snapshots(head, capacity, attempted_addresses) do
-      with {:ok, auctions} <-
-             Autolaunch.list_lab_market_auctions(Lab.chain_id(), actor: %SystemActor{}),
-           true <- length(auctions) <= capacity do
+    def snapshots(head, watch, attempted_addresses) do
+      with {:ok, auctions, next_watch} <- MarketWatch.next(watch, Lab.chain_id(), :agent) do
         observed_addresses = MapSet.new(auctions, &String.downcase(&1.auction_address))
 
         pending =
@@ -554,11 +548,9 @@ defmodule Autolaunch.LabMarketFeed do
         {:ok,
          %{
            snapshots: collect_snapshots(pending, head),
-           attempted: MapSet.union(attempted_addresses, observed_addresses)
+           attempted: MapSet.union(attempted_addresses, observed_addresses),
+           watch: next_watch
          }}
-      else
-        false -> {:error, :market_capacity_exceeded}
-        {:error, reason} -> {:error, reason}
       end
     end
 
