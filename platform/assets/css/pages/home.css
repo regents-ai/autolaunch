@@ -57,7 +57,7 @@
 /* A card reads: its ticker over its currency with its chain, the name, the price and one more figure, links, description, then an auction's figures row, the buttons and an auction's time bar.
    Every part keeps a set height, so all cards in the grid are the same height whatever their text and the buttons line up. A narrow card gives the ticker, price, links, description and figures more lines. */
 #home-explore .home-coin__pair { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; height: 1.6em; margin: 12px 0 2px; font-size: .9375rem; line-height: 1.6; font-weight: 650; letter-spacing: -.015em; }
-#home-explore .home-coin__ticker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+#home-explore .home-coin__ticker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #home-explore .home-coin__ticker wbr { display: none; }
 #home-explore .home-coin__pair .chain-chip { flex: none; margin-top: 1px; letter-spacing: 0; }
 #home-explore .home-coin__name { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-weight: 400; color: var(--color-fg-muted); }
@@ -78,6 +78,17 @@
 #home-explore .home-coin:has(:focus-visible) .home-coin__raise { opacity: 1; }
 @media (hover: hover) { #home-explore .home-coin:hover .home-coin__raise { opacity: 1; } }
 @media (prefers-reduced-motion: no-preference) { #home-explore .home-coin__raise { transition: opacity var(--duration-fast) var(--ease-out); } }
+/* The whole card rises a little toward the pointer or keyboard focus and its image drifts closer; still when motion is reduced. */
+@media (prefers-reduced-motion: no-preference) {
+  #home-explore .home-coin { transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out); }
+  #home-explore .home-coin__art img, #home-explore .home-coin__fallback { transition: transform 600ms var(--ease-out); }
+  #home-explore .home-coin:has(:focus-visible) { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
+  #home-explore .home-coin:has(:focus-visible) :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  #home-explore .home-coin:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
+  #home-explore .home-coin:hover :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
+}
 #home-explore .home-coin__floor { position: absolute; right: 0; bottom: 0; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
 @container (max-width: 170px) {
   #home-explore .home-coin__pair { height: 2.6em; line-height: 1.3; }

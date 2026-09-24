@@ -213,14 +213,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
       assign(
         assigns,
         :pair,
-        Enum.join(["$" <> assigns.view.symbol | List.wrap(assigns.view.metric.unit)], "/")
+        Enum.join([assigns.view.symbol | List.wrap(assigns.view.metric.unit)], " / ")
       )
 
     ~H"""
     <.link navigate={@view.path} class="home-coin__main">
       <.coin_art view={@view} />
       <p class="home-coin__pair">
-        <span class="home-coin__ticker" title={@pair}>${@view.symbol}<span :if={@view.metric.unit}>/<wbr />{@view.metric.unit}</span></span>
+        <span class="home-coin__ticker" title={@pair}>{@view.symbol}<span :if={@view.metric.unit}> /<wbr /> {@view.metric.unit}</span></span>
         <.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
       </p>
       <h2 class="home-coin__name">{@view.name}</h2>
