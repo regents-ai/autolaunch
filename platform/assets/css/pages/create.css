@@ -1,6 +1,5 @@
 /* Creating launches, launches and subjects, profile and settings. */
 
-.autolaunch-record-section { padding-block: var(--space-3); border-bottom: 1px solid var(--hairline); }
 /* Public identity, treasury risk copy, validation and live preview remain present. */
 .launchpad-create__workspace { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,.7fr); gap: 24px; align-items: start; }
 .launchpad-create__form-column { display: grid; gap: var(--space-4); min-width: 0; }
@@ -32,8 +31,6 @@
 .x-connections__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .x-connections__disabled, [data-x-connection-status] { color: var(--color-fg-muted); }
 [data-x-connection-status]:empty { display: none; }
-.subject-wallet-field { min-width: 0; }
-.subject-wallet-action[aria-pressed="true"] { border-left: 3px solid currentColor; text-decoration: underline; }
 .launch-wallet { padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 @media (max-width: 74.99rem) { .launchpad-create__workspace { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 47.99rem) { .launchpad-form-grid, .launchpad-upload__url-row { grid-template-columns: minmax(0,1fr); } }

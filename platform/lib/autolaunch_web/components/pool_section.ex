@@ -183,7 +183,6 @@ defmodule AutolaunchWeb.Components.PoolSection do
           <dt>Staking contract</dt>
           <dd>
             <span class="autolaunch-exact-value">{@facts.fees.splitter.address}</span>
-            <.link navigate={@facts.fees.subject_path}>Open the subject page</.link>
           </dd>
         </div>
         <div>

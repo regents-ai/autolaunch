@@ -19,7 +19,7 @@ defmodule Autolaunch.Pool do
   """
 
   alias Autolaunch.Chain.{Abi, Address, Rpc}
-  alias Autolaunch.{Lab, LabAbi, LabProjection, LabRpc, PoolPrice, PriceHistory}
+  alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PriceHistory}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
@@ -415,7 +415,6 @@ defmodule Autolaunch.Pool do
          lane_bps: @lane_bps,
          splitter: splitter,
          receiver: distribution.receiver,
-         subject_path: "/subjects/" <> LabProjection.subject_identity(distribution.subject),
          swaps: length(settled),
          per_lane: %{
            currency: Rpc.format_units(Map.get(per_token, regent, 0), @regent_decimals),
