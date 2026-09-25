@@ -416,7 +416,7 @@ components:
             estimated_tokens_if_end_now: {type: string}
             warnings: {type: array, items: {type: string}}
     QuoteToken:
-      description: The token bids are paid in. REGENT for revstake auctions; the admitted Base stock token for memestake auctions.
+      description: The token bids are paid in. REGENT for revstake auctions; the auction's stock token (on Base or Robinhood) for memestake auctions.
       type: object
       additionalProperties: false
       required: [address, symbol, decimals]
