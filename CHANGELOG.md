@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v40, 25 September 2026 (58d09fc)
+- Figures stand out on your portfolio, token pages and every pop-up: numbers are bold, tickers
+  are orange, and states such as Ready, Completed or Outbid show as coloured labels.
+- The staking panel and the Pool section show short, readable amounts (94,450,000 BITE rather
+  than every digit); the exact amount shows when you hover over it.
+- Wallet steps in the claim, bid, swap and payment pop-ups show their state as a coloured label.
+
 ## v39, 25 September 2026 (b63a7e4)
 - Your bids: clicking the name opens the page, so the Token button is gone. The Action column
   shows Withdraw, then Claim once the tokens can be claimed, then Completed.
