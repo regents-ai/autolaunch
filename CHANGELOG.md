@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v35, 25 September 2026 (025f9a6)
+- A shared How it works link shows its own picture, "how autolaunch works" with Revstake and
+  Memestake supply and auction length, and its own title and description.
+- Every page's link preview carries the X title and description as well.
+
 ## v34, 25 September 2026 (4fc881a)
 - Withdrawing and claiming after an auction ends works on Base and Robinhood. Before, every press
   showed "That did not go through. Try again in a moment.", and a bid priced out by the final
