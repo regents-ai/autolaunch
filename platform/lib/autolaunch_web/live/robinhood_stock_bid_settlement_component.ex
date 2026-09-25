@@ -371,8 +371,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     end
   end
 
-  def handle_event("step_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
+  def handle_event("step_failed", %{"reason" => reason}, socket) do
+    AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid_settlement, reason)
+    {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
+  end
 
   def handle_event("clear_review", _params, socket), do: {:noreply, cleared(socket)}
 

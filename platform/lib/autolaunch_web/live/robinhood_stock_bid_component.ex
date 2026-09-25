@@ -419,6 +419,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       do: {:noreply, socket |> assign(with_wallet: nil) |> checked(name, hash)}
 
   def handle_event("step_failed", %{"reason" => reason}, socket) do
+    AutolaunchWeb.Telemetry.wallet_failed(:robinhood_bid, reason)
+
     {:noreply,
      socket
      |> assign(with_wallet: nil, notice: %{tone: :error, message: wallet_failure_copy(reason)})

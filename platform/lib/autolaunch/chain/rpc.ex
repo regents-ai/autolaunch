@@ -160,6 +160,7 @@ defmodule Autolaunch.Chain.Rpc do
         {:ok, result}
 
       {:ok, %{status: 200, body: %{"error" => _error}}} ->
+        failed(method, :rpc, opts)
         {:error, :chain_unavailable}
 
       # A provider refusing the request (a 429 rate limit, a 5xx outage) is
@@ -366,6 +367,20 @@ defmodule Autolaunch.Chain.Rpc do
     Logger.warning(
       "#{scope} chain read failed #{inspect(%{method: method, class: error_class(reason)})}"
     )
+
+    failed(method, error_class(reason), opts)
+  end
+
+  # Every unanswered request, logged or not: a JSON-RPC error (`:rpc`, which
+  # includes a refused log range and a reverted `eth_call`), a timeout, a
+  # transport failure or an HTTP status.
+  defp failed(method, class, opts) do
+    :telemetry.execute([:autolaunch, :rpc, :failure], %{count: 1}, %{
+      method: method,
+      class: class,
+      chain_id: Keyword.get(opts, :expected_chain_id, @chain_id),
+      scope: Keyword.get(opts, :log_scope, "wallet")
+    })
   end
 
   defp error_class(%Req.TransportError{reason: reason})

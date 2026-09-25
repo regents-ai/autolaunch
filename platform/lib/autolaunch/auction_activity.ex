@@ -77,8 +77,8 @@ defmodule Autolaunch.AuctionActivity do
       timestamp = DateTime.from_unix!(current.timestamp, :second)
       rate = rate(auction, venue.chain)
 
-      commit(
-        auction,
+      auction
+      |> commit(
         first,
         last,
         headers[last].hash,
@@ -87,11 +87,41 @@ defmodule Autolaunch.AuctionActivity do
         rate,
         last == head.number
       )
+      |> indexed(auction, bids, head.number - last)
     else
       {:error, :cursor_changed} -> invalidate(auction)
       _ -> {:error, :activity_unavailable}
     end
   end
+
+  # After a committed pass: how far the auction's cursor trails the head, and
+  # how long after its block each bid first seen by a pass that reached the
+  # head from an existing cursor got to the site. A first pass or a rebuild
+  # reads history rather than new bids, so it is left out.
+  defp indexed(:ok, auction, bids, behind) do
+    :telemetry.execute(
+      [:autolaunch, :indexer, :lag],
+      %{blocks: behind},
+      %{indexer: :auction_activity, chain_id: auction.chain_id}
+    )
+
+    if behind == 0 and is_integer(auction.activity_next_block) do
+      now = DateTime.utc_now()
+
+      for %{block_number: number, occurred_at: at} <- bids,
+          number >= auction.activity_next_block,
+          do:
+            :telemetry.execute(
+              [:autolaunch, :chain_event, :recorded],
+              %{delay_ms: DateTime.diff(now, at, :millisecond)},
+              %{kind: :bid, chain_id: auction.chain_id}
+            )
+    end
+
+    :ok
+  end
+
+  defp indexed(error, _auction, _bids, _behind), do: error
 
   defp venue(%{chain_id: chain, kind: kind}) do
     {module, network} =

@@ -230,8 +230,10 @@ defmodule AutolaunchWeb.ConvertComponent do
     end
   end
 
-  def handle_event("step_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: wallet_failure_copy(reason, socket.assigns.review))}
+  def handle_event("step_failed", %{"reason" => reason}, socket) do
+    AutolaunchWeb.Telemetry.wallet_failed(:convert, reason)
+    {:noreply, assign(socket, notice: wallet_failure_copy(reason, socket.assigns.review))}
+  end
 
   def handle_event("close_review", _params, socket),
     do: {:noreply, socket |> assign(notice: nil) |> closed()}

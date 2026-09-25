@@ -69,19 +69,47 @@ defmodule Autolaunch.TokenTrades do
          {:ok, last, logs} <- logs(pool, first, min(first + @range - 1, head.number), venue.opts),
          {:ok, headers} <- headers(logs, last, venue.opts),
          {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)) do
-      commit(
-        token,
-        first,
-        last,
-        headers[last].hash,
-        Enum.reject(trades, &is_nil/1),
-        last == head.number
-      )
+      trades = Enum.reject(trades, &is_nil/1)
+
+      token
+      |> commit(first, last, headers[last].hash, trades, last == head.number)
+      |> indexed(token, trades, head.number - last)
     else
       {:error, :cursor_changed} -> invalidate(token)
       _ -> {:error, :trades_unavailable}
     end
   end
+
+  # After a committed pass: how far the token's cursor trails the head, and
+  # how long after its block each trade first seen by a pass that reached the
+  # head from an existing cursor got to the site. A first pass or a rebuild
+  # reads history rather than new trades, so it is left out.
+  defp indexed(:ok, token, trades, behind) do
+    chain_id = token.auction.chain_id
+
+    :telemetry.execute(
+      [:autolaunch, :indexer, :lag],
+      %{blocks: behind},
+      %{indexer: :token_trades, chain_id: chain_id}
+    )
+
+    if behind == 0 and is_integer(token.trades_next_block) do
+      now = DateTime.utc_now()
+
+      for %{block_number: number, occurred_at: at} <- trades,
+          number >= token.trades_next_block,
+          do:
+            :telemetry.execute(
+              [:autolaunch, :chain_event, :recorded],
+              %{delay_ms: DateTime.diff(now, at, :millisecond)},
+              %{kind: :trade, chain_id: chain_id}
+            )
+    end
+
+    :ok
+  end
+
+  defp indexed(error, _token, _trades, _behind), do: error
 
   @doc """
   One `Swap` log's trade, in base units. The PoolManager reports each amount
