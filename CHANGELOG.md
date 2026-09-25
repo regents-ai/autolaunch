@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v33, 25 September 2026 (45c99c5)
+- The API, the command-line tool and the browser tools for AI agents call the two launch types
+  `revstake` and `memestake`, in what they return as well as in the filter. The old names
+  `agent` and `stocks` are gone.
+- The auction list no longer keeps two unused lookup tables in the database.
+
 ## v32, 25 September 2026 (8eb7841)
 
 ### Sharing
