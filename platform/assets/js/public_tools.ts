@@ -27,7 +27,14 @@ export type PublicTool = {
     additionalProperties: false
   }
   annotations: {readOnlyHint: true; untrustedContentHint: true; consequentialHint: false}
-  execute(input: unknown, options: {signal: AbortSignal}): Promise<Result>
+  execute(input: unknown, client?: unknown): Promise<Result>
+}
+
+// What a host's cancellation signal must offer; a polyfilled signal qualifies.
+type HostSignal = {
+  readonly aborted: boolean
+  addEventListener(type: "abort", listener: () => void): void
+  removeEventListener(type: "abort", listener: () => void): void
 }
 
 type ModelContext = {
@@ -39,6 +46,34 @@ const cancelled = () => failure("aborted", "The public read was cancelled.")
 
 function failure(code: Failure["error"]["code"], message: string): Failure {
   return {ok: false, error: {code, message}}
+}
+
+function hostSignal(client: unknown): HostSignal | undefined {
+  if (!client || typeof client !== "object") return undefined
+  const signal = (client as {signal?: unknown}).signal
+  if (!signal || typeof signal !== "object") return undefined
+  const candidate = signal as Partial<HostSignal>
+  return typeof candidate.aborted === "boolean" &&
+    typeof candidate.addEventListener === "function" &&
+    typeof candidate.removeEventListener === "function"
+    ? (candidate as HostSignal)
+    : undefined
+}
+
+// One native signal for a single execution: it aborts when the page lifetime
+// ends or when the host cancels, whatever shape of signal the host passes.
+// Hosts may pass no second argument, one without a signal, or a polyfill.
+function executionSignal(lifetime: AbortSignal, client: unknown) {
+  const controller = new AbortController()
+  const host = hostSignal(client)
+  const abort = () => controller.abort()
+  const sources: HostSignal[] = host ? [lifetime, host] : [lifetime]
+  if (sources.some(source => source.aborted)) abort()
+  else for (const source of sources) source.addEventListener("abort", abort)
+  return {
+    signal: controller.signal,
+    release: () => { for (const source of sources) source.removeEventListener("abort", abort) },
+  }
 }
 
 function validInput(
@@ -57,6 +92,12 @@ function validInput(
   })
 }
 
+type Definition = {
+  properties: Record<string, Property>
+  required: string[]
+  request: (input: Input) => Request
+}
+
 function tool(
   name: string,
   description: string,
@@ -70,50 +111,58 @@ function tool(
     description,
     inputSchema: {type: "object", properties, required, additionalProperties: false},
     annotations: {readOnlyHint: true, untrustedContentHint: true, consequentialHint: false},
-    async execute(input, {signal}) {
-      const cancellation = AbortSignal.any([lifetime, signal])
-      if (cancellation.aborted) return cancelled()
-      if (!validInput(input, properties, required)) return invalidInput()
-
-      let target: Request
+    async execute(input, client) {
+      const {signal, release} = executionSignal(lifetime, client)
       try {
-        target = request(input)
-      } catch {
-        return invalidInput()
-      }
-
-      try {
-        const response = await fetch(new URL(target.path, window.location.origin), {
-          method: target.body ? "POST" : "GET",
-          headers: {
-            Accept: "application/json",
-            ...(target.body ? {"Content-Type": "application/json"} : {}),
-          },
-          body: target.body ? JSON.stringify(target.body) : undefined,
-          credentials: "omit",
-          mode: "same-origin",
-          redirect: "error",
-          cache: "no-store",
-          signal: cancellation,
-        })
-        let body: Json
-        try {
-          body = await response.json()
-        } catch {
-          if (cancellation.aborted) return cancelled()
-          return {
-            ...failure("invalid_response", "The public API did not return JSON."),
-            status: response.status,
-          }
-        }
-        if (cancellation.aborted) return cancelled()
-        return {ok: response.ok, status: response.status, body}
-      } catch {
-        return cancellation.aborted
-          ? cancelled()
-          : failure("network_error", "The public API could not be reached.")
+        return await read({properties, required, request}, input, signal)
+      } finally {
+        release()
       }
     },
+  }
+}
+
+async function read(definition: Definition, input: unknown, cancellation: AbortSignal): Promise<Result> {
+  if (cancellation.aborted) return cancelled()
+  if (!validInput(input, definition.properties, definition.required)) return invalidInput()
+
+  let target: Request
+  try {
+    target = definition.request(input)
+  } catch {
+    return invalidInput()
+  }
+
+  try {
+    const response = await fetch(new URL(target.path, window.location.origin), {
+      method: target.body ? "POST" : "GET",
+      headers: {
+        Accept: "application/json",
+        ...(target.body ? {"Content-Type": "application/json"} : {}),
+      },
+      body: target.body ? JSON.stringify(target.body) : undefined,
+      credentials: "omit",
+      mode: "same-origin",
+      redirect: "error",
+      cache: "no-store",
+      signal: cancellation,
+    })
+    let body: Json
+    try {
+      body = await response.json()
+    } catch {
+      if (cancellation.aborted) return cancelled()
+      return {
+        ...failure("invalid_response", "The public API did not return JSON."),
+        status: response.status,
+      }
+    }
+    if (cancellation.aborted) return cancelled()
+    return {ok: response.ok, status: response.status, body}
+  } catch {
+    return cancellation.aborted
+      ? cancelled()
+      : failure("network_error", "The public API could not be reached.")
   }
 }
 
@@ -136,7 +185,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
   return [
     tool(
       "autolaunch_auctions",
-      "List public Autolaunch auctions on Base and Robinhood; every entry names its chain. The limit includes both chains. Robinhood entries are read from their chain and come first across pages in launch order; stored Base entries follow in date order. Mode and sort apply within both groups.",
+      "List public Autolaunch auctions on Base and Robinhood as the site has stored them, in one order across both chains; every entry names its chain. Sort newest (default) puts the latest opening first; oldest puts the earliest first; auctions not yet open come last in both. Mode filters by auction state on both chains. The limit counts both chains.",
       {
         after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
         mode: {type: "string", enum: ["all", "biddable", "live", "ended", "failed_minimum", "graduated"]},
@@ -152,7 +201,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_auction",
-      "Read one public Autolaunch auction: a Base auction by UUID (its kind, quote_token and stored treasury report) or a Robinhood auction by contract address (read from its chain).",
+      "Read one public Autolaunch auction as the site has stored it, by its UUID (either chain) or a Robinhood auction by its contract address: its chain, kind, quote_token and stored treasury report.",
       {id: auction},
       ["id"],
       input => ({path: `/api/v1/auctions/${pathValue(input.id)}`}),
@@ -160,7 +209,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_tokens",
-      "List public graduated Autolaunch tokens on Base and Robinhood; every entry names its chain. Robinhood tokens are read from their chain and come first across pages, newest launch first; stored Base tokens follow, newest graduation first.",
+      "List public graduated Autolaunch tokens on Base and Robinhood as the site has stored them, newest graduation first across both chains; every entry names its chain.",
       {
         after: {type: "string", description: "Pass pagination.next_cursor unchanged to read the next page. Cursors expire after 24 hours."},
         limit: {

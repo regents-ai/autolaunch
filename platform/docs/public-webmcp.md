@@ -47,37 +47,20 @@ Installation is idempotent for the document. `pagehide` aborts registration sign
 and outstanding reads; `pageshow` starts a fresh registration lifetime. Failed
 registrations produce a console warning and are retried on the next page lifetime,
 not on duplicate initialization. Late promise completion cannot alter newer tools.
-Each execution also observes the agent's cancellation signal.
+Each execution also observes the agent's cancellation signal when the host passes
+one as `signal` on the second argument, native or polyfilled (anything with a
+boolean `aborted` and abort-event listeners). Hosts that pass no second argument,
+a client object without `signal`, or `{signal: undefined}` still execute; only the
+page lifetime can then cancel the read.
 
 ## Verification
 
-Use the prepared worktree environment and its isolated local database. Run the
-relevant controller tests and `mix assets.build` from `platform/` with the selected dependency paths.
-The focused frontend checks are:
-
-```sh
-npm test -- assets/test/public_tools.test.ts
-npm run typecheck
-```
-
-After the prepared database has been created and migrated, run through the same
-worktree runner:
-
-```sh
-npx playwright test --config playwright.public-tools.config.ts
-```
-
-This dedicated configuration requires the prepared `PORT`, `MIX_TEST_PARTITION`,
-and `PGDATABASE`, validates the local test database before seeding, and starts its
-own server. It creates only synthetic records and stored stub treasury evidence;
-it never contacts an RPC provider or clears other records.
-
-The browser suite uses a simulated document registry with the draft's asynchronous
-registration and abort contract, then executes the production adapter against the
-real local HTTP routes. This proves the UI adapter and HTTP integration, not native
-browser-agent discovery or permissions. Native API availability is reported
-separately. Frontend tests cover duplicate installation, rejected/late registration,
-malformed input, path normalization, network/API failures, and cancellation races.
+From `platform/`, after `mix assets.build`: `npx tsc --project assets/tsconfig.json --noEmit`.
+From `cli/`, `npm run test:parity` imports this adapter, registers it through a
+simulated `document.modelContext` and compares every tool's request and result with
+the CLI against a local HTTP fixture. That proves the adapter and CLI agree, not
+native browser-agent discovery or permissions; native API availability is reported
+separately.
 
 ## Complete listings
 
