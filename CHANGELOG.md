@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v41, 25 September 2026 (03ecc10)
+- Both launch pages open without signing in. Visitors can fill in the whole form, pick a stock
+  and chain, and see the terms, raise and starting price update, with nothing saved.
+- Signing in from either page saves what was typed into the account's draft; fields left blank
+  keep what the draft already had. A refresh before signing in keeps the typed values too.
+- Adding an image, connecting socials and launching ask the visitor to sign in first.
+
 ## v40, 25 September 2026 (58d09fc)
 - Figures stand out on your portfolio, token pages and every pop-up: numbers are bold, tickers
   are orange, and states such as Ready, Completed or Outbid show as coloured labels.
