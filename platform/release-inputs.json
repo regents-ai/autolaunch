@@ -2,18 +2,33 @@
   "shared_packages": {
     "regent_privy": {
       "repository": "https://github.com/regents-ai/elixir-utils",
-      "revision": "2acd99a9d93ebad093bd5155489ead274f95a682",
+      "revision": "e03ea0cef36d833d6b3b484094288abaf5bf6f12",
       "path": "privy"
     },
     "regent_identity": {
       "repository": "https://github.com/regents-ai/regents",
-      "revision": "e5badd5b397aab6bd52e4c3b2e7556920370e522",
+      "revision": "d5921ac4f762f490a0869b2d17024095f5b58e91",
       "path": "identity"
     },
     "regent_ui": {
       "repository": "https://github.com/regents-ai/design-system",
-      "revision": "4c6dc42cde958f5168f541a8ccefadfbc61a4d51",
+      "revision": "5dd0d0a0a41faea131c18a44cb60388c662d3337",
       "path": "regent_ui"
+    },
+    "regent_blog": {
+      "repository": "https://github.com/regents-ai/elixir-utils",
+      "revision": "2a7c853e7973697e960b5ef9807e0d13b5ad777e",
+      "path": "blog"
+    },
+    "regent_ens": {
+      "repository": "https://github.com/regents-ai/elixir-utils",
+      "revision": "2a7c853e7973697e960b5ef9807e0d13b5ad777e",
+      "path": "ens"
+    },
+    "regent_siwa": {
+      "repository": "https://github.com/regents-ai/elixir-utils",
+      "revision": "2a7c853e7973697e960b5ef9807e0d13b5ad777e",
+      "path": "siwa/siwa-elixir/apps/siwa"
     }
   }
 }

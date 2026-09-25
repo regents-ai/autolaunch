@@ -223,7 +223,14 @@ Use clean dependency checkouts when preparing a release:
 - `REGENT_ENS_PATH` and `REGENT_ENS_REVISION`: `elixir-utils/ens` and its repository commit.
 - `REGENT_SIWA_PATH` and `REGENT_SIWA_REVISION`: `elixir-utils/siwa/siwa-elixir/apps/siwa` and its repository commit.
 
+`release-inputs.json` records the selected repository, revision and path of each package.
+`scripts/checkout-shared-packages.sh /absolute/new-dir` checks each one out at that exact
+revision and prints the matching path and revision variables. The Platform GitHub workflow
+uses it to compile, check and test the application and to build the Linux release image
+(without pushing) whenever application or blog files change.
+
 ```sh
+set -a; . <(bash scripts/checkout-shared-packages.sh /absolute/new-packages); set +a
 bash scripts/build-release-context.sh /absolute/new-context arm64
 docker build --platform linux/arm64 -f /absolute/new-context/Dockerfile -t autolaunch-candidate /absolute/new-context
 ```
