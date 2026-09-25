@@ -457,9 +457,12 @@ defmodule AutolaunchWeb.ShareCard do
 
   defp line_svg(nil, _x), do: ""
 
+  # The shading under the line stops just above the chain row, so a long chain
+  # name never runs under it.
   defp line_svg(prices, x) do
     {low, high} = Enum.min_max(prices)
-    top = @strip_y + div(@strip_h - @line_h, 2)
+    bottom = chain_row_y() - 12
+    top = bottom - 24 - @line_h
     step = @line_w / (length(prices) - 1)
 
     points =
@@ -478,8 +481,6 @@ defmodule AutolaunchWeb.ShareCard do
       Enum.map_join(points, " ", fn {px, py} ->
         "#{Float.round(px * 1.0, 1)},#{Float.round(py * 1.0, 1)}"
       end)
-
-    bottom = top + @line_h + 24
 
     """
     <polygon points="#{x},#{bottom} #{path} #{x + @line_w},#{bottom}" fill="url(#under)"/>
