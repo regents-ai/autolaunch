@@ -7,7 +7,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - The API, the command-line tool and the browser tools for AI agents call the two launch types
   `revstake` and `memestake`, in what they return as well as in the filter. The old names
   `agent` and `stocks` are gone.
-- The auction list no longer keeps two unused lookup tables in the database.
+- Two database indexes the auction list no longer uses were removed (run 11:29 UTC).
 
 ## v32, 25 September 2026 (8eb7841)
 
