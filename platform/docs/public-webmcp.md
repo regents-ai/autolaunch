@@ -62,6 +62,28 @@ the CLI against a local HTTP fixture. That proves the adapter and CLI agree, not
 native browser-agent discovery or permissions; native API availability is reported
 separately.
 
+## Auction figures
+
+Every auction entry, listed or read alone, carries the figures the website's cards
+show, from the same stored record and the same code:
+
+- `url`: the auction's page on the site.
+- `estimated_end_at`: when bidding is expected to close, from the end block.
+- `token_allocation`: whole tokens sold (10 billion for a Revstake, 800 million for a Memestake).
+- `bid_volume`, `bid_volume_usd`: everything bid so far, in quote-token units and in dollars.
+- `minimum_raise`, `currency_raised`, `percent_met`: the launch threshold, what is raised, and
+  the whole percent met (rounded down, capped at 100).
+- `record_updated_at`: when the site last wrote its stored record. The site's own scheduling
+  of chain reads writes it too, so it is not the time of the latest chain reading; the site
+  keeps no such time.
+
+Amounts are exact decimal strings. A figure the record does not hold is null, and
+`unavailable` maps it to `not_recorded_yet` (the chain readers have not recorded it),
+`chain_unreadable` (Robinhood's last chain read failed, so an amount it never recorded
+cannot be read now) or `no_usd_price` (the volume was recorded without a dollar price).
+Base's reader does not report a failed read separately, so its missing figures are always
+`not_recorded_yet`.
+
 ## Complete listings
 
 Auction and token responses include `pagination.has_more` and `pagination.next_cursor`.

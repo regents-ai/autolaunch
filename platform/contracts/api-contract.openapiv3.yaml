@@ -401,29 +401,59 @@ components:
     AuctionEnvelope:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [data, robinhood_unavailable]
       properties:
+        robinhood_unavailable: {type: boolean, description: "Robinhood could not be read just now, so a Robinhood auction shows what was last read from it."}
         data: {$ref: "#/components/schemas/Auction"}
+    DecimalString:
+      type: string
+      pattern: '^\d+(?:\.\d+)?$'
+      description: An exact decimal number as a string; never rounded through a float.
     Auction:
-      description: An auction on Base or Robinhood, as the site records it.
+      description: An auction on Base or Robinhood, as the site records it. Every figure the record does not hold yet is null, and `unavailable` names why.
       type: object
       additionalProperties: false
-      required: [id, chain, chain_id, address, title, token_symbol, summary, featured, kind, state, minimum_reached, opened_at, quote_token, clearing_price, treasury_security]
+      required: [id, chain, chain_id, address, url, title, token_symbol, summary, featured, kind, state, opened_at, estimated_end_at, quote_token, clearing_price, token_allocation, bid_volume, bid_volume_usd, minimum_raise, currency_raised, percent_met, minimum_reached, record_updated_at, unavailable, treasury_security]
       properties:
         id: {type: string, format: uuid}
         chain: {type: string, enum: [base, robinhood]}
         chain_id: {type: integer, minimum: 1}
-        address: {type: string, pattern: "^0x[0-9a-fA-F]{40}$", description: "The auction contract's address. A Base auction's page is /auctions/{id}; a Robinhood auction's is /robinhood/auctions/{address}."}
+        address: {type: string, pattern: "^0x[0-9a-fA-F]{40}$", description: "The auction contract's address."}
+        url: {type: string, format: uri, description: "The auction's page on the website."}
         title: {type: string}
         token_symbol: {type: [string, "null"]}
         summary: {type: [string, "null"]}
         featured: {type: boolean}
-        kind: {type: string, enum: [agent, stocks]}
+        kind: {type: string, enum: [agent, stocks], description: "agent is a Revstake launch; stocks a Memestake launch."}
         state: {type: string, enum: [created, active, ended, graduated, failed], description: "ended: bidding has closed and the auction is waiting to be finished; graduated and failed are final."}
-        minimum_reached: {type: boolean, description: "Whether the raise has met its minimum so far. A progress fact only: bidding stays open until the end block."}
         opened_at: {type: [string, "null"], format: date-time}
+        estimated_end_at: {type: [string, "null"], format: date-time, description: "When bidding closes, estimated from the auction's end block and the chain's block times."}
         quote_token: {$ref: "#/components/schemas/QuoteToken"}
         clearing_price: {type: [string, "null"], description: "The auction's current clearing price in the quote token, as a decimal string."}
+        token_allocation: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "Whole tokens the auction sells, fixed by its launch type: 10 billion of a Revstake token's 100 billion, 800 million of a Memestake token's 1 billion."}
+        bid_volume:
+          description: Everything bid so far, in whole quote-token units.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        bid_volume_usd:
+          description: The bid volume in US dollars at the quote token's price when the bid history was recorded.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        minimum_raise: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "What the auction must raise to launch (its launch threshold), in whole quote-token units. If it ends short, every bid is returned."}
+        currency_raised:
+          description: What the auction has raised so far, in whole quote-token units, as the site last recorded it from the chain.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        percent_met: {type: [integer, "null"], minimum: 0, maximum: 100, description: "currency_raised as a whole percent of minimum_raise, rounded down and capped at 100, as the website shows it."}
+        minimum_reached: {type: boolean, description: "Whether the auction contract reports the minimum met so far. A progress fact only: bidding stays open until the end block."}
+        record_updated_at: {type: string, format: date-time, description: "When the site's stored record of this auction was last written. Writes include the site's own scheduling of its chain reads, so this is not the time of the latest successful chain reading; the site keeps no such time."}
+        unavailable:
+          type: object
+          additionalProperties: false
+          description: "One entry for each figure that is null, naming why. not_recorded_yet: the site's chain readers have not recorded it yet (they may still be reading or retrying). chain_unreadable: Robinhood's last read of its chain failed and the figure was never recorded. no_usd_price: the bid volume was recorded while the quote token had no known dollar price."
+          properties:
+            estimated_end_at: {type: string, enum: [not_recorded_yet]}
+            bid_volume: {type: string, enum: [not_recorded_yet]}
+            bid_volume_usd: {type: string, enum: [not_recorded_yet, no_usd_price]}
+            currency_raised: {type: string, enum: [not_recorded_yet, chain_unreadable]}
+            percent_met: {type: string, enum: [not_recorded_yet, chain_unreadable]}
         treasury_security:
           oneOf:
             - {$ref: "#/components/schemas/TreasurySecurity"}

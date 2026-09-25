@@ -27,6 +27,8 @@ defmodule Autolaunch.TestSupport do
         state: Map.get(opts, :state, :created),
         opened_at: Map.get(opts, :opened_at),
         current_clearing_price: Map.get(opts, :current_clearing_price, "1"),
+        quote_token_symbol: "REGENT",
+        quote_token_decimals: 18,
         required_currency_raised: Map.get(opts, :required_currency_raised, "1000"),
         website: Map.get(opts, :website),
         image: Map.get(opts, :image),

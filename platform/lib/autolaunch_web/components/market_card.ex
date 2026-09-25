@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   import AutolaunchWeb.Components.LinkIcon
 
-  alias Autolaunch.Chain.Rpc
+  alias Autolaunch.AuctionFigures
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.MarketData
@@ -636,17 +636,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def figure_rate(_rates, _auction), do: nil
 
   defp figures(auction, rate) do
-    minimum =
-      auction.required_currency_raised
-      |> String.to_integer()
-      |> Rpc.format_units(auction.quote_token_decimals)
-      |> Decimal.new()
-
     %{
       fdv: dollars(auction.fdv, rate),
       volume: dollars(auction.bid_volume_usd, 1),
-      threshold: dollars(minimum, rate),
-      met: percent_met(auction.currency_raised, minimum),
+      threshold: dollars(AuctionFigures.minimum(auction), rate),
+      met: AuctionFigures.percent_met(auction),
       progress: time_progress(auction),
       opens_at: live_open(auction),
       ends_at: live_end(auction),
@@ -695,20 +689,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   defp decimal(_value), do: nil
-
-  # A threshold met many times over still reads 100% met.
-  defp percent_met(%Decimal{} = raised, minimum) do
-    if Decimal.gt?(minimum, 0),
-      do:
-        raised
-        |> Decimal.div(minimum)
-        |> Decimal.mult(100)
-        |> Decimal.round(0, :down)
-        |> Decimal.to_integer()
-        |> min(100)
-  end
-
-  defp percent_met(_raised, _minimum), do: nil
 
   # How much of a live auction's time has passed, from its opening to its
   # estimated end, as a whole percent.
@@ -1052,11 +1032,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       status: state_label(auction.state),
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol, "No price yet"),
-      path:
-        if(robinhood?,
-          do: "/robinhood/auctions/#{auction.auction_address}",
-          else: "/auctions/#{auction.id}"
-        ),
+      path: auction_path(auction),
       creator: short_address(auction.creator_address),
       creator_address: auction.creator_address,
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
@@ -1106,6 +1082,16 @@ defmodule AutolaunchWeb.Components.MarketCard do
       record_id: token.id,
       chain: "Base"
     }
+  end
+
+  @doc """
+  An auction's page on this site, the one place its address is written: a
+  Robinhood auction's page is named by its contract address.
+  """
+  def auction_path(auction) do
+    if RobinhoodLab.chain?(auction.chain_id),
+      do: "/robinhood/auctions/#{auction.auction_address}",
+      else: "/auctions/#{auction.id}"
   end
 
   @doc "An auction state in the words the site uses: live means open for bidding."

@@ -185,7 +185,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
   return [
     tool(
       "autolaunch_auctions",
-      "List public Autolaunch auctions on Base and Robinhood as the site has stored them, in one order across both chains; every entry names its chain. Sort newest (default) puts the latest opening first; oldest puts the earliest first; auctions not yet open come last in both. Mode filters by auction state on both chains. The limit counts both chains.",
+      "List public Autolaunch auctions on Base and Robinhood as the site has stored them, in one order across both chains; every entry names its chain. Sort newest (default) puts the latest opening first; oldest puts the earliest first; auctions not yet open come last in both. Mode filters by auction state on both chains. The limit counts both chains. Each auction gives its page url, estimated_end_at, token_allocation, bid_volume and bid_volume_usd, minimum_raise (its launch threshold), currency_raised and percent_met; amounts are exact decimal strings. record_updated_at is when the site last wrote its stored record, not when the chain was last read. A figure not held yet is null and unavailable names why: not_recorded_yet, chain_unreadable (Robinhood's last chain read failed) or no_usd_price.",
       {
         after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
         mode: {type: "string", enum: ["all", "biddable", "live", "ended", "failed_minimum", "graduated"]},
@@ -201,7 +201,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_auction",
-      "Read one public Autolaunch auction as the site has stored it, by its UUID (either chain) or a Robinhood auction by its contract address: its chain, kind, quote_token and stored treasury report.",
+      "Read one public Autolaunch auction as the site has stored it, by its UUID (either chain) or a Robinhood auction by its contract address: its chain, kind, quote_token, launch figures and stored treasury report, with the same fields as each autolaunch_auctions entry.",
       {id: auction},
       ["id"],
       input => ({path: `/api/v1/auctions/${pathValue(input.id)}`}),
