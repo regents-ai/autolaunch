@@ -22,6 +22,15 @@ defmodule AutolaunchWeb.Live.PageTitle do
     AutolaunchWeb.ConvertLive => "REGENT's share of fees"
   }
 
+  # An auction's or token's page names its tab once it knows which chain's
+  # page it shows; see `AutolaunchWeb.MarketPageLive`.
+  def on_mount(:default, _params, _session, %{view: AutolaunchWeb.MarketPageLive} = socket),
+    do: {:cont, socket}
+
   def on_mount(:default, _params, _session, socket),
-    do: {:cont, assign(socket, :page_title, Map.fetch!(@titles, socket.view) <> " · Autolaunch")}
+    do: {:cont, assign_title(socket, socket.view)}
+
+  @doc "Names the tab after the product page `view`."
+  def assign_title(socket, view),
+    do: assign(socket, :page_title, Map.fetch!(@titles, view) <> " · Autolaunch")
 end

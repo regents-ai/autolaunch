@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{SignedInWallet, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
 
   @copy %{
@@ -240,7 +240,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             chain={:robinhood}
             hash={@sent["usdg_bid"].hash}
             test_chain={Lab.test_chain?(@review.envelope["chain_id"])}
-            auction_path={~p"/robinhood/auctions/#{@auction}"}
+            auction_path={Paths.auction(@launch)}
             sharing={@sharing}
             message={@share_message}
             x_connection={@x_connection}
@@ -444,7 +444,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   def handle_event("share_bid", _params, socket) do
-    url = url(~p"/robinhood/auctions/#{socket.assigns.auction}")
+    url = Paths.auction_url(socket.assigns.launch)
     message = BidPlaced.message(socket.assigns.token_symbol, url)
     {:noreply, socket |> assign(sharing: true, share_message: message) |> load_x()}
   end

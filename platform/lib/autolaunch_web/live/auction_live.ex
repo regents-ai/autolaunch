@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
-  alias AutolaunchWeb.{LiveListings, ShareCard, UsdValue}
+  alias AutolaunchWeb.{LiveListings, Paths, ShareCard, UsdValue}
 
   def mount(_params, _session, socket),
     do:
@@ -280,7 +280,7 @@ defmodule AutolaunchWeb.AuctionLive do
             <.detail_card
               kind={:auction}
               record={@page_record}
-              trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
+              trade_path={@graduated_token && Paths.token(@page_record)}
               status={settling_status(@page_record, @bidding_ended?)}
             >
               <:price_note>
@@ -294,7 +294,7 @@ defmodule AutolaunchWeb.AuctionLive do
             <.launch_trust
               auction={@page_record}
               connections={@creator_connections}
-              token_path={@graduated_token && "/tokens/#{@graduated_token.id}#pool"}
+              token_path={@graduated_token && Paths.token(@page_record) <> "#pool"}
             />
             <p
               :if={@page_record.state == :graduated && @graduated_token}
@@ -302,7 +302,7 @@ defmodule AutolaunchWeb.AuctionLive do
               class="autolaunch-live-market"
             >
               This auction launched into its pool.
-              <.link navigate={"/tokens/#{@graduated_token.id}#pool"}>View the pool and its trading fees</.link>
+              <.link navigate={Paths.token(@page_record) <> "#pool"}>View the pool and its trading fees</.link>
             </p>
             <.treasury_security
               :if={@page_record.kind == :agent && !@local_lab?}
@@ -437,13 +437,9 @@ defmodule AutolaunchWeb.AuctionLive do
       socket,
       :history,
       fn ->
-        with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
-             {:ok, bids} <- Autolaunch.auction_bids(uuid, actor: nil),
-             {:ok, points} <- Autolaunch.auction_price_points(uuid, actor: nil) do
+        with {:ok, bids} <- Autolaunch.auction_bids(id, actor: nil),
+             {:ok, points} <- Autolaunch.auction_price_points(id, actor: nil) do
           {:ok, %{history: %{bids: bids, points: points}}}
-        else
-          {:error, reason} -> {:error, reason}
-          _invalid_id -> {:error, :not_found}
         end
       end,
       reset: reset
@@ -460,10 +456,8 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   defp share(id) do
-    with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
-         {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid) do
-      ShareCard.meta(auction)
-    else
+    case Autolaunch.get_public_auction(id) do
+      {:ok, %Autolaunch.Auction{} = auction} -> ShareCard.meta(auction)
       _missing -> nil
     end
   end
@@ -476,13 +470,12 @@ defmodule AutolaunchWeb.AuctionLive do
       socket,
       :book,
       fn ->
-        with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
-             {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid),
+        with {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(id),
              {:ok, book} <- AuctionBook.base(auction) do
           {:ok, %{book: book}}
         else
           {:error, reason} -> {:error, reason}
-          _invalid_id -> {:error, :not_found}
+          {:ok, nil} -> {:error, :not_found}
         end
       end,
       reset: reset

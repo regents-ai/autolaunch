@@ -9,7 +9,7 @@ defmodule Autolaunch.TokenHoldings do
   the reading names that block. Base tokens come from the site's token records
   and link to their token page; Robinhood tokens come from the Robinhood
   launchpad itself, since the chain is the only record of those launches, and
-  link to their own token page. A token is listed when the wallets hold it,
+  link to their own token page once the site lists their auction. A token is listed when the wallets hold it,
   stake it, or have something to claim from its staking contract.
   """
 
@@ -22,6 +22,7 @@ defmodule Autolaunch.TokenHoldings do
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.{Amounts, StakeActions}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias AutolaunchWeb.Paths
 
   @token_decimals 18
   @shown_places 4
@@ -35,7 +36,7 @@ defmodule Autolaunch.TokenHoldings do
           held: String.t(),
           staked: String.t(),
           claimable: [claimable()],
-          href: String.t()
+          href: String.t() | nil
         }
   @type reading :: %{
           holdings: [holding()],
@@ -152,7 +153,9 @@ defmodule Autolaunch.TokenHoldings do
     with {:ok, pool} <- Pool.read_at(token.auction, venue.config, venue.block, venue.opts),
          {:ok, position} <- position(pool, wallets) do
       presentation = Token.presentation(token)
-      {:ok, entry(presentation.name, presentation.symbol, pool, position, "/tokens/#{token.id}")}
+
+      {:ok,
+       entry(presentation.name, presentation.symbol, pool, position, Paths.token(token.auction))}
     end
   end
 
@@ -182,7 +185,8 @@ defmodule Autolaunch.TokenHoldings do
          {:ok, position} <- position(pool, wallets),
          {:ok, name} <-
            Rpc.call_string(launch.token, LabAbi.selector("name()"), venue.block, venue.opts) do
-      {:ok, entry(name, pool.token.symbol, pool, position, "/robinhood/tokens/#{launch.token}")}
+      page = Paths.robinhood_token_page(launch.auction)
+      {:ok, entry(name, pool.token.symbol, pool, position, page)}
     end
   end
 

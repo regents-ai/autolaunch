@@ -22,9 +22,19 @@ defmodule AutolaunchWeb.Router do
     # The platform health check answers before sessions, flash or CSRF.
     get "/healthz", HealthController, :show
 
-    # The pictures shared auction links show, read by sites without a session.
-    get "/auctions/:auction_id/share.png", ShareCardController, :base
-    get "/robinhood/auctions/:auction/share.png", ShareCardController, :robinhood
+    # The pictures shared auction and token links show, read by sites without
+    # a session.
+    get "/auctions/:symbol/:tail/share.png", ShareCardController, :auction
+
+    # Addresses the site gave auctions and tokens before they were named by
+    # ticker. Links to them were shared, so each moves permanently to the
+    # record's page or picture today. This is the only place they are read.
+    get "/auctions/:auction_id/share.png", OldLinkController, :base_auction_image
+    get "/robinhood/auctions/:auction/share.png", OldLinkController, :robinhood_auction_image
+    get "/auctions/:auction_id", OldLinkController, :base_auction
+    get "/robinhood/auctions/:auction", OldLinkController, :robinhood_auction
+    get "/tokens/:token_id", OldLinkController, :base_token
+    get "/robinhood/tokens/:token", OldLinkController, :robinhood_token
   end
 
   scope "/api/v1" do
@@ -71,11 +81,9 @@ defmodule AutolaunchWeb.Router do
       live "/create", StocksCreateLive, :create
       live "/create/revstake", CreateLive, :create
       live "/auctions", AuctionsLive, :index
-      live "/auctions/:auction_id", AuctionLive, :show
-      live "/robinhood/auctions/:auction", RobinhoodAuctionLive, :show
+      live "/auctions/:symbol/:tail", MarketPageLive, :auction
       live "/tokens", TokensLive, :index
-      live "/tokens/:token_id", TokenLive, :show
-      live "/robinhood/tokens/:token", RobinhoodTokenLive, :show
+      live "/tokens/:symbol/:tail", MarketPageLive, :token
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/profile", ProfileLive, :profile

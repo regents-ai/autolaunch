@@ -9,6 +9,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   alias Autolaunch.TokenHoldings
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
   alias AutolaunchWeb.LabMarket
+  alias AutolaunchWeb.Paths
 
   @history ~w(claimed exited returned)
 
@@ -191,12 +192,16 @@ defmodule AutolaunchWeb.PortfolioLive do
           </Regent.Structure.section_bar>
           <ol class="autolaunch-record-list">
             <li :for={holding <- @stakeable}>
-              <.link navigate={holding.href}>
+              <.record_link href={holding.href}>
                 <strong>{holding.name} · {holding.symbol}</strong>
                 <span>{holding.held} {holding.symbol} ready to stake</span>
                 <span>{chain_name(holding.chain)}</span>
-              </.link>
-              <.link navigate={holding.href <> "#stake"} class="rg-button rg-button--primary">
+              </.record_link>
+              <.link
+                :if={holding.href}
+                navigate={holding.href <> "#stake"}
+                class="rg-button rg-button--primary"
+              >
                 Stake tokens
               </.link>
             </li>
@@ -214,12 +219,16 @@ defmodule AutolaunchWeb.PortfolioLive do
           </Regent.Structure.section_bar>
           <ol class="autolaunch-record-list">
             <li :for={holding <- @rewards}>
-              <.link navigate={holding.href}>
+              <.record_link href={holding.href}>
                 <strong>{holding.name} · {holding.symbol}</strong>
                 <span>{rewards_copy(holding.claimable)}</span>
                 <span>{chain_name(holding.chain)}</span>
-              </.link>
-              <.link navigate={holding.href <> "#stake"} class="rg-button rg-button--primary">
+              </.record_link>
+              <.link
+                :if={holding.href}
+                navigate={holding.href <> "#stake"}
+                class="rg-button rg-button--primary"
+              >
                 Claim rewards
               </.link>
             </li>
@@ -261,12 +270,16 @@ defmodule AutolaunchWeb.PortfolioLive do
             class="autolaunch-record-list"
           >
             <li :for={holding <- @token_holdings.holdings}>
-              <.link navigate={holding.href}>
+              <.record_link href={holding.href}>
                 <strong>{holding.name} · {holding.symbol}</strong>
                 <span>{holding_copy(holding)}</span>
                 <span>{chain_name(holding.chain)}</span>
-              </.link>
-              <.link navigate={holding.href <> "#stake"} class="rg-button rg-button--secondary">
+              </.record_link>
+              <.link
+                :if={holding.href}
+                navigate={holding.href <> "#stake"}
+                class="rg-button rg-button--secondary"
+              >
                 {if Decimal.gt?(Decimal.new(holding.held), 0),
                   do: "Stake tokens",
                   else: "Manage stake"}
@@ -346,7 +359,7 @@ defmodule AutolaunchWeb.PortfolioLive do
               :for={position <- @robinhood_waiting}
               id={"autolaunch-robinhood-bid-#{position.auction}-#{position.bid_id}"}
             >
-              <.link navigate={position.href}>
+              <.record_link href={position.href}>
                 <strong>{position.name} · {position.symbol}</strong>
                 <span>
                   Bid #{position.bid_id} · {position.committed} {position.stock_symbol} · {standing_copy(
@@ -354,7 +367,7 @@ defmodule AutolaunchWeb.PortfolioLive do
                   )}
                 </span>
                 <span>{short(position.wallet)}</span>
-              </.link>
+              </.record_link>
             </li>
           </ol>
           <p
@@ -454,6 +467,14 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
+  attr :href, :string, required: true
+  slot :inner_block, required: true
+
+  # A record opens its page; one whose auction the site does not list has no
+  # page to open.
+  defp record_link(%{href: nil} = assigns), do: ~H"<div>{render_slot(@inner_block)}</div>"
+  defp record_link(assigns), do: ~H"<.link navigate={@href}>{render_slot(@inner_block)}</.link>"
+
   attr :id, :string, required: true
   attr :positions, :list, required: true
   attr :action, :string, required: true
@@ -463,7 +484,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     ~H"""
     <ol id={@id} class="autolaunch-record-list">
       <li :for={position <- @positions} id={"#{@id}-#{position.auction}-#{position.bid_id}"}>
-        <.link navigate={position.href}>
+        <.record_link href={position.href}>
           <strong>{position.name} · {position.symbol}</strong>
           <span>
             Bid #{position.bid_id} · {position.committed} {position.stock_symbol} · {standing_copy(
@@ -471,8 +492,10 @@ defmodule AutolaunchWeb.PortfolioLive do
             )}
           </span>
           <span>{short(position.wallet)}</span>
+        </.record_link>
+        <.link :if={position.href} navigate={position.href} class="rg-button rg-button--primary">
+          {@action}
         </.link>
-        <.link navigate={position.href} class="rg-button rg-button--primary">{@action}</.link>
       </li>
     </ol>
     """
@@ -499,7 +522,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           current_human_id={current_human_id(@access_context)}
           session_lease={@session_lease}
         />
-        <.link navigate={"/auctions/#{position.auction_id}"}>View auction</.link>
+        <.link navigate={Paths.auction(position.auction)}>View auction</.link>
       </li>
     </ol>
     """

@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.AuctionController do
   end
 
   # Any listed auction is named by its id; a Robinhood auction also by its
-  # address, as on /robinhood/auctions/:auction.
+  # contract address.
   def show(conn, %{"id" => id} = params) do
     with true <- Map.keys(params) == ["id"],
          {:ok, entry} <- auction_entry(conn, id) do

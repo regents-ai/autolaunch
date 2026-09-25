@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.MarketTickerLive do
   use Phoenix.LiveView, layout: false
   alias Autolaunch.{BidActivity, TokenTrade}
   alias AutolaunchWeb.Components.MarketCard
+  alias AutolaunchWeb.Paths
 
   def mount(_, _, socket) do
     if connected?(socket) do
@@ -94,7 +95,7 @@ defmodule AutolaunchWeb.MarketTickerLive do
 
     ~H"""
     <.link
-      navigate={auction_path(@bid.auction)}
+      navigate={Paths.auction(@bid.auction)}
       tabindex={if @copy == 1, do: "-1"}
       class="market-ticker__entry market-ticker__entry--bid"
     >
@@ -111,7 +112,7 @@ defmodule AutolaunchWeb.MarketTickerLive do
 
     ~H"""
     <.link
-      navigate={token_path(@trade.token)}
+      navigate={Paths.token(@trade.token.auction)}
       tabindex={if @copy == 1, do: "-1"}
       class={["market-ticker__entry", "market-ticker__entry--#{@trade.side}"]}
     >
@@ -143,16 +144,4 @@ defmodule AutolaunchWeb.MarketTickerLive do
   end
 
   defp max_fdv(_bid, _rates), do: nil
-
-  defp auction_path(auction) do
-    if Autolaunch.Robinhood.Lab.chain?(auction.chain_id),
-      do: "/robinhood/auctions/#{auction.auction_address}",
-      else: "/auctions/#{auction.id}"
-  end
-
-  defp token_path(%{auction: auction} = token) do
-    if Autolaunch.Robinhood.Lab.chain?(auction.chain_id),
-      do: "/robinhood/tokens/#{auction.token_address}",
-      else: "/tokens/#{token.id}"
-  end
 end

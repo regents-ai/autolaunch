@@ -24,6 +24,7 @@ defmodule Autolaunch.Robinhood.Positions do
   alias Autolaunch.Chain.{Abi, Address, CcaSettlement, Rpc}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias AutolaunchWeb.Paths
 
   @bid_record_words 7
 
@@ -48,7 +49,7 @@ defmodule Autolaunch.Robinhood.Positions do
           standing: standing(),
           refundable: String.t() | nil,
           claim_block: non_neg_integer() | nil,
-          href: String.t()
+          href: String.t() | nil
         }
 
   @type reading :: %{positions: [position()], block: pos_integer() | nil}
@@ -141,11 +142,15 @@ defmodule Autolaunch.Robinhood.Positions do
     end
   end
 
+  defp bid_positions([], _auction, _wallet, _venue), do: {:ok, []}
+
   defp bid_positions(logs, auction, wallet, venue) do
+    page = Paths.robinhood_auction_page(auction.auction)
+
     Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, found} ->
       with {:ok, submitted} <- bid_submitted(log, auction.auction, wallet, venue),
            {:ok, bid} <- bid_record(submitted, auction.auction, venue),
-           {:ok, position} <- position(bid, auction, wallet, venue) do
+           {:ok, position} <- position(bid, auction, page, wallet, venue) do
         {:cont, {:ok, [position | found]}}
       else
         :error -> {:halt, {:error, :invalid_chain_response}}
@@ -187,7 +192,7 @@ defmodule Autolaunch.Robinhood.Positions do
     end
   end
 
-  defp position(bid, auction, wallet, venue) do
+  defp position(bid, auction, page, wallet, venue) do
     with {:ok, standing, refundable, claim_block} <- standing(bid, auction, venue) do
       {:ok,
        %{
@@ -201,7 +206,7 @@ defmodule Autolaunch.Robinhood.Positions do
          standing: standing,
          refundable: refundable && Rpc.format_units(refundable, auction.stock_decimals),
          claim_block: claim_block,
-         href: "/robinhood/auctions/#{auction.auction}"
+         href: page
        }}
     end
   end

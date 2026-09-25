@@ -101,7 +101,7 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:authenticated, fn -> false end)
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
-      |> assign_new(:token_path, fn -> nil end)
+      |> assign_new(:share_url, fn -> nil end)
       |> assign_new(:browser_wallets, fn -> [] end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> SignedInWallet.adopt(&adopt/2)
@@ -792,13 +792,14 @@ defmodule AutolaunchWeb.StakeComponent do
   defp stake_name(%{kind: :agent}), do: "Revstake"
   defp stake_name(_pool), do: "Memestake"
 
-  defp share_href(%{token_path: path, pool: pool, launch: launch}) when is_binary(path) do
+  defp share_href(%{share_url: share_url, pool: pool, launch: launch})
+       when is_binary(share_url) do
     chain = if launch.chain == :robinhood, do: "Robinhood", else: "Base"
 
     "https://x.com/intent/tweet?" <>
       URI.encode_query(%{
         text: "I just staked $#{pool.token.symbol} on Autolaunch (#{chain}).",
-        url: "https://autolaunch.sh" <> path
+        url: share_url
       })
   end
 

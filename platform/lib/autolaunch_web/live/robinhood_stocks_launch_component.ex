@@ -15,8 +15,9 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
-  alias AutolaunchWeb.SignedInWallet
+  alias AutolaunchWeb.{Paths, SignedInWallet}
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
@@ -157,10 +158,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
               "end_block"
             ]}.
           </p>
-          <p>
-            <.link navigate={~p"/robinhood/auctions/#{launched(@sent)["auction"]}"}>
-              Open the auction page
-            </.link>
+          <p :if={page = launch_page(@launches, launched(@sent)["auction"])}>
+            <.link navigate={page}>Open the auction page</.link>
           </p>
         </section>
 
@@ -233,9 +232,12 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         <ul role="list">
           <li :for={launch <- @launches}>
             Launch #{launch["launch_id"]} · {lifecycle(launch["lifecycle"])} ·
-            <.link navigate={~p"/robinhood/auctions/#{launch["auction"]}"}>
+            <.link :if={launch["page"]} navigate={launch["page"]}>
               Auction <span class="launch-wallet-mono">{launch["auction"]}</span>
             </.link>
+            <span :if={!launch["page"]}>
+              Auction <span class="launch-wallet-mono">{launch["auction"]}</span>
+            </span>
           </li>
         </ul>
       </section>
@@ -324,7 +326,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     case StocksLaunchActions.launches(address, opts(socket)) do
       {:ok, %{launches: launches}} ->
         socket
-        |> assign(wallet: String.downcase(address), launches: launches, notice: nil)
+        |> assign(wallet: String.downcase(address), launches: with_pages(launches), notice: nil)
         |> reviewed_for_wallet()
 
       {:error, error} ->
@@ -347,9 +349,17 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp with_launches(socket) do
     case StocksLaunchActions.launches(socket.assigns.wallet, opts(socket)) do
-      {:ok, %{launches: launches}} -> assign(socket, launches: launches)
+      {:ok, %{launches: launches}} -> assign(socket, launches: with_pages(launches))
       {:error, _unavailable} -> socket
     end
+  end
+
+  # Each launch links to its auction's page once the site lists the auction.
+  defp with_pages(launches),
+    do: Enum.map(launches, &Map.put(&1, "page", Paths.robinhood_auction_page(&1["auction"])))
+
+  defp launch_page(launches, auction) do
+    Enum.find_value(launches, &(Address.equal?(&1["auction"], auction) && &1["page"]))
   end
 
   # A wallet the session no longer vouches for is not adopted at all; the

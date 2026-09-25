@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{SignedInWallet, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
   @copy %{
@@ -198,7 +198,7 @@ defmodule AutolaunchWeb.BidComponent do
             chain={:base}
             hash={placed_hash(@operation)}
             test_chain={Lab.test_chain?(@operation.envelope["chain_id"])}
-            auction_path={~p"/auctions/#{@auction.id}"}
+            auction_path={Paths.auction(@auction)}
             sharing={@sharing}
             message={@share_message}
             x_connection={@x_connection}
@@ -327,7 +327,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   def handle_event("share_bid", _params, socket) do
     %{auction: auction} = socket.assigns
-    message = BidPlaced.message(auction.token_symbol, url(~p"/auctions/#{auction.id}"))
+    message = BidPlaced.message(auction.token_symbol, Paths.auction_url(auction))
     {:noreply, socket |> assign(sharing: true, share_message: message) |> load_x()}
   end
 

@@ -11,10 +11,7 @@ defmodule AutolaunchWeb.ShareCard do
   """
   use Phoenix.Component
 
-  use Phoenix.VerifiedRoutes,
-    endpoint: AutolaunchWeb.Endpoint,
-    router: AutolaunchWeb.Router,
-    statics: AutolaunchWeb.static_paths()
+  use AutolaunchWeb, :verified_routes
 
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
@@ -22,7 +19,7 @@ defmodule AutolaunchWeb.ShareCard do
   alias Autolaunch.Stocks.MarketData
   alias Autolaunch.StoredImage
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.{TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, TokenDisplay, UsdValue}
   alias Vix.Vips.{Image, Operation}
 
   @width 1200
@@ -38,26 +35,32 @@ defmodule AutolaunchWeb.ShareCard do
     robinhood: %{name: "Robinhood Chain", color: "#00c805", logo_width: round(34 * 1576 / 207)}
   }
 
-  @doc "The page details for an auction's page: its title, words and picture."
+  @doc "The page details for an auction's page: its title, words, address and picture."
   @spec meta(struct()) :: map()
   def meta(auction) do
     %{
       title: "#{auction.title} (#{auction.token_symbol}) auction on Autolaunch",
       description:
         "Bid on #{auction.token_symbol} on #{@chains[chain(auction)].name}. Everyone pays the same price.",
-      image: image_url(auction),
+      url: Paths.auction_url(auction),
+      image: auction_image_url(auction, DateTime.utc_now()),
       image_alt: "#{auction.title} (#{auction.token_symbol}) auction figures on Autolaunch"
     }
   end
 
-  @doc "Where an auction's picture is served."
-  @spec image_url(struct()) :: String.t()
-  def image_url(auction) do
-    case chain(auction) do
-      :robinhood -> url(~p"/robinhood/auctions/#{auction.auction_address}/share.png")
-      :base -> url(~p"/auctions/#{auction.id}/share.png")
-    end
-  end
+  @doc """
+  Where an auction's picture is served, as its figures stand at `now`. The
+  address moves on every fifteen minutes while the auction can still change,
+  so a site that keeps pictures by address fetches the new figures, and stays
+  put once the auction has finished.
+  """
+  @spec auction_image_url(struct(), DateTime.t()) :: String.t()
+  def auction_image_url(auction, now), do: Paths.auction_image_url(auction, version(auction, now))
+
+  defp version(%{state: state}, _now) when state in [:graduated, :failed],
+    do: Atom.to_string(state)
+
+  defp version(_auction, now), do: now |> DateTime.to_unix() |> div(900) |> Integer.to_string()
 
   attr :share, :map, default: nil, doc: "an auction's page details, or nil for the site's own"
   attr :page_title, :string, default: nil
@@ -90,6 +93,7 @@ defmodule AutolaunchWeb.ShareCard do
     <meta property="og:description" content={@share.description} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Autolaunch" />
+    <meta property="og:url" content={@share.url} />
     <meta property="og:image" content={@share.image} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />

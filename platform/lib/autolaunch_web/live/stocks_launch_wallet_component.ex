@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.{Amounts, Lab, LaunchActions}
-  alias AutolaunchWeb.{SignedInWallet, WalletPressComponent}
+  alias AutolaunchWeb.{Paths, SignedInWallet, WalletPressComponent}
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
@@ -387,9 +387,12 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   # by the chain and address the chain reported.
   defp adopt_operation(socket, %{state: :chain_verified, result: %{"auction" => address}} = op) do
     {:ok, auction} =
-      Autolaunch.get_auction_by_chain_address(Lab.chain_id(), address, actor: actor(socket))
+      Autolaunch.get_auction_by_chain_address(Lab.chain_id(), address,
+        actor: actor(socket),
+        load: [:path_tail]
+      )
 
-    assign(socket, operation: op, auction_path: auction && "/auctions/#{auction.id}")
+    assign(socket, operation: op, auction_path: auction && Paths.auction(auction))
   end
 
   defp adopt_operation(socket, operation),

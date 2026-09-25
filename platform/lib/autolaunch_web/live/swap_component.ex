@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.SwapActions
-  alias AutolaunchWeb.SignedInWallet
+  alias AutolaunchWeb.{Paths, SignedInWallet}
   alias Phoenix.LiveView.JS
 
   @default_protection "1"
@@ -470,25 +470,26 @@ defmodule AutolaunchWeb.SwapComponent do
   defp action(_assigns), do: :enter_amount
 
   defp purchased_stake_path(%{chain: :base, auction: auction}, result) do
-    case Autolaunch.get_public_token_by_auction(auction.id) do
-      {:ok, %{id: id}} ->
-        "/tokens/#{id}?" <> URI.encode_query(%{stake: result["received_units"]}) <> "#stake"
-
-      _ ->
-        nil
+    case Autolaunch.get_public_token_by_auction(auction.id, load: [:auction]) do
+      {:ok, %{auction: auction}} -> stake_path(auction, result)
+      _ -> nil
     end
   end
 
   defp purchased_stake_path(%{chain: :robinhood, auction: address}, result) do
     case Autolaunch.get_robinhood_auction(address) do
-      {:ok, %{token_address: token}} when is_binary(token) ->
-        "/robinhood/tokens/#{token}?" <>
-          URI.encode_query(%{stake: result["received_units"]}) <> "#stake"
+      {:ok, %{token_address: token} = auction} when is_binary(token) ->
+        stake_path(auction, result)
 
       _ ->
         nil
     end
   end
+
+  defp stake_path(auction, result),
+    do:
+      Paths.token(auction) <>
+        "?" <> URI.encode_query(%{stake: result["received_units"]}) <> "#stake"
 
   defp sell(%{direction: :buy, currency: currency}), do: currency
   defp sell(%{symbol: symbol}), do: symbol
