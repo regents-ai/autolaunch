@@ -42,6 +42,7 @@ defmodule Autolaunch.Stocks.LabProjection do
       summary: arguments["description"],
       token_symbol: arguments["symbol"],
       website: arguments["website"],
+      telegram: arguments["telegram"],
       image: arguments["image"],
       quote_token_address: arguments["stock"],
       quote_token_symbol: arguments["stock_symbol"],

@@ -184,7 +184,6 @@ defmodule Autolaunch do
 
       define :get_my_stocks_launch_draft,
         action: :mine_account_owned,
-        args: [:chain],
         not_found_error?: false
 
       define :get_my_stocks_launch_draft_by_id,
@@ -198,6 +197,7 @@ defmodule Autolaunch do
         not_found_error?: false
 
       define :autosave_stocks_token_details, action: :autosave_token_details
+      define :choose_stocks_launch_chain, action: :choose_chain, args: [:chain]
       define :autosave_stocks_terms, action: :autosave_terms
 
       define :attach_stocks_launch_draft_image,

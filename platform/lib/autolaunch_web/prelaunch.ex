@@ -69,14 +69,14 @@ defmodule AutolaunchWeb.Prelaunch do
     |> halt()
   end
 
-  # An old signed LiveView token must not resurrect /create over the socket.
+  # An old signed LiveView token must not resurrect a create page over the socket.
   # Write-capable LiveComponents are not mounted at all during prelaunch.
   def on_mount(:default, _params, _session, socket) do
     cond do
       not Prelaunch.read_only?() ->
         {:cont, socket}
 
-      socket.view == AutolaunchWeb.CreateLive ->
+      socket.view in [AutolaunchWeb.StocksCreateLive, AutolaunchWeb.CreateLive] ->
         {:halt, Phoenix.LiveView.redirect(socket, to: "/")}
 
       true ->

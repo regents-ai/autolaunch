@@ -1,10 +1,13 @@
 defmodule Autolaunch.Stocks.LaunchDraft do
   @moduledoc """
-  One private Stocks launch draft per human account and chain, independent of the Agent draft.
+  One private Stocks launch draft per human account, independent of the Agent
+  draft. The creator moves it between Base and Robinhood; the token details go
+  with it, and the paired stock is chosen again from the new chain's list.
 
   Every section autosaves partial text. Completeness is decided here in one
-  place, and a change of auction currency clears the required raise and floor
-  price that were entered in the old currency so a review can never mix them.
+  place, and a change of paired stock puts the required raise and floor price
+  back to their defaults, since amounts entered in the old stock mean nothing
+  in the new one.
   """
 
   use Ash.Resource,
@@ -16,10 +19,17 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   alias Autolaunch.LaunchChain
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
-  @token_fields [:name, :symbol, :description, :website]
+  @token_fields [:name, :symbol, :description, :website, :telegram]
   @terms_fields [:stock_address, :required_raise, :floor_price]
 
-  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
+  @metadata_limits [name: 64, symbol: 16, description: 512]
+
+  # A Telegram link is optional; when given it is a public t.me address.
+  @telegram ~r{\Ahttps://t\.me/[A-Za-z0-9_+/-]+\z}
+
+  # The launchpads require a website, so a launch without one names this site,
+  # which the site's pages never show as a creator's website.
+  @site_website "https://autolaunch.sh"
 
   @doc "Whether the public token identity is complete."
   def token_details_complete?(draft), do: missing_token_details(draft) == []
@@ -29,8 +39,20 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   defp missing_token_details(draft) do
     for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
+      if(optional_within?(Map.get(draft, :website), 256), do: [], else: [:website]) ++
+      if(telegram_complete?(Map.get(draft, :telegram)), do: [], else: [:telegram]) ++
       if(image_complete?(draft), do: [], else: [:image])
   end
+
+  defp optional_within?(value, _limit) when value in [nil, ""], do: true
+  defp optional_within?(value, limit), do: within?(value, limit)
+
+  defp telegram_complete?(value) when value in [nil, ""], do: true
+  defp telegram_complete?(value), do: byte_size(value) <= 256 and value =~ @telegram
+
+  @doc "The website a launch writes into its token: the creator's, or this site's."
+  def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
+  def onchain_website(%{website: website}), do: website
 
   @doc "Whether this draft carries the only image shape its provenance permits."
   def image_complete?(%{
@@ -102,19 +124,17 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   actions do
     create :create_for_owner do
-      accept [:chain]
       change Autolaunch.LaunchDraft.Changes.AssignOwner
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
       upsert? true
-      upsert_identity :one_stocks_draft_per_human_and_chain
+      upsert_identity :one_stocks_draft_per_human
       upsert_fields []
       return_skipped_upsert? true
     end
 
     read :mine_account_owned do
       get? true
-      argument :chain, :atom, allow_nil?: false, constraints: [one_of: LaunchChain.chains()]
-      filter expr(human_account_id == ^actor(:human_account_id) and chain == ^arg(:chain))
+      filter expr(human_account_id == ^actor(:human_account_id))
       prepare build(load: [:stock_launch_draft_image])
     end
 
@@ -143,7 +163,16 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       accept @terms_fields
       require_atomic? false
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
-      change Autolaunch.Stocks.LaunchDraft.Changes.ClearStockAmountsOnStockChange
+      change Autolaunch.Stocks.LaunchDraft.Changes.ResetStockAmountsOnStockChange
+    end
+
+    # The stock list is per chain, so a new chain starts without a paired stock.
+    update :choose_chain do
+      accept [:chain]
+      require_atomic? false
+      change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+      change set_attribute(:stock_address, nil), where: [changing(:chain)]
+      change Autolaunch.Stocks.LaunchDraft.Changes.ResetStockAmountsOnStockChange
     end
 
     update :attach_image do
@@ -161,6 +190,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_terms,
+             :choose_chain,
              :attach_image
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
@@ -172,6 +202,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_terms,
+             :choose_chain,
              :attach_image
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
@@ -192,12 +223,13 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     attribute :symbol, :string, allow_nil?: false, default: "", constraints: [allow_empty?: true]
     attribute :description, :string
     attribute :website, :string
+    attribute :telegram, :string
     attribute :image, :string
 
     attribute :stock_address, :string
     attribute :stock_chain_id, :integer, allow_nil?: false
-    attribute :required_raise, :string
-    attribute :floor_price, :string
+    attribute :required_raise, :string, default: "0.00001"
+    attribute :floor_price, :string, default: "0.00000001"
 
     timestamps()
   end
@@ -214,6 +246,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   end
 
   identities do
-    identity :one_stocks_draft_per_human_and_chain, [:human_account_id, :chain]
+    identity :one_stocks_draft_per_human, [:human_account_id]
   end
 end

@@ -12,6 +12,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
     symbol: 16,
     description: 512,
     website: 256,
+    telegram: 256,
     stock_address: 42,
     required_raise: 128,
     floor_price: 128

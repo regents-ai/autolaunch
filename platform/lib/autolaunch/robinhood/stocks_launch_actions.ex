@@ -45,7 +45,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @uint128_max Integer.pow(2, 128) - 1
   @lifecycles %{0 => "none", 1 => "active", 2 => "graduated", 3 => "failed"}
 
-  @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+  @metadata [name: 64, symbol: 16, description: 512, image: 256]
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   @doc "The fixed terms every Robinhood Stocks launch uses, for the review page, in the ticker of the token it creates."
@@ -77,6 +77,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(:robinhood, blocks)}"
 
   def start_lead_blocks, do: @start_lead_blocks
+  def auction_duration_blocks, do: @auction_duration_blocks
 
   @doc """
   Reviews one saved Robinhood draft for the signed-in wallet: one snapshot, one
@@ -107,6 +108,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           name: fields.name,
           symbol: fields.symbol,
           stock: String.downcase(fields.stock),
+          telegram: fields.telegram,
           required_stock_raised: Integer.to_string(executable.required_stock_raised),
           floor_price_q96: Integer.to_string(executable.floor_price_q96)
         },
@@ -168,7 +170,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          name: draft.name,
          symbol: draft.symbol,
          description: draft.description,
-         website: draft.website,
+         website: LaunchDraft.onchain_website(draft),
+         telegram: draft.telegram,
          image: draft.image,
          stock: stock,
          stock_symbol: asset.symbol,
@@ -246,6 +249,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           "symbol" => fields.symbol,
           "description" => fields.description,
           "website" => fields.website,
+          "telegram" => fields.telegram,
           "image" => fields.image,
           "stock" => fields.stock,
           "stock_symbol" => fields.stock_symbol,

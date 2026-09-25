@@ -31,12 +31,12 @@
 }
 /* Every text box on Create has its top-right corner cut, like the buttons. The
    cut hides the outside focus ring, so focus draws inside the box instead. */
-.launchpad-create__form-column :is(input[type="text"], textarea) {
+.launchpad-create__form-column :is(input[type="text"], textarea), .memestock__form :is(input[type="text"], textarea) {
   --text-box-cut: 10px;
   clip-path: polygon(0 0, calc(100% - var(--text-box-cut)) 0, 100% var(--text-box-cut), 100% 100%, 0 100%);
   background: linear-gradient(45deg, transparent calc(50% - 1px), var(--rg-p-control-border, var(--hairline-strong)) calc(50% - 1px) 50%, transparent 50%) right top / var(--text-box-cut) var(--text-box-cut) no-repeat border-box, var(--rg-p-surface, var(--color-surface));
 }
-.launchpad-create__form-column :is(input[type="text"], textarea):focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--rg-p-text, var(--color-fg)); }
+:is(.launchpad-create__form-column, .memestock__form) :is(input[type="text"], textarea):focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--rg-p-text, var(--color-fg)); }
 /* Revstake with no accounts connected: a typed warning before launching. */
 .no-connections { display: grid; justify-items: start; gap: var(--space-2); }
 .no-connections > p { margin: 0; }
@@ -47,7 +47,7 @@
 .no-connections__warning { margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); font-weight: 600; }
 .no-connections__dialog textarea { min-height: 7rem; resize: vertical; }
 .no-connections__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2); }
-/* On Memestake the accounts fold away under one optional line. */
+/* On the memestock form the accounts fold away under one optional Socials line. */
 .creator-connections--optional { padding-block: 0; }
 .creator-connections--optional .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
 .creator-connections--optional .rg-disclosure { border-block-end: 0; }
@@ -88,37 +88,8 @@
 .autolaunch-profile-page { display: grid; gap: 24px; max-width: 960px; }
 .autolaunch-profile-page__sign-in { justify-self: start; }
 
-.launchpad-create__header { justify-items: center; text-align: center; }
-.launchpad-create__choices { display: grid; gap: var(--space-3); width: min(100%, 44rem); justify-items: center; }
-.launchpad-create__choice { display: grid; gap: var(--space-2); width: 100%; justify-items: center; padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
-.launchpad-create__choice-summary { display: grid; max-width: 64ch; padding-top: var(--space-3); border-top: 1px solid var(--color-border); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.6; }
-.launchpad-create__choice-summary > p { grid-area: 1 / 1; margin: 0; }
-/* Held in place but unseen, so switching choices never moves what follows. */
-.launchpad-create :is(.launchpad-create__choice-note, .launchpad-create__choice-summary > p).is-reserved { visibility: hidden; }
-.launchpad-create__choice-summary strong { color: var(--color-fg); }
-.launchpad-create__kinds { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
-.launchpad-create__kinds .rg-button { white-space: normal; text-align: center; }
-.launchpad-create__choice-note { max-width: 64ch; margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.6; text-align: center; }
-
-/* Stock picker on the stock launch form: one tile per stock, price from its feed. */
-.stock-picker { margin: 0 0 var(--space-3); padding: 0; border: 0; min-width: 0; }
-.stock-picker > legend { padding: 0; margin-bottom: var(--space-2); font-size: .875rem; font-weight: 600; }
-.stock-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: var(--space-2); }
-.stock-picker__tile { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--space-2); align-items: center; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: 8px; cursor: pointer; }
-.stock-picker__tile:hover { border-color: var(--hairline-strong); }
-.stock-picker__tile:has(input:checked) { border-color: var(--brand-accent); box-shadow: inset 0 0 0 1px var(--brand-accent); }
-.stock-picker__tile:has(input:focus-visible) { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
-.stock-picker__tile input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.stock-picker__mark { grid-row: 1 / span 2; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 6px; background: color-mix(in oklch, var(--brand-accent) 18%, var(--color-surface)); color: var(--brand-accent); font-family: var(--font-family-title); font-size: .8125rem; letter-spacing: .04em; }
-.stock-picker__symbol { font-family: var(--font-family-mono); font-size: .8125rem; font-weight: 600; }
-.stock-picker__name { grid-column: 2; color: var(--color-fg-muted); font-size: .75rem; }
-.stock-picker__price { grid-column: 1 / -1; margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--hairline); font-family: var(--font-family-mono); font-size: .8125rem; }
-.stocks-buy-at { margin-bottom: var(--space-3); line-height: 1.6; }
-.stocks-buy-at a { color: var(--brand-accent); }
-.stocks-more-info { margin-top: var(--space-3); border-block-end: 0; }
-.stocks-more-info > summary { min-height: 2.75rem; font-size: .875rem; }
-.stocks-more-info .rg-disclosure-body { display: grid; gap: var(--space-2); padding-bottom: var(--space-2); }
-
+/* Agentic Revenue Launch: the title, with the way back to memestock in its top-right corner. */
+.launchpad-create__title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 /* Fixed terms: label column in the UI face, values in the mono face, one accent rule on top. */
 .stocks-terms-table { width: 100%; border-collapse: collapse; border-top: 2px solid var(--brand-accent); }
 .stocks-terms-table tr + tr { border-top: 1px solid var(--hairline); }

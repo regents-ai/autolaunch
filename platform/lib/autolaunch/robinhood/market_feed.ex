@@ -250,9 +250,14 @@ defmodule Autolaunch.Robinhood.MarketFeed do
            Integer.to_string(launch.floor_price_q96),
            actor: @actor
          ) do
-      {:ok, %{human_account_id: account_id}} -> {:ok, {:site, account_id}}
-      {:ok, nil} -> {:ok, {:chain, nil}}
-      {:error, reason} -> {:error, reason}
+      {:ok, %{human_account_id: account_id, telegram: telegram}} ->
+        {:ok, {:site, account_id, telegram}}
+
+      {:ok, nil} ->
+        {:ok, {:chain, nil, nil}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -262,7 +267,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
          do: {:ok, auction}
   end
 
-  defp project_auction(head, launch, {origin, creator_id}) do
+  defp project_auction(head, launch, {origin, creator_id, telegram}) do
     Autolaunch.record_launch_auction(
       %{
         kind: :stocks,
@@ -275,6 +280,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         summary: launch.description,
         token_symbol: String.slice(launch.symbol, 0, 16),
         website: launch.website,
+        telegram: telegram,
         image: launch.image,
         featured: false,
         state:

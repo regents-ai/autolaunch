@@ -46,7 +46,6 @@ defmodule AutolaunchWeb.Router do
     pipe_through :browser
 
     get "/settings", SettingsController, :show
-    get "/create/stocks", CreateRedirectController, :stocks
 
     live_session :public_root,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
@@ -69,7 +68,8 @@ defmodule AutolaunchWeb.Router do
     live_session :product_shell,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}, AutolaunchWeb.Live.PageTitle] do
-      live "/create", CreateLive, :create
+      live "/create", StocksCreateLive, :create
+      live "/create/revstake", CreateLive, :create
       live "/auctions", AuctionsLive, :index
       live "/auctions/:auction_id", AuctionLive, :show
       live "/robinhood/auctions/:auction", RobinhoodAuctionLive, :show

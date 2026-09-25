@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     {:ok, account: account}
   end
 
-  test "autosaves each section and clears the amounts when the stock changes", %{
+  test "autosaves each section and resets the amounts when the stock changes", %{
     conn: conn,
     account: account
   } do
@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/create?kind=stocks")
+      |> live("/create")
 
     view
     |> form("#stocks-token-details", stock_draft: %{name: "Apple Pair", symbol: "APLP"})
@@ -47,7 +47,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     |> render_change()
 
     actor = %Human{human_account_id: account.id}
-    {:ok, draft} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
+    {:ok, draft} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
     assert draft.name == "Apple Pair"
     assert draft.symbol == "APLP"
     assert draft.stock_address == @aapl
@@ -59,13 +59,13 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
       |> form("#stocks-terms", stock_draft: %{stock_address: @amzn})
       |> render_change()
 
-    {:ok, changed} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
+    {:ok, changed} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
     assert changed.stock_address == @amzn
-    assert changed.required_raise == nil
-    assert changed.floor_price == nil
+    assert changed.required_raise == "0.00001"
+    assert changed.floor_price == "0.00000001"
     refute html =~ ~s(value="1.25")
     refute html =~ ~s(value="500")
-    assert html =~ "Saved to your account"
+    assert html =~ "Saved"
 
     # With every section complete the wallet step appears, for the signed-in wallet.
     view
@@ -82,7 +82,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     |> render_change()
 
     # The image a launch carries is always one the site stored and serves.
-    {:ok, draft_for_image} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
+    {:ok, draft_for_image} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
 
     {:ok, %{draft: _attached}} =
       Autolaunch.Stocks.LaunchDraftImageStorage.store_and_attach(
@@ -99,7 +99,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
       |> form("#stocks-terms", stock_draft: %{floor_price: "2"})
       |> render_change()
 
-    {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
+    {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
     assert Autolaunch.Stocks.LaunchDraft.launch_ready?(complete)
     assert html =~ ~s(id="autolaunch-stocks-launch-wallet-#{complete.id}")
     assert html =~ "Launching from 0x1111…1111"

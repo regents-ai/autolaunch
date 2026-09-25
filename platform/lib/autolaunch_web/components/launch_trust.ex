@@ -36,6 +36,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         wallet: auction.creator_address,
         accounts: accounts(assigns.connections),
         website: MarketCard.web_link(auction.website),
+        telegram: MarketCard.telegram_link(auction.telegram),
         contracts: contracts(auction, assigns.pool),
         split: split(auction.kind),
         supply: supply(auction.token_supply),
@@ -76,6 +77,15 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
             <dd>
               <a href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
                 {@website.label}
+              </a>
+              <span class="launch-trust__muted">Named by the creator, not checked</span>
+            </dd>
+          </div>
+          <div :if={@telegram}>
+            <dt>Telegram</dt>
+            <dd>
+              <a href={@telegram.url} target="_blank" rel="noopener noreferrer nofollow">
+                {@telegram.label}
               </a>
               <span class="launch-trust__muted">Named by the creator, not checked</span>
             </dd>

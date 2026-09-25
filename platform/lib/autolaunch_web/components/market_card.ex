@@ -53,7 +53,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div :if={!@view.path} class="launchpad-card__link">
         <.card_contents view={@view} />
       </div>
-      <.card_socials connections={@view.connections} website={@view.website} />
+      <.card_socials
+        connections={@view.connections}
+        website={@view.website}
+        telegram={@view.telegram}
+      />
     </article>
     """
   end
@@ -264,7 +268,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
     ~H"""
     <div class="home-coin__links">
-      <.card_socials connections={@view.connections} website={@view.website} wallet={@wallet} />
+      <.card_socials
+        connections={@view.connections}
+        website={@view.website}
+        telegram={@view.telegram}
+        wallet={@wallet}
+      />
     </div>
     """
   end
@@ -929,11 +938,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :connections, :list, required: true
   attr :website, :string, default: nil
+  attr :telegram, :string, default: nil
   attr :wallet, :map, default: nil, doc: "the creator's wallet and its explorer page"
 
   # At most six links, each its kind's mark then its handle or site (the
   # wallet only its mark, with its address on hover), in this order: the
-  # accounts, the website, then the wallet; any past six are left to the
+  # accounts, the website, Telegram, then the wallet; any past six are left to the
   # coin's page. A website shows only as an ordinary web link; anything else
   # a launch recorded there is left off the card.
   defp card_socials(assigns) do
@@ -967,6 +977,24 @@ defmodule AutolaunchWeb.Components.MarketCard do
           ]
       end
 
+    telegram =
+      case telegram_link(assigns.telegram) do
+        nil ->
+          []
+
+        link ->
+          [
+            %{
+              icon: :telegram,
+              url: link.url,
+              text: link.label,
+              label: "Telegram #{link.label}",
+              title: link.label,
+              rel: "noopener noreferrer nofollow"
+            }
+          ]
+      end
+
     wallet =
       case assigns.wallet do
         nil ->
@@ -985,7 +1013,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
           ]
       end
 
-    assigns = assign(assigns, :links, Enum.take(connections ++ website ++ wallet, 6))
+    assigns =
+      assign(assigns, :links, Enum.take(connections ++ website ++ telegram ++ wallet, 6))
 
     ~H"""
     <div :if={@links != []} class="launchpad-card__socials" aria-label="Creator links">
@@ -1016,6 +1045,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: values["image"],
       color: nil,
       website: values["website"],
+      telegram: values["telegram"],
       status: "Preview",
       metric_label: present(values["preview_metric_label"], "Raise target"),
       metric:
@@ -1043,6 +1073,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: auction.image,
       color: auction.image_color,
       website: auction.website,
+      telegram: auction.telegram,
       status: state_label(auction.state),
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
@@ -1088,6 +1119,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: presentation.image,
       color: presentation.image_color,
       website: presentation.website,
+      telegram: presentation.telegram,
       status: "Launched",
       metric_label: "Price",
       metric: metric(token.price_quote, currency),
@@ -1197,6 +1229,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   def web_link(_url), do: nil
+
+  @doc "A creator's Telegram community as a link and its t.me label, or nil without one."
+  def telegram_link("https://" <> label = url), do: %{url: url, label: label}
+  def telegram_link(_url), do: nil
 
   # A creator who names this site or Regents as their website has named no
   # website of their own.

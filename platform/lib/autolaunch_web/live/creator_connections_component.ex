@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
       <Regent.Primitives.disclosure
         :if={@optional}
         id={"#{@id}-more"}
-        summary="Creator connections (optional)"
+        summary="Socials (optional)"
         phx-mounted={JS.ignore_attributes(["open"])}
       >
         <p>These appear on your auction and token. You can launch without them.</p>

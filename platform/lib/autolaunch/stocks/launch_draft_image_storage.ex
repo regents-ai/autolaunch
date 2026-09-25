@@ -38,20 +38,6 @@ defmodule Autolaunch.Stocks.LaunchDraftImageStorage do
   def store_and_attach(_draft, _bytes, _declared_type, _filename, _actor),
     do: {:error, :image_unavailable}
 
-  @spec store_fetched(Ash.Resource.record(), String.t(), struct()) ::
-          {:ok, stored()} | {:error, term()}
-  def store_fetched(%LaunchDraft{} = draft, url, actor) when is_binary(url) do
-    with {:ok, image} <- fetch(url) do
-      store_and_attach(draft, image.bytes, image.content_type, image.original_filename, actor)
-    end
-  end
-
-  # Downloading is read-only; the fetch itself is draft-agnostic, so the Agent
-  # lane's fetch is reused as-is. LiveView accepts only the current request's
-  # result before attaching it; abandoned async work must not change the saved
-  # draft.
-  defdelegate fetch(url), to: Autolaunch.LaunchDraftImageStorage
-
   @spec public_url(Ash.Resource.record()) :: String.t()
   def public_url(%LaunchDraftImage{id: id, digest: digest}) do
     AutolaunchWeb.Endpoint.url() <> "/stock-images/#{id}/#{digest}"

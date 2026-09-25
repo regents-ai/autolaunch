@@ -7,7 +7,8 @@ defmodule Autolaunch.Robinhood.LaunchReview do
   The Robinhood market feed matches each launch it discovers to these reviews:
   one whose wallet launched it with exactly the reviewed name, symbol, stock,
   required raise and floor price makes it a site launch, in that review's
-  account; no match makes it a launch seen only on chain.
+  account, with the Telegram link the review carried; no match makes it a
+  launch seen only on chain.
   """
 
   use Ash.Resource,
@@ -32,6 +33,7 @@ defmodule Autolaunch.Robinhood.LaunchReview do
         :name,
         :symbol,
         :stock,
+        :telegram,
         :required_stock_raised,
         :floor_price_q96
       ]
@@ -76,6 +78,7 @@ defmodule Autolaunch.Robinhood.LaunchReview do
     attribute :name, :string, allow_nil?: false, constraints: [trim?: false]
     attribute :symbol, :string, allow_nil?: false, constraints: [trim?: false]
     attribute :stock, :string, allow_nil?: false, constraints: [min_length: 42, max_length: 42]
+    attribute :telegram, :string, constraints: [max_length: 256]
 
     # Exact integers, in the stock's base units and Q96.
     attribute :required_stock_raised, :string, allow_nil?: false

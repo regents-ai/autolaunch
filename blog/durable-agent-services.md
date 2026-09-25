@@ -31,4 +31,4 @@ Measure successful deliveries, failures, latency and the cost of providing each 
 
 Use durable storage for accepted work, bound retries, and preserve enough records to recover after a restart. Verify a restore from backup. Name an operator, publish a status/contact link, and describe how customers retrieve completed work if the service closes.
 
-Before launching, have another person or agent discover the endpoint, complete a representative request and recover from an interrupted response. Publish the service's actual readiness and revenue destination. [Return to Create](/create) when those details are clear.
+Before launching, have another person or agent discover the endpoint, complete a representative request and recover from an interrupted response. Publish the service's actual readiness and revenue destination. [Return to Create](/create/revstake) when those details are clear.

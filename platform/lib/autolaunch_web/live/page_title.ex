@@ -7,7 +7,8 @@ defmodule AutolaunchWeb.Live.PageTitle do
   import Phoenix.Component, only: [assign: 3]
 
   @titles %{
-    AutolaunchWeb.CreateLive => "Create a launch",
+    AutolaunchWeb.StocksCreateLive => "Launch memestock",
+    AutolaunchWeb.CreateLive => "Agentic Revenue Launch",
     AutolaunchWeb.AuctionsLive => "Auctions",
     AutolaunchWeb.AuctionLive => "Auction",
     AutolaunchWeb.RobinhoodAuctionLive => "Robinhood auction",

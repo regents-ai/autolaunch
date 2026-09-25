@@ -45,7 +45,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @min_floor_price_q96 Integer.pow(2, 32) + 1
   @uint128_max Integer.pow(2, 128) - 1
 
-  @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+  @metadata [name: 64, symbol: 16, description: 512, image: 256]
 
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
@@ -227,6 +227,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "symbol" => fields.symbol,
         "description" => fields.description,
         "website" => fields.website,
+        "telegram" => fields.telegram,
         "image" => fields.image,
         "stock" => fields.stock,
         "stock_symbol" => fields.stock_symbol,
@@ -321,7 +322,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
          name: draft.name,
          symbol: draft.symbol,
          description: draft.description,
-         website: draft.website,
+         website: LaunchDraft.onchain_website(draft),
+         telegram: draft.telegram,
          image: draft.image,
          stock: stock,
          stock_symbol: asset.symbol,
