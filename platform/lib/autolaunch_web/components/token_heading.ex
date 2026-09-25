@@ -48,9 +48,9 @@ defmodule AutolaunchWeb.Components.TokenHeading do
         <span class="regent-token-menu__toast" data-copy-toast role="status" aria-live="polite"></span>
       </button>
       <a
-        :if={@network == "base"}
+        :if={@network}
         class="rg-button rg-button--secondary token-heading__link"
-        href={"https://app.uniswap.org/explore/tokens/base/#{@pool.token.address}"}
+        href={uniswap_url(@network, @pool)}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -69,7 +69,14 @@ defmodule AutolaunchWeb.Components.TokenHeading do
     """
   end
 
-  # The name the chart site gives the token's public network; nil on a fork.
+  # Uniswap lists a Base token by its address and a Robinhood one by its pool.
+  defp uniswap_url("base", pool),
+    do: "https://app.uniswap.org/explore/tokens/base/#{pool.token.address}"
+
+  defp uniswap_url("robinhood", pool),
+    do: "https://app.uniswap.org/explore/pools/robinhood/#{pool.pool_id}"
+
+  # The name Uniswap and the chart site give the token's public network; nil on a fork.
   defp network(8453), do: "base"
 
   defp network(chain_id) do
