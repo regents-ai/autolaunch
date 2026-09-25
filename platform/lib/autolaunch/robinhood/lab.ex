@@ -169,6 +169,14 @@ defmodule Autolaunch.Robinhood.Lab do
     end
   end
 
+  @doc "Whether this site trades Robinhood tokens: its deployment names a router and quoter."
+  def swap_configured? do
+    case current() do
+      {:ok, config} -> match?({:ok, _addresses}, swap_addresses(config))
+      {:error, _reason} -> false
+    end
+  end
+
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
 
   @doc "The stocks the controller read back from the chain, admitted on the Stocks launchpad."

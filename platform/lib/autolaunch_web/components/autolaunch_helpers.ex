@@ -249,22 +249,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     end
   end
 
-  def load_holdings(%Human{} = actor) do
-    with {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
-         {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
-         {:ok, claimable} <- Autolaunch.list_my_claimable_bid_positions(actor: actor) do
-      {:ok,
-       %{
-         status: :ready,
-         positions: positions,
-         returnable_positions: returnable,
-         claimable_positions: claimable
-       }}
-    else
-      _error -> {:error, :unavailable}
-    end
-  end
-
   def human_actor(%{principal: {:human, account}}),
     do: %Human{human_account_id: account.id}
 

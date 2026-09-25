@@ -336,8 +336,6 @@ defmodule Autolaunch do
 
     resource Autolaunch.Bid do
       define :list_my_bid_positions, action: :mine
-      define :list_my_returnable_bid_positions, action: :returnable_mine
-      define :list_my_claimable_bid_positions, action: :claimable_mine
       define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
 
       define :import_bid_position,

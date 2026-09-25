@@ -82,6 +82,13 @@ defmodule Autolaunch.AuctionBook do
   def standing(price_q96, %{clearing_q96: price_q96}), do: :sharing
   def standing(_price_q96, _book), do: :outbid
 
+  @doc "Where a stored Base bid stands against its auction's book, from its maximum price."
+  @spec bid_standing(map(), map(), map()) :: standing()
+  def bid_standing(%{max_price: max_price}, %{quote_token_decimals: decimals}, book) do
+    {:ok, price_q96} = BidActions.price_q96(max_price, decimals)
+    standing(price_q96, book)
+  end
+
   @doc """
   What a bid of `amount` at a maximum of `max_price`, both as typed, can expect
   from this book: whether the maximum clears the price to beat, and if it does,

@@ -16,7 +16,7 @@
 .launchpad-create__sign-in { display: grid; justify-items: start; align-content: center; gap: var(--space-3); min-height: 12rem; }
 .launchpad-create__sign-in > .rg-section-bar { justify-self: stretch; }
 .autolaunch-lab-warning { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--hairline-strong); background: var(--support-band-surface); color: var(--support-band-ink); font-size: .875rem; }
-.regent-token-links__note, .regent-scope, .autolaunch-refresh-status, .autolaunch-market-freshness { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.regent-token-links__note, .regent-scope, .autolaunch-market-freshness { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-token-links__note { flex-basis: 100%; }
 .autolaunch-exact-value { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
 .chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }

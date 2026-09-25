@@ -6,7 +6,10 @@ defmodule Autolaunch.Robinhood.Positions do
   Nothing about these bids is stored: the launchpad names every auction, each
   auction's own `BidSubmitted` logs name the wallet's bids, and `bids(bidId)`
   says where each bid stands now. Everything is read at one latest block, and
-  only the wallets the signed-in account has verified are ever read.
+  only the wallets the signed-in account has verified are ever read. Each
+  position carries the site's listing of its auction when there is one, and
+  once that auction has launched, its listed token: only listed auctions and
+  tokens have a page here.
 
   Where a bid stands follows the auction's own rules. While bidding is open the
   bid is in the auction. Once bidding has ended, the bid waits until the
@@ -24,8 +27,10 @@ defmodule Autolaunch.Robinhood.Positions do
   alias Autolaunch.Chain.{Abi, Address, CcaSettlement, Rpc}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias Autolaunch.Stocks.Amounts
 
   @bid_record_words 7
+  @token_decimals 18
 
   @type standing ::
           Autolaunch.AuctionBook.standing()
@@ -41,40 +46,60 @@ defmodule Autolaunch.Robinhood.Positions do
           auction: String.t(),
           name: String.t(),
           symbol: String.t(),
+          image: String.t() | nil,
           stock_symbol: String.t(),
           bid_id: String.t(),
           wallet: String.t(),
           committed: String.t(),
+          max_price: String.t(),
           standing: standing(),
           refundable: String.t() | nil,
           claim_block: non_neg_integer() | nil,
-          href: String.t()
+          listing: Autolaunch.Auction.t() | nil,
+          token: Autolaunch.Token.t() | nil
         }
 
-  @type reading :: %{positions: [position()], block: pos_integer() | nil}
-
   @doc """
-  Every Robinhood bid the actor's verified wallets hold, newest auction first,
-  with the block they were read at. An account with no verified wallet reads
-  nothing and names no block.
+  Every Robinhood bid the actor's verified wallets hold, newest auction first.
+  An account with no verified wallet reads nothing.
   """
-  @spec read(Human.t()) :: {:ok, reading()} | {:error, :unavailable}
+  @spec read(Human.t()) :: {:ok, [position()]} | {:error, :unavailable}
   def read(%Human{} = actor) do
     with {:ok, wallets} <- TokenHoldings.verified_wallets(actor),
-         {:ok, reading} <- positions(wallets) do
-      {:ok, reading}
+         {:ok, positions} <- positions(wallets),
+         {:ok, listings} <- listings(positions) do
+      {:ok, Enum.map(positions, &Map.merge(&1, Map.fetch!(listings, &1.auction)))}
     else
       _error -> {:error, :unavailable}
     end
   end
 
-  @none %{positions: [], block: nil}
-
-  defp positions([]), do: {:ok, @none}
+  defp positions([]), do: {:ok, []}
 
   defp positions(wallets) do
-    if Lab.configured?(), do: read_positions(wallets), else: {:ok, @none}
+    if Lab.configured?(), do: read_positions(wallets), else: {:ok, []}
   end
+
+  # The site's listing of each auction the positions are in and its launched
+  # token, each nil where the site lists none.
+  defp listings(positions) do
+    positions
+    |> Enum.map(& &1.auction)
+    |> Enum.uniq()
+    |> Enum.reduce_while({:ok, %{}}, fn auction, {:ok, found} ->
+      with {:ok, listing} <- Autolaunch.get_robinhood_auction(auction, actor: nil),
+           {:ok, token} <- listed_token(listing) do
+        {:cont, {:ok, Map.put(found, auction, %{listing: listing, token: token})}}
+      else
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp listed_token(%{state: :graduated, token_address: token}),
+    do: Autolaunch.get_robinhood_token(token, actor: nil)
+
+  defp listed_token(_listing), do: {:ok, nil}
 
   defp read_positions(wallets) do
     with {:ok, config} <- Lab.current(),
@@ -101,7 +126,7 @@ defmodule Autolaunch.Robinhood.Positions do
              venue.opts
            ),
          true <- hash == venue.block.hash do
-      {:ok, %{positions: positions, block: venue.block.number}}
+      {:ok, positions}
     else
       _error -> {:error, :invalid_chain_response}
     end
@@ -194,14 +219,16 @@ defmodule Autolaunch.Robinhood.Positions do
          auction: auction.auction,
          name: auction.name,
          symbol: auction.symbol,
+         image: auction.image,
          stock_symbol: auction.stock_symbol,
          bid_id: Integer.to_string(bid.bid_id),
          wallet: wallet,
          committed: Rpc.format_units(bid.amount, auction.stock_decimals),
+         max_price:
+           Amounts.format_cca_price(bid.max_price_q96, auction.stock_decimals, @token_decimals),
          standing: standing,
          refundable: refundable && Rpc.format_units(refundable, auction.stock_decimals),
-         claim_block: claim_block,
-         href: "/robinhood/auctions/#{auction.auction}"
+         claim_block: claim_block
        }}
     end
   end

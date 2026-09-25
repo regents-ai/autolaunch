@@ -130,7 +130,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             outbid_banner
             auction={@auction}
             launch={@launch}
-            ended={ended_copy(@launch)}
+            ended={AutolaunchWeb.RobinhoodStockBidComponent.ended_copy(@launch)}
             token_symbol={@launch.token_symbol}
             stake_path={
               if @launch.state == :graduated, do: "/robinhood/tokens/#{@launch.token_address}#stake"
@@ -335,23 +335,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     do: "#{symbol} bid before refunds"
 
   defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
-
-  defp ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
-    do:
-      "The auction raised its minimum. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
-
-  defp ended_copy(%{state: :failed, quote_token_symbol: symbol}),
-    do: "The auction did not raise its minimum. Every bid gets its #{symbol} back in full."
-
-  defp ended_copy(%{state: :ended, minimum_reached: true, quote_token_symbol: symbol}),
-    do:
-      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
-
-  defp ended_copy(%{state: :ended, quote_token_symbol: symbol}),
-    do:
-      "Bidding has ended. If the final count stays below the minimum, every bid gets its #{symbol} back in full; if it reached the minimum, the trading pool opens once the auction is finished."
-
-  defp ended_copy(_launch), do: nil
 
   defp network_copy(true),
     do: "A Memestake auction on the Robinhood test network. Test assets have no real value."

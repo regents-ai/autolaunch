@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.OutbidComponent do
   import AutolaunchWeb.Components.AuctionBook, only: [outbid_status: 1, standing_label: 1]
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [display_status: 1]
 
-  alias Autolaunch.{AuctionBook, BidActions}
+  alias Autolaunch.AuctionBook
   alias AutolaunchWeb.TokenDisplay
   alias Phoenix.LiveView.AsyncResult
 
@@ -134,10 +134,8 @@ defmodule AutolaunchWeb.OutbidComponent do
   defp standing(%{status: status}, _auction, _book) when status != "active", do: :settled
   defp standing(_position, _auction, %AsyncResult{ok?: false}), do: :reading
 
-  defp standing(position, %{quote_token_decimals: decimals}, %AsyncResult{result: book}) do
-    {:ok, price_q96} = BidActions.price_q96(position.max_price, decimals)
-    AuctionBook.standing(price_q96, book)
-  end
+  defp standing(position, auction, %AsyncResult{result: book}),
+    do: AuctionBook.bid_standing(position, auction, book)
 
   defp heading(:raise), do: "Raise my bid"
   defp heading(:add), do: "Add to this bid"
