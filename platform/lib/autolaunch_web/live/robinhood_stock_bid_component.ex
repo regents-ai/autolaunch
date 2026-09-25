@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{SignedInWallet, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, ShareCard, SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
 
   @copy %{
@@ -125,8 +125,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:owed, fn -> %{} end)
      |> assign_new(:with_wallet, fn -> nil end)
      |> assign_new(:following, fn -> nil end)
-     |> assign_new(:sharing, fn -> false end)
-     |> assign_new(:share_message, fn -> "" end)
      |> assign_new(:x_connection, fn -> nil end)
      |> assign_new(:x_enabled, fn -> false end)
      |> assign_new(:sent, fn -> %{} end)
@@ -261,9 +259,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             chain={:robinhood}
             hash={@sent["usdg_bid"].hash}
             test_chain={Lab.test_chain?(@review.envelope["chain_id"])}
-            auction_path={~p"/robinhood/auctions/#{@auction}"}
-            sharing={@sharing}
-            message={@share_message}
+            auction_path={Paths.auction(@launch)}
+            auction_url={Paths.auction_url(@launch)}
+            share_image={ShareCard.auction_image_url(@launch, DateTime.utc_now())}
             x_connection={@x_connection}
             x_enabled={@x_enabled}
           />
@@ -459,19 +457,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign(
        if placed?(socket.assigns.sent), do: [form: BidForm.blank(), new_bid: false], else: []
      )
-     |> assign(review: nil, prepared_for: nil, sent: %{}, notice: nil, sharing: false)
+     |> assign(review: nil, prepared_for: nil, sent: %{}, notice: nil)
      |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
      |> prepare_when_ready()}
   end
 
-  def handle_event("share_bid", _params, socket) do
-    url = url(~p"/robinhood/auctions/#{socket.assigns.auction}")
-    message = BidPlaced.message(socket.assigns.token_symbol, url)
-    {:noreply, socket |> assign(sharing: true, share_message: message) |> load_x()}
-  end
-
-  def handle_event("share_message_changed", %{"message" => message}, socket),
-    do: {:noreply, assign(socket, share_message: message)}
+  def handle_event("share_opened", _params, socket), do: {:noreply, load_x(socket)}
 
   def handle_event("refresh_x_connections", _params, socket), do: {:noreply, load_x(socket)}
 

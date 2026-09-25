@@ -211,14 +211,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def load_token_page(id), do: load_detail(id, &Autolaunch.get_public_token/1)
 
-  # An identifier that is not a UUID can never name a record, so it is missing rather
-  # than unavailable; only a failed read of a well-formed identifier is an outage.
+  # A record gone since its page address was read is missing; a failed read is
+  # an outage.
   defp load_detail(id, read) do
-    with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
-         {:ok, record} <- read.(uuid) do
-      {:ok, %{page: if(record, do: ready_detail(record), else: empty_detail())}}
-    else
-      :error -> {:ok, %{page: empty_detail()}}
+    case read.(id) do
+      {:ok, record} -> {:ok, %{page: if(record, do: ready_detail(record), else: empty_detail())}}
       {:error, _reason} -> {:error, :unavailable}
     end
   end

@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
   import AutolaunchWeb.Components.InfoTip
-  alias AutolaunchWeb.{SwapComponent, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
 
   @own_sites ["autolaunch.sh", "regents.sh"]
@@ -1074,8 +1074,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  # A stored auction on either chain. A Robinhood auction's page is named by
-  # its address, and its bids are paid in USDG.
+  # A stored auction on either chain. A Robinhood auction's bids are paid in
+  # USDG.
   defp view(:auction, auction, connections) do
     robinhood? = RobinhoodLab.chain?(auction.chain_id)
 
@@ -1089,7 +1089,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       status: state_label(auction.state),
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol, "No price yet"),
-      path: auction_path(auction),
+      path: Paths.auction(auction),
       creator: short_address(auction.creator_address),
       creator_address: auction.creator_address,
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
@@ -1100,14 +1100,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  # A launched Robinhood token's page is named by its token's address; it
-  # trades on its own page, so its card offers no Buy.
+  # A launched Robinhood token trades on its own page, so its card offers no
+  # Buy.
   defp view(:token, %{auction: %{chain_id: chain_id} = auction} = token, connections) do
     if RobinhoodLab.chain?(chain_id) do
       %{
         base_token_view(token, connections)
         | metric: metric(token.price_quote, auction.quote_token_symbol, "No price yet"),
-          path: token_path(token),
           buy: nil,
           chain: "Robinhood"
       }
@@ -1130,7 +1129,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       status: "Launched",
       metric_label: "Price",
       metric: metric(token.price_quote, currency, "No price yet"),
-      path: token_path(token),
+      path: Paths.token(token.auction),
       creator: short_address(token.auction.creator_address),
       creator_address: token.auction.creator_address,
       age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
@@ -1139,26 +1138,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       record_id: token.id,
       chain: "Base"
     }
-  end
-
-  @doc """
-  An auction's page on this site, the one place its address is written: a
-  Robinhood auction's page is named by its contract address.
-  """
-  def auction_path(auction) do
-    if RobinhoodLab.chain?(auction.chain_id),
-      do: "/robinhood/auctions/#{auction.auction_address}",
-      else: "/auctions/#{auction.id}"
-  end
-
-  @doc """
-  A launched token's page on this site, from the token with its auction
-  loaded: a Robinhood token's page is named by its token address.
-  """
-  def token_path(%{auction: auction} = token) do
-    if RobinhoodLab.chain?(auction.chain_id),
-      do: "/robinhood/tokens/#{auction.token_address}",
-      else: "/tokens/#{token.id}"
   end
 
   @doc "An auction state in the words the site uses: live means open for bidding."

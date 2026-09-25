@@ -1,40 +1,33 @@
 defmodule AutolaunchWeb.ShareCardController do
   use AutolaunchWeb, :controller
 
-  alias Autolaunch.Chain.Address
-  alias AutolaunchWeb.ShareCard
+  alias AutolaunchWeb.{NotFoundError, Paths, ShareCard}
 
-  def base(conn, %{"auction_id" => id}) do
-    with {:ok, id} <- Ecto.UUID.cast(id),
-         {:ok, %{} = auction} <-
-           Autolaunch.get_public_auction(id, actor: nil, load: [:fdv]) do
-      send_card(conn, auction)
-    else
-      _missing -> not_found(conn)
+  def auction(conn, %{"symbol" => symbol, "tail" => tail}) do
+    case Paths.find_auction(symbol, tail) do
+      {:ok, auction} -> send_card(conn, ShareCard.auction_png(auction, DateTime.utc_now()))
+      :error -> raise NotFoundError
     end
   end
 
-  def robinhood(conn, %{"auction" => address}) do
-    with {:ok, address} <- Address.normalize(address),
-         {:ok, %{} = auction} <-
-           Autolaunch.get_robinhood_auction(address, actor: nil, load: [:fdv]) do
-      send_card(conn, auction)
-    else
-      _missing -> not_found(conn)
+  def token(conn, %{"symbol" => symbol, "tail" => tail}) do
+    case Paths.find_token(symbol, tail) do
+      {:ok, auction, token} ->
+        send_card(conn, ShareCard.token_png(auction, token, DateTime.utc_now()))
+
+      :error ->
+        raise NotFoundError
     end
   end
 
-  # The picture carries the time its figures were read, and sites that show
-  # it keep their own copy, so it is kept for five minutes here.
+  # The picture carries the time its figures were read, and its address
+  # moves on when they can have changed (`ShareCard`), so sites may keep it
+  # for fifteen minutes.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
-  defp send_card(conn, auction) do
-    {:ok, png} = ShareCard.png(auction, DateTime.utc_now())
-
+  defp send_card(conn, {:ok, png}) do
     conn
-    |> put_resp_header("cache-control", "public, max-age=300")
+    |> put_resp_header("cache-control", "public, max-age=900")
     |> put_resp_content_type("image/png", nil)
     |> send_resp(200, png)
   end
-
-  defp not_found(conn), do: send_resp(conn, 404, "Not found")
 end

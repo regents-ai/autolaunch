@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.ConvertLive do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias AutolaunchWeb.Paths
 
   @concurrency 4
   @read_timeout 30_000
@@ -141,7 +142,7 @@ defmodule AutolaunchWeb.ConvertLive do
           id: "convert-base-#{token.auction.id}",
           name: token.name,
           symbol: token.symbol,
-          href: "/tokens/#{token.id}",
+          href: Paths.token(token.auction),
           launch: %{chain: :base, auction: token.auction},
           pool: Autolaunch.Pool.read(token.auction)
         }
@@ -172,7 +173,7 @@ defmodule AutolaunchWeb.ConvertLive do
           id: "convert-robinhood-#{token.auction.auction_address}",
           name: token.name,
           symbol: token.symbol,
-          href: "/robinhood/tokens/#{token.auction.token_address}",
+          href: Paths.token(token.auction),
           launch: %{chain: :robinhood, auction: token.auction.auction_address},
           pool: RobinhoodPool.read(token.auction.auction_address)
         }

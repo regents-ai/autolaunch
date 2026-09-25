@@ -6,8 +6,7 @@ defmodule AutolaunchWeb.AuctionController do
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.{Endpoint, LabMarket, MarketPage}
+  alias AutolaunchWeb.{LabMarket, MarketPage, Paths}
 
   def index(conn, params) do
     case MarketPage.read(params, "auctions") do
@@ -27,7 +26,7 @@ defmodule AutolaunchWeb.AuctionController do
   end
 
   # Any listed auction is named by its id; a Robinhood auction also by its
-  # address, as on /robinhood/auctions/:auction.
+  # contract address.
   def show(conn, %{"id" => id} = params) do
     robinhood_unavailable = LabMarket.robinhood_stale?()
 
@@ -81,7 +80,7 @@ defmodule AutolaunchWeb.AuctionController do
       chain: if(robinhood?, do: "robinhood", else: "base"),
       chain_id: auction.chain_id,
       address: auction.auction_address,
-      url: Endpoint.url() <> MarketCard.auction_path(auction),
+      url: Paths.auction_url(auction),
       title: auction.title,
       token_symbol: auction.token_symbol,
       summary: auction.summary,

@@ -23,11 +23,9 @@ defmodule AutolaunchWeb.PortfolioLive do
   import AutolaunchWeb.Components.MarketCard,
     only: [
       assign_figure_rates: 1,
-      auction_path: 1,
       auction_status: 1,
       figure_rate: 2,
-      list_token: 1,
-      token_path: 1
+      list_token: 1
     ]
 
   import AutolaunchWeb.Components.SwapModal
@@ -36,7 +34,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
-  alias AutolaunchWeb.{LabMarket, RobinhoodStockBidComponent, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{LabMarket, Paths, RobinhoodStockBidComponent, TokenDisplay, UsdValue}
 
   @history ~w(claimed returned)
   @robinhood_history [:returned, :claimed]
@@ -361,14 +359,16 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp base_bid(assigns) do
     %{position: position, book: book} = assigns
     auction = position.auction
-    token = if match?(%Token{}, position.token), do: %{position.token | auction: auction}
     live? = auction.state == :active
 
     assigns =
       assign(assigns,
         auction: auction,
         page:
-          if(token, do: {"Token", token_path(token)}, else: {"Auction", auction_path(auction)}),
+          if(match?(%Token{}, position.token),
+            do: {"Token", Paths.token(auction)},
+            else: {"Auction", Paths.auction(auction)}
+          ),
         rate: figure_rate(assigns.rates, auction),
         settle: settle_label(position.status),
         live?: live?,
@@ -527,7 +527,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     assigns =
       assign(assigns,
         token: token,
-        path: token && token_path(token),
+        path: token && Paths.token(token.auction),
         image: token && Token.presentation(token).image,
         tradable?: token && tradable?(token)
       )
@@ -637,7 +637,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         mode: mode,
         ended:
           if(listing && mode == "settle", do: RobinhoodStockBidComponent.ended_copy(listing)),
-        stake_path: if(listing && position.token, do: token_path(position.token) <> "#stake")
+        stake_path: if(listing && position.token, do: Paths.token(listing) <> "#stake")
       )
 
     ~H"""
@@ -682,8 +682,8 @@ defmodule AutolaunchWeb.PortfolioLive do
   end
 
   # The page of an auction the bid is in: its token's once it has launched.
-  defp robinhood_page(%{token: %Token{} = token}), do: {"Token", token_path(token)}
-  defp robinhood_page(%{listing: %{} = listing}), do: {"Auction", auction_path(listing)}
+  defp robinhood_page(%{token: %Token{}, listing: listing}), do: {"Token", Paths.token(listing)}
+  defp robinhood_page(%{listing: %{} = listing}), do: {"Auction", Paths.auction(listing)}
   defp robinhood_page(_position), do: nil
 
   defp settle_label("returnable"), do: "Withdraw"

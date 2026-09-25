@@ -98,11 +98,16 @@ defmodule Autolaunch.Auction do
     # Every auction the public lists carry, on both chains.
     read :listed do
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:path_tail])
     end
 
     read :list_public do
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
-      prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
+
+      prepare build(
+                sort: [inserted_at: :desc, id: :asc],
+                load: [:treasury_security_report, :path_tail]
+              )
     end
 
     read :home_market do
@@ -211,7 +216,7 @@ defmodule Autolaunch.Auction do
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
                 limit: 12,
-                load: [:treasury_security_report]
+                load: [:treasury_security_report, :path_tail]
               )
     end
 
@@ -222,7 +227,7 @@ defmodule Autolaunch.Auction do
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
                 limit: 6,
-                load: [:treasury_security_report]
+                load: [:treasury_security_report, :path_tail]
               )
     end
 
@@ -252,7 +257,7 @@ defmodule Autolaunch.Auction do
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
-      prepare build(load: [:treasury_security_report])
+      prepare build(load: [:treasury_security_report, :path_tail])
     end
 
     # Any auction the public lists carry, by the id they give it.
@@ -261,7 +266,35 @@ defmodule Autolaunch.Auction do
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
       prepare Autolaunch.Auction.Preparations.Listed
-      prepare build(load: [:treasury_security_report])
+      prepare build(load: [:treasury_security_report, :path_tail])
+    end
+
+    # The listed auctions a page address names: its ticker, in any case, and
+    # the end of its contract address. More than one match means the address
+    # is too short to name one auction.
+    read :by_path do
+      argument :symbol, :string, allow_nil?: false, constraints: [max_length: 16]
+
+      argument :tail, :string,
+        allow_nil?: false,
+        constraints: [match: ~r/\A[0-9a-fA-F]{5,40}\z/]
+
+      filter expr(string_downcase(token_symbol) == string_downcase(^arg(:symbol)))
+      prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:path_tail], limit: 2)
+
+      prepare fn query, _context ->
+        Ash.Query.filter(query, ilike(auction_address, ^("%" <> query.arguments.tail)))
+      end
+    end
+
+    # The listed auctions sharing any of these tickers, ignoring case, which
+    # decide how much of each address its page address needs; see
+    # `Autolaunch.Auction.Calculations.PathTail`.
+    read :path_peers do
+      argument :symbols, {:array, :string}, allow_nil?: false
+      filter expr(string_downcase(token_symbol) in ^arg(:symbols))
+      prepare Autolaunch.Auction.Preparations.Listed
     end
 
     # A listed Robinhood auction, which its address names on the site.
@@ -270,6 +303,7 @@ defmodule Autolaunch.Auction do
       argument :auction_address, :string, allow_nil?: false
       filter expr(auction_address == ^arg(:auction_address))
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:path_tail])
 
       prepare fn query, _context ->
         Ash.Query.filter(query, chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
@@ -414,6 +448,8 @@ defmodule Autolaunch.Auction do
              :listed,
              :listed_by_id,
              :robinhood_by_address,
+             :by_path,
+             :path_peers,
              :list_public,
              :home_market,
              :recent_public,
@@ -697,7 +733,7 @@ defmodule Autolaunch.Auction do
     |> market_search_filter(Autolaunch.Search.word_patterns(query.arguments.query))
     |> Ash.Query.sort(inserted_at: :desc, id: :asc)
     |> Ash.Query.limit(limit)
-    |> Ash.Query.load(:treasury_security_report)
+    |> Ash.Query.load([:treasury_security_report, :path_tail])
   end
 
   # Every word of the search appears in the name, ticker, stock, description,
@@ -732,6 +768,11 @@ defmodule Autolaunch.Auction do
   calculations do
     # What every token is worth at the current clearing price, in quote-token units.
     calculate :fdv, :decimal, Autolaunch.Auction.Calculations.Fdv do
+      public? true
+    end
+
+    # The end of the contract address the auction's page addresses carry.
+    calculate :path_tail, :string, Autolaunch.Auction.Calculations.PathTail do
       public? true
     end
   end

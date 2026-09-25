@@ -1,0 +1,58 @@
+/* "Share on X": the button and the window it opens over a dimmed page
+   (`AutolaunchWeb.Components.ShareDialog`). The window grows in from just
+   under full size and leaves a little faster than it came; with reduced
+   motion it only fades. */
+.share-x { display: grid; justify-items: start; min-width: 0; }
+.bid-placed__actions .share-x { justify-items: stretch; }
+
+.share-x__dialog {
+  width: min(34rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  overscroll-behavior: contain;
+}
+.share-x__dialog::backdrop { background: rgb(0 0 0 / .55); }
+.share-x__dialog[open] { animation: share-x-in 200ms var(--ease-out); }
+.share-x__dialog[open]::backdrop { animation: share-x-fade-in 200ms var(--ease-out); }
+.share-x__dialog[data-closing] { animation: share-x-out 140ms var(--ease-out) forwards; }
+.share-x__dialog[data-closing]::backdrop { animation: share-x-fade-out 140ms var(--ease-out) forwards; }
+
+@keyframes share-x-in { from { opacity: 0; transform: scale(.96); } }
+@keyframes share-x-out { to { opacity: 0; transform: scale(.96); } }
+@keyframes share-x-fade-in { from { opacity: 0; } }
+@keyframes share-x-fade-out { to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .share-x__dialog[open] { animation-name: share-x-fade-in; }
+  .share-x__dialog[data-closing] { animation-name: share-x-fade-out; }
+}
+
+.share-x__box { display: grid; gap: 12px; padding: 20px; }
+.share-x__title { margin: 0; font-size: 1.25rem; }
+.share-x__box p { margin: 0; }
+.share-x__account { display: grid; gap: 8px; color: var(--color-fg-muted); }
+.share-x__account > div { display: grid; gap: 8px; justify-items: start; }
+.share-x__preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200 / 630;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: #111110;
+}
+.share-x__label { font-weight: 600; }
+.share-x__message { width: 100%; min-width: 0; resize: vertical; }
+.share-x__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-x__actions > * { flex: 1 1 10rem; }
+.share-x__note { color: var(--color-fg-muted); font-size: .875rem; }
+
+@media (max-width: 480px) {
+  .share-x__box { padding: 16px; }
+}

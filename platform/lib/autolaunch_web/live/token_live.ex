@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.Pool
-  alias AutolaunchWeb.{LabMarket, LiveListings}
+  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard}
   alias AutolaunchWeb.SwapComponent
 
   def mount(_params, _session, socket) do
@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.TokenLive do
         session_lease={@session_lease}
       />
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
-        <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token launched from</.link>
+        <.link navigate={Paths.auction(@page_record.auction)}>Open the auction this token launched from</.link>
       </p>
       <.launch_trust
         auction={@page_record.auction}
@@ -127,7 +127,8 @@ defmodule AutolaunchWeb.TokenLive do
           launch={%{chain: :base, auction: @page_record.auction}}
           pool={@pool.result}
           initial_amount={@stake_amount}
-          token_path={"/tokens/#{@page_record.id}"}
+          share_url={Paths.token_url(@page_record.auction)}
+          share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
           authenticated={@account_control.kind == :signed_in}
           current_human_id={current_human_id(@access_context)}
           session_lease={@session_lease}
