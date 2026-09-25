@@ -3,6 +3,23 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v29, 25 September 2026 (6fbff12)
+- The Create page is now "Launch memestock": one short form beside a summary card of the token
+  it makes. There's no longer a first step asking which kind of launch you want.
+- A Base / Robinhood switch picks where the token trades, with a blue or green wash across the
+  form as it changes. The paired stock is a dropdown of that chain's stocks, each with its logo.
+- The token image is a file you upload; pasting an image link is gone.
+- A Telegram community link and a website are optional in the main form. X, GitHub and ENS sit
+  under a folded "Socials" section. A Telegram link shows on the auction and token pages.
+- Required raise (0.00001) and starting price (0.00000001) are filled in and sit under
+  "Advanced".
+- The summary card shows the chain, paired stock, trading fees (1% to stakers, 1% to Regent),
+  when bidding opens, auction length, required raise, starting price, liquidity locked forever
+  and no launch fee.
+- The agent revenue launch has its own page, "Agentic Revenue Launch", linked from the top right
+  of the memestock page.
+- Each account keeps one memestock draft, which carries across the Base / Robinhood switch.
+
 ## v28, 25 September 2026 (59cd771)
 - Gallery cards no longer show the description. The space under the links is a quarter of its old
   height, so every card is shorter. Hovering a card shows the bid volume, with how much of the
