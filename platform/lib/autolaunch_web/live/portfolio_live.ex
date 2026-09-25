@@ -414,7 +414,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               {@settle}
             </Regent.Primitives.button>
-            <span :if={!@settle}>{base_standing(@position, @standing)}</span>
+            <.standing :if={!@settle} is={base_standing(@position, @standing)} />
             <Regent.Primitives.button
               :if={@live?}
               variant="secondary"
@@ -497,7 +497,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               {if @action == :claim, do: "Claim", else: "Withdraw"}
             </Regent.Primitives.button>
-            <span :if={@action not in [:withdraw, :claim]}>{robinhood_standing(@position)}</span>
+            <.standing :if={@action not in [:withdraw, :claim]} is={robinhood_standing(@position)} />
             <Regent.Primitives.button
               :if={@action == :early}
               phx-click="open_robinhood"
@@ -561,9 +561,14 @@ defmodule AutolaunchWeb.PortfolioLive do
           chain={if @holding.chain == :robinhood, do: "Robinhood", else: "Base"}
           path={@path}
         />
-        <td>{@holding.held}</td>
-        <td>{@holding.staked}</td>
-        <td>{rewards(@holding.claimable)}</td>
+        <td><TokenDisplay.amount amount={@holding.held} unit={@holding.symbol} /></td>
+        <td><TokenDisplay.amount amount={@holding.staked} unit={@holding.symbol} /></td>
+        <td>
+          <span :if={@holding.claimable == []}>-</span>
+          <span :for={{reward, index} <- Enum.with_index(@holding.claimable)}>
+            {if index > 0, do: " + "}<TokenDisplay.written value={reward.amount} unit={reward.symbol} />
+          </span>
+        </td>
       </tr>
       <tr :if={@token} class="portfolio__actions">
         <td colspan="4">
@@ -724,39 +729,54 @@ defmodule AutolaunchWeb.PortfolioLive do
   # Where a Base bid stands: against its auction's price while bidding is
   # open and the book has been read, otherwise from its stored settlement.
   defp base_standing(%{status: "active"}, standing) when standing != nil,
-    do: AuctionBookComponent.standing_label(standing)
+    do: book_standing(standing)
 
-  defp base_standing(%{status: "active", auction: %{state: :active}}, nil), do: "In the auction"
-  defp base_standing(%{status: "active"}, nil), do: "Bidding ended"
+  defp base_standing(%{status: "active", auction: %{state: :active}}, nil),
+    do: {"In the auction", "info"}
 
-  defp base_standing(%{status: "claimed"}, _standing), do: "Completed"
+  defp base_standing(%{status: "active"}, nil), do: {"Bidding ended", "neutral"}
+  defp base_standing(%{status: "claimed"}, _standing), do: {"Completed", "success"}
 
   defp base_standing(%{status: "returned", tokens_filled: filled}, _standing)
        when is_binary(filled) and filled not in ["", "0"],
-       do: "Tokens claimable soon"
+       do: {"Tokens claimable soon", "info"}
 
-  defp base_standing(%{status: "returned"}, _standing), do: "Completed"
+  defp base_standing(%{status: "returned"}, _standing), do: {"Completed", "success"}
 
   # Where a Robinhood bid stands, in the auction's own terms.
   defp robinhood_standing(%{standing: standing}) when standing in [:in, :sharing, :outbid],
-    do: AuctionBookComponent.standing_label(standing)
+    do: book_standing(standing)
 
-  defp robinhood_standing(%{standing: :ended}), do: "Bidding ended"
+  defp robinhood_standing(%{standing: :ended}), do: {"Bidding ended", "neutral"}
 
   defp robinhood_standing(%{standing: :refundable, refundable: amount, stock_symbol: symbol}),
-    do: "#{amount} #{symbol} to withdraw"
+    do: {"#{amount} #{symbol} to withdraw", "info"}
 
   defp robinhood_standing(%{standing: :graduated, stock_symbol: symbol}),
-    do: "Unspent #{symbol} to withdraw"
+    do: {"Unspent #{symbol} to withdraw", "info"}
 
-  defp robinhood_standing(%{standing: :filled}), do: "Tokens claimable soon"
-  defp robinhood_standing(%{standing: :claimable}), do: "Tokens ready to claim"
+  defp robinhood_standing(%{standing: :filled}), do: {"Tokens claimable soon", "info"}
+  defp robinhood_standing(%{standing: :claimable}), do: {"Tokens ready to claim", "info"}
 
   defp robinhood_standing(%{standing: standing}) when standing in [:returned, :claimed],
-    do: "Completed"
+    do: {"Completed", "success"}
 
-  defp rewards([]), do: "-"
-  defp rewards(claimable), do: Enum.map_join(claimable, " + ", &"#{&1.amount} #{&1.symbol}")
+  # A live bid against the auction's price: buying reads well, sharing the
+  # price is a warning and outbid needs the bidder's attention.
+  defp book_standing(standing) do
+    {AuctionBookComponent.standing_label(standing),
+     %{in: "success", sharing: "warning", outbid: "error"}[standing]}
+  end
+
+  attr :is, :any, required: true, doc: "a `{words, tone}` standing"
+
+  defp standing(%{is: {words, tone}} = assigns) do
+    assigns = assign(assigns, words: words, tone: tone)
+
+    ~H"""
+    <Regent.Primitives.status tone={@tone}>{@words}</Regent.Primitives.status>
+    """
+  end
 
   defp load_signed_in_holdings(socket) do
     case human_actor(socket.assigns.access_context) do

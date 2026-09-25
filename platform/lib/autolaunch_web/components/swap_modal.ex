@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       aria-modal="true"
     >
       <header class="token-swap-modal__header">
-        <h2 id={@id <> "-title"}>Trade {@presentation.symbol}</h2>
+        <h2 id={@id <> "-title"}>Trade <span class="ticker">{@presentation.symbol}</span></h2>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close swap form">
           Close
         </Regent.Primitives.button>
@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       aria-modal="true"
     >
       <header class="token-swap-modal__header">
-        <h2 id={@id <> "-title"}>Bid on {@auction.title}</h2>
+        <h2 id={@id <> "-title"}>Bid on <span class="token-name">{@auction.title}</span></h2>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
           Close
         </Regent.Primitives.button>
@@ -136,7 +136,8 @@ defmodule AutolaunchWeb.Components.SwapModal do
     >
       <header class="token-swap-modal__header">
         <h2 id={@id <> "-title"}>
-          {if @ended, do: "Your bids on #{@auction.title}", else: "Bid on #{@auction.title}"}
+          {if @ended, do: "Your bids on", else: "Bid on"}
+          <span class="token-name">{@auction.title}</span>
         </h2>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
           Close
@@ -178,7 +179,9 @@ defmodule AutolaunchWeb.Components.SwapModal do
       aria-modal="true"
     >
       <header class="token-swap-modal__header">
-        <h2 id={@id <> "-title"}>Your bid on {@position.auction.title}</h2>
+        <h2 id={@id <> "-title"}>
+          Your bid on <span class="token-name">{@position.auction.title}</span>
+        </h2>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close">
           Close
         </Regent.Primitives.button>

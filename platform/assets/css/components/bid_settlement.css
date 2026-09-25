@@ -3,7 +3,6 @@
 .bid-settlement + .bid-settlement { padding-top: var(--space-3); border-top: 1px solid var(--hairline-strong); }
 .bid-settlement > p { margin: 0; }
 .bid-settlement__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.bid-settlement__head .rg-status { font-size: .6875rem; font-weight: 600; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
 .bid-settlement__updated { color: var(--color-fg-muted); font-size: .8125rem; }
 
 /* Label on the left, figure on the right, one hairline between rows. */

@@ -678,6 +678,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       opens_at: live_open(auction),
       ends_at: live_end(auction),
       status: figure_status(auction),
+      state: auction.state,
       id: auction.id
     }
   end
@@ -786,7 +787,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
           progress: time_progress(auction),
           opens_at: live_open(auction),
           ends_at: live_end(auction),
-          status: figure_status(auction)
+          status: figure_status(auction),
+          state: auction.state
         },
         chain: if(RobinhoodLab.chain?(auction.chain_id), do: "Robinhood", else: "Base")
       )
@@ -819,7 +821,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </span>
       <small>{@figures.status}</small>
     </span>
-    <span :if={!@figures.ends_at}>{@figures.status}</span>
+    <span :if={!@figures.ends_at} class="auction-state" data-state={@figures.state}>
+      {@figures.status}
+    </span>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeLeft">
       export default {
         mounted() { this.tick() },

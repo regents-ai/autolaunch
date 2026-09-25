@@ -28,7 +28,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{RobinhoodStockBidComponent, SignedInWallet, UsdValue}
+  alias AutolaunchWeb.{RobinhoodStockBidComponent, SignedInWallet, TokenDisplay, UsdValue}
+
+  import AutolaunchWeb.Components.StepState
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
@@ -131,11 +133,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       </p>
       <div :if={@review} class="bid-early-return__offer">
         <p :if={@step == "exit" && !@sent["exit"]}>
-          <strong>
-            {@review.envelope["arguments"]["stock_refunded_units"]} {@review.envelope["arguments"][
-              "stock_symbol"
-            ]}
-          </strong>
+          <TokenDisplay.price
+            amount={@review.envelope["arguments"]["stock_refunded_units"]}
+            unit={@review.envelope["arguments"]["stock_symbol"]}
+            round={:down}
+          />
           <UsdValue.usd
             amount={@review.envelope["arguments"]["stock_refunded_units"]}
             rate={@usd_rate}
@@ -150,11 +152,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         >
           <li data-step="record">
             <span>Record the new price</span>
-            <span class="bid-step-state">{record_state(@step, @sent)}</span>
+            <.step_state state={record_state(@step, @sent)} />
           </li>
           <li data-step="exit">
             <span>Send your unspent money back</span>
-            <span class="bid-step-state">{return_state(@step, @sent)}</span>
+            <.step_state state={return_state(@step, @sent)} />
           </li>
         </ol>
         <SignedInWallet.note
@@ -241,21 +243,27 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           First claim to your wallet, then continue to Memestake. Your wallet confirms each step. Tokens are not locked.
         </p>
         <p :if={!@review.envelope["arguments"]["graduated"]}>
-          The auction for {@token_symbol} did not meet its minimum raise. Your returned bid is {@review.envelope[
-            "arguments"
-          ]["stock_refunded_units"]} {@review.envelope["arguments"]["stock_symbol"]}, sent to the receiving wallet below.
+          The auction for <span class="ticker">{@token_symbol}</span>
+          did not meet its minimum raise. Your returned bid is
+          <TokenDisplay.price
+            amount={@review.envelope["arguments"]["stock_refunded_units"]}
+            unit={@review.envelope["arguments"]["stock_symbol"]}
+            round={:down}
+          />, sent to the receiving wallet below.
         </p>
-        <dl>
+        <dl class="bid-settlement__facts">
           <div :for={row <- @review.review}>
             <dt>{row.label}</dt>
             <dd>
-              {row.value}
+              <TokenDisplay.marked text={row.value} tickers={tickers(@review, @token_symbol)} />
               <UsdValue.usd :if={row.worth} amount={row.worth} rate={@usd_rate} per={row.per} />
             </dd>
           </div>
           <div>
             <dt>Receiving wallet</dt>
-            <dd class="autolaunch-exact-value">{@review.envelope["expected_signer"]}</dd>
+            <dd class="bid-settlement__address" title={@review.envelope["expected_signer"]}>
+              {SignedInWallet.short(@review.envelope["expected_signer"])}
+            </dd>
           </div>
           <div>
             <dt>Network</dt>
@@ -269,12 +277,22 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           </div>
         </dl>
 
-        <p class="launch-wallet-risk">{@review.envelope["risk_copy"]}</p>
+        <p class="launch-wallet-risk">
+          <TokenDisplay.marked
+            text={@review.envelope["risk_copy"]}
+            tickers={tickers(@review, @token_symbol)}
+          />
+        </p>
 
         <ol class="launch-wallet-steps" role="list" aria-label="Settlement progress">
           <li :for={step <- @review.steps} data-step={step["step"]}>
-            <span>{step_label(step["step"], @review)}</span>
-            <span class="launch-wallet-step-state">{step_state(@sent[step["step"]])}</span>
+            <span>
+              <TokenDisplay.marked
+                text={step_label(step["step"], @review)}
+                tickers={tickers(@review, @token_symbol)}
+              />
+            </span>
+            <.step_state state={step_word(@sent[step["step"]])} />
             <span
               :if={@sent[step["step"]]}
               class="launch-wallet-mono"
@@ -501,11 +519,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp line(status, _launch) when status in [:now, :record, :buying], do: status
   defp line(_status, _launch), do: nil
 
-  defp record_state("record", sent), do: step_state(sent["record"])
+  defp record_state("record", sent), do: step_word(sent["record"])
   defp record_state(_exit, _sent), do: "Verified"
 
   defp return_state("record", _sent), do: "Next"
-  defp return_state(_exit, sent), do: step_state(sent["exit"])
+  defp return_state(_exit, sent), do: step_word(sent["exit"])
 
   defp early_progress("record", %{outcome: :pending}), do: "Recording the new price…"
   defp early_progress("record", %{outcome: :confirmed}), do: "The new price is recorded."
@@ -620,6 +638,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     end)
   end
 
+  # The tickers a review's rows and sentences name.
+  defp tickers(review, token_symbol),
+    do: [review.envelope["arguments"]["stock_symbol"], token_symbol]
+
   defp done_copy(steps) do
     case Enum.map(steps, & &1["step"]) do
       ["exit"] ->
@@ -656,11 +678,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp step_label("claim", _review), do: "Claim tokens to wallet"
 
-  defp step_state(nil), do: "Ready"
-  defp step_state(%{outcome: :pending}), do: "Sent"
-  defp step_state(%{outcome: :confirmed}), do: "Verified"
-  defp step_state(%{outcome: :reverted}), do: "Reverted"
-  defp step_state(%{outcome: :unverified}), do: "Unresolved"
+  defp step_word(nil), do: "Ready"
+  defp step_word(%{outcome: :pending}), do: "Sent"
+  defp step_word(%{outcome: :confirmed}), do: "Verified"
+  defp step_word(%{outcome: :reverted}), do: "Reverted"
+  defp step_word(%{outcome: :unverified}), do: "Unresolved"
 
   defp outcome_notice(_name, :pending),
     do: %{tone: :info, message: "Sent. Waiting for Robinhood to include it."}

@@ -129,7 +129,10 @@ defmodule AutolaunchWeb.Components.SwapForm do
           <.currency symbol={@sell_symbol} image={@sell_image} />
         </div>
         <p class="token-swap__leg-foot">
-          <span :if={@sell_balance}>{@sell_balance} {@sell_symbol}</span>
+          <span :if={@sell_balance}><AutolaunchWeb.TokenDisplay.written
+            value={@sell_balance}
+            unit={@sell_symbol}
+          /></span>
         </p>
       </div>
 
@@ -164,7 +167,10 @@ defmodule AutolaunchWeb.Components.SwapForm do
           <.currency symbol={@buy_symbol} image={@buy_image} />
         </div>
         <p class="token-swap__leg-foot">
-          <span :if={@buy_balance}>{@buy_balance} {@buy_symbol}</span>
+          <span :if={@buy_balance}><AutolaunchWeb.TokenDisplay.written
+            value={@buy_balance}
+            unit={@buy_symbol}
+          /></span>
         </p>
       </div>
 
@@ -239,7 +245,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </header>
 
       <div class="token-swap__review-side">
-        <p>{@review.pay} {@review.sell_symbol}</p>
+        <p><AutolaunchWeb.TokenDisplay.written value={@review.pay} unit={@review.sell_symbol} /></p>
         <img :if={@sell_image} src={@sell_image} width="36" height="36" alt="" />
       </div>
       <svg
@@ -253,18 +259,22 @@ defmodule AutolaunchWeb.Components.SwapForm do
         <path d="M12 4v16m-7-7 7 7 7-7" stroke="currentColor" stroke-width="2" />
       </svg>
       <div class="token-swap__review-side">
-        <p>{@review.receive} {@review.buy_symbol}</p>
+        <p>
+          <AutolaunchWeb.TokenDisplay.written value={@review.receive} unit={@review.buy_symbol} />
+        </p>
         <img :if={@buy_image} src={@buy_image} width="36" height="36" alt="" />
       </div>
 
       <dl class="token-swap__review-facts">
         <div>
           <dt>Max slippage</dt>
-          <dd>{@review.protection}%</dd>
+          <dd><span class="figure__value">{@review.protection}%</span></dd>
         </div>
         <div>
           <dt>Receive at least</dt>
-          <dd>{@review.minimum} {@review.buy_symbol}</dd>
+          <dd>
+            <AutolaunchWeb.TokenDisplay.written value={@review.minimum} unit={@review.buy_symbol} />
+          </dd>
         </div>
       </dl>
 
@@ -278,7 +288,12 @@ defmodule AutolaunchWeb.Components.SwapForm do
           data-current={@next_step && @next_step.name == step.name}
         >
           <span class="token-swap__step-mark" aria-hidden="true"></span>
-          <span>{step.label}</span>
+          <span>
+            <AutolaunchWeb.TokenDisplay.marked
+              text={step.label}
+              tickers={[@review.sell_symbol, @review.buy_symbol]}
+            />
+          </span>
           <span class="token-swap__step-note">
             {step_note(step, index, length(@steps), @next_step)}
           </span>
@@ -330,9 +345,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
       <div>
         <strong>Swapped</strong>
         <p>
-          {@swapped["paid_units"]} {@swapped["sell_symbol"]} for {@swapped["received_units"]} {@swapped[
-            "buy_symbol"
-          ]}
+          <AutolaunchWeb.TokenDisplay.written
+            value={@swapped["paid_units"]}
+            unit={@swapped["sell_symbol"]}
+          /> for
+          <AutolaunchWeb.TokenDisplay.written
+            value={@swapped["received_units"]}
+            unit={@swapped["buy_symbol"]}
+          />
         </p>
         <.link :if={@stake_href} navigate={@stake_href} class="rg-button rg-button--secondary">Stake your tokens</.link>
       </div>

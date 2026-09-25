@@ -135,7 +135,8 @@ defmodule AutolaunchWeb.BidComponent do
       <BidForm.title id={@id} title={@heading}>
         <:help>
           <p>
-            Bid {if @usdc_bids?, do: "USDC or "}{@auction.quote_token_symbol} for this launch.
+            Bid <span :if={@usdc_bids?}><span class="ticker">USDC</span> or</span>
+            <span class="ticker">{@auction.quote_token_symbol}</span> for this launch.
             Your max budget is the most you'll spend. Your max FDV is the most the whole token
             supply may be worth while your bid keeps buying.
           </p>
@@ -220,7 +221,7 @@ defmodule AutolaunchWeb.BidComponent do
         >
           <.summary operation={@operation} rate={@rate} />
           <p class="bid-progress__status" role="status" aria-live="polite">
-            {progress_copy(@operation)}
+            <TokenDisplay.marked text={progress_copy(@operation)} tickers={tickers(@operation)} />
           </p>
           <a
             :if={pending_hash(@operation) && !Lab.test_chain?(@operation.envelope["chain_id"])}
@@ -364,11 +365,11 @@ defmodule AutolaunchWeb.BidComponent do
   defp ready(assigns) do
     ~H"""
     <.summary operation={@operation} rate={@rate} />
-    <p :if={attempt_copy(@operation)} class="bid-notice" role="status">{attempt_copy(@operation)}</p>
+    <p :if={attempt_copy(@operation)} class="bid-notice" role="status">
+      <TokenDisplay.marked text={attempt_copy(@operation)} tickers={tickers(@operation)} />
+    </p>
     <p :if={approval?(@operation.step)} class="bid-form__note">
-      Your wallet asks {times(signatures_left(@operation))}: first to let the auction use your {approval_currency(
-        @operation
-      )}, last to place the bid.
+      Your wallet asks {times(signatures_left(@operation))}: first to let the auction use your <span class="ticker">{approval_currency(@operation)}</span>, last to place the bid.
     </p>
     <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
     <Regent.Primitives.button
@@ -392,9 +393,14 @@ defmodule AutolaunchWeb.BidComponent do
     <dl class="bid-form__summary" aria-label="Your bid">
       <div>
         <dt>Total bid</dt>
-        <dd :if={argument(@operation, "usdc_amount")}>{argument(@operation, "usdc_amount")} USDC</dd>
+        <dd :if={argument(@operation, "usdc_amount")}>
+          <TokenDisplay.written value={argument(@operation, "usdc_amount")} unit="USDC" />
+        </dd>
         <dd :if={!argument(@operation, "usdc_amount")}>
-          {argument(@operation, "amount")} {argument(@operation, "currency_symbol")}
+          <TokenDisplay.written
+            value={argument(@operation, "amount")}
+            unit={argument(@operation, "currency_symbol")}
+          />
           <UsdValue.usd amount={argument(@operation, "amount")} rate={@rate} />
         </dd>
       </div>
@@ -412,10 +418,12 @@ defmodule AutolaunchWeb.BidComponent do
       </div>
     </dl>
     <p :if={argument(@operation, "min_stock_out")} class="bid-form__note">
-      Your USDC buys at least {argument(@operation, "min_stock_out")} {argument(
-        @operation,
-        "currency_symbol"
-      )}, 1% below the estimate, or the bid is not placed.
+      Your <span class="ticker">USDC</span>
+      buys at least
+      <TokenDisplay.written
+        value={argument(@operation, "min_stock_out")}
+        unit={argument(@operation, "currency_symbol")}
+      />, 1% below the estimate, or the bid is not placed.
     </p>
     """
   end
@@ -662,6 +670,9 @@ defmodule AutolaunchWeb.BidComponent do
     |> Enum.drop_while(&(&1["step"] != Atom.to_string(step)))
     |> length()
   end
+
+  # The tickers a bid's sentences name.
+  defp tickers(operation), do: ["USDC", argument(operation, "currency_symbol")]
 
   defp times(2), do: "twice"
   defp times(count), do: "#{count} times"

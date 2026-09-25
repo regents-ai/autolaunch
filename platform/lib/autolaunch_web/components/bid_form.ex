@@ -280,7 +280,7 @@ defmodule AutolaunchWeb.Components.BidForm do
           class="bid-box__sub"
         >
           <span :if={@fdv_unit != @price_unit}>
-            ≈ {figure(@fdv_in_price_unit)} {@price_unit}
+            ≈ <TokenDisplay.written value={figure(@fdv_in_price_unit)} unit={@price_unit} />
           </span>
           <UsdValue.usd :if={@fdv_unit == @price_unit} amount={@fdv_in_price_unit} rate={@rate} />
         </p>
@@ -363,9 +363,12 @@ defmodule AutolaunchWeb.Components.BidForm do
   # What the budget can expect at the max FDV, against the price to beat now.
   defp expected(%{outlook: %{reaches?: true, about: about}} = assigns) when is_binary(about) do
     ~H"""
-    <p class="bid-box__figure">≈ {figure(decimal(@outlook.about))} {@token}</p>
+    <p class="bid-box__figure">
+      ≈ {figure(decimal(@outlook.about))} <span class="ticker">{@token}</span>
+    </p>
     <p :if={@outlook.at_least} class="bid-box__sub">
-      At least {figure(decimal(@outlook.at_least), :floor)} if the price rises to your max
+      At least <span class="figure__value">{figure(decimal(@outlook.at_least), :floor)}</span>
+      if the price rises to your max
     </p>
     """
   end

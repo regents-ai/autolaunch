@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.StakeComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.Components.ShareDialog
-  alias AutolaunchWeb.SignedInWallet
+  alias AutolaunchWeb.{SignedInWallet, TokenDisplay}
   alias Phoenix.LiveView.JS
 
   @recheck_ms 2_000
@@ -142,37 +142,68 @@ defmodule AutolaunchWeb.StakeComponent do
       />
 
       <h2 id={@id <> "-title"} class="token-stake__title">
-        {stake_name(@pool)} {@pool.token.symbol}
+        {stake_name(@pool)} <span class="ticker">{@pool.token.symbol}</span>
       </h2>
       <p class="token-stake__lead">
         Tokens are not locked. You can unstake at any time after the block in which you staked.
       </p>
-      <p :if={@wallet} class="autolaunch-exact-value">Staking wallet: {@wallet}</p>
+      <p :if={@wallet} class="token-stake__lead">
+        Staking wallet:
+        <span class="token-stake__wallet" title={@wallet}>{SignedInWallet.short(@wallet)}</span>
+      </p>
       <details>
         <summary>How rewards work</summary>
-        <p>{lead(@pool)}</p>
+        <p>
+          <TokenDisplay.marked
+            text={lead(@pool)}
+            tickers={[@pool.token.symbol, @pool.currency.symbol, @pool.fees.splitter.dollar.symbol]}
+          />
+        </p>
       </details>
 
       <dl class="token-stake__facts">
         <div>
           <dt>Staked by everyone</dt>
-          <dd>{@pool.fees.splitter.total_staked} {@pool.token.symbol}</dd>
+          <dd>
+            <TokenDisplay.tokens amount={@pool.fees.splitter.total_staked} unit={@pool.token.symbol} />
+          </dd>
         </div>
         <div :if={@pool.kind == :stocks}>
           <dt>Waiting for stakers</dt>
-          <dd>{@pool.fees.stakers.accrued} {@pool.currency.symbol}</dd>
+          <dd>
+            <TokenDisplay.tokens amount={@pool.fees.stakers.accrued} unit={@pool.currency.symbol} />
+          </dd>
         </div>
         <div :for={position <- @pool.positions}>
           <dt>{position.label} fees to collect</dt>
-          <dd>{uncollected(position.uncollected, @pool)}</dd>
+          <dd :if={!position.uncollected}>Not readable right now</dd>
+          <dd :if={position.uncollected}>
+            <TokenDisplay.tokens amount={position.uncollected.token_amount} unit={@pool.token.symbol} />
+            ·
+            <TokenDisplay.tokens
+              amount={position.uncollected.currency_amount}
+              unit={@pool.currency.symbol}
+            />
+          </dd>
         </div>
         <div :if={@position}>
           <dt>Your stake</dt>
-          <dd>{@position.staked.shown} {@pool.token.symbol}</dd>
+          <dd><TokenDisplay.tokens amount={@position.staked.shown} unit={@pool.token.symbol} /></dd>
         </div>
         <div :if={@position}>
           <dt>You can claim</dt>
-          <dd>{claimable(@position.claimable, @pool)}</dd>
+          <dd>
+            <TokenDisplay.tokens
+              amount={@position.claimable.dollar.shown}
+              unit={@pool.fees.splitter.dollar.symbol}
+            /> ·
+            <TokenDisplay.tokens amount={@position.claimable.token.shown} unit={@pool.token.symbol} />
+            ·
+            <TokenDisplay.tokens
+              amount={@position.claimable.stock.shown}
+              unit={@pool.currency.symbol}
+            />
+          </dd>
         </div>
       </dl>
 
@@ -226,7 +257,8 @@ defmodule AutolaunchWeb.StakeComponent do
             </div>
             <p class="token-swap__leg-foot">
               <span :if={@position}>
-                {@position.balance.shown} {@pool.token.symbol} in your wallet
+                <TokenDisplay.tokens amount={@position.balance.shown} unit={@pool.token.symbol} />
+                in your wallet
               </span>
             </p>
           </div>
@@ -573,15 +605,6 @@ defmodule AutolaunchWeb.StakeComponent do
   defp lead(%{kind: :stocks} = pool),
     do:
       "Stakers share this launch's trading fees: 1% of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
-
-  defp uncollected(nil, _pool), do: "Not readable right now"
-
-  defp uncollected(%{token_amount: token, currency_amount: currency}, pool),
-    do: "#{token} #{pool.token.symbol} · #{currency} #{pool.currency.symbol}"
-
-  defp claimable(%{dollar: dollar, token: token, stock: stock}, pool),
-    do:
-      "#{dollar.shown} #{pool.fees.splitter.dollar.symbol} · #{token.shown} #{pool.token.symbol} · #{stock.shown} #{pool.currency.symbol}"
 
   defp steps(review, sent) do
     Enum.map(review.steps, fn %{"step" => name} ->

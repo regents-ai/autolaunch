@@ -28,6 +28,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   use AutolaunchWeb, :live_component
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [display_time: 1]
+  import AutolaunchWeb.Components.StepState
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidActions, BidSettlementActions, Lab}
@@ -154,9 +155,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
       <div :if={@operation && WalletPressComponent.scope(assigns)} class="bid-early-return__offer">
         <p :if={@operation.step == :exit && @operation.state == :prepared}>
-          <strong>
-            {argument(@operation, "currency_refunded")} {argument(@operation, "currency_symbol")}
-          </strong>
+          <TokenDisplay.price
+            amount={argument(@operation, "currency_refunded")}
+            unit={argument(@operation, "currency_symbol")}
+            round={:down}
+          />
           <UsdValue.usd amount={argument(@operation, "currency_refunded")} rate={@rate} />
           comes back to your wallet now. The tokens this bid has bought are yours to claim after the auction.
         </p>
@@ -168,11 +171,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         >
           <li data-step="record">
             <span>Record the new price</span>
-            <span class="bid-step-state">{record_state(@operation)}</span>
+            <.step_state state={record_state(@operation)} />
           </li>
           <li data-step="exit">
             <span>Send your unspent money back</span>
-            <span class="bid-step-state">{return_state(@operation)}</span>
+            <.step_state state={return_state(@operation)} />
           </li>
         </ol>
         <Regent.Primitives.button
@@ -191,7 +194,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           browser={@browser_wallets}
         />
         <p :if={early_progress(@operation)} role="status" aria-live="polite">
-          {early_progress(@operation)}
+          <TokenDisplay.marked text={early_progress(@operation)} tickers={tickers(@operation)} />
         </p>
         <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
           This belongs to another wallet. Sign in with that wallet to finish.
@@ -270,13 +273,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <div :if={positive?(@position.tokens_filled)}>
           <dt>Tokens won</dt>
           <dd>
-            {tokens(@position.tokens_filled)} {@auction.token_symbol}
+            <TokenDisplay.written
+              value={tokens(@position.tokens_filled)}
+              unit={@auction.token_symbol}
+            />
           </dd>
         </div>
         <div :if={positive?(@position.tokens_claimed)}>
           <dt>Tokens claimed</dt>
           <dd>
-            {tokens(@position.tokens_claimed)} {@auction.token_symbol}
+            <TokenDisplay.written
+              value={tokens(@position.tokens_claimed)}
+              unit={@auction.token_symbol}
+            />
           </dd>
         </div>
         <div>
@@ -300,13 +309,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         class="bid-settlement__note"
         role="status"
       >
-        {reason}
+        <TokenDisplay.marked
+          text={reason}
+          tickers={[@auction.token_symbol, @auction.quote_token_symbol]}
+        />
       </p>
       <p
         :if={@auction.state == :failed && @position.status == "returnable"}
         class="bid-settlement__note"
       >
-        The auction for {@auction.token_symbol} did not meet its minimum raise. Your whole bid comes back in {@auction.quote_token_symbol} to the wallet above.
+        The auction for <span class="ticker">{@auction.token_symbol}</span>
+        did not meet its minimum raise. Your whole bid comes back in
+        <span class="ticker">{@auction.quote_token_symbol}</span>
+        to the wallet above.
       </p>
       <.link
         :if={@stake_path && positive?(@position.tokens_claimed)}
@@ -361,13 +376,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           <div :if={argument(@operation, "tokens_filled")}>
             <dt>Tokens won</dt>
             <dd>
-              {tokens(argument(@operation, "tokens_filled"))} {argument(@operation, "token_symbol")}
+              <TokenDisplay.written
+                value={tokens(argument(@operation, "tokens_filled"))}
+                unit={argument(@operation, "token_symbol")}
+              />
             </dd>
           </div>
           <div :if={argument(@operation, "tokens_claimed")}>
             <dt>Tokens claimed</dt>
             <dd>
-              {tokens(argument(@operation, "tokens_claimed"))} {argument(@operation, "token_symbol")}
+              <TokenDisplay.written
+                value={tokens(argument(@operation, "tokens_claimed"))}
+                unit={argument(@operation, "token_symbol")}
+              />
             </dd>
           </div>
           <div>
@@ -381,12 +402,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             <dd>{Lab.network_name(@operation.envelope["chain_id"])}</dd>
           </div>
         </dl>
-        <p class="bid-notice">{@operation.envelope["risk_copy"]}</p>
+        <p class="bid-notice">
+          <TokenDisplay.marked text={@operation.envelope["risk_copy"]} tickers={tickers(@operation)} />
+        </p>
 
         <ol class="bid-steps" role="list" aria-label="Settlement progress">
           <li :for={step <- BidSettlementActions.steps(@operation)} data-step={step["step"]}>
-            <span>{step_label(step["step"], @operation)}</span>
-            <span class="bid-step-state">{step_state(@operation, step["step"])}</span>
+            <span>
+              <TokenDisplay.marked
+                text={step_label(step["step"], @operation)}
+                tickers={tickers(@operation)}
+              />
+            </span>
+            <.step_state state={step_state(@operation, step["step"])} />
             <span
               :if={BidSettlementActions.step_hash(@operation, step["step"])}
               class="bid-mono"
@@ -398,14 +426,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         </ol>
 
         <p :if={@operation.state == :confirmed} class="bid-settled" role="status">
-          {confirmed_copy(@operation)}
+          <TokenDisplay.marked text={confirmed_copy(@operation)} tickers={tickers(@operation)} />
         </p>
         <p
           :if={@operation.state in [:cancelled, :expired]}
           class="bid-settled"
           role="status"
         >
-          {settled_copy(@operation)}
+          <TokenDisplay.marked text={settled_copy(@operation)} tickers={tickers(@operation)} />
         </p>
 
         <SignedInWallet.note
@@ -837,7 +865,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp send_label(%{step: :exit} = operation),
     do:
-      "Withdraw #{argument(operation, "currency_refunded")} #{argument(operation, "currency_symbol")}"
+      "Withdraw #{TokenDisplay.short(argument(operation, "currency_refunded"), :down)} #{argument(operation, "currency_symbol")}"
 
   defp send_label(%{step: :claim} = operation),
     do: "Claim #{argument(operation, "token_symbol")} to wallet"
@@ -853,6 +881,10 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp step_label("claim", operation),
     do: "Claim #{argument(operation, "token_symbol")} to wallet"
+
+  # The tickers a settlement's sentences name.
+  defp tickers(operation),
+    do: [argument(operation, "token_symbol"), argument(operation, "currency_symbol")]
 
   defp step_state(%{step: step} = operation, step_name) do
     cond do

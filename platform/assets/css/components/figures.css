@@ -1,0 +1,19 @@
+/* Figures on the portfolio, the token pages and in every dialog: the number reads bold in the page's ink, its ticker in the brand's orange, a dollar value quiet beside it. Light pages take a deeper orange for contrast. */
+:root { --ticker-ink: var(--brand-accent); }
+:root[data-theme="light"] { --ticker-ink: #c2410c; }
+
+:where(.portfolio, .token-page, dialog) .figure { font-variant-numeric: tabular-nums; }
+:where(.portfolio, .token-page, dialog) .figure__value { color: var(--color-fg); font-weight: 600; }
+:where(.portfolio, .token-page, dialog) .figure__unit { color: var(--ticker-ink); font-weight: 500; }
+:where(.portfolio, .token-page, dialog) .ticker { color: var(--ticker-ink); font-weight: 500; }
+:where(.portfolio, .token-page, dialog) .token-name { color: var(--color-fg); font-weight: 600; }
+
+/* A state word (Ready, Completed, Outbid) is a micro-label chip; its tone gives the colour. */
+:where(.portfolio, .token-page, dialog) .rg-status { align-items: center; font-size: .6875rem; font-weight: 600; letter-spacing: var(--tracking-microlabel); line-height: 1.6; text-transform: uppercase; white-space: nowrap; }
+
+/* An ended auction's state word takes its outcome's colour. */
+:where(.portfolio, .token-page, dialog) .auction-state { font-weight: 600; }
+:where(.portfolio, .token-page, dialog) .auction-state[data-state="graduated"] { color: var(--color-success); }
+:where(.portfolio, .token-page, dialog) .auction-state[data-state="failed"] { color: var(--color-error); }
+/* The shared chip has no colour for info yet; here it takes the theme's info ink so "ready" states stand out from neutral ones. */
+:where(.portfolio, .token-page, dialog) .rg-tone--info { --rg-p-tone: var(--color-info); color: var(--color-info); }

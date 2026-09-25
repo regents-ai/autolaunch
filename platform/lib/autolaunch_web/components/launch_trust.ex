@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{BidPlaced, MarketCard}
+  alias AutolaunchWeb.TokenDisplay
 
   attr :auction, :map, required: true, doc: "the launch's auction record"
 
@@ -128,7 +129,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         <dl class="launch-trust__rows">
           <div :if={@supply}>
             <dt>Total supply</dt>
-            <dd>{@supply}</dd>
+            <dd><span class="figure__value">{@supply}</span></dd>
           </div>
           <div :for={{label, amount, after_auction} <- @split.rows}>
             <dt>{label}</dt>
@@ -200,7 +201,9 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     </p>
     <ul class="launch-trust__positions">
       <li :for={position <- @pool.positions}>
-        {amount(position.token_amount)} {@pool.token.symbol} and {amount(position.currency_amount)} {@pool.currency.symbol} deposited
+        <TokenDisplay.written value={amount(position.token_amount)} unit={@pool.token.symbol} /> and
+        <TokenDisplay.written value={amount(position.currency_amount)} unit={@pool.currency.symbol} />
+        deposited
         <span :if={position.locked?} class="launch-trust__muted">
           · locked forever in the locker above
         </span>

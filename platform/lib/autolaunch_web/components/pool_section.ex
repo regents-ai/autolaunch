@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   use AutolaunchWeb, :html
 
   alias Autolaunch.Stocks.Amounts
+  alias AutolaunchWeb.TokenDisplay
 
   attr :pool, :any, required: true
 
@@ -33,14 +34,17 @@ defmodule AutolaunchWeb.Components.PoolSection do
   defp facts(assigns) do
     ~H"""
     <p>
-      {@facts.token.symbol} trades against {@facts.currency.symbol} in its official pool.
+      <span class="ticker">{@facts.token.symbol}</span>
+      trades against <span class="ticker">{@facts.currency.symbol}</span>
+      in its official pool.
       Its liquidity is locked forever; the fees below are charged on every trade.
     </p>
     <dl class="autolaunch-live-market pool-facts">
       <div>
         <dt>Pair</dt>
         <dd>
-          {@facts.token.symbol} / {@facts.currency.symbol}
+          <span class="ticker">{@facts.token.symbol}</span>
+          / <span class="ticker">{@facts.currency.symbol}</span>
           <span class="autolaunch-exact-value">{@facts.token.symbol} {@facts.token.address}</span>
           <span class="autolaunch-exact-value">
             {@facts.currency.symbol} {@facts.currency.address}
@@ -53,38 +57,47 @@ defmodule AutolaunchWeb.Components.PoolSection do
       </div>
       <div>
         <dt>Liquidity fee</dt>
-        <dd>{@facts.lp_fee} · tick spacing {@facts.tick_spacing}</dd>
+        <dd>
+          <span class="figure__value">{@facts.lp_fee}</span>
+          · tick spacing <span class="figure__value">{@facts.tick_spacing}</span>
+        </dd>
       </div>
       <div>
         <dt>Price at graduation</dt>
         <dd>
-          {price(@facts.graduation_price)} {@facts.currency.symbol} per {@facts.token.symbol}
+          <TokenDisplay.price amount={plain(@facts.graduation_price)} unit={@facts.currency.symbol} />
+          per <span class="ticker">{@facts.token.symbol}</span>
         </dd>
       </div>
       <div>
         <dt>Current price</dt>
         <dd :if={@facts.current}>
-          {price(@facts.current.price)} {@facts.currency.symbol} per {@facts.token.symbol}
+          <TokenDisplay.price amount={plain(@facts.current.price)} unit={@facts.currency.symbol} />
+          per <span class="ticker">{@facts.token.symbol}</span>
         </dd>
         <dd :if={!@facts.current}>Not readable right now</dd>
       </div>
       <div>
         <dt>Current liquidity</dt>
-        <dd :if={@facts.current}>{Amounts.grouped(Integer.to_string(@facts.current.liquidity))}</dd>
+        <dd :if={@facts.current}>
+          <TokenDisplay.written value={Amounts.grouped(Integer.to_string(@facts.current.liquidity))} />
+        </dd>
         <dd :if={!@facts.current}>Not readable right now</dd>
       </div>
       <div>
         <dt>Unsold tokens</dt>
         <dd>
-          {Amounts.compact_decimal(@facts.unsold.amount)} {@facts.token.symbol} {unsold_copy(
-            @facts.unsold
-          )}
+          <TokenDisplay.tokens
+            amount={@facts.unsold.amount}
+            unit={@facts.token.symbol}
+          />
+          {unsold_copy(@facts.unsold)}
           <span class="autolaunch-exact-value">{@facts.unsold.address}</span>
         </dd>
       </div>
       <div>
         <dt>Read at block</dt>
-        <dd>{@facts.block.number}</dd>
+        <dd><span class="figure__value">{@facts.block.number}</span></dd>
       </div>
     </dl>
 
@@ -96,11 +109,21 @@ defmodule AutolaunchWeb.Components.PoolSection do
           <dl class="autolaunch-live-market">
             <div>
               <dt>{@facts.token.symbol}</dt>
-              <dd>{Amounts.compact_decimal(position.token_amount)}</dd>
+              <dd>
+                <TokenDisplay.tokens
+                  amount={position.token_amount}
+                  unit={@facts.token.symbol}
+                />
+              </dd>
             </div>
             <div>
               <dt>{@facts.currency.symbol}</dt>
-              <dd>{Amounts.compact_decimal(position.currency_amount)}</dd>
+              <dd>
+                <TokenDisplay.tokens
+                  amount={position.currency_amount}
+                  unit={@facts.currency.symbol}
+                />
+              </dd>
             </div>
             <div>
               <dt>Owner</dt>
@@ -176,7 +199,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
       <p>
         Every trade pays 1% to REGENT governance and 1% to this launch's staking contract, straight
         away. The locked liquidity also earns trading fees; anyone can collect them into the same
-        staking contract for {@facts.token.symbol} stakers. These fees are fixed for this pool.
+        staking contract for <span class="ticker">{@facts.token.symbol}</span>
+        stakers. These fees are fixed for this pool.
       </p>
       <dl class="autolaunch-live-market">
         <div>
@@ -187,14 +211,19 @@ defmodule AutolaunchWeb.Components.PoolSection do
         </div>
         <div>
           <dt>Trades charged since graduation</dt>
-          <dd>{@facts.fees.swaps}</dd>
+          <dd><span class="figure__value">{@facts.fees.swaps}</span></dd>
         </div>
         <div>
           <dt>Paid to each 1% share so far</dt>
           <dd>
-            {Amounts.compact_decimal(@facts.fees.per_lane.currency)} REGENT and {Amounts.compact_decimal(
-              @facts.fees.per_lane.token
-            )} {@facts.fees.token_symbol}
+            <TokenDisplay.tokens
+              amount={@facts.fees.per_lane.currency}
+              unit="REGENT"
+            /> and
+            <TokenDisplay.tokens
+              amount={@facts.fees.per_lane.token}
+              unit={@facts.fees.token_symbol}
+            />
             <span class="autolaunch-exact-value">
               {@facts.fees.per_lane.currency} REGENT · {@facts.fees.per_lane.token} {@facts.fees.token_symbol}
             </span>
@@ -212,7 +241,11 @@ defmodule AutolaunchWeb.Components.PoolSection do
     <section id="pool-fees" aria-label="Trading fees">
       <h3>Trading fees</h3>
       <p>
-        Every trade pays 1% of its {@facts.currency.symbol} side to REGENT and 1% to {@facts.token.symbol} stakers. Both are always on. {@facts.fees.trades} trades have been charged since graduation.
+        Every trade pays 1% of its <span class="ticker">{@facts.currency.symbol}</span>
+        side to <span class="ticker">REGENT</span>
+        and 1% to <span class="ticker">{@facts.token.symbol}</span>
+        stakers. Both are always on. <span class="figure__value">{@facts.fees.trades}</span>
+        trades have been charged since graduation.
       </p>
       <ol class="autolaunch-record-list pool-buckets">
         <li>
@@ -222,18 +255,29 @@ defmodule AutolaunchWeb.Components.PoolSection do
               <div>
                 <dt>Awaiting conversion</dt>
                 <dd>
-                  {Amounts.compact_decimal(@facts.fees.regent.accrued)} {@facts.currency.symbol}
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.regent.accrued}
+                    unit={@facts.currency.symbol}
+                  />
                 </dd>
               </div>
               <div>
                 <dt>Converted so far</dt>
                 <dd>
-                  {Amounts.compact_decimal(@facts.fees.regent.settled_currency)} {@facts.currency.symbol}
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.regent.settled_currency}
+                    unit={@facts.currency.symbol}
+                  />
                 </dd>
               </div>
               <div>
                 <dt>Deposited so far</dt>
-                <dd>{Amounts.compact_decimal(@facts.fees.regent.settled_usdc)} USDC</dd>
+                <dd>
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.regent.settled_usdc}
+                    unit="USDC"
+                  />
+                </dd>
               </div>
             </dl>
           </article>
@@ -245,13 +289,19 @@ defmodule AutolaunchWeb.Components.PoolSection do
               <div>
                 <dt>Awaiting settlement</dt>
                 <dd>
-                  {Amounts.compact_decimal(@facts.fees.stakers.accrued)} {@facts.currency.symbol}
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.stakers.accrued}
+                    unit={@facts.currency.symbol}
+                  />
                 </dd>
               </div>
               <div>
                 <dt>Sent to stakers so far</dt>
                 <dd>
-                  {Amounts.compact_decimal(@facts.fees.stakers.settled_currency)} {@facts.currency.symbol}
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.stakers.settled_currency}
+                    unit={@facts.currency.symbol}
+                  />
                 </dd>
               </div>
               <div>
@@ -265,7 +315,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
       <p>
         REGENT's share is converted to USDC by the operator outside trading. The stakers' share can
         be settled by anyone, and the locked liquidity's own trading fees can be collected by anyone;
-        both land in the staking contract for {@facts.token.symbol} stakers.
+        both land in the staking contract for <span class="ticker">{@facts.token.symbol}</span>
+        stakers.
       </p>
 
       <h4>Settlements so far</h4>
@@ -282,15 +333,22 @@ defmodule AutolaunchWeb.Components.PoolSection do
               </div>
               <div>
                 <dt>{if settlement.lane == :regent, do: "Converted", else: "Sent to stakers"}</dt>
-                <dd>{Amounts.compact_decimal(settlement.currency)} {@facts.currency.symbol}</dd>
+                <dd>
+                  <TokenDisplay.tokens
+                    amount={settlement.currency}
+                    unit={@facts.currency.symbol}
+                  />
+                </dd>
               </div>
               <div :if={settlement.usdc}>
                 <dt>Deposited</dt>
-                <dd>{Amounts.compact_decimal(settlement.usdc)} USDC</dd>
+                <dd>
+                  <TokenDisplay.tokens amount={settlement.usdc} unit="USDC" />
+                </dd>
               </div>
               <div>
                 <dt>Block</dt>
-                <dd>{settlement.block}</dd>
+                <dd><span class="figure__value">{settlement.block}</span></dd>
               </div>
               <div>
                 <dt>Transaction</dt>
@@ -307,12 +365,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
   defp lane_label(:regent), do: "REGENT"
   defp lane_label(:stakers), do: "Stakers"
 
-  defp price(%{value: value, exact?: true}), do: Amounts.compact_decimal(value)
-
-  defp price(%{value: value, exact?: false}),
-    do: value |> String.trim_trailing("…") |> Amounts.compact_decimal() |> mark()
-
-  defp mark(value), do: if(String.ends_with?(value, "…"), do: value, else: value <> "…")
+  # A price read from the pool, without the mark an inexact one carries.
+  defp plain(%{value: value}), do: String.trim_trailing(value, "…")
 
   defp unsold_copy(%{disposition: :retired}), do: "retired forever at"
   defp unsold_copy(%{disposition: :escrow}), do: "held by the launch's vesting escrow at"

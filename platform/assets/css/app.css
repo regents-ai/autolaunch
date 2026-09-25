@@ -10,6 +10,7 @@
 @import "./components/token_heading.css";
 @import "./components/bid_settlement.css";
 @import "./components/stake_summary.css";
+@import "./components/figures.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";
 @import "./shell/top_bar.css";

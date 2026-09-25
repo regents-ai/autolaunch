@@ -2,6 +2,8 @@ defmodule AutolaunchWeb.TokenDisplay do
   @moduledoc false
   use Phoenix.Component
 
+  alias Autolaunch.Stocks.Amounts
+
   # Only production-sized supply figures are too wide for a summary row, so only
   # they are shortened. The mantissa is truncated, never rounded up.
   @scales [{Decimal.new(1_000_000_000), "B"}, {Decimal.new(1_000_000), "M"}]
@@ -21,10 +23,7 @@ defmodule AutolaunchWeb.TokenDisplay do
 
   def amount(assigns) do
     assigns
-    |> assign(
-      exact: "#{assigns.amount} #{assigns.unit}",
-      shown: "#{compact(assigns.amount)} #{assigns.unit}"
-    )
+    |> assign(exact: assigns.amount, shown: compact(assigns.amount))
     |> figure()
   end
 
@@ -53,7 +52,7 @@ defmodule AutolaunchWeb.TokenDisplay do
   end
 
   def price(assigns) do
-    short = assigns.amount |> significant(assigns.round) |> with_unit(assigns.unit)
+    short = significant(assigns.amount, assigns.round)
 
     assigns
     |> assign(exact: short, shown: zeros(short))
@@ -86,15 +85,37 @@ defmodule AutolaunchWeb.TokenDisplay do
   and on hover.
   """
   def counted(assigns) do
-    exact = with_unit(assigns.amount, assigns.unit)
-
     assigns
-    |> assign(exact: exact, shown: zeros(exact))
+    |> assign(exact: assigns.amount, shown: zeros(assigns.amount))
     |> figure()
   end
 
-  defp with_unit(amount, nil), do: amount
-  defp with_unit(amount, unit), do: "#{amount} #{unit}"
+  attr :amount, :string, required: true
+  attr :unit, :string, default: nil
+
+  @doc """
+  A read-only token amount read from the chain, cut to four significant digits
+  and never rounded up, its whole part grouped in thousands and a long run of
+  zeros after the point counted, as in `94,450,000` or `0.0₆412`. The exact
+  amount stays readable to assistive technology and on hover.
+  """
+  def tokens(assigns) do
+    shown = assigns.amount |> significant(:down) |> Amounts.grouped() |> zeros()
+
+    assigns
+    |> assign(exact: assigns.amount, shown: shown)
+    |> figure()
+  end
+
+  attr :value, :string, required: true
+  attr :unit, :string, default: nil
+
+  @doc """
+  A figure already written for the page, such as a grouped whole-token count,
+  set like every other figure: the number, then its ticker.
+  """
+  def written(assigns),
+    do: assigns |> assign(exact: assigns.value, shown: assigns.value) |> figure()
 
   # Only a plain finite decimal is shortened: digits, one optional fraction,
   # one optional leading minus. Decimal's parser would also take NaN, Infinity
@@ -127,15 +148,98 @@ defmodule AutolaunchWeb.TokenDisplay do
   defp trimmed(sign, coef, exp) when rem(coef, 10) == 0, do: trimmed(sign, div(coef, 10), exp + 1)
   defp trimmed(sign, coef, exp), do: Decimal.new(sign, coef, exp)
 
+  attr :text, :string, required: true
+  attr :tickers, :list, default: [], doc: "the tickers to pick out; blanks are skipped"
+
+  @doc """
+  A sentence with its figures set like every other figure: each number bold,
+  each named ticker in the ticker colour, as in "0.0196 AAPLc was returned".
+  A number inside a word, such as an address, is left alone.
+  """
+  def marked(assigns) do
+    assigns = assign(assigns, :parts, marks(assigns.text, assigns.tickers))
+
+    ~H"""
+    <.mark :for={part <- @parts} part={part} />
+    """
+  end
+
+  @number "(?<![\\w.])\\d(?:[\\d,\\x{2080}-\\x{2089}]|\\.(?=\\d))*(?!\\w)"
+
+  defp marks(text, tickers) do
+    pattern = Regex.compile!("(#{@number})(?: (#{names(tickers)}))?|(#{names(tickers)})", "u")
+
+    pattern
+    |> Regex.split(text, include_captures: true, trim: true)
+    |> Enum.map(fn piece ->
+      case Regex.run(pattern, piece) do
+        [^piece, value] -> {value, nil}
+        [^piece, value, ticker] -> {value, ticker}
+        [^piece, "", "", ticker] -> {nil, ticker}
+        _text -> piece
+      end
+    end)
+  end
+
+  # Whole-word tickers, or a pattern that never matches when none are named.
+  defp names(tickers) do
+    case Enum.reject(tickers, &(&1 in [nil, ""])) do
+      [] -> "(?!)"
+      named -> "\\b(?:#{Enum.map_join(named, "|", &Regex.escape/1)})\\b"
+    end
+  end
+
+  defp mark(%{part: {nil, _ticker}} = assigns) do
+    ~H"""
+    <span class="ticker">{elem(@part, 1)}</span>
+    """
+  end
+
+  defp mark(%{part: {_value, nil}} = assigns) do
+    ~H"""
+    <span class="figure__value">{elem(@part, 0)}</span>
+    """
+  end
+
+  defp mark(%{part: {_value, _ticker}} = assigns) do
+    ~H"""
+    <span class="figure"><span class="figure__value">{elem(@part, 0)}</span>{" "}<span class="figure__unit">{elem(
+      @part,
+      1
+    )}</span></span>
+    """
+  end
+
+  defp mark(assigns) do
+    ~H"""
+    {@part}
+    """
+  end
+
+  # The number and its ticker in their own spans, so a page can set them
+  # apart. A shortened number keeps its exact form, with the ticker, for
+  # assistive technology and on hover.
   defp figure(%{exact: same, shown: same} = assigns) do
     ~H"""
-    {@exact}
+    <span class="figure"><span class="figure__value">{@shown}</span><.unit unit={@unit} /></span>
     """
   end
 
   defp figure(assigns) do
+    assigns = assign(assigns, :label, Enum.join([assigns.exact, assigns.unit] -- [nil], " "))
+
     ~H"""
-    <span aria-hidden="true" title={@exact}>{@shown}</span><span class="visually-hidden">{@exact}</span>
+    <span class="figure" aria-hidden="true" title={@label}><span class="figure__value">{@shown}</span><.unit unit={
+      @unit
+    } /></span><span class="visually-hidden">{@label}</span>
+    """
+  end
+
+  defp unit(%{unit: nil} = assigns), do: ~H""
+
+  defp unit(assigns) do
+    ~H"""
+    {" "}<span class="figure__unit">{@unit}</span>
     """
   end
 

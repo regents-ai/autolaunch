@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.ConvertComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks.StakeActions
-  alias AutolaunchWeb.{SignedInWallet, StakeComponent}
+  alias AutolaunchWeb.{SignedInWallet, StakeComponent, TokenDisplay}
   alias Phoenix.LiveView.JS
 
   @recheck_ms 2_000
@@ -140,7 +140,10 @@ defmodule AutolaunchWeb.ConvertComponent do
               </span>
             </div>
             <p class="token-swap__leg-foot">
-              <span>{@pool.fees.regent.accrued} {@pool.currency.symbol} waiting</span>
+              <span>
+                <TokenDisplay.written value={@pool.fees.regent.accrued} unit={@pool.currency.symbol} />
+                waiting
+              </span>
             </p>
           </div>
           <label class="token-convert__floor">
@@ -453,7 +456,10 @@ defmodule AutolaunchWeb.ConvertComponent do
       <div>
         <strong>REGENT's share converted</strong>
         <p>
-          {sold_copy(@done)}
+          <TokenDisplay.marked
+            text={sold_copy(@done)}
+            tickers={[@done["currency_symbol"], @done["dollar_symbol"], "REGENT"]}
+          />
         </p>
       </div>
       <Regent.Primitives.button

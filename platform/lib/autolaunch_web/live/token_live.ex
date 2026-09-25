@@ -75,7 +75,7 @@ defmodule AutolaunchWeb.TokenLive do
     <article
       :if={@page_status == :ready && @page_record}
       id="autolaunch-token-detail"
-      class="autolaunch-page"
+      class="autolaunch-page token-page"
     >
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>

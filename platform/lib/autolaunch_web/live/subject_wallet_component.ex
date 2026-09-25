@@ -19,7 +19,9 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   alias Autolaunch
   alias Autolaunch.Actors.Human
   alias Autolaunch.SubjectWalletActions
-  alias AutolaunchWeb.SignedInWallet
+  alias AutolaunchWeb.{SignedInWallet, TokenDisplay}
+
+  import AutolaunchWeb.Components.StepState
 
   @chain_id 8453
 
@@ -108,7 +110,9 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           <h2 class="rg-section-bar__label" id={@id <> "-title"}>Make a payment</h2>
         </Regent.Structure.section_bar>
         <p>
-          Pay into {@symbol}'s revenue split. Part goes to everyone staking {@symbol} and the rest
+          Pay into <span class="ticker">{@symbol}</span>'s revenue split. Part goes to everyone staking
+          <span class="ticker">{@symbol}</span>
+          and the rest
           to its treasury. Your wallet confirms every step.
         </p>
       </header>
@@ -210,7 +214,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           <dl>
             <div :if={amount_display(@operation)}>
               <dt>Amount</dt>
-              <dd>{amount_display(@operation)} {operation_symbol(@operation, @symbol)}</dd>
+              <dd>
+                <TokenDisplay.written
+                  value={amount_display(@operation)}
+                  unit={operation_symbol(@operation, @symbol)}
+                />
+              </dd>
             </div>
             <div>
               <dt>Wallet</dt>
@@ -225,7 +234,10 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           <%!-- What this transaction is about to divide. Once it settles, its own
                 event says what really moved, so the estimate stops speaking. --%>
           <p :if={is_nil(@operation.terminal_at)} class="subject-wallet-share">
-            {share_copy(@operation, @symbol)}
+            <TokenDisplay.marked
+              text={share_copy(@operation, @symbol)}
+              tickers={[@symbol, "USDC", "REGENT"]}
+            />
           </p>
 
           <p :if={@operation.kind == :sweep} class="subject-wallet-share">
@@ -236,8 +248,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           <%!-- The list styling drops list semantics, so the role is stated. --%>
           <ol class="subject-wallet-steps" role="list" aria-label="Payment progress">
             <li :for={step <- SubjectWalletActions.steps(@operation)} data-step={step["step"]}>
-              <span>{step_label(step["step"], @operation, @symbol)}</span>
-              <span class="subject-wallet-step-state">{step_state(@operation, step["step"])}</span>
+              <span>
+                <TokenDisplay.marked
+                  text={step_label(step["step"], @operation, @symbol)}
+                  tickers={[@symbol, "USDC", "REGENT"]}
+                />
+              </span>
+              <.step_state state={step_word(@operation, step["step"])} />
               <.transaction hash={SubjectWalletActions.step_hash(@operation, step["step"])} />
             </li>
           </ol>
@@ -564,7 +581,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
       )
 
   # Where the sequence has got to, read from the operation's own step and state.
-  defp step_state(%{step: step} = operation, step_name) do
+  defp step_word(%{step: step} = operation, step_name) do
     cond do
       Atom.to_string(step) == step_name -> current_state(operation.state)
       SubjectWalletActions.step_hash(operation, step_name) -> "Confirmed"

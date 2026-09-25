@@ -215,6 +215,8 @@
 .token-swap__steps li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); color: var(--color-fg-muted); }
 .token-swap__steps li[data-current] { color: var(--color-fg); font-weight: 600; }
 .token-swap__step-note { font-size: .8125rem; font-weight: 400; color: var(--color-fg-muted); }
+.token-swap__steps li[data-state="done"] .token-swap__step-note { color: var(--color-success); font-weight: 600; }
+.token-swap__steps li[data-state="reverted"] .token-swap__step-note { color: var(--color-error); font-weight: 600; }
 .token-swap__step-mark { justify-self: center; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
 .token-swap__steps li[data-current] .token-swap__step-mark { width: .875rem; height: .875rem; background: var(--color-accent); }
 .token-swap__steps li[data-state="done"] .token-swap__step-mark { width: .875rem; height: .875rem; background: var(--color-success); }

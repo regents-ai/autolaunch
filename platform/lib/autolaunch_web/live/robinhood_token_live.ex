@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
   alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
+  alias AutolaunchWeb.{LabMarket, Paths, ShareCard, TokenDisplay}
 
   def mount(_params, _session, socket),
     do:
@@ -68,7 +68,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       )
 
     ~H"""
-    <article :if={@open? && @token} id="autolaunch-robinhood-token" class="autolaunch-page">
+    <article :if={@open? && @token} id="autolaunch-robinhood-token" class="autolaunch-page token-page">
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>
         <.token_heading
@@ -127,13 +127,20 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         <div>
           <dt>Trades against</dt>
           <dd>
-            {@token.auction.quote_token_symbol} · {@token.auction.quote_token_decimals} decimal places
+            <span class="ticker">{@token.auction.quote_token_symbol}</span>
+            · <span class="figure__value">{@token.auction.quote_token_decimals}</span>
+            decimal places
             <span class="autolaunch-exact-value">{@token.auction.quote_token_address}</span>
           </dd>
         </div>
         <div :if={@reading}>
           <dt>Raised in its auction</dt>
-          <dd>{@reading.currency_raised} {@token.auction.quote_token_symbol}</dd>
+          <dd>
+            <TokenDisplay.written
+              value={@reading.currency_raised}
+              unit={@token.auction.quote_token_symbol}
+            />
+          </dd>
         </div>
       </dl>
       <.live_component

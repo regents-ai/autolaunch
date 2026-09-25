@@ -5,9 +5,8 @@
 .portfolio__sign-in > * { margin: 0; }
 .portfolio__section { display: grid; gap: var(--space-2); min-width: 0; }
 .portfolio__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
-/* The ticker and its paired currency read in the brand's orange; light pages take a deeper shade for contrast. */
-.portfolio .market-list__name small { color: var(--brand-accent); font-weight: 500; }
-:root[data-theme="light"] .portfolio .market-list__name small { color: #c2410c; }
+/* The ticker and its paired currency read in the brand's orange (figures.css). */
+.portfolio .market-list__name small { color: var(--ticker-ink); font-weight: 500; }
 /* A bid is its row and its buttons: one block between hairlines. */
 .portfolio__table tbody + tbody > tr:first-child > * { border-top: 1px solid var(--hairline); }
 .portfolio__table tbody:hover { background: color-mix(in srgb, var(--color-fg) 3%, var(--color-surface)); }

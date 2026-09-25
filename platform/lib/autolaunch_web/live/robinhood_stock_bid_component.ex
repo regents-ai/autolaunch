@@ -182,7 +182,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       <BidForm.title id={@id} title={if @ended, do: "Bidding has ended", else: "Place a bid"}>
         <:help :if={!@ended}>
           <p>
-            Bid with USDG. It is converted into the auction's stock inside the bid, and any
+            Bid with <span class="ticker">USDG</span>. It is converted into the auction's stock inside the bid, and any
             unspent part comes straight back.
           </p>
           <p>
@@ -192,7 +192,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <p>Your wallet confirms every step.</p>
         </:help>
       </BidForm.title>
-      <p :if={@ended} class="bid-ended">{@ended}</p>
+      <p :if={@ended} class="bid-ended">
+        <TokenDisplay.marked text={@ended} tickers={[@token_symbol, stock_symbol(@reading)]} />
+      </p>
 
       <p
         :if={@notice}
@@ -283,7 +285,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         >
           <.summary review={@review} />
           <p class="bid-progress__status" role="status" aria-live="polite">
-            {progress_copy(current_step(assigns), @sent, @with_wallet)}
+            <TokenDisplay.marked
+              text={progress_copy(current_step(assigns), @sent, @with_wallet)}
+              tickers={["USDG"]}
+            />
           </p>
           <a
             :if={pending_hash(@sent) && !Lab.test_chain?(@review.envelope["chain_id"])}
@@ -325,9 +330,19 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <ul role="list">
             <li :for={{bid, standing} <- @rows} id={"#{@id}-bid-#{bid["bid_id"]}"}>
               <p>
-                Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
+                Bid <span class="figure__value">#{bid["bid_id"]}</span>
+                ·
+                <TokenDisplay.written
+                  value={bid["stock_committed_units"]}
+                  unit={@reading.stock["symbol"]}
+                />
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
-                <span :if={standing in [:in, :sharing]}>· {Book.standing_label(standing)}</span>
+                <Regent.Primitives.status
+                  :if={standing in [:in, :sharing]}
+                  tone={if standing == :in, do: "success", else: "warning"}
+                >
+                  {Book.standing_label(standing)}
+                </Regent.Primitives.status>
                 <span :if={is_nil(standing)}>
                   · {bid_state(bid, (@book.ok? && @book.result) || nil, @reading)}
                 </span>
@@ -606,7 +621,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     ~H"""
     <.summary review={@review} />
     <p :if={@first == "usdg_approval"} class="bid-form__note">
-      Your wallet asks twice: first to let the auction use your USDG, last to place the bid.
+      Your wallet asks twice: first to let the auction use your <span class="ticker">USDG</span>,
+      last to place the bid.
     </p>
     <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
     <Regent.Primitives.button class="bid-primary" type="button" data-reviewed-step={@first}>
@@ -623,7 +639,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     <dl class="bid-form__summary" aria-label="Your bid">
       <div>
         <dt>Total bid</dt>
-        <dd>{argument(@review, "usdg_amount")} USDG</dd>
+        <dd><TokenDisplay.written value={argument(@review, "usdg_amount")} unit="USDG" /></dd>
       </div>
       <div>
         <dt>Most per token</dt>
@@ -640,10 +656,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       </div>
     </dl>
     <p class="bid-form__note">
-      Your USDG buys at least {argument(@review, "min_stock_out_units")} {argument(
-        @review,
-        "stock_symbol"
-      )}, 1% below today's quote, or the bid is not placed.
+      Your <span class="ticker">USDG</span>
+      buys at least
+      <TokenDisplay.written
+        value={argument(@review, "min_stock_out_units")}
+        unit={argument(@review, "stock_symbol")}
+      />, 1% below today's quote, or the bid is not placed.
     </p>
     """
   end
