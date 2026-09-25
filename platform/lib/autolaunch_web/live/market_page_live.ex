@@ -5,9 +5,10 @@ defmodule AutolaunchWeb.MarketPageLive do
 
   Base and Robinhood keep their own pages. This finds the one listed auction
   the address names, picks its chain's page, hands that page the record it
-  reads by, and passes every later callback straight to it. An address that
-  names nothing, or an auction whose token has not launched, is the site's
-  404.
+  reads by, and passes every later callback straight to it. It also gives the
+  first render, the one link previews read, the page's share details
+  (`AutolaunchWeb.ShareCard`). An address that names nothing, or an auction
+  whose token has not launched, is the site's 404.
   """
   use AutolaunchWeb, :live_view
 
@@ -20,14 +21,16 @@ defmodule AutolaunchWeb.MarketPageLive do
     Paths,
     RobinhoodAuctionLive,
     RobinhoodTokenLive,
+    ShareCard,
     TokenLive
   }
 
   def mount(%{"symbol" => symbol, "tail" => tail}, session, socket) do
-    {page, page_params} = page!(socket.assigns.live_action, auction!(symbol, tail))
+    {page, page_params, share} = page!(socket.assigns.live_action, symbol, tail)
 
     socket
     |> assign(market_page: page, market_page_params: page_params)
+    |> assign(:share, if(connected?(socket), do: nil, else: share))
     |> PageTitle.assign_title(page)
     |> then(&page.mount(page_params, session, &1))
   end
@@ -44,35 +47,33 @@ defmodule AutolaunchWeb.MarketPageLive do
 
   def render(assigns), do: assigns.market_page.render(assigns)
 
-  defp auction!(symbol, tail) do
+  # Each chain's page, the parameter it reads its record by, and the page's
+  # share details.
+  defp page!(:auction, symbol, tail) do
     case Paths.find_auction(symbol, tail) do
-      {:ok, auction} -> auction
+      {:ok, auction} -> auction_page(auction)
       :error -> raise NotFoundError
     end
   end
 
-  # Each chain's page and the parameter it reads its record by.
-  defp page!(:auction, auction) do
-    if RobinhoodLab.chain?(auction.chain_id),
-      do: {RobinhoodAuctionLive, %{"auction" => auction.auction_address}},
-      else: {AuctionLive, %{"auction_id" => auction.id}}
+  defp page!(:token, symbol, tail) do
+    case Paths.find_token(symbol, tail) do
+      {:ok, auction, token} -> token_page(auction, token)
+      :error -> raise NotFoundError
+    end
   end
 
-  defp page!(:token, auction) do
+  defp auction_page(auction) do
     if RobinhoodLab.chain?(auction.chain_id),
       do:
-        {RobinhoodTokenLive,
-         %{"token" => launched!(robinhood_token(auction)).auction.token_address}},
-      else: {TokenLive, %{"token_id" => launched!(base_token(auction)).id}}
+        {RobinhoodAuctionLive, %{"auction" => auction.auction_address}, ShareCard.meta(auction)},
+      else: {AuctionLive, %{"auction_id" => auction.id}, ShareCard.meta(auction)}
   end
 
-  defp base_token(auction), do: Autolaunch.get_public_token_by_auction(auction.id, actor: nil)
-
-  defp robinhood_token(%{token_address: address}) when is_binary(address),
-    do: Autolaunch.get_robinhood_token(address, actor: nil)
-
-  defp robinhood_token(_auction), do: {:ok, nil}
-
-  defp launched!({:ok, %Autolaunch.Token{} = token}), do: token
-  defp launched!(_not_launched), do: raise(NotFoundError)
+  defp token_page(auction, token) do
+    if RobinhoodLab.chain?(auction.chain_id),
+      do:
+        {RobinhoodTokenLive, %{"token" => auction.token_address}, ShareCard.token_meta(auction)},
+      else: {TokenLive, %{"token_id" => token.id}, ShareCard.token_meta(auction)}
+  end
 end

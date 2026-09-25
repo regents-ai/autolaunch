@@ -25,6 +25,7 @@ defmodule AutolaunchWeb.Router do
     # The pictures shared auction and token links show, read by sites without
     # a session.
     get "/auctions/:symbol/:tail/share.png", ShareCardController, :auction
+    get "/tokens/:symbol/:tail/share.png", ShareCardController, :token
 
     # Addresses the site gave auctions and tokens before they were named by
     # ticker. Links to them were shared, so each moves permanently to the

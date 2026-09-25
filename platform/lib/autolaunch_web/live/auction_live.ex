@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
-  alias AutolaunchWeb.{LiveListings, Paths, ShareCard, UsdValue}
+  alias AutolaunchWeb.{LiveListings, Paths, UsdValue}
 
   def mount(_params, _session, socket),
     do:
@@ -32,7 +32,6 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply,
      socket
      |> assign(:record_id, id)
-     |> assign_share()
      |> assign_positions()
      |> load_page(reset: true)
      |> load_book(reset: true)
@@ -447,21 +446,6 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   # The price to get tokens and the bids around it, read from the auction
-  # Link previews read only the first render, before the page connects, so the
-  # auction's picture and words are read there and nowhere else.
-  defp assign_share(socket) do
-    if connected?(socket),
-      do: socket,
-      else: assign(socket, :share, share(socket.assigns.record_id))
-  end
-
-  defp share(id) do
-    case Autolaunch.get_public_auction(id) do
-      {:ok, %Autolaunch.Auction{} = auction} -> ShareCard.meta(auction)
-      _missing -> nil
-    end
-  end
-
   # contract apart from the page, so a slow read never holds the auction back.
   defp load_book(socket, reset: reset) do
     id = socket.assigns.record_id

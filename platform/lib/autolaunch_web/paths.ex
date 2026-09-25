@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.Paths do
   use AutolaunchWeb, :verified_routes
 
   alias Autolaunch.Chain.Address
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
 
   @doc "The auction's page."
   def auction(auction), do: ~p"/auctions/#{symbol(auction)}/#{auction.path_tail}"
@@ -33,6 +34,10 @@ defmodule AutolaunchWeb.Paths do
   def auction_image_url(auction, version),
     do: url(~p"/auctions/#{symbol(auction)}/#{auction.path_tail}/share.png?#{[v: version]}")
 
+  @doc "The token's share picture; see `auction_image_url/2`."
+  def token_image_url(auction, version),
+    do: url(~p"/tokens/#{symbol(auction)}/#{auction.path_tail}/share.png?#{[v: version]}")
+
   @doc """
   The one listed auction a page address names, or `:error` when none does or
   the tail is too short to name only one.
@@ -42,6 +47,35 @@ defmodule AutolaunchWeb.Paths do
     case Autolaunch.list_auctions_by_path(symbol, tail, actor: nil, load: [:fdv]) do
       {:ok, [auction]} -> {:ok, auction}
       _none_or_several -> :error
+    end
+  end
+
+  @doc """
+  The auction a token page address names and the token it launched, with the
+  token's `market_cap`, or `:error` when the address names no auction or its
+  token has not launched. A Base token is found by its auction, a Robinhood
+  token by the token address its auction recorded.
+  """
+  @spec find_token(String.t(), String.t()) :: {:ok, struct(), struct()} | :error
+  def find_token(symbol, tail) do
+    with {:ok, auction} <- find_auction(symbol, tail),
+         {:ok, %Autolaunch.Token{} = token} <- launched_token(auction) do
+      {:ok, auction, token}
+    else
+      _none -> :error
+    end
+  end
+
+  defp launched_token(auction) do
+    cond do
+      not RobinhoodLab.chain?(auction.chain_id) ->
+        Autolaunch.get_public_token_by_auction(auction.id, actor: nil, load: [:market_cap])
+
+      is_binary(auction.token_address) ->
+        Autolaunch.get_robinhood_token(auction.token_address, actor: nil, load: [:market_cap])
+
+      true ->
+        :error
     end
   end
 
