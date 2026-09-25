@@ -6,7 +6,8 @@ defmodule AutolaunchWeb.ConvertComponent do
   walks the wallet through the reviewed conversion and closes itself when the
   chain confirms it.
 
-  Only the wallet the hook names as its executor sees the form; the Safe can
+  Only the signed-in wallet, read from the mounted lease, and only when the hook
+  names it as its executor, sees the form; the Safe can
   name another at any time, and the pool read carries whichever it names now.
   Every other visitor sees nothing.
 
@@ -20,7 +21,7 @@ defmodule AutolaunchWeb.ConvertComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks.StakeActions
-  alias AutolaunchWeb.StakeComponent
+  alias AutolaunchWeb.{SignedInWallet, StakeComponent}
   alias Phoenix.LiveView.JS
 
   @recheck_ms 2_000
@@ -30,8 +31,7 @@ defmodule AutolaunchWeb.ConvertComponent do
     authentication_required: "Sign in to convert from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address: "Connect the wallet you signed in with, then try again.",
     chain_unavailable: "The fee contract could not be read just now. Try again in a moment.",
     invalid_chain_response: "The fee contract gave an incomplete answer. Try again in a moment.",
@@ -64,6 +64,7 @@ defmodule AutolaunchWeb.ConvertComponent do
           floor: true,
           error: nil,
           wallet: nil,
+          signed_in_for: nil,
           notice: nil,
           review: nil,
           sent: %{},
@@ -78,11 +79,13 @@ defmodule AutolaunchWeb.ConvertComponent do
      |> assign_new(:title, fn -> "REGENT's share" end)
      |> assign_new(:authenticated, fn -> false end)
      |> assign_new(:current_human_id, fn -> nil end)
-     |> assign_new(:session_lease, fn -> nil end)}
+     |> assign_new(:session_lease, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
+     |> SignedInWallet.adopt(&adopt/2)}
   end
 
-  # The hook's element is always present, so the page learns the wallet the
-  # browser holds; the form appears only when that wallet is the converter.
+  # The hook's element is always present, so the browser's wallet report reaches
+  # the card; the form appears only when the signed-in wallet is the converter.
   @impl true
   def render(assigns) do
     ~H"""
@@ -165,6 +168,8 @@ defmodule AutolaunchWeb.ConvertComponent do
           stalled={stalled(@sent)}
           notice={@notice}
           target={@myself}
+          wallet={@wallet}
+          browser_wallets={@browser_wallets}
         />
       </div>
     </section>
@@ -172,8 +177,9 @@ defmodule AutolaunchWeb.ConvertComponent do
   end
 
   @impl true
-  def handle_event("active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("form-" <> revision, params, socket) do
     if revision == Integer.to_string(socket.assigns.revision),
@@ -339,12 +345,9 @@ defmodule AutolaunchWeb.ConvertComponent do
     })
   end
 
-  # The wallet is only what the browser reports; the review proves it against
-  # the session again. A review belongs to the wallet it was made for.
-  defp adopt(socket, address) when is_binary(address),
-    do: socket |> assign(wallet: String.downcase(address)) |> reviewed_for_wallet()
-
-  defp adopt(socket, _none), do: socket |> assign(wallet: nil) |> reviewed_for_wallet()
+  # The signed-in wallet; the review proves it against the session again. A
+  # review belongs to the wallet it was made for.
+  defp adopt(socket, wallet), do: socket |> assign(wallet: wallet) |> reviewed_for_wallet()
 
   defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
     if String.downcase(envelope["expected_signer"]) == wallet, do: socket, else: closed(socket)
@@ -400,7 +403,8 @@ defmodule AutolaunchWeb.ConvertComponent do
       "The conversion did not go through and nothing moved. The price may have moved since this review. Close this and review again for a fresh price."
 
   defp wallet_failure_copy("wallet_unavailable", _review),
-    do: "Open the wallet you signed in with, then try again. Nothing was sent."
+    do:
+      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
 
   defp wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
     if test_chain?(chain_id),

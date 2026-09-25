@@ -8,6 +8,11 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   height, so every card is shorter. Hovering a card shows the bid volume, with how much of the
   launch threshold is met, over the launch threshold, beside the FDV.
 - The count under the gallery reads "1 auction" or "1 token" when there is one.
+- Once you're signed in, every bid, payment, launch and staking box uses the wallet you signed in
+  with straight away, after moving between pages and after a reload. None of them asks you to
+  connect or choose a wallet first. If your browser wallet is on a different address, a note
+  beside the button names both. Pressing a button when your signed-in wallet isn't connected
+  opens the connect step; press again once it is.
 
 ## v27, 25 September 2026 (d5f4bff)
 - The profile page shows only your connected accounts: the name, wallet and X box above them is

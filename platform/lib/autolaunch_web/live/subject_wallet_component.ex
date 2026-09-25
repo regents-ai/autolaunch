@@ -4,10 +4,10 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   revenue split, or route a balance already waiting at its payment address.
   Staking and claiming live in the token page's own staking card.
 
-  The wallet Privy has selected drives everything here. Its address arrives as
-  untrusted browser input and is proved against the mounted lease before any
-  private fact is read or any durable write happens, so any wallet other than
-  the signed-in one shows no balances and can neither review nor send.
+  The wallet the customer signed in with drives everything here, read from the
+  mounted lease, so its balances show as soon as the card mounts. A press opens
+  that wallet, or Privy's connect step when this tab has not connected it, and a
+  note names both wallets while the browser is on another one.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash. Each distinct press is independent;
@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   alias Autolaunch
   alias Autolaunch.Actors.Human
   alias Autolaunch.SubjectWalletActions
+  alias AutolaunchWeb.SignedInWallet
 
   @chain_id 8453
 
@@ -32,10 +33,9 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     authentication_required: "Sign in to use your wallet here.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     subject_not_found: "Payments are not open on this token yet.",
     subject_unavailable: "This token could not be read just now.",
@@ -66,7 +66,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   @generic "That did not go through. Try again in a moment."
 
-  # The refusals that mean this browser is not offering the signed-in
+  # The refusals that mean the session no longer vouches for the signed-in
   # wallet, so no private fact and no control belongs on screen.
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
@@ -81,13 +81,15 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
      |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:state, fn -> nil end)
      |> assign_new(:asset, fn -> "usdc" end)
      |> assign_new(:amount, fn -> "" end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
-     |> assign(assets: @assets)}
+     |> assign(assets: @assets)
+     |> SignedInWallet.adopt(&adopt/2)}
   end
 
   @impl true
@@ -118,13 +120,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           Sign in to pay
         </Regent.Primitives.button>
       </p>
-
-      <div :if={@authenticated && !@wallet} class="subject-wallet-empty">
-        <p>Choose the wallet you want to pay from.</p>
-        <Regent.Primitives.button type="button" data-subject-wallet-connect>
-          Connect or switch wallet
-        </Regent.Primitives.button>
-      </div>
 
       <div :if={@authenticated && @wallet && @state} class="subject-wallet-body">
         <dl :if={!@operation} class="subject-wallet-balances">
@@ -258,6 +253,11 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             {settled_copy(@operation.state)}
           </p>
 
+          <SignedInWallet.note
+            :if={sendable?(@operation, @wallet)}
+            signed_in={@wallet}
+            browser={@browser_wallets}
+          />
           <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
@@ -268,7 +268,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             Confirm in wallet
           </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-            This payment belongs to another wallet. Switch back to it to finish.
+            This payment belongs to another wallet. Sign in with that wallet to finish.
           </p>
           <Regent.Primitives.button
             :if={@operation.state == :submitted}
@@ -356,9 +356,9 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
          __MODULE__
        )}
 
-  # The wallet Privy has selected, whenever it changes.
-  def handle_event("subject_active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("subject_form_changed", params, socket) do
     {:noreply,
@@ -474,9 +474,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   defp cleared(socket), do: push_event(socket, "autolaunch-subject-wallet:cleared", %{})
 
-  # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
-  # the customer. That is the ordinary empty state, not a refusal, and it reads
-  # nothing and says nothing.
+  # Signed out: the card reads nothing and says nothing.
   defp adopt(socket, nil), do: assign(socket, wallet: nil, state: nil, notice: nil)
 
   defp adopt(socket, address) do
@@ -486,8 +484,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
-  # A review is prepared for one signer, so another wallet cannot spend it and it
-  # is withdrawn. Anything already claimed stays exactly where it is, bound to the
+  # A review is prepared for one signer, so after signing in with another
+  # wallet it cannot be spent and it is withdrawn. Anything already claimed stays exactly where it is, bound to the
   # wallet it was reviewed for.
   defp switched(%{assigns: %{wallet: wallet}} = socket, signer, state) when wallet != signer,
     do: socket |> assign(wallet: signer, state: state, notice: nil) |> withdraw()
@@ -512,14 +510,20 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
-  # Membership is a session fact and a balance is a chain fact. Any wallet but
-  # the signed-in one is not adopted at all; the signed-in one stays on screen
-  # with the reason its state could not be read.
+  # Membership is a session fact and a balance is a chain fact. A wallet the
+  # session no longer vouches for is not adopted at all; the signed-in one stays
+  # on screen with the reason its state could not be read.
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, state: nil, notice: notice(:error, reason))
 
   defp refused(socket, address, reason),
-    do: assign(socket, wallet: address, state: nil, notice: notice(:info, reason))
+    do:
+      assign(socket,
+        wallet: address,
+        state: nil,
+        notice: notice(:info, reason),
+        signed_in_for: nil
+      )
 
   defp refreshed(%{assigns: %{wallet: nil}} = socket), do: socket
   defp refreshed(socket), do: adopt(socket, socket.assigns.wallet)

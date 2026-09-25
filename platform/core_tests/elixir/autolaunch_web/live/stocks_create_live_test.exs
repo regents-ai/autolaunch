@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     refute html =~ ~s(value="500")
     assert html =~ "Saved to your account"
 
-    # With every section complete the wallet step appears, waiting for a wallet.
+    # With every section complete the wallet step appears, for the signed-in wallet.
     view
     |> form("#stocks-terms", stock_draft: %{required_raise: "250", floor_price: "2"})
     |> render_change()
@@ -102,7 +102,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
     assert Autolaunch.Stocks.LaunchDraft.launch_ready?(complete)
     assert html =~ ~s(id="autolaunch-stocks-launch-wallet-#{complete.id}")
-    assert html =~ "Connect or switch wallet"
+    assert html =~ "Launching from 0x1111…1111"
   end
 
   defp restore(nil), do: Application.delete_env(:autolaunch, :prelaunch_read_only)

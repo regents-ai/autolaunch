@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
 
   attr :action, :atom,
     required: true,
-    values: [:enter_amount, :review, :sign_in, :connect_wallet, :closed]
+    values: [:enter_amount, :review, :sign_in, :closed]
 
   attr :change_event, :string, required: true
   attr :submit_event, :string, required: true
@@ -188,14 +188,6 @@ defmodule AutolaunchWeb.Components.SwapForm do
         Sign in
       </Regent.Primitives.button>
       <Regent.Primitives.button
-        :if={@action == :connect_wallet}
-        type="button"
-        class="token-swap__submit"
-        data-wallet-connect
-      >
-        Connect wallet
-      </Regent.Primitives.button>
-      <Regent.Primitives.button
         :if={@action == :closed}
         type="button"
         variant="secondary"
@@ -226,6 +218,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :close_event, :string, required: true
   attr :check_event, :string, required: true
   attr :target, :any, default: nil
+  attr :wallet, :string, default: nil
+  attr :browser_wallets, :list, default: []
 
   def swap_review(assigns) do
     ~H"""
@@ -291,6 +285,11 @@ defmodule AutolaunchWeb.Components.SwapForm do
         </li>
       </ol>
 
+      <AutolaunchWeb.SignedInWallet.note
+        :if={@next_step}
+        signed_in={@wallet}
+        browser={@browser_wallets}
+      />
       <Regent.Primitives.button
         :if={@next_step}
         type="button"

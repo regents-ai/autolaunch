@@ -8,6 +8,11 @@ defmodule AutolaunchWeb.SwapComponent do
   behind the gear, then a panel over the form that walks the wallet through the
   swap and closes itself when the swap lands.
 
+  The wallet is the one the customer signed in with, read from the mounted
+  lease. A press opens that wallet, or Privy's connect step when this tab has
+  not connected it, and a note names both wallets while the browser is on
+  another one.
+
   Nothing is stored. The quote and the balances are public reads; the review
   lives on this page only, the browser reports a hash and stops, and every
   outcome on screen is the server's own read of that hash.
@@ -18,6 +23,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.SwapActions
+  alias AutolaunchWeb.SignedInWallet
   alias Phoenix.LiveView.JS
 
   @default_protection "1"
@@ -30,8 +36,7 @@ defmodule AutolaunchWeb.SwapComponent do
     authentication_required: "Sign in to swap from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address: "Connect the wallet you signed in with, then try again.",
     chain_unavailable: "The pool could not be read just now. Try again in a moment.",
     invalid_chain_response: "The pool gave an incomplete answer. Try again in a moment.",
@@ -74,6 +79,7 @@ defmodule AutolaunchWeb.SwapComponent do
           protection_error: nil,
           options_open: false,
           wallet: nil,
+          signed_in_for: nil,
           balances: nil,
           notice: nil,
           review: nil,
@@ -92,7 +98,9 @@ defmodule AutolaunchWeb.SwapComponent do
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:image, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
+     |> SignedInWallet.adopt(&adopt/2)
      |> then(&if(fresh?, do: estimated(&1), else: &1))}
   end
 
@@ -157,6 +165,8 @@ defmodule AutolaunchWeb.SwapComponent do
           close_event="close_review"
           check_event="check_step"
           target={@myself}
+          wallet={@wallet}
+          browser_wallets={@browser_wallets}
         />
       </div>
 
@@ -168,8 +178,9 @@ defmodule AutolaunchWeb.SwapComponent do
   end
 
   @impl true
-  def handle_event("active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("form-" <> revision, params, socket) do
     if revision == Integer.to_string(socket.assigns.revision),
@@ -434,15 +445,10 @@ defmodule AutolaunchWeb.SwapComponent do
     })
   end
 
-  # The wallet is only what the browser reports; every read that matters proves
-  # it against the session again. A review belongs to the wallet it was made for.
-  defp adopt(socket, nil),
-    do: socket |> assign(wallet: nil) |> reviewed_for_wallet() |> balanced()
-
-  defp adopt(socket, address) when is_binary(address),
-    do: socket |> assign(wallet: String.downcase(address)) |> reviewed_for_wallet() |> balanced()
-
-  defp adopt(socket, _other), do: socket
+  # The signed-in wallet; every read that matters proves it against the session
+  # again. A review belongs to the wallet it was made for.
+  defp adopt(socket, wallet),
+    do: socket |> assign(wallet: wallet) |> reviewed_for_wallet() |> balanced()
 
   defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
     if String.downcase(envelope["expected_signer"]) == wallet, do: socket, else: closed(socket)
@@ -460,7 +466,6 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp action(%{read_only?: true}), do: :closed
   defp action(%{authenticated: false}), do: :sign_in
-  defp action(%{wallet: nil}), do: :connect_wallet
   defp action(%{amount: amount, error: nil}) when amount != "", do: :review
   defp action(_assigns), do: :enter_amount
 
@@ -536,7 +541,8 @@ defmodule AutolaunchWeb.SwapComponent do
   defp reverted_copy(_approval), do: "That step did not go through. Try it again."
 
   defp wallet_failure_copy("wallet_unavailable", _review),
-    do: "Open the wallet you signed in with, then try again. Nothing was sent."
+    do:
+      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
 
   defp wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
     if test_chain?(chain_id),

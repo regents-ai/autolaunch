@@ -18,7 +18,6 @@ import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchReviewedSteps} from "./hooks/autolaunch_reviewed_steps"
-import {AutolaunchTestFunds} from "./hooks/autolaunch_stocks"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
@@ -41,7 +40,6 @@ const hooks = {
   AutolaunchReviewedSteps,
   AutolaunchSubjectWallet,
   AutolaunchSwapDialog,
-  AutolaunchTestFunds,
   ImageGradient,
   PriceChart,
   Optics,

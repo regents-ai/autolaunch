@@ -32,6 +32,7 @@ defmodule AutolaunchWeb.WalletPressComponent do
       wallet_press_history: %{},
       operation: nil,
       wallet: nil,
+      signed_in_for: nil,
       balance: nil,
       state: nil,
       amount: "",

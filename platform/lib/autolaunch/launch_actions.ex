@@ -9,10 +9,9 @@ defmodule Autolaunch.LaunchActions do
   transition cannot outlive a concurrent logout. Wallet presses of the review
   are `Autolaunch.WalletAttempts`; this module only supplies their evidence.
 
-  The wallet Privy has selected drives everything. Its address arrives as
-  untrusted browser input and is proved against the account the mounted lease
-  resolves to before any private fact is read; there is no fall back to a stored
-  primary wallet or to the first linked one.
+  The wallet is the one the customer signed in with, which the panel reads from
+  its mounted lease. It is still proved against the account that lease resolves
+  to before any private fact is read.
 
   Provider reads always happen before the lease transaction; only the row write
   happens inside it, and the row is taken `FOR UPDATE` first, so two sockets
@@ -70,10 +69,10 @@ defmodule Autolaunch.LaunchActions do
   ]
 
   @doc """
-  Proves the wallet Privy has selected belongs to this account, and nothing more.
+  Proves the signed-in wallet belongs to this account, and nothing more.
 
-  The reported address is untrusted, so it is checked against the account the
-  mounted lease resolves to before the page shows a single private fact. No
+  The address is checked against the account the mounted lease resolves to
+  before the page shows a single private fact. No
   provider is reached here: a launch review is the one thing that reads Base.
   """
   @spec wallet_state(String.t(), keyword()) :: {:ok, map()} | {:error, term()}

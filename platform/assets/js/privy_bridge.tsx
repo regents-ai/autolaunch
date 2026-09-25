@@ -32,10 +32,9 @@ import {
   type SessionMutationCoordinator,
 } from "./auth_lazy"
 import {
-  activeEthereumWallet,
   eligibleActiveWallet,
-  replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
+  replaceSelectedEthereumAddress,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
 
@@ -694,27 +693,18 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     const generation = ++walletSyncGeneration.current
     const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase() ?? null
 
-    // The wallet the customer just left stops being Stake's wallet here, before
-    // any of the work below can await, so nothing can be prepared or sent for it
-    // while the newly selected provider is still resolving.
-    const cached = activeEthereumWallet()?.address ?? null
-    if (cached && cached !== selected) {
-      replaceActiveEthereumWallet(null)
-      window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
-    }
-
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (!isAvailable() || walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
-      replaceActiveEthereumWallet(null)
+      replaceSelectedEthereumAddress(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
       return
     }
 
     // Each connected wallet's provider is resolved once, and the selection is
     // taken from those resolved entries. A wallet whose provider does not
-    // resolve is not a wallet here, so a failed selection leaves Stake with no
-    // active wallet rather than with the previous one.
+    // resolve is not a wallet here, so a failed selection leaves no selected
+    // address rather than the previous one.
     const resolved = await Promise.allSettled(
       wallets.map(
         async wallet =>
@@ -729,7 +719,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
     const active = entries.find(([address]) => address === selected)
     replaceConnectedEthereumWallets(entries)
-    replaceActiveEthereumWallet(active ? {address: active[0], provider: active[1]} : null)
+    replaceSelectedEthereumAddress(active ? active[0] : null)
     showWalletBadge(active ? eligibleActiveWallet(activeWallet, wallets)?.meta : undefined)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
   }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady, isAvailable])
@@ -742,8 +732,8 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     }
   }, [signOutOnly, synchronizeWallets])
 
-  // Stake's connect-or-switch affordance opens Privy's own chooser. Nothing here
-  // picks a wallet: the customer's selection is the only thing that changes.
+  // A press whose signed-in wallet is not connected in this tab opens Privy's own
+  // chooser. Nothing here picks a wallet: the customer connects one.
   React.useEffect(() => {
     const openChooser = () => void Promise.resolve(connectActiveWallet()).catch(() => undefined)
     window.addEventListener("autolaunch:wallet-connect", openChooser)
@@ -891,7 +881,7 @@ export function startPrivyBridge(
       currentProfileHandler = null
       currentFinishSignOutOnly = null
       replaceConnectedEthereumWallets([])
-      replaceActiveEthereumWallet(null)
+      replaceSelectedEthereumAddress(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
       // React forbids unmounting from inside the render that just failed, so
       // the tree is torn down properly on a later turn.

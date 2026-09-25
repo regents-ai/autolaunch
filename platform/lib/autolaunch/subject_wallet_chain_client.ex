@@ -4,7 +4,7 @@ defmodule Autolaunch.SubjectWalletChainClient do
 
   `snapshot/1` answers the whole reviewed question at once — the splitter's own
   bindings and treasury, the receiver's bindings and canonical economics where a
-  payment needs them, the active wallet's three balances and stake, its current
+  payment needs them, the signed-in wallet's three balances and stake, its current
   claimables, and the allowance standing between it and the spender. There is no
   partial answer: a review is derived from one snapshot or from none.
 

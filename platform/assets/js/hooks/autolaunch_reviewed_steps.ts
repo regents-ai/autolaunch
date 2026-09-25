@@ -2,7 +2,8 @@ import type {Address, Hex} from "viem"
 
 import type {Hook} from "../hook_composition"
 import {builtFor, formOnScreen, type BidInputs} from "./bid_form_on_screen"
-import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
+import {reportBrowserWallets} from "./browser_wallets"
+import {connectedEthereumWallet, signerWalletOrConnect} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_launch"
 import {
   LabNetworkMismatch,
@@ -41,7 +42,7 @@ type ReviewedStepsHook = Hook & {
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload: unknown): void
   review?: Review | null
-  publishActiveWallet?: () => void
+  stopReporting?: () => void
   clicked?: (event: Event) => void
 }
 
@@ -56,10 +57,7 @@ export const AutolaunchReviewedSteps: Hook = {
       (payload as {component_id?: string} | null)?.component_id === this.el.id
 
     this.review = null
-    this.publishActiveWallet = () =>
-      push("active_wallet", {address: activeEthereumWallet()?.address ?? null})
-    window.addEventListener("autolaunch:wallet-state", this.publishActiveWallet)
-    this.publishActiveWallet()
+    this.stopReporting = reportBrowserWallets(push)
 
     this.handleEvent("reviewed-steps:review", payload => {
       if (!mine(payload)) return
@@ -79,12 +77,6 @@ export const AutolaunchReviewedSteps: Hook = {
 
     this.clicked = (event: Event) => {
       const target = event.target as HTMLElement | null
-
-      if (target?.closest("[data-wallet-connect]")) {
-        window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
-        return
-      }
-
       const name = target?.closest<HTMLElement>("[data-reviewed-step]")?.dataset.reviewedStep
       if (!name) return
 
@@ -99,15 +91,16 @@ export const AutolaunchReviewedSteps: Hook = {
 
   destroyed(this: ReviewedStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
-    if (this.publishActiveWallet) {
-      window.removeEventListener("autolaunch:wallet-state", this.publishActiveWallet)
-    }
+    this.stopReporting?.()
   },
 }
 
-// Every press reaches the wallet. The hash is reported and nothing is read
-// afterwards: the server owns every question about what that hash did. While a
-// press is with the wallet the panel is only marked, never locked.
+// Every press reaches the wallet. It sends from the review's signer, the
+// signed-in wallet, as this tab has it connected; when it is not connected here,
+// the press opens Privy's connect step instead and nothing is sent. The hash is
+// reported and nothing is read afterwards: the server owns every question about
+// what that hash did. While a press is with the wallet the panel is only marked,
+// never locked.
 async function send(
   el: HTMLElement,
   review: Review | null,
@@ -121,6 +114,7 @@ async function send(
 
   try {
     if (!review || !step) throw new Error("This step is not part of the review.")
+    if (!signerWalletOrConnect(review.signer)) throw new Error("The signed-in wallet is not connected here.")
 
     // A panel that prepares its review again in the background keeps this one
     // while the wallet has it, so the sent step is checked against it.
@@ -129,7 +123,7 @@ async function send(
     const transaction_hash = await sendLabTransaction(
       review,
       {to: step.to, data: step.data},
-      () => activeEthereumWallet(),
+      () => connectedEthereumWallet(review.signer),
       () => {
         started = true
       },

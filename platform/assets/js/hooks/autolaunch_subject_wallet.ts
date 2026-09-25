@@ -1,6 +1,6 @@
 import {installWalletPresses} from "./wallet_presses"
+import {reportBrowserWallets} from "./browser_wallets"
 import type {Hook} from "../hook_composition"
-import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {
   sendSubjectStep,
   sendableStep,
@@ -12,22 +12,20 @@ type SubjectWalletHook = Hook & {
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload: unknown): void
   removePressListener?: ReturnType<typeof installWalletPresses>
-  publishActiveWallet?: () => void
+  stopReporting?: () => void
 }
 
 /**
- * The wallet side of one subject action: this hook reports the active wallet
+ * The wallet side of one subject action: this hook reports the connected wallets
  * and sends whichever reviewed step the server hands it. There is no encoder
  * here; every byte comes from the reviewed operation.
  */
 export const AutolaunchSubjectWallet: Hook = {
   mounted(this: SubjectWalletHook) {
     const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
-    this.publishActiveWallet = () => push("subject_active_wallet", {address: activeEthereumWallet()?.address ?? null})
-    window.addEventListener("autolaunch:wallet-state", this.publishActiveWallet)
-    this.publishActiveWallet()
+    this.stopReporting = reportBrowserWallets(push)
     this.removePressListener = installWalletPresses<SubjectWalletOperation>(this, {
-      prefix: "autolaunch-subject-wallet", selector: "[data-subject-wallet-send]", connect: "[data-subject-wallet-connect]",
+      prefix: "autolaunch-subject-wallet", selector: "[data-subject-wallet-send]",
       send: (operation, step, started, resolveWallet) => sendSubjectStep(operation,
         sendableStep(operation, operation.action_id, step), resolveWallet, started),
     })
@@ -39,8 +37,6 @@ export const AutolaunchSubjectWallet: Hook = {
 
   destroyed(this: SubjectWalletHook) {
     this.removePressListener?.()
-    if (this.publishActiveWallet) {
-      window.removeEventListener("autolaunch:wallet-state", this.publishActiveWallet)
-    }
+    this.stopReporting?.()
   },
 }

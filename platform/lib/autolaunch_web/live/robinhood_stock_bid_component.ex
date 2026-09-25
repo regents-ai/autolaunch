@@ -5,8 +5,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   transactions (the exact USDG allowance when one is needed, then the bid
   itself).
 
-  The wallet Privy has selected drives everything here and its address is proved
-  against the mounted lease before anything is read. Nothing is stored: the
+  The wallet the customer signed in with, read from the mounted lease, drives
+  everything here, so its bids and the form show as soon as the panel mounts. A
+  press opens that wallet, or Privy's connect step when this tab has not
+  connected it, and a note names both wallets while the browser is on another
+  one. Nothing is stored: the
   review lives on this page only, the browser reports a hash and stops, and
   every outcome on screen is the server's own read of that hash. A wallet's
   bids are the auction's own records. Once the auction has ended, the page
@@ -31,17 +34,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     chain_unavailable: "Robinhood could not be read just now. Try again in a moment.",
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
     invalid_block_header: "Robinhood gave an incomplete answer. Try again in a moment.",
@@ -115,6 +117,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:stake_path, fn -> nil end)
      |> assign_book_and_supply()
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:prepared_for, fn -> nil end)
@@ -135,6 +138,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
        %{BidForm.blank() | amount: Map.get(assigns, :preset_amount) || ""}
      end)
      |> assign_usd_prices()
+     |> SignedInWallet.adopt(&adopt/2)
      |> prepare_when_ready()
      |> told_outbid()}
   end
@@ -185,17 +189,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         </Regent.Primitives.button>
       </p>
 
-      <div :if={@authenticated && !@wallet} class="bid-empty">
-        <p>
-          {if @ended,
-            do: "Choose the wallet you bid from.",
-            else: "Choose the wallet you want to bid from."}
-        </p>
-        <Regent.Primitives.button type="button" data-wallet-connect>
-          Connect or switch wallet
-        </Regent.Primitives.button>
-      </div>
-
       <div :if={@authenticated && @wallet} class="bid-body">
         <p :if={@ended && @reading && @reading.bids == []} class="bid-empty">
           This wallet placed no bids on this auction.
@@ -217,9 +210,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           rate={@usd_rate}
         >
           <:action>
-            <.ready :if={ready?(assigns)} review={@review} rate={@usd_rate} />
+            <.ready
+              :if={ready?(assigns)}
+              review={@review}
+              rate={@usd_rate}
+              wallet={@wallet}
+              browser_wallets={@browser_wallets}
+            />
             <div :if={!ready?(assigns)} class="bid-form__pending">
               <p :if={@preparing} class="bid-form__note" role="status">Getting your bid ready…</p>
+              <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
               <Regent.Primitives.button class="bid-primary" type="button" disabled>
                 Place bid
               </Regent.Primitives.button>
@@ -277,6 +277,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <p :if={slow?(@sent)} class="bid-form__note">
             This is taking longer than usual. It can still go through, and there is nothing you need to do.
           </p>
+          <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
           <Regent.Primitives.button
             class="bid-primary"
             type="button"
@@ -374,8 +375,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   @impl true
-  def handle_event("active_wallet", %{"address" => address}, socket),
-    do: {:noreply, socket |> adopt(address) |> prepare_when_ready()}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("bid_form_changed", params, socket) do
     form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
@@ -580,6 +582,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   attr :review, :map, required: true
   attr :rate, :any, required: true
+  attr :wallet, :string, required: true
+  attr :browser_wallets, :list, required: true
 
   # The reviewed bid in three lines, over the one button that opens the wallet.
   defp ready(assigns) do
@@ -590,6 +594,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     <p :if={@first == "usdg_approval"} class="bid-form__note">
       Your wallet asks twice: first to let the auction use your USDG, last to place the bid.
     </p>
+    <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
     <Regent.Primitives.button class="bid-primary" type="button" data-reviewed-step={@first}>
       {press_label(@first)}
     </Regent.Primitives.button>
@@ -783,12 +788,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         end)
   end
 
-  # A visitor who is not signed in is asked to sign in, not read for.
-  defp adopt(%{assigns: %{authenticated: false}} = socket, _address), do: socket
-
+  # Signed out: the panel reads nothing and says nothing.
   defp adopt(socket, nil), do: assign(socket, wallet: nil, notice: nil)
-
-  defp adopt(%{assigns: %{wallet: wallet}} = socket, wallet), do: socket
 
   defp adopt(socket, address) do
     case StockBidActions.bids(socket.assigns.auction, address, opts(socket)) do
@@ -802,7 +803,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end
   end
 
-  # A review belongs to the wallet it was prepared for; another wallet starts clean.
+  # A review belongs to the wallet it was prepared for; signing in with another
+  # wallet starts clean.
   defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
     if String.downcase(envelope["expected_signer"]) == wallet,
       do: socket,
@@ -821,8 +823,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end
   end
 
-  # Any wallet but the signed-in one is not adopted at all; the signed-in one
-  # stays on screen with the reason.
+  # A wallet the session no longer vouches for is not adopted at all; the
+  # signed-in one stays on screen with the reason.
   defp refused(socket, _address, reason) when reason in @unheld do
     assign(socket,
       wallet: nil,
@@ -837,7 +839,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     assign(socket,
       wallet: String.downcase(address),
       reading: nil,
-      notice: notice(:info, reason)
+      notice: notice(:info, reason),
+      signed_in_for: nil
     )
   end
 
@@ -982,7 +985,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp told_outbid(socket), do: socket
 
   defp wallet_failure_copy("wallet_unavailable"),
-    do: "Open the wallet you signed in with, then try again. Nothing was sent."
+    do:
+      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
 
   defp wallet_failure_copy("network_mismatch"),
     do:

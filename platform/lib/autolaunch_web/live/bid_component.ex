@@ -3,10 +3,11 @@ defmodule AutolaunchWeb.BidComponent do
   The whole bidder: one compact form, the bid it prepares as it changes, and
   the transactions it needs, followed until Base confirms them.
 
-  The wallet Privy has selected drives everything here. Its address arrives as
-  untrusted browser input and is proved against the mounted lease before any
-  private fact is read or any durable write happens, so any wallet other than
-  the signed-in one shows a balance of nothing and can neither review nor send.
+  The wallet the customer signed in with drives everything here, read from the
+  mounted lease, so the balance and the form show as soon as the panel mounts.
+  The browser's wallet matters only when a button is pressed: the press opens the
+  signed-in wallet, or Privy's connect step when this tab has not connected it,
+  and a note names both wallets while the browser is on another one.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash, read again every few seconds until the
@@ -23,14 +24,13 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
   @copy %{
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     session_unavailable: "Sign in again to continue.",
     auction_currency_changed:
       "This auction's currency does not match its record. Bidding is paused here.",
@@ -51,7 +51,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   @generic "That did not go through. Try again in a moment."
 
-  # The refusals that mean this browser is not offering the signed-in
+  # The refusals that mean the session no longer vouches for the signed-in
   # wallet, so no private fact and no control belongs on screen.
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
@@ -96,6 +96,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign(assigns)
      |> assign_new(:heading, fn -> "Place a bid" end)
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:balance, fn -> nil end)
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
      |> assign_new(:form, fn %{auction: auction} ->
@@ -116,6 +117,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:inputs, fn -> nil end)
      |> assign_usd_rate()
      |> preset()
+     |> SignedInWallet.adopt(&adopt/2)
      |> prepare_when_ready()}
   end
 
@@ -150,11 +152,6 @@ defmodule AutolaunchWeb.BidComponent do
         <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to bid</Regent.Primitives.button>
       </p>
 
-      <div :if={@authenticated && !@wallet} class="bid-empty">
-        <p>Choose the wallet you want to bid from.</p>
-        <Regent.Primitives.button type="button" data-bid-connect>Connect or switch wallet</Regent.Primitives.button>
-      </div>
-
       <div :if={@authenticated && @wallet} class="bid-body">
         <BidForm.bid_form
           :if={editable?(@operation) && @balance}
@@ -176,9 +173,11 @@ defmodule AutolaunchWeb.BidComponent do
               operation={@operation}
               rate={@rate}
               wallet={@wallet}
+              browser_wallets={@browser_wallets}
             />
             <div :if={!ready?(assigns)} class="bid-form__pending">
               <p :if={@preparing} class="bid-form__note" role="status">Getting your bid ready…</p>
+              <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
               <Regent.Primitives.button class="bid-primary" type="button" disabled>
                 Place bid
               </Regent.Primitives.button>
@@ -236,6 +235,11 @@ defmodule AutolaunchWeb.BidComponent do
           <p :if={slow?(@operation)} class="bid-form__note">
             This is taking longer than usual. It can still go through, and there is nothing you need to do.
           </p>
+          <SignedInWallet.note
+            :if={sendable?(@operation, @wallet)}
+            signed_in={@wallet}
+            browser={@browser_wallets}
+          />
           <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             class="bid-primary"
@@ -248,7 +252,7 @@ defmodule AutolaunchWeb.BidComponent do
             {press_label(@operation)}
           </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet} role="status">
-            This bid belongs to another wallet. Switch back to it to finish.
+            This bid belongs to another wallet. Sign in with that wallet to finish.
           </p>
           <Regent.Primitives.button
             :if={@operation.state == :prepared}
@@ -265,7 +269,6 @@ defmodule AutolaunchWeb.BidComponent do
     """
   end
 
-  # The wallet Privy has selected, whenever it changes.
   @impl true
   def handle_event("wallet_press_dispatch", params, socket),
     do:
@@ -277,8 +280,9 @@ defmodule AutolaunchWeb.BidComponent do
       {:noreply,
        AutolaunchWeb.WalletPressComponent.report(socket, :bid, params, opts(socket), __MODULE__)}
 
-  def handle_event("bid_active_wallet", %{"address" => address}, socket),
-    do: {:noreply, socket |> adopt(address) |> prepare_when_ready()}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("bid_form_changed", params, socket) do
     form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
@@ -364,6 +368,7 @@ defmodule AutolaunchWeb.BidComponent do
   attr :operation, :map, required: true
   attr :rate, :any, required: true
   attr :wallet, :string, required: true
+  attr :browser_wallets, :list, required: true
 
   # The prepared bid in three lines, over the one button that opens the wallet.
   defp ready(assigns) do
@@ -375,6 +380,7 @@ defmodule AutolaunchWeb.BidComponent do
         @operation
       )}, last to place the bid.
     </p>
+    <SignedInWallet.note signed_in={@wallet} browser={@browser_wallets} />
     <Regent.Primitives.button
       class="bid-primary"
       type="button"
@@ -492,9 +498,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp cleared(socket), do: push_event(socket, "autolaunch-bid:cleared", %{})
 
-  # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
-  # the customer. That is the ordinary empty state, not a refusal, and it reads
-  # nothing and says nothing.
+  # Signed out: the panel reads nothing and says nothing.
   defp adopt(socket, nil), do: assign(socket, wallet: nil, balance: nil, notice: nil)
 
   defp adopt(socket, address) do
@@ -504,8 +508,8 @@ defmodule AutolaunchWeb.BidComponent do
     end
   end
 
-  # A review is prepared for one signer, so another wallet cannot spend it and
-  # it is withdrawn. Anything already claimed stays exactly where it is, bound
+  # A review is prepared for one signer, so after signing in with another
+  # wallet it cannot be spent and it is withdrawn. Anything already claimed stays exactly where it is, bound
   # to the wallet it was reviewed for.
   defp switched(%{assigns: %{wallet: wallet}} = socket, signer, balance) when wallet != signer,
     do: socket |> assign(wallet: signer, balance: balance, notice: nil) |> withdraw()
@@ -526,14 +530,20 @@ defmodule AutolaunchWeb.BidComponent do
     end
   end
 
-  # Membership is a session fact and a balance is a chain fact. Any wallet but
-  # the signed-in one is not adopted at all; the signed-in one stays on
-  # screen with the reason its position could not be read.
+  # Membership is a session fact and a balance is a chain fact. A wallet the
+  # session no longer vouches for is not adopted at all; the signed-in one stays
+  # on screen with the reason its position could not be read.
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, balance: nil, notice: notice(:error, reason))
 
   defp refused(socket, address, reason),
-    do: assign(socket, wallet: address, balance: nil, notice: notice(:info, reason))
+    do:
+      assign(socket,
+        wallet: address,
+        balance: nil,
+        notice: notice(:info, reason),
+        signed_in_for: nil
+      )
 
   defp opts(socket),
     do: [

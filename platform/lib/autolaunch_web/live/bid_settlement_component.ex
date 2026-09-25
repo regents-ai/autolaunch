@@ -17,10 +17,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   auction is asked again at once and the return is reviewed against the
   recorded price.
 
-  The wallet Privy has selected drives every press; its address
-  is proved against the mounted lease before any durable write, the browser
-  reports a hash and stops, and every outcome on screen is the server's own read
-  of that hash. Press plumbing is `WalletPressComponent`, shared with bids.
+  The wallet the customer signed in with, read from the mounted lease, drives
+  every review and press; a press opens that wallet, or Privy's connect step when
+  this tab has not connected it, and a note names both wallets while the browser
+  is on another one. The browser reports a hash and stops, and every outcome on
+  screen is the server's own read of that hash. Press plumbing is
+  `WalletPressComponent`, shared with bids.
   """
 
   use AutolaunchWeb, :live_component
@@ -32,16 +34,15 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{UsdValue, WalletPressComponent}
+  alias AutolaunchWeb.{SignedInWallet, UsdValue, WalletPressComponent}
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     not_your_bid:
       "This bid was placed from a different wallet. Sign in with that wallet to settle it.",
     position_not_on_chain: "This bid has no on-chain record to settle.",
@@ -105,12 +106,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> assign_new(:recorded, fn -> false end)
      |> assign_new(:market, fn -> nil end)
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
      |> assign_new(:after_claim, fn -> :wallet end)
      |> assign(:stake_path, stake_path(assigns.position.auction))
      |> assign_usd_rate()
+     |> SignedInWallet.adopt(&adopt/2)
      |> early_check()}
   end
 
@@ -149,15 +152,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         {@notice.message}
       </p>
 
-      <Regent.Primitives.button
-        :if={@authenticated && !@wallet && @status in [:now, :record]}
-        type="button"
-        variant="secondary"
-        data-settlement-connect
-      >
-        Connect your wallet to get your unspent money back
-      </Regent.Primitives.button>
-
       <div :if={@operation && WalletPressComponent.scope(assigns)} class="bid-early-return__offer">
         <p :if={@operation.step == :exit && @operation.state == :prepared}>
           <strong>
@@ -191,11 +185,16 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         >
           Get my unspent money back
         </Regent.Primitives.button>
+        <SignedInWallet.note
+          :if={sendable?(@operation, @wallet)}
+          signed_in={@wallet}
+          browser={@browser_wallets}
+        />
         <p :if={early_progress(@operation)} role="status" aria-live="polite">
           {early_progress(@operation)}
         </p>
         <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-          This belongs to another wallet. Switch back to it to finish.
+          This belongs to another wallet. Sign in with that wallet to finish.
         </p>
         <Regent.Primitives.button
           :if={@operation.state == :submitted}
@@ -295,13 +294,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
       <p :if={@actions != [] && !@authenticated} class="bid-empty">Sign in to settle this bid.</p>
 
-      <div :if={@actions != [] && @authenticated && !@wallet} class="bid-empty">
-        <p>Choose the wallet that placed this bid.</p>
-        <Regent.Primitives.button type="button" data-settlement-connect>
-          Connect or switch wallet
-        </Regent.Primitives.button>
-      </div>
-
       <div
         :if={@actions != [] && @authenticated && @wallet && !@operation}
         class="bid-settlement-actions"
@@ -388,6 +380,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           {settled_copy(@operation)}
         </p>
 
+        <SignedInWallet.note
+          :if={sendable?(@operation, @wallet)}
+          signed_in={@wallet}
+          browser={@browser_wallets}
+        />
         <Regent.Primitives.button
           :if={sendable?(@operation, @wallet)}
           type="button"
@@ -398,7 +395,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           {send_label(@operation)}
         </Regent.Primitives.button>
         <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-          This settlement belongs to another wallet. Switch back to it to finish.
+          This settlement belongs to another wallet. Sign in with that wallet to finish.
         </p>
         <Regent.Primitives.button
           :if={@operation.state == :submitted}
@@ -467,16 +464,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       {:noreply,
        WalletPressComponent.verify(socket, :bid_settlement, params, opts(socket), __MODULE__)}
 
-  def handle_event("settlement_active_wallet", %{"address" => address}, socket) do
-    wallet = normalized(address)
-
-    socket =
-      if wallet == socket.assigns.wallet,
-        do: socket,
-        else: assign(socket, wallet: wallet, notice: nil, checked_at: nil)
-
-    {:noreply, early_check(socket)}
-  end
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("review_settlement", params, socket) do
     socket =
@@ -504,8 +494,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     socket = assign(socket, checking: false, checked_at: System.monotonic_time(:second))
 
     cond do
-      # The wallet changed while this was asked; the next check starts from
-      # the wallet on screen now.
+      # Signed in with another wallet while this was asked; the next check
+      # starts from the wallet on screen now.
       wallet != socket.assigns.wallet ->
         {:noreply, socket |> assign(checked_at: nil) |> early_check()}
 
@@ -560,8 +550,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp held?(%{state: :confirmed}), do: true
   defp held?(_none_or_finished), do: false
 
-  # Asked for the first time, or again at once: a wallet connected or
-  # changed, a price was recorded or the review offered before lapsed.
+  # Asked for the first time, or again at once: signed in with another
+  # wallet, a price was recorded or the review offered before lapsed.
   defp early_due?(%{checked_at: nil}), do: true
 
   defp early_due?(%{checked_at: checked_at}),
@@ -762,14 +752,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp actor(_socket), do: nil
 
-  defp normalized(nil), do: nil
-
-  defp normalized(address) do
-    case Autolaunch.Chain.Address.normalize(address) do
-      {:ok, normalized} -> normalized
-      :error -> nil
-    end
-  end
+  # The signed-in wallet, once per lease; another one asks the auction again.
+  defp adopt(%{assigns: %{wallet: wallet}} = socket, wallet), do: socket
+  defp adopt(socket, wallet), do: assign(socket, wallet: wallet, notice: nil, checked_at: nil)
 
   defp sendable?(%{state: state, signer: signer, terminal_at: nil}, wallet)
        when state in [:prepared, :dispatched, :submitted],

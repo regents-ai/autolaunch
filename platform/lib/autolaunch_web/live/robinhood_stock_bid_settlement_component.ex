@@ -28,16 +28,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{RobinhoodStockBidComponent, UsdValue}
+  alias AutolaunchWeb.{RobinhoodStockBidComponent, SignedInWallet, UsdValue}
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     not_your_bid:
       "This bid was placed from a different wallet. Sign in with that wallet to settle it.",
     bid_not_found: "The auction has no record of this bid.",
@@ -91,6 +90,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
      |> assign(assigns)
      |> assign(:settlement_identity, identity)
      |> assign(:returned?, returned?(assigns.bid, assigns.graduated?))
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:stake_path, fn -> nil end)
@@ -157,6 +157,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
             <span class="bid-step-state">{return_state(@step, @sent)}</span>
           </li>
         </ol>
+        <SignedInWallet.note
+          :if={!match?(%{outcome: :confirmed}, @sent[@step])}
+          signed_in={@wallet}
+          browser={@browser_wallets}
+        />
         <Regent.Primitives.button
           :if={!match?(%{outcome: :confirmed}, @sent[@step])}
           type="button"
@@ -298,6 +303,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           </dl>
         </Regent.Primitives.disclosure>
 
+        <SignedInWallet.note
+          :if={!done?(@review.steps, @sent)}
+          signed_in={@wallet}
+          browser={@browser_wallets}
+        />
         <div class="launch-wallet-controls">
           <Regent.Primitives.button
             :for={step <- @review.steps}
@@ -366,7 +376,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   def handle_event("clear_review", _params, socket), do: {:noreply, cleared(socket)}
 
-  # The wallet itself is the bid panel's; this row only follows it.
+  # The wallets this tab has connected, whenever they change: only for the note.
+  # The wallet itself is the bid panel's, the signed-in one; this row follows it.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
+
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
   @impl true
@@ -661,7 +675,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     do: %{tone: :error, message: "That transaction did not record the step you reviewed."}
 
   defp wallet_failure_copy("wallet_unavailable"),
-    do: "Open the wallet you signed in with, then try again. Nothing was sent."
+    do:
+      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
 
   defp wallet_failure_copy("network_mismatch"),
     do:

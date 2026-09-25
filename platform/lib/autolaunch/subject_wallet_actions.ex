@@ -10,10 +10,9 @@ defmodule Autolaunch.SubjectWalletActions do
   concurrent logout. Wallet presses of the review are
   `Autolaunch.WalletAttempts`; this module only supplies their evidence.
 
-  The wallet Privy has selected drives everything. Its address arrives as
-  untrusted browser input and is proved against the account the mounted lease
-  resolves to before any private fact is read; there is no fall back to a stored
-  primary wallet or to the first linked one.
+  The wallet is the one the customer signed in with, which the panel reads from
+  its mounted lease. It is still proved against the account that lease resolves
+  to before any private fact is read.
 
   Provider reads always happen before the lease transaction; only the row write
   happens inside it, and the row is taken `FOR UPDATE` first, so two sockets
@@ -85,11 +84,11 @@ defmodule Autolaunch.SubjectWalletActions do
   ]
 
   @doc """
-  What the wallet Privy has selected may actually do on this subject.
+  What the signed-in wallet may actually do on this subject.
 
-  The reported address is untrusted: it is proved against the account the mounted
-  lease resolves to before any private fact is read, so a wallet the account does
-  not hold is refused rather than answered about.
+  The address is proved against the account the mounted lease resolves to before
+  any private fact is read, so a wallet the account does not hold is refused
+  rather than answered about.
   """
   @spec wallet_state(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def wallet_state(subject_id, address, opts) do

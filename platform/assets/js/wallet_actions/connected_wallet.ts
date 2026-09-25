@@ -5,7 +5,7 @@ export type EthereumProvider = {
 export type SelectedWallet = {address: string; provider: EthereumProvider}
 
 let connectedWallets = new Map<string, EthereumProvider>()
-let activeWallet: SelectedWallet | null = null
+let selectedAddress: string | null = null
 
 declare global {
   interface Window {
@@ -19,43 +19,44 @@ export function replaceConnectedEthereumWallets(
   connectedWallets = new Map(wallets.map(([address, provider]) => [address.toLowerCase(), provider]))
 }
 
-export function connectedEthereumWallet(expectedSigner?: string): SelectedWallet | null {
+/** The signed-in wallet's provider, when this tab has that wallet connected. */
+export function connectedEthereumWallet(signer: string): SelectedWallet | null {
+  const expected = signer.toLowerCase()
   const testWallet = testEthereumWallet()
-  if (testWallet) {
-    if (!expectedSigner || testWallet.address.toLowerCase() === expectedSigner.toLowerCase()) {
-      return testWallet
-    }
-    return null
-  }
+  if (testWallet) return testWallet.address.toLowerCase() === expected ? testWallet : null
 
-  if (expectedSigner) {
-    return selectConnectedEthereumWallet([...connectedWallets.entries()], expectedSigner)
-  }
-
-  const first = connectedWallets.entries().next().value as [string, EthereumProvider] | undefined
-  return first ? {address: first[0], provider: first[1]} : null
-}
-
-export function selectConnectedEthereumWallet(
-  wallets: ReadonlyArray<readonly [string, EthereumProvider]>,
-  expectedSigner: string,
-): SelectedWallet | null {
-  const expected = expectedSigner.toLowerCase()
-  const selected = wallets.find(([address]) => address.toLowerCase() === expected)
-  return selected ? {address: selected[0], provider: selected[1]} : null
+  const provider = connectedWallets.get(expected)
+  return provider ? {address: expected, provider} : null
 }
 
 /**
- * The wallet Privy currently has selected, when that selection is an Ethereum
- * wallet that is still connected. Stake reads this and nothing else: an absent,
- * Solana or stale selection is no wallet, never a substitute one.
+ * The signed-in wallet as this tab has it connected. When it is not connected
+ * here, Privy's connect step opens instead and the customer presses again once
+ * it is: a press never sends from any other wallet.
  */
-export function replaceActiveEthereumWallet(wallet: SelectedWallet | null): void {
-  activeWallet = wallet ? {address: wallet.address.toLowerCase(), provider: wallet.provider} : null
+export function signerWalletOrConnect(signer: string): SelectedWallet | null {
+  const wallet = connectedEthereumWallet(signer)
+  if (!wallet) window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
+  return wallet
 }
 
-export function activeEthereumWallet(): SelectedWallet | null {
-  return testEthereumWallet() ?? activeWallet
+/**
+ * Every connected Ethereum wallet, Privy's selected one first. Panels are told
+ * this only to name the browser's wallet beside their buttons when it is not the
+ * signed-in one; it never chooses the wallet a panel acts for.
+ */
+export function connectedAddresses(): string[] {
+  const testWallet = testEthereumWallet()
+  if (testWallet) return [testWallet.address.toLowerCase()]
+  return [...new Set([...(selectedAddress ? [selectedAddress] : []), ...connectedWallets.keys()])]
+}
+
+/**
+ * The address Privy currently has selected, when that selection is an Ethereum
+ * wallet that is still connected. It only orders the browser's report.
+ */
+export function replaceSelectedEthereumAddress(address: string | null): void {
+  selectedAddress = address?.toLowerCase() ?? null
 }
 
 /**
@@ -72,8 +73,8 @@ export function eligibleActiveWallet<W extends {address: string; type?: string}>
   return wallets.some(wallet => wallet.address.toLowerCase() === address) ? active : null
 }
 
-// The browser test seam stands in for Privy's selection as well as for the
-// connected set, so the same wallet drives Stake there as in a real browser.
+// The browser test seam stands in for the connected set, so the same wallet
+// presses there as in a real browser.
 function testEthereumWallet(): SelectedWallet | null {
   return window.location.origin === "http://127.0.0.1:4050" && window.__autolaunchTestWallet
     ? window.__autolaunchTestWallet

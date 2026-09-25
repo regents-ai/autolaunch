@@ -3,8 +3,10 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   The wallet step of a memestock pair launch on Robinhood: one review, then the
   one launch transaction. There is no launch fee.
 
-  The wallet Privy has selected drives everything here and its address is proved
-  against the mounted lease before anything is read. Nothing is stored: the
+  The wallet the customer signed in with, read from the mounted lease, drives
+  everything here. A press opens that wallet, or Privy's connect step when this
+  tab has not connected it, and a note names both wallets while the browser is on
+  another one. Nothing is stored: the
   review lives on this page only, the browser reports a hash and stops, and
   every outcome on screen is the server's own read of that hash. A wallet's
   launches are the launchpad's own records.
@@ -14,15 +16,15 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
+  alias AutolaunchWeb.SignedInWallet
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     chain_unavailable: "Robinhood could not be read just now. Try again in a moment.",
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
     robinhood_unavailable: "Robinhood launches are not open on this site.",
@@ -51,10 +53,12 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
      socket
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:sent, fn -> %{} end)
-     |> assign_new(:launches, fn -> [] end)}
+     |> assign_new(:launches, fn -> [] end)
+     |> SignedInWallet.adopt(&adopt/2)}
   end
 
   @impl true
@@ -68,13 +72,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       >
         {@notice.message}
       </p>
-
-      <div :if={!@wallet} class="launch-wallet-empty">
-        <p>Choose the wallet you want to launch from.</p>
-        <Regent.Primitives.button type="button" data-wallet-connect>
-          Connect or switch wallet
-        </Regent.Primitives.button>
-      </div>
 
       <div :if={@wallet && !@review} class="launch-wallet-open">
         <p class="launch-wallet-hint">
@@ -193,6 +190,11 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           </dl>
         </Regent.Primitives.disclosure>
 
+        <SignedInWallet.note
+          :if={!launched(@sent)}
+          signed_in={@wallet}
+          browser={@browser_wallets}
+        />
         <div class="launch-wallet-controls">
           <Regent.Primitives.button
             :for={step <- @review.steps}
@@ -242,8 +244,9 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   end
 
   @impl true
-  def handle_event("active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("review_launch", _params, socket) do
     case StocksLaunchActions.prepare(socket.assigns.draft.id, socket.assigns.wallet, opts(socket)) do
@@ -317,8 +320,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp adopt(socket, nil), do: assign(socket, wallet: nil, notice: nil)
 
-  defp adopt(%{assigns: %{wallet: wallet}} = socket, wallet), do: socket
-
   defp adopt(socket, address) do
     case StocksLaunchActions.launches(address, opts(socket)) do
       {:ok, %{launches: launches}} ->
@@ -331,7 +332,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end
   end
 
-  # A review belongs to the wallet it was prepared for; another wallet starts clean.
+  # A review belongs to the wallet it was prepared for; signing in with another
+  # wallet starts clean.
   defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
     if String.downcase(envelope["expected_signer"]) == wallet,
       do: socket,
@@ -350,13 +352,18 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end
   end
 
-  # Any wallet but the signed-in one is not adopted at all; the signed-in one
-  # stays on screen with the reason.
+  # A wallet the session no longer vouches for is not adopted at all; the
+  # signed-in one stays on screen with the reason.
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, review: nil, sent: %{}, notice: notice(:error, reason))
 
   defp refused(socket, address, reason),
-    do: assign(socket, wallet: String.downcase(address), notice: notice(:info, reason))
+    do:
+      assign(socket,
+        wallet: String.downcase(address),
+        notice: notice(:info, reason),
+        signed_in_for: nil
+      )
 
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
@@ -420,7 +427,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   end
 
   defp wallet_failure_copy("wallet_unavailable"),
-    do: "Open the wallet you signed in with, then try again. Nothing was sent."
+    do:
+      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
 
   defp wallet_failure_copy("network_mismatch"),
     do:

@@ -1,4 +1,4 @@
-import {activeEthereumWallet, type SelectedWallet} from "../wallet_actions/connected_wallet"
+import {connectedEthereumWallet, signerWalletOrConnect, type SelectedWallet} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_bids"
 
 // `send` names the step to press at once: the server built this review to answer a press.
@@ -10,9 +10,11 @@ type Hook = {el: HTMLElement; handleEvent(name: string, callback: (payload: any)
 
 /** A click captures review + step before any await. Only that click can consume
  * its authorization. Nothing is kept in the browser: a reload starts from the
- * server's own record and never replays a report or a send. */
+ * server's own record and never replays a report or a send. A press sends from
+ * the review's signer, the signed-in wallet, as this tab has it connected; when
+ * it is not connected here, the press opens Privy's connect step instead. */
 export function installWalletPresses<O extends Review>(hook: Hook, config: {
-  prefix: string; selector: string; connect: string;
+  prefix: string; selector: string;
   send(operation: O, step: string, started: () => void, resolveWallet: () => SelectedWallet | null): Promise<string>;
   // Takes a press over (returning true) when the review held for it no longer fits the page.
   claim?(operation: O | undefined): boolean;
@@ -34,9 +36,8 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
   }
   const resolve = (press: {selected: SelectedWallet; invalid: boolean}) => {
     checkScope()
-    const current = activeEthereumWallet()
-    if (disposed || !scope || press.invalid || !current || current.provider !== press.selected.provider ||
-        current.address.toLowerCase() !== press.selected.address.toLowerCase()) {
+    const current = connectedEthereumWallet(press.selected.address)
+    if (disposed || !scope || press.invalid || !current || current.provider !== press.selected.provider) {
       press.invalid = true
       return null
     }
@@ -60,7 +61,6 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     checkScope()
     if (!scope) return
     const target = event.target as HTMLElement | null
-    if (target?.closest(config.connect)) { window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect")); return }
     const button = target?.closest<HTMLElement>(config.selector)
     if (!button) return
     const actionId = button.getAttribute(config.selector.slice(1, -1))
@@ -73,12 +73,15 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
   async function press(op: O, step: string) {
     const pressId = crypto.randomUUID()
     const held = structuredClone(op)
-    const selected = activeEthereumWallet()
-    if (!selected || selected.address.toLowerCase() !== held.signer.toLowerCase()) return
+    const selected = signerWalletOrConnect(held.signer)
+    if (!selected) return
     const pending = {operation: held, step, sent: false, selected: {...selected}, invalid: false}
     presses.set(pressId, pending)
     const accounts = await selected.provider.request({method: "eth_accounts"}).catch(() => null)
-    if (!Array.isArray(accounts) || typeof accounts[0] !== "string" || accounts[0].toLowerCase() !== held.signer.toLowerCase()) return
+    if (!Array.isArray(accounts) || typeof accounts[0] !== "string" || accounts[0].toLowerCase() !== held.signer.toLowerCase()) {
+      window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
+      return
+    }
     if (!resolve(pending)) return
     push("wallet_press_dispatch", {action_id: held.action_id, press_id: pressId, step, signer: held.signer})
   }

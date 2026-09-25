@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {installWalletPresses} from "../../assets/js/hooks/wallet_presses"
-import {replaceActiveEthereumWallet} from "../../assets/js/wallet_actions/connected_wallet"
+import {replaceConnectedEthereumWallets} from "../../assets/js/wallet_actions/connected_wallet"
 import {sendBidStep, sendableStep as bidStep, type BidOperation} from "../../assets/js/wallet_actions/autolaunch_bids"
 import {sendLaunchStep, sendableStep as launchStep, type LaunchOperation} from "../../assets/js/wallet_actions/autolaunch_launch"
 import {sendSubjectStep, sendableStep as subjectStep, type SubjectWalletOperation} from "../../assets/js/wallet_actions/autolaunch_subject_wallet"
@@ -13,7 +13,7 @@ const actionB = "22".repeat(32)
 const hashB = `0x${"bb".repeat(32)}` as Hash
 function deferred<T>() { let resolve!: (v: T) => void; let reject!: (e: unknown) => void
   const promise = new Promise<T>((a,b) => {resolve=a; reject=b}); return {promise, resolve, reject} }
-afterEach(() => { replaceActiveEthereumWallet(null); vi.unstubAllGlobals() })
+afterEach(() => { replaceConnectedEthereumWallets([]); vi.unstubAllGlobals() })
 
 for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describe(`${kind} provider press isolation`, () => {
   it("two presses reach pending provider requests, survive B review, and nothing replays on remount", async () => {
@@ -30,7 +30,7 @@ for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describ
       if (method === "eth_sendTransaction") { requests.push(params?.[0]); return requests.length === 1 ? a.promise : b.promise }
       throw new Error(`Unexpected provider method ${method}`)
     })}
-    replaceActiveEthereumWallet({address: signer, provider})
+    replaceConnectedEthereumWallets([[signer, provider]])
     const clients = {addresses: async () => [signer], chainId: async () => 8453,
       switchToBase: async () => {}, send: (request: unknown) => { requests.push(request); return requests.length === 1 ? a.promise : b.promise }}
     const step = kind === "subject" ? "action" : kind
@@ -50,7 +50,7 @@ for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describ
       if (kind === "launch") return sendLaunchStep(held, launchStep(held, held.action_id, name), resolve, started)
       return sendSubjectStep(held, subjectStep(held, held.action_id, name), resolve, started, clients)
     }
-    const config = {prefix: "review", selector: "[data-send]", connect: "[data-connect]", send}
+    const config = {prefix: "review", selector: "[data-send]", send}
     installWalletPresses(hook, config)
     callbacks.get("review:operation")!(op)
     const initialEvents = events.length

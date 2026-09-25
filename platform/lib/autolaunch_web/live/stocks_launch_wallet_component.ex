@@ -3,9 +3,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   The wallet step of a Stocks launch: one review, then the one launch
   transaction. There is no launch fee.
 
-  The wallet Privy has selected drives everything here and its address is proved
-  against the mounted lease before any private fact is read. The browser reports
-  a hash and stops; every outcome on screen is the server's own read of that hash.
+  The wallet the customer signed in with, read from the mounted lease, drives
+  everything here. A press opens that wallet, or Privy's connect step when this
+  tab has not connected it, and a note names both wallets while the browser is on
+  another one. The browser reports a hash and stops; every outcome on screen is
+  the server's own read of that hash.
   Press plumbing is `WalletPressComponent`, shared with the Agent launch.
   """
 
@@ -13,16 +15,15 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.{Amounts, Lab, LaunchActions}
-  alias AutolaunchWeb.WalletPressComponent
+  alias AutolaunchWeb.{SignedInWallet, WalletPressComponent}
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
@@ -62,10 +63,12 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      |> WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
-     |> assign_new(:auction_path, fn -> nil end)}
+     |> assign_new(:auction_path, fn -> nil end)
+     |> SignedInWallet.adopt(&adopt/2)}
   end
 
   @impl true
@@ -85,13 +88,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       >
         {@notice.message}
       </p>
-
-      <div :if={!@wallet} class="launch-wallet-empty">
-        <p>Choose the wallet you want to launch from.</p>
-        <Regent.Primitives.button type="button" data-launch-wallet-connect>
-          Connect or switch wallet
-        </Regent.Primitives.button>
-      </div>
 
       <div :if={@wallet && !@operation} class="launch-wallet-open">
         <p class="launch-wallet-hint">
@@ -226,6 +222,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         </Regent.Primitives.disclosure>
 
         <div class="launch-wallet-controls">
+          <SignedInWallet.note
+            :if={sendable?(@operation, @wallet)}
+            signed_in={@wallet}
+            browser={@browser_wallets}
+          />
           <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
@@ -236,7 +237,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             Confirm in wallet
           </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-            This launch belongs to another wallet. Switch back to it to finish.
+            This launch belongs to another wallet. Sign in with that wallet to finish.
           </p>
           <Regent.Primitives.button
             :if={@operation.state == :submitted}
@@ -306,8 +307,9 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       {:noreply,
        WalletPressComponent.verify(socket, :stocks_launch, params, opts(socket), __MODULE__)}
 
-  def handle_event("launch_active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("review_launch", _params, socket) do
     {:noreply,
@@ -379,7 +381,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     do: assign(socket, wallet: nil, notice: notice(:error, reason))
 
   defp refused(socket, address, reason),
-    do: assign(socket, wallet: address, notice: notice(:info, reason))
+    do: assign(socket, wallet: address, notice: notice(:info, reason), signed_in_for: nil)
 
   # A verified launch links to the auction row its verification projected, found
   # by the chain and address the chain reported.

@@ -2,10 +2,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   @moduledoc """
   One compact card that takes a saved draft through its launch.
 
-  The wallet Privy has selected drives everything here. Its address arrives as
-  untrusted browser input and is proved against the mounted lease before any
-  private fact is read or any durable write happens, so any wallet other than
-  the signed-in one shows nothing and can neither review nor send.
+  The wallet the customer signed in with drives everything here, read from the
+  mounted lease. A press opens that wallet, or Privy's connect step when this tab
+  has not connected it, and a note names both wallets while the browser is on
+  another one.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash, a claimed step is never offered a second
@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   alias Autolaunch
   alias Autolaunch.Actors.Human
   alias Autolaunch.{Lab, LaunchActions}
+  alias AutolaunchWeb.SignedInWallet
 
   @chain_id 8453
 
@@ -25,10 +26,9 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+      "You are now signed in with a different wallet. Reload the page to continue.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     launch_preparation_unavailable: "Launching from your wallet is not open yet.",
     launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   @generic "That did not go through. Try again in a moment."
 
-  # The refusals that mean this browser is not offering the signed-in
+  # The refusals that mean the session no longer vouches for the signed-in
   # wallet, so no private fact and no control belongs on screen.
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
@@ -74,12 +74,14 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
      |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
+     |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
      |> assign(:local_lab?, Lab.test_chain?())
      |> assign(:treasury_report, current_report(assigns.draft))
-     |> assign_new(:fresh_treasury_report_id, fn -> nil end)}
+     |> assign_new(:fresh_treasury_report_id, fn -> nil end)
+     |> SignedInWallet.adopt(&adopt/2)}
   end
 
   @impl true
@@ -126,11 +128,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       <p :if={!@authenticated} class="launch-wallet-empty">
         <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
       </p>
-
-      <div :if={@authenticated && !@wallet} class="launch-wallet-empty">
-        <p>Choose the wallet you want to launch from.</p>
-        <Regent.Primitives.button type="button" data-launch-wallet-connect>Connect or switch wallet</Regent.Primitives.button>
-      </div>
 
       <div :if={@authenticated && @wallet && !@operation} class="launch-wallet-open">
         <p class="launch-wallet-hint">
@@ -246,6 +243,11 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         </Regent.Primitives.disclosure>
 
         <div class="launch-wallet-controls">
+          <SignedInWallet.note
+            :if={sendable?(@operation, @wallet)}
+            signed_in={@wallet}
+            browser={@browser_wallets}
+          />
           <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
@@ -256,7 +258,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             Confirm in wallet
           </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-            This launch belongs to another wallet. Switch back to it to finish.
+            This launch belongs to another wallet. Sign in with that wallet to finish.
           </p>
           <Regent.Primitives.button
             :if={@operation.state == :submitted}
@@ -310,7 +312,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     """
   end
 
-  # The wallet Privy has selected, whenever it changes.
   @impl true
   def handle_event("wallet_press_dispatch", params, socket),
     do:
@@ -345,8 +346,9 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
          __MODULE__
        )}
 
-  def handle_event("launch_active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("review_launch", _params, socket) do
     {:noreply,
@@ -460,8 +462,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         |> Map.put(:component_id, socket.assigns.id)
       )
 
-  # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
-  # the customer. That is the ordinary empty state, not a refusal.
+  # Signed out: the card reads nothing and says nothing.
   defp adopt(socket, nil), do: assign(socket, wallet: nil, notice: nil)
 
   defp adopt(socket, address) do
@@ -471,13 +472,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     end
   end
 
-  # Membership is a session fact. Any wallet but the signed-in one is
+  # Membership is a session fact. A wallet the session no longer vouches for is
   # not adopted at all; the signed-in one stays on screen with the reason.
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, notice: notice(:error, reason))
 
   defp refused(socket, address, reason),
-    do: assign(socket, wallet: address, notice: notice(:info, reason))
+    do: assign(socket, wallet: address, notice: notice(:info, reason), signed_in_for: nil)
 
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]

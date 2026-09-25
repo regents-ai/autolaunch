@@ -11,6 +11,11 @@ defmodule AutolaunchWeb.StakeComponent do
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
   `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
 
+  The wallet is the one the customer signed in with, read from the mounted
+  lease. A press opens that wallet, or Privy's connect step when this tab has
+  not connected it, and a note names both wallets while the browser is on
+  another one.
+
   Nothing is stored. The figures are public reads; the review lives on this
   page only, the browser reports a hash and stops, and every outcome on
   screen is the server's own read of that hash.
@@ -19,6 +24,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.StakeActions
+  alias AutolaunchWeb.SignedInWallet
   alias Phoenix.LiveView.JS
 
   @recheck_ms 2_000
@@ -28,8 +34,7 @@ defmodule AutolaunchWeb.StakeComponent do
     authentication_required: "Sign in to stake from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer:
-      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
     invalid_address: "Connect the wallet you signed in with, then try again.",
     chain_unavailable: "The staking contract could not be read just now. Try again in a moment.",
     invalid_chain_response:
@@ -79,7 +84,9 @@ defmodule AutolaunchWeb.StakeComponent do
           amount: limited(Map.get(assigns, :initial_amount, "")),
           error: nil,
           wallet: nil,
+          signed_in_for: nil,
           position: nil,
+          read_for: nil,
           notice: nil,
           review: nil,
           sent: %{},
@@ -95,13 +102,17 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
       |> assign_new(:token_path, fn -> nil end)
+      |> assign_new(:browser_wallets, fn -> [] end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
+      |> SignedInWallet.adopt(&adopt/2)
 
-    # A pool read at a new block carries new figures, so the wallet's own are
-    # read again beside it.
-    if socket.assigns[:pool_block] == assigns.pool.block,
+    # A pool read at a new block carries new figures, and another wallet has
+    # figures of its own, so the wallet's are read again beside them.
+    read_for = {assigns.pool.block, socket.assigns.wallet}
+
+    if socket.assigns[:read_for] == read_for,
       do: {:ok, socket},
-      else: {:ok, socket |> assign(pool_block: assigns.pool.block) |> positioned()}
+      else: {:ok, socket |> assign(read_for: read_for) |> positioned()}
   end
 
   defp launch_key(%{chain: :base, auction: %{id: id}}), do: id
@@ -283,14 +294,6 @@ defmodule AutolaunchWeb.StakeComponent do
             Sign in
           </Regent.Primitives.button>
           <Regent.Primitives.button
-            :if={action(assigns) == :connect_wallet}
-            type="button"
-            class="token-swap__submit"
-            data-wallet-connect
-          >
-            Connect wallet
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
             :if={action(assigns) == :closed}
             type="button"
             variant="secondary"
@@ -315,6 +318,8 @@ defmodule AutolaunchWeb.StakeComponent do
           stalled={stalled(@sent)}
           notice={@notice}
           target={@myself}
+          wallet={@wallet}
+          browser_wallets={@browser_wallets}
         />
       </div>
     </section>
@@ -322,8 +327,9 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   @impl true
-  def handle_event("active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+  # The wallets this tab has connected, whenever they change: only for the note.
+  def handle_event("browser_wallets", params, socket),
+    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
 
   def handle_event("form-" <> revision, params, socket) do
     if revision == Integer.to_string(socket.assigns.revision),
@@ -533,19 +539,10 @@ defmodule AutolaunchWeb.StakeComponent do
     })
   end
 
-  # The wallet is only what the browser reports; every read that matters proves
-  # it against the session again. A review belongs to the wallet it was made for.
-  defp adopt(socket, nil),
-    do: socket |> assign(wallet: nil) |> reviewed_for_wallet() |> positioned()
-
-  defp adopt(socket, address) when is_binary(address),
-    do:
-      socket
-      |> assign(wallet: String.downcase(address), position: nil)
-      |> reviewed_for_wallet()
-      |> positioned()
-
-  defp adopt(socket, _other), do: socket
+  # The signed-in wallet; every read that matters proves it against the session
+  # again. A review belongs to the wallet it was made for.
+  defp adopt(socket, wallet),
+    do: socket |> assign(wallet: wallet, position: nil) |> reviewed_for_wallet()
 
   defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
     if String.downcase(envelope["expected_signer"]) == wallet, do: socket, else: closed(socket)
@@ -563,7 +560,6 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp action(%{read_only?: true}), do: :closed
   defp action(%{authenticated: false}), do: :sign_in
-  defp action(%{wallet: nil}), do: :connect_wallet
   defp action(_assigns), do: :act
 
   defp lead(%{kind: :agent} = pool),
@@ -630,7 +626,8 @@ defmodule AutolaunchWeb.StakeComponent do
   defp reverted_copy(:collect), do: @generic
 
   defp wallet_failure_copy("wallet_unavailable", _review),
-    do: "Open the wallet you signed in with, then try again. Nothing was sent."
+    do:
+      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
 
   defp wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
     if test_chain?(chain_id),
@@ -675,6 +672,8 @@ defmodule AutolaunchWeb.StakeComponent do
   attr :stalled, :list, default: []
   attr :notice, :string, default: nil
   attr :target, :any, default: nil
+  attr :wallet, :string, default: nil
+  attr :browser_wallets, :list, default: []
 
   @doc "The review panel over a staking card: the reviewed facts and the wallet steps, one button at a time."
   def stake_review(assigns) do
@@ -718,6 +717,7 @@ defmodule AutolaunchWeb.StakeComponent do
         </li>
       </ol>
 
+      <SignedInWallet.note :if={@next_step} signed_in={@wallet} browser={@browser_wallets} />
       <Regent.Primitives.button
         :if={@next_step}
         type="button"

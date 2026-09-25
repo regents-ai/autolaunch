@@ -112,11 +112,11 @@ defmodule Autolaunch.BidActions do
   end
 
   @doc """
-  What the wallet Privy has selected may actually spend on this auction.
+  What the signed-in wallet may actually spend on this auction.
 
-  The reported address is untrusted: it is proved against the account the mounted
-  lease resolves to before any private fact is read, so a wallet the account does
-  not hold is refused rather than answered about.
+  The address is proved against the account the mounted lease resolves to before
+  any private fact is read, so a wallet the account does not hold is refused
+  rather than answered about.
   """
   def position(input, %{actor: %Human{}} = context) do
     with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context),

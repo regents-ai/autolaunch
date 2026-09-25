@@ -1,0 +1,7 @@
+/* Beside a wallet button when the browser is on a wallet other than the signed-in one. */
+.signed-in-wallet-note {
+  margin: 0;
+  font-size: .8125rem;
+  color: var(--color-fg-muted);
+  overflow-wrap: anywhere;
+}
