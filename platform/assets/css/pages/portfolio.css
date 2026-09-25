@@ -26,5 +26,5 @@
   .portfolio__table td:last-child { min-width: 0; }
   /* The ticker sits under the name, so both keep to the token's cell. */
   .portfolio .market-list__name { flex-direction: column; align-items: stretch; gap: 0; }
-  .portfolio .market-list__name small { overflow: hidden; text-overflow: ellipsis; }
+  .portfolio .market-list__name small { white-space: nowrap; }
 }
