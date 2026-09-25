@@ -25,7 +25,7 @@ the API, the CLI and these tools:
 | `state` | `all`, `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched) | auctions |
 | `sort` | `newest` (most recently listed), `ending` (live only, closing soonest; the website's Closing), `volume` (highest dollar bid volume, unrecorded last; the website's Highest) | auctions |
 | `chain` | `all`, `base`, `robinhood` | auctions, tokens |
-| `kind` | `all`, `revstake` (entries with kind `agent`), `memestake` (entries with kind `stocks`) | auctions, tokens |
+| `kind` | `all`, `revstake`, `memestake` | auctions, tokens |
 | `x`, `ens`, `github` | `true` keeps only creators verified on that account; several must all hold | auctions, tokens |
 
 The API refuses an unknown parameter, a list-shaped one (`kind[]=`), or a value outside

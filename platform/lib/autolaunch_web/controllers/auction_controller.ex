@@ -85,7 +85,7 @@ defmodule AutolaunchWeb.AuctionController do
       token_symbol: auction.token_symbol,
       summary: auction.summary,
       featured: auction.featured,
-      kind: to_string(auction.kind),
+      kind: launch_type(auction.kind),
       state: to_string(auction.state),
       opened_at: iso8601(auction.opened_at),
       estimated_end_at: iso8601(auction.estimated_end_at),
@@ -107,6 +107,10 @@ defmodule AutolaunchWeb.AuctionController do
       treasury_security: TreasurySecurity.public_view(loaded_report(auction))
     }
   end
+
+  # The launch type by its public name; the stored kind keeps its original name.
+  defp launch_type(:agent), do: "revstake"
+  defp launch_type(:stocks), do: "memestake"
 
   # Why each missing figure is missing. The site's chain readers record the
   # bid history (volume and end time) and the amount raised; until they have,

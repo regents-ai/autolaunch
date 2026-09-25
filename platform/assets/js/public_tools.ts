@@ -187,7 +187,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
       description: "The website's search: every word must appear in the name, ticker, stock, description, an address or one of the creator's verified accounts; a leading $ is ignored. The API collapses spaces and keeps the first 80 characters.",
     },
     chain: {type: "string", enum: ["all", "base", "robinhood"]},
-    kind: {type: "string", enum: ["all", "revstake", "memestake"], description: "revstake lists entries whose kind is agent; memestake, entries whose kind is stocks."},
+    kind: {type: "string", enum: ["all", "revstake", "memestake"], description: "revstake lists Revstake launches; memestake, Memestake launches."},
     x: {type: "boolean", description: "true keeps only launches whose creator has a verified X account."},
     ens: {type: "boolean", description: "true keeps only launches whose creator has a verified ENS name."},
     github: {type: "boolean", description: "true keeps only launches whose creator has a verified GitHub account. Several true filters must all hold."},

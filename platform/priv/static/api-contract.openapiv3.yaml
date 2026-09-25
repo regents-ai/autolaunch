@@ -335,7 +335,7 @@ components:
     Kind:
       name: kind
       in: query
-      description: "Launch type: revstake (entries with kind agent) or memestake (entries with kind stocks)."
+      description: "Launch type: revstake or memestake."
       schema: {type: string, enum: [all, revstake, memestake], default: all}
     X:
       name: x
@@ -416,7 +416,7 @@ components:
             estimated_tokens_if_end_now: {type: string}
             warnings: {type: array, items: {type: string}}
     QuoteToken:
-      description: The token bids are paid in. REGENT for agent auctions; the admitted Base stock token for stocks auctions.
+      description: The token bids are paid in. REGENT for revstake auctions; the admitted Base stock token for memestake auctions.
       type: object
       additionalProperties: false
       required: [address, symbol, decimals]
@@ -467,7 +467,7 @@ components:
         token_symbol: {type: [string, "null"]}
         summary: {type: [string, "null"]}
         featured: {type: boolean}
-        kind: {type: string, enum: [agent, stocks], description: "agent is a Revstake launch; stocks a Memestake launch."}
+        kind: {type: string, enum: [revstake, memestake], description: "The launch type: a Revstake or a Memestake launch."}
         state: {type: string, enum: [created, active, ended, graduated, failed], description: "ended: bidding has closed and the auction is waiting to be finished; graduated and failed are final."}
         opened_at: {type: [string, "null"], format: date-time}
         estimated_end_at: {type: [string, "null"], format: date-time, description: "When bidding closes, estimated from the auction's end block and the chain's block times."}
