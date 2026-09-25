@@ -15,7 +15,6 @@ defmodule Autolaunch.TokenTrades do
   alias Autolaunch.{LabAbi, Repo, Token, TokenTrade}
   @actor %System{}
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
-  @initialize "Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)"
   @range 2_000
   @token_decimals 18
   @topic "token_trades"
@@ -150,21 +149,11 @@ defmodule Autolaunch.TokenTrades do
   defp first_block(_, %{from_block: from}, head, _) when is_integer(from),
     do: {:ok, min(from, head.number)}
 
-  # The Robinhood launch's migration block is on the rollup clock, so the pool
-  # opens at its `Initialize` log instead.
-  defp first_block(_, pool, head, opts) do
-    filter = %{
-      address: pool.pool_manager,
-      fromBlock: hex(0),
-      toBlock: hex(head.number),
-      topics: [LabAbi.topic(@initialize), pool.pool_id]
-    }
-
-    case read_logs(filter, opts) do
-      {:ok, [log | _]} -> quantity(log["blockNumber"])
-      _ -> {:error, :pool_unopened}
-    end
-  end
+  # The Robinhood launch's migration block is on the rollup clock, so the
+  # first pass starts where the launch deployed its auction, before the pool
+  # could trade, and walks forward in the same bounded ranges as every other.
+  defp first_block(token, _, head, opts),
+    do: Rpc.deployment_block(token.auction.auction_address, head.number, opts)
 
   defp cursor_valid(%{trades_next_block: nil}, _, _), do: :ok
 
