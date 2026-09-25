@@ -3,6 +3,19 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v30, 25 September 2026 (fe84aea)
+- Search works as you type. Every word you type must appear somewhere in the auction: its name,
+  ticker, paired stock, description, addresses, or the creator's X, GitHub or ENS name. A $ in
+  front of a ticker and extra spaces are ignored. Typing in the search box on any other page
+  opens the results on the home page.
+- Agentic Revenue Launch: "Minimum REGENT Raised to Launch" is optional, with an info icon
+  explaining why a minimum helps backers. Left blank, the launch uses 0.00001 REGENT.
+- The token image on the Agentic Revenue Launch page is a file you upload, like the memestock
+  page; pasting an image link is gone.
+- X and GitHub show Connect, or Disconnect once connected; ENS keeps Change.
+- The connections section starts with "Start Here" and a line on gaining credibility, and the
+  preview reads "This auction and the resulting token will show these identities".
+
 ## v29, 25 September 2026 (6fbff12)
 - The Create page is now "Launch memestock": one short form beside a summary card of the token
   it makes. There's no longer a first step asking which kind of launch you want.
