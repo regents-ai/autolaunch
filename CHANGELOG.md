@@ -7,6 +7,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - Gallery cards no longer show the description. The space under the links is a quarter of its old
   height, so every card is shorter. Hovering a card shows the bid volume, with how much of the
   launch threshold is met, over the launch threshold, beside the FDV.
+- The count under the gallery reads "1 auction" or "1 token" when there is one.
 
 ## v27, 25 September 2026 (d5f4bff)
 - The profile page shows only your connected accounts: the name, wallet and X box above them is

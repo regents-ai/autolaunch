@@ -596,9 +596,7 @@ defmodule AutolaunchWeb.HomeLive do
           class="home-result-count"
           role="status"
         >
-          Showing {length(@records)} {if @records_kind == :token,
-            do: "tokens",
-            else: "auctions"}{if !@has_more,
+          Showing {count_label(length(@records), @records_kind)}{if !@has_more,
             do: " · All results loaded"}
         </p>
       </section>
@@ -629,4 +627,9 @@ defmodule AutolaunchWeb.HomeLive do
     </main>
     """
   end
+
+  defp count_label(1, :token), do: "1 token"
+  defp count_label(count, :token), do: "#{count} tokens"
+  defp count_label(1, _kind), do: "1 auction"
+  defp count_label(count, _kind), do: "#{count} auctions"
 end
