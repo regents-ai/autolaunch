@@ -1,0 +1,22 @@
+/* One ended bid's settlement: where it stands, its figures in ruled rows, then its one action and, once reviewed, its steps. */
+.bid-settlement { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
+.bid-settlement + .bid-settlement { padding-top: var(--space-3); border-top: 1px solid var(--hairline-strong); }
+.bid-settlement > p { margin: 0; }
+.bid-settlement__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.bid-settlement__head .rg-status { font-size: .6875rem; font-weight: 600; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
+.bid-settlement__updated { color: var(--color-fg-muted); font-size: .8125rem; }
+
+/* Label on the left, figure on the right, one hairline between rows. */
+.bid-settlement__facts { display: grid; margin: 0; border-top: 1px solid var(--hairline); }
+.bid-settlement__facts > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-3); min-width: 0; padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline); }
+.bid-settlement__facts dt { color: var(--color-fg-muted); font-size: .6875rem; font-weight: 500; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
+.bid-settlement__facts dd { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 0 var(--space-2); margin: 0 0 0 auto; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.bid-settlement__facts dd .usd-value { color: var(--color-fg-muted); font-size: .8125rem; font-weight: 400; }
+.bid-settlement__facts .bid-settlement__address { font-family: var(--font-family-mono, ui-monospace, monospace); font-size: .875rem; font-weight: 400; }
+
+.bid-settlement__note { color: var(--color-fg-muted); font-size: .875rem; }
+.bid-settlement .bid-settlement-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.bid-settlement .bid-settlement-actions .rg-button { flex: 1 1 12rem; }
+.bid-settlement .bid-review { gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--hairline-strong); }
+.bid-settlement .bid-review > p { margin: 0; }
+.bid-settlement .bid-review > .rg-button { justify-self: stretch; }

@@ -1,4 +1,4 @@
-/* Portfolio: the create page's column, with bids and tokens in the auctions list's rows, each followed by its buttons. */
+/* Portfolio: the create page's column, with bids and tokens in the auctions list's rows; a bid's buttons sit in its Action cell, a token's follow its row. */
 .portfolio__lede { margin-top: calc(-1 * var(--space-2)); }
 .portfolio__lede > span { margin-left: .25em; }
 .portfolio__sign-in { padding: var(--space-4); }
@@ -14,13 +14,16 @@
 .portfolio__table tbody:hover .market-list__row { background: none; }
 .portfolio__actions > td { padding-top: 0; text-align: left; }
 .portfolio__buttons { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* A bid's Action cell: its settlement button, or where it stands, then Bid more while bidding is open. */
+.portfolio__action { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.portfolio__action .rg-button { white-space: nowrap; }
 .portfolio__actions .bid-early-return { display: grid; gap: var(--space-2); margin-top: var(--space-2); font-size: .875rem; }
 .portfolio__actions .bid-early-return > * { margin: 0; }
 .portfolio__history { border-block-end: 0; }
 .portfolio__history > summary { min-height: 2.75rem; }
 .portfolio__history .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
 @media (max-width: 42rem) {
-  /* On a phone a bid shows its token, amount and standing; a token its holding and stake. */
+  /* On a phone a bid shows its token, amount and action; a token its holding and stake. */
   .portfolio__table:not(.portfolio__table--tokens) :is(thead th, .market-list__row > td):is(:nth-child(3), :nth-child(5)),
   .portfolio__table--tokens :is(thead th, .market-list__row > td):nth-child(4) { display: none; }
   .portfolio__table td:last-child { min-width: 0; }

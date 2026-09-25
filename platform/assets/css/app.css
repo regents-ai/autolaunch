@@ -1,5 +1,6 @@
 @import "../vendor/regent_ui/design_system_tokens.css";
 @import "../vendor/regent_ui/primitives.css";
+@import "../vendor/regent_ui/ratio.css";
 @import "./tokens/autolaunch.css";
 @import "./base.css";
 @import "./components/image_upload.css";
@@ -7,6 +8,8 @@
 @import "./components/share_dialog.css";
 @import "./components/signed_in_wallet.css";
 @import "./components/token_heading.css";
+@import "./components/bid_settlement.css";
+@import "./components/stake_summary.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";
 @import "./shell/top_bar.css";

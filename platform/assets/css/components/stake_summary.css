@@ -1,0 +1,10 @@
+/* A token's staking at a glance: the staked share of its supply, then its pool's trading fees over a day and all time. */
+.token-stake { display: grid; gap: var(--space-3); min-width: 0; }
+.stake-summary .rg-ratio-card__footer-content { flex: 1 1 100%; }
+.stake-summary__fees { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); inline-size: 100%; margin: 0; }
+.stake-summary__fees > div { display: grid; gap: var(--space-1); min-width: 0; }
+.stake-summary__fees > div + div { padding-inline-start: var(--space-3); border-inline-start: 1px solid var(--rg-ratio-rule); }
+.stake-summary__fees dt { color: var(--rg-ratio-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel); text-transform: uppercase; }
+.stake-summary__fees dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); margin: 0; font-variant-numeric: tabular-nums; }
+.stake-summary__fees strong { font-family: var(--font-family-title); font-size: clamp(1.25rem, 4cqi, 1.75rem); font-weight: 400; line-height: 1.2; }
+.stake-summary__fees .usd-value, .stake-summary__pending { color: var(--rg-ratio-muted); font-size: .875rem; }

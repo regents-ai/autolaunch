@@ -358,7 +358,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
                   {"created", "Opening soon"},
                   {"active", "Live"},
                   {"ended", "Waiting to finish"},
-                  {"graduated", "Launched"},
+                  {"graduated", "Graduated"},
                   {"failed", "Failed"}
                 ]
               }
@@ -503,7 +503,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             <th scope="col">Token</th>
             <th scope="col">Price</th>
             <th scope="col">Market cap</th>
-            <th scope="col">Launched</th>
+            <th scope="col">Graduated</th>
           </tr>
         </thead>
         <tbody>
@@ -753,7 +753,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp figure_status(%{state: :active, estimated_end_at: %DateTime{} = end_at}),
     do: time_left(max(DateTime.diff(end_at, DateTime.utc_now()), 0))
 
-  defp figure_status(%{state: :graduated} = auction), do: ended("Launched", auction)
+  defp figure_status(%{state: :graduated} = auction), do: ended("Graduated", auction)
   defp figure_status(%{state: :failed} = auction), do: ended("Failed", auction)
   defp figure_status(%{state: state}), do: state_label(state)
 
@@ -896,7 +896,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <p class="market-identity__symbol">${@view.symbol}</p>
         <div class="market-identity__meta">
           <.chain_chip chain={@view.chain} label={@view.chain} />
-          <span class={launched(@status || @view.status)}>{@status || @view.status}</span>
+          <span class={graduated(@status || @view.status)}>{@status || @view.status}</span>
           <span :if={@view.age}>{@view.age}</span>
         </div>
         <div class="market-identity__price">
@@ -1122,11 +1122,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
     %{
       name: presentation.name,
       symbol: presentation.symbol,
-      description: present(presentation.summary, "Launched token"),
+      description: present(presentation.summary, "Graduated token"),
       image: presentation.image,
       color: presentation.image_color,
       website: presentation.website,
-      status: "Launched",
+      status: "Graduated",
       metric_label: "Price",
       metric: metric(token.price_quote, currency, "No price yet"),
       path: Paths.token(token.auction),
@@ -1144,7 +1144,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def state_label(:created), do: "Opening soon"
   def state_label(:active), do: "Live"
   def state_label(:ended), do: "Waiting to finish"
-  def state_label(:graduated), do: "Launched"
+  def state_label(:graduated), do: "Graduated"
   def state_label(:failed), do: "Failed"
 
   # An auction past its end block takes no bids, so its card offers none.
@@ -1157,12 +1157,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
       if(Autolaunch.Prelaunch.read_only?(), do: "Opens #{Autolaunch.Prelaunch.opens_at_label()}")
 
   # A card whose image has a known colour carries it for its border, background
-  # and launched badge.
+  # and graduated badge.
   defp tint(nil), do: nil
   defp tint(color), do: "--image-color: #{color}"
 
-  defp launched("Launched"), do: "market-graduated"
-  defp launched(_status), do: nil
+  defp graduated("Graduated"), do: "market-graduated"
+  defp graduated(_status), do: nil
 
   # `empty` is what the card shows while there is no figure.
   defp metric(amount, unit, empty),

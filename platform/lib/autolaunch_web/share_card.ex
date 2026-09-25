@@ -92,7 +92,7 @@ defmodule AutolaunchWeb.ShareCard do
     %{
       title: "#{auction.title} (#{auction.token_symbol}) on Autolaunch",
       description:
-        "Trade and stake #{auction.token_symbol} on #{@chains[chain(auction)].name}. Launched through an Autolaunch auction.",
+        "Trade and stake #{auction.token_symbol} on #{@chains[chain(auction)].name}. Graduated from an Autolaunch auction.",
       url: Paths.token_url(auction),
       image: token_image_url(auction, DateTime.utc_now()),
       image_alt: "#{auction.title} (#{auction.token_symbol}) token figures on Autolaunch"
@@ -197,7 +197,7 @@ defmodule AutolaunchWeb.ShareCard do
     price = token.price_quote && Decimal.new(token.price_quote, max_digits: :infinity)
 
     draw(auction, %{
-      badge: {"Launched", @powder},
+      badge: {"Graduated", @powder},
       stats: [
         {"FDV", money(token.market_cap, rate, auction), @platinum},
         {"Price", money(price, rate, auction), @platinum}

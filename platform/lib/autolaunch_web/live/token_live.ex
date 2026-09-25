@@ -8,11 +8,12 @@ defmodule AutolaunchWeb.TokenLive do
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PoolSection
   import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.StakeSummary
   import AutolaunchWeb.Components.TokenHeading
 
   alias Autolaunch.Lab
-  alias Autolaunch.Pool
-  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard}
+  alias Autolaunch.{Pool, PoolFees}
+  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
   alias AutolaunchWeb.SwapComponent
 
   def mount(_params, _session, socket) do
@@ -90,6 +91,30 @@ defmodule AutolaunchWeb.TokenLive do
         kind={:token}
         record={@page_record}
       />
+      <section id="stake" class="token-stake" aria-label="Staking">
+        <.stake_summary
+          :if={@pool.ok?}
+          id="token-staked"
+          pool={@pool.result}
+          supply={@page_record.auction.token_supply}
+          label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestake"}
+          fees={@fee_totals.result}
+          rate={@usd_rate.result}
+        />
+        <.live_component
+          :if={@pool.ok?}
+          module={AutolaunchWeb.StakeComponent}
+          id={"token-stake-#{@page_record.id}"}
+          launch={%{chain: :base, auction: @page_record.auction}}
+          pool={@pool.result}
+          initial_amount={@stake_amount}
+          share_url={Paths.token_url(@page_record.auction)}
+          share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
+          authenticated={@account_control.kind == :signed_in}
+          current_human_id={current_human_id(@access_context)}
+          session_lease={@session_lease}
+        />
+      </section>
       <.price_chart
         :if={@pool.ok?}
         id="token-price-chart"
@@ -116,7 +141,7 @@ defmodule AutolaunchWeb.TokenLive do
         session_lease={@session_lease}
       />
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
-        <.link navigate={Paths.auction(@page_record.auction)}>Open the auction this token launched from</.link>
+        <.link navigate={Paths.auction(@page_record.auction)}>Open the auction this token graduated from</.link>
       </p>
       <.launch_trust
         auction={@page_record.auction}
@@ -124,21 +149,6 @@ defmodule AutolaunchWeb.TokenLive do
         pool={if(@pool.ok?, do: @pool.result)}
       />
       <.pool_facts pool={@pool} />
-      <section id="stake" aria-label="Staking">
-        <.live_component
-          :if={@pool.ok?}
-          module={AutolaunchWeb.StakeComponent}
-          id={"token-stake-#{@page_record.id}"}
-          launch={%{chain: :base, auction: @page_record.auction}}
-          pool={@pool.result}
-          initial_amount={@stake_amount}
-          share_url={Paths.token_url(@page_record.auction)}
-          share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
-          authenticated={@account_control.kind == :signed_in}
-          current_human_id={current_human_id(@access_context)}
-          session_lease={@session_lease}
-        />
-      </section>
       <.live_component
         :if={
           @pool.ok? && @pool.result.kind == :agent && !@local_lab? &&
@@ -225,13 +235,19 @@ defmodule AutolaunchWeb.TokenLive do
   defp page_auction_id(_page), do: nil
 
   # The pool is its own read of the chain: the token record renders as soon as
-  # the database answers, and the pool section says when the chain is slow. A
+  # the database answers, and the pool section says when the chain is slow.
+  # The fees it has charged and its currency's dollar price arrive with it. A
   # site without a Base deployment has no pool to read. A fresh page starts
   # from nothing; a re-read keeps the last figures until the new ones arrive.
   defp load_pool(socket, reset?) do
     if Lab.configured?(),
       do: read_pool(socket, reset?),
-      else: assign(socket, :pool, %Phoenix.LiveView.AsyncResult{})
+      else:
+        assign(socket,
+          pool: %Phoenix.LiveView.AsyncResult{},
+          fee_totals: %Phoenix.LiveView.AsyncResult{},
+          usd_rate: %Phoenix.LiveView.AsyncResult{}
+        )
   end
 
   defp read_pool(socket, reset?) do
@@ -239,12 +255,17 @@ defmodule AutolaunchWeb.TokenLive do
 
     assign_async(
       socket,
-      :pool,
+      [:pool, :fee_totals, :usd_rate],
       fn ->
-        with {:ok, %{page: %{record: %{auction: auction}}}} when is_map(auction) <-
+        with {:ok, %{page: %{record: %{auction: auction} = token}}} when is_map(auction) <-
                load_token_page(id),
              {:ok, facts} <- Pool.read(auction) do
-          {:ok, %{pool: facts}}
+          {:ok,
+           %{
+             pool: facts,
+             fee_totals: PoolFees.totals(facts, token),
+             usd_rate: if(Lab.test_chain?(), do: :test_network, else: UsdValue.rate(auction))
+           }}
         else
           {:ok, _no_record} -> {:error, :not_graduated}
           {:error, reason} -> {:error, reason}

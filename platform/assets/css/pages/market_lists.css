@@ -61,7 +61,7 @@
   .market-list__table :is(th, td):last-child { padding-right: 12px; }
   .market-list__table thead th { white-space: normal; }
   .market-list__table td { white-space: nowrap; }
-  /* A status such as "Launched 1d ago" wraps so the name keeps its room. */
+  /* A status such as "Graduated 1d ago" wraps so the name keeps its room. */
   .market-list__table td:last-child { white-space: normal; min-width: 5.5rem; }
   .market-list__art { width: 32px; height: 32px; }
   /* The token cell takes the room left and cuts a long name short. */

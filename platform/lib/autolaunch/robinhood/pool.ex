@@ -285,8 +285,10 @@ defmodule Autolaunch.Robinhood.Pool do
   end
 
   # The hook's two lanes for this pool, read from its own storage right now,
-  # the wallet the Safe named to convert Regent's lane, and the splitter the
-  # staker lane and the locker's LP fees flow to.
+  # every fee it charged the pool's trades, the wallet the Safe named to
+  # convert Regent's lane, and the splitter the staker lane and the locker's
+  # LP fees flow to. Like the price history, the hook's logs are read from the
+  # chain's start.
   defp fees(config, launch, stock, block, opts) do
     hook = Lab.address!(config, :stocks_hook)
     abi = Lab.abi!(config, :stocks_hook)
@@ -309,10 +311,12 @@ defmodule Autolaunch.Robinhood.Pool do
            ),
          {:ok, converter} <-
            Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
-         {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts) do
+         {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts),
+         {:ok, accrued} <- accrued_logs(hook, launch.pool_id, block, opts) do
       {:ok,
        %{
          lane_bps: @lane_bps,
+         charged: Enum.map(accrued, &Autolaunch.Pool.charged/1),
          regent: %{
            accrued: Rpc.format_units(protocol_accrued, stock.decimals),
            accrued_atomic: protocol_accrued,
@@ -347,6 +351,21 @@ defmodule Autolaunch.Robinhood.Pool do
          skim_bps: skim_bps,
          dollar: %{address: dollar, symbol: "USDG", decimals: @usdg_decimals}
        }}
+    end
+  end
+
+  defp accrued_logs(hook, pool_id, block, opts) do
+    filter = %{
+      address: hook,
+      fromBlock: "0x0",
+      toBlock: "0x" <> Integer.to_string(block.number, 16),
+      topics: [LabAbi.topic(RobinhoodLabAbi.hook_fee_accrued_signature()), pool_id]
+    }
+
+    case Rpc.request("eth_getLogs", [filter], opts) do
+      {:ok, logs} when is_list(logs) -> {:ok, logs}
+      {:ok, _other} -> {:error, :invalid_chain_response}
+      error -> error
     end
   end
 

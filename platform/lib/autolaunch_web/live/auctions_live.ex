@@ -142,7 +142,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp pill(options) do
     cond do
-      options.state == "graduated" -> :launched
+      options.state == "graduated" -> :graduated
       options.state == "active" and options.sort == "newest" -> :new
       options.state == "all" and not (options.x or options.ens or options.github) -> :all
       true -> nil
@@ -190,8 +190,8 @@ defmodule AutolaunchWeb.AuctionsLive do
         >New</.link>
         <.link
           patch={list_path(@options, %{state: "graduated"})}
-          aria-current={if @pill == :launched, do: "page"}
-        >Launched</.link>
+          aria-current={if @pill == :graduated, do: "page"}
+        >Graduated</.link>
       </nav>
 
       <section

@@ -349,7 +349,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         <th scope="col">Token</th>
         <th scope="col">Your bid</th>
         <th scope="col">Max price</th>
-        <th scope="col">Where it stands</th>
+        <th scope="col">Action</th>
         <th scope="col">Status</th>
       </tr>
     </thead>
@@ -364,9 +364,10 @@ defmodule AutolaunchWeb.PortfolioLive do
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
 
-  # One Base bid: its list row, then its page, its settlement once the
-  # auction allows one, Bid more while bidding is open, and under a bid that
-  # is outbid or sharing at the price, its early return.
+  # One Base bid: its list row, whose name opens its page and whose action
+  # is its settlement once the auction allows one, else where it stands and
+  # Bid more while bidding is open; under a bid that is outbid or sharing at
+  # the price, its early return.
   defp base_bid(assigns) do
     %{position: position, book: book} = assigns
     auction = position.auction
@@ -375,10 +376,10 @@ defmodule AutolaunchWeb.PortfolioLive do
     assigns =
       assign(assigns,
         auction: auction,
-        page:
+        path:
           if(match?(%Token{}, position.token),
-            do: {"Token", Paths.token(auction)},
-            else: {"Auction", Paths.auction(auction)}
+            do: Paths.token(auction),
+            else: Paths.auction(auction)
           ),
         rate: figure_rate(assigns.rates, auction),
         settle: settle_label(position),
@@ -395,7 +396,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           unit={@auction.quote_token_symbol}
           image={@auction.image}
           chain="Base"
-          path={elem(@page, 1)}
+          path={@path}
         />
         <td>
           <TokenDisplay.price amount={@position.amount} unit={@auction.quote_token_symbol} />
@@ -404,15 +405,8 @@ defmodule AutolaunchWeb.PortfolioLive do
         <td>
           <TokenDisplay.price amount={@position.max_price} unit={@auction.quote_token_symbol} />
         </td>
-        <td>{base_standing(@position, @standing)}</td>
-        <td><.auction_status id={"portfolio-time-#{@position.id}"} auction={@auction} /></td>
-      </tr>
-      <tr class="portfolio__actions">
-        <td colspan="5">
-          <div class="portfolio__buttons">
-            <.link navigate={elem(@page, 1)} class="rg-button rg-button--secondary">
-              {elem(@page, 0)}
-            </.link>
+        <td>
+          <div class="portfolio__action">
             <Regent.Primitives.button
               :if={@settle}
               phx-click="open_settlement"
@@ -420,6 +414,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               {@settle}
             </Regent.Primitives.button>
+            <span :if={!@settle}>{base_standing(@position, @standing)}</span>
             <Regent.Primitives.button
               :if={@live?}
               variant="secondary"
@@ -430,8 +425,15 @@ defmodule AutolaunchWeb.PortfolioLive do
               Bid more
             </Regent.Primitives.button>
           </div>
+        </td>
+        <td><.auction_status id={"portfolio-time-#{@position.id}"} auction={@auction} /></td>
+      </tr>
+      <tr
+        :if={@position.status == "active" && @standing in [:outbid, :sharing]}
+        class="portfolio__actions"
+      >
+        <td colspan="5">
           <.live_component
-            :if={@position.status == "active" && @standing in [:outbid, :sharing]}
             module={BidSettlementComponent}
             id={"portfolio-early-#{@position.id}"}
             early
@@ -454,8 +456,9 @@ defmodule AutolaunchWeb.PortfolioLive do
   attr :rates, :any, required: true
   attr :opens, :string, default: nil
 
-  # One Robinhood bid: its list row, then its page and what its auction
-  # admits. A bid on an auction this site does not list has no page here.
+  # One Robinhood bid: its list row, whose name opens its page and whose
+  # action is what its auction admits. A bid on an auction this site does not
+  # list has no page and no action here.
   defp robinhood_bid(assigns) do
     %{position: position} = assigns
     listing = position.listing
@@ -463,7 +466,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     assigns =
       assign(assigns,
         listing: listing,
-        page: robinhood_page(position),
+        path: robinhood_path(position),
         rate: listing && figure_rate(assigns.rates, listing),
         action: listing && robinhood_action(position)
       )
@@ -477,39 +480,34 @@ defmodule AutolaunchWeb.PortfolioLive do
           unit={@position.stock_symbol}
           image={@position.image}
           chain="Robinhood"
-          path={@page && elem(@page, 1)}
+          path={@path}
         />
         <td>
           <TokenDisplay.price amount={@position.committed} unit={@position.stock_symbol} />
           <small :if={@rate}><UsdValue.usd amount={@position.committed} rate={@rate} /></small>
         </td>
         <td><TokenDisplay.price amount={@position.max_price} unit={@position.stock_symbol} /></td>
-        <td>{robinhood_standing(@position)}</td>
         <td>
-          <.auction_status
-            :if={@listing}
-            id={"portfolio-time-#{@position.auction}-#{@position.bid_id}"}
-            auction={@listing}
-          />
-          <span :if={!@listing}>-</span>
-        </td>
-      </tr>
-      <tr :if={@page} class="portfolio__actions">
-        <td colspan="5">
-          <div class="portfolio__buttons">
-            <.link navigate={elem(@page, 1)} class="rg-button rg-button--secondary">
-              {elem(@page, 0)}
-            </.link>
+          <div class="portfolio__action">
             <Regent.Primitives.button
-              :if={@action && @action != :bid}
+              :if={@action in [:withdraw, :claim]}
               phx-click="open_robinhood"
               phx-value-id={@listing.id}
-              phx-value-mode={if @action == :early, do: "bid", else: "settle"}
+              phx-value-mode="settle"
             >
-              {if @action == :claim, do: "Claim tokens", else: "Withdraw"}
+              {if @action == :claim, do: "Claim", else: "Withdraw"}
+            </Regent.Primitives.button>
+            <span :if={@action not in [:withdraw, :claim]}>{robinhood_standing(@position)}</span>
+            <Regent.Primitives.button
+              :if={@action == :early}
+              phx-click="open_robinhood"
+              phx-value-id={@listing.id}
+              phx-value-mode="bid"
+            >
+              Withdraw
             </Regent.Primitives.button>
             <Regent.Primitives.button
-              :if={@listing.state == :active}
+              :if={@listing && @listing.state == :active}
               variant="secondary"
               phx-click="open_robinhood"
               phx-value-id={@listing.id}
@@ -519,6 +517,14 @@ defmodule AutolaunchWeb.PortfolioLive do
               Bid more
             </Regent.Primitives.button>
           </div>
+        </td>
+        <td>
+          <.auction_status
+            :if={@listing}
+            id={"portfolio-time-#{@position.auction}-#{@position.bid_id}"}
+            auction={@listing}
+          />
+          <span :if={!@listing}>-</span>
         </td>
       </tr>
     </tbody>
@@ -530,8 +536,8 @@ defmodule AutolaunchWeb.PortfolioLive do
   attr :robinhood_swap?, :boolean, required: true
   attr :opens, :string, default: nil
 
-  # One token the wallets hold or stake: its list row, then its page, Buy and
-  # Sell in the swap dialog, and Stake on its page.
+  # One token the wallets hold or stake: its list row, whose name opens its
+  # page, then Buy and Sell in the swap dialog, and Stake on its page.
   defp holding(assigns) do
     %{holding: holding} = assigns
     token = holding.token
@@ -562,7 +568,6 @@ defmodule AutolaunchWeb.PortfolioLive do
       <tr :if={@token} class="portfolio__actions">
         <td colspan="4">
           <div class="portfolio__buttons">
-            <.link navigate={@path} class="rg-button rg-button--secondary">Token</.link>
             <Regent.Primitives.button
               :if={@tradable?}
               phx-click="open_trade"
@@ -693,15 +698,15 @@ defmodule AutolaunchWeb.PortfolioLive do
     if Autolaunch.Prelaunch.read_only?(), do: Autolaunch.Prelaunch.opens_at_label()
   end
 
-  # The page of an auction the bid is in: its token's once it has launched.
-  defp robinhood_page(%{token: %Token{}, listing: listing}), do: {"Token", Paths.token(listing)}
-  defp robinhood_page(%{listing: %{} = listing}), do: {"Auction", Paths.auction(listing)}
-  defp robinhood_page(_position), do: nil
+  # The page of an auction the bid is in: its token's once it has graduated.
+  defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
+  defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
+  defp robinhood_path(_position), do: nil
 
   defp settle_label(%{status: "returnable"} = position),
-    do: if(BidSettlementComponent.spent?(position), do: "Claim tokens", else: "Withdraw")
+    do: if(BidSettlementComponent.spent?(position), do: "Claim", else: "Withdraw")
 
-  defp settle_label(%{status: "claimable"}), do: "Claim tokens"
+  defp settle_label(%{status: "claimable"}), do: "Claim"
   defp settle_label(_position), do: nil
 
   # What a Robinhood bid's auction admits now: its unspent money back once
@@ -724,21 +729,13 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp base_standing(%{status: "active", auction: %{state: :active}}, nil), do: "In the auction"
   defp base_standing(%{status: "active"}, nil), do: "Bidding ended"
 
-  defp base_standing(%{status: "returnable"} = position, _standing),
-    do:
-      if(BidSettlementComponent.spent?(position),
-        do: "Tokens ready to claim",
-        else: "Money to withdraw"
-      )
-
-  defp base_standing(%{status: "claimable"}, _standing), do: "Tokens ready to claim"
-  defp base_standing(%{status: "claimed"}, _standing), do: "Claimed"
+  defp base_standing(%{status: "claimed"}, _standing), do: "Completed"
 
   defp base_standing(%{status: "returned", tokens_filled: filled}, _standing)
        when is_binary(filled) and filled not in ["", "0"],
        do: "Tokens claimable soon"
 
-  defp base_standing(%{status: "returned"}, _standing), do: "Returned"
+  defp base_standing(%{status: "returned"}, _standing), do: "Completed"
 
   # Where a Robinhood bid stands, in the auction's own terms.
   defp robinhood_standing(%{standing: standing}) when standing in [:in, :sharing, :outbid],
@@ -754,8 +751,9 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp robinhood_standing(%{standing: :filled}), do: "Tokens claimable soon"
   defp robinhood_standing(%{standing: :claimable}), do: "Tokens ready to claim"
-  defp robinhood_standing(%{standing: :returned}), do: "Returned"
-  defp robinhood_standing(%{standing: :claimed}), do: "Claimed"
+
+  defp robinhood_standing(%{standing: standing}) when standing in [:returned, :claimed],
+    do: "Completed"
 
   defp rewards([]), do: "-"
   defp rewards(claimable), do: Enum.map_join(claimable, " + ", &"#{&1.amount} #{&1.symbol}")

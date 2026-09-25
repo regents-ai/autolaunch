@@ -27,14 +27,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   use AutolaunchWeb, :live_component
 
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [display_status: 1, display_time: 1]
+  import AutolaunchWeb.Components.AutolaunchHelpers, only: [display_time: 1]
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidActions, BidSettlementActions, Lab}
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{Paths, SignedInWallet, UsdValue, WalletPressComponent}
+  alias AutolaunchWeb.{Paths, SignedInWallet, TokenDisplay, UsdValue, WalletPressComponent}
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
@@ -218,57 +218,72 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     assigns =
       assign(assigns,
         auction: auction,
-        actions: actions(assigns.position, auction),
+        action: action(assigns.position, auction),
+        standing: standing(assigns.position, auction),
         rate: assigns.usd_rate.result
       )
 
     ~H"""
     <article
       id={@id}
-      class="bid-settlement rg-panel rg-panel--surface"
+      class="bid-settlement"
       data-wallet-scope={WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchBidSettlement"
       phx-target={@myself}
     >
-      <p class="autolaunch-kicker">{display_status(@position.status)}</p>
-      <h3>{@auction.title}<span :if={@auction.token_symbol}> · {@auction.token_symbol}</span></h3>
-      <dl>
+      <header class="bid-settlement__head">
+        <Regent.Primitives.status tone={elem(@standing, 1)}>
+          {elem(@standing, 0)}
+        </Regent.Primitives.status>
+        <span class="bid-settlement__updated">Updated {display_time(@position.updated_at)}</span>
+      </header>
+      <dl class="bid-settlement__facts">
         <div>
-          <dt>Bid amount</dt>
+          <dt>Your bid</dt>
           <dd>
-            {@position.amount} {@auction.quote_token_symbol}
+            <TokenDisplay.price amount={@position.amount} unit={@auction.quote_token_symbol} />
             <UsdValue.usd amount={@position.amount} rate={@rate} />
           </dd>
         </div>
         <div>
-          <dt>Maximum price</dt>
-          <dd title={@position.max_price}>
-            {compact(@position.max_price)} {@auction.quote_token_symbol}
+          <dt>Max price</dt>
+          <dd>
+            <TokenDisplay.price
+              amount={@position.max_price}
+              unit={@auction.quote_token_symbol}
+              round={:down}
+            />
             <UsdValue.usd amount={@position.max_price} rate={@rate} per="per token" />
           </dd>
         </div>
         <div :if={@position.currency_refunded}>
           <dt>Returned</dt>
           <dd>
-            {@position.currency_refunded} {@auction.quote_token_symbol}
+            <TokenDisplay.price
+              amount={@position.currency_refunded}
+              unit={@auction.quote_token_symbol}
+              round={:down}
+            />
             <UsdValue.usd amount={@position.currency_refunded} rate={@rate} />
           </dd>
         </div>
         <div :if={positive?(@position.tokens_filled)}>
           <dt>Tokens won</dt>
-          <dd>{compact(@position.tokens_filled)} {@auction.token_symbol}</dd>
+          <dd>
+            {tokens(@position.tokens_filled)} {@auction.token_symbol}
+          </dd>
         </div>
         <div :if={positive?(@position.tokens_claimed)}>
           <dt>Tokens claimed</dt>
-          <dd>{compact(@position.tokens_claimed)} {@auction.token_symbol}</dd>
+          <dd>
+            {tokens(@position.tokens_claimed)} {@auction.token_symbol}
+          </dd>
         </div>
         <div>
           <dt>Wallet</dt>
-          <dd class="autolaunch-exact-value">{@position.owner_address}</dd>
-        </div>
-        <div>
-          <dt>Updated</dt>
-          <dd>{display_time(@position.updated_at)}</dd>
+          <dd class="bid-settlement__address" title={@position.owner_address}>
+            {SignedInWallet.short(@position.owner_address)}
+          </dd>
         </div>
       </dl>
 
@@ -280,9 +295,18 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         {@notice.message}
       </p>
 
-      <p :for={reason <- reasons(@position, @market, @auction)} role="status">{reason}</p>
-      <p :if={@auction.state == :failed && @position.status == "returnable"}>
-        The auction for {@auction.token_symbol} did not meet its minimum raise. Your bid returns in {@auction.quote_token_symbol} to the wallet shown above.
+      <p
+        :for={reason <- reasons(@position, @market, @auction)}
+        class="bid-settlement__note"
+        role="status"
+      >
+        {reason}
+      </p>
+      <p
+        :if={@auction.state == :failed && @position.status == "returnable"}
+        class="bid-settlement__note"
+      >
+        The auction for {@auction.token_symbol} did not meet its minimum raise. Your whole bid comes back in {@auction.quote_token_symbol} to the wallet above.
       </p>
       <.link
         :if={@stake_path && positive?(@position.tokens_claimed)}
@@ -292,19 +316,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         {stake_label(@auction)} {@auction.token_symbol}
       </.link>
 
-      <p :if={@actions != [] && !@authenticated} class="bid-empty">Sign in to settle this bid.</p>
+      <p :if={@action && !@authenticated} class="bid-empty">Sign in to settle this bid.</p>
 
       <div
-        :if={@actions != [] && @authenticated && @wallet && !@operation}
+        :if={@action && @authenticated && @wallet && !@operation}
         class="bid-settlement-actions"
       >
-        <Regent.Primitives.button
-          :for={label <- @actions}
-          type="button"
-          phx-click="review_settlement"
-          phx-target={@myself}
-        >
-          {label}
+        <Regent.Primitives.button type="button" phx-click="review_settlement" phx-target={@myself}>
+          {@action}
         </Regent.Primitives.button>
         <Regent.Primitives.button
           :if={@stake_path && @position.status == "claimable"}
@@ -327,25 +346,34 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <p :if={@after_claim == :stake}>
           First claim to your wallet, then continue to staking. Your wallet confirms each step. Tokens are not locked.
         </p>
-        <p class="autolaunch-exact-value">Receiving wallet: {@position.owner_address}</p>
-        <dl>
+        <dl class="bid-settlement__facts">
           <div :if={argument(@operation, "currency_refunded")}>
-            <dt>Returned to you</dt>
+            <dt>Comes back to you</dt>
             <dd>
-              {argument(@operation, "currency_refunded")} {argument(@operation, "currency_symbol")}
+              <TokenDisplay.price
+                amount={argument(@operation, "currency_refunded")}
+                unit={argument(@operation, "currency_symbol")}
+                round={:down}
+              />
               <UsdValue.usd amount={argument(@operation, "currency_refunded")} rate={@rate} />
             </dd>
           </div>
           <div :if={argument(@operation, "tokens_filled")}>
             <dt>Tokens won</dt>
             <dd>
-              {compact(argument(@operation, "tokens_filled"))} {argument(@operation, "token_symbol")}
+              {tokens(argument(@operation, "tokens_filled"))} {argument(@operation, "token_symbol")}
             </dd>
           </div>
           <div :if={argument(@operation, "tokens_claimed")}>
             <dt>Tokens claimed</dt>
             <dd>
-              {compact(argument(@operation, "tokens_claimed"))} {argument(@operation, "token_symbol")}
+              {tokens(argument(@operation, "tokens_claimed"))} {argument(@operation, "token_symbol")}
+            </dd>
+          </div>
+          <div>
+            <dt>Receiving wallet</dt>
+            <dd class="bid-settlement__address" title={@position.owner_address}>
+              {SignedInWallet.short(@position.owner_address)}
             </dd>
           </div>
           <div>
@@ -638,8 +666,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp early_progress(_operation), do: nil
 
-  # The exact action the position's status admits. A failed auction returns
-  # the whole bid; a graduated one returns what the fill did not spend.
+  # Where claimed tokens are staked, once the auction's token exists.
   defp stake_path(%{state: :graduated, id: id} = auction) do
     case Autolaunch.get_public_token_by_auction(id) do
       {:ok, %{}} -> Paths.token(auction) <> "#stake"
@@ -651,17 +678,37 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp stake_label(%{kind: :agent}), do: "Revstake"
   defp stake_label(_auction), do: "Memestake"
 
-  defp actions(%{status: "returnable"}, %{state: :failed, quote_token_symbol: symbol}),
-    do: ["Return #{symbol}"]
+  # The exact action the position's status admits. A failed auction returns
+  # the whole bid; a graduated one returns what the fill did not spend.
+  defp action(%{status: "returnable"}, %{state: :failed, quote_token_symbol: symbol}),
+    do: "Withdraw #{symbol}"
 
-  defp actions(%{status: "returnable"} = position, auction) do
+  defp action(%{status: "returnable"} = position, auction) do
     if spent?(position),
-      do: ["Claim #{auction.token_symbol} to wallet"],
-      else: ["Return unspent #{auction.quote_token_symbol}"]
+      do: "Claim #{auction.token_symbol}",
+      else: "Withdraw unspent #{auction.quote_token_symbol}"
   end
 
-  defp actions(%{status: "claimable"}, %{token_symbol: symbol}), do: ["Claim #{symbol} to wallet"]
-  defp actions(_position, _auction), do: []
+  defp action(%{status: "claimable"}, %{token_symbol: symbol}), do: "Claim #{symbol}"
+  defp action(_position, _auction), do: nil
+
+  # Where the bid's settlement stands, with its tone, for the card's chip.
+  defp standing(%{status: "active"}, _auction), do: {"In the auction", "neutral"}
+  defp standing(%{status: "returnable"}, %{state: :failed}), do: {"Refund ready", "info"}
+
+  defp standing(%{status: "returnable"} = position, _auction),
+    do: if(spent?(position), do: {"Ready to claim", "info"}, else: {"Ready to withdraw", "info"})
+
+  defp standing(%{status: "claimable"}, _auction), do: {"Ready to claim", "info"}
+
+  defp standing(%{status: "returned"} = position, _auction),
+    do:
+      if(positive?(position.tokens_filled),
+        do: {"Claim opens soon", "neutral"},
+        else: {"Completed", "success"}
+      )
+
+  defp standing(%{status: "claimed"}, _auction), do: {"Completed", "success"}
 
   @doc """
   Whether an unsettled bid on a launched auction was wholly spent: its
@@ -824,10 +871,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp confirmed_copy(%{result: %{"tokens_claimed_units" => tokens}} = operation),
     do:
-      "#{compact(tokens)} #{argument(operation, "token_symbol")} tokens were delivered to your wallet."
+      "#{tokens(tokens)} #{argument(operation, "token_symbol")} tokens were delivered to your wallet."
 
   defp confirmed_copy(%{result: %{"currency_refunded_units" => refunded}} = operation),
-    do: "#{refunded} #{argument(operation, "currency_symbol")} was returned to your wallet."
+    do:
+      "#{TokenDisplay.short(refunded, :down)} #{argument(operation, "currency_symbol")} was returned to your wallet."
 
   defp confirmed_copy(%{envelope: %{"chain_id" => chain_id}}) do
     if Lab.test_chain?(chain_id),
@@ -875,8 +923,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     |> UsdValue.assign_rate(:usd_rate, :base, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
   end
 
-  defp compact(value) when is_binary(value) and value != "", do: Amounts.compact_decimal(value)
-  defp compact(_value), do: "—"
+  # A token amount cut to four significant digits, never rounded up, its whole
+  # part grouped in thousands: 68493.15 reads as 68,490.
+  defp tokens(value), do: value |> TokenDisplay.short(:down) |> Amounts.grouped()
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"

@@ -418,7 +418,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     do: %{tone: :error, message: "That transaction did not record the step you reviewed."}
 
   defp lifecycle("active"), do: "Active"
-  defp lifecycle("graduated"), do: "Launched"
+  defp lifecycle("graduated"), do: "Graduated"
   defp lifecycle("failed"), do: "Required raise not reached"
   defp lifecycle("none"), do: "Not started"
 

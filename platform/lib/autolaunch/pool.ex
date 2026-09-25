@@ -436,15 +436,16 @@ defmodule Autolaunch.Pool do
         |> Enum.map(fn log ->
           {:ok, fee_token} = log |> topic_at(3) |> word() |> Abi.word_address()
           [_fee_base, lane, _exact_input] = data_words(log)
-          {fee_token, lane}
+          {String.downcase(fee_token), lane, quantity(log["blockNumber"])}
         end)
 
       per_token =
-        Enum.reduce(settled, %{}, fn {token, lane}, sums ->
-          Map.update(sums, String.downcase(token), lane, &(&1 + lane))
+        Enum.reduce(settled, %{}, fn {token, lane, _block}, sums ->
+          Map.update(sums, token, lane, &(&1 + lane))
         end)
 
       regent = Lab.address!(config, :regent)
+      regent_fee? = &(&1 == String.downcase(regent))
 
       {:ok,
        %{
@@ -453,14 +454,21 @@ defmodule Autolaunch.Pool do
          receiver: distribution.receiver,
          swaps: length(settled),
          per_lane: %{
-           currency: Rpc.format_units(Map.get(per_token, regent, 0), @regent_decimals),
+           currency:
+             Rpc.format_units(Map.get(per_token, String.downcase(regent), 0), @regent_decimals),
            token:
              Rpc.format_units(
                Map.get(per_token, String.downcase(distribution.subject), 0),
                @token_decimals
              )
          },
-         token_symbol: auction.token_symbol
+         token_symbol: auction.token_symbol,
+         charged:
+           for {token, lane, block} <- settled do
+             if regent_fee?.(token),
+               do: %{block: block, currency: 2 * lane, token: 0},
+               else: %{block: block, currency: 0, token: 2 * lane}
+           end
        }}
     end
   end
@@ -678,10 +686,13 @@ defmodule Autolaunch.Pool do
       regent_topic = LabAbi.topic(StocksLabAbi.regent_lane_settled_signature())
       staker_topic = LabAbi.topic(StocksLabAbi.staker_lane_settled_signature())
 
+      accrued = Enum.filter(logs, &(topic_at(&1, 0) == accrued_topic))
+
       {:ok,
        %{
          lane_bps: @lane_bps,
-         trades: Enum.count(logs, &(topic_at(&1, 0) == accrued_topic)),
+         trades: length(accrued),
+         charged: Enum.map(accrued, &charged/1),
          regent: %{
            accrued: Rpc.format_units(regent_accrued, decimals),
            accrued_atomic: regent_accrued,
@@ -724,6 +735,15 @@ defmodule Autolaunch.Pool do
          dollar: %{address: dollar, symbol: "USDC", decimals: @usdc_decimals}
        }}
     end
+  end
+
+  @doc """
+  One trade's fee from a memestock hook's `HookFeeAccrued` log, on Base or
+  Robinhood: both lanes, in atomic units of the pool's currency.
+  """
+  def charged(log) do
+    [_fee_base, regent_lane, staker_lane] = data_words(log)
+    %{block: quantity(log["blockNumber"]), currency: regent_lane + staker_lane, token: 0}
   end
 
   defp settlement(log, regent_topic, decimals) do
