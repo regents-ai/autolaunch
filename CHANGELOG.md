@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Next (not live yet)
+## v27, 25 September 2026 (d5f4bff)
 - The profile page shows only your connected accounts: the name, wallet and X box above them is
   gone.
 - A connected GitHub account can be changed or disconnected, like X.
