@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v34, 25 September 2026 (4fc881a)
+- Withdrawing and claiming after an auction ends works on Base and Robinhood. Before, every press
+  showed "That did not go through. Try again in a moment.", and a bid priced out by the final
+  price could not get its unspent money back.
+- An ended auction says how long ago it ended, such as "Ended 24m ago", instead of how long ago
+  it was listed.
+- The site reports its health (indexer lag, job age, wallet send failures, database wait) to
+  Fly Sentinel on a private port.
+
 ## v33, 25 September 2026 (45c99c5)
 - The API, the command-line tool and the browser tools for AI agents call the two launch types
   `revstake` and `memestake`, in what they return as well as in the filter. The old names
