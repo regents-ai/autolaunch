@@ -119,9 +119,9 @@ Every autolaunch.sh page offers five read-only tools to browsers that support We
 
 | Tool | What it does |
 | --- | --- |
-| `autolaunch_auctions` | Lists auctions. Optional `mode` (`all`, `biddable`, `live`, `ended`, `failed_minimum`, `graduated`), `sort` (`newest`, `oldest`), `limit` (1–50) and `after` (the `next_cursor` of the previous page). `ended` means bidding has closed and the auction is waiting to be finished; `minimum_reached` says whether the raise met its minimum. |
-| `autolaunch_auction` | One auction by `id`: its kind (`agent` is a Revstake launch, `stocks` a Memestake launch), the token bids are paid in, and its treasury report when there is one. |
-| `autolaunch_tokens` | Lists tokens whose auctions succeeded. Optional `limit` (1–100) and `after`. |
+| `autolaunch_auctions` | Lists auctions, found and ordered as the website's auction list does. Optional `q` (the website search), `state` (`all`, `created`, `active`, `ended`, `failed`, `graduated`), `sort` (`newest`, `ending` for live auctions closing soonest, `volume` for the highest dollar bid volume), `chain` (`all`, `base`, `robinhood`), `kind` (`all`, `revstake`, `memestake`), `x`, `ens` and `github` (true keeps creators verified on that account), `limit` (1–50) and `after` (the `next_cursor` of the previous page, with the same options). `ended` means bidding has closed and the auction is waiting to be finished; `minimum_reached` says whether the raise met its minimum. Each auction also gives its page `url`, `estimated_end_at`, `token_allocation`, `bid_volume`, `minimum_raise`, `currency_raised` and `percent_met`; see below. |
+| `autolaunch_auction` | One auction by `id`: its kind (`agent` is a Revstake launch, `stocks` a Memestake launch), the token bids are paid in, the same figures as the list, and its treasury report when there is one. |
+| `autolaunch_tokens` | Lists tokens whose auctions succeeded. Optional `q`, `chain`, `kind`, `x`, `ens`, `github`, as for auctions, `limit` (1–100) and `after`. |
 | `autolaunch_treasury` | The stored treasury-security report for a treasury `address`. |
 | `autolaunch_bid_quote` | Estimates a bid from `id`, `amount` and `max_price` (decimal strings). It does not place a bid. Read every warning it returns. |
 
@@ -136,6 +136,10 @@ The same reads, as JSON, with amounts as exact decimal strings:
 - `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`
 - `GET https://autolaunch.sh/api/v1/tokens`
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
+
+The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.
+
+Every auction names its page (`url`), when bidding is expected to close (`estimated_end_at`), the tokens it sells (`token_allocation`), everything bid so far (`bid_volume`, and `bid_volume_usd` in dollars), what it must raise to launch (`minimum_raise`), what it has raised (`currency_raised`) and how much of the minimum that is (`percent_met`, a whole percent capped at 100). `record_updated_at` is when the site last wrote its record of the auction, not when it last read the chain. A figure the site has not recorded is null, and `unavailable` says why: `not_recorded_yet`, `chain_unreadable` (Robinhood could not be read) or `no_usd_price`.
 
 Schema: https://autolaunch.sh/api-contract.openapiv3.yaml
 

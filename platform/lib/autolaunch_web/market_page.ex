@@ -1,63 +1,73 @@
 defmodule AutolaunchWeb.MarketPage do
   @moduledoc """
-  One page of a public market list across both chains, read from the stored
-  records in keyset order. A signed cursor names the position the previous
-  page ended at, so a reader who follows `next_cursor` sees every entry
-  exactly once.
+  One page of a public market list for the JSON API, read through the
+  website's own discovery (`Autolaunch.HomeMarket`) with the same option names
+  and meanings. A parameter or value the list does not know is refused.
 
   `robinhood_unavailable` says Robinhood could not be read just now, so its
   entries show what was last read from it.
   """
 
-  alias AutolaunchWeb.{Endpoint, LabMarket}
+  alias Autolaunch.{HomeMarket, Search}
+  alias AutolaunchWeb.LabMarket
 
-  @salt "public-listings-v1"
+  @filters ~w(q chain kind x ens github limit after)
+  @parameters %{"auctions" => ~w(state sort) ++ @filters, "tokens" => @filters}
+  @limits %{"auctions" => 50, "tokens" => 100}
 
-  @doc "Auctions in one mode and sort."
-  def auctions(cursor, mode, sort, limit, autolaunch \\ Autolaunch) do
-    read(
-      {:auctions, mode, sort},
-      cursor,
-      limit,
-      &autolaunch.page_public_auctions(mode, sort, actor: nil, page: &1)
-    )
-  end
-
-  @doc "Graduated tokens, newest graduation first."
-  def tokens(cursor, limit, autolaunch \\ Autolaunch),
-    do: read(:tokens, cursor, limit, &autolaunch.page_public_tokens(actor: nil, page: &1))
-
-  defp read(scope, cursor, limit, read) do
-    with {:ok, keyset} <- keyset(cursor, scope),
-         {:ok, page} <- read.(page_options(keyset, limit)) do
+  @doc "The page `params` asks for from the auctions or tokens list, as `view` names it."
+  def read(params, view) do
+    with {:ok, options, limit} <- options(params, view),
+         {:ok, page} <- HomeMarket.read(options, params["after"], limit) do
       {:ok,
        %{
-         records: page.results,
+         records: page.records,
          robinhood_unavailable: LabMarket.robinhood_stale?(),
-         pagination: %{
-           has_more: page.more?,
-           next_cursor: next_cursor(page, scope)
-         }
+         pagination: %{has_more: page.has_more, next_cursor: page.next_cursor}
        }}
+    else
+      {:error, %Ash.Error.Invalid{}} -> {:error, :invalid_query}
+      error -> error
     end
   end
 
-  defp keyset(nil, _scope), do: {:ok, nil}
-
-  defp keyset(cursor, scope) when is_binary(cursor) and byte_size(cursor) <= 4096 do
-    case Phoenix.Token.verify(Endpoint, @salt, cursor, max_age: 86_400) do
-      {:ok, {^scope, keyset}} when is_binary(keyset) -> {:ok, keyset}
+  # State, sort, chain and kind values are checked by the list's own read.
+  defp options(params, view) do
+    with true <- Enum.all?(params, &known?(&1, @parameters[view])),
+         {:ok, x} <- flag(params["x"]),
+         {:ok, ens} <- flag(params["ens"]),
+         {:ok, github} <- flag(params["github"]),
+         {:ok, limit} <- limit(params["limit"], @limits[view]) do
+      {:ok,
+       %{
+         view: view,
+         q: Search.normalize(params["q"]),
+         state: Map.get(params, "state", "all"),
+         sort: Map.get(params, "sort", "newest"),
+         chain: Map.get(params, "chain", "all"),
+         kind: Map.get(params, "kind", "all"),
+         x: x,
+         ens: ens,
+         github: github
+       }, limit}
+    else
       _invalid -> {:error, :invalid_query}
     end
   end
 
-  defp keyset(_cursor, _scope), do: {:error, :invalid_query}
+  defp known?({key, value}, parameters), do: key in parameters and is_binary(value)
 
-  defp page_options(nil, limit), do: [limit: limit]
-  defp page_options(keyset, limit), do: [limit: limit, after: keyset]
+  defp flag(nil), do: {:ok, false}
+  defp flag("true"), do: {:ok, true}
+  defp flag("false"), do: {:ok, false}
+  defp flag(_value), do: :error
 
-  defp next_cursor(%{more?: true, results: results}, scope),
-    do: Phoenix.Token.sign(Endpoint, @salt, {scope, List.last(results).__metadata__.keyset})
+  defp limit(nil, maximum), do: {:ok, maximum}
 
-  defp next_cursor(_page, _scope), do: nil
+  defp limit(value, maximum) do
+    case Integer.parse(value) do
+      {limit, ""} -> {:ok, limit |> max(1) |> min(maximum)}
+      _invalid -> :error
+    end
+  end
 end

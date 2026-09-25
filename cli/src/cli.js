@@ -8,7 +8,10 @@ export function argumentsFor(argv, commands) {
     json: {type: "boolean"}, help: {type: "boolean", short: "h"},
     version: {type: "boolean"}, "base-url": {type: "string"}, "timeout-ms": {type: "string"},
   };
-  for (const command of commands) for (const flag of command.flags) options[flag] = {type: "string"};
+  for (const command of commands) {
+    for (const flag of command.flags) options[flag] = {type: "string"};
+    for (const flag of command.switches ?? []) options[flag] = {type: "boolean"};
+  }
   let parsed;
   try { parsed = parseArgs({args: argv, options, allowPositionals: true, strict: true, tokens: true}); }
   catch { throw new UsageError("Invalid arguments. Use --help for supported commands and flags."); }
@@ -106,13 +109,13 @@ export async function run({product, version, defaultOrigin, commands, notes, arg
     if (values.help || positionals.join(" ") === "help" || positionals.length === 0) {
       const help = {product, version, commands: (command ? [command] : commands).map(({request: _request, ...contract}) => contract), notes};
       if (values.json) return help;
-      process.stdout.write(`${product} ${version}\n\n` + help.commands.map(c => `  ${product} ${c.command}${c.flags.length ? "  " + c.flags.map(f => (c.required_flags?.includes(f) ? "" : "[") + "--" + f + " <value>" + (c.required_flags?.includes(f) ? "" : "]")).join(" ") : ""}\n    ${c.description}`).join("\n") +
+      process.stdout.write(`${product} ${version}\n\n` + help.commands.map(c => `  ${product} ${c.command}${c.flags.length ? "  " + c.flags.map(f => (c.required_flags?.includes(f) ? "" : "[") + "--" + f + " <value>" + (c.required_flags?.includes(f) ? "" : "]")).join(" ") : ""}${(c.switches ?? []).map(f => ` [--${f}]`).join("")}\n    ${c.description}`).join("\n") +
         `\n\n  ${product} commands list --json\n  --base-url <origin>  --timeout-ms <milliseconds>  --json  --help  --version\n\n` + notes.join("\n") + "\n");
       return undefined;
     }
     if (!command) throw new UsageError("Unknown command. Use --help for supported commands.");
     for (const key of Object.keys(values)) {
-      if (!["json", "base-url", "timeout-ms", ...command.flags].includes(key)) throw new UsageError(`--${key} is not supported by ${command.command}.`);
+      if (!["json", "base-url", "timeout-ms", ...command.flags, ...(command.switches ?? [])].includes(key)) throw new UsageError(`--${key} is not supported by ${command.command}.`);
     }
     const timeoutMs = values["timeout-ms"] === undefined ? 30000 : Number(values["timeout-ms"]);
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000) throw new UsageError("--timeout-ms must be an integer from 1 to 300000.");

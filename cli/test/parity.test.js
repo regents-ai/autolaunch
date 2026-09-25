@@ -17,7 +17,9 @@ test("all five public commands match existing WebMCP requests and domain results
   const address = "0x9999999999999999999999999999999999999999";
   const cases = [
     ["autolaunch_auctions", {}, ["auctions", "list"]],
-    ...["all", "biddable", "live", "ended", "failed_minimum", "graduated"].map(mode => ["autolaunch_auctions", {mode, sort: "oldest", limit: 999}, ["auctions", "list", "--mode", mode, "--sort", "oldest", "--limit", "999"]]),
+    ...["all", "created", "active", "ended", "failed", "graduated"].map(state => ["autolaunch_auctions", {state, sort: "ending", limit: 999}, ["auctions", "list", "--state", state, "--sort", "ending", "--limit", "999"]]),
+    ["autolaunch_auctions", {q: "$BITE 資料", sort: "volume", chain: "robinhood", kind: "memestake", x: true, ens: true, github: true}, ["auctions", "list", "--q", "$BITE 資料", "--sort", "volume", "--chain", "robinhood", "--kind", "memestake", "--x", "--ens", "--github"]],
+    ["autolaunch_tokens", {q: "bite", chain: "base", kind: "revstake", github: true}, ["tokens", "list", "--q", "bite", "--chain", "base", "--kind", "revstake", "--github"]],
     ["autolaunch_auctions", {after: "cursor+/資料=="}, ["auctions", "list", "--after", "cursor+/資料=="]],
     ["autolaunch_tokens", {after: "cursor+/資料=="}, ["tokens", "list", "--after", "cursor+/資料=="]],
     ["autolaunch_auction", {id}, ["auction", id]],

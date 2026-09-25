@@ -4,42 +4,24 @@ defmodule AutolaunchWeb.TokenController do
   alias Autolaunch
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
+  alias AutolaunchWeb.MarketPage
 
   def index(conn, params) do
-    autolaunch = conn.private[:token_controller_autolaunch] || Autolaunch
+    case MarketPage.read(params, "tokens") do
+      {:ok, page} ->
+        json(conn, %{
+          data: Enum.map(page.records, &public_token/1),
+          pagination: page.pagination,
+          robinhood_unavailable: page.robinhood_unavailable
+        })
 
-    with {:ok, limit} <- list_limit(params),
-         {:ok, page} <- AutolaunchWeb.MarketPage.tokens(params["after"], limit, autolaunch) do
-      json(conn, %{
-        data: Enum.map(page.records, &public_token/1),
-        pagination: page.pagination,
-        robinhood_unavailable: page.robinhood_unavailable
-      })
-    else
-      {:error, :invalid_query} -> invalid_request(conn)
-      {:error, _error} -> internal_error(conn)
+      {:error, :invalid_query} ->
+        invalid_request(conn)
+
+      {:error, _error} ->
+        internal_error(conn)
     end
   end
-
-  defp list_limit(params) do
-    with true <- Enum.all?(Map.keys(params), &(&1 in ~w(limit after))),
-         {:ok, limit} <- parse_limit(Map.get(params, "limit")) do
-      {:ok, limit}
-    else
-      _error -> {:error, :invalid_query}
-    end
-  end
-
-  defp parse_limit(nil), do: {:ok, 100}
-
-  defp parse_limit(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {limit, ""} -> {:ok, limit |> max(1) |> min(100)}
-      _error -> {:error, :invalid_query}
-    end
-  end
-
-  defp parse_limit(_value), do: {:error, :invalid_query}
 
   defp public_token(token) do
     %{

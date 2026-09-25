@@ -1,9 +1,9 @@
 // WebMCP Draft Community Group Report, 4 September 2026: document.modelContext.
 // Public HTTP responses remain authoritative; these tools never use wallet hooks.
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
-type Input = Record<string, string | number>
+type Input = Record<string, string | number | boolean>
 type Property = {
-  type: "string" | "integer"
+  type: "string" | "integer" | "boolean"
   description?: string
   enum?: string[]
   minimum?: number
@@ -27,7 +27,14 @@ export type PublicTool = {
     additionalProperties: false
   }
   annotations: {readOnlyHint: true; untrustedContentHint: true; consequentialHint: false}
-  execute(input: unknown, options: {signal: AbortSignal}): Promise<Result>
+  execute(input: unknown, client?: unknown): Promise<Result>
+}
+
+// What a host's cancellation signal must offer; a polyfilled signal qualifies.
+type HostSignal = {
+  readonly aborted: boolean
+  addEventListener(type: "abort", listener: () => void): void
+  removeEventListener(type: "abort", listener: () => void): void
 }
 
 type ModelContext = {
@@ -39,6 +46,34 @@ const cancelled = () => failure("aborted", "The public read was cancelled.")
 
 function failure(code: Failure["error"]["code"], message: string): Failure {
   return {ok: false, error: {code, message}}
+}
+
+function hostSignal(client: unknown): HostSignal | undefined {
+  if (!client || typeof client !== "object") return undefined
+  const signal = (client as {signal?: unknown}).signal
+  if (!signal || typeof signal !== "object") return undefined
+  const candidate = signal as Partial<HostSignal>
+  return typeof candidate.aborted === "boolean" &&
+    typeof candidate.addEventListener === "function" &&
+    typeof candidate.removeEventListener === "function"
+    ? (candidate as HostSignal)
+    : undefined
+}
+
+// One native signal for a single execution: it aborts when the page lifetime
+// ends or when the host cancels, whatever shape of signal the host passes.
+// Hosts may pass no second argument, one without a signal, or a polyfill.
+function executionSignal(lifetime: AbortSignal, client: unknown) {
+  const controller = new AbortController()
+  const host = hostSignal(client)
+  const abort = () => controller.abort()
+  const sources: HostSignal[] = host ? [lifetime, host] : [lifetime]
+  if (sources.some(source => source.aborted)) abort()
+  else for (const source of sources) source.addEventListener("abort", abort)
+  return {
+    signal: controller.signal,
+    release: () => { for (const source of sources) source.removeEventListener("abort", abort) },
+  }
 }
 
 function validInput(
@@ -53,8 +88,15 @@ function validInput(
     if (!Object.hasOwn(properties, key)) return false
     const property = properties[key]
     if (property.type === "integer") return typeof value === "number" && Number.isSafeInteger(value)
+    if (property.type === "boolean") return typeof value === "boolean"
     return typeof value === "string" && (!property.enum || property.enum.includes(value))
   })
+}
+
+type Definition = {
+  properties: Record<string, Property>
+  required: string[]
+  request: (input: Input) => Request
 }
 
 function tool(
@@ -70,54 +112,62 @@ function tool(
     description,
     inputSchema: {type: "object", properties, required, additionalProperties: false},
     annotations: {readOnlyHint: true, untrustedContentHint: true, consequentialHint: false},
-    async execute(input, {signal}) {
-      const cancellation = AbortSignal.any([lifetime, signal])
-      if (cancellation.aborted) return cancelled()
-      if (!validInput(input, properties, required)) return invalidInput()
-
-      let target: Request
+    async execute(input, client) {
+      const {signal, release} = executionSignal(lifetime, client)
       try {
-        target = request(input)
-      } catch {
-        return invalidInput()
-      }
-
-      try {
-        const response = await fetch(new URL(target.path, window.location.origin), {
-          method: target.body ? "POST" : "GET",
-          headers: {
-            Accept: "application/json",
-            ...(target.body ? {"Content-Type": "application/json"} : {}),
-          },
-          body: target.body ? JSON.stringify(target.body) : undefined,
-          credentials: "omit",
-          mode: "same-origin",
-          redirect: "error",
-          cache: "no-store",
-          signal: cancellation,
-        })
-        let body: Json
-        try {
-          body = await response.json()
-        } catch {
-          if (cancellation.aborted) return cancelled()
-          return {
-            ...failure("invalid_response", "The public API did not return JSON."),
-            status: response.status,
-          }
-        }
-        if (cancellation.aborted) return cancelled()
-        return {ok: response.ok, status: response.status, body}
-      } catch {
-        return cancellation.aborted
-          ? cancelled()
-          : failure("network_error", "The public API could not be reached.")
+        return await read({properties, required, request}, input, signal)
+      } finally {
+        release()
       }
     },
   }
 }
 
-function pathValue(value: string | number): string {
+async function read(definition: Definition, input: unknown, cancellation: AbortSignal): Promise<Result> {
+  if (cancellation.aborted) return cancelled()
+  if (!validInput(input, definition.properties, definition.required)) return invalidInput()
+
+  let target: Request
+  try {
+    target = definition.request(input)
+  } catch {
+    return invalidInput()
+  }
+
+  try {
+    const response = await fetch(new URL(target.path, window.location.origin), {
+      method: target.body ? "POST" : "GET",
+      headers: {
+        Accept: "application/json",
+        ...(target.body ? {"Content-Type": "application/json"} : {}),
+      },
+      body: target.body ? JSON.stringify(target.body) : undefined,
+      credentials: "omit",
+      mode: "same-origin",
+      redirect: "error",
+      cache: "no-store",
+      signal: cancellation,
+    })
+    let body: Json
+    try {
+      body = await response.json()
+    } catch {
+      if (cancellation.aborted) return cancelled()
+      return {
+        ...failure("invalid_response", "The public API did not return JSON."),
+        status: response.status,
+      }
+    }
+    if (cancellation.aborted) return cancelled()
+    return {ok: response.ok, status: response.status, body}
+  } catch {
+    return cancellation.aborted
+      ? cancelled()
+      : failure("network_error", "The public API could not be reached.")
+  }
+}
+
+function pathValue(value: Input[string]): string {
   // URL parsing normalizes these segments even when their dots are percent-encoded.
   if (value === "." || value === "..") throw new URIError("Invalid path segment")
   return encodeURIComponent(value)
@@ -130,17 +180,33 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     type: "string",
     description: "Positive decimal digits with optional fractional digits; no exponent. The API trims whitespace, caps input at 100 bytes, and validates decimal bounds. Sent unchanged, without rounding.",
   }
+  // The website's discovery options, with the same names and meanings on both lists.
+  const discovery: Record<string, Property> = {
+    q: {
+      type: "string",
+      description: "The website's search: every word must appear in the name, ticker, stock, description, an address or one of the creator's verified accounts; a leading $ is ignored. The API collapses spaces and keeps the first 80 characters.",
+    },
+    chain: {type: "string", enum: ["all", "base", "robinhood"]},
+    kind: {type: "string", enum: ["all", "revstake", "memestake"], description: "revstake lists entries whose kind is agent; memestake, entries whose kind is stocks."},
+    x: {type: "boolean", description: "true keeps only launches whose creator has a verified X account."},
+    ens: {type: "boolean", description: "true keeps only launches whose creator has a verified ENS name."},
+    github: {type: "boolean", description: "true keeps only launches whose creator has a verified GitHub account. Several true filters must all hold."},
+  }
   const query = (input: Input) =>
     new URLSearchParams(Object.entries(input).map(([key, value]) => [key, String(value)]))
 
   return [
     tool(
       "autolaunch_auctions",
-      "List public Autolaunch auctions on Base and Robinhood; every entry names its chain. The limit includes both chains. Robinhood entries are read from their chain and come first across pages in launch order; stored Base entries follow in date order. Mode and sort apply within both groups.",
+      "List public Autolaunch auctions on Base and Robinhood as the site has stored them, found and ordered as the website's auction list finds and orders them; every entry names its chain. q searches; state, chain and kind filter; x, ens and github keep creators verified on that account. Sort newest (default) lists the most recently listed first, ending lists live auctions only, closing soonest first, and volume lists the highest dollar bid volume first. The limit counts both chains. Each auction gives its page url, estimated_end_at, token_allocation, bid_volume and bid_volume_usd, minimum_raise (its launch threshold), currency_raised and percent_met; amounts are exact decimal strings. record_updated_at is when the site last wrote its stored record, not when the chain was last read. A figure not held yet is null and unavailable names why: not_recorded_yet, chain_unreadable (Robinhood's last chain read failed) or no_usd_price.",
       {
-        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
-        mode: {type: "string", enum: ["all", "biddable", "live", "ended", "failed_minimum", "graduated"]},
-        sort: {type: "string", enum: ["newest", "oldest"]},
+        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same filters and sort. Cursors expire after 24 hours."},
+        ...discovery,
+        state: {
+          type: "string", enum: ["all", "created", "active", "ended", "failed", "graduated"],
+          description: "created: opening soon; active: live; ended: bidding closed, waiting to be finished; failed; graduated: launched.",
+        },
+        sort: {type: "string", enum: ["newest", "ending", "volume"]},
         limit: {
           type: "integer", minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER,
           description: "Safe integer; the API clamps it to 1–50. Defaults to 50.",
@@ -152,7 +218,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_auction",
-      "Read one public Autolaunch auction: a Base auction by UUID (its kind, quote_token and stored treasury report) or a Robinhood auction by contract address (read from its chain).",
+      "Read one public Autolaunch auction as the site has stored it, by its UUID (either chain) or a Robinhood auction by its contract address: its chain, kind, quote_token, launch figures and stored treasury report, with the same fields as each autolaunch_auctions entry.",
       {id: auction},
       ["id"],
       input => ({path: `/api/v1/auctions/${pathValue(input.id)}`}),
@@ -160,9 +226,10 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_tokens",
-      "List public graduated Autolaunch tokens on Base and Robinhood; every entry names its chain. Robinhood tokens are read from their chain and come first across pages, newest launch first; stored Base tokens follow, newest graduation first.",
+      "List public graduated Autolaunch tokens on Base and Robinhood as the site has stored them, found as the website's token list finds them, newest graduation first across both chains; every entry names its chain. q searches; chain and kind filter; x, ens and github keep creators verified on that account.",
       {
-        after: {type: "string", description: "Pass pagination.next_cursor unchanged to read the next page. Cursors expire after 24 hours."},
+        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same filters. Cursors expire after 24 hours."},
+        ...discovery,
         limit: {
           type: "integer", minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER,
           description: "Safe integer; the API clamps it to 1–100. Defaults to 100.",

@@ -1,13 +1,23 @@
 import {profileTarget} from "./profile.js";
 import {UsageError, pathSegment, query, required} from "./cli.js";
 
+// The website's discovery options, with the same names and meanings as the API and WebMCP.
+const choices = {
+  state: ["all", "created", "active", "ended", "failed", "graduated"],
+  sort: ["newest", "ending", "volume"],
+  chain: ["all", "base", "robinhood"],
+  kind: ["all", "revstake", "memestake"],
+};
+const verified = ["x", "ens", "github"];
+
 function listQuery(path, values, flags) {
   if (values.limit !== undefined && (!/^-?\d+$/.test(values.limit) || !Number.isSafeInteger(Number(values.limit)))) {
     throw new UsageError("--limit must be a safe integer. The API applies its documented bounds.");
   }
-  if (values.mode !== undefined && !["all", "biddable", "live", "ended", "failed_minimum", "graduated"].includes(values.mode)) throw new UsageError("Unknown --mode.");
-  if (values.sort !== undefined && !["newest", "oldest"].includes(values.sort)) throw new UsageError("Use --sort newest or oldest.");
-  return {path: query(path, Object.fromEntries(flags.map(flag => [flag, values[flag]])))};
+  for (const [flag, allowed] of Object.entries(choices)) {
+    if (values[flag] !== undefined && !allowed.includes(values[flag])) throw new UsageError(`Use --${flag} ${allowed.join(", ")}.`);
+  }
+  return {path: query(path, Object.fromEntries([...flags, ...verified].map(flag => [flag, values[flag]])))};
 }
 
 // The product's OpenAPI owns domain schemas; this table owns CLI dispatch and discovery.
@@ -23,15 +33,15 @@ export const commands = [
     request: (_args, values) => profileTarget("update", values)},
   {
     command: "auctions list", operation_id: "listAuctions", webmcp: "autolaunch_auctions",
-    method: "GET", path: "/api/v1/auctions", flags: ["mode", "sort", "limit", "after"],
-    description: "List public auctions on Base and Robinhood with their chain, kind and quote_token, in one date order. Defaults to 50, capped at 50; follow pagination.next_cursor with --after (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and its auctions show what was last read. Modes: all, biddable, live, ended, failed_minimum, graduated. Sort: newest or oldest.",
+    method: "GET", path: "/api/v1/auctions", flags: ["q", "state", "sort", "chain", "kind", "limit", "after"], switches: verified,
+    description: "List public auctions on Base and Robinhood with their chain, kind and quote_token, found and ordered as the website's auction list does. --q is the website search (first 80 characters). --state all, created, active, ended, failed or graduated. --sort newest (most recently listed), ending (live only, closing soonest) or volume (highest dollar volume). --chain all, base or robinhood. --kind all, revstake (kind agent) or memestake (kind stocks). --x, --ens and --github keep creators verified on that account. Defaults to 50, capped at 50; follow pagination.next_cursor with --after and the same filters (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and its auctions show what was last read. Each auction gives its page url, estimated_end_at, token_allocation, bid_volume, bid_volume_usd, minimum_raise, currency_raised and percent_met (amounts as exact decimal strings), record_updated_at (when the stored record was last written, not a chain reading time) and unavailable, naming why any figure is null.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
-    request: (_args, values) => listQuery("/api/v1/auctions", values, ["mode", "sort", "limit", "after"]),
+    request: (_args, values) => listQuery("/api/v1/auctions", values, ["q", "state", "sort", "chain", "kind", "limit", "after"]),
   },
   {
     command: "auction <id>", operation_id: "getAuction", webmcp: "autolaunch_auction",
     method: "GET", path: "/api/v1/auctions/{id}", flags: [],
-    description: "Read one auction by exact UUID, or a Robinhood auction by contract address: its chain, kind, the quote_token bids are paid in, and its stored treasury report.", authority: "public", effect: "read",
+    description: "Read one auction by exact UUID, or a Robinhood auction by contract address: its chain, kind, the quote_token bids are paid in, the same launch figures as auctions list, and its stored treasury report.", authority: "public", effect: "read",
     request: args => ({path: `/api/v1/auctions/${pathSegment(args[1])}`}),
   },
   {
@@ -45,10 +55,10 @@ export const commands = [
   },
   {
     command: "tokens list", operation_id: "listTokens", webmcp: "autolaunch_tokens",
-    method: "GET", path: "/api/v1/tokens", flags: ["limit", "after"],
-    description: "List graduated tokens on Base and Robinhood, newest graduation first; every entry names its chain. Defaults to 100, capped at 100; follow pagination.next_cursor with --after (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and its tokens show what was last read.",
+    method: "GET", path: "/api/v1/tokens", flags: ["q", "chain", "kind", "limit", "after"], switches: verified,
+    description: "List graduated tokens on Base and Robinhood, found as the website's token list finds them, newest graduation first; every entry names its chain. --q, --chain, --kind, --x, --ens and --github mean what they mean for auctions list. Defaults to 100, capped at 100; follow pagination.next_cursor with --after and the same filters (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and its tokens show what was last read.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
-    request: (_args, values) => listQuery("/api/v1/tokens", values, ["limit", "after"]),
+    request: (_args, values) => listQuery("/api/v1/tokens", values, ["q", "chain", "kind", "limit", "after"]),
   },
   {
     command: "treasury security <address>", operation_id: "getTreasurySecurity", webmcp: "autolaunch_treasury",
