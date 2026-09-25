@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Next (not live yet)
+## v28, 25 September 2026 (59cd771)
 - Gallery cards no longer show the description. The space under the links is a quarter of its old
   height, so every card is shorter. Hovering a card shows the bid volume, with how much of the
   launch threshold is met, over the launch threshold, beside the FDV.
