@@ -11,6 +11,11 @@
 
 .memestock__layout { display: grid; grid-template-columns: minmax(0, 35rem) minmax(0, 21rem); gap: var(--space-4); align-items: start; justify-content: center; }
 .memestock__form { display: grid; gap: var(--space-2); padding: var(--space-4); }
+/* While the account has a live Memestake auction the form stays readable but
+   grayed, under one line saying why. */
+.memestock__lock { display: grid; gap: var(--space-2); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.memestock__lock:disabled { opacity: .5; filter: grayscale(1); pointer-events: none; user-select: none; }
+.memestock__locked { margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline-strong); font-weight: 600; }
 .memestock__fields { display: grid; gap: var(--space-2); min-width: 0; }
 .memestock__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 .memestock-field { min-width: 0; align-content: start; }

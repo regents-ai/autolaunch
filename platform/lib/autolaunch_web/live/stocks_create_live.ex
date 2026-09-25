@@ -44,6 +44,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
             current_human_id: actor.human_account_id,
             stocks_lab: stocks_lab(),
             market: %{prices: %{}, venues: []},
+            live_memestake?: false,
             status: :loading
           )
 
@@ -230,12 +231,31 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
-  defp load_draft(socket, actor) do
-    case current_or_new_draft(actor) do
-      {:ok, draft} -> assign_draft(socket, draft)
+  # A draft last saved before the account's newest Memestake auction was
+  # launched as that auction, so it starts over; while that auction is still
+  # live the form stays locked.
+  defp load_draft(socket, %Human{human_account_id: id} = actor) do
+    with {:ok, auction} <- Autolaunch.latest_memestake_auction(id),
+         {:ok, draft} <- current_or_new_draft(actor),
+         {:ok, draft} <- start_over_after(draft, auction, actor) do
+      socket
+      |> assign_draft(draft)
+      |> assign(live_memestake?: live?(auction))
+    else
       {:error, _error} -> assign(socket, status: :error)
     end
   end
+
+  defp start_over_after(draft, %{inserted_at: launched_at}, actor) do
+    if DateTime.before?(draft.updated_at, launched_at),
+      do: Autolaunch.clear_stocks_launch_draft(draft, actor: actor),
+      else: {:ok, draft}
+  end
+
+  defp start_over_after(draft, nil, _actor), do: {:ok, draft}
+
+  defp live?(%{state: state}), do: state in [:created, :active]
+  defp live?(nil), do: false
 
   # A link can name the stock (`?token=<symbol or address>`): the choice is
   # saved to the draft exactly as choosing it in the form would be, and a name

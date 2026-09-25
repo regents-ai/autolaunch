@@ -87,206 +87,211 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           data-chain={@launch_chain}
           aria-label="Your memestock"
         >
-          <form
-            id="stocks-token-details"
-            class="memestock__fields"
-            phx-change="autosave_stocks_token_details"
-            phx-submit="autosave_stocks_token_details"
-          >
-            <div class="memestock__pair">
-              <.draft_field
-                form_id="stocks-token-details"
-                param="name"
-                label="Name"
-                placeholder="Rocket Dog"
-                values={@draft_values}
-                errors={@detail_errors}
-              />
-              <.draft_field
-                form_id="stocks-token-details"
-                param="symbol"
-                label="Ticker"
-                placeholder="RDOG"
-                values={@draft_values}
-                errors={@detail_errors}
-              />
-            </div>
-            <.draft_field
-              form_id="stocks-token-details"
-              param="description"
-              label="Description"
-              kind={:long_text}
-              placeholder="What is this token about?"
-              values={@draft_values}
-              errors={@detail_errors}
-            />
-            <.image_upload
-              upload={@stocks_image_upload}
-              image={@draft_values["image"]}
-              notice={@image_notice}
-            />
-            <div class="memestock__pair">
-              <.draft_field
-                form_id="stocks-token-details"
-                param="website"
-                label="Website"
-                optional
-                placeholder="https://"
-                values={@draft_values}
-                errors={@detail_errors}
-              />
-              <.draft_field
-                form_id="stocks-token-details"
-                param="telegram"
-                label="Telegram"
-                optional
-                placeholder="https://t.me/yourgroup"
-                values={@draft_values}
-                errors={@detail_errors}
-              />
-            </div>
-          </form>
-
-          <.live_component
-            module={AutolaunchWeb.CreatorConnectionsComponent}
-            id="creator-connections"
-            current_human_id={@current_human_id}
-            session_lease={@session_lease}
-            optional
-          />
-
-          <form
-            id="stocks-terms"
-            class="memestock__fields"
-            phx-change="autosave_stocks_terms"
-            phx-submit="autosave_stocks_terms"
-          >
-            <div class="memestock__paired">
-              <div class="memestock__paired-head">
-                <span class="memestock__label" id="stocks-terms-stock-label">Paired stock</span>
-                <div class="chain-switch" role="group" aria-label="Chain">
-                  <button
-                    :for={chain <- LaunchChain.chains()}
-                    type="button"
-                    class={"chain-switch__option chain-switch__option--#{chain}"}
-                    aria-pressed={to_string(@launch_chain == chain)}
-                    phx-click={
-                      JS.push("choose_chain", value: %{chain: chain})
-                      |> JS.transition("memestock__form--to-#{chain}",
-                        to: "#memestock-form",
-                        time: 700
-                      )
-                    }
-                  >
-                    {LaunchChain.label(chain)}
-                  </button>
-                </div>
+          <p :if={@live_memestake?} id="memestock-locked" class="memestock__locked" role="status">
+            Only one Memestake auction can be live per account
+          </p>
+          <fieldset class="memestock__lock" disabled={@live_memestake?}>
+            <form
+              id="stocks-token-details"
+              class="memestock__fields"
+              phx-change="autosave_stocks_token_details"
+              phx-submit="autosave_stocks_token_details"
+            >
+              <div class="memestock__pair">
+                <.draft_field
+                  form_id="stocks-token-details"
+                  param="name"
+                  label="Name"
+                  placeholder="Rocket Dog"
+                  values={@draft_values}
+                  errors={@detail_errors}
+                />
+                <.draft_field
+                  form_id="stocks-token-details"
+                  param="symbol"
+                  label="Ticker"
+                  placeholder="RDOG"
+                  values={@draft_values}
+                  errors={@detail_errors}
+                />
               </div>
-              <.stock_select
-                id="stocks-terms-stock_address"
-                name="stock_draft[stock_address]"
-                value={@draft_values["stock_address"]}
-                chain={@launch_chain}
+              <.draft_field
+                form_id="stocks-token-details"
+                param="description"
+                label="Description"
+                kind={:long_text}
+                placeholder="What is this token about?"
+                values={@draft_values}
+                errors={@detail_errors}
               />
-              <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
-                {@draft_errors["stock_address"]}
-              </p>
-              <p class="memestock__hint">{pay_line(@launch_chain, @stock)}</p>
-              <p
-                :if={@stock && @market.venues != []}
-                id="stocks-terms-buy-at"
-                class="memestock__hint"
+              <.image_upload
+                upload={@stocks_image_upload}
+                image={@draft_values["image"]}
+                notice={@image_notice}
+              />
+              <div class="memestock__pair">
+                <.draft_field
+                  form_id="stocks-token-details"
+                  param="website"
+                  label="Website"
+                  optional
+                  placeholder="https://"
+                  values={@draft_values}
+                  errors={@detail_errors}
+                />
+                <.draft_field
+                  form_id="stocks-token-details"
+                  param="telegram"
+                  label="Telegram"
+                  optional
+                  placeholder="https://t.me/yourgroup"
+                  values={@draft_values}
+                  errors={@detail_errors}
+                />
+              </div>
+            </form>
+
+            <.live_component
+              module={AutolaunchWeb.CreatorConnectionsComponent}
+              id="creator-connections"
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+              optional
+            />
+
+            <form
+              id="stocks-terms"
+              class="memestock__fields"
+              phx-change="autosave_stocks_terms"
+              phx-submit="autosave_stocks_terms"
+            >
+              <div class="memestock__paired">
+                <div class="memestock__paired-head">
+                  <span class="memestock__label" id="stocks-terms-stock-label">Paired stock</span>
+                  <div class="chain-switch" role="group" aria-label="Chain">
+                    <button
+                      :for={chain <- LaunchChain.chains()}
+                      type="button"
+                      class={"chain-switch__option chain-switch__option--#{chain}"}
+                      aria-pressed={to_string(@launch_chain == chain)}
+                      phx-click={
+                        JS.push("choose_chain", value: %{chain: chain})
+                        |> JS.transition("memestock__form--to-#{chain}",
+                          to: "#memestock-form",
+                          time: 700
+                        )
+                      }
+                    >
+                      {LaunchChain.label(chain)}
+                    </button>
+                  </div>
+                </div>
+                <.stock_select
+                  id="stocks-terms-stock_address"
+                  name="stock_draft[stock_address]"
+                  value={@draft_values["stock_address"]}
+                  chain={@launch_chain}
+                />
+                <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
+                  {@draft_errors["stock_address"]}
+                </p>
+                <p class="memestock__hint">{pay_line(@launch_chain, @stock)}</p>
+                <p
+                  :if={@stock && @market.venues != []}
+                  id="stocks-terms-buy-at"
+                  class="memestock__hint"
+                >
+                  Buy {@stock.symbol} at
+                  <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
+                    <span :if={index > 0}>or</span>
+                    <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
+                    ({compact_usd(venue.liquidity_usd)} liquidity)
+                  </span>
+                </p>
+              </div>
+
+              <Regent.Primitives.disclosure
+                id="stocks-terms-advanced"
+                summary="Advanced"
+                class="memestock__more"
+                phx-mounted={JS.ignore_attributes(["open"])}
               >
-                Buy {@stock.symbol} at
-                <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
-                  <span :if={index > 0}>or</span>
-                  <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
-                  ({compact_usd(venue.liquidity_usd)} liquidity)
-                </span>
+                <.draft_field
+                  form_id="stocks-terms"
+                  param="required_raise"
+                  label={"Required raise in #{symbol(@stock)}"}
+                  hint="The least the auction must raise. If bids fall short, every bid is refunded."
+                  values={@draft_values}
+                  errors={@draft_errors}
+                />
+                <.draft_field
+                  form_id="stocks-terms"
+                  param="floor_price"
+                  label={"Starting price in #{symbol(@stock)} per token"}
+                  hint="The price when bidding opens. Bids push it up from here."
+                  values={@draft_values}
+                  errors={@draft_errors}
+                />
+                <p
+                  :if={@floor_echo && @floor_echo.adjusted?}
+                  id="stocks-terms-floor-echo"
+                  class="memestock__hint"
+                  data-floor-executable={@floor_echo.executable}
+                >
+                  The auction starts at {Amounts.compact_decimal(@floor_echo.executable)} {symbol(
+                    @stock
+                  )} per token, the nearest price it can use below what you entered.
+                </p>
+              </Regent.Primitives.disclosure>
+            </form>
+
+            <div id="stocks-transactions" class="memestock__launch">
+              <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
+                Robinhood launches are not open yet. Your draft is saved and will be ready to launch
+                here when they open.
+              </p>
+              <.live_component
+                :if={@launch_chain == :robinhood && @robinhood_open? && @launch_ready?}
+                module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
+                id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
+                draft={@draft}
+                current_human_id={@current_human_id}
+                session_lease={@session_lease}
+              />
+              <.live_component
+                :if={@launch_chain == :base && @launch_ready?}
+                module={AutolaunchWeb.StocksLaunchWalletComponent}
+                id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
+                draft={@draft}
+                authenticated
+                current_human_id={@current_human_id}
+                session_lease={@session_lease}
+              />
+              <Regent.Primitives.button
+                :if={(@launch_chain == :base || @robinhood_open?) && !@launch_ready?}
+                type="button"
+                class="memestock__launch-button"
+                disabled
+              >
+                Still needed: {missing_label(@missing)}
+              </Regent.Primitives.button>
+              <p
+                :if={@draft_notice}
+                class={"memestock__notice memestock__notice--#{@draft_notice.tone}"}
+                role={if @draft_notice.tone == :error, do: "alert", else: "status"}
+              >
+                {@draft_notice.message}
               </p>
             </div>
 
-            <Regent.Primitives.disclosure
-              id="stocks-terms-advanced"
-              summary="Advanced"
-              class="memestock__more"
-              phx-mounted={JS.ignore_attributes(["open"])}
-            >
-              <.draft_field
-                form_id="stocks-terms"
-                param="required_raise"
-                label={"Required raise in #{symbol(@stock)}"}
-                hint="The least the auction must raise. If bids fall short, every bid is refunded."
-                values={@draft_values}
-                errors={@draft_errors}
-              />
-              <.draft_field
-                form_id="stocks-terms"
-                param="floor_price"
-                label={"Starting price in #{symbol(@stock)} per token"}
-                hint="The price when bidding opens. Bids push it up from here."
-                values={@draft_values}
-                errors={@draft_errors}
-              />
-              <p
-                :if={@floor_echo && @floor_echo.adjusted?}
-                id="stocks-terms-floor-echo"
-                class="memestock__hint"
-                data-floor-executable={@floor_echo.executable}
-              >
-                The auction starts at {Amounts.compact_decimal(@floor_echo.executable)} {symbol(
-                  @stock
-                )} per token, the nearest price it can use below what you entered.
-              </p>
-            </Regent.Primitives.disclosure>
-          </form>
-
-          <div id="stocks-transactions" class="memestock__launch">
-            <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
-              Robinhood launches are not open yet. Your draft is saved and will be ready to launch
-              here when they open.
-            </p>
             <.live_component
-              :if={@launch_chain == :robinhood && @robinhood_open? && @launch_ready?}
-              module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
-              id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
-              draft={@draft}
+              :if={@launch_chain == :base && AutolaunchWeb.TestFundsComponent.available?()}
+              module={AutolaunchWeb.TestFundsComponent}
+              id="autolaunch-test-funds"
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <.live_component
-              :if={@launch_chain == :base && @launch_ready?}
-              module={AutolaunchWeb.StocksLaunchWalletComponent}
-              id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
-              draft={@draft}
-              authenticated
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
-            <Regent.Primitives.button
-              :if={(@launch_chain == :base || @robinhood_open?) && !@launch_ready?}
-              type="button"
-              class="memestock__launch-button"
-              disabled
-            >
-              Still needed: {missing_label(@missing)}
-            </Regent.Primitives.button>
-            <p
-              :if={@draft_notice}
-              class={"memestock__notice memestock__notice--#{@draft_notice.tone}"}
-              role={if @draft_notice.tone == :error, do: "alert", else: "status"}
-            >
-              {@draft_notice.message}
-            </p>
-          </div>
-
-          <.live_component
-            :if={@launch_chain == :base && AutolaunchWeb.TestFundsComponent.available?()}
-            module={AutolaunchWeb.TestFundsComponent}
-            id="autolaunch-test-funds"
-            current_human_id={@current_human_id}
-            session_lease={@session_lease}
-          />
+          </fieldset>
         </section>
 
         <aside class="memestock__summary rg-panel rg-panel--surface" aria-label="Your token">

@@ -203,6 +203,8 @@ defmodule Autolaunch do
       define :attach_stocks_launch_draft_image,
         action: :attach_image,
         args: [:stock_launch_draft_image_id]
+
+      define :clear_stocks_launch_draft, action: :clear
     end
 
     # The Stocks image lane mirrors the Agent one: immutable uploaded bytes the
@@ -502,6 +504,18 @@ defmodule Autolaunch do
   defdelegate start_new_launch(action_id, opts),
     to: Autolaunch.LaunchActions,
     as: :start_new
+
+  # The account's newest Memestake auction on either chain, read under the
+  # system actor like the Revstake count below.
+  @spec latest_memestake_auction(integer()) ::
+          {:ok, Ash.Resource.record() | nil} | {:error, term()}
+  def latest_memestake_auction(human_account_id) when is_integer(human_account_id) do
+    Autolaunch.Auction
+    |> Ash.Query.for_read(:read, %{}, actor: %Autolaunch.Actors.System{})
+    |> Ash.Query.filter(creator_human_account_id == ^human_account_id and kind == :stocks)
+    |> Ash.Query.sort(inserted_at: :desc)
+    |> Ash.read_first()
+  end
 
   # The site rule: one Revstake auction per account. Queries run under the
   # system actor: LaunchOperation is system-only, and the in-flight window is

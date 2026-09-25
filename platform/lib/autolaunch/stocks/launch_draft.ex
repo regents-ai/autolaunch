@@ -21,6 +21,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   @token_fields [:name, :symbol, :description, :website, :telegram]
   @terms_fields [:stock_address, :required_raise, :floor_price]
+  @default_required_raise "0.00001"
+  @default_floor_price "0.00000001"
 
   @metadata_limits [name: 64, symbol: 16, description: 512]
 
@@ -180,6 +182,22 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       require_atomic? false
       change Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage
     end
+
+    # A launched draft starts over, so the next memestock begins from a blank
+    # form on the same chain.
+    update :clear do
+      require_atomic? false
+      change set_attribute(:name, "")
+      change set_attribute(:symbol, "")
+      change set_attribute(:description, nil)
+      change set_attribute(:website, nil)
+      change set_attribute(:telegram, nil)
+      change set_attribute(:image, nil)
+      change set_attribute(:stock_launch_draft_image_id, nil)
+      change set_attribute(:stock_address, nil)
+      change set_attribute(:required_raise, @default_required_raise)
+      change set_attribute(:floor_price, @default_floor_price)
+    end
   end
 
   policies do
@@ -191,7 +209,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :autosave_token_details,
              :autosave_terms,
              :choose_chain,
-             :attach_image
+             :attach_image,
+             :clear
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
@@ -203,7 +222,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :autosave_token_details,
              :autosave_terms,
              :choose_chain,
-             :attach_image
+             :attach_image,
+             :clear
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
@@ -228,8 +248,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
     attribute :stock_address, :string
     attribute :stock_chain_id, :integer, allow_nil?: false
-    attribute :required_raise, :string, default: "0.00001"
-    attribute :floor_price, :string, default: "0.00000001"
+    attribute :required_raise, :string, default: @default_required_raise
+    attribute :floor_price, :string, default: @default_floor_price
 
     timestamps()
   end
