@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.StockSelect
 
@@ -152,6 +153,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </form>
 
             <.live_component
+              :if={@current_human_id}
               module={AutolaunchWeb.CreatorConnectionsComponent}
               id="creator-connections"
               current_human_id={@current_human_id}
@@ -247,8 +249,21 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
             <div id="stocks-transactions" class="memestock__launch">
               <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
-                Robinhood launches are not open yet. Your draft is saved and will be ready to launch
-                here when they open.
+                Robinhood launches are not open yet.
+                <span :if={@current_human_id}>
+                  Your draft is saved and will be ready to launch here when they open.
+                </span>
+              </p>
+              <Regent.Primitives.button
+                :if={!@current_human_id}
+                type="button"
+                class="memestock__launch-button"
+                data-account-target="sign-in"
+              >
+                Sign in to save and launch
+              </Regent.Primitives.button>
+              <p :if={!@current_human_id} class="memestock__hint">
+                Nothing is saved until you sign in. What you have entered comes with you.
               </p>
               <.live_component
                 :if={@launch_chain == :robinhood && @robinhood_open? && @launch_ready?}
@@ -268,7 +283,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 session_lease={@session_lease}
               />
               <Regent.Primitives.button
-                :if={(@launch_chain == :base || @robinhood_open?) && !@launch_ready?}
+                :if={
+                  @current_human_id && (@launch_chain == :base || @robinhood_open?) && !@launch_ready?
+                }
                 type="button"
                 class="memestock__launch-button"
                 disabled
@@ -285,7 +302,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </div>
 
             <.live_component
-              :if={@launch_chain == :base && AutolaunchWeb.TestFundsComponent.available?()}
+              :if={
+                @current_human_id && @launch_chain == :base &&
+                  AutolaunchWeb.TestFundsComponent.available?()
+              }
               module={AutolaunchWeb.TestFundsComponent}
               id="autolaunch-test-funds"
               current_human_id={@current_human_id}
@@ -367,6 +387,11 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           </Regent.Primitives.disclosure>
         </aside>
       </div>
+      <.draft_carry_over
+        id="memestock-carry-over"
+        key="autolaunch:create:memestock"
+        signed_in={@current_human_id != nil}
+      />
     </main>
     """
   end

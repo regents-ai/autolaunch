@@ -3,6 +3,8 @@
 .image-upload__label { font-weight: 600; }
 .image-upload__box { display: flex; align-items: center; gap: var(--space-3); min-height: 3.75rem; padding: var(--space-2) var(--space-3); border: 1px dashed var(--hairline-strong); border-radius: 10px; cursor: pointer; transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease; }
 .image-upload__box:hover, .image-upload__box.phx-drop-target-active { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 4%, transparent); }
+button.image-upload__box { width: 100%; font: inherit; color: inherit; text-align: start; background: transparent; }
+button.image-upload__box:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .image-upload__box:has(input:focus-visible) { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .image-upload__preview { flex: none; width: 2.75rem; height: 2.75rem; border-radius: 8px; object-fit: cover; }
 .image-upload__text { display: grid; gap: 2px; min-width: 0; font-size: .8125rem; color: var(--color-fg-muted); }

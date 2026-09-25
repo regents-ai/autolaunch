@@ -3,6 +3,10 @@ defmodule AutolaunchWeb.StocksCreateLive do
   Launch memestock, at /create: one form for the account's one Memestake
   draft. The Base and Robinhood switch moves the draft between chains; every
   field autosaves.
+
+  A signed-out visitor explores the same form against an unsaved draft that
+  follows the saved draft's rules. This browser tab keeps what they typed, and
+  once they sign in it is saved into their account's draft.
   """
 
   use AutolaunchWeb, :live_view
@@ -10,20 +14,49 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks
-  alias Autolaunch.Stocks.LaunchDraftImageStorage
+  alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
 
+  import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
+
   @autosave_events ~w(autosave_stocks_token_details autosave_stocks_terms)
+  @actions %{
+    "autosave_stocks_token_details" => :autosave_token_details,
+    "autosave_stocks_terms" => :autosave_terms
+  }
   @chains %{"base" => :base, "robinhood" => :robinhood}
 
-  # A signed-out visitor stays on this route: the page explains the sign-in
-  # requirement and a completed sign-in reloads it.
+  # A completed sign-in reloads this route, so a signed-out visitor comes back
+  # to the same page, now with their account's draft.
   def mount(params, _session, socket) do
-    socket = assign(socket, launch_chain: :base)
+    socket =
+      assign(socket,
+        launch_chain: :base,
+        linked_token: params["token"],
+        draft: nil,
+        draft_values: Templates.blank_draft_fields(),
+        draft_errors: %{},
+        draft_notice: nil,
+        image_notice: nil,
+        current_human_id: nil,
+        stocks_lab: stocks_lab(),
+        market: %{prices: %{}, venues: []},
+        live_memestake?: false,
+        status: :loading
+      )
 
     case human_actor(socket) do
       nil ->
-        {:ok, assign(socket, status: :sign_in_required)}
+        socket = assign_sketch(socket, %LaunchDraft{})
+
+        {:ok,
+         if connected?(socket) do
+           socket
+           |> choose_linked_stock()
+           |> assign_market()
+         else
+           socket
+         end}
 
       actor ->
         socket =
@@ -35,24 +68,13 @@ defmodule AutolaunchWeb.StocksCreateLive do
             auto_upload: true,
             progress: &handle_stocks_image_progress/3
           )
-          |> assign(
-            draft: nil,
-            draft_values: Templates.blank_draft_fields(),
-            draft_errors: %{},
-            draft_notice: nil,
-            image_notice: nil,
-            current_human_id: actor.human_account_id,
-            stocks_lab: stocks_lab(),
-            market: %{prices: %{}, venues: []},
-            live_memestake?: false,
-            status: :loading
-          )
+          |> assign(current_human_id: actor.human_account_id)
 
         {:ok,
          if connected?(socket) do
            socket
            |> load_draft(actor)
-           |> choose_linked_stock(params["token"], actor)
+           |> choose_linked_stock()
            |> assign_market()
          else
            socket
@@ -66,77 +88,80 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # background: the page renders without them and fills them in when they land.
   defp assign_market(socket) do
     chain = socket.assigns.launch_chain
-    stock = chosen_stock(chain, socket.assigns.draft)
+    stock = chosen_stock(chain, socket.assigns.draft_values["stock_address"])
     start_async(socket, :market, fn -> Stocks.MarketData.overview(chain, stock) end)
   end
 
-  defp chosen_stock(chain, %{stock_address: address}) when is_binary(address) do
+  defp chosen_stock(_chain, ""), do: nil
+
+  defp chosen_stock(chain, address) do
     case Stocks.Assets.named(chain, address) do
       {:ok, stock} -> stock
       :error -> nil
     end
   end
 
-  defp chosen_stock(_chain, _draft), do: nil
+  defp refresh_market(%{assigns: %{draft_values: %{"stock_address" => same}}} = socket, same),
+    do: socket
 
-  defp refresh_market(socket, %{stock_address: same}, %{stock_address: same}), do: socket
-  defp refresh_market(socket, _before, _changed), do: assign_market(socket)
-
-  # Client events are not proof of ownership; the anonymous entry has no draft.
-  def handle_event(_event, _params, %{assigns: %{status: :sign_in_required}} = socket),
-    do: {:noreply, socket}
+  defp refresh_market(socket, _before), do: assign_market(socket)
 
   def handle_event(event, params, socket) when event in @autosave_events do
     values = Map.take(params["stock_draft"] || %{}, Templates.section_params(event))
+    before = socket.assigns.draft_values["stock_address"]
 
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, saved} <- autosave(event, draft, values, actor) do
-      {:noreply,
-       socket
-       |> assign_draft(saved)
-       |> refresh_market(draft, saved)
-       |> assign(draft_errors: %{}, draft_notice: %{tone: :success, message: "Saved"})}
-    else
-      error ->
-        {:noreply,
-         assign(socket,
-           draft_values: Map.merge(socket.assigns.draft_values, values),
-           draft_errors: draft_field_errors(error),
-           draft_notice: %{
-             tone: :error,
-             message: "That change could not be saved. Check the marked field."
-           }
-         )}
-    end
+    socket =
+      case save_section(socket, event, values) do
+        {:ok, socket} ->
+          socket
+          |> refresh_market(before)
+          |> assign(draft_errors: %{}, draft_notice: saved_notice(socket))
+
+        {:error, errors} ->
+          assign(socket,
+            draft_values: Map.merge(socket.assigns.draft_values, values),
+            draft_errors: errors,
+            draft_notice: unsaved_notice(socket)
+          )
+      end
+
+    {:noreply, keep(socket)}
   end
 
   def handle_event("choose_chain", %{"chain" => chain}, socket) when is_map_key(@chains, chain) do
     chain = Map.fetch!(@chains, chain)
 
-    with true <- chain != socket.assigns.launch_chain,
-         %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, saved} <- Autolaunch.choose_stocks_launch_chain(draft, chain, actor: actor) do
-      {:noreply,
-       socket
-       |> assign_draft(saved)
-       |> assign(draft_errors: %{}, draft_notice: nil, market: %{prices: %{}, venues: []})
-       |> assign_market()}
+    if chain == socket.assigns.launch_chain do
+      {:noreply, socket}
     else
-      false ->
-        {:noreply, socket}
+      case switch_chain(socket, chain) do
+        {:ok, socket} ->
+          {:noreply,
+           socket
+           |> assign(draft_errors: %{}, draft_notice: nil, market: %{prices: %{}, venues: []})
+           |> assign_market()
+           |> keep()}
 
-      _error ->
-        {:noreply,
-         assign(socket,
-           draft_notice: %{tone: :error, message: "The chain could not be changed. Try again."}
-         )}
+        :error ->
+          {:noreply,
+           assign(socket,
+             draft_notice: %{tone: :error, message: "The chain could not be changed. Try again."}
+           )}
+      end
     end
   end
 
+  # What a visitor typed while signed out, handed back by this tab. Signed in,
+  # it goes into the account's draft through the same saves as typing it
+  # would, except while the account's live auction keeps the form locked;
+  # signed out, it refills the unsaved form after a reload.
+  def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values) do
+    {:noreply, restore(socket, values)}
+  end
+
   # The X connect button reloads the socials panel once the account is linked.
-  def handle_event("refresh_x_connections", _params, socket) do
+  def handle_event("refresh_x_connections", _params, %{assigns: %{current_human_id: id}} = socket)
+      when is_integer(id) do
     send_update(AutolaunchWeb.CreatorConnectionsComponent,
       id: "creator-connections",
       current_human_id: socket.assigns.current_human_id,
@@ -156,31 +181,138 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
 
-  def render(%{status: :sign_in_required} = assigns) do
-    ~H"""
-    <main class="memestock">
-      <Templates.header />
-      <section id="autolaunch-stocks-create-sign-in" class="autolaunch-empty memestock__sign-in">
-        <h2>Sign in to launch a memestock</h2>
-        <p>
-          A launch starts as a private draft saved to your account, so you need to be signed in.
-          Once you are, you come straight back here.
-        </p>
-        <Regent.Primitives.button
-          type="button"
-          class="account-control__sign-in"
-          data-account-target="sign-in"
-        >
-          Sign in
-        </Regent.Primitives.button>
-      </section>
-    </main>
-    """
+  def render(assigns) do
+    assigns = assign(assigns, :stocks_image_upload, assigns[:uploads][:stocks_image])
+    Templates.create(assigns)
   end
 
-  def render(assigns) do
-    assigns = assign(assigns, :stocks_image_upload, assigns.uploads[:stocks_image])
-    Templates.create(assigns)
+  # One section of the form, saved to the account's draft or, signed out,
+  # applied to the unsaved one under the same rules.
+  defp save_section(socket, event, values) do
+    case human_actor(socket) do
+      nil ->
+        case sketch(socket.assigns.sketch, Map.fetch!(@actions, event), values) do
+          {:ok, sketch} -> {:ok, assign_sketch(socket, sketch)}
+          error -> {:error, draft_field_errors(error)}
+        end
+
+      actor ->
+        with {:ok, draft} <- current_or_new_draft(actor),
+             {:ok, saved} <- autosave(event, draft, values, actor) do
+          {:ok, assign_draft(socket, saved)}
+        else
+          error -> {:error, draft_field_errors(error)}
+        end
+    end
+  end
+
+  defp switch_chain(socket, chain) do
+    result =
+      case human_actor(socket) do
+        nil ->
+          with {:ok, sketch} <- sketch(socket.assigns.sketch, :choose_chain, %{chain: chain}),
+               do: {:ok, assign_sketch(socket, sketch)}
+
+        actor ->
+          with {:ok, draft} <- current_or_new_draft(actor),
+               {:ok, saved} <- Autolaunch.choose_stocks_launch_chain(draft, chain, actor: actor),
+               do: {:ok, assign_draft(socket, saved)}
+      end
+
+    with {:error, _error} <- result, do: :error
+  end
+
+  defp saved_notice(%{assigns: %{current_human_id: nil}}), do: nil
+  defp saved_notice(_socket), do: %{tone: :success, message: "Saved"}
+
+  defp unsaved_notice(%{assigns: %{current_human_id: nil}}), do: nil
+
+  defp unsaved_notice(_socket),
+    do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
+
+  defp restore(%{assigns: %{live_memestake?: true}} = socket, _values), do: socket
+  defp restore(%{assigns: %{status: :error}} = socket, _values), do: socket
+
+  defp restore(socket, values) do
+    values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
+    {socket, values} = restore_chain(socket, values)
+
+    {socket, unsaved, errors} =
+      Enum.reduce(@autosave_events, {socket, %{}, %{}}, &restore_section(&1, &2, values))
+
+    socket
+    |> assign(
+      draft_values: Map.merge(socket.assigns.draft_values, unsaved),
+      draft_errors: errors,
+      draft_notice: if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket))
+    )
+    |> choose_linked_stock()
+    |> assign_market()
+    |> keep()
+  end
+
+  # The stock and its amounts belong to the chain they were chosen on, so
+  # they come across only once the draft is on that chain.
+  defp restore_chain(socket, values) do
+    case Map.fetch(@chains, values["chain"]) do
+      {:ok, chain} when chain != socket.assigns.launch_chain ->
+        case switch_chain(socket, chain) do
+          {:ok, switched} -> {switched, values}
+          :error -> {socket, Map.drop(values, Templates.section_params("autosave_stocks_terms"))}
+        end
+
+      _same_chain ->
+        {socket, values}
+    end
+  end
+
+  # A section that cannot be saved stays on the form as typed, marked.
+  defp restore_section(event, {socket, unsaved, errors} = restored, values) do
+    case Map.take(values, Templates.section_params(event)) do
+      section when map_size(section) == 0 ->
+        restored
+
+      section ->
+        case save_section(socket, event, section) do
+          {:ok, socket} -> {socket, unsaved, errors}
+          {:error, marked} -> {socket, Map.merge(unsaved, section), Map.merge(errors, marked)}
+        end
+    end
+  end
+
+  # Signed out, this tab keeps whatever differs from a new draft. The chain
+  # comes too whenever it was switched or a stock was chosen, since a stock
+  # belongs to its chain.
+  defp keep(%{assigns: %{current_human_id: nil}} = socket) do
+    fresh = Templates.draft_values(%LaunchDraft{})
+
+    values =
+      Map.reject(socket.assigns.draft_values, fn {param, value} -> fresh[param] == value end)
+
+    values =
+      if socket.assigns.launch_chain != :base or Map.has_key?(values, "stock_address"),
+        do: Map.put(values, "chain", socket.assigns.launch_chain),
+        else: values
+
+    keep_draft(socket, values)
+  end
+
+  defp keep(socket), do: socket
+
+  defp sketch(draft, action, values) do
+    case draft |> Ash.Changeset.for_update(action, values) |> Ash.Changeset.apply_attributes() do
+      {:ok, sketch} -> {:ok, sketch}
+      {:error, changeset} -> {:error, Ash.Error.to_error_class(changeset.errors)}
+    end
+  end
+
+  defp assign_sketch(socket, sketch) do
+    assign(socket,
+      sketch: sketch,
+      draft_values: Templates.draft_values(sketch),
+      launch_chain: sketch.chain,
+      status: :ready
+    )
   end
 
   defp autosave("autosave_stocks_token_details", draft, values, actor),
@@ -258,23 +390,22 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp live?(nil), do: false
 
   # A link can name the stock (`?token=<symbol or address>`): the choice is
-  # saved to the draft exactly as choosing it in the form would be, and a name
-  # the draft's chain does not list leaves the draft as it was.
-  defp choose_linked_stock(%{assigns: %{draft: %{} = draft}} = socket, token, actor)
+  # made exactly as choosing it in the form would make it, and a name the
+  # draft's chain does not list leaves the draft as it was. The link wins over
+  # a stock this tab carried over.
+  defp choose_linked_stock(%{assigns: %{status: :ready, linked_token: token}} = socket)
        when is_binary(token) do
-    with {:ok, stock} <- Stocks.Assets.named(draft.chain, token),
-         false <- Address.equal?(draft.stock_address, stock.address),
-         {:ok, saved} <-
-           Autolaunch.autosave_stocks_terms(draft, %{"stock_address" => stock.address},
-             actor: actor
-           ) do
-      assign_draft(socket, saved)
+    with {:ok, stock} <- Stocks.Assets.named(socket.assigns.launch_chain, token),
+         false <- Address.equal?(socket.assigns.draft_values["stock_address"], stock.address),
+         {:ok, socket} <-
+           save_section(socket, "autosave_stocks_terms", %{"stock_address" => stock.address}) do
+      keep(socket)
     else
       _unchanged -> socket
     end
   end
 
-  defp choose_linked_stock(socket, _token, _actor), do: socket
+  defp choose_linked_stock(socket), do: socket
 
   defp assign_draft(socket, draft) do
     assign(socket,

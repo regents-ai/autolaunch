@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.InfoTip
   import AutolaunchWeb.Components.MarketCard
@@ -126,6 +127,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       >
         <div class="launchpad-create__form-column">
           <.live_component
+            :if={@current_human_id}
             module={AutolaunchWeb.CreatorConnectionsComponent}
             id="creator-connections"
             current_human_id={@current_human_id}
@@ -235,12 +237,22 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               session_lease={@session_lease}
             />
             <Regent.Primitives.button
-              :if={!@launch_ready?}
+              :if={@current_human_id && !@launch_ready?}
               type="button"
               disabled
             >
               Complete token details and treasury
             </Regent.Primitives.button>
+            <Regent.Primitives.button
+              :if={!@current_human_id}
+              type="button"
+              data-account-target="sign-in"
+            >
+              Sign in to save and launch
+            </Regent.Primitives.button>
+            <p :if={!@current_human_id} class="autolaunch-draft-hint">
+              Nothing is saved until you sign in. What you have entered comes with you.
+            </p>
           </section>
 
           <p
@@ -271,6 +283,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           <p>This auction and the resulting token will show these identities</p>
         </aside>
       </section>
+      <.draft_carry_over
+        id="launch-carry-over"
+        key="autolaunch:create:revstake"
+        signed_in={@current_human_id != nil}
+      />
     </section>
     """
   end

@@ -3,13 +3,28 @@ defmodule AutolaunchWeb.Components.ImagePicker do
   The token image on both create pages: one box that shows the saved image, or
   the file being uploaded, beside the prompt. Choosing a file or dropping one
   on the box both work. It sits inside the token details form, whose change
-  event carries the upload.
+  event carries the upload. Images are only stored for a signed-in account,
+  so a page without an upload offers sign-in in the box instead.
   """
   use Phoenix.Component
 
-  attr :upload, :map, required: true
+  attr :upload, :map, default: nil, doc: "the page's upload, absent while signed out"
   attr :image, :string, default: "", doc: "the saved image's address"
   attr :notice, :string, default: nil, doc: "why the last file could not be saved"
+
+  def image_upload(%{upload: nil} = assigns) do
+    ~H"""
+    <div class="image-upload">
+      <span class="image-upload__label">Token image</span>
+      <button type="button" class="image-upload__box" data-account-target="sign-in">
+        <span class="image-upload__text">
+          <strong>Sign in to add an image</strong>
+          <span>PNG, JPEG or WebP, up to 2 MB · 400 × 400 px</span>
+        </span>
+      </button>
+    </div>
+    """
+  end
 
   def image_upload(assigns) do
     upload = assigns.upload

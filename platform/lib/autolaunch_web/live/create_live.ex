@@ -2,46 +2,58 @@ defmodule AutolaunchWeb.CreateLive do
   @moduledoc """
   Agentic Revenue Launch, at /create/revstake: the Revstake launch form on
   Base. Memestock launches have their own page at /create.
+
+  A signed-out visitor explores the same form against an unsaved draft that
+  follows the saved draft's rules. This browser tab keeps what they typed, and
+  once they sign in it is saved into their account's draft.
   """
 
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchDraftImageStorage, Limits}
+  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Limits}
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
   alias AutolaunchWeb.UsdValue
 
   import AutolaunchWeb.Components.AuctionStats
+  import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
+  @actions %{
+    "autosave_launch_token_details" => :autosave_token_details,
+    "autosave_launch_treasury" => :autosave_treasury
+  }
 
-  # A signed-out visitor stays on this route: the page explains the sign-in
-  # requirement, and a completed sign-in reloads the same document, so the
-  # visitor returns here without any redirect parameter to validate.
+  # A completed sign-in reloads the same document, so a signed-out visitor
+  # returns here, now with their account's draft, without any redirect
+  # parameter to validate.
   def mount(_params, _session, socket) do
-    socket = assign_auction_stats(socket)
+    actor = human_actor(socket)
 
-    case human_actor(socket) do
+    socket =
+      socket
+      |> assign_auction_stats()
+      |> assign_defaults(actor)
+      |> UsdValue.assign_rate(:regent_usd_rate, :base, fn ->
+        {:ok, %{regent_usd_rate: MarketData.regent_price()}}
+      end)
+
+    case actor do
       nil ->
-        {:ok, assign(socket, status: :sign_in_required)}
+        {:ok, assign_sketch(socket, %LaunchDraft{})}
 
       actor ->
         socket =
-          socket
-          |> allow_upload(:launch_image,
+          allow_upload(socket, :launch_image,
             accept: ~w(.png .jpg .jpeg .webp),
             max_entries: 1,
             max_file_size: 2_097_152,
             auto_upload: true,
             progress: &handle_launch_image_progress/3
           )
-          |> assign_defaults(actor)
-          |> UsdValue.assign_rate(:regent_usd_rate, :base, fn ->
-            {:ok, %{regent_usd_rate: MarketData.regent_price()}}
-          end)
 
         {:ok,
          if connected?(socket) do
@@ -55,7 +67,8 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  def handle_event("refresh_x_connections", _params, socket) do
+  def handle_event("refresh_x_connections", _params, %{assigns: %{current_human_id: id}} = socket)
+      when is_integer(id) do
     send_update(AutolaunchWeb.CreatorConnectionsComponent,
       id: "creator-connections",
       current_human_id: socket.assigns.current_human_id,
@@ -65,10 +78,8 @@ defmodule AutolaunchWeb.CreateLive do
     {:noreply, assign_connections(socket)}
   end
 
-  # The anonymous entry has no draft or upload state. Client events are not
-  # proof of ownership and must not enter handlers requiring that state.
-  def handle_event(_event, _params, %{assigns: %{status: :sign_in_required}} = socket),
-    do: {:noreply, socket}
+  # Signed out there is no socials panel to refresh.
+  def handle_event("refresh_x_connections", _params, socket), do: {:noreply, socket}
 
   def handle_event(event, _params, socket)
       when event in ["create_launch_draft", "revise_launch_draft"] do
@@ -77,6 +88,12 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_event(event, params, socket) when event in @autosave_events,
     do: handle_draft_event(event, params["launch_draft"] || %{}, socket)
+
+  # What a visitor typed while signed out, handed back by this tab. Signed in,
+  # it goes into the account's draft through the same saves as typing it
+  # would; signed out, it refills the unsaved form after a reload.
+  def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values),
+    do: {:noreply, restore(socket, values)}
 
   def handle_event("no_connections_typed", %{"typed" => typed}, socket) when is_binary(typed),
     do: {:noreply, assign(socket, no_connections_typed: typed)}
@@ -125,33 +142,10 @@ defmodule AutolaunchWeb.CreateLive do
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
 
-  defp render_revshare(%{status: :sign_in_required} = assigns) do
-    ~H"""
-    <main class="launchpad-create">
-      <section id="autolaunch-create-sign-in" class="autolaunch-empty launchpad-create__sign-in">
-        <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">Sign in to launch an auction</h2>
-        </Regent.Structure.section_bar>
-        <p>
-          A launch starts as a private draft saved to your account, so Create needs you signed
-          in. Once you are, you come straight back here.
-        </p>
-        <Regent.Primitives.button
-          type="button"
-          class="account-control__sign-in"
-          data-account-target="sign-in"
-        >
-          Sign in
-        </Regent.Primitives.button>
-      </section>
-    </main>
-    """
-  end
-
   defp render_revshare(assigns) do
     assigns =
       assign(assigns,
-        launch_image_upload: assigns.uploads[:launch_image],
+        launch_image_upload: assigns[:uploads][:launch_image],
         regent_usd_rate: assigns.regent_usd_rate.result
       )
 
@@ -159,37 +153,107 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   defp handle_draft_event(event, submitted, socket) do
-    params =
-      if event == "autosave_launch_token_details",
-        do: Templates.token_detail_params(),
-        else: Templates.treasury_params()
+    values = Map.take(submitted, section_params(event))
 
-    values = Map.take(submitted, params)
+    socket =
+      case save_section(socket, event, values) do
+        {:ok, socket} ->
+          assign(socket, draft_errors: %{}, draft_notice: saved_notice(socket))
 
-    with %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, _saved} <- autosave_draft(event, draft, values, actor),
-         {:ok, reloaded} <- reload_draft(actor) do
-      {:noreply,
-       socket
-       |> assign_loaded_draft(reloaded, actor)
-       |> assign(
-         draft_errors: %{},
-         draft_notice: %{tone: :success, message: "Saved to your account."}
-       )}
-    else
-      error ->
-        {:noreply,
-         assign(socket,
-           draft_values: Map.merge(socket.assigns.draft_values, values),
-           draft_errors: draft_field_errors(error),
-           draft_notice: %{
-             tone: :error,
-             message: "That change could not be saved. Check the marked field."
-           }
-         )}
+        {:error, errors} ->
+          assign(socket,
+            draft_values: Map.merge(socket.assigns.draft_values, values),
+            draft_errors: errors,
+            draft_notice: unsaved_notice(socket)
+          )
+      end
+
+    {:noreply, keep(socket)}
+  end
+
+  defp section_params("autosave_launch_token_details"), do: Templates.token_detail_params()
+  defp section_params("autosave_launch_treasury"), do: Templates.treasury_params()
+
+  # One section of the form, saved to the account's draft or, signed out,
+  # applied to the unsaved one under the same rules.
+  defp save_section(socket, event, values) do
+    case human_actor(socket) do
+      nil ->
+        case sketch(socket.assigns.sketch, Map.fetch!(@actions, event), values) do
+          {:ok, sketch} -> {:ok, assign_sketch(socket, sketch)}
+          error -> {:error, draft_field_errors(error)}
+        end
+
+      actor ->
+        with {:ok, draft} <- current_or_new_draft(actor),
+             {:ok, _saved} <- autosave_draft(event, draft, values, actor),
+             {:ok, reloaded} <- reload_draft(actor) do
+          {:ok, assign_loaded_draft(socket, reloaded, actor)}
+        else
+          error -> {:error, draft_field_errors(error)}
+        end
     end
   end
+
+  defp saved_notice(%{assigns: %{current_human_id: nil}}), do: nil
+  defp saved_notice(_socket), do: %{tone: :success, message: "Saved to your account."}
+
+  defp unsaved_notice(%{assigns: %{current_human_id: nil}}), do: nil
+
+  defp unsaved_notice(_socket),
+    do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
+
+  defp restore(%{assigns: %{status: :error}} = socket, _values), do: socket
+
+  defp restore(socket, values) do
+    values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
+
+    {socket, unsaved, errors} =
+      Enum.reduce(@autosave_events, {socket, %{}, %{}}, &restore_section(&1, &2, values))
+
+    assign(socket,
+      draft_values: Map.merge(socket.assigns.draft_values, unsaved),
+      draft_errors: errors,
+      draft_notice: if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket))
+    )
+  end
+
+  # A section that cannot be saved stays on the form as typed, marked.
+  defp restore_section(event, {socket, unsaved, errors} = restored, values) do
+    case Map.take(values, section_params(event)) do
+      section when map_size(section) == 0 ->
+        restored
+
+      section ->
+        case save_section(socket, event, section) do
+          {:ok, socket} -> {socket, unsaved, errors}
+          {:error, marked} -> {socket, Map.merge(unsaved, section), Map.merge(errors, marked)}
+        end
+    end
+  end
+
+  # Signed out, this tab keeps whatever differs from a new draft.
+  defp keep(%{assigns: %{current_human_id: nil}} = socket) do
+    fresh = Templates.draft_values(%LaunchDraft{})
+
+    keep_draft(
+      socket,
+      Map.reject(socket.assigns.draft_values, fn {param, value} -> fresh[param] == value end)
+    )
+  end
+
+  defp keep(socket), do: socket
+
+  defp sketch(draft, action, values) do
+    case draft |> Ash.Changeset.for_update(action, values) |> Ash.Changeset.apply_attributes() do
+      {:ok, sketch} -> {:ok, sketch}
+      {:error, changeset} -> {:error, Ash.Error.to_error_class(changeset.errors)}
+    end
+  end
+
+  defp assign_sketch(socket, sketch),
+    do:
+      assign(socket, sketch: sketch, draft_values: Templates.draft_values(sketch), status: :ready)
 
   defp autosave_draft("autosave_launch_token_details", draft, values, actor),
     do: Autolaunch.autosave_launch_token_details(draft, values, actor: actor)
@@ -274,7 +338,7 @@ defmodule AutolaunchWeb.CreateLive do
       no_connections_typed: "",
       x_oauth_enabled: XOAuth.enabled?(),
       auction_limit_reached: auction_limit_reached?(actor),
-      current_human_id: actor.human_account_id,
+      current_human_id: actor && actor.human_account_id,
       status: :loading
     )
   end
