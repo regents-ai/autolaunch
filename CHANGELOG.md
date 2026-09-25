@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v31, 25 September 2026 (972b492)
+- After you launch a memestock, "Launch memestock" starts from an empty form instead of showing
+  the token you just launched.
+- While your Memestake auction is live, the form is grayed out under "Only one Memestake auction
+  can be live per account". It opens again once that auction ends.
+- Every change to the site is now checked and test-built on GitHub before release.
+
 ## v30, 25 September 2026 (fe84aea)
 - Search works as you type. Every word you type must appear somewhere in the auction: its name,
   ticker, paired stock, description, addresses, or the creator's X, GitHub or ENS name. A $ in
