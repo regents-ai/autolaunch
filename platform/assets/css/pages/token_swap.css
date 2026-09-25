@@ -253,9 +253,9 @@
   box-shadow: 0 12px 32px color-mix(in srgb, var(--color-bg) 70%, transparent);
 }
 .token-swap__toast strong { font-size: 1rem; }
-.token-swap__toast p { margin: .25rem 0 0; color: var(--color-fg-muted); font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-swap__toast > div > p { margin: .25rem 0 0; color: var(--color-fg-muted); font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .token-swap__toast > .rg-button { min-width: 44px; min-height: 44px; margin: -.5rem; padding: .5rem; }
-.token-swap__toast a.rg-button { display: inline-flex; min-height: 44px; margin-top: .75rem; }
+.token-swap__toast .share-x { margin-top: .75rem; }
 
 .token-swap-modal {
   width: min(38rem, calc(100% - 2rem));

@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.PriceChart
 
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.{LabMarket, Paths}
+  alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
 
   def mount(_params, _session, socket),
     do:
@@ -142,6 +142,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           pool={@pool.result}
           initial_amount={@stake_amount}
           share_url={Paths.token_url(@token.auction)}
+          share_image={ShareCard.token_image_url(@token.auction, DateTime.utc_now())}
           authenticated={@account_control.kind == :signed_in}
           current_human_id={current_human_id(@access_context)}
           session_lease={@session_lease}

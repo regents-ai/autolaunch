@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.Pool
-  alias AutolaunchWeb.{LabMarket, LiveListings, Paths}
+  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard}
   alias AutolaunchWeb.SwapComponent
 
   def mount(_params, _session, socket) do
@@ -128,6 +128,7 @@ defmodule AutolaunchWeb.TokenLive do
           pool={@pool.result}
           initial_amount={@stake_amount}
           share_url={Paths.token_url(@page_record.auction)}
+          share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
           authenticated={@account_control.kind == :signed_in}
           current_human_id={current_human_id(@access_context)}
           session_lease={@session_lease}
