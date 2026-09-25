@@ -38,8 +38,8 @@ defmodule Autolaunch.Indexer.Rpc do
   @spec request(pos_integer(), String.t(), list()) :: {:ok, term()} | {:error, :chain_unavailable}
   def request(chain_id, method, params) do
     case attempted(chain_id, method, params) do
-      {:ok, response} -> answered(method, response)
-      {:error, class} -> failed(method, class)
+      {:ok, response} -> answered(chain_id, method, response)
+      {:error, class} -> failed(chain_id, method, class)
     end
   end
 
@@ -89,7 +89,7 @@ defmodule Autolaunch.Indexer.Rpc do
     )
   end
 
-  defp answered(_method, %{
+  defp answered(_chain_id, _method, %{
          status: 200,
          body: %{"jsonrpc" => "2.0", "id" => @id, "result" => result}
        }),
@@ -97,13 +97,20 @@ defmodule Autolaunch.Indexer.Rpc do
 
   # A 200 that is not this exchange's own result is an RPC-level failure; any
   # other status is an HTTP one. Neither body is ever read into a log line.
-  defp answered(method, %{status: 200}), do: failed(method, :rpc)
-  defp answered(method, _response), do: failed(method, :http)
+  defp answered(chain_id, method, %{status: 200}), do: failed(chain_id, method, :rpc)
+  defp answered(chain_id, method, _response), do: failed(chain_id, method, :http)
 
-  defp failed(method, class) do
+  defp failed(chain_id, method, class) do
     Logger.warning(
       "autolaunch indexer chain read failed #{inspect(%{method: method, class: class})}"
     )
+
+    :telemetry.execute([:autolaunch, :rpc, :failure], %{count: 1}, %{
+      method: method,
+      class: class,
+      chain_id: chain_id,
+      scope: "autolaunch indexer"
+    })
 
     {:error, :chain_unavailable}
   end

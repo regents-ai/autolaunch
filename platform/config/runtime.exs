@@ -232,6 +232,10 @@ if config_env() == :prod do
       raise "SECRET_KEY_BASE must be at least 64 bytes"
     end
 
+    # Fly's managed Prometheus scrapes the site health set here, over Fly's
+    # private network (`fly.toml` `[metrics]`). Only `[http_service]` is public.
+    config :autolaunch, :metrics_port, 9091
+
     config :autolaunch, AutolaunchWeb.Endpoint,
       server: true,
       url: [host: host, port: 443, scheme: "https"],

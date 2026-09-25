@@ -105,6 +105,12 @@ defmodule Autolaunch.Indexer.Handler do
   defp ordered(_finality, _safe), do: {:error, :head_disorder}
 
   defp plan(lease, safe, finality) do
+    :telemetry.execute(
+      [:autolaunch, :indexer, :lag],
+      %{blocks: max(safe.number - lease.next_block + 1, 0)},
+      %{indexer: :ledger, chain_id: lease.chain_id}
+    )
+
     case range(lease.next_block, safe.number) do
       :none -> Ledger.commit(lease, {:promote, finality}, @bound)
       {from, to} -> ingest(lease, from, to, safe, finality)

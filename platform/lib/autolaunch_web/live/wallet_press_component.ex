@@ -75,6 +75,7 @@ defmodule AutolaunchWeb.WalletPressComponent do
            opts
          ) do
       {:ok, _} = result ->
+        AutolaunchWeb.Telemetry.wallet_failed(kind, params["outcome"])
         socket = apply_result(socket, result)
 
         if params["transaction_hash"],

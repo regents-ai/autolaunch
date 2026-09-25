@@ -73,6 +73,8 @@ defmodule Autolaunch.MixProject do
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.

@@ -92,15 +92,19 @@ defmodule Autolaunch.Application do
     )
   end
 
-  # Background jobs, which finish ended auctions, run once launches are open.
+  # Background jobs, which finish ended auctions, run once launches are open,
+  # with the poller that measures how long their oldest job has waited.
   defp autolaunch_jobs_child do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do
-      {Oban,
-       AshOban.config(
-         Application.fetch_env!(:autolaunch, :ash_domains),
-         Application.fetch_env!(:autolaunch, Oban)
-       )}
+      [
+        {Oban,
+         AshOban.config(
+           Application.fetch_env!(:autolaunch, :ash_domains),
+           Application.fetch_env!(:autolaunch, Oban)
+         )},
+        AutolaunchWeb.Telemetry.jobs_poller()
+      ]
     else
       _disabled -> nil
     end
