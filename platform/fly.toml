@@ -30,6 +30,12 @@ primary_region = "iad"
   guest_path = "/app/deployment/robinhood.json"
   local_path = "deployment/robinhood.json"
 
+# Fly's managed Prometheus scrapes the site health set over Fly's private
+# network. Port 9091 is not a service, so the public proxy never routes to it.
+[metrics]
+  port = 9091
+  path = "/metrics"
+
 [http_service]
   internal_port = 4000
   force_https = true

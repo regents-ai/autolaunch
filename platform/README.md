@@ -304,6 +304,14 @@ error details. The response is not cacheable. Fly's existing health check uses
 this route. Prelaunch write, authentication, indexer and automation gates remain
 unchanged.
 
+The site's health numbers (bid and trade delay, blocks behind per indexer, oldest
+waiting job, chain requests with no answer, database connection wait and wallet
+sends not made or not confirmed) are listed in `AutolaunchWeb.Telemetry`. In
+production they are served at `/metrics` on port 9091, which `fly.toml`'s `[metrics]`
+section names for Fly's managed Prometheus. That port is not a Fly service, so it is
+reachable only over Fly's private network; the public site has no `/metrics` page.
+Fly Sentinel reads them from Prometheus under its site health set.
+
 ## Shared private profile
 
 `/profile` uses the shared Regent UI and Regents-owned Ash identity domain.
