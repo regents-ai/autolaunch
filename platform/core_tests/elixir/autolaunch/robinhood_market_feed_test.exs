@@ -301,10 +301,10 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
 
     # The public list carries the site's Robinhood launch as last stored,
     # beside Base; the launch seen only on chain is stored but not listed.
-    listed = Autolaunch.page_public_auctions!("all", "newest", actor: nil)
+    {:ok, listed} = Autolaunch.HomeMarket.read(Autolaunch.HomeMarket.options(%{}))
     site = Enum.find(rows, &(&1.auction_address == @site_auction))
 
-    assert Enum.sort(Enum.map(listed.results, & &1.id)) == Enum.sort([base.id, site.id])
+    assert Enum.sort(Enum.map(listed.records, & &1.id)) == Enum.sort([base.id, site.id])
   end
 
   test "a launch that graduates gets exactly one token, and a failed one gets none" do
@@ -475,8 +475,8 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert %{origin: :chain, creator_human_account_id: nil} = row(@graduated_auction)
     assert %{origin: :site} = row(@site_auction)
 
-    listed = Autolaunch.page_public_auctions!("all", "newest", actor: nil)
-    assert Enum.map(listed.results, & &1.auction_address) == [@site_auction]
+    {:ok, listed} = Autolaunch.HomeMarket.read(Autolaunch.HomeMarket.options(%{}))
+    assert Enum.map(listed.records, & &1.auction_address) == [@site_auction]
   end
 
   defp review(creator, name, symbol) do

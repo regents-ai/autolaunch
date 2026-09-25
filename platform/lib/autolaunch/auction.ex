@@ -44,11 +44,6 @@ defmodule Autolaunch.Auction do
       index [:estimated_end_at, :id], name: "auctions_ending_index"
       index ["bid_volume_usd DESC NULLS LAST", "id"], name: "auctions_bid_volume_index"
 
-      index ["opened_at DESC NULLS LAST", "inserted_at DESC", "id"],
-        name: "auctions_public_newest_index"
-
-      index [:opened_at, :inserted_at, :id], name: "auctions_public_oldest_index"
-
       index ["inserted_at DESC", "id"], name: "auctions_home_newest_index"
       index [:kind, :state], name: "auctions_kind_state_index"
     end
@@ -131,106 +126,81 @@ defmodule Autolaunch.Auction do
         default: "all",
         constraints: [match: ~r/\A(all|revstake|memestake)\z/]
 
-      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
+      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 50
       prepare Autolaunch.Auction.Preparations.Listed
 
-      prepare fn query, _context ->
-        states =
-          if query.arguments.view == "active",
-            do: [:created, :active, :ended],
-            else: [:created, :active, :ended, :failed, :graduated]
+      # A query with a value the list does not know is refused as it stands.
+      prepare fn
+        %{valid?: false} = query, _context ->
+          query
 
-        states =
-          Enum.filter(
-            states,
-            &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state)
-          )
+        query, _context ->
+          states =
+            if query.arguments.view == "active",
+              do: [:created, :active, :ended],
+              else: [:created, :active, :ended, :failed, :graduated]
 
-        query =
-          case query.arguments.chain do
-            "base" ->
-              Ash.Query.filter(query, chain_id == ^Autolaunch.Lab.chain_id())
+          states =
+            Enum.filter(
+              states,
+              &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state)
+            )
 
-            "robinhood" ->
-              Ash.Query.filter(query, chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
+          query =
+            case query.arguments.chain do
+              "base" ->
+                Ash.Query.filter(query, chain_id == ^Autolaunch.Lab.chain_id())
 
-            "all" ->
-              query
-          end
+              "robinhood" ->
+                Ash.Query.filter(query, chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
 
-        query =
-          case query.arguments.kind do
-            "revstake" -> Ash.Query.filter(query, kind == :agent)
-            "memestake" -> Ash.Query.filter(query, kind == :stocks)
-            "all" -> query
-          end
+              "all" ->
+                query
+            end
 
-        query =
-          if query.arguments.x,
-            do:
-              Ash.Query.filter(
-                query,
-                exists(creator_x_connections, not is_nil(verified_at)) or
-                  exists(creator_identities, provider == :x)
-              ),
-            else: query
+          query =
+            case query.arguments.kind do
+              "revstake" -> Ash.Query.filter(query, kind == :agent)
+              "memestake" -> Ash.Query.filter(query, kind == :stocks)
+              "all" -> query
+            end
 
-        query =
-          if query.arguments.ens,
-            do: Ash.Query.filter(query, exists(creator_identities, provider == :ens)),
-            else: query
+          query =
+            if query.arguments.x,
+              do:
+                Ash.Query.filter(
+                  query,
+                  exists(creator_x_connections, not is_nil(verified_at)) or
+                    exists(creator_identities, provider == :x)
+                ),
+              else: query
 
-        query =
-          if query.arguments.github,
-            do: Ash.Query.filter(query, exists(creator_identities, provider == :github)),
-            else: query
+          query =
+            if query.arguments.ens,
+              do: Ash.Query.filter(query, exists(creator_identities, provider == :ens)),
+              else: query
 
-        order =
-          case query.arguments.sort do
-            "ending" -> [estimated_end_at: :asc_nils_last, id: :asc]
-            "volume" -> [bid_volume_usd: :desc_nils_last, id: :asc]
-            "newest" -> [inserted_at: :desc, id: :asc]
-          end
+          query =
+            if query.arguments.github,
+              do: Ash.Query.filter(query, exists(creator_identities, provider == :github)),
+              else: query
 
-        query =
-          if query.arguments.sort == "ending",
-            do: Ash.Query.filter(query, state == :active),
-            else: query
+          order =
+            case query.arguments.sort do
+              "ending" -> [estimated_end_at: :asc_nils_last, id: :asc]
+              "volume" -> [bid_volume_usd: :desc_nils_last, id: :asc]
+              "newest" -> [inserted_at: :desc, id: :asc]
+            end
 
-        query
-        |> market_query(states, nil)
-        |> Ash.Query.unset([:sort, :limit])
-        |> Ash.Query.sort(order)
-      end
-    end
+          query =
+            if query.arguments.sort == "ending",
+              do: Ash.Query.filter(query, state == :active),
+              else: query
 
-    read :page_public do
-      argument :mode, :string,
-        default: "all",
-        constraints: [match: ~r/\A(all|biddable|live|ended|failed_minimum|graduated)\z/]
-
-      argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
-      pagination keyset?: true, required?: true, default_limit: 50, max_page_size: 50
-      prepare Autolaunch.Auction.Preparations.Listed
-      prepare build(load: [:treasury_security_report])
-
-      prepare fn query, _context ->
-        query =
-          case Ash.Query.get_argument(query, :mode) do
-            mode when mode in ["live", "biddable"] -> Ash.Query.filter(query, state == :active)
-            "ended" -> Ash.Query.filter(query, state == :ended)
-            "failed_minimum" -> Ash.Query.filter(query, state == :failed)
-            "graduated" -> Ash.Query.filter(query, state == :graduated)
-            "all" -> query
-          end
-
-        case Ash.Query.get_argument(query, :sort) do
-          "oldest" ->
-            Ash.Query.sort(query, opened_at: :asc, inserted_at: :asc, id: :asc)
-
-          "newest" ->
-            Ash.Query.sort(query, opened_at: :desc_nils_last, inserted_at: :desc, id: :asc)
-        end
+          query
+          |> market_query(states, nil)
+          |> Ash.Query.unset([:sort, :limit])
+          |> Ash.Query.sort(order)
       end
     end
 
@@ -445,7 +415,6 @@ defmodule Autolaunch.Auction do
              :listed_by_id,
              :robinhood_by_address,
              :list_public,
-             :page_public,
              :home_market,
              :recent_public,
              :featured_public,

@@ -54,64 +54,60 @@ defmodule Autolaunch.Token do
         default: "all",
         constraints: [match: ~r/\A(all|revstake|memestake)\z/]
 
-      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
+      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 100
       prepare Autolaunch.Token.Preparations.ListedAuction
 
-      prepare fn query, _context ->
-        query =
-          case query.arguments.chain do
-            "base" ->
-              Ash.Query.filter(query, auction.chain_id == ^Autolaunch.Lab.chain_id())
+      # A query with a value the list does not know is refused as it stands.
+      prepare fn
+        %{valid?: false} = query, _context ->
+          query
 
-            "robinhood" ->
-              Ash.Query.filter(query, auction.chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
+        query, _context ->
+          query =
+            case query.arguments.chain do
+              "base" ->
+                Ash.Query.filter(query, auction.chain_id == ^Autolaunch.Lab.chain_id())
 
-            "all" ->
-              query
-          end
+              "robinhood" ->
+                Ash.Query.filter(query, auction.chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
 
-        query =
-          case query.arguments.kind do
-            "revstake" -> Ash.Query.filter(query, auction.kind == :agent)
-            "memestake" -> Ash.Query.filter(query, auction.kind == :stocks)
-            "all" -> query
-          end
+              "all" ->
+                query
+            end
 
-        query =
-          if query.arguments.x,
-            do:
-              Ash.Query.filter(
-                query,
-                exists(auction.creator_x_connections, not is_nil(verified_at)) or
-                  exists(auction.creator_identities, provider == :x)
-              ),
-            else: query
+          query =
+            case query.arguments.kind do
+              "revstake" -> Ash.Query.filter(query, auction.kind == :agent)
+              "memestake" -> Ash.Query.filter(query, auction.kind == :stocks)
+              "all" -> query
+            end
 
-        query =
-          if query.arguments.ens,
-            do: Ash.Query.filter(query, exists(auction.creator_identities, provider == :ens)),
-            else: query
+          query =
+            if query.arguments.x,
+              do:
+                Ash.Query.filter(
+                  query,
+                  exists(auction.creator_x_connections, not is_nil(verified_at)) or
+                    exists(auction.creator_identities, provider == :x)
+                ),
+              else: query
 
-        query =
-          if query.arguments.github,
-            do: Ash.Query.filter(query, exists(auction.creator_identities, provider == :github)),
-            else: query
+          query =
+            if query.arguments.ens,
+              do: Ash.Query.filter(query, exists(auction.creator_identities, provider == :ens)),
+              else: query
 
-        query
-        |> launchpad_query(nil)
-        |> Ash.Query.unset([:sort, :limit])
-        |> Ash.Query.sort(graduated_at: :desc, id: :asc)
+          query =
+            if query.arguments.github,
+              do:
+                Ash.Query.filter(query, exists(auction.creator_identities, provider == :github)),
+              else: query
+
+          query
+          |> launchpad_query(nil)
+          |> Ash.Query.unset([:sort, :limit])
+          |> Ash.Query.sort(graduated_at: :desc, id: :asc)
       end
-    end
-
-    read :page_public do
-      pagination keyset?: true, required?: true, default_limit: 100, max_page_size: 100
-      prepare Autolaunch.Token.Preparations.ListedAuction
-
-      prepare build(
-                sort: [graduated_at: :desc, id: :asc],
-                load: [:treasury_security_report, :auction]
-              )
     end
 
     read :top_public do
@@ -283,7 +279,6 @@ defmodule Autolaunch.Token do
              :read,
              :listed,
              :list_public,
-             :page_public,
              :home_market,
              :top_public,
              :recently_graduated_public,

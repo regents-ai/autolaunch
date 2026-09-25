@@ -9,14 +9,28 @@ There is no older `navigator.modelContext` fallback.
 
 | Tool | Input | Existing HTTP contract |
 | --- | --- | --- |
-| `autolaunch_auctions` | Optional `mode`, `sort`, integer `limit`, `after` | `GET /api/v1/auctions` |
-| `autolaunch_auction` | Auction UUID `id` | `GET /api/v1/auctions/:id` |
-| `autolaunch_tokens` | Optional integer `limit`, `after` | `GET /api/v1/tokens` |
+| `autolaunch_auctions` | Optional `q`, `state`, `sort`, `chain`, `kind`, boolean `x`, `ens`, `github`, integer `limit`, `after` | `GET /api/v1/auctions` |
+| `autolaunch_auction` | Auction UUID `id`, or a Robinhood auction's address | `GET /api/v1/auctions/:id` |
+| `autolaunch_tokens` | Optional `q`, `chain`, `kind`, boolean `x`, `ens`, `github`, integer `limit`, `after` | `GET /api/v1/tokens` |
 | `autolaunch_treasury` | Treasury `address` | `GET /api/v1/treasury-security/:address` |
 | `autolaunch_bid_quote` | Auction UUID `id`, decimal strings `amount`, `max_price` | `POST /api/v1/auctions/:id/bid-quote` |
 
-Auction modes are `all`, `biddable`, `live`, `ended`, `failed_minimum`, and `graduated`;
-ordering is `newest` or `oldest`. List limits are safe JavaScript integers. The API
+The list options are the website's own, read through the same discovery as its
+auction and token lists (`Autolaunch.HomeMarket`), with the same names and meanings in
+the API, the CLI and these tools:
+
+| Option | Values | Lists |
+| --- | --- | --- |
+| `q` | The website search: every word in a name, ticker, stock, description, address or verified account; a leading `$` is ignored; the API collapses spaces and keeps the first 80 characters | auctions, tokens |
+| `state` | `all`, `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched) | auctions |
+| `sort` | `newest` (most recently listed), `ending` (live only, closing soonest; the website's Closing), `volume` (highest dollar bid volume, unrecorded last; the website's Highest) | auctions |
+| `chain` | `all`, `base`, `robinhood` | auctions, tokens |
+| `kind` | `all`, `revstake` (entries with kind `agent`), `memestake` (entries with kind `stocks`) | auctions, tokens |
+| `x`, `ens`, `github` | `true` keeps only creators verified on that account; several must all hold | auctions, tokens |
+
+The API refuses an unknown parameter, a repeated or list-shaped one, or a value outside
+these with a 400 `invalid_request`; the tools refuse them first as `invalid_input`.
+Booleans are JSON booleans in the tools and exactly `true` or `false` in the API. List limits are safe JavaScript integers. The API
 clamps auction limits to 1–50 and token limits to 1–100; the adapter does not clamp.
 The quote API accepts positive decimal strings with optional fractional digits,
 trims whitespace, and limits the trimmed input to 100 bytes. Its installed Decimal
@@ -87,10 +101,10 @@ Base's reader does not report a failed read separately, so its missing figures a
 ## Complete listings
 
 Auction and token responses include `pagination.has_more` and `pagination.next_cursor`.
-Pass `next_cursor` unchanged as `after` with the same mode/sort to continue. The CLI
+Pass `next_cursor` unchanged as `after` with the same options to continue; a cursor
+read with other options is refused. The CLI
 uses `--after`; the website has Next page and Back to newest links. API auction pages contain at most 50 entries across both chains (24 on the website);
-token API pages retain the 100-row cap. Both chains share one date order, and
-mode and sort apply to both. When Robinhood cannot be read, `robinhood_unavailable`
+token API pages retain the 100-row cap. Every option applies to both chains. When Robinhood cannot be read, `robinhood_unavailable`
 is true and its entries show what was last read from it. Cursors expire after
 24 hours; a 400 means restart the listing. Ordering includes an ID tie-breaker and
 handles nullable auction dates. New arrivals ahead of the cursor appear on restart;

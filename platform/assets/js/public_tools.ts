@@ -1,9 +1,9 @@
 // WebMCP Draft Community Group Report, 4 September 2026: document.modelContext.
 // Public HTTP responses remain authoritative; these tools never use wallet hooks.
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
-type Input = Record<string, string | number>
+type Input = Record<string, string | number | boolean>
 type Property = {
-  type: "string" | "integer"
+  type: "string" | "integer" | "boolean"
   description?: string
   enum?: string[]
   minimum?: number
@@ -88,6 +88,7 @@ function validInput(
     if (!Object.hasOwn(properties, key)) return false
     const property = properties[key]
     if (property.type === "integer") return typeof value === "number" && Number.isSafeInteger(value)
+    if (property.type === "boolean") return typeof value === "boolean"
     return typeof value === "string" && (!property.enum || property.enum.includes(value))
   })
 }
@@ -166,7 +167,7 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
   }
 }
 
-function pathValue(value: string | number): string {
+function pathValue(value: Input[string]): string {
   // URL parsing normalizes these segments even when their dots are percent-encoded.
   if (value === "." || value === "..") throw new URIError("Invalid path segment")
   return encodeURIComponent(value)
@@ -179,17 +180,33 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     type: "string",
     description: "Positive decimal digits with optional fractional digits; no exponent. The API trims whitespace, caps input at 100 bytes, and validates decimal bounds. Sent unchanged, without rounding.",
   }
+  // The website's discovery options, with the same names and meanings on both lists.
+  const discovery: Record<string, Property> = {
+    q: {
+      type: "string",
+      description: "The website's search: every word must appear in the name, ticker, stock, description, an address or one of the creator's verified accounts; a leading $ is ignored. The API collapses spaces and keeps the first 80 characters.",
+    },
+    chain: {type: "string", enum: ["all", "base", "robinhood"]},
+    kind: {type: "string", enum: ["all", "revstake", "memestake"], description: "revstake lists entries whose kind is agent; memestake, entries whose kind is stocks."},
+    x: {type: "boolean", description: "true keeps only launches whose creator has a verified X account."},
+    ens: {type: "boolean", description: "true keeps only launches whose creator has a verified ENS name."},
+    github: {type: "boolean", description: "true keeps only launches whose creator has a verified GitHub account. Several true filters must all hold."},
+  }
   const query = (input: Input) =>
     new URLSearchParams(Object.entries(input).map(([key, value]) => [key, String(value)]))
 
   return [
     tool(
       "autolaunch_auctions",
-      "List public Autolaunch auctions on Base and Robinhood as the site has stored them, in one order across both chains; every entry names its chain. Sort newest (default) puts the latest opening first; oldest puts the earliest first; auctions not yet open come last in both. Mode filters by auction state on both chains. The limit counts both chains. Each auction gives its page url, estimated_end_at, token_allocation, bid_volume and bid_volume_usd, minimum_raise (its launch threshold), currency_raised and percent_met; amounts are exact decimal strings. record_updated_at is when the site last wrote its stored record, not when the chain was last read. A figure not held yet is null and unavailable names why: not_recorded_yet, chain_unreadable (Robinhood's last chain read failed) or no_usd_price.",
+      "List public Autolaunch auctions on Base and Robinhood as the site has stored them, found and ordered as the website's auction list finds and orders them; every entry names its chain. q searches; state, chain and kind filter; x, ens and github keep creators verified on that account. Sort newest (default) lists the most recently listed first, ending lists live auctions only, closing soonest first, and volume lists the highest dollar bid volume first. The limit counts both chains. Each auction gives its page url, estimated_end_at, token_allocation, bid_volume and bid_volume_usd, minimum_raise (its launch threshold), currency_raised and percent_met; amounts are exact decimal strings. record_updated_at is when the site last wrote its stored record, not when the chain was last read. A figure not held yet is null and unavailable names why: not_recorded_yet, chain_unreadable (Robinhood's last chain read failed) or no_usd_price.",
       {
-        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
-        mode: {type: "string", enum: ["all", "biddable", "live", "ended", "failed_minimum", "graduated"]},
-        sort: {type: "string", enum: ["newest", "oldest"]},
+        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same filters and sort. Cursors expire after 24 hours."},
+        ...discovery,
+        state: {
+          type: "string", enum: ["all", "created", "active", "ended", "failed", "graduated"],
+          description: "created: opening soon; active: live; ended: bidding closed, waiting to be finished; failed; graduated: launched.",
+        },
+        sort: {type: "string", enum: ["newest", "ending", "volume"]},
         limit: {
           type: "integer", minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER,
           description: "Safe integer; the API clamps it to 1–50. Defaults to 50.",
@@ -209,9 +226,10 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_tokens",
-      "List public graduated Autolaunch tokens on Base and Robinhood as the site has stored them, newest graduation first across both chains; every entry names its chain.",
+      "List public graduated Autolaunch tokens on Base and Robinhood as the site has stored them, found as the website's token list finds them, newest graduation first across both chains; every entry names its chain. q searches; chain and kind filter; x, ens and github keep creators verified on that account.",
       {
-        after: {type: "string", description: "Pass pagination.next_cursor unchanged to read the next page. Cursors expire after 24 hours."},
+        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same filters. Cursors expire after 24 hours."},
+        ...discovery,
         limit: {
           type: "integer", minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER,
           description: "Safe integer; the API clamps it to 1–100. Defaults to 100.",

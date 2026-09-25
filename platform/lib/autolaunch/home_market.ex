@@ -1,5 +1,5 @@
 defmodule Autolaunch.HomeMarket do
-  @moduledoc "Public discovery and cursor scope for the home page and the auctions list."
+  @moduledoc "Public discovery and cursor scope for the website's lists and the public JSON API."
   alias Autolaunch.{Auction, Token}
   alias AutolaunchWeb.PublicPage
 
@@ -44,7 +44,7 @@ defmodule Autolaunch.HomeMarket do
     if query == "", do: base, else: base <> "?" <> query
   end
 
-  def read(options, cursor \\ nil) do
+  def read(options, cursor \\ nil, limit \\ 24) do
     scope = {:home_market, Map.drop(options, [:display])}
     resource = if options.view == "tokens", do: Token, else: Auction
 
@@ -72,7 +72,7 @@ defmodule Autolaunch.HomeMarket do
           |> Ash.Query.for_read(:home_market, arguments, actor: nil)
           |> Ash.Query.load(:market_cap)
 
-    with {:ok, page_options} <- PublicPage.options(cursor, scope, 24),
+    with {:ok, page_options} <- PublicPage.options(cursor, scope, limit),
          {:ok, page} <- Ash.read(query, page: page_options) do
       {:ok,
        Map.merge(PublicPage.metadata(page, scope), %{

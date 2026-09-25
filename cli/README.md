@@ -18,12 +18,34 @@ autolaunch commands list --json
 
 ## Use
 
+List options match the website's auction and token lists, with the same names and meanings as the API and the WebMCP tools:
+
 ```sh
-autolaunch auctions list --mode biddable --limit 10
-autolaunch auction <uuid>
-autolaunch bids quote --auction <uuid> --amount 12.5 --max-price 3
-autolaunch tokens list
-autolaunch treasury security <address>
+autolaunch auctions list --state active --sort ending --limit 10
+autolaunch auctions list --sort volume --chain robinhood
+autolaunch auctions list --q '$BITE' --kind memestake
+autolaunch auctions list --kind revstake --x
+autolaunch tokens list --chain base --github
+```
+
+| Option | Values | Lists |
+| --- | --- | --- |
+| `--q` | The website search: every word must appear in a name, ticker, stock, description, address or verified account; a leading `$` is ignored; the first 80 characters count | auctions, tokens |
+| `--state` | `all` (default), `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched) | auctions |
+| `--sort` | `newest` (default, most recently listed), `ending` (live only, closing soonest), `volume` (highest dollar bid volume) | auctions |
+| `--chain` | `all` (default), `base`, `robinhood` | auctions, tokens |
+| `--kind` | `all` (default), `revstake` (entries with kind `agent`), `memestake` (entries with kind `stocks`) | auctions, tokens |
+| `--x`, `--ens`, `--github` | Present: only creators verified on that account; several must all hold | auctions, tokens |
+
+Reading one record takes its id from a list:
+
+```sh
+id=$(autolaunch auctions list --chain base --limit 1 | node -pe 'JSON.parse(require("fs").readFileSync(0)).body.data[0].id')
+autolaunch auction "$id"
+autolaunch bids quote --auction "$id" --amount 12.5 --max-price 3
+# Only launches whose creator reviewed a treasury carry a stored treasury report.
+treasury=$(autolaunch auctions list | node -pe 'JSON.parse(require("fs").readFileSync(0)).body.data.find(a => a.treasury_security)?.treasury_security.address ?? ""')
+autolaunch treasury security "$treasury"
 ```
 
 API commands emit JSON on stdout by default (`--json` is explicit and equivalent):
@@ -38,7 +60,7 @@ The default origin is `https://autolaunch.sh`. Override with `AUTOLAUNCH_BASE_UR
 
 ## Capability boundaries
 
-This package supports all five current public JSON operations. Auction/token lists return `pagination.has_more` and `pagination.next_cursor`; pass the cursor unchanged with `--after` and retain the same filters and sort. Each page contains at most 50 auctions across both chains or 100 tokens. Both chains share one date order, mode and sort apply to both, and every entry names its `chain`. When Robinhood cannot be read, `robinhood_unavailable` is true and its entries show what was last read from it. Cursors expire after 24 hours; restart on an invalid cursor. New arrivals appear when restarting the list. Every auction names its `kind` (`agent` or `stocks`) and the `quote_token` bids are paid in (REGENT for agent auctions, an admitted Base stock token for stocks auctions); amounts and prices in quotes are in that token. Stored treasury observations are not current chain verification. Quotes retain exact decimal strings and warnings, including closed-auction warnings. They never submit a bid.
+This package supports all five current public JSON operations. Auction/token lists return `pagination.has_more` and `pagination.next_cursor`; pass the cursor unchanged with `--after` and retain the same filters and sort. Each page contains at most 50 auctions across both chains or 100 tokens. Every option applies to both chains, and every entry names its `chain`. When Robinhood cannot be read, `robinhood_unavailable` is true and its entries show what was last read from it. Cursors expire after 24 hours; restart on an invalid cursor. New arrivals appear when restarting the list. Every auction names its `kind` (`agent` or `stocks`) and the `quote_token` bids are paid in (REGENT for agent auctions, an admitted stock token for stocks auctions); amounts and prices in quotes are in that token. It also gives its page `url`, `estimated_end_at`, `token_allocation`, `bid_volume`, `bid_volume_usd`, `minimum_raise`, `currency_raised` and `percent_met` as exact decimal strings, `record_updated_at` (when the site last wrote its record, not when it last read the chain) and `unavailable`, naming why any of those figures is null. Stored treasury observations are not current chain verification. Quotes retain exact decimal strings and warnings, including closed-auction warnings. They never submit a bid.
 
 The old Regents CLI also contains private launch, chat, portfolio, and chain administration commands. Most old HTTP routes are absent from the current Autolaunch server. Those commands are not moved here or advertised as working replacements. Only the five verified public operations are superseded by this package.
 
@@ -52,7 +74,7 @@ The checks create disposable local servers and install directories and clean up 
 
 The platform owns `platform/contracts/api-contract.openapiv3.yaml`; its reviewed copy ships as `docs/api-contract.openapiv3.yaml`. Run `npm run check:contract` in the monorepo to detect drift. The standalone build never requires the platform.
 
-For optional checks against the real local Ash API, seed only an isolated database with `platform/test/browser/support/seed_public_tools.exs`, start its loopback server, then run `node scripts/test-public-api-fixture.mjs http://127.0.0.1:<port>`. This preserves the earlier product comparison; invalid CLI integers are checked locally, and invalid decimal/address values still exercise API refusals. The script never seeds a database itself.
+To try a local server, pass its loopback origin: `autolaunch auctions list --base-url http://127.0.0.1:<port>`.
 
 ## Related products
 
