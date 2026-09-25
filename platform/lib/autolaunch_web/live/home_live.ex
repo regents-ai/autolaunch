@@ -69,6 +69,15 @@ defmodule AutolaunchWeb.HomeLive do
      )}
   end
 
+  # Results follow the header field as it is typed, without a history step per pause.
+  def handle_event("type_search", params, socket) do
+    {:noreply,
+     push_patch(socket,
+       to: HomeMarket.path(socket.assigns.market_options, %{q: Map.get(params, "q", "")}),
+       replace: true
+     )}
+  end
+
   def handle_event(
         "load-more",
         _params,

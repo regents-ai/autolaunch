@@ -111,13 +111,15 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
     >
       <header :if={!@optional}>
         <div>
-          <p class="autolaunch-kicker">Optional</p>
+          <p class="autolaunch-kicker">Start Here</p>
           <Regent.Structure.section_bar>
             <h2 class="rg-section-bar__label">Creator connections</h2>
           </Regent.Structure.section_bar>
         </div>
       </header>
-      <p :if={!@optional}>These appear on your auctions and launched tokens.</p>
+      <p :if={!@optional}>
+        Gain credibility by connecting reputation to your stablecoin / agent business
+      </p>
       <Regent.Primitives.disclosure
         :if={@optional}
         id={"#{@id}-more"}
@@ -151,12 +153,12 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
       >
         <:actions>
           <Regent.Primitives.button
+            :if={!@github}
             type="button"
             variant="secondary"
             data-connect-github
-            data-github-subject={@github && @github.subject}
           >
-            {if @github, do: "Change", else: "Connect"}
+            Connect
           </Regent.Primitives.button>
           <Regent.Primitives.button
             :if={@github}

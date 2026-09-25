@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.StockSelect
 
   alias Autolaunch.LaunchChain
@@ -425,50 +426,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     """
   end
 
-  attr :upload, :map, required: true
-  attr :image, :string, default: ""
-  attr :notice, :string, default: nil
-
-  # One box: the saved image, or the file being uploaded, beside the prompt.
-  # Dropping a file on the box works as well as choosing one.
-  defp image_upload(assigns) do
-    upload = assigns.upload
-
-    assigns =
-      assign(assigns,
-        errors: upload_errors(upload) ++ Enum.flat_map(upload.entries, &upload_errors(upload, &1))
-      )
-
-    ~H"""
-    <div class="memestock-field">
-      <span class="memestock__label">Token image</span>
-      <label class="memestock-upload" for={@upload.ref} phx-drop-target={@upload.ref}>
-        <.live_img_preview
-          :for={entry <- @upload.entries}
-          entry={entry}
-          class="memestock-upload__preview"
-        />
-        <img
-          :if={@upload.entries == [] && @image != ""}
-          src={@image}
-          alt="Saved token image"
-          class="memestock-upload__preview"
-        />
-        <span class="memestock-upload__text">
-          <strong>{if @image == "", do: "Choose image", else: "Replace image"}</strong>
-          <span :for={entry <- @upload.entries}>Uploading · {entry.progress}%</span>
-          <span :if={@upload.entries == []}>PNG, JPEG or WebP, up to 2 MB · 400 × 400 px</span>
-        </span>
-        <.live_file_input upload={@upload} class="visually-hidden" />
-      </label>
-      <p :for={error <- @errors} class="autolaunch-draft-error" role="alert">
-        {upload_error(error)}
-      </p>
-      <p :if={@notice} class="autolaunch-draft-error" role="alert">{@notice}</p>
-    </div>
-    """
-  end
-
   # A Telegram link saves as typed; until it is a t.me link, the field says so.
   defp detail_errors(errors, %LaunchDraft{} = draft) do
     if :telegram in LaunchDraft.missing(draft),
@@ -477,11 +434,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   end
 
   defp detail_errors(errors, nil), do: errors
-
-  defp upload_error(:too_large), do: "Choose an image no larger than 2 MB."
-  defp upload_error(:not_accepted), do: "Choose a PNG, JPEG, or WebP image."
-  defp upload_error(:too_many_files), do: "Choose one image."
-  defp upload_error(_error), do: "That image could not be uploaded."
 
   defp pay_line(:base, stock),
     do: "Bidders pay in #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."

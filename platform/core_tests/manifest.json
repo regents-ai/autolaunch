@@ -1,5 +1,5 @@
 {
-  "total": 40,
+  "total": 35,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -353,45 +353,6 @@
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
       "source_sha256": "8da1642209f3339b1c1915c94cf259154cb75fba10563952fae73a0f02895710"
-    },
-    {
-      "id": 28,
-      "group": "Server-side image-fetch safety",
-      "framework": "exunit",
-      "file": "core_tests/elixir/autolaunch/image_fetch_test.exs",
-      "line": 30,
-      "test_name": "refuses loopback and private literals before any request",
-      "keep_because": "An image URL cannot make the server request loopback or private IPv4 addresses.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/image_fetch_test.exs",
-      "original_source_sha256": "5b7a85e47fb65735c594c7e56910ff45e3a31b4171d3a3e5ee0808edcafcf429",
-      "source_sha256": "d1f59bb5f34e5dc3760fa9f6f3a607cac2e30efa4c305f5b75e2fb610a9329f1"
-    },
-    {
-      "id": 29,
-      "group": "Server-side image-fetch safety",
-      "framework": "exunit",
-      "file": "core_tests/elixir/autolaunch/image_fetch_test.exs",
-      "line": 9,
-      "test_name": "abandons a streamed body once the running total exceeds the cap",
-      "keep_because": "An oversized streaming image is stopped during receipt rather than consuming unbounded resources.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/image_fetch_test.exs",
-      "original_source_sha256": "5b7a85e47fb65735c594c7e56910ff45e3a31b4171d3a3e5ee0808edcafcf429",
-      "source_sha256": "d1f59bb5f34e5dc3760fa9f6f3a607cac2e30efa4c305f5b75e2fb610a9329f1"
-    },
-    {
-      "id": 30,
-      "group": "Server-side image-fetch safety",
-      "framework": "exunit",
-      "file": "core_tests/elixir/autolaunch/image_fetch/address_test.exs",
-      "line": 6,
-      "test_name": "IPv4-mapped ::ffff:a.b.c.d is classified as its IPv4",
-      "keep_because": "IPv4-mapped IPv6 addresses cannot bypass the private-address check.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/image_fetch/address_test.exs",
-      "original_source_sha256": "c5b250f9554b3bcef05553857d3b953e9f0ef43317a2550215992fde67ef736c",
-      "source_sha256": "00479ab47027943336b4eb5673149deb6de759cb83a0bb29447814e7813d94f9"
     },
     {
       "id": 31,

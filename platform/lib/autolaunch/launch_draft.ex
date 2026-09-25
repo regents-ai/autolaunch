@@ -29,6 +29,9 @@ defmodule Autolaunch.LaunchDraft do
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)
   @amount ~r/\A[0-9]+(\.[0-9]{1,18})?\z/
+  # The contracts need a minimum above zero, so a launch without one asks for
+  # the smallest amount this site offers, the same default as memestock launches.
+  @site_minimum_raise "0.00001"
 
   @doc "Whether the persisted token metadata stage is ready for launch review."
   def token_details_complete?(draft) do
@@ -70,6 +73,14 @@ defmodule Autolaunch.LaunchDraft do
   end
 
   def image_complete?(_draft), do: false
+
+  @doc "The minimum REGENT raise a launch writes on chain: the creator's, or this site's smallest."
+  def onchain_required_raise(%{required_regent_raised: raise}) when raise in [nil, ""],
+    do: @site_minimum_raise
+
+  def onchain_required_raise(%{required_regent_raised: raise}), do: raise
+
+  defp valid_raise?(value) when value in [nil, ""], do: true
 
   defp valid_raise?(value) when is_binary(value),
     do: Regex.match?(@amount, value) and Regex.match?(~r/[1-9]/, value)

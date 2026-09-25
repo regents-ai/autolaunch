@@ -210,7 +210,7 @@ defmodule Autolaunch.LaunchActions do
       "image" => fields.image,
       "treasury" => fields.treasury,
       "treasury_security" => treasury_binding(treasury_report),
-      "required_regent_raised" => draft.required_regent_raised,
+      "required_regent_raised" => LaunchDraft.onchain_required_raise(draft),
       "required_regent_raised_atomic" => Integer.to_string(fields.required_regent_raised),
       "regent" => snapshot.regent,
       "factory" => snapshot.factory,
@@ -250,7 +250,7 @@ defmodule Autolaunch.LaunchActions do
          {:ok, image} <- launch_image(draft, actor),
          true <- LaunchDraft.treasury_complete?(draft),
          {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid),
-         {:ok, atomic} <- atomic_raise(draft.required_regent_raised) do
+         {:ok, atomic} <- atomic_raise(LaunchDraft.onchain_required_raise(draft)) do
       {:ok,
        %{
          name: draft.name,

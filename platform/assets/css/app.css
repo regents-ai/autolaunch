@@ -2,6 +2,7 @@
 @import "../vendor/regent_ui/primitives.css";
 @import "./tokens/autolaunch.css";
 @import "./base.css";
+@import "./components/image_upload.css";
 @import "./components/info_tip.css";
 @import "./components/signed_in_wallet.css";
 @import "./shell/layout.css";

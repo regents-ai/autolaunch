@@ -6,7 +6,6 @@ defmodule AutolaunchWeb.Live.Session do
 
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.SessionAuthority
-  alias AutolaunchWeb.Components.TopBar
 
   @public_root "/"
 
@@ -45,7 +44,7 @@ defmodule AutolaunchWeb.Live.Session do
        {:cont,
         Phoenix.Component.assign(socket,
           current_path: path_of(uri),
-          search_query: TopBar.normalize_query(params["q"])
+          search_query: Autolaunch.Search.normalize(params["q"])
         )}
      end)}
   end

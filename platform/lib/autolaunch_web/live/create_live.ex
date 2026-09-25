@@ -75,15 +75,8 @@ defmodule AutolaunchWeb.CreateLive do
     {:noreply, socket}
   end
 
-  def handle_event(event, params, socket) when event in @autosave_events do
-    socket =
-      if event == "autosave_launch_token_details" and
-           socket.assigns.uploads.launch_image.entries != [],
-         do: cancel_image_fetch(socket),
-         else: socket
-
-    handle_draft_event(event, params["launch_draft"] || %{}, socket)
-  end
+  def handle_event(event, params, socket) when event in @autosave_events,
+    do: handle_draft_event(event, params["launch_draft"] || %{}, socket)
 
   def handle_event("no_connections_typed", %{"typed" => typed}, socket) when is_binary(typed),
     do: {:noreply, assign(socket, no_connections_typed: typed)}
@@ -95,43 +88,6 @@ defmodule AutolaunchWeb.CreateLive do
        no_connections_typed: typed,
        connections_waived: String.trim(typed) == Templates.no_connections_acknowledgement()
      )}
-  end
-
-  def handle_event("fetch_image_url", params, socket) do
-    url = params |> Map.get("url", "") |> to_string() |> String.trim()
-    actor = human_actor(socket)
-
-    with %Human{} = actor <- actor,
-         {:ok, draft} <- current_or_new_draft(actor) do
-      request_id = make_ref()
-      socket = cancel_image_fetch(socket)
-
-      socket =
-        Enum.reduce(socket.assigns.uploads.launch_image.entries, socket, fn entry, acc ->
-          cancel_upload(acc, :launch_image, entry.ref)
-        end)
-
-      {:noreply,
-       socket
-       |> assign(
-         image_request: request_id,
-         image_notice: %{tone: :info, message: "Fetching image…"}
-       )
-       |> start_async({:fetch_image_url, request_id}, fn ->
-         with {:ok, image} <- LaunchDraftImageStorage.fetch(url), do: {:ok, {draft, image}}
-       end)}
-    else
-      _error ->
-        {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
-    end
-  end
-
-  def handle_async({:fetch_image_url, request_id}, result, socket) do
-    if socket.assigns.image_request == request_id do
-      finish_image_fetch(result, assign(socket, image_request: nil))
-    else
-      {:noreply, socket}
-    end
   end
 
   def render(assigns) do
@@ -150,7 +106,7 @@ defmodule AutolaunchWeb.CreateLive do
         <p>
           Raise early funds through an auction. It tokenizes a stablecoin generating service or
           agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders
-          pay in REGENT and you choose the required raise in REGENT. There is no launch fee.
+          pay in REGENT, and you can set a minimum REGENT raise. There is no launch fee.
           <.link href="/blog/durable-agent-services">
             Read about building a durable service for one.
           </.link>
@@ -242,8 +198,6 @@ defmodule AutolaunchWeb.CreateLive do
     do: Autolaunch.autosave_launch_treasury(draft, values, actor: actor)
 
   defp handle_launch_image_progress(:launch_image, entry, socket) do
-    socket = cancel_image_fetch(socket)
-
     if entry.done?,
       do: finish_launch_image(entry, socket),
       else: {:noreply, socket}
@@ -268,15 +222,16 @@ defmodule AutolaunchWeb.CreateLive do
       {:noreply, assign_saved_image(socket, stored, actor)}
     else
       {:error, :image_changed} ->
-        {:noreply, assign(socket, image_notice: image_notice(:image_changed))}
+        {:noreply,
+         assign(socket,
+           image_notice:
+             "The saved image changed while this one was uploading. Your newer image was kept; choose again to replace it."
+         )}
 
       _error ->
         {:noreply,
          assign(socket,
-           image_notice: %{
-             tone: :error,
-             message: "That file is not a complete PNG, JPEG, or WebP image under 2 MB."
-           }
+           image_notice: "That file is not a complete PNG, JPEG, or WebP image under 2 MB."
          )}
     end
   end
@@ -289,41 +244,9 @@ defmodule AutolaunchWeb.CreateLive do
         Templates.draft_values(stored.draft)
         |> Map.put("image", LaunchDraftImageStorage.public_url(stored.image)),
       draft_errors: %{},
-      image_notice: %{
-        tone: :success,
-        message: "Image saved. You can replace it with a file or image link."
-      }
+      image_notice: nil
     )
   end
-
-  defp cancel_image_fetch(%{assigns: %{image_request: nil}} = socket), do: socket
-
-  defp cancel_image_fetch(socket) do
-    socket
-    |> cancel_async({:fetch_image_url, socket.assigns.image_request})
-    |> assign(image_request: nil, image_notice: nil)
-  end
-
-  defp finish_image_fetch({:ok, {:ok, {draft, image}}}, socket) do
-    actor = human_actor(socket)
-
-    case LaunchDraftImageStorage.store_and_attach(
-           draft,
-           image.bytes,
-           image.content_type,
-           image.original_filename,
-           actor
-         ) do
-      {:ok, stored} -> {:noreply, assign_saved_image(socket, stored, actor)}
-      {:error, reason} -> {:noreply, assign(socket, image_notice: image_notice(reason))}
-    end
-  end
-
-  defp finish_image_fetch({:ok, {:error, reason}}, socket),
-    do: {:noreply, assign(socket, image_notice: image_notice(reason))}
-
-  defp finish_image_fetch(_failure, socket),
-    do: {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
 
   defp load_create(socket, actor) do
     case current_or_new_draft(actor) do
@@ -345,7 +268,6 @@ defmodule AutolaunchWeb.CreateLive do
       draft_errors: %{},
       draft_notice: nil,
       image_notice: nil,
-      image_request: nil,
       x_connections: [],
       has_connections: false,
       connections_waived: false,
@@ -424,41 +346,6 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp draft_field_message(%Ash.Error.Changes.Required{}), do: "is required"
   defp draft_field_message(%{message: message}), do: message
-
-  defp image_notice(:unsupported_scheme),
-    do: %{tone: :error, message: "Use a web link that starts with http or https."}
-
-  defp image_notice(:private_address),
-    do: %{
-      tone: :error,
-      message:
-        "That link points somewhere we can't reach from the internet. Try a public image link."
-    }
-
-  defp image_notice(:too_many_redirects),
-    do: %{
-      tone: :error,
-      message: "That link sent us in too many circles. Try a more direct image link."
-    }
-
-  defp image_notice(:image_too_large),
-    do: %{tone: :error, message: "That image is larger than 2 MB. Choose a smaller one."}
-
-  defp image_notice(:invalid_image),
-    do: %{tone: :error, message: "That link did not give us a PNG, JPEG, or WebP image."}
-
-  defp image_notice(:nxdomain),
-    do: %{tone: :error, message: "We could not find that site. Check the link and try again."}
-
-  defp image_notice(:image_changed),
-    do: %{
-      tone: :error,
-      message:
-        "The saved image changed while this image was loading. Your newer image was kept; try again to replace it."
-    }
-
-  defp image_notice(_reason),
-    do: %{tone: :error, message: "We could not load that image. Try another link."}
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, %{id: id}}}}})
        when is_integer(id),

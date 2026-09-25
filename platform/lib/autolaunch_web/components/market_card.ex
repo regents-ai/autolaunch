@@ -866,6 +866,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <span>{@view.metric_label}</span><TokenDisplay.price
             amount={@view.metric.amount}
             unit={@view.metric.unit}
+            fallback={@view.metric.empty}
           />
           {render_slot(@price_note)}
         </div>
@@ -916,7 +917,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <:actions>
         <p class="launchpad-card__metric">
           <span class="autolaunch-micro">{@view.metric_label}</span>
-          <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} />
+          <TokenDisplay.price
+            amount={@view.metric.amount}
+            unit={@view.metric.unit}
+            fallback={@view.metric.empty}
+          />
         </p>
         <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
           <span :if={present?(@view.creator)}>{@view.creator}</span>
@@ -1017,11 +1022,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
       color: nil,
       website: values["website"],
       status: "Preview",
-      metric_label: present(values["preview_metric_label"], "Raise target"),
+      metric_label: "Minimum raise",
       metric:
         metric(
           values["required_regent_raised"],
-          present(values["preview_metric_unit"], "REGENT")
+          present(values["preview_metric_unit"], "REGENT"),
+          "None"
         ),
       path: nil,
       creator: nil,
@@ -1045,7 +1051,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       website: auction.website,
       status: state_label(auction.state),
       metric_label: "Clearing price",
-      metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
+      metric: metric(auction.current_clearing_price, auction.quote_token_symbol, "No price yet"),
       path:
         if(robinhood?,
           do: "/robinhood/auctions/#{auction.auction_address}",
@@ -1067,7 +1073,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     if RobinhoodLab.chain?(chain_id) do
       %{
         base_token_view(token, connections)
-        | metric: metric(token.price_quote, auction.quote_token_symbol),
+        | metric: metric(token.price_quote, auction.quote_token_symbol, "No price yet"),
           path: "/robinhood/tokens/#{auction.token_address}",
           buy: nil,
           chain: "Robinhood"
@@ -1090,7 +1096,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       website: presentation.website,
       status: "Launched",
       metric_label: "Price",
-      metric: metric(token.price_quote, currency),
+      metric: metric(token.price_quote, currency, "No price yet"),
       path: "/tokens/#{token.id}",
       creator: short_address(token.auction.creator_address),
       creator_address: token.auction.creator_address,
@@ -1126,7 +1132,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp launched("Launched"), do: "market-graduated"
   defp launched(_status), do: nil
 
-  defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
+  # `empty` is what the card shows while there is no figure.
+  defp metric(amount, unit, empty),
+    do: %{amount: present(amount, nil), unit: present(unit, nil), empty: empty}
 
   @doc """
   The accounts a creator connected and proved they own, each with its kind,

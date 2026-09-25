@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Prelaunch do
   alias Autolaunch.Prelaunch
 
   @read_events %{
-    AutolaunchWeb.HomeLive => ~w(search filter retry load-more),
+    AutolaunchWeb.HomeLive => ~w(search type_search filter retry load-more),
     AutolaunchWeb.AuctionsLive => ~w(retry),
     AutolaunchWeb.TokensLive => ~w(retry),
     AutolaunchWeb.AuctionLive => ~w(retry),

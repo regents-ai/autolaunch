@@ -90,12 +90,13 @@ defmodule AutolaunchWeb.Components.XConnections do
     >
       <:actions>
         <Regent.Primitives.button
+          :if={!@connected}
           type="button"
           data-x-connect-role={@role}
           disabled={!@enabled}
           variant="secondary"
         >
-          {if @connected, do: "Change", else: "Connect"}
+          Connect
         </Regent.Primitives.button>
         <Regent.Primitives.button
           :if={@connected}

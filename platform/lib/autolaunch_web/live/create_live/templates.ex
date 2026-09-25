@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   use AutolaunchWeb, :html
 
   import AutolaunchWeb.Components.ImagePicker
+  import AutolaunchWeb.Components.InfoTip
   import AutolaunchWeb.Components.MarketCard
 
   alias AutolaunchWeb.UsdValue
@@ -25,9 +26,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     %{
       key: :required_regent_raised,
       param: "required_regent_raised",
-      label: "Required raise",
+      label: "Minimum REGENT Raised to Launch",
       kind: :text,
-      hint: nil
+      hint: nil,
+      optional: true,
+      tip:
+        "Setting a minimum can give backers confidence you will have the necessary funds to achieve your goal. It can be better to miss raising $20k and try again, than to raise $1000"
     }
   ]
 
@@ -79,7 +83,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
-  attr :image_notice, :map, default: nil
+  attr :image_notice, :string, default: nil
   attr :launch_image_upload, :map, default: nil
   attr :x_connections, :list, default: []
   attr :x_oauth_enabled, :boolean, default: false
@@ -147,7 +151,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
             <div class="launchpad-form-grid">
               <.draft_field
-                :for={field <- token_detail_fields(@raise_currency)}
+                :for={field <- token_detail_fields()}
                 field={field}
                 form_id="launch-token-details"
                 hint={field.hint}
@@ -158,14 +162,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               />
             </div>
 
-            <.image_picker
-              id="launch-image"
+            <.image_upload
               upload={@launch_image_upload}
               image={@draft_values["image"]}
               notice={@image_notice}
             />
           </form>
-          <.link_form id="launch-image" event="fetch_image_url" />
 
           <form
             id="launch-treasury-details"
@@ -266,7 +268,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             creator_connections={@draft_x_connections}
             preview
           />
-          <p>Auctions and launched tokens use this same public identity.</p>
+          <p>This auction and the resulting token will show these identities</p>
         </aside>
       </section>
     </section>
@@ -455,44 +457,60 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       assign(assigns, id: id, described_by: described_by(id, assigns.hint, assigns.error))
 
     ~H"""
-    <Regent.Primitives.field
-      id={@id}
-      label={@field.label}
-      class={[
-        "autolaunch-draft-field",
-        @field.kind == :long_text && "autolaunch-draft-field--wide"
-      ]}
-    >
-      <textarea
-        :if={@field.kind == :long_text}
-        id={@id}
-        name={"launch_draft[#{@field.param}]"}
-        aria-invalid={@error && "true"}
-        aria-describedby={@described_by}
-        phx-debounce={@autosave && "400"}
-      >{@value}</textarea>
-      <p :if={@note} class="autolaunch-draft-note">{@note}</p>
-      <input
-        :if={@field.kind == :text}
-        type="text"
-        id={@id}
-        name={"launch_draft[#{@field.param}]"}
-        value={@value}
-        aria-invalid={@error && "true"}
-        aria-describedby={@described_by}
-        phx-debounce={@autosave && "400"}
-      />
-      <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
-      <p
-        :if={@usd_rate not in [:none, :test_network]}
-        id={"#{@id}-usd"}
-        class="autolaunch-draft-hint"
-        aria-live="polite"
-      >
-        <UsdValue.usd amount={@value} rate={@usd_rate} />
-      </p>
-      <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
-    </Regent.Primitives.field>
+    <div class={[
+      "rg-field autolaunch-draft-field",
+      @field.kind == :long_text && "autolaunch-draft-field--wide"
+    ]}>
+      <div class="autolaunch-draft-field__head">
+        <.info_tip :if={@field[:tip]} id={"#{@id}-tip"} text={@field.tip}>
+          <.field_label id={@id} field={@field} />
+        </.info_tip>
+        <.field_label :if={!@field[:tip]} id={@id} field={@field} />
+      </div>
+      <div class="autolaunch-draft-field__body">
+        <textarea
+          :if={@field.kind == :long_text}
+          id={@id}
+          name={"launch_draft[#{@field.param}]"}
+          aria-invalid={@error && "true"}
+          aria-describedby={@described_by}
+          phx-debounce={@autosave && "400"}
+        >{@value}</textarea>
+        <p :if={@note} class="autolaunch-draft-note">{@note}</p>
+        <input
+          :if={@field.kind == :text}
+          type="text"
+          id={@id}
+          name={"launch_draft[#{@field.param}]"}
+          value={@value}
+          aria-invalid={@error && "true"}
+          aria-describedby={@described_by}
+          phx-debounce={@autosave && "400"}
+        />
+        <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
+        <p
+          :if={@usd_rate not in [:none, :test_network]}
+          id={"#{@id}-usd"}
+          class="autolaunch-draft-hint"
+          aria-live="polite"
+        >
+          <UsdValue.usd amount={@value} rate={@usd_rate} />
+        </p>
+        <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
+      </div>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :field, :map, required: true
+
+  defp field_label(assigns) do
+    ~H"""
+    <label for={@id} class="autolaunch-draft-label">
+      {@field.label}
+      <span :if={@field[:optional]} class="autolaunch-draft-optional">optional</span>
+    </label>
     """
   end
 
@@ -506,12 +524,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     """
   end
 
-  defp token_detail_fields(currency) do
-    Enum.map(@token_detail_fields, fn
-      %{key: :required_regent_raised} = field -> %{field | label: "Required raise in #{currency}"}
-      field -> field
-    end)
-  end
+  defp token_detail_fields, do: @token_detail_fields
 
   defp treasury_field, do: @treasury_field
 

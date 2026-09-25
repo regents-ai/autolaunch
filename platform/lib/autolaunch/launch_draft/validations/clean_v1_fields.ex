@@ -9,7 +9,7 @@ defmodule Autolaunch.LaunchDraft.Validations.CleanV1Fields do
   @metadata Keyword.keys(@byte_limits)
   @addresses [:treasury]
   @fields @metadata ++ @addresses ++ [:required_regent_raised]
-  @required @fields
+  @required @metadata ++ @addresses
 
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)
@@ -49,6 +49,8 @@ defmodule Autolaunch.LaunchDraft.Validations.CleanV1Fields do
         []
     end
   end
+
+  defp field_errors(:required_regent_raised, ""), do: []
 
   defp field_errors(:required_regent_raised, value) do
     cond do

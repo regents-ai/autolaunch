@@ -36,14 +36,14 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     launch_treasury_refused:
       "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     required_raise_unreachable:
-      "This required raise is higher than an auction can reach. Lower it on this draft and try again.",
+      "This minimum raise is higher than an auction can reach. Lower it on this draft and try again.",
     strategy_not_bound:
       "This launch factory and its strategy do not match. Nothing was prepared.",
     launch_metadata_incomplete:
       "This draft is missing something the launch needs. Open it and save every field again.",
     launch_treasury_invalid:
       "This draft's treasury is not a usable address. Copy it from your wallet again and save the draft.",
-    launch_raise_invalid: "This draft's required raise is not a usable amount.",
+    launch_raise_invalid: "This draft's minimum raise is not a usable amount.",
     launch_draft_not_found: "This draft is no longer available.",
     launch_draft_unavailable: "This draft could not be read just now.",
     launch_step_moved: "This launch moved on while you were looking. Check it again.",
@@ -157,7 +157,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             <dd>{argument(@operation, "name")} · {argument(@operation, "symbol")}</dd>
           </div>
           <div>
-            <dt>Required raise</dt>
+            <dt>Minimum REGENT raised</dt>
             <dd>{argument(@operation, "required_regent_raised")} REGENT</dd>
           </div>
           <div>
@@ -634,7 +634,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       {"Factory", argument(operation, "factory")},
       {"Strategy", argument(operation, "strategy")},
       {"Treasury", argument(operation, "treasury")},
-      {"Required raise (atomic)", argument(operation, "required_regent_raised_atomic")},
+      {"Minimum raise (atomic)", argument(operation, "required_regent_raised_atomic")},
       {"Reviewed block",
        "#{argument(operation, "block_number")} · #{argument(operation, "block_hash")}"},
       {"Calldata digest", operation.envelope["metadata"]["calldata_sha256"]}

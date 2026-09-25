@@ -1,7 +1,6 @@
 import type {Hook} from "../hook_composition"
 
-// Change is a disconnect followed by a connect; the other two are one step.
-type GithubStep = "connect" | "change" | "disconnect"
+type GithubStep = "connect" | "disconnect"
 
 type CreatorHook = Hook & {
   el: HTMLElement
@@ -15,7 +14,6 @@ const request = (detail: {action: "link" | "unlink", provider: "github", subject
 
 const failure: Record<GithubStep, string> = {
   connect: "GitHub could not be connected. Try again.",
-  change: "GitHub could not be changed. Try again.",
   disconnect: "GitHub could not be disconnected. Try again.",
 }
 
@@ -25,13 +23,9 @@ export const CreatorConnections = {
     this.onCreatorClick = (event: Event) => {
       const button = (event.target as Element)?.closest<HTMLElement>("[data-connect-github], [data-disconnect-github]")
       if (!button) return
-      const subject = button.dataset.githubSubject
       if (button.hasAttribute("data-disconnect-github")) {
         this.githubStep = "disconnect"
-        request({action: "unlink", provider: "github", subject})
-      } else if (subject) {
-        this.githubStep = "change"
-        request({action: "unlink", provider: "github", subject})
+        request({action: "unlink", provider: "github", subject: button.dataset.githubSubject})
       } else {
         this.githubStep = "connect"
         request({action: "link", provider: "github"})
@@ -45,9 +39,6 @@ export const CreatorConnections = {
         this.githubStep = undefined
         const status = root.querySelector("[data-creator-connection-status]")
         if (status) status.textContent = failure[step]
-      } else if (step === "change") {
-        this.githubStep = "connect"
-        request({action: "link", provider: "github"})
       } else {
         this.githubStep = undefined
         window.location.reload()

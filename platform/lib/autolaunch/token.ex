@@ -411,21 +411,22 @@ defmodule Autolaunch.Token do
   end
 
   defp launchpad_query(query, limit) do
-    term = query.arguments.query |> String.trim() |> String.downcase()
-    pattern = literal_search_pattern(term)
-
     query
-    |> launchpad_search_filter(term, pattern)
+    |> launchpad_search_filter(Autolaunch.Search.word_patterns(query.arguments.query))
     |> Ash.Query.sort(graduated_at: :desc, id: :asc)
     |> Ash.Query.limit(limit)
     |> Ash.Query.load([:treasury_security_report, :auction])
   end
 
-  defp launchpad_search_filter(query, "", _pattern), do: query
+  # Every word of the search appears in the token's name, ticker, stock,
+  # description, an address or one of the creator's connected accounts. The
+  # auction's name, ticker and description win over the token's own when set.
+  defp launchpad_search_filter(query, patterns) do
+    Enum.reduce(patterns, query, &launchpad_word_filter(&2, &1))
+  end
 
-  # One SQL predicate keeps auction-first fallback semantics identical for every search field.
   # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
-  defp launchpad_search_filter(query, _term, pattern) do
+  defp launchpad_word_filter(query, pattern) do
     Ash.Query.filter(
       query,
       ilike(auction.title, ^pattern) or
@@ -436,22 +437,20 @@ defmodule Autolaunch.Token do
         ((is_nil(auction.summary) or auction.summary == "") and ilike(summary, ^pattern)) or
         (not is_nil(auction.summary) and auction.summary != "" and
            ilike(auction.summary, ^pattern)) or
+        ilike(auction.quote_token_symbol, ^pattern) or
         ilike(auction.auction_address, ^pattern) or
         ilike(auction.token_address, ^pattern) or
+        ilike(auction.creator_address, ^pattern) or
         exists(
           [:auction, :creator_x_connections],
           not is_nil(verified_at) and
             (ilike(username, ^pattern) or ilike(display_name, ^pattern))
+        ) or
+        exists(
+          [:auction, :creator_identities],
+          ilike(username, ^pattern) or ilike(display_name, ^pattern)
         )
     )
-  end
-
-  defp literal_search_pattern(term) do
-    "%" <>
-      (term
-       |> String.replace("\\", "\\\\")
-       |> String.replace("%", "\\%")
-       |> String.replace("_", "\\_")) <> "%"
   end
 
   @doc "Returns the one public presentation shared by a graduated token and its auction."

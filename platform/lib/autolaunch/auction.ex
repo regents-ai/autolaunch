@@ -723,41 +723,41 @@ defmodule Autolaunch.Auction do
   end
 
   defp market_query(query, states, limit) do
-    term = query.arguments.query |> String.trim() |> String.downcase()
-    pattern = literal_search_pattern(term)
-
     query
     |> Ash.Query.filter(state in ^states)
-    |> market_search_filter(term, pattern)
+    |> market_search_filter(Autolaunch.Search.word_patterns(query.arguments.query))
     |> Ash.Query.sort(inserted_at: :desc, id: :asc)
     |> Ash.Query.limit(limit)
     |> Ash.Query.load(:treasury_security_report)
   end
 
-  defp market_search_filter(query, "", _pattern), do: query
+  # Every word of the search appears in the name, ticker, stock, description,
+  # an address or one of the creator's connected accounts.
+  defp market_search_filter(query, patterns) do
+    Enum.reduce(patterns, query, &market_word_filter(&2, &1))
+  end
 
-  defp market_search_filter(query, _term, pattern) do
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
+  defp market_word_filter(query, pattern) do
     Ash.Query.filter(
       query,
       ilike(title, ^pattern) or
         ilike(summary, ^pattern) or
         ilike(token_symbol, ^pattern) or
+        ilike(quote_token_symbol, ^pattern) or
         ilike(auction_address, ^pattern) or
         ilike(token_address, ^pattern) or
+        ilike(creator_address, ^pattern) or
         exists(
           creator_x_connections,
           not is_nil(verified_at) and
             (ilike(username, ^pattern) or ilike(display_name, ^pattern))
+        ) or
+        exists(
+          creator_identities,
+          ilike(username, ^pattern) or ilike(display_name, ^pattern)
         )
     )
-  end
-
-  defp literal_search_pattern(term) do
-    "%" <>
-      (term
-       |> String.replace("\\", "\\\\")
-       |> String.replace("%", "\\%")
-       |> String.replace("_", "\\_")) <> "%"
   end
 
   calculations do

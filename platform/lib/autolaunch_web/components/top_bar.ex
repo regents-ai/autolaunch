@@ -4,8 +4,6 @@ defmodule AutolaunchWeb.Components.TopBar do
 
   import AutolaunchWeb.Components.AccountControl
 
-  @query_limit 80
-
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
   attr :search_query, :string, default: ""
 
@@ -31,6 +29,8 @@ defmodule AutolaunchWeb.Components.TopBar do
         phx-hook="HomeSearch"
         data-query={@search_query}
         phx-submit={if @home?, do: "search"}
+        phx-change={if @home?, do: "type_search"}
+        data-home={if @home?, do: "true"}
       >
         <label for="home-search-q" class="visually-hidden">Search coins and creators</label>
         <svg
@@ -49,12 +49,13 @@ defmodule AutolaunchWeb.Components.TopBar do
           value={@search_query}
           placeholder="Search coins, addresses and creators…"
           autocomplete="off"
+          phx-debounce="300"
         />
         <input
-          :for={key <- [:view, :sort, :display, :state]}
+          :for={{key, value} <- Map.take(@market_options, [:view, :sort, :display, :state])}
           type="hidden"
           name={key}
-          value={Map.get(@market_options, key)}
+          value={value}
         />
         <button
           type="button"
@@ -91,19 +92,4 @@ defmodule AutolaunchWeb.Components.TopBar do
     </header>
     """
   end
-
-  @doc """
-  The one form a search query takes: trimmed and cut at eighty characters. The
-  header field and the home listing read the same value, so what the field
-  shows after a search is exactly what filtered the market.
-  """
-  def normalize_query(query) when is_binary(query) do
-    query
-    |> String.trim()
-    |> String.graphemes()
-    |> Enum.take(@query_limit)
-    |> Enum.join()
-  end
-
-  def normalize_query(_query), do: ""
 end

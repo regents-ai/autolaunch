@@ -21,7 +21,7 @@ defmodule Autolaunch.HomeMarket do
       x: params["x"] in [true, "true"],
       ens: params["ens"] in [true, "true"],
       github: params["github"] in [true, "true"],
-      q: normalize_query(params["q"])
+      q: Autolaunch.Search.normalize(params["q"])
     }
   end
 
@@ -99,9 +99,4 @@ defmodule Autolaunch.HomeMarket do
   end
 
   defp choice(value, choices, fallback), do: if(value in choices, do: value, else: fallback)
-
-  defp normalize_query(value) when is_binary(value),
-    do: value |> String.trim() |> String.codepoints() |> Enum.take(80) |> Enum.join()
-
-  defp normalize_query(_), do: ""
 end
