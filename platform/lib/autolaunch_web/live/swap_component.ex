@@ -2,11 +2,12 @@ defmodule AutolaunchWeb.SwapComponent do
   @moduledoc """
   The swap form shared by the token pages and the listing dialogs, for a
   launch on Base or on Robinhood Chain: `launch` names it as the staking card
-  does, `symbol` and `image` present its token, and `currency` names what the
-  pool is entered with (`nil` where the token cannot be swapped here). Everything
-  happens on the one form: an amount, a live quote, a max-slippage setting
-  behind the gear, then a panel over the form that walks the wallet through the
-  swap and closes itself when the swap lands.
+  does, `symbol` and `image` present its token, `currency` names what the pool
+  is entered with (`nil` where the token cannot be swapped here), and
+  `start_direction` the side the form opens on (buying unless it says
+  `:sell`). Everything happens on the one form: an amount, a live quote, a
+  max-slippage setting behind the gear, then a panel over the form that walks
+  the wallet through the swap and closes itself when the swap lands.
 
   The wallet is the one the customer signed in with, read from the mounted
   lease. A press opens that wallet, or Privy's connect step when this tab has
@@ -71,7 +72,7 @@ defmodule AutolaunchWeb.SwapComponent do
       if fresh? do
         assign(socket,
           scope: scope,
-          direction: :buy,
+          direction: Map.get(assigns, :start_direction, :buy),
           amount: "",
           error: nil,
           estimate: nil,

@@ -466,7 +466,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
     ~H"""
     <tr class="market-list__row">
-      <.list_token view={@view} />
+      <.list_token
+        name={@view.name}
+        symbol={@view.symbol}
+        image={@view.image}
+        chain={@view.chain}
+        path={@view.path}
+      />
       <td>{@figures.fdv}</td>
       <td>{@figures.volume}</td>
       <td>
@@ -533,7 +539,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
     ~H"""
     <tr class="market-list__row">
-      <.list_token view={@view} />
+      <.list_token
+        name={@view.name}
+        symbol={@view.symbol}
+        image={@view.image}
+        chain={@view.chain}
+        path={@view.path}
+      />
       <td>
         <.price_figure amount={@token.price_quote} unit={@view.metric.unit} rate={@rate} />
       </td>
@@ -543,36 +555,57 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :view, :map, required: true
+  attr :name, :string, required: true
+  attr :symbol, :string, required: true
 
-  # The cell every list row starts with: the token's image with its chain's
-  # badge, then its name and its ticker on one line.
-  defp list_token(assigns) do
+  attr :unit, :string,
+    default: nil,
+    doc: "the currency the token is paired with, after its ticker"
+
+  attr :image, :string, default: nil
+  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
+  attr :path, :string, default: nil, doc: "the token's or auction's page; nil when it has none"
+
+  @doc """
+  The cell every list row starts with: the token's image with its chain's
+  badge, then its name and its ticker on one line, the ticker followed by its
+  paired currency when one is given. It opens `path` when there is one.
+  """
+  def list_token(assigns) do
     ~H"""
     <th scope="row">
-      <.link navigate={@view.path} class="market-list__token">
-        <span class="market-list__art">
-          <img
-            :if={present?(@view.image)}
-            src={@view.image}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            width="40"
-            height="40"
-          />
-          <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
-          <ChainIcon.chain_icon
-            chain={if @view.chain == "Robinhood", do: :robinhood, else: :base}
-            class="market-list__chain"
-          />
-        </span>
-        <span class="market-list__name">
-          <strong>{@view.name}</strong>
-          <small>{@view.symbol}</small>
-        </span>
+      <.link :if={@path} navigate={@path} class="market-list__token">
+        <.list_token_contents {assigns} />
       </.link>
+      <span :if={!@path} class="market-list__token">
+        <.list_token_contents {assigns} />
+      </span>
     </th>
+    """
+  end
+
+  defp list_token_contents(assigns) do
+    ~H"""
+    <span class="market-list__art">
+      <img
+        :if={present?(@image)}
+        src={@image}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        width="40"
+        height="40"
+      />
+      <span :if={!present?(@image)} aria-hidden="true">{String.first(@name || "?")}</span>
+      <ChainIcon.chain_icon
+        chain={if @chain == "Robinhood", do: :robinhood, else: :base}
+        class="market-list__chain"
+      />
+    </span>
+    <span class="market-list__name">
+      <strong>{@name}</strong>
+      <small>{@symbol}<span :if={@unit}> / {@unit}</span></small>
+    </span>
     """
   end
 
@@ -738,6 +771,30 @@ defmodule AutolaunchWeb.Components.MarketCard do
     do: "#{label} #{relative_age(end_at)} ago"
 
   defp ended(label, _auction), do: label
+
+  attr :id, :string, required: true, doc: "unique on the page, for the ticking time left"
+  attr :auction, :map, required: true
+
+  @doc "The auctions list's status figure for one stored auction, outside the list."
+  def auction_status(assigns) do
+    auction = assigns.auction
+
+    assigns =
+      assign(assigns,
+        figures: %{
+          id: assigns.id,
+          progress: time_progress(auction),
+          opens_at: live_open(auction),
+          ends_at: live_end(auction),
+          status: figure_status(auction)
+        },
+        chain: if(RobinhoodLab.chain?(auction.chain_id), do: "Robinhood", else: "Base")
+      )
+
+    ~H"""
+    <.status_figure figures={@figures} chain={@chain} />
+    """
+  end
 
   attr :figures, :map, required: true
   attr :chain, :string, required: true, values: ["Base", "Robinhood"]

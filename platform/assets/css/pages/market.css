@@ -1,4 +1,4 @@
-/* Browsing and trading: home, auction gallery, tokens, portfolio, convert and REGENT. */
+/* Browsing and trading: home, auction gallery, tokens, convert and REGENT. */
 
 /* Market wrappers pass shared aligned heading/media/caption tracks through. */
 .launchpad-card { display: grid; grid-row: span 4; grid-template-rows: subgrid; min-width: 0; }
@@ -21,7 +21,6 @@
 .autolaunch-convert__row { display: grid; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--hairline); min-width: 0; }
 .autolaunch-convert__row .token-stake { margin-top: var(--space-2); }
 .autolaunch-convert__name { margin: 0; font-size: 1rem; }
-#portfolio-refresh { justify-self: start; }
 .market-identity { display: grid; grid-template-columns: minmax(120px, 240px) minmax(0, 1fr); gap: 24px; align-items: start; max-width: 850px; min-width: 0; }
 .market-identity__image { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
 .market-identity__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -63,12 +62,6 @@
   .market-identity__trade-arrow { transition: none; }
 }
 .market-identity .launchpad-card__socials { padding: 0; border: 0; }
-/* Portfolio opens on what can be done now, each with its next step. */
-.portfolio-action { display: grid; gap: var(--space-2); margin-block-end: var(--space-4); }
-.portfolio-action .autolaunch-record-list > li { display: grid; gap: var(--space-2); justify-items: start; }
-.portfolio-sign-in { display: grid; justify-items: start; gap: 16px; }
-.portfolio-sign-in > * { margin: 0; }
-.portfolio-sign-in h2 { font-size: 1.25rem; color: var(--color-fg); }
 @media (max-width: 42rem) { .market-identity { grid-template-columns: minmax(0,1fr); } .market-identity--tinted { padding: 16px; } .market-identity__image { width: min(100%, 320px); } }
 @media (max-width: 42rem) {
   .market-identity__image { width: min(100%, 220px); }

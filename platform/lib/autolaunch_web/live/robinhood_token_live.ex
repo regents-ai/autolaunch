@@ -27,17 +27,9 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       {:ok,
        assign(socket,
          open?: Lab.configured?(),
-         swap?: swap_configured?(),
+         swap?: Lab.swap_configured?(),
          market: LabMarket.subscribe(socket)
        )}
-
-  # Trading is offered only by a deployment that names its router and quoter.
-  defp swap_configured? do
-    case Lab.current() do
-      {:ok, config} -> match?({:ok, _addresses}, Lab.swap_addresses(config))
-      {:error, _reason} -> false
-    end
-  end
 
   # The address is read here so a patch to another token reloads the page
   # instead of keeping the previous launch on screen.

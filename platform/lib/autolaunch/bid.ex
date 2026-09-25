@@ -23,24 +23,6 @@ defmodule Autolaunch.Bid do
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
-    read :returnable_mine do
-      filter expr(status == "returnable")
-
-      prepare build(
-                sort: [updated_at: :desc, inserted_at: :desc, id: :desc],
-                load: [:auction, :token]
-              )
-    end
-
-    read :claimable_mine do
-      filter expr(status == "claimable")
-
-      prepare build(
-                sort: [updated_at: :desc, inserted_at: :desc, id: :desc],
-                load: [:auction, :token]
-              )
-    end
-
     read :owned_by_bid_id do
       get? true
       argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
@@ -141,11 +123,11 @@ defmodule Autolaunch.Bid do
   end
 
   policies do
-    policy action([:mine, :returnable_mine, :claimable_mine, :owned_by_bid_id]) do
+    policy action([:mine, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:mine, :returnable_mine, :claimable_mine, :owned_by_bid_id]) do
+    policy action([:mine, :owned_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 

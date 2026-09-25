@@ -5,12 +5,12 @@ defmodule Autolaunch.TokenHoldings do
 
   Public facts about public tokens: nothing is stored, and only the wallets the
   signed-in account has verified are ever read. Each chain is read at one
-  latest block, so every amount from that chain is from the same moment, and
-  the reading names that block. Base tokens come from the site's token records
-  and link to their token page; Robinhood tokens come from the Robinhood
-  launchpad itself, since the chain is the only record of those launches, and
-  link to their own token page once the site lists their auction. A token is listed when the wallets hold it,
-  stake it, or have something to claim from its staking contract.
+  latest block, so every amount from that chain is from the same moment. Base
+  tokens come from the site's token records; Robinhood tokens come from the
+  Robinhood launchpad itself, since the chain is the only full record of those
+  launches, and carry the site's listed token record when there is one. A
+  token is listed when the wallets hold it, stake it, or have something to
+  claim from its staking contract.
   """
 
   alias Autolaunch.Accounts
@@ -22,11 +22,9 @@ defmodule Autolaunch.TokenHoldings do
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.{Amounts, StakeActions}
   alias Autolaunch.Stocks.Lab, as: StocksLab
-  alias AutolaunchWeb.Paths
 
   @token_decimals 18
   @shown_places 4
-  @none %{holdings: [], blocks: %{}}
 
   @type claimable :: %{amount: String.t(), symbol: String.t()}
   @type holding :: %{
@@ -36,29 +34,22 @@ defmodule Autolaunch.TokenHoldings do
           held: String.t(),
           staked: String.t(),
           claimable: [claimable()],
-          href: String.t() | nil
-        }
-  @type reading :: %{
-          holdings: [holding()],
-          blocks: %{optional(:base) => pos_integer(), optional(:robinhood) => pos_integer()}
+          unit: String.t(),
+          token: Token.t() | nil
         }
 
   @doc """
   Every token the actor's verified wallets hold, stake or can claim from: Base
   tokens most recently graduated first, then Robinhood tokens newest launch
-  first, with the block each chain was read at.
+  first.
   """
-  @spec read(Human.t()) :: {:ok, reading()} | {:error, :unavailable}
+  @spec read(Human.t()) :: {:ok, [holding()]} | {:error, :unavailable}
   def read(%Human{} = actor) do
     with {:ok, wallets} <- verified_wallets(actor),
          {:ok, tokens} <- Autolaunch.list_tokens(actor: actor),
          {:ok, base} <- base_holdings(tokens, wallets),
          {:ok, robinhood} <- robinhood_holdings(wallets) do
-      {:ok,
-       %{
-         holdings: base.holdings ++ robinhood.holdings,
-         blocks: Map.merge(base.blocks, robinhood.blocks)
-       }}
+      {:ok, base ++ robinhood}
     else
       _error -> {:error, :unavailable}
     end
@@ -89,22 +80,20 @@ defmodule Autolaunch.TokenHoldings do
 
   # Base
 
-  defp base_holdings(_tokens, []), do: {:ok, @none}
+  defp base_holdings(_tokens, []), do: {:ok, []}
 
   defp base_holdings(tokens, wallets) do
     if Lab.configured?() do
       with {:ok, config} <- Lab.current(),
            opts = LabRpc.opts(config, "autolaunch portfolio"),
            {:ok, block} <- Rpc.latest_block(opts),
-           {:ok, venues} <- venues(tokens, block),
-           {:ok, holdings} <-
-             tokens
-             |> Enum.sort_by(& &1.graduated_at, {:desc, DateTime})
-             |> collect(&holding(&1, Map.fetch!(venues, &1.auction.kind), wallets)) do
-        {:ok, %{holdings: holdings, blocks: %{base: block.number}}}
+           {:ok, venues} <- venues(tokens, block) do
+        tokens
+        |> Enum.sort_by(& &1.graduated_at, {:desc, DateTime})
+        |> collect(&holding(&1, Map.fetch!(venues, &1.auction.kind), wallets))
       end
     else
-      {:ok, @none}
+      {:ok, []}
     end
   end
 
@@ -153,40 +142,38 @@ defmodule Autolaunch.TokenHoldings do
     with {:ok, pool} <- Pool.read_at(token.auction, venue.config, venue.block, venue.opts),
          {:ok, position} <- position(pool, wallets) do
       presentation = Token.presentation(token)
-
-      {:ok,
-       entry(presentation.name, presentation.symbol, pool, position, Paths.token(token.auction))}
+      {:ok, entry(presentation.name, presentation.symbol, pool, position, token)}
     end
   end
 
   # Robinhood
 
-  defp robinhood_holdings([]), do: {:ok, @none}
+  defp robinhood_holdings([]), do: {:ok, []}
 
   defp robinhood_holdings(wallets) do
     if RobinhoodLab.configured?() do
       with {:ok, config} <- RobinhoodLab.current(),
            opts = RobinhoodLab.rpc_opts(config),
            {:ok, block} <- Rpc.latest_block(opts),
-           {:ok, launches} <- RobinhoodPool.graduated(config, block, opts),
-           venue = %{config: config, block: block, opts: opts},
-           {:ok, holdings} <- collect(launches, &robinhood_holding(&1, venue, wallets)) do
-        {:ok, %{holdings: holdings, blocks: %{robinhood: block.number}}}
+           {:ok, launches} <- RobinhoodPool.graduated(config, block, opts) do
+        venue = %{config: config, block: block, opts: opts}
+        collect(launches, &robinhood_holding(&1, venue, wallets))
       end
     else
-      {:ok, @none}
+      {:ok, []}
     end
   end
 
-  # The token names itself: Robinhood launches have no stored record.
+  # The token names itself: a Robinhood launch has a listed record only when
+  # it was launched through this site.
   defp robinhood_holding(launch, venue, wallets) do
     with {:ok, pool} <-
            RobinhoodPool.read_at(launch.auction, venue.config, venue.block, venue.opts),
          {:ok, position} <- position(pool, wallets),
          {:ok, name} <-
-           Rpc.call_string(launch.token, LabAbi.selector("name()"), venue.block, venue.opts) do
-      page = Paths.robinhood_token_page(launch.auction)
-      {:ok, entry(name, pool.token.symbol, pool, position, page)}
+           Rpc.call_string(launch.token, LabAbi.selector("name()"), venue.block, venue.opts),
+         {:ok, token} <- Autolaunch.get_robinhood_token(launch.token, actor: nil) do
+      {:ok, entry(name, pool.token.symbol, pool, position, token)}
     end
   end
 
@@ -234,7 +221,7 @@ defmodule Autolaunch.TokenHoldings do
     )
   end
 
-  defp entry(name, symbol, pool, position, href) do
+  defp entry(name, symbol, pool, position, token) do
     claimable =
       [
         {position.dollar, pool.fees.splitter.dollar},
@@ -259,7 +246,8 @@ defmodule Autolaunch.TokenHoldings do
         held: shown(position.held),
         staked: shown(position.staked),
         claimable: claimable,
-        href: href
+        unit: pool.currency.symbol,
+        token: token
       }
     end
   end

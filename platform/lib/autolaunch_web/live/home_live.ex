@@ -181,6 +181,9 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
 
+  # A swap confirmed in a card's swap dialog moved that token's price.
+  def handle_info(:reload_pool, socket), do: {:noreply, LiveListings.schedule(socket)}
+
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> reread_market() |> assign_auction_stats()}
 
