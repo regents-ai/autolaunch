@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [display_status: 1, display_time: 1]
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{BidSettlementActions, Lab}
+  alias Autolaunch.{BidActions, BidSettlementActions, Lab}
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.AuctionBook
@@ -654,11 +654,30 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp actions(%{status: "returnable"}, %{state: :failed, quote_token_symbol: symbol}),
     do: ["Return #{symbol}"]
 
-  defp actions(%{status: "returnable"}, %{quote_token_symbol: symbol}),
-    do: ["Return unspent #{symbol}"]
+  defp actions(%{status: "returnable"} = position, auction) do
+    if spent?(position),
+      do: ["Claim #{auction.token_symbol} to wallet"],
+      else: ["Return unspent #{auction.quote_token_symbol}"]
+  end
 
   defp actions(%{status: "claimable"}, %{token_symbol: symbol}), do: ["Claim #{symbol} to wallet"]
   defp actions(_position, _auction), do: []
+
+  @doc """
+  Whether an unsettled bid on a launched auction was wholly spent: its
+  maximum is above the final price, so settling returns nothing and only
+  delivers its tokens.
+  """
+  def spent?(%{status: "returnable", max_price: max, auction: %{state: :graduated} = auction}) do
+    decimals = auction.quote_token_decimals
+
+    with {:ok, max} <- BidActions.price_q96(max, decimals),
+         {:ok, price} <- BidActions.price_q96(auction.current_clearing_price, decimals),
+         do: max > price,
+         else: (_unknown -> false)
+  end
+
+  def spent?(_position), do: false
 
   # The reason nothing can be done yet, from the auction's own blocks.
   defp reasons(%{status: "active"}, %{end_block: end_block}, _auction),

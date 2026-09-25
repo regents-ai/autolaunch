@@ -35,7 +35,15 @@ defmodule AutolaunchWeb.PortfolioLive do
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
-  alias AutolaunchWeb.{LabMarket, Paths, RobinhoodStockBidComponent, TokenDisplay, UsdValue}
+
+  alias AutolaunchWeb.{
+    BidSettlementComponent,
+    LabMarket,
+    Paths,
+    RobinhoodStockBidComponent,
+    TokenDisplay,
+    UsdValue
+  }
 
   @history ~w(claimed returned)
   @robinhood_history [:returned, :claimed]
@@ -373,7 +381,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             else: {"Auction", Paths.auction(auction)}
           ),
         rate: figure_rate(assigns.rates, auction),
-        settle: settle_label(position.status),
+        settle: settle_label(position),
         live?: live?,
         standing: if(live? && book, do: AuctionBook.bid_standing(position, auction, book))
       )
@@ -424,7 +432,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           </div>
           <.live_component
             :if={@position.status == "active" && @standing in [:outbid, :sharing]}
-            module={AutolaunchWeb.BidSettlementComponent}
+            module={BidSettlementComponent}
             id={"portfolio-early-#{@position.id}"}
             early
             position={@position}
@@ -690,9 +698,11 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp robinhood_page(%{listing: %{} = listing}), do: {"Auction", Paths.auction(listing)}
   defp robinhood_page(_position), do: nil
 
-  defp settle_label("returnable"), do: "Withdraw"
-  defp settle_label("claimable"), do: "Claim tokens"
-  defp settle_label(_status), do: nil
+  defp settle_label(%{status: "returnable"} = position),
+    do: if(BidSettlementComponent.spent?(position), do: "Claim tokens", else: "Withdraw")
+
+  defp settle_label(%{status: "claimable"}), do: "Claim tokens"
+  defp settle_label(_position), do: nil
 
   # What a Robinhood bid's auction admits now: its unspent money back once
   # the auction has settled, its tokens once they can be claimed, or, while
@@ -713,7 +723,14 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp base_standing(%{status: "active", auction: %{state: :active}}, nil), do: "In the auction"
   defp base_standing(%{status: "active"}, nil), do: "Bidding ended"
-  defp base_standing(%{status: "returnable"}, _standing), do: "Money to withdraw"
+
+  defp base_standing(%{status: "returnable"} = position, _standing),
+    do:
+      if(BidSettlementComponent.spent?(position),
+        do: "Tokens ready to claim",
+        else: "Money to withdraw"
+      )
+
   defp base_standing(%{status: "claimable"}, _standing), do: "Tokens ready to claim"
   defp base_standing(%{status: "claimed"}, _standing), do: "Claimed"
 
