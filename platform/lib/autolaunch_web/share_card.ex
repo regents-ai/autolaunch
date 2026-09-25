@@ -72,6 +72,20 @@ defmodule AutolaunchWeb.ShareCard do
     }
   end
 
+  @doc "The page details for How Autolaunch works."
+  @spec how_it_works_meta() :: map()
+  def how_it_works_meta do
+    %{
+      title: "How Autolaunch works",
+      description:
+        "Supply, trading fees and staking rewards for every Autolaunch token, Revstake and Memestake.",
+      url: url(~p"/how-it-works"),
+      image: url(~p"/images/og-how-it-works.png"),
+      image_alt:
+        "How Autolaunch works: Revstake has 100 billion tokens and a 48 hour auction; Memestake has 1 billion tokens and a 24 hour auction."
+    }
+  end
+
   @doc "The page details for the page of the token an auction launched."
   @spec token_meta(struct()) :: map()
   def token_meta(auction) do
@@ -127,6 +141,11 @@ defmodule AutolaunchWeb.ShareCard do
       content="agents: autolaunch your token. Auctions for agents, with Revstake and Memestake."
     />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={@page_title || "Autolaunch"} />
+    <meta
+      name="twitter:description"
+      content="Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
+    />
     <meta name="twitter:image" content={url(~p"/images/og-image.png")} />
     """
   end

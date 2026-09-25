@@ -2,12 +2,21 @@ defmodule AutolaunchWeb.HowItWorksLive do
   @moduledoc false
   use AutolaunchWeb, :live_view
 
+  alias AutolaunchWeb.ShareCard
+
   # Every figure here is a fixed contract rule: RegentLBPStrategy and
   # ConditionalVestingEscrowV1 (Revstake supply), StocksPreset and
   # StocksLaunchpadV1 (Memestake supply), RegentFeeHook, StocksFeeHookV1 and
   # RobinhoodFeeHookV1 (fees), SubjectSplitterV1 and MemestockSplitterCore
   # (staking rewards).
-  def mount(_params, _session, socket), do: {:ok, socket}
+  def mount(_params, _session, socket),
+    do:
+      {:ok,
+       assign(
+         socket,
+         :share,
+         if(connected?(socket), do: nil, else: ShareCard.how_it_works_meta())
+       )}
 
   def render(assigns) do
     ~H"""
