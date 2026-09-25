@@ -1,0 +1,98 @@
+name: Platform
+
+on:
+  push:
+    paths:
+      - "platform/**"
+      - "!platform/*.md"
+      - "!platform/docs/**"
+      - "blog/**"
+      - ".github/workflows/platform.yml"
+  pull_request:
+    paths:
+      - "platform/**"
+      - "!platform/*.md"
+      - "!platform/docs/**"
+      - "blog/**"
+      - ".github/workflows/platform.yml"
+
+permissions:
+  contents: read
+
+# The shared Regent packages mix.exs loads by path are checked out at the revisions
+# platform/release-inputs.json selects, the same selection the release image is built from.
+# Erlang, Elixir and Node come from platform/.tool-versions.
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform
+    env:
+      MIX_ENV: test
+    services:
+      # config/test.exs connects to 127.0.0.1:5432 as $USER, which is runner here.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: runner
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the selected shared packages
+        run: scripts/checkout-shared-packages.sh "$RUNNER_TEMP/shared-packages" >>"$GITHUB_ENV"
+
+      # Credo's Ash checks load only in dev and test, from the elixir-utils checkout the ENS
+      # package comes from.
+      - name: Point credo_ash at the ENS package's elixir-utils checkout
+        run: printf 'REGENT_DEPS_ROOT=%s\n' "$(dirname "$(dirname "$REGENT_ENS_PATH")")" >>"$GITHUB_ENV"
+
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: platform/.tool-versions
+          version-type: strict
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: platform/.tool-versions
+
+      - run: mix deps.get --check-locked
+      - run: npm ci --no-audit --no-fund
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+      - run: mix assets.setup
+      - run: mix assets.build
+      # After the asset build, which vendors the shared packages' browser modules it imports.
+      - run: npx tsc --project assets/tsconfig.json --noEmit
+      - run: mix test
+
+  release-image:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the selected shared packages
+        run: scripts/checkout-shared-packages.sh "$RUNNER_TEMP/shared-packages" >>"$GITHUB_ENV"
+
+      - name: Assemble the release context
+        run: scripts/build-release-context.sh "$RUNNER_TEMP/release-context" amd64
+
+      # Built exactly as a release is, for the production architecture, and never pushed.
+      - name: Build the Linux release image
+        run: |
+          docker build --platform linux/amd64 \
+            -f "$RUNNER_TEMP/release-context/Dockerfile" \
+            -t autolaunch-release-check \
+            "$RUNNER_TEMP/release-context"
