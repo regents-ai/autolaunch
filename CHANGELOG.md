@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v36, 25 September 2026 (4425219)
+- A bid that was spent in full on a launched auction offers "Claim BITE to wallet" and reads
+  "Tokens ready to claim" in the portfolio, instead of offering to return unspent money that
+  does not exist.
+
 ## v35, 25 September 2026 (025f9a6)
 - A shared How it works link shows its own picture, "how autolaunch works" with Revstake and
   Memestake supply and auction length, and its own title and description.
