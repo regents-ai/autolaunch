@@ -228,11 +228,9 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-form__pending { display: grid; gap: var(--space-1); }
 
 /* After the wallet: the bid on its way, or placed with its share. */
-.bid-progress, .bid-placed, .bid-share, .bid-share__account, .bid-share form { display: grid; gap: var(--space-2); min-width: 0; }
+.bid-progress, .bid-placed { display: grid; gap: var(--space-2); min-width: 0; }
 .bid-progress__status { margin: 0; padding: var(--space-2); border-left: 3px solid var(--brand-accent); font-weight: 500; }
 .bid-placed p { margin: 0; }
 .bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); font-weight: 600; overflow-wrap: anywhere; }
 .bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .bid-placed__actions > * { flex: 1 1 8rem; }
-.bid-share { padding: var(--space-2); border: 1px solid var(--hairline); border-radius: 8px; }
-.bid-share textarea { width: 100%; min-width: 0; resize: vertical; font: inherit; }

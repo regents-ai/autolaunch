@@ -2,22 +2,17 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   @moduledoc """
   What a bid panel shows once its bid is placed: the news, the transaction on
   the chain's explorer, the way back to the auction and the portfolio, and a
-  post to share it on X.
+  window to share it on X (`AutolaunchWeb.Components.ShareDialog`).
 
-  Sharing only opens X's own composer with the message filled in; nothing is
-  ever posted for the bidder. The host component owns three events:
-  `share_bid` opens the message, `share_message_changed` carries its edits,
-  and `refresh_x_connections` (sent here by the X connect button) reloads the
-  bidder's X account.
+  The host component owns two events that read the bidder's X account:
+  `share_opened` when the window opens, and `refresh_x_connections` (sent
+  here by the X connect button) once they connect one.
   """
   use Phoenix.Component
   use AutolaunchWeb, :verified_routes
 
   alias Autolaunch.Accounts.XOAuth
-
-  @doc "The message a share starts with."
-  def message(token_symbol, auction_url),
-    do: "Bidding #{token_symbol} on autolaunch.sh #{auction_url}"
+  alias AutolaunchWeb.Components.ShareDialog
 
   @doc "The bidder's personal X connection, connected or not."
   def profile_x(connections), do: Enum.find(connections, &(&1.role == :profile))
@@ -29,8 +24,8 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   attr :hash, :string, default: nil, doc: "the bid transaction"
   attr :test_chain, :boolean, default: false
   attr :auction_path, :string, required: true
-  attr :sharing, :boolean, default: false
-  attr :message, :string, default: ""
+  attr :auction_url, :string, required: true
+  attr :share_image, :string, required: true, doc: "the auction's share picture"
   attr :x_connection, :map, default: nil, doc: "the bidder's personal X connection"
   attr :x_enabled, :boolean, default: false
 
@@ -59,64 +54,42 @@ defmodule AutolaunchWeb.Components.BidPlaced do
         <.link navigate={~p"/portfolio"} class="rg-button rg-button--secondary">
           <span class="rg-button__label">View Portfolio</span>
         </.link>
-        <Regent.Primitives.button
-          :if={!@sharing}
-          type="button"
-          phx-click="share_bid"
+        <ShareDialog.share_dialog
+          id={"#{@id}-share"}
+          message={"Bidding #{@token_symbol} on autolaunch.sh #{@auction_url}"}
+          image={@share_image}
+          phx-click="share_opened"
           phx-target={@target}
-          variant="secondary"
         >
-          Share on X
-        </Regent.Primitives.button>
-      </div>
-
-      <div :if={@sharing} class="bid-share">
-        <div
-          id={"#{@id}-x"}
-          class="bid-share__account"
-          phx-hook="XConnections"
-          data-x-oauth-origin={XOAuth.origin()}
-          data-x-refresh-here
-        >
-          <p :if={@x_account}>Connected as @{@x_account.username}</p>
-          <div
-            :if={!@x_account}
-            data-x-role="profile"
-            data-x-intent-sequence={intent_sequence(@x_connection)}
-          >
-            <p :if={@x_enabled}>Connect your X account to share from it.</p>
-            <p :if={!@x_enabled}>X accounts can't be connected right now.</p>
-            <Regent.Primitives.button
-              :if={@x_enabled}
-              type="button"
-              data-x-connect-role="profile"
-              variant="secondary"
+          <:account>
+            <div
+              id={"#{@id}-x"}
+              class="share-x__account"
+              phx-hook="XConnections"
+              data-x-oauth-origin={XOAuth.origin()}
+              data-x-refresh-here
             >
-              Connect X
-            </Regent.Primitives.button>
-          </div>
-          <p data-x-connection-status role="status" aria-live="polite"></p>
-        </div>
-
-        <form
-          phx-change="share_message_changed"
-          phx-submit="share_message_changed"
-          phx-target={@target}
-        >
-          <label for={"#{@id}-message"}>Your post</label>
-          <textarea id={"#{@id}-message"} name="message" rows="3" phx-debounce="300">{@message}</textarea>
-        </form>
-        <a
-          href={"https://x.com/intent/post?" <> URI.encode_query(%{text: @message})}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="rg-button rg-button--primary bid-primary"
-        >
-          <span class="rg-button__label">Open X to share</span>
-        </a>
-        <p class="bid-form__note">
-          X opens with your post ready. Nothing is posted until you post it there.
-        </p>
+              <p :if={@x_account}>Connected as @{@x_account.username}</p>
+              <div
+                :if={!@x_account}
+                data-x-role="profile"
+                data-x-intent-sequence={intent_sequence(@x_connection)}
+              >
+                <p :if={@x_enabled}>Connect your X account to share from it.</p>
+                <p :if={!@x_enabled}>X accounts can't be connected right now.</p>
+                <Regent.Primitives.button
+                  :if={@x_enabled}
+                  type="button"
+                  data-x-connect-role="profile"
+                  variant="secondary"
+                >
+                  Connect X
+                </Regent.Primitives.button>
+              </div>
+              <p data-x-connection-status role="status" aria-live="polite"></p>
+            </div>
+          </:account>
+        </ShareDialog.share_dialog>
       </div>
     </div>
     """

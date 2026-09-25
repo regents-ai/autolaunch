@@ -19,7 +19,7 @@ defmodule Autolaunch.TestSupport do
         auction_address: Map.get(opts, :address) || unique_address(),
         title: Map.get(opts, :title, "Auction"),
         summary: Map.get(opts, :summary),
-        token_symbol: Map.get(opts, :symbol),
+        token_symbol: Map.get(opts, :symbol, "AUC"),
         creator_human_account_id:
           Map.get(opts, :creator_human_account_id) || register_creator!().id,
         creator_address: Map.get(opts, :creator_address) || unique_address(),

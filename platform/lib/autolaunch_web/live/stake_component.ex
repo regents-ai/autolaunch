@@ -24,6 +24,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.StakeActions
+  alias AutolaunchWeb.Components.ShareDialog
   alias AutolaunchWeb.SignedInWallet
   alias Phoenix.LiveView.JS
 
@@ -101,7 +102,8 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:authenticated, fn -> false end)
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
-      |> assign_new(:token_path, fn -> nil end)
+      |> assign_new(:share_url, fn -> nil end)
+      |> assign_new(:share_image, fn -> nil end)
       |> assign_new(:browser_wallets, fn -> [] end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> SignedInWallet.adopt(&adopt/2)
@@ -134,7 +136,7 @@ defmodule AutolaunchWeb.StakeComponent do
         :if={@done}
         id={"#{@id}-done"}
         done={@done}
-        share_href={share_href(assigns)}
+        share={share(assigns)}
         dismiss_event="dismiss_done"
         target={@myself}
       />
@@ -757,7 +759,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   attr :id, :string, required: true
   attr :done, :map, required: true
-  attr :share_href, :string, default: nil
+  attr :share, :map, default: nil, doc: "the post and picture a stake can be shared with"
   attr :dismiss_event, :string, required: true
   attr :target, :any, default: nil
 
@@ -767,13 +769,12 @@ defmodule AutolaunchWeb.StakeComponent do
       <div>
         <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- done_lines(@done)}>{line}</p>
-        <a
-          :if={@done.kind == :stake && @share_href}
-          href={@share_href}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="rg-button rg-button--secondary"
-        >Share to X</a>
+        <ShareDialog.share_dialog
+          :if={@done.kind == :stake && @share}
+          id={"#{@id}-share"}
+          message={@share.message}
+          image={@share.image}
+        />
       </div>
       <Regent.Primitives.button
         type="button"
@@ -792,17 +793,17 @@ defmodule AutolaunchWeb.StakeComponent do
   defp stake_name(%{kind: :agent}), do: "Revstake"
   defp stake_name(_pool), do: "Memestake"
 
-  defp share_href(%{token_path: path, pool: pool, launch: launch}) when is_binary(path) do
+  defp share(%{share_url: url, share_image: image, pool: pool, launch: launch})
+       when is_binary(url) and is_binary(image) do
     chain = if launch.chain == :robinhood, do: "Robinhood", else: "Base"
 
-    "https://x.com/intent/tweet?" <>
-      URI.encode_query(%{
-        text: "I just staked $#{pool.token.symbol} on Autolaunch (#{chain}).",
-        url: "https://autolaunch.sh" <> path
-      })
+    %{
+      message: "I just staked $#{pool.token.symbol} on Autolaunch (#{chain}). #{url}",
+      image: image
+    }
   end
 
-  defp share_href(_assigns), do: nil
+  defp share(_assigns), do: nil
 
   defp title(:stake), do: "You’re staking"
   defp title(:unstake), do: "You’re unstaking"

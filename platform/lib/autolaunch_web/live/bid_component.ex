@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{SignedInWallet, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, ShareCard, SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
   @copy %{
@@ -107,8 +107,6 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
      |> assign_new(:following, fn -> nil end)
-     |> assign_new(:sharing, fn -> false end)
-     |> assign_new(:share_message, fn -> "" end)
      |> assign_new(:x_connection, fn -> nil end)
      |> assign_new(:x_enabled, fn -> false end)
      |> assign_new(:prepared_for, fn -> nil end)
@@ -198,9 +196,9 @@ defmodule AutolaunchWeb.BidComponent do
             chain={:base}
             hash={placed_hash(@operation)}
             test_chain={Lab.test_chain?(@operation.envelope["chain_id"])}
-            auction_path={~p"/auctions/#{@auction.id}"}
-            sharing={@sharing}
-            message={@share_message}
+            auction_path={Paths.auction(@auction)}
+            auction_url={Paths.auction_url(@auction)}
+            share_image={ShareCard.auction_image_url(@auction, DateTime.utc_now())}
             x_connection={@x_connection}
             x_enabled={@x_enabled}
           />
@@ -320,19 +318,11 @@ defmodule AutolaunchWeb.BidComponent do
        |> assign(
          operation: nil,
          prepared_for: nil,
-         sharing: false,
          form: %{BidForm.blank() | pay_with: socket.assigns.form.pay_with}
        )
        |> cleared()}
 
-  def handle_event("share_bid", _params, socket) do
-    %{auction: auction} = socket.assigns
-    message = BidPlaced.message(auction.token_symbol, url(~p"/auctions/#{auction.id}"))
-    {:noreply, socket |> assign(sharing: true, share_message: message) |> load_x()}
-  end
-
-  def handle_event("share_message_changed", %{"message" => message}, socket),
-    do: {:noreply, assign(socket, share_message: message)}
+  def handle_event("share_opened", _params, socket), do: {:noreply, load_x(socket)}
 
   def handle_event("refresh_x_connections", _params, socket), do: {:noreply, load_x(socket)}
 

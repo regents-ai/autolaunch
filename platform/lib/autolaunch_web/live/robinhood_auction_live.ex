@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.RobinhoodAuctionLive do
   @moduledoc """
-  One Robinhood Memestake auction, named by its address. The page shows the
+  One Robinhood Memestake auction, read by its contract address, which
+  `AutolaunchWeb.MarketPageLive` hands it from the page address. The page shows the
   auction as the Robinhood market feed stored it (its token's name,
   description, website and image, its state and minimum) with the feed's
   latest reading of what it raised and the chain's clock. It names its
@@ -24,10 +25,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
-  alias Autolaunch.Chain.{Address, Rpc}
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.{LabMarket, ShareCard, UsdValue}
+  alias AutolaunchWeb.{LabMarket, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
   def mount(_params, _session, socket),
@@ -37,12 +38,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
        |> assign(open?: Lab.configured?(), market: LabMarket.subscribe(socket), outbid: nil)
        |> assign_usd_prices()}
 
-  def handle_params(%{"auction" => auction}, _uri, socket) do
-    case Address.normalize(auction) do
-      {:ok, address} -> {:noreply, socket |> assign(:auction, address) |> load_launch()}
-      :error -> {:noreply, assign(socket, auction: nil, launch: nil)}
-    end
-  end
+  def handle_params(%{"auction" => address}, _uri, socket),
+    do: {:noreply, socket |> assign(:auction, address) |> load_launch()}
 
   # The feed read Robinhood again: the stored auction, its reading and its
   # price move together.
@@ -132,9 +129,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             launch={@launch}
             ended={ended_copy(@launch)}
             token_symbol={@launch.token_symbol}
-            stake_path={
-              if @launch.state == :graduated, do: "/robinhood/tokens/#{@launch.token_address}#stake"
-            }
+            stake_path={if @launch.state == :graduated, do: Paths.token(@launch) <> "#stake"}
             book={@book}
             supply={AsyncResult.ok(@launch.token_supply)}
             authenticated={@account_control.kind == :signed_in}
@@ -180,7 +175,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             <.launch_trust
               auction={@launch}
               connections={@creator_connections.result}
-              token_path={@launch.state == :graduated && "/robinhood/tokens/#{@launch.token_address}"}
+              token_path={@launch.state == :graduated && Paths.token(@launch)}
             />
             <p
               :if={@launch.state == :graduated}
@@ -188,7 +183,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
               class="autolaunch-live-market"
             >
               This auction launched.
-              <.link navigate={"/robinhood/tokens/#{@launch.token_address}"}>
+              <.link navigate={Paths.token(@launch)}>
                 Open {@launch.token_symbol}, its token, to trade and stake it
               </.link>
             </p>
@@ -232,8 +227,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         <h1 class="rg-section-bar__label">Auction not found</h1>
       </Regent.Structure.section_bar>
       <p :if={!@open?}>Robinhood auctions are not open on this site yet.</p>
-      <p :if={@open? && !@auction}>That is not an auction address.</p>
-      <p :if={@open? && @auction}>No Robinhood auction exists at {@auction}.</p>
+      <p :if={@open?}>No Robinhood auction exists at {@auction}.</p>
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
     """
@@ -299,14 +293,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   defp reload_launch(%{assigns: %{open?: false}} = socket), do: socket
 
-  # Not an address: there is no auction to read again.
-  defp reload_launch(%{assigns: %{auction: nil}} = socket), do: socket
-
   defp reload_launch(socket) do
     {:ok, launch} =
       Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil, load: [:fdv])
 
-    assign(socket, launch: launch, share: launch && ShareCard.meta(launch))
+    assign(socket, :launch, launch)
   end
 
   # The minimum is stored in the stock's smallest unit.

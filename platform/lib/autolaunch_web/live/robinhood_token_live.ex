@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.RobinhoodTokenLive do
   @moduledoc """
-  One graduated Robinhood memestock token, named by its token address: the
-  one page of that token. The page shows the token and the launch it came
+  One graduated Robinhood memestock token, read by its token address, which
+  `AutolaunchWeb.MarketPageLive` hands it from the token's page address. The page shows the token and the launch it came
   from as the Robinhood market feed stored them, with the feed's latest
   reading of what its auction raised. It names its creator when a signed-up
   account's wallet launched it, names the auction it graduated from, and
@@ -19,9 +19,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.LabMarket
+  alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
 
   def mount(_params, _session, socket),
     do:
@@ -46,13 +45,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
     socket = assign(socket, :stake_amount, amount)
 
-    case Address.normalize(token) do
-      {:ok, address} ->
-        {:noreply, socket |> assign(:token_address, address) |> load_page()}
-
-      :error ->
-        {:noreply, assign(socket, token_address: nil, token: nil)}
-    end
+    {:noreply, socket |> assign(:token_address, token) |> load_page()}
   end
 
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
@@ -131,7 +124,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         session_lease={@session_lease}
       />
       <p class="autolaunch-live-market">
-        <.link navigate={"/robinhood/auctions/#{@token.auction.auction_address}"}>
+        <.link navigate={Paths.auction(@token.auction)}>
           Open the auction this token launched from
         </.link>
       </p>
@@ -148,7 +141,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
           pool={@pool.result}
           initial_amount={@stake_amount}
-          token_path={"/robinhood/tokens/#{@token.auction.token_address}"}
+          share_url={Paths.token_url(@token.auction)}
+          share_image={ShareCard.token_image_url(@token.auction, DateTime.utc_now())}
           authenticated={@account_control.kind == :signed_in}
           current_human_id={current_human_id(@access_context)}
           session_lease={@session_lease}
@@ -191,10 +185,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         <h1 class="rg-section-bar__label">Token not found</h1>
       </Regent.Structure.section_bar>
       <p :if={!@open?}>Robinhood tokens are not open on this site yet.</p>
-      <p :if={@open? && !@token_address}>That is not a token address.</p>
-      <p :if={@open? && @token_address}>
-        No launched Robinhood token exists at {@token_address}.
-      </p>
+      <p :if={@open?}>No launched Robinhood token exists at {@token_address}.</p>
       <.link navigate="/tokens">Return to Tokens</.link>
     </section>
     """
@@ -219,9 +210,6 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   end
 
   defp reload_token(%{assigns: %{open?: false}} = socket), do: socket
-
-  # Not an address: there is no token to read again.
-  defp reload_token(%{assigns: %{token_address: nil}} = socket), do: socket
 
   defp reload_token(socket) do
     {:ok, token} = Autolaunch.get_robinhood_token(socket.assigns.token_address, actor: nil)

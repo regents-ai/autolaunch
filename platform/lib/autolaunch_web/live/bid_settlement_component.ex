@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{SignedInWallet, UsdValue, WalletPressComponent}
+  alias AutolaunchWeb.{Paths, SignedInWallet, UsdValue, WalletPressComponent}
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
@@ -640,9 +640,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   # The exact action the position's status admits. A failed auction returns
   # the whole bid; a graduated one returns what the fill did not spend.
-  defp stake_path(%{state: :graduated, id: id}) do
+  defp stake_path(%{state: :graduated, id: id} = auction) do
     case Autolaunch.get_public_token_by_auction(id) do
-      {:ok, %{id: token_id}} -> "/tokens/#{token_id}#stake"
+      {:ok, %{}} -> Paths.token(auction) <> "#stake"
       _ -> nil
     end
   end
