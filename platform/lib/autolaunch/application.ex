@@ -22,6 +22,7 @@ defmodule Autolaunch.Application do
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
+      Autolaunch.MarketTicker,
       autolaunch_indexer_children(),
       auction_activity_child(),
       token_trades_child(),

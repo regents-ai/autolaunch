@@ -130,19 +130,7 @@ defmodule Autolaunch.AuctionActivity do
   # The Robinhood contract clock may differ from EVM log heights (especially on
   # a fork). Find deployment from code history; never reinterpret clock blocks.
   defp first_block(auction, venue, head, _),
-    do: deployment_block(auction.auction_address, 0, head.number, venue.opts)
-
-  defp deployment_block(_, same, same, _), do: {:ok, same}
-
-  defp deployment_block(address, low, high, opts) do
-    middle = div(low + high, 2)
-
-    case Rpc.request("eth_getCode", [address, hex(middle)], opts) do
-      {:ok, "0x"} -> deployment_block(address, middle + 1, high, opts)
-      {:ok, "0x" <> code} when byte_size(code) > 0 -> deployment_block(address, low, middle, opts)
-      _ -> {:error, :history_unavailable}
-    end
-  end
+    do: Rpc.deployment_block(auction.auction_address, head.number, venue.opts)
 
   defp cursor_valid(%{activity_next_block: nil}, _, _), do: :ok
 

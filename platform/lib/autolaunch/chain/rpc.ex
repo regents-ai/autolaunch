@@ -186,6 +186,27 @@ defmodule Autolaunch.Chain.Rpc do
     |> Decimal.to_string(:normal)
   end
 
+  @doc """
+  The first block at or below `head` where `address` holds code, found by
+  halving the chain with `eth_getCode`: about log2(head) one-block requests,
+  never a log range a provider can refuse for its width.
+  """
+  @spec deployment_block(String.t(), non_neg_integer(), keyword()) ::
+          {:ok, non_neg_integer()} | {:error, :history_unavailable}
+  def deployment_block(address, head, opts), do: code_since(address, 0, head, opts)
+
+  defp code_since(_address, same, same, _opts), do: {:ok, same}
+
+  defp code_since(address, low, high, opts) do
+    middle = div(low + high, 2)
+
+    case request("eth_getCode", [address, hex_quantity(middle)], opts) do
+      {:ok, "0x"} -> code_since(address, middle + 1, high, opts)
+      {:ok, "0x" <> code} when byte_size(code) > 0 -> code_since(address, low, middle, opts)
+      _ -> {:error, :history_unavailable}
+    end
+  end
+
   # `\z` and not `$`: `$` also matches before a trailing newline, which let
   # "0x" <> 63 hex <> "\n" pass the 64-byte guard as a canonical hash.
   def valid_hash?("0x" <> hash),

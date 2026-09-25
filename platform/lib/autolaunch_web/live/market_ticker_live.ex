@@ -1,58 +1,23 @@
 defmodule AutolaunchWeb.MarketTickerLive do
   @moduledoc false
   use Phoenix.LiveView, layout: false
-  alias Autolaunch.{BidActivity, TokenTrade}
   alias AutolaunchWeb.Components.MarketCard
 
+  # Every open page shares the one list `Autolaunch.MarketTicker` keeps.
   def mount(_, _, socket) do
-    if connected?(socket) do
-      Autolaunch.Listings.subscribe()
-      Autolaunch.TokenTrades.subscribe()
-      send(self(), :load)
-    end
+    entries = if connected?(socket), do: Autolaunch.MarketTicker.subscribe(), else: []
 
     {:ok,
      socket
-     |> assign(entries: [], paused: false, loading: false)
+     |> assign(entries: entries, paused: false)
      |> MarketCard.assign_figure_rates()}
   end
 
   def handle_event("pause", _, socket),
     do: {:noreply, assign(socket, paused: !socket.assigns.paused)}
 
-  def handle_info({event, _}, socket)
-      when event in [:autolaunch_listings_changed, :autolaunch_trade] do
-    if socket.assigns.loading do
-      {:noreply, socket}
-    else
-      Process.send_after(self(), :load, 1_000)
-      {:noreply, assign(socket, loading: true)}
-    end
-  end
-
-  def handle_info(:load, socket) do
-    {:noreply,
-     socket
-     |> assign(loading: true)
-     |> start_async(:entries, fn ->
-       with {:ok, bids} <- Ash.read(BidActivity, action: :recent, actor: nil),
-            {:ok, trades} <- Ash.read(TokenTrade, action: :recent, actor: nil),
-            do: {:ok, entries(bids, trades)}
-     end)}
-  end
-
-  def handle_async(:entries, {:ok, {:ok, entries}}, socket),
-    do: {:noreply, assign(socket, entries: entries, loading: false)}
-
-  def handle_async(:entries, _, socket), do: {:noreply, assign(socket, loading: false)}
-
-  # Bids and trades together, newest first.
-  defp entries(bids, trades) do
-    bids = for %{auction: %{}} = bid <- bids, do: {:bid, bid}
-    trades = for %{token: %{auction: %{}}} = trade <- trades, do: {:trade, trade}
-
-    Enum.sort_by(bids ++ trades, fn {_, entry} -> entry.occurred_at end, {:desc, DateTime})
-  end
+  def handle_info({:market_ticker, entries}, socket),
+    do: {:noreply, assign(socket, entries: entries)}
 
   def render(assigns) do
     ~H"""
