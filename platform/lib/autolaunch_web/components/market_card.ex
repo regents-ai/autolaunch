@@ -393,7 +393,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             type="search"
             name="q"
             value={@options.q}
-            placeholder="Search name, ticker or address"
+            placeholder="Search name, ticker, stock, creator or address"
             phx-debounce="300"
             autocomplete="off"
           />

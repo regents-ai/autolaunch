@@ -203,9 +203,9 @@ defmodule Autolaunch.Auction do
               else: query
 
           query
-          |> market_query(states, nil)
-          |> Ash.Query.unset([:sort, :limit])
-          |> Ash.Query.sort(order)
+          |> Ash.Query.filter(state in ^states)
+          |> Ash.Query.load([:treasury_security_report, :path_tail])
+          |> Autolaunch.Search.rank(query.arguments.query, order)
       end
     end
 
@@ -229,27 +229,6 @@ defmodule Autolaunch.Auction do
                 limit: 6,
                 load: [:treasury_security_report, :path_tail]
               )
-    end
-
-    read :active_launchpad do
-      argument :query, :string,
-        allow_nil?: false,
-        constraints: [allow_empty?: true, max_length: 80]
-
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
-      prepare fn query, _context -> market_query(query, [:created, :active, :ended], 8) end
-    end
-
-    read :explore_launchpad do
-      argument :query, :string,
-        allow_nil?: false,
-        constraints: [allow_empty?: true, max_length: 80]
-
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
-
-      prepare fn query, _context ->
-        market_query(query, [:created, :active, :ended, :failed], 24)
-      end
     end
 
     read :public_by_id do
@@ -454,8 +433,6 @@ defmodule Autolaunch.Auction do
              :home_market,
              :recent_public,
              :featured_public,
-             :active_launchpad,
-             :explore_launchpad,
              :public_by_id,
              :by_chain_address
            ]) do
@@ -725,44 +702,16 @@ defmodule Autolaunch.Auction do
                Autolaunch.TreasurySecurityReport do
       attribute_public? true
     end
-  end
 
-  defp market_query(query, states, limit) do
-    query
-    |> Ash.Query.filter(state in ^states)
-    |> market_search_filter(Autolaunch.Search.word_patterns(query.arguments.query))
-    |> Ash.Query.sort(inserted_at: :desc, id: :asc)
-    |> Ash.Query.limit(limit)
-    |> Ash.Query.load([:treasury_security_report, :path_tail])
-  end
+    # The stock a Stocks auction raises, when the site lists it.
+    has_one :quote_stock, Autolaunch.Stocks.Stock do
+      no_attributes? true
 
-  # Every word of the search appears in the name, ticker, stock, description,
-  # an address or one of the creator's connected accounts.
-  defp market_search_filter(query, patterns) do
-    Enum.reduce(patterns, query, &market_word_filter(&2, &1))
-  end
-
-  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
-  defp market_word_filter(query, pattern) do
-    Ash.Query.filter(
-      query,
-      ilike(title, ^pattern) or
-        ilike(summary, ^pattern) or
-        ilike(token_symbol, ^pattern) or
-        ilike(quote_token_symbol, ^pattern) or
-        ilike(auction_address, ^pattern) or
-        ilike(token_address, ^pattern) or
-        ilike(creator_address, ^pattern) or
-        exists(
-          creator_x_connections,
-          not is_nil(verified_at) and
-            (ilike(username, ^pattern) or ilike(display_name, ^pattern))
-        ) or
-        exists(
-          creator_identities,
-          ilike(username, ^pattern) or ilike(display_name, ^pattern)
-        )
-    )
+      filter expr(
+               chain_id == parent(chain_id) and
+                 string_downcase(address) == string_downcase(parent(quote_token_address))
+             )
+    end
   end
 
   calculations do
@@ -775,6 +724,62 @@ defmodule Autolaunch.Auction do
     calculate :path_tail, :string, Autolaunch.Auction.Calculations.PathTail do
       public? true
     end
+
+    # How closely a search matches this auction, from 0 to 1; see `Autolaunch.Search`.
+    # The name, ticker and stock count fully, the creator's accounts a little
+    # less and the description less again. `address` is set when the search
+    # could be part of an address, and matches the auction, token and creator
+    # wallet outright.
+    calculate :search_rank,
+              :float,
+              expr(
+                if not is_nil(^arg(:address)) and
+                     (contains(string_downcase(auction_address), ^arg(:address)) or
+                        contains(string_downcase(token_address), ^arg(:address)) or
+                        contains(creator_address, ^arg(:address))) do
+                  1.0
+                else
+                  fragment(
+                    "greatest(word_similarity(?, concat_ws(' ', ?, ?, ?, ?)), 0.9 * word_similarity(?, array_to_string(? || ? || ? || ?, ' ')), 0.7 * word_similarity(?, coalesce(?, '')))",
+                    ^arg(:term),
+                    title,
+                    token_symbol,
+                    quote_token_symbol,
+                    quote_stock_search_text,
+                    ^arg(:term),
+                    creator_identity_names,
+                    creator_identity_display_names,
+                    creator_x_names,
+                    creator_x_display_names,
+                    ^arg(:term),
+                    summary
+                  )
+                end
+              ) do
+      argument :term, :string, allow_nil?: false
+      argument :address, :string
+    end
+  end
+
+  aggregates do
+    # The creator's connected account names, for search.
+    list :creator_identity_names, :creator_identities, :username do
+      filter expr(provider in [:x, :github, :ens])
+    end
+
+    list :creator_identity_display_names, :creator_identities, :display_name do
+      filter expr(provider in [:x, :github, :ens])
+    end
+
+    list :creator_x_names, :creator_x_connections, :username do
+      filter expr(not is_nil(verified_at))
+    end
+
+    list :creator_x_display_names, :creator_x_connections, :display_name do
+      filter expr(not is_nil(verified_at))
+    end
+
+    first :quote_stock_search_text, :quote_stock, :search_text
   end
 
   identities do

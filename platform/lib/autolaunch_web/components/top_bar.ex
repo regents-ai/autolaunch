@@ -47,7 +47,7 @@ defmodule AutolaunchWeb.Components.TopBar do
           type="search"
           name="q"
           value={@search_query}
-          placeholder="Search coins, addresses and creators…"
+          placeholder="Search coins, stocks, creators and addresses…"
           autocomplete="off"
           phx-debounce="300"
         />

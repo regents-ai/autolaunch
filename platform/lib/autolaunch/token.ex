@@ -104,9 +104,8 @@ defmodule Autolaunch.Token do
               else: query
 
           query
-          |> launchpad_query(nil)
-          |> Ash.Query.unset([:sort, :limit])
-          |> Ash.Query.sort(graduated_at: :desc, id: :asc)
+          |> Ash.Query.load([:treasury_security_report, :auction])
+          |> Autolaunch.Search.rank(query.arguments.query, graduated_at: :desc, id: :asc)
       end
     end
 
@@ -129,24 +128,6 @@ defmodule Autolaunch.Token do
                 limit: 12,
                 load: [:treasury_security_report, :auction]
               )
-    end
-
-    read :graduated_launchpad do
-      argument :query, :string,
-        allow_nil?: false,
-        constraints: [allow_empty?: true, max_length: 80]
-
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
-      prepare fn query, _context -> launchpad_query(query, 8) end
-    end
-
-    read :explore_launchpad do
-      argument :query, :string,
-        allow_nil?: false,
-        constraints: [allow_empty?: true, max_length: 80]
-
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
-      prepare fn query, _context -> launchpad_query(query, 24) end
     end
 
     read :for_subject do
@@ -282,8 +263,6 @@ defmodule Autolaunch.Token do
              :home_market,
              :top_public,
              :recently_graduated_public,
-             :graduated_launchpad,
-             :explore_launchpad,
              :for_subject,
              :public_by_id,
              :robinhood_by_address,
@@ -399,53 +378,27 @@ defmodule Autolaunch.Token do
     calculate :market_cap, :decimal, Autolaunch.Token.Calculations.MarketCap do
       public? true
     end
+
+    # How closely a search matches this token: its auction's match, or its own
+    # name and ticker; see `Autolaunch.Search`.
+    calculate :search_rank,
+              :float,
+              expr(
+                fragment(
+                  "greatest(?, word_similarity(?, concat_ws(' ', ?, ?)))",
+                  auction.search_rank(term: ^arg(:term), address: ^arg(:address)),
+                  ^arg(:term),
+                  name,
+                  symbol
+                )
+              ) do
+      argument :term, :string, allow_nil?: false
+      argument :address, :string
+    end
   end
 
   identities do
     identity :unique_auction, [:auction_id]
-  end
-
-  defp launchpad_query(query, limit) do
-    query
-    |> launchpad_search_filter(Autolaunch.Search.word_patterns(query.arguments.query))
-    |> Ash.Query.sort(graduated_at: :desc, id: :asc)
-    |> Ash.Query.limit(limit)
-    |> Ash.Query.load([:treasury_security_report, :auction])
-  end
-
-  # Every word of the search appears in the token's name, ticker, stock,
-  # description, an address or one of the creator's connected accounts. The
-  # auction's name, ticker and description win over the token's own when set.
-  defp launchpad_search_filter(query, patterns) do
-    Enum.reduce(patterns, query, &launchpad_word_filter(&2, &1))
-  end
-
-  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
-  defp launchpad_word_filter(query, pattern) do
-    Ash.Query.filter(
-      query,
-      ilike(auction.title, ^pattern) or
-        ((is_nil(auction.token_symbol) or auction.token_symbol == "") and
-           ilike(symbol, ^pattern)) or
-        (not is_nil(auction.token_symbol) and auction.token_symbol != "" and
-           ilike(auction.token_symbol, ^pattern)) or
-        ((is_nil(auction.summary) or auction.summary == "") and ilike(summary, ^pattern)) or
-        (not is_nil(auction.summary) and auction.summary != "" and
-           ilike(auction.summary, ^pattern)) or
-        ilike(auction.quote_token_symbol, ^pattern) or
-        ilike(auction.auction_address, ^pattern) or
-        ilike(auction.token_address, ^pattern) or
-        ilike(auction.creator_address, ^pattern) or
-        exists(
-          [:auction, :creator_x_connections],
-          not is_nil(verified_at) and
-            (ilike(username, ^pattern) or ilike(display_name, ^pattern))
-        ) or
-        exists(
-          [:auction, :creator_identities],
-          ilike(username, ^pattern) or ilike(display_name, ^pattern)
-        )
-    )
   end
 
   @doc "Returns the one public presentation shared by a graduated token and its auction."

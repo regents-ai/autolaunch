@@ -23,6 +23,7 @@ defmodule Autolaunch.Application do
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       Autolaunch.MarketTicker,
+      supported_stocks_child(),
       autolaunch_indexer_children(),
       auction_activity_child(),
       token_trades_child(),
@@ -58,6 +59,13 @@ defmodule Autolaunch.Application do
         )
       end
     end
+  end
+
+  # The stocks the chains offer, saved once at start for search.
+  defp supported_stocks_child do
+    if !Autolaunch.Prelaunch.read_only?() and
+         Application.get_env(:autolaunch, :database_startup_enabled, false),
+       do: Autolaunch.Stocks.SupportedStocks
   end
 
   # Trades in each launched token's pool, for the ticker at the foot of every page.

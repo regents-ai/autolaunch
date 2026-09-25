@@ -11,8 +11,9 @@ defmodule Autolaunch.Repo do
   def default_options(_operation), do: [prefix: default_prefix()]
 
   @impl true
+  # pg_trgm scores how closely a search matches, typos included (`Autolaunch.Search`).
   def installed_extensions do
-    ["ash-functions"]
+    ["ash-functions", "pg_trgm"]
   end
 
   # Don't open unnecessary transactions
