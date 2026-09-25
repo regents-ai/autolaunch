@@ -550,7 +550,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <.price_figure amount={@token.price_quote} unit={@view.metric.unit} rate={@rate} />
       </td>
       <td>{@market_cap}</td>
-      <td>{if @view.age, do: "#{@view.age} ago", else: "-"}</td>
+      <td>{@view.age || "-"}</td>
     </tr>
     """
   end
@@ -897,7 +897,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <div class="market-identity__meta">
           <.chain_chip chain={@view.chain} label={@view.chain} />
           <span class={launched(@status || @view.status)}>{@status || @view.status}</span>
-          <span :if={@view.age}>{@view.age} ago</span>
+          <span :if={@view.age}>{@view.age}</span>
         </div>
         <div class="market-identity__price">
           <span>{@view.metric_label}</span><TokenDisplay.price
@@ -1092,7 +1092,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       path: Paths.auction(auction),
       creator: short_address(auction.creator_address),
       creator_address: auction.creator_address,
-      age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
+      age: auction_age(auction),
       connections: connection_list(connections),
       bid: auction_bid(auction),
       record_id: auction.id,
@@ -1132,7 +1132,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       path: Paths.token(token.auction),
       creator: short_address(token.auction.creator_address),
       creator_address: token.auction.creator_address,
-      age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
+      age: ago(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
       buy: %{unavailable: closed_before_deployment()},
       record_id: token.id,
@@ -1220,6 +1220,21 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   defp relative_age(_at), do: nil
+
+  defp ago(at), do: if(age = relative_age(at), do: "#{age} ago")
+
+  # Once bidding is over an auction counts from its end; before that, from
+  # when it was listed.
+  defp auction_age(%{estimated_end_at: %DateTime{} = end_at} = auction) do
+    if DateTime.after?(DateTime.utc_now(), end_at),
+      do: "Ended #{ago(end_at)}",
+      else: listed_age(auction)
+  end
+
+  defp auction_age(auction), do: listed_age(auction)
+
+  defp listed_age(auction),
+    do: ago(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at))
 
   @doc """
   A creator's website as a link and a short label, or nil when it is not an

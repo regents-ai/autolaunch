@@ -368,13 +368,27 @@ defmodule Autolaunch.Chain.CcaSettlement do
 
   defp claim_outcome(_abi, _auction, call, _data), do: {:refused, reverted_reason(call)}
 
-  defp reverted_reason(%{"returnData" => "0x" <> selector}) when byte_size(selector) >= 8 do
+  defp reverted_reason(call) do
+    case revert_data(call) do
+      "0x" <> selector when byte_size(selector) >= 8 ->
+        error_reason("0x" <> binary_part(selector, 0, 8))
+
+      _none ->
+        :settlement_reverted
+    end
+  end
+
+  defp error_reason(selector) do
     Enum.find_value(@errors, :settlement_reverted, fn {signature, reason} ->
-      if LabAbi.selector(signature) == "0x" <> binary_part(selector, 0, 8), do: reason
+      if LabAbi.selector(signature) == selector, do: reason
     end)
   end
 
-  defp reverted_reason(_call), do: :settlement_reverted
+  # Base and Robinhood nodes return a refused call's error in `error.data`;
+  # an anvil fork returns it as the call's `returnData`.
+  defp revert_data(%{"error" => %{"data" => data}}) when is_binary(data), do: data
+  defp revert_data(%{"returnData" => data}), do: data
+  defp revert_data(_call), do: nil
 
   defp returned_bool(%{"status" => "0x1", "returnData" => data}) do
     with {:ok, [word]} <- LabAbi.decode_words(data), do: {:ok, word != 0}
