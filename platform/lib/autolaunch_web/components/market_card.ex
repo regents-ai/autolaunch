@@ -70,7 +70,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   @doc """
   A gallery card. Every card reads, top to bottom: its ticker over its
   currency with its chain, its name, its price and one more figure, the
-  creator's links and the start of its description.
+  creator's links.
 
   An auction's card shows only its clearing price up top, then has a
   figures row (the bid volume and launch threshold on hover or keyboard
@@ -99,7 +99,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} fallback="-" /><span>Clearing price</span>
       </div>
       <.card_links view={@view} />
-      <p class="home-coin__description">{excerpt(@view.description)}</p>
       <div class="home-coin__figures">
         <div class="home-coin__raise">
           <p>
@@ -107,6 +106,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
             <.info_tip id={"volume-#{@figures.id}"} text={tip(:volume)} icon={false}>
               {@figures.volume}
             </.info_tip>
+            <span :if={@figures.met}> · {if @figures.met >= 100,
+              do: "met",
+              else: "#{@figures.met}% met"}</span>
           </p>
           <p>
             <span>Launch threshold</span>
@@ -114,7 +116,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
               {@figures.threshold}
             </.info_tip>
           </p>
-          <p :if={@figures.met}>{@figures.met}% met</p>
         </div>
         <p class="home-coin__floor">
           <span class="visually-hidden">FDV </span><.info_tip
@@ -211,7 +212,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </div>
       <p class="home-coin__figure">Market cap: <span>{@market_cap}</span></p>
       <.card_links view={@view} />
-      <p class="home-coin__description">{excerpt(@view.description)}</p>
       <div class="home-coin__actions">
         <.link
           navigate={@view.path}
@@ -1007,19 +1007,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       short: short_address(address),
       url: BidPlaced.address_url(if(chain == "Robinhood", do: :robinhood, else: :base), address)
     }
-
-  # The first hundred characters, cut after a whole word where there is one.
-  defp excerpt(text) do
-    text = String.trim(text)
-
-    if String.length(text) <= 100 do
-      text
-    else
-      head = String.slice(text, 0, 101)
-      words = String.replace(head, ~r/\s*\S*\z/u, "")
-      String.trim_trailing(if(words == "", do: String.slice(head, 0, 100), else: words)) <> "…"
-    end
-  end
 
   defp view(:draft, values, connections) do
     %{
