@@ -6,6 +6,7 @@
 @import "./components/info_tip.css";
 @import "./components/share_dialog.css";
 @import "./components/signed_in_wallet.css";
+@import "./components/token_heading.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";
 @import "./shell/top_bar.css";

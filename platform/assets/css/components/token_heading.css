@@ -1,0 +1,17 @@
+/* A token page's heading: the pair it trades as, its copyable address and its trade and chart links. */
+.token-heading__pair { color: var(--color-fg-muted); white-space: nowrap; }
+.token-heading__links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.token-heading__copy { position: relative; display: inline-flex; align-items: center; gap: .4rem; margin: 0; padding: .5rem .25rem; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.token-heading__copy:hover .regent-token-menu__copy-icon, .token-heading__copy.is-copied .regent-token-menu__copy-icon { opacity: 1; }
+.token-heading__copy.is-copied .regent-token-menu__toast { opacity: 1; transform: translateY(0); }
+.token-heading__link { display: inline-flex; align-items: center; gap: .45rem; }
+.token-heading__icon { width: 1.15em; height: 1.15em; flex: none; }
+.token-heading__dexscreener {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1.15em;
+  background: currentColor;
+  -webkit-mask: url("/images/dexscreener-mark.png") center / contain no-repeat;
+  mask: url("/images/dexscreener-mark.png") center / contain no-repeat;
+}

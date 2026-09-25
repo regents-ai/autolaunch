@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.TokenLive do
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PoolSection
   import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.TokenHeading
 
   alias Autolaunch.Lab
   alias Autolaunch.Pool
@@ -77,9 +78,13 @@ defmodule AutolaunchWeb.TokenLive do
     >
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>
-        <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{record_label(:token, @page_record)}</h1>
-        </Regent.Structure.section_bar>
+        <.token_heading
+          name={@presentation.name}
+          symbol={@presentation.symbol}
+          currency={SwapComponent.entry_symbol(@page_record.auction)}
+          chain_id={@page_record.auction.chain_id}
+          pool={if(@pool.ok?, do: @pool.result)}
+        />
       </header>
       <.detail_card
         kind={:token}

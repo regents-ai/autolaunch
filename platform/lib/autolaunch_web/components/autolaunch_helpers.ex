@@ -120,11 +120,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def record_label(:auction, record), do: record.title
 
-  def record_label(:token, record) do
-    presentation = Token.presentation(record)
-    "#{presentation.name} · #{presentation.symbol}"
-  end
-
   def connections_for(%{creator_human_account_id: id}, grouped) when is_integer(id),
     do: Map.get(grouped, id, %{})
 

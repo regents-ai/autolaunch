@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.TokenHeading
 
   alias Autolaunch.Robinhood.{Lab, Pool}
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
@@ -67,9 +68,13 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     <article :if={@open? && @token} id="autolaunch-robinhood-token" class="autolaunch-page">
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>
-        <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{@token.name} · {@token.symbol}</h1>
-        </Regent.Structure.section_bar>
+        <.token_heading
+          name={@token.name}
+          symbol={@token.symbol}
+          currency={@token.auction.quote_token_symbol}
+          chain_id={@token.auction.chain_id}
+          pool={if(@pool.ok?, do: @pool.result)}
+        />
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
