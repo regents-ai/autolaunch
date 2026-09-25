@@ -28,7 +28,7 @@ the API, the CLI and these tools:
 | `kind` | `all`, `revstake` (entries with kind `agent`), `memestake` (entries with kind `stocks`) | auctions, tokens |
 | `x`, `ens`, `github` | `true` keeps only creators verified on that account; several must all hold | auctions, tokens |
 
-The API refuses an unknown parameter, a repeated or list-shaped one, or a value outside
+The API refuses an unknown parameter, a list-shaped one (`kind[]=`), or a value outside
 these with a 400 `invalid_request`; the tools refuse them first as `invalid_input`.
 Booleans are JSON booleans in the tools and exactly `true` or `false` in the API. List limits are safe JavaScript integers. The API
 clamps auction limits to 1–50 and token limits to 1–100; the adapter does not clamp.
