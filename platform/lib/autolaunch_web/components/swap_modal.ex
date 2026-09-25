@@ -66,10 +66,13 @@ defmodule AutolaunchWeb.Components.SwapModal do
       }
   end
 
-  @doc "Whether a launched token, with its auction loaded, can be swapped from this site."
-  def tradable?(%{auction: auction}) do
+  @doc """
+  Whether a launched token, with its auction loaded, can be swapped from this
+  site; `robinhood_swap?` is `RobinhoodLab.swap_configured?/0`, read once by the page.
+  """
+  def tradable?(%{auction: auction}, robinhood_swap?) do
     if RobinhoodLab.chain?(auction.chain_id),
-      do: RobinhoodLab.swap_configured?(),
+      do: robinhood_swap?,
       else: not is_nil(SwapComponent.entry_symbol(auction))
   end
 

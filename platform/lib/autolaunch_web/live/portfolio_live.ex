@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   import AutolaunchWeb.Components.SwapModal
 
   alias Autolaunch.AuctionBook
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
@@ -50,6 +51,7 @@ defmodule AutolaunchWeb.PortfolioLive do
        robinhood_positions: :loading,
        books: %{},
        dialog: nil,
+       robinhood_swap?: RobinhoodLab.swap_configured?(),
        market: LabMarket.subscribe(socket)
      )
      |> assign_figure_rates()
@@ -301,6 +303,7 @@ defmodule AutolaunchWeb.PortfolioLive do
               }
               id={"portfolio-token-#{index}"}
               holding={holding}
+              robinhood_swap?={@robinhood_swap?}
               opens={@opens}
             />
             <tbody :if={@token_holdings == :loading}>
@@ -516,6 +519,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   attr :id, :string, required: true
   attr :holding, :map, required: true, doc: "a token from `Autolaunch.TokenHoldings`"
+  attr :robinhood_swap?, :boolean, required: true
   attr :opens, :string, default: nil
 
   # One token the wallets hold or stake: its list row, then its page, Buy and
@@ -529,7 +533,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         token: token,
         path: token && Paths.token(token.auction),
         image: token && Token.presentation(token).image,
-        tradable?: token && tradable?(token)
+        tradable?: token && tradable?(token, assigns.robinhood_swap?)
       )
 
     ~H"""
