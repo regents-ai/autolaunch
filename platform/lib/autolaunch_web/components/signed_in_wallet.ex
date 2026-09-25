@@ -66,6 +66,7 @@ defmodule AutolaunchWeb.SignedInWallet do
     ~H"""
     <p :if={@other} class="signed-in-wallet-note" role="status">
       You're signed in as {short(@signed_in)} but your wallet is on {short(@other)}.
+      Switch your wallet to {short(@signed_in)}, then press again.
     </p>
     """
   end

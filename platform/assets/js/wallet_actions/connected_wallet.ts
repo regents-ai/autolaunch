@@ -41,14 +41,27 @@ export function signerWalletOrConnect(signer: string): SelectedWallet | null {
 }
 
 /**
- * Every connected Ethereum wallet, Privy's selected one first. Panels are told
- * this only to name the browser's wallet beside their buttons when it is not the
- * signed-in one; it never chooses the wallet a panel acts for.
+ * The account each connected Ethereum wallet is on right now, Privy's selected
+ * one first. A browser wallet holding several accounts is on only one of them,
+ * whatever Privy has connected. Panels are told this only to name the browser's
+ * wallet beside their buttons when it is not the signed-in one; it never
+ * chooses the wallet a panel acts for.
  */
-export function connectedAddresses(): string[] {
+export async function currentAddresses(): Promise<string[]> {
   const testWallet = testEthereumWallet()
-  if (testWallet) return [testWallet.address.toLowerCase()]
-  return [...new Set([...(selectedAddress ? [selectedAddress] : []), ...connectedWallets.keys()])]
+  const listed = testWallet
+    ? [testWallet.address.toLowerCase()]
+    : [...new Set([...(selectedAddress ? [selectedAddress] : []), ...connectedWallets.keys()])]
+  const current = await Promise.all(
+    listed.map(address => currentAccount(connectedEthereumWallet(address)?.provider)),
+  )
+  return [...new Set(current.flatMap(address => (address ? [address] : [])))]
+}
+
+/** The account a wallet is on, lowercase, or null when it does not say. */
+export async function currentAccount(provider: EthereumProvider | undefined): Promise<string | null> {
+  const accounts = await provider?.request({method: "eth_accounts"}).catch(() => null)
+  return Array.isArray(accounts) && typeof accounts[0] === "string" ? accounts[0].toLowerCase() : null
 }
 
 /**

@@ -1,4 +1,4 @@
-import {connectedEthereumWallet, signerWalletOrConnect, type SelectedWallet} from "../wallet_actions/connected_wallet"
+import {connectedEthereumWallet, currentAccount, signerWalletOrConnect, type SelectedWallet} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_bids"
 
 // `send` names the step to press at once: the server built this review to answer a press.
@@ -12,7 +12,8 @@ type Hook = {el: HTMLElement; handleEvent(name: string, callback: (payload: any)
  * its authorization. Nothing is kept in the browser: a reload starts from the
  * server's own record and never replays a report or a send. A press sends from
  * the review's signer, the signed-in wallet, as this tab has it connected; when
- * it is not connected here, the press opens Privy's connect step instead. */
+ * it is not connected here, the press opens Privy's connect step instead, and
+ * when the wallet is on another account, the panel names that account. */
 export function installWalletPresses<O extends Review>(hook: Hook, config: {
   prefix: string; selector: string;
   send(operation: O, step: string, started: () => void, resolveWallet: () => SelectedWallet | null): Promise<string>;
@@ -77,9 +78,10 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     if (!selected) return
     const pending = {operation: held, step, sent: false, selected: {...selected}, invalid: false}
     presses.set(pressId, pending)
-    const accounts = await selected.provider.request({method: "eth_accounts"}).catch(() => null)
-    if (!Array.isArray(accounts) || typeof accounts[0] !== "string" || accounts[0].toLowerCase() !== held.signer.toLowerCase()) {
-      window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
+    // A wallet on another of its accounts cannot send for the signer: the panel
+    // reads the wallets again and names that account beside the button.
+    if ((await currentAccount(selected.provider)) !== held.signer.toLowerCase()) {
+      window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
       return
     }
     if (!resolve(pending)) return
