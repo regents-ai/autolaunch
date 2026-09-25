@@ -465,7 +465,6 @@ defmodule Autolaunch.Token do
       image: field(auction, :image),
       image_color: field(auction, :image_color),
       website: field(auction, :website),
-      telegram: field(auction, :telegram),
       auction_address: field(auction, :auction_address)
     }
   end

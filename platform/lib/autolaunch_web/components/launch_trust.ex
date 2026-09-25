@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         wallet: auction.creator_address,
         accounts: accounts(assigns.connections),
         website: MarketCard.web_link(auction.website),
-        telegram: MarketCard.telegram_link(auction.telegram),
+        telegram: telegram_link(auction.telegram),
         contracts: contracts(auction, assigns.pool),
         split: split(auction.kind),
         supply: supply(auction.token_supply),
@@ -232,6 +232,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   # Each account kind the creator could connect, with the matching accounts
   # or nil for a kind they have not connected; Company X only when there is one.
+  # A creator's Telegram community as a link and its t.me label.
+  defp telegram_link("https://" <> label = url), do: %{url: url, label: label}
+  defp telegram_link(_url), do: nil
+
   defp accounts(nil), do: nil
 
   defp accounts(connections) do
