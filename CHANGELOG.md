@@ -3,6 +3,39 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v32, 25 September 2026 (8eb7841)
+
+### Sharing
+- Auction and token pages have readable addresses, such as `/auctions/BITE/80be8`: the ticker,
+  then the last five characters of the auction's address. Old links, including ones already
+  posted on X, go to the new address.
+- Each auction and token has its own share picture: its image, name, ticker, chain, a price line,
+  and the FDV with the time left (or the price, once trading). X shows it large under the post.
+- "Share on X" after a bid or a stake opens a window with the post to edit, the picture X will
+  show, and "Open X to share". Nothing is posted until you post it on X.
+
+### Portfolio
+- The portfolio takes the create page's look: no diamond headings or dotted lines.
+- Your bids and your tokens are rows like the auctions list, each with a small picture, the name
+  in white and the ticker with its pair in orange, such as `BITE / AAPLc`.
+- Under each bid: Auction (or Token once it has launched), Withdraw or Claim tokens when the
+  auction allows it, and Bid more while bidding is open. Under each token: Token, Buy, Sell and
+  Stake. Each opens the same window the auction and token pages use.
+- A withdraw note now shows only under a bid that is outbid, not under every open bid.
+- Past bids are folded under "Past bids".
+
+### Fixes
+- Bid, withdraw and Buy/Sell windows stay open while prices update behind them; before, an
+  update could close them.
+- Finishing a Buy or Sell from a home page card no longer breaks the home page.
+- The bottom ticker's Robinhood trades are read from where each auction starts, and one shared
+  reader feeds every open page.
+
+### For agents
+- The API, CLI and browser tools list auctions and tokens with the website's own search,
+  filters and sort, and each auction carries its page address, time left, amounts raised and
+  how much of its minimum is met.
+
 ## v31, 25 September 2026 (972b492)
 - After you launch a memestock, "Launch memestock" starts from an empty form instead of showing
   the token you just launched.
