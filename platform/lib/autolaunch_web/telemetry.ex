@@ -16,9 +16,9 @@ defmodule AutolaunchWeb.Telemetry do
       the safe head at the start of each pass, the other two their new cursor
       with the latest head after each committed pass.
     * `[:autolaunch, :jobs, :oldest_unfinished]` — `age_ms` of the oldest
-      available, running or retrying background job in `queue`, 0 when there
-      is none, every ten seconds while background jobs run. A paused queue
-      keeps its jobs waiting on purpose.
+      available, running or retrying background job in each running `queue`,
+      0 when there is none, every ten seconds while background jobs run. A
+      paused queue keeps its jobs waiting on purpose, so it is not measured.
     * `[:autolaunch, :rpc, :failure]` — `count` 1 for each chain request that
       got no answer, by `method`, `class`, `chain_id` and `scope`.
     * `[:autolaunch, :repo, :query]` — Ecto's own event per query, whose
@@ -134,8 +134,12 @@ defmodule AutolaunchWeb.Telemetry do
       Logger.warning("background job age not measured: #{Exception.message(error)}")
   end
 
+  # Only running queues are measured: a paused queue (the finishing queue
+  # while the finisher is off) holds its jobs on purpose, and its age would
+  # only grow.
   defp measure_oldest_unfinished_jobs do
-    %{prefix: prefix, queues: queues} = Oban.config()
+    %{prefix: prefix} = Oban.config()
+    running = for %{queue: queue, paused: false} <- Oban.check_all_queues(), do: queue
 
     oldest =
       from(j in Oban.Job,
@@ -149,9 +153,9 @@ defmodule AutolaunchWeb.Telemetry do
 
     now = DateTime.utc_now()
 
-    for {queue, _limit} <- queues do
+    for queue <- running do
       age_ms =
-        case oldest[to_string(queue)] do
+        case oldest[queue] do
           nil -> 0
           inserted_at -> DateTime.diff(now, inserted_at, :millisecond)
         end
