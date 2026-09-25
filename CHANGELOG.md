@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v39, 25 September 2026 (b63a7e4)
+- Your bids: clicking the name opens the page, so the Token button is gone. The Action column
+  shows Withdraw, then Claim once the tokens can be claimed, then Completed.
+- "Launched" reads "Graduated" again everywhere, including the Status column.
+- The bid settlement card follows the current design: a status label, ruled rows of figures and
+  one clear button.
+- Token pages show staking right under the token info: a meter of how much of the supply is
+  staked, and the pool's trading fees for the last 24 hours and all time.
+
 ## v38, 25 September 2026 (0a06f51)
 - A Robinhood token's Uniswap Pool button opens its pool on Uniswap.
 
