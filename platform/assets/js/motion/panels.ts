@@ -5,10 +5,10 @@
  * `AutolaunchWeb.Motion`. A menu closes at once; a dialog closed with a mouse
  * or finger sinks away first.
  */
-import {animate, spring, utils, type AnimationParams, type JSAnimation} from "animejs"
-import {BASE, SLOW, moved} from "./shared"
+import {spring, type AnimationParams} from "animejs"
+import {BASE, SLOW, halt, moved, play} from "./shared"
 
-type Version = {away: AnimationParams; open: AnimationParams}
+type Version = {away: Record<string, number>; open: AnimationParams}
 
 const PANELS: Record<string, Record<string, Version>> = {
   menu: {
@@ -24,39 +24,18 @@ const CLOSE: AnimationParams = {duration: BASE, ease: "in(3)"}
 // Where a panel rests when it is open: no offset, full size. Opening names
 // both ends, so the page's own styling is all that is left once it ends.
 const REST: Record<string, number> = {x: 0, y: 0, scale: 1, opacity: 1}
-const arrive = (away: AnimationParams) =>
+const arrive = (away: Record<string, number>) =>
   Object.fromEntries(Object.entries(away).map(([key, from]) => [key, {from, to: REST[key]}]))
 
 const version = (el: HTMLElement) => PANELS[el.dataset.panel!][el.dataset.variant!]
-
-const moving = new WeakMap<Element, JSAnimation>()
-
-// A panel moved again mid-move is first put back at rest.
-function move(el: HTMLElement, params: AnimationParams): void {
-  halt(el)
-  moving.set(el, animate(el, params))
-}
-
-function halt(el: HTMLElement): void {
-  const animation = moving.get(el)
-  if (animation === undefined) return
-  animation.pause()
-  utils.cleanInlineStyles(animation)
-  moving.delete(el)
-}
 
 // The panel has just opened. The backdrop behind a dialog fades in while
 // `data-opening` is set.
 export function openPanel(el: HTMLElement): void {
   const {away, open} = version(el)
   el.dataset.opening = ""
-  move(el, {
-    ...arrive(away),
-    ...open,
-    onComplete: (animation: JSAnimation) => {
-      utils.cleanInlineStyles(animation)
-      delete el.dataset.opening
-    },
+  play(el, {...arrive(away), ...open}).then(() => {
+    delete el.dataset.opening
   })
 }
 
@@ -71,13 +50,8 @@ export function closeDialog(dialog: HTMLDialogElement): void {
     return
   }
   dialog.dataset.closing = ""
-  move(dialog, {
-    ...version(dialog).away,
-    ...CLOSE,
-    onComplete: (animation: JSAnimation) => {
-      utils.cleanInlineStyles(animation)
-      delete dialog.dataset.closing
-      dialog.close()
-    },
+  play(dialog, {...version(dialog).away, ...CLOSE}).then(() => {
+    delete dialog.dataset.closing
+    dialog.close()
   })
 }

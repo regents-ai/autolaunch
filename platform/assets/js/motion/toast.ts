@@ -3,8 +3,8 @@
  * through or an address being copied. It is the answer to what the reader
  * did, so it moves however they asked, unless they asked for less motion.
  */
-import {animate, createScope, spring, utils, type AnimationParams, type JSAnimation, type Scope} from "animejs"
-import {BASE, still} from "./shared"
+import {createScope, spring, type AnimationParams, type Scope} from "animejs"
+import {BASE, play, still} from "./shared"
 
 type Version = {enter: AnimationParams; leave: AnimationParams}
 
@@ -15,26 +15,19 @@ const TOASTS: Record<string, Version> = {
   },
 }
 
-const tidy = (animation: JSAnimation) => { utils.cleanInlineStyles(animation) }
-
 export function popIn(el: HTMLElement): void {
-  if (!still()) animate(el, {...TOASTS[el.dataset.variant!].enter, onComplete: tidy})
+  if (!still()) play(el, TOASTS[el.dataset.variant!].enter)
 }
 
 // `gone` puts the page back as it is without the note; it runs once the note
-// has left, or at once with less motion.
+// has left, or at once with less motion. A note brought back before it has
+// left stays.
 export function popOut(el: HTMLElement, gone: () => void): void {
   if (still()) {
     gone()
     return
   }
-  animate(el, {
-    ...TOASTS[el.dataset.variant!].leave,
-    onComplete: (animation: JSAnimation) => {
-      gone()
-      utils.cleanInlineStyles(animation)
-    },
-  })
+  play(el, TOASTS[el.dataset.variant!].leave).then(gone)
 }
 
 type ToastHook = {el: HTMLElement; scope?: Scope}
