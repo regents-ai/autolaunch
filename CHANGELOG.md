@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v46, 26 September 2026 (6046ba5)
+- Reading from the blockchain no longer prints an outdated-setting notice on every request
+  (about 9 a second before), and the server log is quiet again. Connection behaviour is
+  unchanged.
+
 ## v45, 26 September 2026 (fedde03)
 - Pressing a button, opening a menu or copying the address again while its animation is still
   playing no longer leaves it stuck half-faded or half-sized; every animation finishes cleanly.
