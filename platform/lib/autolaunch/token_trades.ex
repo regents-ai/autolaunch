@@ -45,19 +45,29 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
+  # Notifications raised inside a transaction are sent once it commits.
   defp claim do
     Repo.transaction(fn ->
       case Token |> Ash.Query.for_read(:trades_due, %{}, actor: @actor) |> Ash.read!() do
         [] ->
-          nil
+          {nil, []}
 
         [token] ->
           Ash.update!(token, %{trades_due_at: DateTime.add(DateTime.utc_now(), 60)},
             action: :schedule_trades,
-            actor: @actor
+            actor: @actor,
+            return_notifications?: true
           )
       end
     end)
+    |> case do
+      {:ok, {token, notifications}} ->
+        Ash.Notifier.notify(notifications)
+        {:ok, token}
+
+      error ->
+        error
+    end
   end
 
   def refresh(token) do
@@ -303,18 +313,21 @@ defmodule Autolaunch.TokenTrades do
           return_notifications?: true
         )
 
-      Ash.update!(
-        current,
-        %{
-          trades_next_block: last + 1,
-          trades_last_hash: hash,
-          trades_due_at: DateTime.add(DateTime.utc_now(), if(complete?, do: 5, else: 1))
-        },
-        actor: @actor,
-        action: :refresh_trades
-      )
+      {_token, refreshed} =
+        Ash.update!(
+          current,
+          %{
+            trades_next_block: last + 1,
+            trades_last_hash: hash,
+            trades_due_at: DateTime.add(DateTime.utc_now(), if(complete?, do: 5, else: 1))
+          },
+          actor: @actor,
+          action: :refresh_trades,
+          return_notifications?: true
+        )
 
-      Enum.filter(notifications, &(&1.data.block_number >= (token.trades_next_block || 0)))
+      Enum.filter(notifications, &(&1.data.block_number >= (token.trades_next_block || 0))) ++
+        refreshed
     end)
     |> case do
       {:ok, notifications} ->
@@ -337,12 +350,17 @@ defmodule Autolaunch.TokenTrades do
         current,
         %{trades_next_block: nil, trades_last_hash: nil, trades_due_at: DateTime.utc_now()},
         actor: @actor,
-        action: :refresh_trades
+        action: :refresh_trades,
+        return_notifications?: true
       )
     end)
     |> case do
-      {:ok, _token} -> :ok
-      error -> error
+      {:ok, {_token, notifications}} ->
+        Ash.Notifier.notify(notifications)
+        :ok
+
+      error ->
+        error
     end
   end
 

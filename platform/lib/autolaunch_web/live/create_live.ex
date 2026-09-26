@@ -81,11 +81,6 @@ defmodule AutolaunchWeb.CreateLive do
   # Signed out there is no socials panel to refresh.
   def handle_event("refresh_x_connections", _params, socket), do: {:noreply, socket}
 
-  def handle_event(event, _params, socket)
-      when event in ["create_launch_draft", "revise_launch_draft"] do
-    {:noreply, socket}
-  end
-
   def handle_event(event, params, socket) when event in @autosave_events,
     do: handle_draft_event(event, params["launch_draft"] || %{}, socket)
 

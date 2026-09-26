@@ -160,6 +160,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               session_lease={@session_lease}
               optional
             />
+            <p :if={!@current_human_id} class="memestock__hint">
+              After you sign in, you can connect X, GitHub or ENS to show on your auction and token.
+            </p>
 
             <form
               id="stocks-terms"

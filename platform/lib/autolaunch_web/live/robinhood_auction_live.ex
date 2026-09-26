@@ -67,7 +67,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       )
 
     ~H"""
-    <article :if={@open? && @launch} id="autolaunch-robinhood-auction" class="autolaunch-page">
+    <article
+      :if={@open? && @launch}
+      id="autolaunch-robinhood-auction"
+      class="autolaunch-page auction-page"
+    >
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
@@ -195,18 +199,28 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           <div>
             <dt>Minimum to graduate</dt>
             <dd>
-              {required(@launch)} {@launch.quote_token_symbol}
+              <AutolaunchWeb.TokenDisplay.price
+                amount={required(@launch)}
+                unit={@launch.quote_token_symbol}
+              />
               <UsdValue.usd amount={required(@launch)} rate={@usd_rate} />
             </dd>
           </div>
           <div>
             <dt>Bids are paid in</dt>
-            <dd>USDG, converted into {@launch.quote_token_symbol} inside each bid</dd>
+            <dd>
+              <span class="ticker">USDG</span>, converted into
+              <span class="ticker">{@launch.quote_token_symbol}</span>
+              inside each bid
+            </dd>
           </div>
           <div :if={@reading}>
             <dt>{raised_label(@launch)}</dt>
             <dd>
-              {@reading.currency_raised} {@launch.quote_token_symbol}
+              <AutolaunchWeb.TokenDisplay.price
+                amount={@reading.currency_raised}
+                unit={@launch.quote_token_symbol}
+              />
               <UsdValue.usd amount={@reading.currency_raised} rate={@usd_rate} />
             </dd>
           </div>

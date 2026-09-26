@@ -16,7 +16,8 @@ defmodule AutolaunchWeb.Components.StepState do
     "Cancelled" => "error",
     "Expired" => "error",
     "Reverted" => "error",
-    "Unresolved" => "warning"
+    "Unresolved" => "warning",
+    "Out of date" => "warning"
   }
 
   attr :state, :string, required: true

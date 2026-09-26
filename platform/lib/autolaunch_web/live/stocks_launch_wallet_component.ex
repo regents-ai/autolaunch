@@ -13,6 +13,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   use AutolaunchWeb, :live_component
 
+  import AutolaunchWeb.Components.StepState
+
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.{Amounts, Lab, LaunchActions}
   alias AutolaunchWeb.{Paths, SignedInWallet, WalletPressComponent}
@@ -176,7 +178,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
           <li :for={step <- LaunchActions.steps(@operation)} data-step={step["step"]}>
             <span>{step_label(step["step"])}</span>
-            <span class="launch-wallet-step-state">{step_state(@operation, step["step"])}</span>
+            <.step_state state={step_word(@operation, step["step"])} />
             <span
               :if={LaunchActions.step_hash(@operation, step["step"])}
               class="launch-wallet-mono"
@@ -422,7 +424,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp step_label("launch"), do: "Create the launch"
 
   # Where the sequence has got to, read from the operation's own step and state.
-  defp step_state(%{step: step} = operation, step_name) do
+  defp step_word(%{step: step} = operation, step_name) do
     cond do
       Atom.to_string(step) == step_name -> current_state(operation.state)
       LaunchActions.step_hash(operation, step_name) -> "Verified"

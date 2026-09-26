@@ -12,7 +12,7 @@
     },
     "regent_ui": {
       "repository": "https://github.com/regents-ai/design-system",
-      "revision": "5dd0d0a0a41faea131c18a44cb60388c662d3337",
+      "revision": "a64ec86721a171faea39ae525a9478daa1f66847",
       "path": "regent_ui"
     },
     "regent_blog": {

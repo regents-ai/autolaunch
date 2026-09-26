@@ -54,7 +54,6 @@
 .bid-mono, .subject-wallet-mono, .launch-wallet-mono { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
 .bid-steps, .subject-wallet-steps, .launch-wallet-steps { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
 :is(.bid-steps, .subject-wallet-steps, .launch-wallet-steps) li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); border-bottom: 1px solid var(--hairline); min-width: 0; }
-.launch-wallet-step-state { font-size: .8125rem; }
 :where(.bid-notice, .bid-settled, .subject-wallet-hint, .subject-wallet-share, .subject-wallet-notice, .subject-wallet-settled, .launch-wallet-hint, .launch-wallet-risk, .launch-wallet-notice, .launch-wallet-settled) { margin: 0; padding: var(--space-2); border-left: 3px solid var(--hairline-strong); overflow-wrap: anywhere; }
 :is(.bid-notice, .subject-wallet-notice, .launch-wallet-notice)[role="alert"] { border-left-color: var(--color-error); }
 .treasury-security, .treasury-verification { padding: var(--space-3); border-block: 1px solid var(--hairline); }

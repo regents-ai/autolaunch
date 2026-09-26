@@ -900,7 +900,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <p class="market-identity__symbol">${@view.symbol}</p>
         <div class="market-identity__meta">
           <.chain_chip chain={@view.chain} label={@view.chain} />
-          <span class={graduated(@status || @view.status)}>{@status || @view.status}</span>
+          <Regent.Primitives.status
+            tone={state_tone(@status || @view.status)}
+            class={graduated(@status || @view.status)}
+          >
+            {@status || @view.status}
+          </Regent.Primitives.status>
           <span :if={@view.age}>{@view.age}</span>
         </div>
         <div class="market-identity__price">
@@ -1167,6 +1172,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp graduated("Graduated"), do: "market-graduated"
   defp graduated(_status), do: nil
+
+  # A coin's state as a chip: live bidding and a graduation stand out, a
+  # failure reads as an error, every other state stays plain.
+  defp state_tone("Live"), do: "info"
+  defp state_tone("Graduated"), do: "success"
+  defp state_tone("Failed"), do: "error"
+  defp state_tone(_status), do: "neutral"
 
   # `empty` is what the card shows while there is no figure.
   defp metric(amount, unit, empty),

@@ -122,7 +122,7 @@ defmodule AutolaunchWeb.AuctionLive do
     <article
       :if={@page_status == :ready && @page_record}
       id="autolaunch-auction-detail"
-      class="autolaunch-page"
+      class="autolaunch-page auction-page"
     >
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
@@ -336,7 +336,7 @@ defmodule AutolaunchWeb.AuctionLive do
           <div>
             <dt>Bids are paid in</dt>
             <dd>
-              {@page_record.quote_token_symbol}
+              <span class="ticker">{@page_record.quote_token_symbol}</span>
               <span :if={@page_record.quote_token_decimals}>
                 · {@page_record.quote_token_decimals} decimal places
               </span>

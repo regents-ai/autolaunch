@@ -14,6 +14,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   use AutolaunchWeb, :live_component
 
+  import AutolaunchWeb.Components.StepState
+
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
@@ -132,7 +134,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
           <li :for={step <- @review.steps} data-step={step["step"]}>
             <span>{step_label(step["step"])}</span>
-            <span class="launch-wallet-step-state">{step_state(@sent[step["step"]])}</span>
+            <.step_state state={step_word(@sent[step["step"]])} />
             <span
               :if={@sent[step["step"]]}
               class="launch-wallet-mono"
@@ -400,11 +402,11 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp step_label("launch"), do: "Create the launch"
 
-  defp step_state(nil), do: "Ready"
-  defp step_state(%{outcome: :pending}), do: "Sent"
-  defp step_state(%{outcome: :confirmed}), do: "Verified"
-  defp step_state(%{outcome: :reverted}), do: "Reverted"
-  defp step_state(%{outcome: :unverified}), do: "Unresolved"
+  defp step_word(nil), do: "Ready"
+  defp step_word(%{outcome: :pending}), do: "Sent"
+  defp step_word(%{outcome: :confirmed}), do: "Verified"
+  defp step_word(%{outcome: :reverted}), do: "Reverted"
+  defp step_word(%{outcome: :unverified}), do: "Unresolved"
 
   defp outcome_notice(:pending),
     do: %{tone: :info, message: "Sent. Waiting for Robinhood to include it."}

@@ -134,6 +134,21 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             session_lease={@session_lease}
             notify
           />
+          <section
+            :if={!@current_human_id}
+            id="creator-connections"
+            class="creator-connections launchpad-form-section rg-panel rg-panel--surface"
+          >
+            <header>
+              <div>
+                <p class="autolaunch-kicker">Start Here</p>
+                <Regent.Structure.section_bar>
+                  <h2 class="rg-section-bar__label">Creator connections</h2>
+                </Regent.Structure.section_bar>
+              </div>
+            </header>
+            <p>After you sign in, connect X, GitHub or ENS to build trust with bidders.</p>
+          </section>
 
           <form
             id="launch-token-details"
@@ -173,12 +188,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
           <form
             id="launch-treasury-details"
-            phx-hook="AutolaunchLaunchDraft"
             phx-change="autosave_launch_treasury"
             phx-submit="autosave_launch_treasury"
             class="launchpad-form-section rg-panel rg-panel--surface rg-field"
-            data-saved-drafts={if(@active_draft, do: "1", else: "0")}
-            data-draft-errors={to_string(@draft_errors != %{})}
           >
             <header>
               <div>

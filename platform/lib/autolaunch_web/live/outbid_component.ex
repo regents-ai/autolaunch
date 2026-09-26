@@ -55,11 +55,15 @@ defmodule AutolaunchWeb.OutbidComponent do
       </p>
 
       <p :if={@standing == :settled} class="bid-position__status">
-        {display_status(@position.status)}
+        <Regent.Primitives.status tone="neutral">
+          {display_status(@position.status)}
+        </Regent.Primitives.status>
       </p>
 
       <p :if={@standing in [:in, :sharing]} class="bid-position__status">
-        {standing_label(@standing)}
+        <Regent.Primitives.status tone={if @standing == :in, do: "success", else: "warning"}>
+          {standing_label(@standing)}
+        </Regent.Primitives.status>
       </p>
 
       <.outbid_status
