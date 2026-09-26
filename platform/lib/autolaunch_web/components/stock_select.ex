@@ -66,7 +66,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
         id={"#{@id}-list"}
         class="stock-select__list"
         hidden
-        phx-mounted={JS.ignore_attributes(["hidden"])}
+        {AutolaunchWeb.Motion.panel("menu", ["hidden"])}
         phx-keydown={close(@id)}
         phx-key="Enter"
       >

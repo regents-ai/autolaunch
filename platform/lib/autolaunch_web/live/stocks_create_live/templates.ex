@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     ~H"""
     <header class="memestock__header">
       <h1>Launch memestock</h1>
-      <.link navigate="/create/revstake" class="memestock__alt">
+      <.link navigate="/create/revstake" class="memestock__alt" data-squish>
         Agentic Revenue Launch <span aria-hidden="true">→</span>
       </.link>
     </header>

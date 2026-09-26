@@ -26,6 +26,8 @@ import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
 import {installCopyAgentGuide} from "./copy_agent_guide"
+import {installMotion} from "./motion/page"
+import {Toast} from "./motion/toast"
 import {installOpeningCountdown} from "./opening_countdown"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
@@ -44,6 +46,7 @@ const hooks = {
   XConnections,
   CreatorConnections,
   HomeSearch,
+  Toast,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 
@@ -60,6 +63,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // this application calls, so the transport entry point is named at the cast.
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
+installMotion()
 installStaticMarketSearch()
 installRegentTokenMenu()
 installOpeningCountdown()

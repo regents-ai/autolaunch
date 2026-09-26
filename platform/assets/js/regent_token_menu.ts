@@ -1,3 +1,6 @@
+import {deny} from "./motion/press";
+import {popIn, popOut} from "./motion/toast";
+
 // Delegation survives LiveView patches and also serves ordinary HTML pages.
 // Native details/summary retains click, touch and keyboard operation without JS.
 export function installRegentTokenMenu(): void {
@@ -37,8 +40,9 @@ export function installRegentTokenMenu(): void {
     });
   });
 
-  // The $REGENT heading copies the contract address: green check and a fading
-  // "CA copied" toast for three seconds, then back to the copy glyph.
+  // The $REGENT heading copies the contract address: green check and a
+  // "CA copied" toast that pops in for three seconds, then back to the copy
+  // glyph. A copy the browser refuses shakes the button.
   const timers = new WeakMap<HTMLElement, number>();
   const restore = (button: HTMLElement) => {
     button.classList.remove("is-copied");
@@ -60,6 +64,7 @@ export function installRegentTokenMenu(): void {
     try {
       await navigator.clipboard.writeText(address);
     } catch {
+      deny(button);
       return;
     }
     const copyGlyph = button.querySelector<HTMLElement>("[data-copy-glyph]");
@@ -69,7 +74,16 @@ export function installRegentTokenMenu(): void {
     if (checkGlyph) checkGlyph.hidden = false;
     if (toast) toast.textContent = "CA copied";
     button.classList.add("is-copied");
+    if (toast) popIn(toast);
     window.clearTimeout(timers.get(button));
-    timers.set(button, window.setTimeout(() => restore(button), 3000));
+    // A copy made again while the toast leaves keeps the newer one showing.
+    const shown = window.setTimeout(() => {
+      const gone = () => {
+        if (timers.get(button) === shown) restore(button);
+      };
+      if (toast) popOut(toast, gone);
+      else gone();
+    }, 3000);
+    timers.set(button, shown);
   });
 }

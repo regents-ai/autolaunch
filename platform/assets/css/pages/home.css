@@ -45,7 +45,7 @@
 #home-explore .home-filter summary::-webkit-details-marker { display: none; }
 #home-explore .home-filter summary::after { content: ""; width: 6px; height: 6px; margin: -3px 0 0 2px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 #home-explore .home-filter__active { width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
-#home-explore .home-filter__panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 3; width: max-content; max-width: calc(100vw - 32px); max-height: min(70dvh, 420px); overflow-y: auto; overscroll-behavior: contain; display: grid; padding: 4px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; transform-origin: top right; }
+#home-explore .home-filter__panel { position: absolute; right: 0; top: calc(100% + 6px); transform-origin: top right; z-index: 3; width: max-content; max-width: calc(100vw - 32px); max-height: min(70dvh, 420px); overflow-y: auto; overscroll-behavior: contain; display: grid; padding: 4px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; transform-origin: top right; }
 #home-explore .home-filter__group { display: grid; padding: 4px 0; }
 #home-explore .home-filter__group + .home-filter__group { border-top: 1px solid var(--hairline); }
 #home-explore .home-filter__label { padding: 2px 8px 4px; color: var(--color-fg-muted); font-size: .6875rem; }
@@ -59,11 +59,6 @@
   #home-explore .home-sort a:not([aria-current]):hover, #home-explore .home-display a:not([aria-current]):hover, #home-explore .home-filter summary:hover { color: var(--color-fg); }
 }
 @media (pointer: coarse) { #home-explore .home-filter__option { min-height: 40px; } }
-@media (prefers-reduced-motion: no-preference) {
-  #home-explore .home-sort a, #home-explore .home-display a, #home-explore .home-filter summary, #home-explore .home-filter__option { transition: transform 120ms var(--ease-out); }
-  #home-explore .home-sort a:active, #home-explore .home-display a:active, #home-explore .home-filter summary:active, #home-explore .home-filter__option:active { transform: scale(.97); }
-  #home-explore .home-filter[open] .home-filter__panel { transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); @starting-style { opacity: 0; transform: translateY(-4px) scale(.97); } }
-}
 #home-explore .home-search-context { display: flex; flex-wrap: wrap; gap: 16px; margin: -8px 0 24px; font-size: .875rem; }
 #home-explore .home-coin-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 32px 18px; }
 #home-explore .home-coin-grid > * { display: block; grid-row: auto; min-width: 0; }
@@ -122,13 +117,13 @@
 #home-explore .home-coin__actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
 #home-explore .home-coin__action { min-height: 44px; padding: 4px; font-size: .8125rem; white-space: nowrap; overflow-wrap: normal; }
 #home-explore .home-coin__action.rg-button--secondary:is(:hover, :focus-visible) { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
-/* The buttons lift toward the pointer or keyboard focus and press in when pressed; still when motion is reduced. */
+/* The buttons lift toward the pointer or keyboard focus; still when motion is reduced. The lift moves `translate`,
+   so the press's squish, which moves `transform`, plays on top of it. */
 @media (prefers-reduced-motion: no-preference) {
-  #home-explore .home-coin__action { transition: transform var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
-  #home-explore .home-coin__action:focus-visible:not(:disabled) { transform: translateY(-2px); }
+  #home-explore .home-coin__action { transition: translate var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+  #home-explore .home-coin__action:focus-visible:not(:disabled) { translate: 0 -2px; }
 }
-@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { #home-explore .home-coin__action:hover:not(:disabled) { transform: translateY(-2px); } }
-@media (prefers-reduced-motion: no-preference) { #home-explore .home-coin__action:active:not(:disabled) { transform: scale(var(--active-scale)); } }
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { #home-explore .home-coin__action:hover:not(:disabled) { translate: 0 -2px; } }
 /* An auction's two bars at the foot of its card, always in the same place so every card keeps its height:
    how much of the launch threshold is met, only while it is not yet met, in a faint glowing white that turns green at its end;
    under it, how much of the auction's time has passed, in its chain's colour a little brighter than the chain's box. */

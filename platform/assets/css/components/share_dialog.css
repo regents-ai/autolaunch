@@ -1,7 +1,5 @@
 /* "Share on X": the button and the window it opens over a dimmed page
-   (`AutolaunchWeb.Components.ShareDialog`). The window grows in from just
-   under full size and leaves a little faster than it came; with reduced
-   motion it only fades. */
+   (`AutolaunchWeb.Components.ShareDialog`). */
 .share-x { display: grid; justify-items: start; min-width: 0; }
 .bid-placed__actions .share-x { justify-items: stretch; }
 
@@ -18,20 +16,6 @@
   overscroll-behavior: contain;
 }
 .share-x__dialog::backdrop { background: rgb(0 0 0 / .55); }
-.share-x__dialog[open] { animation: share-x-in 200ms var(--ease-out); }
-.share-x__dialog[open]::backdrop { animation: share-x-fade-in 200ms var(--ease-out); }
-.share-x__dialog[data-closing] { animation: share-x-out 140ms var(--ease-out) forwards; }
-.share-x__dialog[data-closing]::backdrop { animation: share-x-fade-out 140ms var(--ease-out) forwards; }
-
-@keyframes share-x-in { from { opacity: 0; transform: scale(.96); } }
-@keyframes share-x-out { to { opacity: 0; transform: scale(.96); } }
-@keyframes share-x-fade-in { from { opacity: 0; } }
-@keyframes share-x-fade-out { to { opacity: 0; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .share-x__dialog[open] { animation-name: share-x-fade-in; }
-  .share-x__dialog[data-closing] { animation-name: share-x-fade-out; }
-}
 
 .share-x__box { display: grid; gap: 12px; padding: 20px; }
 .share-x__title { margin: 0; font-size: 1.25rem; }

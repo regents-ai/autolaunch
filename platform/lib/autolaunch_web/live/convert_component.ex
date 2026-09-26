@@ -452,7 +452,13 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   defp convert_done(assigns) do
     ~H"""
-    <aside id={@id} class="token-swap__toast" role="status">
+    <aside
+      id={@id}
+      class="token-swap__toast"
+      role="status"
+      phx-hook="Toast"
+      data-variant={AutolaunchWeb.Motion.standard("toast")}
+    >
       <div>
         <strong>REGENT's share converted</strong>
         <p>

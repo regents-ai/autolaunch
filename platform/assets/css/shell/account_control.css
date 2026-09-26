@@ -14,7 +14,7 @@
 .account-menu__wallet { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--color-surface); background: var(--color-surface); }
 .account-menu__chevron { color: var(--color-fg-muted); transition: transform .15s ease; }
 .account-menu[open] .account-menu__chevron { transform: rotate(180deg); }
-.account-menu__panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 6; display: grid; min-width: 14rem; padding: var(--space-1) 0; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-elevated, var(--color-surface)); box-shadow: var(--shadow-md); }
+.account-menu__panel { position: absolute; top: calc(100% + 6px); right: 0; transform-origin: top right; z-index: 6; display: grid; min-width: 14rem; padding: var(--space-1) 0; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-elevated, var(--color-surface)); box-shadow: var(--shadow-md); }
 .account-menu__label { margin: 0; padding: var(--space-1) var(--space-2) var(--space-2); border-bottom: 1px solid var(--color-border); color: var(--color-fg-muted); font-size: .8125rem; overflow-wrap: anywhere; }
 .account-menu__item { display: flex; align-items: center; gap: var(--space-2); min-height: 2.75rem; padding: var(--space-1) var(--space-2); border: 0; background: transparent; color: var(--color-fg); font: inherit; font-weight: 600; text-decoration: none; text-align: left; cursor: pointer; }
 .account-menu__item:hover, .account-menu__item:focus-visible { background: var(--color-bg); outline: none; }

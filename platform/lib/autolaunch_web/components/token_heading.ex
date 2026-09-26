@@ -45,7 +45,13 @@ defmodule AutolaunchWeb.Components.TokenHeading do
             <.check_icon />
           </span>
         </span>
-        <span class="regent-token-menu__toast" data-copy-toast role="status" aria-live="polite"></span>
+        <span
+          class="regent-token-menu__toast"
+          data-copy-toast
+          data-variant={AutolaunchWeb.Motion.standard("toast")}
+          role="status"
+          aria-live="polite"
+        ></span>
       </button>
       <a
         :if={@network}

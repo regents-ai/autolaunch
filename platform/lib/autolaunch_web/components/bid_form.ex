@@ -140,7 +140,7 @@ defmodule AutolaunchWeb.Components.BidForm do
         phx-mounted={JS.ignore_attributes(["open"])}
       >
         <summary aria-label="How bidding works">?</summary>
-        <div class="bid-help__panel">{render_slot(@help)}</div>
+        <div class="bid-help__panel" {AutolaunchWeb.Motion.panel("menu")}>{render_slot(@help)}</div>
       </details>
     </header>
     """

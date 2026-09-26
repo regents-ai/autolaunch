@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.CreateLive do
           <Regent.Structure.section_bar>
             <h1 class="rg-section-bar__label">Agentic Revenue Launch</h1>
           </Regent.Structure.section_bar>
-          <.link navigate="/create" class="memestock__alt">
+          <.link navigate="/create" class="memestock__alt" data-squish>
             Launch memestock <span aria-hidden="true">→</span>
           </.link>
         </div>

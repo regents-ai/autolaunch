@@ -12,6 +12,7 @@
     "@solana-program/system": "0.14.1",
     "@solana-program/token": "0.16.1",
     "@solana/kit": "8.2.0",
+    "animejs": "4.5.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "vgpu": "0.4.0",

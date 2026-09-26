@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
       ><span class="rg-button__label">Follow on <.link_icon kind={:x} /></span></a>
       <details id="header-regent-menu" class="regent-token-menu" data-regent-token-menu>
         <summary aria-label="$REGENT links"><.source_icon kind={:regent} /></summary>
-        <div class="regent-token-menu__panel">
+        <div class="regent-token-menu__panel" {AutolaunchWeb.Motion.panel("menu")}>
           <nav class="regent-token-menu__content" aria-label="$REGENT">
             <button
               type="button"
@@ -51,7 +51,13 @@ defmodule AutolaunchWeb.Components.RegentLinks do
                   <.source_icon kind={:check} />
                 </span>
               </span>
-              <span class="regent-token-menu__toast" data-copy-toast role="status" aria-live="polite"></span>
+              <span
+                class="regent-token-menu__toast"
+                data-copy-toast
+                data-variant={AutolaunchWeb.Motion.standard("toast")}
+                role="status"
+                aria-live="polite"
+              ></span>
             </button>
             <a
               id="regent-buy"

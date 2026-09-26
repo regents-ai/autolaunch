@@ -13,8 +13,6 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   """
   use Phoenix.Component
 
-  alias Phoenix.LiveView.JS
-
   attr :id, :string, required: true
   attr :message, :string, required: true, doc: "the post the window starts with"
   attr :image, :string, required: true, doc: "the address of the page's share picture"
@@ -38,7 +36,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
         id={"#{@id}-dialog"}
         class="share-x__dialog"
         aria-labelledby={"#{@id}-title"}
-        phx-mounted={JS.ignore_attributes(["open", "data-closing"])}
+        {AutolaunchWeb.Motion.panel("dialog", ["open"])}
       >
         <div class="share-x__box">
           <h2 id={"#{@id}-title"} class="share-x__title">Share on X</h2>
@@ -81,17 +79,10 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const message = dialog.querySelector("[data-share-message]")
           const post = dialog.querySelector("[data-share-post]")
 
-          // The window plays its closing motion, then closes; with no motion
-          // running it closes at once. Opening X closes it at once, as the
-          // reader is leaving for X's tab.
-          const close = () => {
-            if (!dialog.open || "closing" in dialog.dataset) return
-            dialog.dataset.closing = ""
-            Promise.allSettled(dialog.getAnimations({subtree: true}).map((motion) => motion.finished)).then(() => {
-              delete dialog.dataset.closing
-              dialog.close()
-            })
-          }
+          // The page's motion closes the window, after its closing motion when
+          // it was closed with a mouse or finger. Opening X closes it at once,
+          // as the reader is leaving for X's tab.
+          const close = () => dialog.dispatchEvent(new CustomEvent("autolaunch:close-dialog", {bubbles: true}))
 
           this.el.addEventListener("click", (event) => {
             if (event.target.closest("[data-share-open]")) dialog.showModal()

@@ -429,8 +429,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         id="launch-no-connections-dialog"
         class="no-connections__dialog"
         aria-labelledby="launch-no-connections-title"
-        phx-hook=".OpenDialog"
-        phx-mounted={JS.ignore_attributes(["open"])}
+        {AutolaunchWeb.Motion.panel("dialog", ["open"])}
       >
         <form class="rg-field" phx-change="no_connections_typed" phx-submit="no_connections_confirmed">
           <h2 id="launch-no-connections-title">Launch without connections</h2>
@@ -458,14 +457,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           </div>
         </form>
       </dialog>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".OpenDialog">
-        export default {
-          mounted() {
-            this.el.addEventListener("autolaunch:open-dialog", () => this.el.showModal())
-            this.el.addEventListener("autolaunch:close-dialog", () => this.el.close())
-          }
-        }
-      </script>
     </div>
     """
   end

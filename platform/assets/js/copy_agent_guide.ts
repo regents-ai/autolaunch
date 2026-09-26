@@ -1,3 +1,5 @@
+import {deny} from "./motion/press"
+
 // "Copy to Agent" puts the whole agent guide on the clipboard. The clipboard
 // item is given the download itself, so the copy still counts as part of the
 // press in browsers that only allow copying during one.
@@ -24,6 +26,7 @@ export function installCopyAgentGuide(): void {
       label.textContent = "Copied"
     } catch {
       label.textContent = "Couldn't copy"
+      deny(button)
     }
     window.clearTimeout(timers.get(button))
     timers.set(button, window.setTimeout(() => (label.textContent = "Copy to Agent"), 3000))

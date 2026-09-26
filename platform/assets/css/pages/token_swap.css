@@ -36,6 +36,7 @@
   right: 0;
   z-index: 3;
   width: min(22rem, 100%);
+  transform-origin: top right;
   padding: var(--space-3);
   border: 1px solid var(--hairline-strong);
   background: var(--color-surface-elevated);
@@ -244,6 +245,7 @@
   top: var(--space-3);
   right: var(--space-3);
   z-index: 50;
+  transform-origin: top right;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;

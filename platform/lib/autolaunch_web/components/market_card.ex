@@ -375,7 +375,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
         >
           <summary>Verified</summary>
-          <fieldset>
+          <fieldset {AutolaunchWeb.Motion.panel("menu")}>
             <legend>Creator has verified</legend>
             <label :for={{key, label} <- [x: "X", ens: "ENS", github: "GitHub"]}>
               <input type="hidden" name={key} value="false" />

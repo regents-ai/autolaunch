@@ -55,7 +55,7 @@ defmodule AutolaunchWeb.Components.AccountControl do
             aria-hidden="true"
           ><path d="m6 9 6 6 6-6" /></svg>
         </summary>
-        <div class="account-menu__panel">
+        <div class="account-menu__panel" {AutolaunchWeb.Motion.panel("menu")}>
           <p class="account-menu__label">{@account_control.label}</p>
           <.link href="/profile" class="account-menu__item">
             <.menu_icon name={:profile} /> Profile

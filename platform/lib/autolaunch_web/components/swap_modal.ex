@@ -4,7 +4,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias AutolaunchWeb.SwapComponent
-  alias Phoenix.LiveView.JS
 
   attr :id, :string, required: true
   attr :token, :map, required: true, doc: "a launched token with its auction loaded"
@@ -25,7 +24,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      phx-mounted={JS.ignore_attributes(["open"])}
+      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
       data-record-id={@token.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"
@@ -88,7 +87,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      phx-mounted={JS.ignore_attributes(["open"])}
+      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
       data-record-id={@auction.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"
@@ -129,7 +128,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      phx-mounted={JS.ignore_attributes(["open"])}
+      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
       data-record-id={@auction.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"
@@ -173,7 +172,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      phx-mounted={JS.ignore_attributes(["open"])}
+      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
       data-record-id={@position.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"

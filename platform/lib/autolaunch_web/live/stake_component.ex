@@ -790,7 +790,13 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp stake_done(assigns) do
     ~H"""
-    <aside id={@id} class="token-swap__toast" role="status">
+    <aside
+      id={@id}
+      class="token-swap__toast"
+      role="status"
+      phx-hook="Toast"
+      data-variant={AutolaunchWeb.Motion.standard("toast")}
+    >
       <div>
         <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- done_lines(@done)}>{line}</p>

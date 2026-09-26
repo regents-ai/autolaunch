@@ -1,0 +1,6 @@
+/* The dim behind a dialog fades in while the dialog pops open and out while it
+   sinks away; the dialog itself moves from `assets/js/motion/panels.ts`. */
+[data-panel="dialog"][data-opening]::backdrop { animation: backdrop-in 200ms var(--ease-out) both; }
+[data-panel="dialog"][data-closing]::backdrop { animation: backdrop-out 200ms var(--ease-out) forwards; }
+@keyframes backdrop-in { from { opacity: 0; } }
+@keyframes backdrop-out { to { opacity: 0; } }

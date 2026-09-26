@@ -1,3 +1,5 @@
+import {closeDialog} from "../motion/panels"
+
 type SwapDialogHook = {
   el: HTMLDialogElement
   pushEvent(event: string, payload: {id: string}): void
@@ -21,16 +23,16 @@ export const AutolaunchSwapDialog = {
     }
     const onCancel = (event: Event) => {
       event.preventDefault()
-      this.el.close()
+      closeDialog(this.el)
     }
     const onClick = (event: MouseEvent) => {
       const target = event.target
       if (target instanceof Element && target.closest("[data-close-swap]")) {
-        this.el.close()
+        closeDialog(this.el)
       } else if (target === this.el) {
         const box = this.el.getBoundingClientRect()
         if (event.clientX < box.left || event.clientX > box.right ||
-            event.clientY < box.top || event.clientY > box.bottom) this.el.close()
+            event.clientY < box.top || event.clientY > box.bottom) closeDialog(this.el)
       }
     }
     this.el.addEventListener("close", onClose)

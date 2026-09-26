@@ -165,12 +165,10 @@
 .bid-panel { gap: 12px; }
 .bid-title { display: flex; align-items: center; gap: 8px; position: relative; }
 .bid-title h2 { margin: 0; font-size: 1.125rem; font-weight: 600; }
-.bid-help summary { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; line-height: 1; list-style: none; cursor: pointer; transition: transform 160ms var(--ease-out); }
+.bid-help summary { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; line-height: 1; list-style: none; cursor: pointer; }
 .bid-help summary::-webkit-details-marker { display: none; }
-.bid-help summary:active { transform: scale(.94); }
 .bid-help summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-.bid-help__panel { position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface-elevated); color: var(--color-fg); font-size: .875rem; line-height: 1.45; box-shadow: 0 12px 32px color-mix(in srgb, var(--color-bg) 60%, transparent); transform-origin: top left; transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); }
-@starting-style { .bid-help[open] .bid-help__panel { opacity: 0; transform: scale(.97); } }
+.bid-help__panel { position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface-elevated); color: var(--color-fg); font-size: .875rem; line-height: 1.45; box-shadow: 0 12px 32px color-mix(in srgb, var(--color-bg) 60%, transparent); transform-origin: top left; }
 .bid-help__panel p { margin: 0; }
 .bid-ended { margin: 0; color: var(--color-fg-muted); }
 

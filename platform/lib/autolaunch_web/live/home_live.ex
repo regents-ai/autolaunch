@@ -237,6 +237,7 @@ defmodule AutolaunchWeb.HomeLive do
     <.link
       patch={@patch}
       class="home-filter__option"
+      data-squish
       aria-current={if @selected, do: "true"}
       aria-label={@label}
       title={@label}
@@ -304,12 +305,14 @@ defmodule AutolaunchWeb.HomeLive do
               {value, label} <- [{"newest", "Recent"}, {"ending", "Closing"}, {"volume", "Highest"}]
             }
             patch={HomeMarket.path(@market_options, %{sort: value})}
+            data-squish
             aria-current={if @market_options.sort == value, do: "page"}
           >{label}</.link>
         </nav>
         <nav class="home-display" aria-label="Display">
           <.link
             patch={HomeMarket.path(@market_options, %{display: "grid"})}
+            data-squish
             aria-current={if @market_options.display == "grid", do: "page"}
             aria-label="Grid"
             title="Grid"
@@ -332,6 +335,7 @@ defmodule AutolaunchWeb.HomeLive do
           </.link>
           <.link
             patch={HomeMarket.path(@market_options, %{display: "table"})}
+            data-squish
             aria-current={if @market_options.display == "table", do: "page"}
             aria-label="Table"
             title="Table"
@@ -364,7 +368,7 @@ defmodule AutolaunchWeb.HomeLive do
               aria-label="Filter active"
             ></span>
           </summary>
-          <div class="home-filter__panel">
+          <div class="home-filter__panel" {AutolaunchWeb.Motion.panel("menu")}>
             <div :if={@kind == :auction} class="home-filter__group" role="group" aria-label="Status">
               <span class="home-filter__label" aria-hidden="true">Status</span>
               <.filter_option
