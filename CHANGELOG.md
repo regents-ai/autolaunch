@@ -3,6 +3,17 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v42, 26 September 2026 (f041e5f)
+- Search puts the best match first and forgives typos ("artficial" finds AGI). It looks at the
+  name, ticker, the stock being raised, the creator's connected accounts and the description;
+  pasting an address finds that auction, token or creator.
+- Auction pages on Base and Robinhood show bold figures, orange tickers and coloured state
+  labels, like the portfolio and token pages; a bid's standing is a coloured label too.
+- Each launch step on the Create pages shows its state as a coloured label.
+- Signed out, both Create pages say X, GitHub and ENS can be connected after signing in.
+- Information labels take their colour from the shared design, matching the other sites.
+- Missed notifications no longer fill the server log.
+
 ## v41, 25 September 2026 (03ecc10)
 - Both launch pages open without signing in. Visitors can fill in the whole form, pick a stock
   and chain, and see the terms, raise and starting price update, with nothing saved.
