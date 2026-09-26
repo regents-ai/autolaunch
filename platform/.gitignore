@@ -74,10 +74,6 @@ Thumbs.db
 *.db
 *.db-*
 
-# Playwright writes local run evidence here.
-/test-results/
-/playwright-report/
-
 # Generated from the pinned Regent UI package.
 /priv/static/images/regent-ui/
 /priv/static/fonts/regent-ui/

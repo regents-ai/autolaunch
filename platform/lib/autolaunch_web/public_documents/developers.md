@@ -46,7 +46,9 @@ An unknown parameter or value is refused with a 400, never ignored. A figure the
 
 ## In the browser (WebMCP)
 
-Every page offers five read-only tools to browsers that support WebMCP: `autolaunch_auctions`, `autolaunch_auction`, `autolaunch_tokens`, `autolaunch_treasury` and `autolaunch_bid_quote`. They make the same reads as the API and never open a wallet, sign, bid or launch. [Tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
+Every page offers these tools to browsers that support WebMCP. The `autolaunch_` tools make the same reads as the API and never open a wallet, sign, bid or launch. The `profile_` tools work only for the signed-in person's own shared profile and never move money. [Tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
+
+{{tools}}
 
 ## What needs a person and a wallet
 

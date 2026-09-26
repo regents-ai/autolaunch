@@ -133,17 +133,9 @@ Regents Labs is an agentic product lab with Autolaunch, techtree.sh, patchbay.he
 
 ### In the browser (WebMCP)
 
-Every autolaunch.sh page offers five read-only tools to browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft). [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
+Every autolaunch.sh page offers these tools to browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft). The `autolaunch_` tools only read: they never open a wallet, sign, bid or launch. The `profile_` tools work only for the signed-in person's own shared profile and never move money. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
 
-| Tool | What it does |
-| --- | --- |
-| `autolaunch_auctions` | Lists auctions, found and ordered as the website's auction list does. Optional `q` (the website search), `state` (`all`, `created`, `active`, `ended`, `failed`, `graduated`), `sort` (`newest`, `ending` for live auctions closing soonest, `volume` for the highest dollar bid volume), `chain` (`all`, `base`, `robinhood`), `kind` (`all`, `revstake`, `memestake`), `x`, `ens` and `github` (true keeps creators verified on that account), `limit` (1–50) and `after` (the `next_cursor` of the previous page, with the same options). `ended` means bidding has closed and the auction is waiting to be finished; `minimum_reached` says whether the raise met its minimum. Each auction also gives its page `url`, `estimated_end_at`, `token_allocation`, `bid_volume`, `minimum_raise`, `currency_raised` and `percent_met`; see below. |
-| `autolaunch_auction` | One auction by `id`: its kind (`revstake` or `memestake`), the token bids are paid in, the same figures as the list, and its treasury report when there is one. |
-| `autolaunch_tokens` | Lists tokens whose auctions succeeded. Optional `q`, `chain`, `kind`, `x`, `ens`, `github`, as for auctions, `limit` (1–100) and `after`. |
-| `autolaunch_treasury` | The stored treasury-security report for a treasury `address`. |
-| `autolaunch_bid_quote` | Estimates a bid from `id`, `amount` and `max_price` (decimal strings). It does not place a bid. Read every warning it returns. |
-
-The tools only read. They never open a wallet, sign, bid or launch.
+{{tools}}
 
 ### Over HTTP
 

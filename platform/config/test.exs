@@ -24,7 +24,7 @@ config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 # verification key (runtime.exs reads both), and the site is served at
 # http://localhost:PORT, the loopback origin the Privy application admits.
 # Nothing else in the test environment changes: the fixture verifier stays
-# in force for ExUnit and for the Playwright server.
+# in force for ExUnit and for the browser test server.
 lab_auth = System.get_env("AUTOLAUNCH_LAB_AUTH")
 
 unless lab_auth in [nil, "", "privy"] do
@@ -52,8 +52,8 @@ config :autolaunch,
   autolaunch_base_deployment_id: "fixture",
   autolaunch_base_chain_id: 8453
 
-# We don't run a server during test. The Playwright suite asks for one by
-# setting AUTOLAUNCH_BROWSER_TEST.
+# We don't run a server during test. A local browser test server asks for one
+# by setting AUTOLAUNCH_BROWSER_TEST.
 config :autolaunch, AutolaunchWeb.Endpoint,
   url: [host: if(lab_privy?, do: "localhost", else: "127.0.0.1"), port: browser_port],
   http: [ip: {127, 0, 0, 1}, port: browser_port],
@@ -79,7 +79,7 @@ config :autolaunch, Autolaunch.Repo,
   # rather than on anything it set out to prove. The 1_000ms below lets a
   # caller wait two seconds instead.
   queue_target: 1_000,
-  # The Playwright server must commit drafts and sessions; ExUnit keeps the
+  # The browser test server must commit drafts and sessions; ExUnit keeps the
   # sandbox so ordinary cases stay isolated.
   pool:
     if(System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1",
@@ -118,7 +118,7 @@ end
 
 # The subject-wallet and launch browser proofs need a Base answer without a
 # provider, a wallet or a chain call. Ordinary ExUnit cases install and restore
-# these clients themselves, so only the Playwright server process selects them.
+# these clients themselves, so only the browser test server selects them.
 # A server given a local lab description skips these three: launch and bid
 # then resolve to their lab clients and answer from the lab chain,
 # subject-wallet preparation stays unavailable, and the treasury fixture

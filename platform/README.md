@@ -109,7 +109,7 @@ contracts/              The OpenAPI contract; the chain-contract manifest and ru
 config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
-test/                   ExUnit suites and the Playwright browser suite
+core_tests/             The kept Elixir and JavaScript cases (see core_tests/README.md)
 scripts/                The release build-context assembler
 rel/                    Release overlays: the migrate and pending-migrations commands
 ```
@@ -133,9 +133,6 @@ up to date.
 | --- | --- |
 | `npm run typecheck` | Type-checks the TypeScript assets. |
 | `npm test` | Runs the Vitest unit suite. |
-| `npm run test:browser` | Builds assets and runs the Playwright browser suite on port 4050. Needs the browser binary once: `npx playwright install chromium`. |
-| `npm run test:budgets` | Enforces the built-asset size budgets. |
-| `mix test.external` | Runs the Docker build-context test. Excluded from `mix precommit` because it needs a Docker daemon. |
 
 The test database name carries whatever `MIX_TEST_PARTITION` holds, just before its `_test`
 ending. Setting it is required, not advisory, whenever more than one test run can happen on a

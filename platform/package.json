@@ -23,7 +23,6 @@
     "ws@^8.0.0": "8.21.3"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "typescript": "7.0.2",

@@ -34,7 +34,7 @@ trap 'rm -rf -- "$staging"' EXIT
 mkdir -p "$staging/platform" "$staging/elixir-utils/privy" "$staging/regents/identity" "$staging/design-system/regent_ui"
 # Case-insensitive env-shaped names are excluded before reading any file.
 # Omit symlinks rather than copying references outside the selected source.
-filters=(--exclude '.[eE][nN][vV]*' --exclude '.git' --exclude '_build/' --exclude 'deps/' --exclude 'node_modules/' --exclude 'test-results/' --exclude 'playwright-report/')
+filters=(--exclude '.[eE][nN][vV]*' --exclude '.git' --exclude '_build/' --exclude 'deps/' --exclude 'node_modules/')
 rsync -a --no-links "${filters[@]}" "$repo_root/" "$staging/platform/"
 rsync -a --no-links "${filters[@]}" "$privy_source/" "$staging/elixir-utils/privy/"
 rsync -a --no-links "${filters[@]}" "$identity_source/" "$staging/regents/identity/"

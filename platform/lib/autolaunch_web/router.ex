@@ -8,7 +8,8 @@ defmodule AutolaunchWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {AutolaunchWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    # Browser agents may use the tools the pages register, from this site only.
+    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
   end
 
   pipeline :api do
@@ -37,6 +38,7 @@ defmodule AutolaunchWeb.Router do
     get "/tokens/:token_id", OldLinkController, :base_token
     get "/robinhood/tokens/:token", OldLinkController, :robinhood_token
 
+    get "/llms.txt", PublicPagesController, :agent_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/openapi.json", PublicPagesController, :openapi
   end

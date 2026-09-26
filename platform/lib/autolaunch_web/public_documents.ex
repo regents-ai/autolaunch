@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias AutolaunchWeb.Paths
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home developers about contact privacy)
+  @names ~w(home developers about contact privacy llms)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   @paths %{
@@ -25,6 +25,18 @@ defmodule AutolaunchWeb.PublicDocuments do
   @contract_path Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @external_resource @contract_path
   @contract YamlElixir.read_from_file!(@contract_path)
+
+  # Every browser tool the pages register, described once; the browser code
+  # imports the same file.
+  @tool_manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
+  @external_resource @tool_manifest_path
+  @tools @tool_manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+  @needs %{"none" => "Nothing", "session" => "The person's sign-in"}
+  @tool_table """
+  | Tool | Needs | What it does |
+  | --- | --- | --- |
+  #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
+  """
 
   @description "Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
 
@@ -50,6 +62,9 @@ defmodule AutolaunchWeb.PublicDocuments do
       _other -> nil
     end
   end
+
+  @doc "The agent guide served at `/llms.txt`."
+  def agent_guide, do: markdown("llms")
 
   @doc "Whether the page at `path` also answers as Markdown."
   def markdown?(path), do: Map.has_key?(@paths, path)
@@ -181,7 +196,11 @@ defmodule AutolaunchWeb.PublicDocuments do
     }
   end
 
-  defp markdown(name), do: String.replace(@sources[name], "{{origin}}", url(""))
+  defp markdown(name) do
+    @sources[name]
+    |> String.replace("{{tools}}", @tool_table)
+    |> String.replace("{{origin}}", url(""))
+  end
 
   defp lastmod(nil), do: ""
   defp lastmod(%DateTime{} = at), do: "<lastmod>#{DateTime.to_iso8601(at)}</lastmod>"

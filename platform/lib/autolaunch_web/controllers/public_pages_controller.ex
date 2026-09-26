@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.PublicPagesController do
   @moduledoc """
-  The developer guide, About, Contact and Privacy pages, the sitemap and the
-  API description. A request for a page's Markdown is answered before the
+  The developer guide, About, Contact and Privacy pages, the agent guide, the
+  sitemap and the API description. A request for a page's Markdown is answered before the
   router; this controller shows the same document as HTML.
   """
   use AutolaunchWeb, :controller
@@ -26,6 +26,12 @@ defmodule AutolaunchWeb.PublicPagesController do
     conn
     |> put_resp_content_type("application/xml")
     |> send_resp(200, PublicDocuments.sitemap())
+  end
+
+  def agent_guide(conn, _params) do
+    conn
+    |> put_resp_content_type("text/plain")
+    |> send_resp(200, PublicDocuments.agent_guide())
   end
 
   def openapi(conn, _params), do: json(conn, PublicDocuments.openapi())

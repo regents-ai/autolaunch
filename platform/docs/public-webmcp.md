@@ -1,19 +1,23 @@
 # Public WebMCP tools
 
-Autolaunch registers five read-only tools when `document.modelContext.registerTool`
-is available. Browsers without it retain the normal interface. This targets the
+Autolaunch registers its tools when `document.modelContext.registerTool` is
+available. Browsers without it retain the normal interface. This targets the
 [4 September 2026 WebMCP Draft Community Group Report](https://webmachinelearning.github.io/webmcp/),
 which is not a W3C Standard, and Chrome's
 [imperative API guidance](https://developer.chrome.com/docs/ai/webmcp/imperative-api).
-There is no older `navigator.modelContext` fallback.
+There is no older `navigator.modelContext` fallback. Pages send
+`Permissions-Policy: tools=(self)`, so only this site's own pages may offer tools.
 
-| Tool | Input | Existing HTTP contract |
-| --- | --- | --- |
-| `autolaunch_auctions` | Optional `q`, `state`, `sort`, `chain`, `kind`, boolean `x`, `ens`, `github`, integer `limit`, `after` | `GET /api/v1/auctions` |
-| `autolaunch_auction` | Auction UUID `id`, or a Robinhood auction's address | `GET /api/v1/auctions/:id` |
-| `autolaunch_tokens` | Optional `q`, `chain`, `kind`, boolean `x`, `ens`, `github`, integer `limit`, `after` | `GET /api/v1/tokens` |
-| `autolaunch_treasury` | Treasury `address` | `GET /api/v1/treasury-security/:address` |
-| `autolaunch_bid_quote` | Auction UUID `id`, decimal strings `amount`, `max_price` | `POST /api/v1/auctions/:id/bid-quote` |
+Every tool a page registers is described once, in
+[`priv/tool_manifest.json`](../priv/tool_manifest.json): its name, title,
+description, input schema, annotations, what it needs, whether it changes
+anything, the HTTP route behind it and its `scope` (`site` for all of them today).
+The browser registers the five `autolaunch_` tools from it
+(`assets/js/public_tools.ts` adds only each tool's request), and the developer
+guide at `/developers` and the agent guide at `/llms.txt` build their tool tables
+from it. The three `profile_` entries describe the shared profile tools, which
+register through the shared identity package (`assets/js/shared_profile.ts`) and
+need the person's sign-in.
 
 The list options are the website's own, read through the same discovery as its
 auction and token lists (`Autolaunch.HomeMarket`), with the same names and meanings in
@@ -69,7 +73,7 @@ page lifetime can then cancel the read.
 
 ## Verification
 
-From `platform/`, after `mix assets.build`: `npx tsc --project assets/tsconfig.json --noEmit`.
+From `platform/`, after `mix assets.build`: `npm run typecheck`.
 From `cli/`, `npm run test:parity` imports this adapter, registers it through a
 simulated `document.modelContext` and compares every tool's request and result with
 the CLI against a local HTTP fixture. That proves the adapter and CLI agree, not
