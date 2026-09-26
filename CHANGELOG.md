@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v47, 26 September 2026 (fe8b172)
+- New Developers, About, Contact and Privacy pages, linked from every page's footer.
+- AI agents can read the homepage and these pages as plain text at the same address, and a
+  missing page tells them where to go instead of showing a dead end.
+- Problems reading the public data now come with a short hint on what to try next.
+- The data description moved to autolaunch.sh/openapi.json, with a sentence on what each
+  request does, and a site map lists every page, auction and token for search engines.
+- The homepage arrives with its coins already listed instead of filling them in a moment later.
+
 ## v46, 26 September 2026 (6046ba5)
 - Reading from the blockchain no longer prints an outdated-setting notice on every request
   (about 9 a second before), and the server log is quiet again. Connection behaviour is
