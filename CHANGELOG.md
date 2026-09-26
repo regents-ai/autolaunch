@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v44, 26 September 2026 (a6b7b59)
+- The chain reader and the auction activity refresh no longer fill the server log with
+  missed-notification warnings (about 300 every two minutes before; none after).
+
 ## v43, 26 September 2026 (1007375)
 - Buttons give a small squish when pressed, and a short shake when the action isn't available.
 - Menus, pop-ups and the "copied" message pop open; pop-ups also fade their dark background in
@@ -19,7 +23,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - Each launch step on the Create pages shows its state as a coloured label.
 - Signed out, both Create pages say X, GitHub and ENS can be connected after signing in.
 - Information labels take their colour from the shared design, matching the other sites.
-- Missed notifications no longer fill the server log.
+- Refreshing token trades no longer fills the server log with missed-notification warnings.
 
 ## v41, 25 September 2026 (03ecc10)
 - Both launch pages open without signing in. Visitors can fill in the whole form, pick a stock
