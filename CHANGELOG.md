@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v48, 26 September 2026 (8d96f71)
+- The tools Autolaunch offers to AI assistants built into web browsers are now described in
+  one place, and the developer guide and agent guide list all eight of them, including the
+  three that manage a signed-in person's profile (they previously named only five).
+- Pages now tell browsers that only Autolaunch's own pages may offer these tools.
+- Setup notes no longer mention browser tests and commands that were retired earlier.
+
 ## v47, 26 September 2026 (fe8b172)
 - New Developers, About, Contact and Privacy pages, linked from every page's footer.
 - AI agents can read the homepage and these pages as plain text at the same address, and a
