@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v45, 26 September 2026 (fedde03)
+- Pressing a button, opening a menu or copying the address again while its animation is still
+  playing no longer leaves it stuck half-faded or half-sized; every animation finishes cleanly.
+
 ## v44, 26 September 2026 (a6b7b59)
 - The chain reader and the auction activity refresh no longer fill the server log with
   missed-notification warnings (about 300 every two minutes before; none after).
