@@ -44,7 +44,7 @@ defmodule Autolaunch.Indexer.Ledger do
           {:ok, Ash.Resource.record()} | {:error, term()}
   def admit_source(chain_id, address, start_block) do
     case Chain.address(address) do
-      {:ok, address} -> Repo.transaction(fn -> admit(chain_id, address, start_block) end)
+      {:ok, address} -> transaction(fn -> admit(chain_id, address, start_block) end)
       {:error, reason} -> {:error, reason}
     end
   end
@@ -52,7 +52,7 @@ defmodule Autolaunch.Indexer.Ledger do
   @doc "Grants the chain lease to one handler, or reports that a live owner keeps it."
   @spec acquire(pos_integer(), pos_integer()) :: {:ok, lease()} | {:error, atom()}
   def acquire(chain_id, lease_ms) do
-    Repo.transaction(fn ->
+    transaction(fn ->
       case lock(chain_id) do
         nil -> Repo.rollback(:no_source_admitted)
         cursor -> claim(cursor, db_now(), lease_ms)
@@ -63,7 +63,7 @@ defmodule Autolaunch.Indexer.Ledger do
   @doc "Releases the lease this owner still holds, so the next cadence starts immediately."
   @spec release(lease()) :: {:ok, term()}
   def release(%{chain_id: chain_id, owner: owner}) do
-    Repo.transaction(fn -> chain_id |> lock() |> relinquish(owner) end)
+    transaction(fn -> chain_id |> lock() |> relinquish(owner) end)
   end
 
   @doc "Every address admitted for a chain, ascending by the block it starts at."
@@ -94,7 +94,7 @@ defmodule Autolaunch.Indexer.Ledger do
   """
   @spec commit(lease(), tuple(), pos_integer()) :: {:ok, term()} | {:error, term()}
   def commit(lease, plan, bound) do
-    Repo.transaction(fn ->
+    transaction(fn ->
       now = db_now()
       ensure(lease.chain_id, lease.next_block, now)
       cursor = lock(lease.chain_id)
@@ -111,25 +111,25 @@ defmodule Autolaunch.Indexer.Ledger do
 
     case source(chain_id, address) do
       nil -> opened(cursor, chain_id, address, start_block)
-      %{start_block: ^start_block} = admitted -> admitted
+      %{start_block: ^start_block} = admitted -> {admitted, []}
       _contradicted -> Repo.rollback(:source_start_conflict)
     end
   end
 
   defp opened(cursor, chain_id, address, start_block) do
-    source =
+    {source, admitted} =
       Ash.create!(
         Source,
         %{chain_id: chain_id, address: address, start_block: start_block},
         action: :admit,
-        actor: @actor
+        actor: @actor,
+        return_notifications?: true
       )
 
-    cursor
-    |> invalidate()
-    |> move_to(min(cursor.next_block_to_fetch, start_block))
+    {cleared, invalidated} = invalidate(cursor)
+    {_cursor, moved} = move_to(cleared, min(cursor.next_block_to_fetch, start_block))
 
-    source
+    {source, admitted ++ invalidated ++ moved}
   end
 
   # An in-flight plan was drawn from a source set this address was not in, so it
@@ -138,7 +138,12 @@ defmodule Autolaunch.Indexer.Ledger do
   # whether or not the new start block is low enough to move the cursor; the
   # pass that follows is planned from the whole admitted set.
   defp invalidate(cursor),
-    do: Ash.update!(cursor, %{}, action: :release_lease, actor: @actor)
+    do:
+      Ash.update!(cursor, %{},
+        action: :release_lease,
+        actor: @actor,
+        return_notifications?: true
+      )
 
   defp claim(cursor, now, lease_ms) do
     if leased?(cursor, now), do: Repo.rollback(:leased), else: grant(cursor, now, lease_ms)
@@ -147,20 +152,21 @@ defmodule Autolaunch.Indexer.Ledger do
   defp grant(cursor, now, lease_ms) do
     owner = Ash.UUID.generate()
 
-    cursor
-    |> Ash.Changeset.for_update(
-      :claim_lease,
-      %{lease_owner: owner, lease_expires_at: DateTime.add(now, lease_ms, :millisecond)},
-      actor: @actor
-    )
-    |> Ash.update!()
-    |> then(&%{chain_id: &1.chain_id, owner: owner, next_block: &1.next_block_to_fetch})
+    {granted, notifications} =
+      cursor
+      |> Ash.Changeset.for_update(
+        :claim_lease,
+        %{lease_owner: owner, lease_expires_at: DateTime.add(now, lease_ms, :millisecond)},
+        actor: @actor
+      )
+      |> Ash.update!(return_notifications?: true)
+
+    {%{chain_id: granted.chain_id, owner: owner, next_block: granted.next_block_to_fetch},
+     notifications}
   end
 
-  defp relinquish(%{lease_owner: owner} = cursor, owner),
-    do: Ash.update!(cursor, %{}, action: :release_lease, actor: @actor)
-
-  defp relinquish(cursor, _other_owner), do: cursor
+  defp relinquish(%{lease_owner: owner} = cursor, owner), do: invalidate(cursor)
+  defp relinquish(cursor, _other_owner), do: {cursor, []}
 
   defp leased?(%{lease_expires_at: nil}, _now), do: false
   defp leased?(%{lease_expires_at: expires_at}, now), do: DateTime.after?(expires_at, now)
@@ -174,20 +180,21 @@ defmodule Autolaunch.Indexer.Ledger do
       # below the divergence, and the next pass stores the new fork from there
       # rather than skipping the blocks that source was admitted for.
       {:forked, height} ->
-        orphan(cursor, height - 1, bound)
+        {orphan(cursor, height - 1, bound), []}
 
       :none ->
         blocks = record_blocks(cursor.chain_id, headers, now)
         stored_logs = record_logs(cursor.chain_id, blocks, logs, now)
-        project_launches(stored_logs)
+        projected = project_launches(stored_logs)
         promote(cursor.chain_id, finality, bound)
-        move_to(cursor, List.last(headers).number + 1)
+        {moved, notifications} = move_to(cursor, List.last(headers).number + 1)
+        {moved, projected ++ notifications}
     end
   end
 
   defp apply_plan(cursor, {:promote, finality}, bound, _now) do
     promote(cursor.chain_id, finality, bound)
-    cursor
+    {cursor, []}
   end
 
   defp apply_plan(cursor, {:rewind, ancestor}, bound, _now),
@@ -300,7 +307,7 @@ defmodule Autolaunch.Indexer.Ledger do
 
   defp project_launches(logs) do
     case LaunchProjection.project_logs(logs) do
-      :ok -> :ok
+      {:ok, notifications} -> notifications
       {:error, reason} -> Repo.rollback(reason)
     end
   end
@@ -470,10 +477,15 @@ defmodule Autolaunch.Indexer.Ledger do
     }
   end
 
-  defp move_to(%{next_block_to_fetch: block} = cursor, block), do: cursor
+  defp move_to(%{next_block_to_fetch: block} = cursor, block), do: {cursor, []}
 
   defp move_to(cursor, block),
-    do: Ash.update!(cursor, %{next_block_to_fetch: block}, action: :move_to, actor: @actor)
+    do:
+      Ash.update!(cursor, %{next_block_to_fetch: block},
+        action: :move_to,
+        actor: @actor,
+        return_notifications?: true
+      )
 
   # Admission and every commit insert-if-absent before locking, so the
   # absent-row order of a race takes the same lock as the present-row one.
@@ -507,6 +519,19 @@ defmodule Autolaunch.Indexer.Ledger do
       on_conflict: :nothing,
       conflict_target: conflict_target
     )
+  end
+
+  # Every write inside a ledger transaction returns its notifications with its
+  # result, and they are sent once the transaction commits.
+  defp transaction(fun) do
+    case Repo.transaction(fun) do
+      {:ok, {result, notifications}} ->
+        Ash.Notifier.notify(notifications)
+        {:ok, result}
+
+      error ->
+        error
+    end
   end
 
   defp lock(chain_id) do

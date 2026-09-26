@@ -44,21 +44,31 @@ defmodule Autolaunch.AuctionActivity do
     end
   end
 
+  # Notifications raised inside a transaction are sent once it commits.
   defp claim(historical) do
     Repo.transaction(fn ->
       case Auction
            |> Ash.Query.for_read(:activity_due, %{historical: historical}, actor: @actor)
            |> Ash.read!() do
         [] ->
-          nil
+          {nil, []}
 
         [auction] ->
           Ash.update!(auction, %{activity_due_at: DateTime.add(DateTime.utc_now(), 60)},
             action: :schedule_activity,
-            actor: @actor
+            actor: @actor,
+            return_notifications?: true
           )
       end
     end)
+    |> case do
+      {:ok, {auction, notifications}} ->
+        Ash.Notifier.notify(notifications)
+        {:ok, auction}
+
+      error ->
+        error
+    end
   end
 
   def refresh(auction) do

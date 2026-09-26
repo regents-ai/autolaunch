@@ -17,8 +17,10 @@ defmodule Autolaunch.LaunchProjection do
 
   # The ledger only runs against the Base description, so the factory whose
   # launches these logs may be and the chain they are on are the description's
-  # own.
-  @spec project_logs([struct() | map()]) :: :ok | {:error, term()}
+  # own. The recordings' notifications go back to the ledger, which sends them
+  # once its commit lands.
+  @spec project_logs([struct() | map()]) ::
+          {:ok, [Ash.Notifier.Notification.t()]} | {:error, term()}
   def project_logs(logs) when is_list(logs) do
     deployment = Lab.current!()
     factory = Lab.address!(deployment, :factory)
@@ -26,9 +28,9 @@ defmodule Autolaunch.LaunchProjection do
 
     logs
     |> Enum.filter(&factory_launch_created?(&1, factory, topic))
-    |> Enum.reduce_while(:ok, fn log, :ok ->
+    |> Enum.reduce_while({:ok, []}, fn log, {:ok, notifications} ->
       case record(log, factory, deployment) do
-        {:ok, _discovery} -> {:cont, :ok}
+        {:ok, _discovery, recorded} -> {:cont, {:ok, notifications ++ recorded}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
@@ -46,7 +48,8 @@ defmodule Autolaunch.LaunchProjection do
           auction: event.auction,
           transaction_hash: String.downcase(log.transaction_hash)
         },
-        actor: @actor
+        actor: @actor,
+        return_notifications?: true
       )
     end
   end

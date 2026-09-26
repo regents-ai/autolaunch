@@ -288,7 +288,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
   defp record_launch(launcher) do
     factory = Lab.address!(Lab.current!(), :factory)
 
-    :ok =
+    {:ok, _notifications} =
       LaunchProjection.project_logs([
         %{
           address: factory,
