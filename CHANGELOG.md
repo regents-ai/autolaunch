@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v43, 26 September 2026 (1007375)
+- Buttons give a small squish when pressed, and a short shake when the action isn't available.
+- Menus, pop-ups and the "copied" message pop open; pop-ups also fade their dark background in
+  and out.
+- Nothing moves for keyboard presses or for visitors who have asked their device for less
+  motion, and wallet buttons respond at once as before.
+
 ## v42, 26 September 2026 (f041e5f)
 - Search puts the best match first and forgives typos ("artficial" finds AGI). It looks at the
   name, ticker, the stock being raised, the creator's connected accounts and the description;
