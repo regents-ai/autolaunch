@@ -150,9 +150,13 @@ defmodule Autolaunch.Chain.Rpc do
     case client.post(rpc_url,
            json: request,
            # Fly private-network names (.internal) publish only AAAA records;
-           # inet6 makes Mint try IPv6 first and still fall back to IPv4.
-           connect_options: [timeout: 3_000, transport_opts: [inet6: true]],
-           pool_timeout: 3_000,
+           # inet6 makes Mint try IPv6 first and still fall back to IPv4. Req
+           # takes a pool wait only inside `finch:`, which cannot sit beside
+           # `connect_options:`, so the connection settings live here too.
+           finch: [
+             pool_timeout: 3_000,
+             conn_opts: [transport_opts: [timeout: 3_000, inet6: true]]
+           ],
            receive_timeout: @timeout,
            retry: false
          ) do
