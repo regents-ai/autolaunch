@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.AuctionController do
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{LabMarket, MarketPage, Paths}
+  alias AutolaunchWeb.{ApiError, LabMarket, MarketPage, Paths}
 
   def index(conn, params) do
     case MarketPage.read(params, "auctions") do
@@ -144,36 +144,18 @@ defmodule AutolaunchWeb.AuctionController do
   defp loaded_report(%{treasury_security_report: report}), do: report
   defp loaded_report(_auction), do: nil
 
-  defp invalid_request(conn) do
-    conn
-    |> put_status(:bad_request)
-    |> json(%{
-      error: %{
-        code: "invalid_request",
-        message: "The query parameters are invalid."
-      }
-    })
-  end
+  defp invalid_request(conn),
+    do: ApiError.send(conn, :bad_request, "invalid_request", "The query parameters are invalid.")
 
-  defp not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{
-      error: %{
-        code: "not_found",
-        message: "Auction not found."
-      }
-    })
-  end
+  defp not_found(conn),
+    do: ApiError.send(conn, :not_found, "not_found", "Auction not found.")
 
-  defp internal_error(conn) do
-    conn
-    |> put_status(:internal_server_error)
-    |> json(%{
-      error: %{
-        code: "internal_error",
-        message: "The request could not be completed."
-      }
-    })
-  end
+  defp internal_error(conn),
+    do:
+      ApiError.send(
+        conn,
+        :internal_server_error,
+        "internal_error",
+        "The request could not be completed."
+      )
 end

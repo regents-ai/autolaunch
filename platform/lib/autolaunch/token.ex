@@ -34,6 +34,17 @@ defmodule Autolaunch.Token do
       prepare build(sort: [graduated_at: :desc, id: :asc], load: [:auction])
     end
 
+    # The token pages the sitemap lists, newest graduation first, bounded.
+    read :sitemap do
+      prepare Autolaunch.Token.Preparations.ListedAuction
+
+      prepare build(
+                sort: [graduated_at: :desc, id: :asc],
+                limit: 5_000,
+                load: [auction: [:path_tail]]
+              )
+    end
+
     read :list_public do
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
 
@@ -259,6 +270,7 @@ defmodule Autolaunch.Token do
     policy action([
              :read,
              :listed,
+             :sitemap,
              :list_public,
              :home_market,
              :top_public,

@@ -40,6 +40,12 @@ defmodule AutolaunchWeb.Layouts do
     ~H"""
     <footer class="regent-footer">
       <AutolaunchWeb.Components.RegentLinks.social_links />
+      <nav class="regent-footer__links" aria-label="About Autolaunch">
+        <a href="/developers">Developers</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/privacy">Privacy</a>
+      </nav>
       <p>© 2026 Regents Labs</p>
     </footer>
     """

@@ -1,22 +1,10 @@
 defmodule AutolaunchWeb.BlogController do
   use AutolaunchWeb, :controller
   alias AutolaunchWeb.Blog
-  plug :blog_layout
+  plug AutolaunchWeb.Plugs.PageShell
+  plug :blog_page
 
-  defp blog_layout(conn, _opts) do
-    access =
-      case conn.assigns[:current_human_account] do
-        nil -> Autolaunch.AccessContext.anonymous()
-        account -> Autolaunch.AccessContext.human(account)
-      end
-
-    conn
-    |> put_layout(html: {AutolaunchWeb.Layouts, :app})
-    |> assign(:blog_page, true)
-    |> assign(:current_path, conn.request_path)
-    |> assign(:search_query, "")
-    |> assign(:account_control, Autolaunch.AccessContext.account_control(access))
-  end
+  defp blog_page(conn, _opts), do: assign(conn, :blog_page, true)
 
   def index(conn, _params),
     do: render(conn, :index, page_title: "Blog · Autolaunch", posts: Blog.all())

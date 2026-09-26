@@ -36,6 +36,9 @@ defmodule AutolaunchWeb.Router do
     get "/robinhood/auctions/:auction", OldLinkController, :robinhood_auction
     get "/tokens/:token_id", OldLinkController, :base_token
     get "/robinhood/tokens/:token", OldLinkController, :robinhood_token
+
+    get "/sitemap.xml", PublicPagesController, :sitemap
+    get "/openapi.json", PublicPagesController, :openapi
   end
 
   scope "/api/v1" do
@@ -63,6 +66,11 @@ defmodule AutolaunchWeb.Router do
       on_mount: [{AutolaunchWeb.Live.Session, :public_human}] do
       live "/", HomeLive, :home
     end
+
+    get "/developers", PublicPagesController, :show
+    get "/about", PublicPagesController, :show
+    get "/contact", PublicPagesController, :show
+    get "/privacy", PublicPagesController, :show
 
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show

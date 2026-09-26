@@ -29,6 +29,11 @@
       "repository": "https://github.com/regents-ai/elixir-utils",
       "revision": "2a7c853e7973697e960b5ef9807e0d13b5ad777e",
       "path": "siwa/siwa-elixir/apps/siwa"
+    },
+    "regent_agent_access": {
+      "repository": "https://github.com/regents-ai/elixir-utils",
+      "revision": "3e782153c94f1bd07a0941149ddbe5517d05e603",
+      "path": "agent_access"
     }
   }
 }

@@ -89,6 +89,7 @@ defmodule Autolaunch do
       define :list_auctions, action: :list_public
       define :list_recent_auctions, action: :recent_public
       define :list_featured_auctions, action: :featured_public
+      define :sitemap_auctions, action: :sitemap
 
       define :get_public_auction,
         action: :public_by_id,
@@ -244,6 +245,7 @@ defmodule Autolaunch do
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
       define :list_listed_tokens, action: :listed
+      define :sitemap_tokens, action: :sitemap
       define :list_top_tokens, action: :top_public
       define :list_recently_graduated_tokens, action: :recently_graduated_public
 

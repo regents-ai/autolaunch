@@ -27,6 +27,8 @@
 !elixir-utils/blog/mix.exs
 !elixir-utils/blog/lib/**
 !elixir-utils/blog/priv/**
+!elixir-utils/agent_access/mix.exs
+!elixir-utils/agent_access/lib/**
 !blog/**
 
 # The copied source trees must never carry runtime environment files.

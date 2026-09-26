@@ -2,11 +2,14 @@ openapi: 3.1.0
 info:
   title: Autolaunch API
   version: 1.0.0
+  description: Public reads of Autolaunch auctions, launched tokens, bid estimates and treasury reports. Reads need no account or API key. Bidding, launching and staking happen on the website with the person's own wallet.
+  contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/contact}
 paths:
   /api/v1/profile:
     get:
       operationId: profile_get
       summary: Get the verified owner’s shared profile
+      description: The signed-in person's own shared profile. Needs their sign-in.
       security:
         - PrivyAccess: []
           PrivyIdentity: []
@@ -56,6 +59,7 @@ paths:
     patch:
       operationId: profile_update
       summary: Update the verified owner’s shared profile
+      description: Changes the signed-in person's own shared profile. Needs their sign-in.
       security:
         - PrivyAccess: []
           PrivyIdentity: []
@@ -125,6 +129,7 @@ paths:
     post:
       operationId: profile_sync
       summary: Sync the verified owner’s shared profile
+      description: Brings the signed-in person's shared profile up to date. Needs their sign-in.
       security:
         - PrivyAccess: []
           PrivyIdentity: []
@@ -174,6 +179,8 @@ paths:
   /api/v1/auctions:
     get:
       operationId: listAuctions
+      summary: List auctions
+      description: Public Autolaunch auctions on Base and Robinhood, found and ordered as the website's auction list does. No account or API key is needed.
       security: []
       parameters:
         - {$ref: "#/components/parameters/Search"}
@@ -220,6 +227,8 @@ paths:
   /api/v1/auctions/{id}:
     get:
       operationId: getAuction
+      summary: Get one auction
+      description: One public auction by its id, with its figures and its treasury report when there is one.
       security: []
       parameters:
         - name: id
@@ -242,6 +251,8 @@ paths:
   /api/v1/auctions/{id}/bid-quote:
     post:
       operationId: quoteAuctionBid
+      summary: Estimate a bid
+      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns.
       security: []
       parameters:
         - {$ref: "#/components/parameters/AuctionId"}
@@ -261,6 +272,8 @@ paths:
   /api/v1/tokens:
     get:
       operationId: listTokens
+      summary: List launched tokens
+      description: Tokens whose auctions succeeded, on Base and Robinhood, newest graduation first.
       security: []
       parameters:
         - {$ref: "#/components/parameters/Search"}
@@ -293,6 +306,8 @@ paths:
   /api/v1/treasury-security/{address}:
     get:
       operationId: getTreasurySecurity
+      summary: Get a treasury security report
+      description: The newest stored security report for a launch treasury address. This read never calls a provider.
       security: []
       parameters:
         - name: address
@@ -360,7 +375,7 @@ components:
           schema: {$ref: "#/components/schemas/ApiError"}
           examples:
             invalidQuery:
-              value: {error: {code: invalid_request, message: The query parameters are invalid.}}
+              value: {error: {code: invalid_request, message: The query parameters are invalid., hint: Check the request against https://autolaunch.sh/openapi.json. An unknown parameter or value is refused.}}
     NotFound:
       description: The requested public record was not found
       content:
@@ -368,7 +383,7 @@ components:
           schema: {$ref: "#/components/schemas/NotFoundApiError"}
           examples:
             notFound:
-              value: {error: {code: not_found, message: The requested record was not found.}}
+              value: {error: {code: not_found, message: Auction not found., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json.}}
     InternalError:
       description: The request could not be completed
       content:
@@ -376,7 +391,7 @@ components:
           schema: {$ref: "#/components/schemas/ApiError"}
           examples:
             internalError:
-              value: {error: {code: internal_error, message: The request could not be completed.}}
+              value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/contact.}}
   schemas:
     AuctionBidRequest:
       type: object
@@ -571,10 +586,11 @@ components:
         error:
           type: object
           additionalProperties: false
-          required: [code, message]
+          required: [code, message, hint]
           properties:
             code: {type: string, enum: [invalid_request, internal_error]}
             message: {type: string}
+            hint: {type: string, description: What to do next.}
     NotFoundApiError:
       type: object
       additionalProperties: false
@@ -583,7 +599,8 @@ components:
         error:
           type: object
           additionalProperties: false
-          required: [code, message]
+          required: [code, message, hint]
           properties:
             code: {type: string, enum: [not_found]}
             message: {type: string}
+            hint: {type: string, description: What to do next.}

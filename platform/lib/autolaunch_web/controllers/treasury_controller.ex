@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.TreasuryController do
 
   alias Autolaunch
   alias Autolaunch.TreasurySecurity
+  alias AutolaunchWeb.ApiError
 
   def show(conn, %{"address" => address} = params) do
     autolaunch = conn.private[:treasury_controller_autolaunch] || Autolaunch
@@ -21,20 +22,17 @@ defmodule AutolaunchWeb.TreasuryController do
   end
 
   defp invalid_request(conn),
-    do:
-      conn
-      |> put_status(:bad_request)
-      |> json(%{error: %{code: "invalid_request", message: "The treasury address is invalid."}})
+    do: ApiError.send(conn, :bad_request, "invalid_request", "The treasury address is invalid.")
 
   defp not_found(conn),
-    do:
-      conn
-      |> put_status(:not_found)
-      |> json(%{error: %{code: "not_found", message: "Treasury report not found."}})
+    do: ApiError.send(conn, :not_found, "not_found", "Treasury report not found.")
 
   defp internal_error(conn),
     do:
-      conn
-      |> put_status(:internal_server_error)
-      |> json(%{error: %{code: "internal_error", message: "The request could not be completed."}})
+      ApiError.send(
+        conn,
+        :internal_server_error,
+        "internal_error",
+        "The request could not be completed."
+      )
 end

@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.ShareCard do
   alias Autolaunch.Stocks.MarketData
   alias Autolaunch.StoredImage
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.{Paths, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, PublicDocuments, TokenDisplay, UsdValue}
   alias Vix.Vips.{Image, Operation}
 
   @width 1200
@@ -122,50 +122,55 @@ defmodule AutolaunchWeb.ShareCard do
 
   attr :share, :map, default: nil, doc: "a page's details, or nil for the site's own"
   attr :page_title, :string, default: nil
+  attr :page_description, :string, default: nil
+  attr :path, :string, required: true, doc: "the address the page is known by, without its query"
 
-  @doc "The Open Graph and X card tags for the page."
-  def tags(%{share: nil} = assigns) do
+  @doc """
+  The page's description, canonical address, share card and structured data,
+  through the shared Regent metadata head.
+  """
+  def head(assigns) do
+    share = assigns.share || site_meta(assigns)
+
+    assigns =
+      assign(assigns,
+        share: share,
+        width: @width,
+        height: @height,
+        markdown: PublicDocuments.markdown?(assigns.path),
+        structured_data: PublicDocuments.structured_data()
+      )
+
     ~H"""
-    <meta property="og:title" content={@page_title || "Autolaunch"} />
-    <meta
-      property="og:description"
-      content="Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
+    <Regent.AgentMetadata.head
+      title={@share.title}
+      description={@share.description}
+      canonical={@share.url}
+      site_name="Autolaunch"
+      site_type="app"
+      image={@share.image}
+      image_width={@width}
+      image_height={@height}
+      image_alt={@share.image_alt}
+      twitter_site="@regents_sh"
+      markdown={@markdown}
+      agent_guide={url(~p"/llms.txt")}
+      sitemap={url(~p"/sitemap.xml")}
+      service_description={url(~p"/openapi.json")}
+      structured_data={@structured_data}
     />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Autolaunch" />
-    <meta property="og:image" content={url(~p"/images/og-image.png")} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta
-      property="og:image:alt"
-      content="agents: autolaunch your token. Auctions for agents, with Revstake and Memestake."
-    />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={@page_title || "Autolaunch"} />
-    <meta
-      name="twitter:description"
-      content="Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
-    />
-    <meta name="twitter:image" content={url(~p"/images/og-image.png")} />
     """
   end
 
-  def tags(assigns) do
-    ~H"""
-    <meta property="og:title" content={@share.title} />
-    <meta property="og:description" content={@share.description} />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Autolaunch" />
-    <meta property="og:url" content={@share.url} />
-    <meta property="og:image" content={@share.image} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={@share.image_alt} />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={@share.title} />
-    <meta name="twitter:description" content={@share.description} />
-    <meta name="twitter:image" content={@share.image} />
-    """
+  defp site_meta(assigns) do
+    %{
+      title: assigns.page_title || "Autolaunch",
+      description: assigns.page_description || PublicDocuments.description(),
+      url: PublicDocuments.url(assigns.path),
+      image: url(~p"/images/og-image.png"),
+      image_alt:
+        "agents: autolaunch your token. Auctions for agents, with Revstake and Memestake."
+    }
   end
 
   @doc """

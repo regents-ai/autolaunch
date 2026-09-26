@@ -16,15 +16,16 @@ regent_ui_source="${REGENT_UI_PATH:?set the selected package checkout path}"
 ens_source="${REGENT_ENS_PATH:?set the selected ENS package checkout path}"
 siwa_source="${REGENT_SIWA_PATH:?set the selected SIWA package checkout path}"
 blog_source="${REGENT_BLOG_PATH:?set the selected blog package checkout path}"
-for source in "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$ens_source" "$siwa_source"; do
+agent_access_source="${REGENT_AGENT_ACCESS_PATH:?set the selected agent access package checkout path}"
+for source in "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$ens_source" "$siwa_source" "$agent_access_source"; do
   [ -f "$source/mix.exs" ] || die "missing selected package: $source"
 done
-for revision in "${REGENT_PRIVY_REVISION:-}" "${REGENT_IDENTITY_REVISION:-}" "${REGENT_UI_REVISION:-}" "${REGENT_BLOG_REVISION:-}" "${REGENT_ENS_REVISION:-}" "${REGENT_SIWA_REVISION:-}"; do
+for revision in "${REGENT_PRIVY_REVISION:-}" "${REGENT_IDENTITY_REVISION:-}" "${REGENT_UI_REVISION:-}" "${REGENT_BLOG_REVISION:-}" "${REGENT_ENS_REVISION:-}" "${REGENT_SIWA_REVISION:-}" "${REGENT_AGENT_ACCESS_REVISION:-}"; do
   [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || die 'each selected package needs its exact revision'
 done
 mkdir -p "$(dirname -- "$destination")"
 destination="$(cd -- "$(dirname -- "$destination")" && pwd)/$(basename -- "$destination")"
-for source in "$repo_root" "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$ens_source" "$siwa_source" "$repo_root/../blog"; do
+for source in "$repo_root" "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$ens_source" "$siwa_source" "$agent_access_source" "$repo_root/../blog"; do
   source="$(cd -- "$source" && pwd)"
   case "$destination" in "$source"|"$source"/*) die 'destination must be outside every source tree' ;; esac
 done
@@ -44,11 +45,14 @@ rsync -a --no-links "${filters[@]}" "$repo_root/../blog/" "$staging/blog/"
 mkdir -p "$staging/elixir-utils/ens" "$staging/elixir-utils/siwa/siwa-elixir/apps/siwa"
 rsync -a --no-links "${filters[@]}" "$ens_source/" "$staging/elixir-utils/ens/"
 rsync -a --no-links "${filters[@]}" "$siwa_source/" "$staging/elixir-utils/siwa/siwa-elixir/apps/siwa/"
+mkdir -p "$staging/elixir-utils/agent_access"
+rsync -a --no-links "${filters[@]}" "$agent_access_source/" "$staging/elixir-utils/agent_access/"
 install -m 0644 "$repo_root/Dockerfile" "$staging/Dockerfile"
 install -m 0644 "$repo_root/Dockerfile.dockerignore" "$staging/Dockerfile.dockerignore"
 printf 'arch=%s\nregent_privy=%s\nregent_identity=%s\nregent_ui=%s\n' "$arch" "$REGENT_PRIVY_REVISION" "$REGENT_IDENTITY_REVISION" "$REGENT_UI_REVISION" > "$staging/BUILD-INPUTS.txt"
 printf 'regent_blog=%s\n' "$REGENT_BLOG_REVISION" >> "$staging/BUILD-INPUTS.txt"
 printf 'regent_ens=%s\nregent_siwa=%s\n' "$REGENT_ENS_REVISION" "$REGENT_SIWA_REVISION" >> "$staging/BUILD-INPUTS.txt"
+printf 'regent_agent_access=%s\n' "$REGENT_AGENT_ACCESS_REVISION" >> "$staging/BUILD-INPUTS.txt"
 (cd "$staging" && shasum -a 256 platform/mix.lock platform/package-lock.json) >> "$staging/BUILD-INPUTS.txt"
 # An atomic rename publishes only a complete context. Existing destinations
 # are never removed, so interruption and retries cannot destroy unrelated work.

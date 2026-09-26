@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.TokenController do
   alias Autolaunch
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.MarketPage
+  alias AutolaunchWeb.{ApiError, MarketPage}
 
   def index(conn, params) do
     case MarketPage.read(params, "tokens") do
@@ -44,25 +44,15 @@ defmodule AutolaunchWeb.TokenController do
   defp loaded_report(%{treasury_security_report: report}), do: report
   defp loaded_report(_token), do: nil
 
-  defp invalid_request(conn) do
-    conn
-    |> put_status(:bad_request)
-    |> json(%{
-      error: %{
-        code: "invalid_request",
-        message: "The query parameters are invalid."
-      }
-    })
-  end
+  defp invalid_request(conn),
+    do: ApiError.send(conn, :bad_request, "invalid_request", "The query parameters are invalid.")
 
-  defp internal_error(conn) do
-    conn
-    |> put_status(:internal_server_error)
-    |> json(%{
-      error: %{
-        code: "internal_error",
-        message: "The request could not be completed."
-      }
-    })
-  end
+  defp internal_error(conn),
+    do:
+      ApiError.send(
+        conn,
+        :internal_server_error,
+        "internal_error",
+        "The request could not be completed."
+      )
 end

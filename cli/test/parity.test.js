@@ -40,7 +40,7 @@ test("all five public commands match existing WebMCP requests and domain results
     assert.equal(new URL(cliRequest.path, api.origin).href, new URL(browserRequest.path, api.origin).href.replace(/\?$/, ""));
   }
   for (const status of [400, 404]) {
-    api.respond({status, body: {error: {code: status === 404 ? "not_found" : "invalid_request", message: "Fixture refusal"}}});
+    api.respond({status, body: {error: {code: status === 404 ? "not_found" : "invalid_request", message: "Fixture refusal", hint: "Fixture hint"}}});
     const browser = await registered.find(tool => tool.name === "autolaunch_auction").execute({id}, {signal: new AbortController().signal});
     const cli = await invoke(bin, ["auction", id, "--base-url", api.origin]);
     assert.equal(cli.code, 1);

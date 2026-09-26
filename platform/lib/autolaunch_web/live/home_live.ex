@@ -55,10 +55,10 @@ defmodule AutolaunchWeb.HomeLive do
     previous = socket.assigns.market_options
     socket = assign(socket, market_options: options, search_query: options.q, trade: nil)
 
-    if previous && Map.drop(previous, [:display]) == Map.drop(options, [:display]) do
-      {:noreply, socket}
-    else
-      {:noreply, load_market(socket, false)}
+    cond do
+      is_nil(previous) -> {:noreply, first_market(socket)}
+      Map.drop(previous, [:display]) == Map.drop(options, [:display]) -> {:noreply, socket}
+      true -> {:noreply, load_market(socket, false)}
     end
   end
 
@@ -111,45 +111,10 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_event("retry", _params, socket),
     do: {:noreply, load_market(socket, socket.assigns.market_append)}
 
-  def handle_async(:home_market, {:ok, {:ok, page}}, socket) do
-    records =
-      if socket.assigns.market_append,
-        do: Enum.uniq_by(socket.assigns.records ++ page.records, & &1.id),
-        else: page.records
+  def handle_async(:home_market, {:ok, {:ok, page}}, socket),
+    do: {:noreply, put_market(socket, page)}
 
-    creators =
-      if socket.assigns.market_append,
-        do: Map.merge(socket.assigns.creators, page.creators),
-        else: page.creators
-
-    {:noreply,
-     assign(socket,
-       records: records,
-       records_kind: kind(socket.assigns.market_options),
-       creators: creators,
-       next_cursor: page.next_cursor,
-       has_more: page.has_more,
-       market_loading: false,
-       market_failed: false
-     )}
-  end
-
-  # A failed "Load more" keeps what is shown; a failed new listing clears the
-  # previous one, which no longer matches what was asked for.
-  def handle_async(:home_market, _failure, %{assigns: %{market_append: true}} = socket),
-    do: {:noreply, assign(socket, market_loading: false, market_failed: true)}
-
-  def handle_async(:home_market, _failure, socket) do
-    {:noreply,
-     assign(socket,
-       records: [],
-       creators: %{},
-       next_cursor: nil,
-       has_more: false,
-       market_loading: false,
-       market_failed: true
-     )}
-  end
+  def handle_async(:home_market, _failure, socket), do: {:noreply, market_failed(socket)}
 
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
@@ -200,11 +165,63 @@ defmodule AutolaunchWeb.HomeLive do
       market_append: append?,
       trade: nil
     )
-    |> start_async(:home_market, fn ->
-      with {:ok, page} <- HomeMarket.read(options, cursor) do
-        {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
-      end
-    end)
+    |> start_async(:home_market, fn -> read_market(options, cursor) end)
+  end
+
+  # The page's first listing is read before it is shown, so the coins are in
+  # the page as it arrives, for readers that run no scripts too. Later
+  # listings load beside the ones already shown.
+  defp first_market(socket) do
+    socket = assign(socket, market_append: false)
+
+    case read_market(socket.assigns.market_options, nil) do
+      {:ok, page} -> put_market(socket, page)
+      _failure -> market_failed(socket)
+    end
+  end
+
+  defp read_market(options, cursor) do
+    with {:ok, page} <- HomeMarket.read(options, cursor) do
+      {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
+    end
+  end
+
+  defp put_market(socket, page) do
+    records =
+      if socket.assigns.market_append,
+        do: Enum.uniq_by(socket.assigns.records ++ page.records, & &1.id),
+        else: page.records
+
+    creators =
+      if socket.assigns.market_append,
+        do: Map.merge(socket.assigns.creators, page.creators),
+        else: page.creators
+
+    assign(socket,
+      records: records,
+      records_kind: kind(socket.assigns.market_options),
+      creators: creators,
+      next_cursor: page.next_cursor,
+      has_more: page.has_more,
+      market_loading: false,
+      market_failed: false
+    )
+  end
+
+  # A failed "Load more" keeps what is shown; a failed new listing clears the
+  # previous one, which no longer matches what was asked for.
+  defp market_failed(%{assigns: %{market_append: true}} = socket),
+    do: assign(socket, market_loading: false, market_failed: true)
+
+  defp market_failed(socket) do
+    assign(socket,
+      records: [],
+      creators: %{},
+      next_cursor: nil,
+      has_more: false,
+      market_loading: false,
+      market_failed: true
+    )
   end
 
   # The records loaded so far, read again in place: the filters, the pages

@@ -10,6 +10,24 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 - [How Autolaunch works](https://autolaunch.sh/how-it-works): supply, trading fees and staking rewards for every Autolaunch token.
 - [REGENT](https://autolaunch.sh/regent): the Regents Labs token, with live staking figures.
 - [Source](https://github.com/regents-ai/autolaunch)
+- [Developer guide](https://autolaunch.sh/developers): the public API, WebMCP tools and what needs a wallet.
+
+## When to use Autolaunch
+
+Use Autolaunch when you want to:
+
+- raise early funds for an agent, or for a service that earns stablecoins, by launching a Revstake token through a 48-hour auction on Base;
+- launch a memestock (a memecoin paired with a real onchain stock) through a 24-hour Memestake auction on Base or Robinhood Chain;
+- back an agent early by bidding in its auction, then stake the token for a share of what it earns;
+- look up auctions, launched tokens, bid estimates or a launch treasury's security report.
+
+First steps for an agent:
+
+1. Read live auctions with `GET https://autolaunch.sh/api/v1/auctions?state=active&sort=ending`, or launched tokens with `GET https://autolaunch.sh/api/v1/tokens`. No account or API key is needed.
+2. Estimate a bid with `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote`; it does not place one.
+3. To bid, launch or stake, send the person to the auction's `url` on the website. Every step is signed in their own wallet.
+
+Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet.
 
 ## Revstake: a new AiFi primitive
 
@@ -141,7 +159,7 @@ The two lists take the tools' options as query parameters, for example `https://
 
 Every auction names its page (`url`), when bidding is expected to close (`estimated_end_at`), the tokens it sells (`token_allocation`), everything bid so far (`bid_volume`, and `bid_volume_usd` in dollars), what it must raise to launch (`minimum_raise`), what it has raised (`currency_raised`) and how much of the minimum that is (`percent_met`, a whole percent capped at 100). `record_updated_at` is when the site last wrote its record of the auction, not when it last read the chain. A figure the site has not recorded is null, and `unavailable` says why: `not_recorded_yet`, `chain_unreadable` (Robinhood could not be read) or `no_usd_price`.
 
-Schema: https://autolaunch.sh/api-contract.openapiv3.yaml
+Schema: https://autolaunch.sh/openapi.json. Every error keeps its HTTP status and answers `{"error": {"code", "message", "hint"}}`; the hint says what to do next.
 
 ### Command line (coming soon)
 

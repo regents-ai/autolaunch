@@ -101,6 +101,12 @@ defmodule Autolaunch.Auction do
       prepare build(load: [:path_tail])
     end
 
+    # The auction pages the sitemap lists, newest first, bounded.
+    read :sitemap do
+      prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(sort: [inserted_at: :desc, id: :asc], limit: 5_000, load: [:path_tail])
+    end
+
     read :list_public do
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
 
@@ -426,6 +432,7 @@ defmodule Autolaunch.Auction do
              :read,
              :listed,
              :listed_by_id,
+             :sitemap,
              :robinhood_by_address,
              :by_path,
              :path_peers,

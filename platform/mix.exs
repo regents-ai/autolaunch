@@ -68,6 +68,13 @@ defmodule Autolaunch.MixProject do
        path: System.get_env("REGENT_UI_PATH", Path.join(shared, "design-system/regent_ui"))},
       {:regent_blog,
        path: System.get_env("REGENT_BLOG_PATH", Path.join(shared, "elixir-utils/blog"))},
+      {:regent_agent_access,
+       path:
+         System.get_env(
+           "REGENT_AGENT_ACCESS_PATH",
+           Path.join(shared, "elixir-utils/agent_access")
+         )},
+      {:mdex, "== 0.13.3"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -156,7 +163,7 @@ defmodule Autolaunch.MixProject do
         # edges (Accounts four, Autolaunch twenty-five) plus thirty-eight
         # resource-to-check edges, and it is re-based per unit when a domain,
         # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 67",
+        "xref graph --label compile-connected --fail-above 68",
         "test --warnings-as-errors",
         "ash.codegen --check"
       ]

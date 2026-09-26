@@ -42,7 +42,13 @@ defmodule AutolaunchWeb.Endpoint do
 
   plug AutolaunchWeb.Prelaunch
 
-  plug Plug.Parsers,
+  # Before the parsers, so a body they refuse on an /api address is answered
+  # in JSON like every other API error.
+  plug RegentAgentAccess.Plug,
+    documents: &AutolaunchWeb.PublicDocuments.document/1,
+    guide: "/llms.txt"
+
+  plug AutolaunchWeb.Plugs.Parsers,
     body_reader: {RegentIdentity.BodyReader, :read_body, []},
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],

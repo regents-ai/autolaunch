@@ -1,5 +1,5 @@
-# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
-#
-# To ban all spiders from the entire site uncomment the next two lines:
-# User-agent: *
-# Disallow: /
+# Every public page may be read. The agent guide is at /llms.txt.
+User-agent: *
+Allow: /
+
+Sitemap: https://autolaunch.sh/sitemap.xml

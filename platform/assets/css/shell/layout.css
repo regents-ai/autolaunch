@@ -8,6 +8,8 @@
 .shell-skip:focus { transform: none; }
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
 .regent-footer p { margin: 0; }
+.regent-footer__links { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.regent-footer__links a { color: inherit; }
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
 /* Create, Buy $REGENT, Follow on X, the crown and GitHub sit together beside Sign in. */
 #home-top .regent-header-links { margin-left: auto; }

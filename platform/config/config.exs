@@ -114,7 +114,11 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: AutolaunchWeb.ErrorHTML, json: AutolaunchWeb.ErrorJSON],
+    formats: [
+      html: AutolaunchWeb.ErrorHTML,
+      json: AutolaunchWeb.ErrorJSON,
+      md: AutolaunchWeb.ErrorMD
+    ],
     layout: false
   ],
   pubsub_server: Autolaunch.PubSub,
