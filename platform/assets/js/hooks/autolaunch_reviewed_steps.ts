@@ -8,6 +8,7 @@ import {connectedEthereumWallet, signerWalletOrConnect} from "../wallet_actions/
 import {userRejected} from "../wallet_actions/autolaunch_launch"
 import {
   LabNetworkMismatch,
+  WrongAccount,
   sendLabTransaction,
   type AutolaunchLabAnchor,
   type AutolaunchLabBinding,
@@ -33,10 +34,12 @@ type Review = {
   agent?: AgentCall
 }
 
-// `wallet_unavailable` and `network_mismatch` are the reasons that prove nothing was sent.
+// The first four are the reasons that prove nothing was sent.
 type FailureReason =
   | "wallet_unavailable"
   | "network_mismatch"
+  | "wrong_account"
+  | "switch_declined"
   | "wallet_declined"
   | "send_unconfirmed"
 
@@ -45,7 +48,7 @@ type Sent = {transaction_hash: string} | {reason: FailureReason}
 type ReviewedStepsHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
-  pushEventTo(target: HTMLElement, event: string, payload: unknown): void
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<unknown>[]>
   review?: Review | null
   agent?: AgentCardHandle
   stopReporting?: () => void
@@ -58,7 +61,8 @@ export const AutolaunchReviewedSteps: Hook = {
     if (this.el.hasAttribute("data-stake-panel") && window.location.hash === "#stake") {
       this.el.scrollIntoView({block: "start"})
     }
-    const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
+    const push = (event: string, payload: unknown) => void this.pushEventTo(this.el, event, payload)
+    const current = () => this.review ?? null
     const mine = (payload: unknown) =>
       (payload as {component_id?: string} | null)?.component_id === this.el.id
 
@@ -71,7 +75,8 @@ export const AutolaunchReviewedSteps: Hook = {
       const review = payload as Review
       this.review = review
       if (!review.send) return
-      void send(this.el, review, review.send, push).then(result =>
+      agent.pressing(review.agent)
+      void send(this.el, review, review.send, push, current).then(result =>
         agent.settle(
           review.agent,
           "transaction_hash" in result
@@ -99,9 +104,13 @@ export const AutolaunchReviewedSteps: Hook = {
       // values shown right now; otherwise the server builds one and sends it.
       const form = formOnScreen(this.el)
       if (form && !builtFor(this.review?.inputs, form)) push("prepare_and_send", {form})
-      else void send(this.el, this.review ?? null, name, push)
+      else void send(this.el, this.review ?? null, name, push, current)
     }
     this.el.addEventListener("click", this.clicked)
+  },
+
+  disconnected(this: ReviewedStepsHook) {
+    this.agent?.disconnected()
   },
 
   destroyed(this: ReviewedStepsHook) {
@@ -117,14 +126,22 @@ export const AutolaunchReviewedSteps: Hook = {
 // reported and nothing is read afterwards: the server owns every question about
 // what that hash did. While a press is with the wallet the panel is only marked,
 // never locked. The answer is also returned, for an agent's call waiting on it.
+// An answer for a step the panel has since replaced with a different one (a new
+// review for other values) is not reported: the server would check it against
+// the new step.
 async function send(
   el: HTMLElement,
   review: Review | null,
   name: string,
   push: (event: string, payload: unknown) => void,
+  current: () => Review | null,
 ): Promise<Sent> {
   const step = review?.steps.find(candidate => candidate.step === name)
   let started = false
+  const replaced = () => {
+    const now = current()?.steps.find(candidate => candidate.step === name)
+    return !!step && !!now && (now.to !== step.to || now.data !== step.data)
+  }
 
   el.dataset.awaitingWallet = name
 
@@ -145,18 +162,23 @@ async function send(
       },
     )
 
-    push("step_sent", {step: name, transaction_hash})
+    if (!replaced()) push("step_sent", {step: name, transaction_hash})
     return {transaction_hash}
   } catch (error) {
     const reason = failure(started, error)
-    push("step_failed", {step: name, reason})
+    if (!replaced()) push("step_failed", {step: name, reason})
     return {reason}
   } finally {
     if (el.dataset.awaitingWallet === name) delete el.dataset.awaitingWallet
   }
 }
 
+// Before the send starts, the only wallet prompt is the network switch, so a
+// refusal then is a declined switch.
 function failure(started: boolean, error: unknown): FailureReason {
-  if (!started) return error instanceof LabNetworkMismatch ? "network_mismatch" : "wallet_unavailable"
-  return userRejected(error) ? "wallet_declined" : "send_unconfirmed"
+  if (started) return userRejected(error) ? "wallet_declined" : "send_unconfirmed"
+  if (error instanceof WrongAccount) return "wrong_account"
+  if (error instanceof LabNetworkMismatch) return "network_mismatch"
+  if (userRejected(error)) return "switch_declined"
+  return "wallet_unavailable"
 }

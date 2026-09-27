@@ -7,7 +7,7 @@ import {sendBidStep, sendableStep, type BidOperation} from "../wallet_actions/au
 type SettlementHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
-  pushEventTo(target: HTMLElement, event: string, payload: unknown): void
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<unknown>[]>
   removePressListener?: ReturnType<typeof installWalletPresses>
   agent?: AgentCardHandle
   stopReporting?: () => void
@@ -35,6 +35,10 @@ export const AutolaunchBidSettlement: Hook = {
 
   updated(this: SettlementHook) {
     this.removePressListener?.checkScope()
+  },
+
+  disconnected(this: SettlementHook) {
+    this.agent?.disconnected()
   },
 
   destroyed(this: SettlementHook) {

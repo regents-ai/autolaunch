@@ -111,15 +111,21 @@ in the card's own words, and nothing reaches the wallet.
 
 Nothing is gated or merged: a second call while the first is with the wallet opens
 the wallet again, and the same values with a step already prepared send that step
-again. A call with different values prepares afresh, as editing the card would.
+again. A call with different values prepares afresh, as changing the card's
+values would, and replaces the review the card had open: a step of the earlier
+review still with the wallet can still be confirmed there, but the page no longer
+follows it.
 
 Results are `{outcome, transaction_hash?, message}`:
 
 - `sent` with the hash, and a message naming any steps still to send (an approval
-  comes first; call again with the same values for the next step).
+  comes first). The card offers the next step once this one lands, so a call
+  with the same values before then asks for this step again.
 - `not_sent` when nothing reached the chain: the card refused, the input did not
   match the schema, the signed-in wallet is not connected in this tab, the wallet
-  is on another account or network, or the person declined.
+  is on another account or network, the person declined the network switch or
+  the step, or the page lost its connection or the sign-in changed before the
+  wallet opened.
 - `unknown` when the wallet may have sent it but did not say, or the page changed
   or the call was cancelled after the card began preparing it.
 

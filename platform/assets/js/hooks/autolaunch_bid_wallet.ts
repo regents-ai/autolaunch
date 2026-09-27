@@ -8,7 +8,7 @@ import {sendBidStep, sendableStep, type BidOperation} from "../wallet_actions/au
 type BidHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
-  pushEventTo(target: HTMLElement, event: string, payload: unknown): void
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<unknown>[]>
   removePressListener?: ReturnType<typeof installWalletPresses>
   agent?: AgentCardHandle
   stopReporting?: () => void
@@ -42,6 +42,10 @@ export const AutolaunchBidWallet: Hook = {
 
   updated(this: BidHook) {
     this.removePressListener?.checkScope()
+  },
+
+  disconnected(this: BidHook) {
+    this.agent?.disconnected()
   },
 
   destroyed(this: BidHook) {

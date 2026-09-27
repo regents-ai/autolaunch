@@ -117,7 +117,7 @@ defmodule AutolaunchWeb.WalletPressComponent do
   def consume(socket, lease, result) do
     cond do
       socket.assigns[:session_lease] != lease ->
-        socket
+        stale(socket, result)
 
       current_authority?(socket.assigns) ->
         completed(socket, result)
@@ -139,6 +139,18 @@ defmodule AutolaunchWeb.WalletPressComponent do
   end
 
   defp current_authority?(_assigns), do: false
+
+  # A result from before the session was renewed is not applied; the press it
+  # would have answered hears that nothing was sent.
+  defp stale(socket, {{:dispatch, params}, _result}),
+    do:
+      refused(
+        socket,
+        params,
+        "The person's sign-in was renewed before the wallet opened. Call again."
+      )
+
+  defp stale(socket, _result), do: socket
 
   def completed(socket, {{:dispatch, params}, {:ok, %{dispatch?: true}} = result}) do
     socket
@@ -163,14 +175,18 @@ defmodule AutolaunchWeb.WalletPressComponent do
           "The page did not hand this to the wallet. Call again to send the step it shows now."
       end
 
-    push_event(socket, "wallet-press:refused", %{
-      component_id: socket.assigns.id,
-      press_id: params["press_id"],
-      message: message
-    })
+    refused(socket, params, message)
   end
 
   def completed(socket, {_tag, result}), do: apply_result(socket, result)
+
+  defp refused(socket, params, message),
+    do:
+      push_event(socket, "wallet-press:refused", %{
+        component_id: socket.assigns.id,
+        press_id: params["press_id"],
+        message: message
+      })
 
   defp apply_result(socket, {:ok, %{operation: operation}}) do
     previous = Map.get(socket.assigns[:wallet_press_history] || %{}, operation.action_id)

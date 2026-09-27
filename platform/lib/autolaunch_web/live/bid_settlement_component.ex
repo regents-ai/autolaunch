@@ -576,6 +576,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
              |> published({Atom.to_string(operation.step), call})
              |> notify_settled()}
 
+          {:ok, _other_bid} ->
+            {:noreply,
+             AgentPress.refused(
+               socket,
+               call,
+               "This card's bid changed while it was preparing. Call again."
+             )}
+
           {:error, error} ->
             message = copy(refusal(error))
 

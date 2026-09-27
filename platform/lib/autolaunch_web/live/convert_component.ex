@@ -419,6 +419,13 @@ defmodule AutolaunchWeb.ConvertComponent do
         "Your wallet is on a different network. Switch it to #{network_name(chain_id)}, then try again. Nothing was sent."
   end
 
+  defp wallet_failure_copy("wrong_account", _review),
+    do:
+      "Nothing was sent. Your wallet is on a different account from the one you signed in with. Switch it to the signed-in account, then press again."
+
+  defp wallet_failure_copy("switch_declined", _review),
+    do: "Your wallet did not switch networks. Nothing was sent."
+
   defp wallet_failure_copy("wallet_declined", _review),
     do: "Your wallet declined this. Nothing was sent."
 

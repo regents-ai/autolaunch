@@ -341,7 +341,7 @@
     {
       "name": "autolaunch_bid",
       "title": "Place a bid",
-      "description": "Bid on the auction this page shows, from the wallet the person signed in with; it opens their wallet exactly as the page's own bid button does. amount is what the bid spends and max_price the most it pays per token, both in the auction's currency (REGENT or its stock on Base, USDG on Robinhood). pay_with is USDC where the page offers it (the USDC is bought into the auction's stock on the way), otherwise leave it out. The first step may approve the currency, then the next places the bid. To raise a bid or add to one, place another bid. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "Bid on the auction this page shows, from the wallet the person signed in with; it opens their wallet exactly as the page's own bid button does. amount is what the bid spends and max_price the most it pays per token, both in the auction's currency (REGENT or its stock on Base, USDG on Robinhood). pay_with is USDC where the page offers it (the USDC is bought into the auction's stock on the way), otherwise leave it out. The first step may approve the currency, then the next places the bid. To raise a bid or add to one, place another bid. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -383,7 +383,7 @@
     {
       "name": "autolaunch_settle_bid",
       "title": "Get money back or claim tokens",
-      "description": "For one of the person's bids, press what its card offers now: while bidding is open, take the unspent money of an outbid bid back early (recording the new price first when the auction needs it); once the auction is over, withdraw the unspent money, then claim the tokens it won. bid is the id autolaunch_my_positions gives. Works on the bid's auction page, and for early returns of Base bids on /portfolio. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "For one of the person's bids, press what its card offers now: while bidding is open, take the unspent money of an outbid bid back early (recording the new price first when the auction needs it); once the auction is over, withdraw the unspent money, then claim the tokens it won. bid is the id autolaunch_my_positions gives. Works on the bid's auction page, and for early returns of Base bids on /portfolio. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -412,7 +412,7 @@
     {
       "name": "autolaunch_buy",
       "title": "Buy this token",
-      "description": "Buy the token this page shows with the pool's currency (REGENT or the launch's stock), from the person's signed-in wallet. amount is how much currency to spend; max_slippage is the most the price may move against the trade, in percent from 1 to 10 (1 unless given). Approvals come first when needed, then the swap. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "Buy the token this page shows with the pool's currency (REGENT or the launch's stock), from the person's signed-in wallet. amount is how much currency to spend; max_slippage is the most the price may move against the trade, in percent from 1 to 10 (1 unless given). Approvals come first when needed, then the swap. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -446,7 +446,7 @@
     {
       "name": "autolaunch_sell",
       "title": "Sell this token",
-      "description": "Sell the token this page shows for the pool's currency, from the person's signed-in wallet. amount is how many tokens to sell; max_slippage is the most the price may move against the trade, in percent from 1 to 10 (1 unless given). Approvals come first when needed, then the swap. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "Sell the token this page shows for the pool's currency, from the person's signed-in wallet. amount is how many tokens to sell; max_slippage is the most the price may move against the trade, in percent from 1 to 10 (1 unless given). Approvals come first when needed, then the swap. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -480,7 +480,7 @@
     {
       "name": "autolaunch_stake",
       "title": "Stake this token",
-      "description": "Stake the token this page shows from the person's signed-in wallet, to earn its share of the launch's revenue. An approval comes first when needed, then the stake. Unstaking is allowed from the next block. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "Stake the token this page shows from the person's signed-in wallet, to earn its share of the launch's revenue. An approval comes first when needed, then the stake. Unstaking is allowed from the next block. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -509,7 +509,7 @@
     {
       "name": "autolaunch_unstake",
       "title": "Unstake this token",
-      "description": "Unstake the token this page shows back to the person's signed-in wallet. Not in the same block as staking. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "Unstake the token this page shows back to the person's signed-in wallet. Not in the same block as staking. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -538,7 +538,7 @@
     {
       "name": "autolaunch_claim_rewards",
       "title": "Claim staking rewards",
-      "description": "Claim everything staking has earned for the person's signed-in wallet on the token this page shows. Moves tokens to the person. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "description": "Claim everything staking has earned for the person's signed-in wallet on the token this page shows. Moves tokens to the person. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; once a step lands, call again with the same values to send the next one. A second call while the first is with the wallet opens the wallet again.",
       "input_schema": {
         "type": "object",
         "properties": {},

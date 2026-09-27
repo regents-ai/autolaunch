@@ -9,7 +9,7 @@ type Review = {action_id: string; signer: string; terminal: boolean; step?: stri
 type Report = {component_id: string; action_id: string; press_id: string; step: string;
   transaction_hash?: string; outcome?: string}
 type Hook = {el: HTMLElement; handleEvent(name: string, callback: (payload: any) => void): void;
-  pushEventTo(target: HTMLElement, name: string, payload: unknown): void}
+  pushEventTo(target: HTMLElement, name: string, payload: unknown): unknown}
 
 /** A click captures review + step before any await. Only that click can consume
  * its authorization. Nothing is kept in the browser: a reload starts from the
@@ -52,7 +52,7 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
   }
   const walletChanged = () => { for (const press of presses.values()) resolve(press) }
   window.addEventListener("autolaunch:wallet-state", walletChanged)
-  const push = (event: string, payload: unknown) => hook.pushEventTo(hook.el, event, payload)
+  const push = (event: string, payload: unknown) => void hook.pushEventTo(hook.el, event, payload)
   const mine = (p: {component_id?: string}) => !p.component_id || p.component_id === hook.el.id
   const report = (r: Report) => push("wallet_press_report", r)
   hook.handleEvent(`${config.prefix}:operation`, (op: O & {component_id?: string}) => {
@@ -63,7 +63,15 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     if (scope && !op.terminal) void press(op, op.send, op.agent)
     else settle(op.agent, failed("wallet_unavailable"))
   })
-  hook.handleEvent("wallet-press:invalidated", p => { if (mine(p)) invalidate() })
+  // The sign-in changed: presses still waiting for the server never reach the wallet.
+  hook.handleEvent("wallet-press:invalidated", p => {
+    if (!mine(p)) return
+    invalidate()
+    for (const press of presses.values()) {
+      if (!press.sent) settle(press.agent, {outcome: "not_sent", message:
+        "Nothing was sent. The person's sign-in changed before the wallet opened. Ask them to sign in again, then call again."})
+    }
+  })
 
   const clicked = async (event: Event) => {
     if (disposed) return
@@ -101,6 +109,7 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     const held = presses.get(p.press_id)
     if (!held || held.sent || held.operation.action_id !== p.action_id || held.step !== p.step) return
     held.sent = true // duplicate delivery of THIS press only, not a wallet latch
+    config.agent?.pressing(held.agent)
     let started = false
     const base = {component_id: hook.el.id, action_id: p.action_id, press_id: p.press_id, step: p.step}
     try {

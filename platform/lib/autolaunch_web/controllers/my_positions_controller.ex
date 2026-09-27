@@ -34,8 +34,16 @@ defmodule AutolaunchWeb.MyPositionsController do
       fn -> TokenHoldings.read(actor) end
     ]
 
-    case reads |> Enum.map(&Task.async/1) |> Task.await_many(@read_ms) do
-      [{:ok, base}, {:ok, robinhood}, {:ok, holdings}] ->
+    results =
+      Autolaunch.TaskSupervisor
+      |> Task.Supervisor.async_stream_nolink(reads, & &1.(),
+        timeout: @read_ms,
+        on_timeout: :kill_task
+      )
+      |> Enum.to_list()
+
+    case results do
+      [{:ok, {:ok, base}}, {:ok, {:ok, robinhood}}, {:ok, {:ok, holdings}}] ->
         books = books(base)
 
         json(conn, %{

@@ -39,7 +39,7 @@ type ModelContext = {
 type CardHook = {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
-  pushEventTo(target: HTMLElement, event: string, payload: unknown): void
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<unknown>[]>
 }
 
 const entries = new Map(
@@ -57,8 +57,11 @@ const failures: Record<string, AgentOutcome> = {
   network_mismatch: notSent(
     "Nothing was sent. The person's wallet is on a different network. Ask them to switch it, then call again.",
   ),
+  switch_declined: notSent(
+    "Nothing was sent. The person declined switching their wallet to this network. Ask them to accept the switch, then call again.",
+  ),
   wrong_account: notSent(
-    "Nothing was sent. The wallet in this tab is on a different account from the one the person signed in with, and the page names both. Ask them to switch accounts, then call again.",
+    "Nothing was sent. The wallet in this tab is on a different account from the one the person signed in with. Ask them to switch it to the signed-in account, then call again.",
   ),
   wallet_declined: notSent("The person declined in their wallet. Nothing was sent."),
   send_unconfirmed: {
@@ -73,7 +76,7 @@ export function failed(reason: string): AgentOutcome {
 
 export function sent(transaction_hash: string, remaining: string[]): AgentOutcome {
   const message = remaining.length
-    ? `Sent. Still to send: ${remaining.join(", then ")}. Call this tool again with the same values to send the next step; the page shows each step as it lands.`
+    ? `Sent. Still to send: ${remaining.join(", then ")}. Wait a few seconds for this step to land, then call this tool again with the same values to send the next one; a call before it lands asks the wallet for this step again.`
     : "Sent. The page shows when it lands, and autolaunch_my_positions reads the result."
   return {outcome: "sent", transaction_hash, message}
 }
@@ -146,14 +149,22 @@ function unregister(name: string, card: Card) {
   registered.delete(name)
 }
 
+const unreached = notSent(
+  "Nothing was sent. The page lost its connection to the site before the wallet opened. Call again once the page has reconnected.",
+)
+
 /**
  * Makes a mounted card answer the tools it names. The hook settles each call
  * with the wallet's answer through `settle`; the server's refusal arrives as
- * `agent-tools:refused` and settles it with the card's own words.
+ * `agent-tools:refused` and settles it with the card's own words. A call is
+ * `preparing` until the hook starts a wallet press for it (`pressing`); only
+ * the browser opens the wallet, so a preparing call the site can no longer
+ * answer is known not to have sent anything.
  */
 export function agentCard(hook: CardHook) {
   const names = (hook.el.dataset.agentTools ?? "").split(" ").filter(name => entries.has(name))
   const waiting = new Map<string, (outcome: AgentOutcome) => void>()
+  const preparing = new Set<string>()
 
   const card: Card = {
     bid: hook.el.dataset.agentBid?.toLowerCase(),
@@ -169,12 +180,21 @@ export function agentCard(hook: CardHook) {
           })
         const finish = (outcome: AgentOutcome) => {
           if (!waiting.delete(call)) return
+          preparing.delete(call)
           signal?.removeEventListener("abort", cancelled)
           resolve(outcome)
         }
         waiting.set(call, finish)
+        preparing.add(call)
         signal?.addEventListener("abort", cancelled)
-        hook.pushEventTo(hook.el, "agent_press", {call, tool, input})
+        void hook.pushEventTo(hook.el, "agent_press", {call, tool, input}).then(
+          results => {
+            if (results.some(result => result.status === "rejected") && preparing.has(call)) finish(unreached)
+          },
+          () => {
+            if (preparing.has(call)) finish(unreached)
+          },
+        )
       })
     },
   }
@@ -186,8 +206,16 @@ export function agentCard(hook: CardHook) {
   for (const name of names) register(name, card)
 
   return {
+    // The hook is starting a wallet press for this call.
+    pressing(agent: AgentCall | undefined) {
+      if (agent) preparing.delete(agent.call)
+    },
     settle(agent: AgentCall | undefined, outcome: AgentOutcome) {
       if (agent) waiting.get(agent.call)?.(outcome)
+    },
+    // The page lost the site: calls it was still preparing can no longer be answered.
+    disconnected() {
+      for (const call of [...preparing]) waiting.get(call)?.(unreached)
     },
     dispose() {
       for (const name of names) unregister(name, card)

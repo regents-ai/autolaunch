@@ -20,6 +20,8 @@ defmodule Autolaunch.Application do
       {Autolaunch.Accounts.BootstrapRateLimiter, []},
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
+      # Reads run apart from the request, so one that fails or hangs is answered, not crashed.
+      {Task.Supervisor, name: Autolaunch.TaskSupervisor},
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       Autolaunch.MarketTicker,

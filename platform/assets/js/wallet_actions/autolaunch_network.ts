@@ -41,6 +41,8 @@ export type AutolaunchTransaction = {
  * was sent, and only the wallet's own network settings can fix it.
  */
 export class LabNetworkMismatch extends Error {}
+// The wallet is on another of its accounts than the one the action was reviewed for.
+export class WrongAccount extends Error {}
 
 type LabNetwork = {chainId: number; rpcUrl: string; chainName: string; testChain: boolean}
 export type WalletResolver = () => SelectedWallet | null
@@ -114,7 +116,7 @@ export async function sendLabTransaction(
     typeof account !== "string" ||
     getAddress(account) !== getAddress(operation.signer)
   ) {
-    throw new Error("Use the wallet this action was reviewed for.")
+    throw new WrongAccount("Use the wallet this action was reviewed for.")
   }
 
   sameSelectedWallet(resolveWallet, selected, operation.signer)

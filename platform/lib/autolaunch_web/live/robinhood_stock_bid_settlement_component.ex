@@ -805,6 +805,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     do:
       "Your wallet is connected to a different network under the reviewed chain number. Check the network settings in your wallet, then try again. Nothing was sent."
 
+  defp wallet_failure_copy("wrong_account"),
+    do:
+      "Nothing was sent. Your wallet is on a different account from the one you signed in with. Switch it to the signed-in account, then press again."
+
+  defp wallet_failure_copy("switch_declined"),
+    do: "Your wallet did not switch networks. Nothing was sent."
+
   defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
 
   defp wallet_failure_copy("send_unconfirmed"),
