@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v51, 27 September 2026 (9061676)
+- The site now uses Regent's shared sign-in, design and blog code at fixed published
+  versions, the same ones every Regent site checks against, so the release no longer
+  depends on copies kept next to it.
+- Signing in with one of several linked wallets keeps that wallet as the signed-in one.
+- Sign-in checks against Privy's one current key.
+
 ## v50, 27 September 2026 (03b5a7f)
 - Create now starts with a clear choice between a Memestake and a Revstake token, and each
   page is named for the one it makes.
