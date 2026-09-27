@@ -46,15 +46,13 @@ is sent, so `advance` or `pace` moves an auction through its milestones.
 Run everything from `platform/` in the test environment. It gives the site a partition
 database of its own, a plain connection pool and HTTP on `PORT`. Sign-in is either off (the
 fixture verifier, which has no interactive login) or real Privy, as chosen below.
-Strip any ambient database URLs, and point Mix at the sibling dependency checkouts with
-`REGENT_DEPS_ROOT` (the directory that holds `design-system`, `elixir-utils` and `regents`).
+Strip any ambient database URLs.
 
 Build once:
 
 ```sh
 cd platform
 env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    REGENT_DEPS_ROOT=/absolute/path/to/repos \
     sh -c 'mix deps.get && npm ci --ignore-scripts && mix compile && mix assets.setup && mix assets.build'
 ```
 
@@ -65,7 +63,7 @@ with `mix db.setup`, scoped to that partition, before the first start:
 
 ```sh
 env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    REGENT_DEPS_ROOT=/absolute/path/to/repos MIX_TEST_PARTITION=_lab mix db.setup
+    MIX_TEST_PARTITION=_lab mix db.setup
 ```
 
 Run it only against a partition of your own. Never drop, recreate or replay migrations on
@@ -75,7 +73,6 @@ already uses, is reused as it is.
 ```sh
 cd platform
 env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    REGENT_DEPS_ROOT=/absolute/path/to/repos \
     MIX_TEST_PARTITION=_lab PORT=4050 \
     AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
     AUTOLAUNCH_CHAIN_MODE=fork \

@@ -156,7 +156,7 @@ without a hosted fork. Copy the lab's two files, add `"public_rpc_url": "https:/
 and start the site with `AUTOLAUNCH_CHAIN_MODE=fork` and no serve script:
 
 ```sh
-env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test REGENT_DEPS_ROOT=/absolute/path/to/repos \
+env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
   MIX_TEST_PARTITION=_fork_mode AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 PORT=4090 \
   AUTOLAUNCH_CHAIN_MODE=fork \
   AUTOLAUNCH_BASE_DEPLOYMENT=/tmp/fork/site-config.json \

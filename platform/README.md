@@ -63,24 +63,11 @@ installed by `mix autolaunch.identity.migrate` locally.
 
 ## Shared dependencies
 
-From a directory containing sibling product repositories, acquire the shared libraries:
-
-```sh
-git clone https://github.com/regents-ai/design-system.git
-git clone https://github.com/regents-ai/elixir-utils.git
-git clone https://github.com/regents-ai/regents.git
-```
-
-The expected layout is `<workspace>/<product>/platform`,
-`<workspace>/design-system/regent_ui`, `<workspace>/elixir-utils/` and
-`<workspace>/regents/identity`.
-From this component directory, `REGENT_DEPS_ROOT` may point at `<workspace>` when
-it is elsewhere. Individual packages may instead be selected with `REGENT_UI_PATH`,
-`REGENT_PRIVY_PATH`, `REGENT_IDENTITY_PATH`, `REGENT_BLOG_PATH` and `REGENT_ENS_PATH`.
-ENS uses `elixir-utils/ens` and its sibling SIWA package at
-`elixir-utils/siwa/siwa-elixir/apps/siwa`. Record the selected repository commit IDs with check results;
-release builds and isolated agent worktrees must use their selected immutable
-revisions, rather than updating sibling checkouts during verification.
+Shared Regent libraries come from GitHub: `mix.exs` pins each one to an exact commit
+of `elixir-utils`, `design-system` or `regents`, and `mix deps.get` fetches them. To move
+a pin, change its ref at the top of `mix.exs` and run `mix deps.update <name>`.
+`make check-required-fixes` from the repository root checks every pin against
+ash-template's list of required fixes (it needs `gh auth login`).
 Do not clone recursive Solidity submodules for a web-only change.
 
 ## Quickstart
@@ -202,42 +189,24 @@ fly deploy --app autolaunch-sh --config fly.toml \
 `DATABASE_URL`, `BASE_READ_RPC_URL`, `PHX_HOST`, and `SECRET_KEY_BASE`; the migration app
 does not.
 
-The image is built from `Dockerfile`. The context contains the application and
-the selected shared packages below; Docker installs `mix.lock` and `package-lock.json`
-dependencies for the target Linux architecture. Host caches and native binaries
+The image is built from `Dockerfile` with the repository root as its context. Docker
+installs `mix.lock` and `package-lock.json` dependencies, including the pinned shared
+libraries from GitHub, for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
 `fly.staging.toml` (`autolaunch-staging`); `fly.preview.toml` (`autolaunch-preview`) and
 `Dockerfile.preview` describe the fork preview ([docs/fork-preview.md](docs/fork-preview.md)).
 
-Run the assembler from `platform/` with package paths set to the selected
-checkouts and each corresponding revision set to that checkout's exact commit.
-Use clean dependency checkouts when preparing a release:
-
-- `REGENT_PRIVY_PATH` and `REGENT_PRIVY_REVISION`: `elixir-utils/privy` and its repository commit.
-- `REGENT_IDENTITY_PATH` and `REGENT_IDENTITY_REVISION`: `regents/identity` and its repository commit.
-- `REGENT_UI_PATH` and `REGENT_UI_REVISION`: `design-system/regent_ui` and its repository commit.
-- `REGENT_BLOG_PATH` and `REGENT_BLOG_REVISION`: `elixir-utils/blog` and its repository commit.
-- `REGENT_ENS_PATH` and `REGENT_ENS_REVISION`: `elixir-utils/ens` and its repository commit.
-- `REGENT_SIWA_PATH` and `REGENT_SIWA_REVISION`: `elixir-utils/siwa/siwa-elixir/apps/siwa` and its repository commit.
-
-`release-inputs.json` records the selected repository, revision and path of each package.
-`scripts/checkout-shared-packages.sh /absolute/new-dir` checks each one out at that exact
-revision and prints the matching path and revision variables. The Platform GitHub workflow
-uses it to compile, check and test the application and to build the Linux release image
-(without pushing) whenever application or blog files change.
+The Platform GitHub workflow compiles, checks and tests the application and builds the
+Linux release image (without pushing) whenever application or blog files change.
 
 ```sh
-set -a; . <(bash scripts/checkout-shared-packages.sh /absolute/new-packages); set +a
-bash scripts/build-release-context.sh /absolute/new-context arm64
-docker build --platform linux/arm64 -f /absolute/new-context/Dockerfile -t autolaunch-candidate /absolute/new-context
+docker build --platform linux/arm64 -f platform/Dockerfile -t autolaunch-candidate .
 ```
 
-Use `amd64` for an x86 Linux image. Assembly is local and does not need a sealed
-supply directory; the image build needs network access for locked packages and
-build tools. `BUILD-INPUTS.txt` records shared revisions and lockfile hashes.
-Existing destinations are refused, so interruption or a repeated command cannot
-remove an earlier context. Build and run the exact image before release; local
-source tests alone do not verify Linux native dependencies or production sign-in.
+Run it from the repository root, and use `amd64` for an x86 Linux image. The build
+needs network access for locked packages and build tools. Build and run the exact
+image before release; local source tests alone do not verify Linux native
+dependencies or production sign-in.
 
 ### Creator connections and bid activity
 
@@ -317,9 +286,7 @@ the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
 
-Resolve `REGENT_IDENTITY_PATH`, `REGENT_PRIVY_PATH` and `REGENT_UI_PATH` to the
-recorded dependency snapshots for isolated work. Run `mix assets.build` after
-changing a shared package. All deployments must use one Privy application and
+Run `mix assets.build` after moving a shared library's pin. All deployments must use one Privy application and
 one PostgreSQL destination before profiles can be shared between sites.
 Regents owns the explicit identity migration; consumers do not run it on startup.
 Do not repoint existing databases or replay migration histories: legacy identity

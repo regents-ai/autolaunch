@@ -16,7 +16,6 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 FROM native AS build
 
 ENV MIX_ENV=prod
-ENV REGENT_DEPS_ROOT=/workspace
 ENV HOME=/root
 WORKDIR /workspace/platform
 
@@ -25,15 +24,9 @@ COPY --from=assets /usr/local/bin/node /usr/local/bin/node
 COPY --from=assets /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
+# Shared Regent libraries arrive here from GitHub at the commits mix.lock pins.
 RUN mix local.hex --force && mix local.rebar --force
 COPY platform/mix.exs platform/mix.lock ./
-COPY elixir-utils/ens /workspace/elixir-utils/ens
-COPY elixir-utils/siwa/siwa-elixir/apps/siwa /workspace/elixir-utils/siwa/siwa-elixir/apps/siwa
-COPY elixir-utils/privy /workspace/elixir-utils/privy
-COPY elixir-utils/blog /workspace/elixir-utils/blog
-COPY elixir-utils/agent_access /workspace/elixir-utils/agent_access
-COPY regents/identity /workspace/regents/identity
-COPY design-system/regent_ui /workspace/design-system/regent_ui
 COPY platform/config config
 RUN mix deps.get --only prod --check-locked && mix deps.compile
 

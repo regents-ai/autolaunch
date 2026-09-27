@@ -201,7 +201,7 @@ python3 bin/local-stocks-lab.py --agent-lab-dir /Users/sean/Documents/regent/rep
 
 # website: own partition, both lab configs, read-only off via the serve script
 cd ../../platform
-env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test REGENT_DEPS_ROOT=/Users/sean/Documents/regent/repos \
+env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
   MIX_TEST_PARTITION=_stocks_lab2 AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
   AUTOLAUNCH_BASE_DEPLOYMENT=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/site-config.json \
   AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/stocks-site-config.json \

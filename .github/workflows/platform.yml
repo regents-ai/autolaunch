@@ -19,8 +19,7 @@ on:
 permissions:
   contents: read
 
-# The shared Regent packages mix.exs loads by path are checked out at the revisions
-# platform/release-inputs.json selects, the same selection the release image is built from.
+# Shared Regent libraries come from GitHub at the commits platform/mix.lock pins.
 # Erlang, Elixir and Node come from platform/.tool-versions.
 jobs:
   checks:
@@ -47,14 +46,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out the selected shared packages
-        run: scripts/checkout-shared-packages.sh "$RUNNER_TEMP/shared-packages" >>"$GITHUB_ENV"
-
-      # Credo's Ash checks load only in dev and test, from the elixir-utils checkout the ENS
-      # package comes from.
-      - name: Point credo_ash at the ENS package's elixir-utils checkout
-        run: printf 'REGENT_DEPS_ROOT=%s\n' "$(dirname "$(dirname "$REGENT_ENS_PATH")")" >>"$GITHUB_ENV"
-
       - uses: erlef/setup-beam@v1
         with:
           version-file: platform/.tool-versions
@@ -77,22 +68,13 @@ jobs:
 
   release-image:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: platform
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check out the selected shared packages
-        run: scripts/checkout-shared-packages.sh "$RUNNER_TEMP/shared-packages" >>"$GITHUB_ENV"
-
-      - name: Assemble the release context
-        run: scripts/build-release-context.sh "$RUNNER_TEMP/release-context" amd64
 
       # Built exactly as a release is, for the production architecture, and never pushed.
       - name: Build the Linux release image
         run: |
           docker build --platform linux/amd64 \
-            -f "$RUNNER_TEMP/release-context/Dockerfile" \
+            -f platform/Dockerfile \
             -t autolaunch-release-check \
-            "$RUNNER_TEMP/release-context"
+            .

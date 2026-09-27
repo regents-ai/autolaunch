@@ -62,12 +62,7 @@ The catalog is compiled into the application, so a release does not read this
 source folder at runtime. `mix regent_blog.assets` stages `images/` and the local
 math module as part of both `mix assets.build` and `mix assets.deploy`.
 
-The shared package is `repos/elixir-utils/blog`; choose it with `REGENT_BLOG_PATH`
-when using a pinned dependency snapshot. Shared UI requires the matching blog
-components in `regent_ui`. Commit/review shared work first, then advance consumer
-CI/release pins to those actual commits; do not invent a future revision.
-
-The release-context assembler includes this folder and the selected blog package.
-Set `REGENT_BLOG_PATH` to that package; Autolaunch additionally records its exact
-`REGENT_BLOG_REVISION`. Regents' sealed dependency cache must match the new lockfile
-before its offline release build; never bypass the manifest verification.
+The shared package is `elixir-utils/blog`, pinned to an exact commit in
+`platform/mix.exs`. Shared UI requires the matching blog components in `regent_ui`.
+Commit and review shared work first, then move the pins to those actual commits; do
+not invent a future revision. The release image includes this folder.
