@@ -1,27 +1,11 @@
-/* The market stays first. Existing optics are confined to a labeled figure. */
+/* The market stays first. */
 .home-page { display: grid; gap: var(--space-4); }
-.home-explore { border-bottom: 1px solid var(--rg-page-rule); }
-.home-explore .rg-hero__copy { padding-inline-start: 0; }
-.home-explore .rg-section-bar { border: 0; margin-block: var(--space-3); }
-.home-explore h1 { margin: 0; font-size: clamp(2.5rem,4.8vw,4.5rem); line-height: 1.03; letter-spacing: -.045em; }
-.home-explore__kicker { margin: 0; font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--color-fg-muted); }
 .home-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block: var(--space-4); }
-.home-chip { display: inline-flex; align-items: center; min-height: 2.75rem; padding: var(--space-1) var(--space-2); border: 1px solid var(--hairline-strong); color: inherit; text-decoration: none; }
-.home-chip[aria-current="true"] { border-bottom: 3px solid currentColor; font-weight: 600; text-decoration: underline; }
-.home-figure { width: 100%; padding: 0; }
-.home-crown { position: relative; width: 100%; aspect-ratio: 1; pointer-events: none; opacity: 0; }
-.home-crown[data-optics-ready="true"] { opacity: 1; }
-.home-crown__canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
 .home-market { min-width: 0; }
-.home-market__empty { margin: 0; padding: var(--rg-panel-padding); border-block: 1px solid var(--hairline); color: var(--color-fg-muted); }
 .home-market__error p { margin-top: 0; }
 .home-coin-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; min-width: 0; }
 .home-coin-grid > div { display: grid; grid-row: span 5; grid-template-rows: subgrid; min-width: 0; }
-.home-capabilities { display: grid; gap: var(--space-3); }
-.home-capabilities .rg-feature .rg-technical-figure__art { background: var(--support-figure-surface); color: var(--support-figure-ink); }
-.home-capabilities .rg-feature__caption { --rg-panel-fill: var(--support-panel-surface); --rg-panel-ink: var(--support-panel-ink); }
 @media (max-width: 74.99rem) { .home-coin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media (max-width: 47.99rem) { .home-explore .rg-hero__copy { padding: var(--rg-panel-padding) 0; } .home-explore .rg-hero__figure { padding-inline: 0; } }
 @media (max-width: 35rem) { .home-coin-grid { grid-template-columns: minmax(0,1fr); } }
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */

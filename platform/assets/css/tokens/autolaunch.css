@@ -1,6 +1,4 @@
 /* Product interaction aliases; all palette values come from Regent UI. */
 :root[data-brand="autolaunch"] {
   --color-accent-hover: var(--color-link);
-  --glass-text-accent: var(--color-link);
-  --glass-secondary-text: var(--color-link);
 }
