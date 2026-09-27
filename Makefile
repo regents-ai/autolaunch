@@ -3,7 +3,7 @@ help:
 	@echo "Run make check for every gate, or check-platform or check-required-fixes for one."
 check: check-platform check-required-fixes
 check-platform:
-	cd platform && mix precommit
+	cd platform && mix precommit && npm run typecheck && npm test
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template
