@@ -1,11 +1,21 @@
 # Launch profiles: v1 today, v2 defaults and bounds
 
-**Status: decisions 1–4 are made (27 September 2026). The hard ceilings in
-[Hard ceilings](#hard-ceilings) are proposed and await Sean's approval. No v2 contract code
-is authorised yet; a new session will own the v2 contracts.**
+**Status (27 September 2026): Revstake on Base is decided: fixed values, and the creator
+picks only the floor price (see [the change below](#change-27-september-no-variable-ranges)).
+Memestake on Base and Robinhood Chain awaits founder word after that change. No v2
+contract code is authorised yet; a new session will own the v2 contracts.**
 
-Founder decision (27 September 2026, "1a"): in v2, the creator sets each launch's
-parameters within bounds the founder sets. The defaults are written down here before any
+## Change, 27 September: no variable ranges
+
+Sean, 27 September 2026, relayed by HQ: "I am changing the following around autolaunch,
+there was a miscommunication, no more of the variable ranges". For Revstake on Base this
+replaces the earlier ranges, the Safe-adjustable bounds and the Revstake hard ceilings.
+The only value a Revstake creator picks is the floor price. For Memestake, no new
+table has been given yet. Its rows below are unchanged and **await founder word after
+the 27 September change**.
+
+Earlier founder decision (27 September 2026, "1a"), now for Memestake only: in v2, the
+creator sets each launch's parameters within bounds the founder sets. The defaults are written down here before any
 code. v1 keeps running beside v2; whether v1 launch creation closes when v2 opens is a
 separate founder decision with its own Safe transaction.
 
@@ -39,30 +49,36 @@ Sources: `v1/src/strategy/RegentLBPStrategy.sol`, `v1/src/escrow/ConditionalVest
 `v1/src/factory/RegentsAutolaunchFactoryV1.sol`, `v1/src/hook/RegentFeeHook.sol`,
 `v1/src/revenue/SubjectSplitterV1.sol` and `v1/src/revenue/PaymentReceiverV1.sol`.
 
-| Parameter | v1 (deployed) | v2 default | v2 bounds (min–max) |
-| --- | --- | --- | --- |
-| Total supply | 100,000,000,000 tokens (`TOTAL_SUPPLY`) | 100,000,000,000 | Fixed |
-| Auction share | 10% (`AUCTION_ALLOCATION` 10B) | 10% | 5%–50% |
-| LP reserve share | 5% (`RESERVE_ALLOCATION` 5B) | 5% | 5%–50% |
-| Vesting share (held while the launch is pending) | 85% (`PENDING_ALLOCATION` 85B) | 85% | What remains; auction + reserve + vesting = 100% |
-| Pulled from the factory at start | 15B (`DISTRIBUTION_PULL`, auction + reserve) | Auction + reserve | Follows the two shares |
-| Vesting length | 365 days (`VESTING_DURATION`) | 365 days | 90–730 days |
-| Start delay | 300 blocks, 10 minutes (`START_DELAY_BLOCKS`) | 300 blocks | Fixed. This matches Memestake, where a founder decision on 21 September fixed the start at ten minutes |
-| Auction length | 86,401 blocks, about 48 hours (`AUCTION_DURATION_BLOCKS`) | 86,401 blocks | 21,601 blocks (12 hours) to 302,401 blocks (7 days) |
-| Claim delay after the end | 64 blocks (`CLAIM_DELAY_BLOCKS`) | 64 blocks | Fixed |
-| Migration delay after the end | 128 blocks (`MIGRATION_DELAY_BLOCKS`) | 128 blocks | Fixed |
-| Floor price | 0.001 REGENT per token, Q96 79,228,162,514,264,337,593,543,900 (`FLOOR_PRICE_Q96`) | 0.001 REGENT | Creator chooses at or above the auction contract's minimum, dividing exactly by 100 |
-| Bid tick spacing | Floor ÷ 100, Q96 792,281,625,142,643,375,935,439 (`BID_TICK_Q96`) | Floor ÷ 100 | Fixed rule: always floor ÷ 100 (the floor must divide exactly) |
-| Release schedule | 13 steps: 12 windows from 10,894 blocks at 54 mps down to 6,043 blocks at 97 mps, each releasing about 5.8%, then one final block releasing the remaining 2,988,006 mps (`AUCTION_STEPS`) | Same shape | Fixed shape, recomputed from the chosen length (see decision 2) |
-| Required raise | **Already chosen by the creator in v1**: above zero and at most the most the auction can reach (`MAX_REACHABLE_RAISE`) | No default | Above zero, at most what the chosen supply, floor and schedule can reach |
-| Pool fee | 0.30% (`POOL_FEE` 3000) | 0.30% | Fixed |
-| Pool tick spacing | 60 (`POOL_TICK_SPACING`) | 60 | Fixed |
-| Swap hook lanes | Two equal lanes, each fee base ÷ 100 (`LANE_DIVISOR`) | Same | Fixed (standing rule: keep the swap hook and every lane) |
-| Splitter skim | 2% (`SKIM_BPS` 200) | 2% | Fixed (standing rule: keep the 2% skim) |
-| Most a referral can take | 2.5% (`MAX_REFERRAL_BPS` 250) | 2.5% | Fixed |
-| Name, symbol, description, website, image limits | 64, 16, 512, 256, 256 bytes | Same | Fixed |
+Sean's table, 27 September 2026, as given:
+
+| Parameter | v1 today | v2 |
+| --- | --- | --- |
+| Auction share | fixed 10% | fixed 15% |
+| LP reserve share | fixed 5% | fixed 15% |
+| Vesting share | fixed 70% | whatever remains after auction and reserve |
+| Tokens pulled at start | fixed 15 billion | auction plus reserve, follows the shares |
+| Vesting length | fixed 365 days | fixed 365 days |
+| Auction length | fixed 86,401 blocks, about 48 hours | fixed 48 hours |
+| Floor price | fixed 0.001 REGENT | creator picks, at or above the auction library's minimum, default 0.001 |
+| Bid tick | fixed, floor ÷ 100 | same rule, computed from the chosen floor |
+| Release schedule | fixed 13-step table | same shape, recomputed from the chosen length |
+| Required raise | already the creator's | unchanged, its maximum follows the chosen floor and schedule |
+
+Two notes against the v1 source, for the contracts session to confirm with Sean:
+
+- The v1 vesting share in the source is 85% (`PENDING_ALLOCATION` 85B of 100B; 10% + 5% +
+  85%). With the v2 shares of 15% and 15%, the remainder is 70%.
+- 48 hours is 86,400 Base blocks; v1 uses 86,401 (`AUCTION_DURATION_BLOCKS`).
+
+Rows not in the table stay as in v1 and fixed (decision 3): total supply 100,000,000,000;
+start delay 300 blocks; claim delay 64 blocks; migration delay 128 blocks; pool fee 0.30%;
+pool tick spacing 60; two equal swap hook lanes; 2% splitter skim; 2.5% referral cap; name,
+symbol, description, website and image limits of 64, 16, 512, 256 and 256 bytes.
 
 ## Memestake (Base)
+
+**Awaiting founder word after the 27 September change.** The rows below are the earlier
+proposal, unchanged.
 
 Source: `stocks/src/StocksPreset.sol` and `stocks/src/MemestockSplitterCore.sol`.
 
@@ -89,6 +105,9 @@ Source: `stocks/src/StocksPreset.sol` and `stocks/src/MemestockSplitterCore.sol`
 
 ## Memestake (Robinhood Chain)
 
+**Awaiting founder word after the 27 September change.** The rows below are the earlier
+proposal, unchanged.
+
 Source: `robinhood/src/RobinhoodPreset.sol`. Everything not listed matches Memestake on
 Base: supply, shares, tick rule, pool fee, pool tick spacing, limits and skim. Robinhood
 blocks come every 0.1 seconds, so each block count is twenty times the Base count.
@@ -107,31 +126,29 @@ blocks come every 0.1 seconds, so each block count is twenty times the Base coun
 
 ## Who may change the bounds later
 
+**Memestake only, awaiting founder word after the 27 September change.** Revstake has no
+adjustable bounds.
+
 Each v2 factory is administered by the Safe that administers its v1 counterpart. On Base
-that is the Governance and Regent Safe for both Revstake and Memestake. On Robinhood Chain
-it is the admin Safe. No other address can change a bound. A launch keeps the parameters
+that is the Governance and Regent Safe; on Robinhood Chain it is the admin Safe. No other address can change a bound. A launch keeps the parameters
 it was created with, whatever happens to the bounds afterwards. The Safe changes a bound
 with one transaction on the live factory, for launches created afterwards, and the change
 is announced on chain (decision 1). It can never move a bound past the hard ceilings below.
 
 ## Hard ceilings
 
-**Proposed, awaiting Sean's approval.** These limits are written into the v2 contracts
+**Memestake only, awaiting founder word after the 27 September change.** The Revstake
+rows were removed by that change. These limits are written into the v2 contracts
 and no Safe transaction can pass them. Each one sits outside the approved range, so the
 Safe has room to adjust without a new deployment. The fixed rows above are fixed in the
 contracts and have no range to adjust.
 
 | Adjustable row | Approved range | Hard ceiling (lowest–highest the Safe can ever set) |
 | --- | --- | --- |
-| Revstake auction share | 5%–50% | 1%–60% |
-| Revstake LP reserve share | 5%–50% | 1%–60%; auction + reserve never above 100% |
-| Revstake vesting share | What remains | What remains; never below 0% |
-| Revstake vesting length | 90–730 days | 30–1,460 days (1 month to 4 years) |
-| Revstake auction length (Base) | 21,601–302,401 blocks (12 hours to 7 days) | 10,801–604,801 blocks (6 hours to 14 days) |
 | Memestake auction share (Base and Robinhood) | 50%–90% | 20%–95%; the LP reserve is what remains, so never below 5% |
 | Memestake auction length (Base) | 21,600–302,400 blocks (12 hours to 7 days) | 10,800–604,800 blocks (6 hours to 14 days) |
 | Memestake auction length (Robinhood) | 432,000–6,048,000 blocks (12 hours to 7 days) | 216,000–12,096,000 blocks (6 hours to 14 days) |
-| Floor price rule (all three) | Creator chooses; at or above the auction contract's minimum; divides exactly by 100 | The Safe may raise the lowest allowed floor but never below the auction contract's minimum (2^32 + 1 in Q96). The bid tick stays floor ÷ 100 and the Safe cannot change it |
+| Floor price rule (Memestake, Base and Robinhood) | Creator chooses; at or above the auction contract's minimum; divides exactly by 100 | The Safe may raise the lowest allowed floor but never below the auction contract's minimum (2^32 + 1 in Q96). The bid tick stays floor ÷ 100 and the Safe cannot change it |
 
 ## Decisions
 
@@ -149,6 +166,9 @@ contracts and have no range to adjust.
    **Decided: (c), the Safe changes a bound on the live factory, and hard ceilings written
    into the contracts limit how far.** Sean, 27 September 2026, relayed by HQ: "all as
    recommended". The ceilings are in [Hard ceilings](#hard-ceilings).
+
+   **Superseded for Revstake by the [27 September change](#change-27-september-no-variable-ranges):
+   Revstake has no adjustable bounds. Memestake awaits founder word.**
 
 2. **Release schedule.**
    - (a) Keep the v1 shape (twelve windows of about 5.8% each, then a final block) and
@@ -181,3 +201,6 @@ contracts and have no range to adjust.
 
    **Decided: (a), approved as written.** Sean, 27 September 2026, relayed by HQ: "1a 2 explain these differences 3a 4a 5a" (this decision is his "5a"). The
    25 September study (50/50 and 15/15/70 splits) is not used.
+
+   **Superseded for Revstake by the [27 September change](#change-27-september-no-variable-ranges),
+   whose table replaces the Revstake ranges. Memestake awaits founder word.**
