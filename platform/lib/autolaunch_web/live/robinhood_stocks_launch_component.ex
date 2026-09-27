@@ -45,7 +45,12 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   def mount(socket),
     do: {:ok, socket |> LaunchSteps.init() |> assign(launches: [], listed_for: nil)}
 
+  # The review on the page, checked against the chain again once it is ten
+  # minutes old (`AutolaunchWeb.LaunchSteps.rechecked/4`).
   @impl true
+  def update(%{refresh_review: review_id}, socket),
+    do: {:ok, LaunchSteps.refreshed(socket, review_id, current(socket), &prepare(socket, &1))}
+
   def update(assigns, socket) do
     {:ok,
      socket
@@ -63,7 +68,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     <section id={@id} class="launch-wallet" phx-hook="OnchainSteps">
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <div :if={!@review} class="launch-wallet-open">
+      <div class="launch-wallet-open" hidden={!!@review}>
         <p class="launch-wallet-hint">
           Your wallet confirms the launch. You see every value before anything is sent.
         </p>
@@ -81,70 +86,74 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         </Regent.Primitives.button>
       </div>
 
+      <%!-- The review stays in the page and is only hidden, so its wallet
+           button is never replaced while a person presses it. --%>
       <section
-        :if={@review}
         id={"#{@id}-review"}
         class="launch-wallet-review"
         aria-label="Launch review"
+        hidden={!@review}
       >
-        <h4>Review this launch</h4>
-        <dl>
-          <div>
-            <dt>Token</dt>
-            <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
-          </div>
-          <div>
-            <dt>Auction currency</dt>
-            <dd>
-              {@prepared.facts["stock_symbol"]}
-              <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
-            </dd>
-          </div>
-          <div :for={[label, value] <- @prepared.review}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-          <div>
-            <dt>Wallet</dt>
-            <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
-          </div>
-          <div>
-            <dt>Network</dt>
-            <dd>{@review.chain.name} · chain {@review.chain.chain_id}</dd>
-          </div>
-          <div>
-            <dt>Transactions</dt>
-            <dd>One transaction</dd>
-          </div>
-        </dl>
-
-        <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
-
-        <Regent.Primitives.disclosure
-          id={"#{@id}-terms"}
-          summary="Fixed terms"
-          class="launch-wallet-details"
-        >
+        <%= if @review do %>
+          <h4>Review this launch</h4>
           <dl>
-            <div :for={[label, value] <- @prepared.facts["terms"]}>
+            <div>
+              <dt>Token</dt>
+              <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
+            </div>
+            <div>
+              <dt>Auction currency</dt>
+              <dd>
+                {@prepared.facts["stock_symbol"]}
+                <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
+              </dd>
+            </div>
+            <div :for={[label, value] <- @prepared.review}>
               <dt>{label}</dt>
               <dd>{value}</dd>
             </div>
-          </dl>
-        </Regent.Primitives.disclosure>
-
-        <Regent.Primitives.disclosure
-          id={"#{@id}-exact-values"}
-          summary="Exact values"
-          class="launch-wallet-details"
-        >
-          <dl>
-            <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
-              <dt>{label}</dt>
-              <dd class="launch-wallet-mono">{value}</dd>
+            <div>
+              <dt>Wallet</dt>
+              <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+            </div>
+            <div>
+              <dt>Network</dt>
+              <dd>{@review.chain.name} · chain {@review.chain.chain_id}</dd>
+            </div>
+            <div>
+              <dt>Transactions</dt>
+              <dd>One transaction</dd>
             </div>
           </dl>
-        </Regent.Primitives.disclosure>
+
+          <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
+
+          <Regent.Primitives.disclosure
+            id={"#{@id}-terms"}
+            summary="Fixed terms"
+            class="launch-wallet-details"
+          >
+            <dl>
+              <div :for={[label, value] <- @prepared.facts["terms"]}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            </dl>
+          </Regent.Primitives.disclosure>
+
+          <Regent.Primitives.disclosure
+            id={"#{@id}-exact-values"}
+            summary="Exact values"
+            class="launch-wallet-details"
+          >
+            <dl>
+              <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
+                <dt>{label}</dt>
+                <dd class="launch-wallet-mono">{value}</dd>
+              </div>
+            </dl>
+          </Regent.Primitives.disclosure>
+        <% end %>
 
         <LaunchSteps.progress
           steps={@steps}
@@ -215,7 +224,15 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   @impl true
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do:
+      {:noreply,
+       OnchainSteps.checked(
+         socket,
+         hash,
+         result,
+         &confirmed/2,
+         &LaunchSteps.reverted(&1, &2, current(socket), fn signer -> prepare(socket, signer) end)
+       )}
 
   def handle_async(
         {:launch, _hash},
@@ -288,6 +305,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   defp launch_page(launches, auction) do
     Enum.find_value(launches, &(Address.equal?(&1["auction"], auction) && &1["page"]))
   end
+
+  defp current(_socket), do: &StocksLaunchActions.current/1
 
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]

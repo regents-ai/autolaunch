@@ -12,7 +12,11 @@ defmodule AutolaunchWeb.LaunchSteps do
   page. The step's button has no server round trip: the `OnchainSteps` hook
   sends it, every press reaches the wallet, and every outcome is the server's
   own read of the hash against the review it was sent from. A review nothing
-  was sent from is dropped when another wallet becomes active.
+  was sent from is dropped when another wallet on the account becomes active.
+
+  The review on the page is checked against the chain again once it is ten
+  minutes old and once its step reverts (`rechecked/3`), and built again when
+  what it was built against has changed.
 
   The lines above the button stay in the page and are only hidden, so one
   appearing never moves the button a person is pressing.
@@ -28,6 +32,9 @@ defmodule AutolaunchWeb.LaunchSteps do
   alias AutolaunchWeb.{OnchainSteps, Paths, Telemetry}
   alias RegentChain.{Presses, Review}
 
+  @reverted "That launch did not go through, so nothing was created. Only the network fee was spent. Press again."
+  @rebuilt "That launch did not go through, so nothing was created. Only the network fee was spent. The review now matches the network as it is: press again."
+
   @doc "The assigns a launch card starts with."
   def init(socket) do
     socket
@@ -37,7 +44,9 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   @doc """
   Follows the wallet that may act. A review is built for one signer, so an
-  unsent review for another one is dropped.
+  unsent review is dropped when another wallet on the account becomes active.
+  With no wallet on the account active it stays, and the note beside its
+  button names both wallets.
   """
   def followed(socket) do
     %{linked: linked, active: active, presses: presses, review: review} = socket.assigns
@@ -45,7 +54,7 @@ defmodule AutolaunchWeb.LaunchSteps do
     socket = assign(socket, signer: signer, mismatch: OnchainSteps.mismatch_note(linked, active))
 
     cond do
-      is_nil(review) -> socket
+      is_nil(review) or is_nil(signer) -> socket
       review.signer == signer -> socket
       started?(presses, review) -> socket
       true -> withdrawn(socket)
@@ -105,7 +114,53 @@ defmodule AutolaunchWeb.LaunchSteps do
       reviews: Map.put(socket.assigns.reviews, review.id, prepared)
     )
     |> OnchainSteps.put_review(review)
+    |> OnchainSteps.refresh_later()
   end
+
+  @doc """
+  Reads the chain again for the review on the page: `current` answers
+  `:current`, `:changed` or `:unread` for what the review was prepared with.
+  On `:changed` the review is built again with `prepare`, called with the
+  review's signer, and `note` goes beside the new review's button; a review
+  that can't be built again stays, with the reason beside its button. While
+  its step is on its way the review stays, and a timer asks again later. The
+  button is never held for this: it sends whatever review is on the page.
+  """
+  def rechecked(socket, current, prepare, note \\ nil) do
+    %{review: review, presses: presses, prepared: prepared} = socket.assigns
+
+    cond do
+      OnchainSteps.pending?(presses, review) ->
+        OnchainSteps.refresh_later(socket)
+
+      current.(prepared) == :changed ->
+        case prepare.(review.signer) do
+          {:ok, prepared} ->
+            socket |> reviewed(prepared) |> assign(press_note: note)
+
+          {:error, message} ->
+            socket |> assign(press_note: message) |> OnchainSteps.refresh_later()
+        end
+
+      true ->
+        OnchainSteps.refresh_later(socket)
+    end
+  end
+
+  @doc """
+  The card's `update(%{refresh_review: review_id}, socket)` and revert
+  callback: `rechecked/4` when `review_id` is the review on the page.
+  """
+  def refreshed(%{assigns: %{review: %{id: id}}} = socket, id, current, prepare),
+    do: rechecked(socket, current, prepare)
+
+  def refreshed(socket, _earlier_review, _current, _prepare), do: socket
+
+  @doc "A launch step that reverted: the review on the page is checked again."
+  def reverted(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}, current, prepare),
+    do: rechecked(socket, current, prepare, @rebuilt)
+
+  def reverted(socket, _earlier_review, _current, _prepare), do: socket
 
   @doc "Takes the review off the page."
   def withdrawn(socket), do: socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
@@ -224,7 +279,7 @@ defmodule AutolaunchWeb.LaunchSteps do
     <SwapForm.wallet_step
       next_step={@next_step}
       steps={@steps}
-      reverted={reverted(@steps)}
+      reverted={reverted_copy(@steps)}
       signer={@review && @review.signer}
       chain_name={@chain_name}
       mismatch={@mismatch}
@@ -293,9 +348,7 @@ defmodule AutolaunchWeb.LaunchSteps do
     end
   end
 
-  defp reverted(steps) do
-    if Enum.any?(steps, &(&1.state == :reverted)),
-      do:
-        "That launch did not go through, so nothing was created. Only the network fee was spent. Press again."
+  defp reverted_copy(steps) do
+    if Enum.any?(steps, &(&1.state == :reverted)), do: @reverted
   end
 end

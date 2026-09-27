@@ -76,6 +76,39 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
+  @doc """
+  Whether the review on the page still stands on Base as it is now: launches
+  open, the strategy still bound to the factory, the factory, strategy and hook
+  it was built against, and the treasury security it was built with.
+  `:changed` means the page builds it again; `:unread` means Base or the
+  treasury report could not be read, and the review stays as it is.
+  """
+  @spec current(map(), keyword()) :: :current | :changed | :unread
+  def current(%{signer: signer, facts: facts}, opts) do
+    with {:ok, actor} <- human(opts),
+         {:ok, draft} <- owned_draft(facts["draft_id"], actor),
+         {:ok, snapshot} <- snapshot(signer) do
+      if standing?(snapshot, facts) and treasury_standing?(draft, facts),
+        do: :current,
+        else: :changed
+    else
+      _unread -> :unread
+    end
+  end
+
+  defp standing?(snapshot, facts),
+    do:
+      not snapshot.paused and same?(snapshot.strategy_factory, snapshot.factory) and
+        same?(snapshot.factory, facts["factory"]) and same?(snapshot.strategy, facts["strategy"]) and
+        same?(snapshot.hook, facts["hook"])
+
+  defp treasury_standing?(draft, facts) do
+    case review_treasury(draft) do
+      {:ok, report} -> stored(treasury_binding(report)) == facts["treasury_security"]
+      {:error, _changed} -> false
+    end
+  end
+
   @doc "Withdraws one saved review the page is done with."
   @spec cancel(String.t(), keyword()) :: {:ok, Ash.Resource.record()} | {:error, term()}
   def cancel(action_id, opts) do
@@ -119,9 +152,11 @@ defmodule Autolaunch.LaunchActions do
       "step" => Review.step("launch", snapshot.factory, launch_data(config, fields)),
       "facts" => facts(draft, fields, snapshot, treasury_report)
     }
-    |> Jason.encode!()
-    |> Jason.decode!()
+    |> stored()
   end
+
+  # A value as the saved review holds it.
+  defp stored(value), do: value |> Jason.encode!() |> Jason.decode!()
 
   defp launch_data(config, fields) do
     LabAbi.encode(

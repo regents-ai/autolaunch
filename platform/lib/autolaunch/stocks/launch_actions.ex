@@ -107,6 +107,26 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
+  @doc """
+  Whether the review on the page still stands on Base as it is now: launches
+  open, and the STOCK admitted on the launchpad it was built against with the
+  same decimals and route. `:changed` means the page builds it again;
+  `:unread` means Base could not be read, and the review stays as it is.
+  """
+  @spec current(map()) :: :current | :changed | :unread
+  def current(%{facts: facts}) do
+    case snapshot(%{stock: facts["stock"]}) do
+      {:ok, snapshot} -> if standing?(snapshot, facts), do: :current, else: :changed
+      {:error, _unread} -> :unread
+    end
+  end
+
+  defp standing?(%{paused: paused, admission: admission} = snapshot, facts),
+    do:
+      not paused and admission.admitted and snapshot.launchpad == facts["launchpad"] and
+        Integer.to_string(admission.decimals) == facts["stock_decimals"] and
+        admission.route == facts["route"]
+
   @doc "Withdraws one saved review the page is done with."
   def cancel(action_id, opts) do
     with {:ok, _actor} <- human(opts),
