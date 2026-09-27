@@ -28,3 +28,14 @@ is set, creators cannot add X accounts and no auction or token shows a creator l
 
 Robinhood launches name their creator by the launching wallet: the account whose signed-in
 wallet it still is, when exactly one account's is. The launch itself required that wallet.
+
+## Payment card before it is switched on
+
+Noted 27 September 2026 from the A02 review. The payment card (`SubjectWalletComponent`) cannot
+build a review in production: `Autolaunch.SubjectWalletRpcClient.snapshot/1` refuses until the
+launch's splitter and canonical receiver are frozen evidence. When it is switched on, two
+settings must agree: the card requires the subject to be on Base (`@chain_id 8453` in
+`Autolaunch.SubjectWalletActions`), but the review's network comes from the deployment's lab
+settings (`Client.chain(config)` in `prepare/5`). A deployment whose settings name another network
+would build a Base-only review for that network. Make the review's network the subject's Base
+network, or check the two match, as part of switching the card on.
