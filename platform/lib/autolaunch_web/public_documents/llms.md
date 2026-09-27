@@ -25,7 +25,7 @@ First steps for an agent:
 
 1. Read live auctions with `GET https://autolaunch.sh/api/v1/auctions?state=active&sort=ending`, or launched tokens with `GET https://autolaunch.sh/api/v1/tokens`. No account or API key is needed.
 2. Estimate a bid with `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote`; it does not place one.
-3. To bid, trade or stake, use the tools on the auction's or token's `url` in the person's browser, or send them there. To launch, send them to https://autolaunch.sh/create. Every step is confirmed in their own wallet.
+3. To bid, trade or stake, use the tools on the auction's or token's `url` in the person's browser, or send them there. To launch, send them to https://autolaunch.sh/create for a Memestake token or https://autolaunch.sh/create/revstake for a Revstake token. Every step is confirmed in their own wallet.
 
 Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, including when an agent starts them with the page tools.
 
@@ -79,7 +79,6 @@ The Uniswap hook fee on revstake tokens benefits the creator's revstaking contra
 What each launch's locked liquidity earns is added to its staking rewards.
 
 - Revstake fees come from the side of the trade you did not set: out of what you receive, or added to what you pay.
-- Each fee is worked out on its own and rounded down, so 2.30% is a headline rate, not a quote.
 - Memestake fees are held in the stock and paid onward after the trade.
 - The rates are fixed in the contracts and cannot be changed.
 

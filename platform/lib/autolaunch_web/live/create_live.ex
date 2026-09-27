@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.CreateLive do
   @moduledoc """
-  Agentic Revenue Launch, at /create/revstake: the Revstake launch form on
-  Base. Memestock launches have their own page at /create.
+  Create a Revstake token, at /create/revstake: the Revstake launch form on
+  Base. Memestake launches have their own page at /create.
 
   A signed-out visitor explores the same form against an unsaved draft that
   follows the saved draft's rules. This browser tab keeps what they typed, and
@@ -20,6 +20,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   import AutolaunchWeb.Components.AuctionStats
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
+  import AutolaunchWeb.Components.LaunchKindChoice
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
   @actions %{
@@ -105,16 +106,12 @@ defmodule AutolaunchWeb.CreateLive do
   def render(assigns) do
     ~H"""
     <div class="autolaunch-page launchpad-create">
+      <.launch_kind_choice current={:revstake} />
       <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
       <header class="launchpad-create__header">
-        <div class="launchpad-create__title">
-          <Regent.Structure.section_bar>
-            <h1 class="rg-section-bar__label">Agentic Revenue Launch</h1>
-          </Regent.Structure.section_bar>
-          <.link navigate="/create" class="memestock__alt" data-squish>
-            Launch memestock <span aria-hidden="true">→</span>
-          </.link>
-        </div>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">Create a Revstake token</h1>
+        </Regent.Structure.section_bar>
         <p>
           Raise early funds through an auction. It tokenizes a stablecoin generating service or
           agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders

@@ -25,7 +25,7 @@ defmodule Autolaunch.SwapActions do
   alias Autolaunch.{Lab, LabAbi, LabRpc, Pool}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
-  alias Autolaunch.Stocks.{Amounts, LaunchOperations}
+  alias Autolaunch.Stocks.{Amounts, FeeSchedule, LaunchOperations}
   alias Autolaunch.Stocks.Lab, as: StocksLab
 
   @resource "autolaunch_swap"
@@ -500,20 +500,41 @@ defmodule Autolaunch.SwapActions do
       )
       |> stored()
 
-    %{envelope: envelope, steps: steps, review: review(trade, limits, snapshot)}
+    %{envelope: envelope, steps: steps, review: review(trade, limits, snapshot, pool)}
   end
 
   # The few figures the form shows beside the wallet steps.
-  defp review(trade, %{amount_in: amount_in, min_out: min_out, protection: protection}, snapshot) do
+  defp review(
+         trade,
+         %{amount_in: amount_in, min_out: min_out, protection: protection},
+         snapshot,
+         pool
+       ) do
     %{
       pay: units(amount_in, trade.sell),
       sell_symbol: trade.sell.symbol,
       receive: compact(units(snapshot.quote, trade.buy), 8),
       minimum: compact(units(min_out, trade.buy), 8),
       buy_symbol: trade.buy.symbol,
-      protection: protection_percent(protection)
+      protection: protection_percent(protection),
+      fees: fees(pool, trade)
     }
   end
+
+  # The fees already inside the quote, one line each. A Memestake pool's come
+  # from its fee schedule; a Revstake pool names the pool fee it read.
+  defp fees(%{kind: :stocks, chain: chain, currency: stock}, trade) do
+    Enum.map(FeeSchedule.lanes(chain), fn
+      %{charged_on: :paid} = lane ->
+        "#{lane.label}: #{lane.rate} of the #{trade.sell.symbol} you pay"
+
+      %{charged_on: :stock} = lane ->
+        "#{lane.label}: #{lane.rate} of the #{stock.symbol} side"
+    end)
+  end
+
+  defp fees(%{kind: :agent, lp_fee: lp_fee}, _trade),
+    do: ["Trading fees, including the #{lp_fee} pool fee"]
 
   defp risk_copy(trade, amount_in, venue) do
     "Your wallet trades #{units(amount_in, trade.sell)} #{trade.sell.symbol} for #{trade.buy.symbol} on #{network(venue)}. The trade goes through only if you receive at least the lowest amount shown."

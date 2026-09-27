@@ -16,15 +16,13 @@ defmodule Autolaunch.Robinhood.Pool do
   alias Autolaunch.{LabAbi, PriceHistory}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
-  alias Autolaunch.Stocks.Assets
+  alias Autolaunch.Stocks.{Assets, FeeSchedule}
 
   @token_decimals 18
   @usdg_decimals 6
-  @lane_bps 100
   @graduated 2
-  # Every Robinhood memestock pool is created with this key; the fee hook
-  # refuses any other tick spacing.
-  @pool_fee 3_000
+  # Every Robinhood memestock pool is created with this tick spacing and the
+  # fee schedule's pool fee; the fee hook refuses any other.
   @tick_spacing 60
 
   # Concrete-contract read the pinned interface ABIs do not carry: `ownerOf(uint256)`.
@@ -77,7 +75,7 @@ defmodule Autolaunch.Robinhood.Pool do
          token: %{address: launch.new_token, symbol: symbol, decimals: @token_decimals},
          currency: %{address: launch.stock, symbol: stock.symbol, decimals: stock.decimals},
          token_is_currency0?: currency0?(launch.new_token, launch.stock),
-         pool_fee: @pool_fee,
+         pool_fee: FeeSchedule.pool_fee(:robinhood),
          tick_spacing: @tick_spacing,
          hook: Lab.address!(config, :stocks_hook),
          pool_manager: Lab.address!(config, :pool_manager),
@@ -315,7 +313,6 @@ defmodule Autolaunch.Robinhood.Pool do
          {:ok, accrued} <- accrued_logs(hook, launch.pool_id, block, opts) do
       {:ok,
        %{
-         lane_bps: @lane_bps,
          charged: Enum.map(accrued, &Autolaunch.Pool.charged/1),
          regent: %{
            accrued: Rpc.format_units(protocol_accrued, stock.decimals),

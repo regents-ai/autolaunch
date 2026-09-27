@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   """
   use AutolaunchWeb, :html
 
-  alias Autolaunch.Stocks.Amounts
+  alias Autolaunch.Stocks.{Amounts, FeeSchedule}
   alias AutolaunchWeb.TokenDisplay
 
   attr :pool, :any, required: true
@@ -237,13 +237,19 @@ defmodule AutolaunchWeb.Components.PoolSection do
   attr :facts, :map, required: true
 
   defp stocks_fees(assigns) do
+    assigns =
+      assign(assigns,
+        regent_rate: FeeSchedule.lane(assigns.facts.chain, :regent).rate,
+        stakers_rate: FeeSchedule.lane(assigns.facts.chain, :stakers).rate
+      )
+
     ~H"""
     <section id="pool-fees" aria-label="Trading fees">
       <h3>Trading fees</h3>
       <p>
-        Every trade pays 1% of its <span class="ticker">{@facts.currency.symbol}</span>
+        Every trade pays {@regent_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
         side to <span class="ticker">REGENT</span>
-        and 1% to <span class="ticker">{@facts.token.symbol}</span>
+        stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
         stakers. Both are always on. <span class="figure__value">{@facts.fees.trades}</span>
         trades have been charged since graduation.
       </p>

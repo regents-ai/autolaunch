@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
   @moduledoc false
   use AutolaunchWeb, :live_view
 
+  alias Autolaunch.Stocks.FeeSchedule
   alias AutolaunchWeb.ShareCard
 
   # Every figure here is a fixed contract rule: RegentLBPStrategy and
@@ -143,10 +144,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
         <h2 id="how-it-works-fees">Trading fees</h2>
         <p>
           The trading fee on revstake tokens benefits the creator's revstaking contract
-          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). Use
+          (<strong class="fact-page__hi">1%</strong>) and REGENT stakers (<strong class="fact-page__hi">1%</strong>). Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
           to participate. The trading fee on memestake tokens benefits the memestakers
-          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). The trading pool also charges the standard <strong class="fact-page__hi">0.3%</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
+          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :stakers).rate}</strong>) and REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :regent).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
         </p>
         <table class="fact-table">
           <thead>
@@ -234,10 +235,6 @@ defmodule AutolaunchWeb.HowItWorksLive do
           <li>
             Revstake fees come from the side of the trade you did not set: out of what you receive,
             or added to what you pay.
-          </li>
-          <li>
-            Each fee is worked out on its own and rounded down, so 2.30% is a headline rate, not a
-            quote.
           </li>
           <li>Memestake fees are held in the stock and paid onward after the trade.</li>
           <li>Regent's 2% comes out of staking rewards. It is not another trading fee.</li>
