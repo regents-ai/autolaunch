@@ -1,8 +1,8 @@
 # Launch profiles: v1 today, v2 defaults and bounds
 
-**Status: the defaults, bounds, fixed rows and release schedule are approved (decisions 2–4,
-27 September 2026). How bounds change later (decision 1) is still open. No v2 contract
-code is authorised yet, and the v2 contracts owner is not yet named.**
+**Status: decisions 1–4 are made (27 September 2026). The hard ceilings in
+[Hard ceilings](#hard-ceilings) are proposed and await Sean's approval. No v2 contract code
+is authorised yet; a new session will own the v2 contracts.**
 
 Founder decision (27 September 2026, "1a"): in v2, the creator sets each launch's
 parameters within bounds the founder sets. The defaults are written down here before any
@@ -110,8 +110,28 @@ blocks come every 0.1 seconds, so each block count is twenty times the Base coun
 Each v2 factory is administered by the Safe that administers its v1 counterpart. On Base
 that is the Governance and Regent Safe for both Revstake and Memestake. On Robinhood Chain
 it is the admin Safe. No other address can change a bound. A launch keeps the parameters
-it was created with, whatever happens to the bounds afterwards. Decision 1 covers how a
-bound changes.
+it was created with, whatever happens to the bounds afterwards. The Safe changes a bound
+with one transaction on the live factory, for launches created afterwards, and the change
+is announced on chain (decision 1). It can never move a bound past the hard ceilings below.
+
+## Hard ceilings
+
+**Proposed, awaiting Sean's approval.** These limits are written into the v2 contracts
+and no Safe transaction can pass them. Each one sits outside the approved range, so the
+Safe has room to adjust without a new deployment. The fixed rows above are fixed in the
+contracts and have no range to adjust.
+
+| Adjustable row | Approved range | Hard ceiling (lowest–highest the Safe can ever set) |
+| --- | --- | --- |
+| Revstake auction share | 5%–50% | 1%–60% |
+| Revstake LP reserve share | 5%–50% | 1%–60%; auction + reserve never above 100% |
+| Revstake vesting share | What remains | What remains; never below 0% |
+| Revstake vesting length | 90–730 days | 30–1,460 days (1 month to 4 years) |
+| Revstake auction length (Base) | 21,601–302,401 blocks (12 hours to 7 days) | 10,801–604,801 blocks (6 hours to 14 days) |
+| Memestake auction share (Base and Robinhood) | 50%–90% | 20%–95%; the LP reserve is what remains, so never below 5% |
+| Memestake auction length (Base) | 21,600–302,400 blocks (12 hours to 7 days) | 10,800–604,800 blocks (6 hours to 14 days) |
+| Memestake auction length (Robinhood) | 432,000–6,048,000 blocks (12 hours to 7 days) | 216,000–12,096,000 blocks (6 hours to 14 days) |
+| Floor price rule (all three) | Creator chooses; at or above the auction contract's minimum; divides exactly by 100 | The Safe may raise the lowest allowed floor but never below the auction contract's minimum (2^32 + 1 in Q96). The bid tick stays floor ÷ 100 and the Safe cannot change it |
 
 ## Decisions
 
@@ -126,8 +146,9 @@ bound changes.
    ceremony and a site release. The HQL-H03 handoff describes the bounds as "immutable"
    in step 1 and as changeable by the admin Safe in step 0; this decision settles it.
 
-   **Open.** Sean asked for the difference between (a) and (b) to be explained before he
-   decides.
+   **Decided: (c), the Safe changes a bound on the live factory, and hard ceilings written
+   into the contracts limit how far.** Sean, 27 September 2026, relayed by HQ: "all as
+   recommended". The ceilings are in [Hard ceilings](#hard-ceilings).
 
 2. **Release schedule.**
    - (a) Keep the v1 shape (twelve windows of about 5.8% each, then a final block) and
