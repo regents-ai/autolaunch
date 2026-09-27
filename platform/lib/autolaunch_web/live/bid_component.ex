@@ -492,7 +492,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp prepared_now(%{assigns: assigns} = socket) do
     case bid_key(assigns) do
       nil ->
-        {:error, assign(socket, notice: copy(incomplete(assigns)))}
+        {:error, assign(socket, notice: incomplete(assigns))}
 
       key ->
         {signer, request} = request(assigns, key)
@@ -625,9 +625,10 @@ defmodule AutolaunchWeb.BidComponent do
         pay_with(auction, assigns.usdc_bids?)
       )
 
-  defp incomplete(%{form: %{amount: ""}}), do: :amount_required
-  defp incomplete(%{signer: nil} = _assigns), do: :invalid_address
-  defp incomplete(_assigns), do: :invalid_price
+  # With no wallet to send from, the press's own note names the wallet to use.
+  defp incomplete(%{signer: nil}), do: nil
+  defp incomplete(%{form: %{amount: ""}}), do: copy(:amount_required)
+  defp incomplete(_assigns), do: copy(:invalid_price)
 
   defp bid_key(%{signer: signer, form: form} = assigns) when is_binary(signer) do
     with amount when amount != "" <- form.amount,
