@@ -173,7 +173,7 @@
 .bid-help__panel p { margin: 0; }
 .bid-ended { margin: 0; color: var(--color-fg-muted); }
 
-.bid-form { display: grid; gap: 6px; min-width: 0; }
+.bid-form, .bid-entry, .bid-actions { display: grid; gap: 6px; min-width: 0; }
 .bid-form > .bid-primary, .bid-form__pending { margin-top: 8px; }
 .bid-form .bid-primary { width: 100%; }
 .bid-box { display: grid; gap: 6px; min-width: 0; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 16px; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); transition: border-color 150ms ease; }

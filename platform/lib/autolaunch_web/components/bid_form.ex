@@ -17,7 +17,8 @@ defmodule AutolaunchWeb.Components.BidForm do
 
   The host component owns `bid_form_changed`, sent with the form's fields as
   they change (`values/3` reads them), and `fill_bid_amount` when a balance is
-  offered, and puts its own button in the `action` slot.
+  offered, and puts its wallet button after the form: a wallet button is never
+  inside a form.
   """
   use Phoenix.Component
 
@@ -182,8 +183,6 @@ defmodule AutolaunchWeb.Components.BidForm do
 
   attr :balance, :string, default: nil, doc: "the wallet's balance of the budget currency"
 
-  slot :action, required: true, doc: "the button that places the bid"
-
   def bid_form(assigns) do
     %{form: form, book: book, supply: supply, rate: rate} = assigns
     {fdv_unit, factor} = fdv_currency(assigns.amount_unit, assigns.price_unit, rate)
@@ -341,8 +340,6 @@ defmodule AutolaunchWeb.Components.BidForm do
         <span class="bid-box__label">Receive</span>
         <.expected outlook={@outlook} amount={@form.amount} token={@token_symbol} />
       </div>
-
-      {render_slot(@action)}
     </form>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MaxFdv">
       // While the slider is dragged, its price and the FDV it sets follow it at

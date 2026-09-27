@@ -16,13 +16,17 @@ defmodule AutolaunchWeb.OnchainSteps do
   """
 
   import Phoenix.Component, only: [assign: 2]
-  import Phoenix.LiveView, only: [push_event: 3, start_async: 3]
+  import Phoenix.LiveView, only: [push_event: 3, send_update_after: 4, start_async: 3]
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Chain.Client
   alias RegentChain.{Address, Outcome, Presses}
 
   @recheck_ms 2_000
+
+  # A review's deadlines and allowance windows are fifteen minutes long, so one
+  # is built again once it is ten minutes old.
+  @stale_ms 10 * 60_000
 
   @doc "The assigns a wallet panel starts with."
   def init(socket),
@@ -130,6 +134,24 @@ defmodule AutolaunchWeb.OnchainSteps do
     Enum.find(Presses.shown(presses), &(&1.name == name and match?(%{id: ^id}, &1.review)))
   end
 
+  @doc "Whether a step sent from `review` is still on its way."
+  def pending?(presses, %{steps: steps} = review),
+    do: Enum.any?(steps, &match?(%{outcome: :pending}, entry(presses, review, &1.step)))
+
+  @doc """
+  Asks the panel to look at the review on the page again once it is ten
+  minutes old, as `update(%{refresh_review: review_id}, socket)`. The panel
+  builds a fresh one when that review is still there and nothing sent from it
+  is on its way, and asks again otherwise; the new review reaches the page at
+  once, so a press always sends what is on the page.
+  """
+  def refresh_later(%{assigns: %{review: %{id: review_id}, myself: myself}} = socket) do
+    send_update_after(self(), myself, %{refresh_review: review_id}, @stale_ms)
+    socket
+  end
+
+  def refresh_later(socket), do: socket
+
   @doc "Starts reading a step again after the page stopped on its own."
   def check_again(socket, hash) do
     case Presses.check_again(socket.assigns.presses, hash) do
@@ -141,9 +163,16 @@ defmodule AutolaunchWeb.OnchainSteps do
   @doc """
   One answer from `handle_async({:onchain_step, hash}, result, socket)`.
   `confirmed` runs once, with the entry, when the step lands and succeeds, so
-  the panel can read its figures again.
+  the panel can read its figures again; `reverted` runs once when it lands and
+  reverts, so the panel can build its review again.
   """
-  def checked(socket, hash, result, confirmed \\ fn socket, _entry -> socket end) do
+  def checked(
+        socket,
+        hash,
+        result,
+        confirmed \\ fn socket, _entry -> socket end,
+        reverted \\ fn socket, _entry -> socket end
+      ) do
     answer =
       case result do
         {:ok, answer} -> answer
@@ -160,6 +189,7 @@ defmodule AutolaunchWeb.OnchainSteps do
         cond do
           Presses.reading?(entry) -> check(socket, entry)
           entry.outcome == :confirmed -> confirmed.(socket, entry)
+          entry.outcome == :reverted -> reverted.(socket, entry)
           true -> socket
         end
     end

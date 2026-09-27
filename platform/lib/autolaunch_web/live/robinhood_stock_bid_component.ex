@@ -68,9 +68,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   }
 
   @generic "That did not go through. Try again in a moment."
-  # A review holds its quote for fifteen minutes; one that has sent nothing is
-  # prepared again well inside that.
-  @refresh_ms 8 * 60_000
 
   @impl true
   def mount(socket) do
@@ -87,6 +84,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
        prepared_for: nil,
        preparing: nil,
        notice: nil,
+       carried_note: nil,
        placed: nil,
        new_bid: false,
        told_outbid: nil,
@@ -98,15 +96,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   @impl true
   def update(%{refresh_bids: true}, socket), do: {:ok, read_bids(socket)}
 
+  # A review holds its quote for fifteen minutes, so it is built again once it
+  # is ten minutes old (`OnchainSteps.refresh_later/1`).
   def update(%{refresh_review: review_id}, socket) do
     case socket.assigns.review do
-      %{id: ^review_id} = review ->
-        if started?(socket.assigns.presses, review),
-          do: {:ok, socket},
-          else: {:ok, socket |> assign(prepared_for: nil) |> prepare_when_ready()}
-
-      _other ->
-        {:ok, socket}
+      %{id: ^review_id} -> {:ok, rebuilt(socket, nil)}
+      _other -> {:ok, socket}
     end
   end
 
@@ -225,25 +220,29 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         </Regent.Primitives.button>
       </p>
 
-      <div :if={@authenticated && @wallet} class="bid-body">
+      <%!-- Panels stay in the page and are only hidden, so one appearing never
+           replaces the wallet button a person has just pressed. --%>
+      <div class="bid-body" hidden={!(@authenticated && @wallet)}>
         <p :if={@ended && @reading && @reading.bids == []} class="bid-empty">
           This wallet placed no bids on this auction.
         </p>
 
-        <section :if={@placed} id={"#{@id}-placed"} class="bid-progress" aria-label="Bid placed">
-          <BidPlaced.bid_placed
-            id={"#{@id}-placed"}
-            target={@myself}
-            token_symbol={@token_symbol}
-            chain={:robinhood}
-            hash={@placed.hash}
-            test_chain={Lab.test_chain?(@placed.chain_id)}
-            auction_path={Paths.auction(@launch)}
-            auction_url={Paths.auction_url(@launch)}
-            share_image={ShareCard.auction_image_url(@launch, DateTime.utc_now())}
-            x_connection={@x_connection}
-            x_enabled={@x_enabled}
-          />
+        <section id={"#{@id}-placed"} class="bid-progress" aria-label="Bid placed" hidden={!@placed}>
+          <%= if @placed do %>
+            <BidPlaced.bid_placed
+              id={"#{@id}-placed"}
+              target={@myself}
+              token_symbol={@token_symbol}
+              chain={:robinhood}
+              hash={@placed.hash}
+              test_chain={Lab.test_chain?(@placed.chain_id)}
+              auction_path={Paths.auction(@launch)}
+              auction_url={Paths.auction_url(@launch)}
+              share_image={ShareCard.auction_image_url(@launch, DateTime.utc_now())}
+              x_connection={@x_connection}
+              x_enabled={@x_enabled}
+            />
+          <% end %>
           <Regent.Primitives.button
             type="button"
             phx-click="clear_bid"
@@ -257,19 +256,20 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         <p class="bid-form__note" hidden={!(@new_bid && !@ended && !@placed)}>
           This places a new bid with new money. Your first bid stays as it is.
         </p>
-        <BidForm.bid_form
-          :if={!@ended && !@placed}
-          id={@id}
-          target={@myself}
-          form={@form}
-          amount_unit="USDG"
-          price_unit={stock_symbol(@reading)}
-          token_symbol={@token_symbol}
-          book={@book}
-          supply={supply(@supply)}
-          rate={@usd_rate}
-        >
-          <:action>
+        <div class="bid-entry" hidden={!!(@ended || @placed)}>
+          <BidForm.bid_form
+            id={@id}
+            target={@myself}
+            form={@form}
+            amount_unit="USDG"
+            price_unit={stock_symbol(@reading)}
+            token_symbol={@token_symbol}
+            book={@book}
+            supply={supply(@supply)}
+            rate={@usd_rate}
+          />
+          <%!-- Outside the form: a wallet button is never inside one. --%>
+          <div class="bid-actions">
             <p class="bid-notice" role="alert" hidden={!@notice}>{@notice}</p>
             <.summary
               prepared={@prepared}
@@ -309,8 +309,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               check_event="check_again"
               target={@myself}
             />
-          </:action>
-        </BidForm.bid_form>
+          </div>
+        </div>
 
         <section
           :if={@reading && @reading.bids != []}
@@ -587,7 +587,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     do: {:noreply, assign(socket, notice: copy(:chain_unavailable))}
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   # Reviews
 
@@ -640,23 +640,24 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps, inputs)
 
     socket
-    |> assign(prepared: prepared, prepared_for: key, notice: nil, press_note: nil)
+    |> assign(prepared: prepared, prepared_for: key, notice: nil)
+    |> assign(press_note: socket.assigns.carried_note, carried_note: nil)
     |> OnchainSteps.put_review(review)
-    |> refresh_later()
+    |> OnchainSteps.refresh_later()
   end
 
   defp reviewed(socket, key, _inputs, {:error, error}),
     do: assign(socket, prepared_for: {:refused, key}, notice: copy(refusal(error)))
 
-  defp refresh_later(%{assigns: %{review: %{id: review_id}}} = socket) do
-    send_update_after(
-      self(),
-      __MODULE__,
-      [id: socket.assigns.id, refresh_review: review_id],
-      @refresh_ms
-    )
-
-    socket
+  # The review built again from Robinhood Chain with the form as it is, so its
+  # quote and deadline are current: once it is ten minutes old, once an approval
+  # lands, and once a step reverts, when `note` says so beside the new button.
+  # While a step sent from it is on its way it stays, and a timer asks again
+  # later.
+  defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
+    if OnchainSteps.pending?(presses, review),
+      do: OnchainSteps.refresh_later(socket),
+      else: socket |> assign(prepared_for: nil, carried_note: note) |> prepare_when_ready()
   end
 
   defp agent_bid(%{assigns: %{signer: nil} = assigns} = socket),
@@ -680,10 +681,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end
   end
 
-  # The next step of the review on the page, while it is for the form as it is now.
+  # The step the button sends, while the review on the page is for the form as it is now.
   defp current_step(assigns) do
     key = bid_key(assigns)
-    if key && assigns.prepared_for == key && assigns.review, do: next_step(assigns)
+
+    if key && assigns.prepared_for == key && assigns.review,
+      do: SwapForm.pressable(next_step(assigns), steps(assigns))
   end
 
   defp sending(review, step), do: AgentPress.sending(review, step, &step_label/1)
@@ -754,7 +757,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # Outcomes
 
   # A bid landed: the panel shows it placed and reads the wallet's bids again.
-  # An approval moves the panel on to the next step and nothing more.
+  # A landed approval builds the review again, so the bid it leads to carries a
+  # fresh deadline.
   defp confirmed(socket, %{name: "usdg_bid", hash: hash, review: review}) do
     socket
     |> assign(placed: %{hash: hash, chain_id: review.chain.chain_id}, new_bid: false)
@@ -762,7 +766,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     |> read_bids()
   end
 
-  defp confirmed(socket, _approval), do: socket
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
+    do: rebuilt(socket, nil)
+
+  defp confirmed(socket, _earlier_review), do: socket
+
+  defp step_reverted(%{assigns: %{review: %{id: id}}} = socket, %{name: name, review: %{id: id}}),
+    do: rebuilt(socket, reverted_copy(name))
+
+  defp step_reverted(socket, _earlier_review), do: socket
 
   defp read_bids(%{assigns: %{wallet: wallet, auction: auction}} = socket)
        when is_binary(wallet) do
@@ -797,9 +809,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
 
   defp next_step(_assigns), do: %{name: "usdg_bid", label: "Place bid"}
-
-  defp started?(presses, review),
-    do: Enum.any?(review.steps, &OnchainSteps.entry(presses, review, &1.step))
 
   defp step_state(nil), do: :ready
 
@@ -856,16 +865,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp reverted(steps) do
     case Enum.find(steps, &(&1.state == :reverted)) do
-      %{name: "usdg_approval"} ->
-        "That approval did not go through. Press again."
-
-      %{} ->
-        "That bid did not go through on Robinhood Chain, so nothing was bought. Only the network fee was spent. You can send it again."
-
-      nil ->
-        nil
+      %{name: name} -> reverted_copy(name)
+      nil -> nil
     end
   end
+
+  defp reverted_copy("usdg_approval"), do: "That approval did not go through. Press again."
+
+  defp reverted_copy(_bid),
+    do:
+      "That bid did not go through on Robinhood Chain, so nothing was bought. Only the network fee was spent. You can send it again."
 
   # The bidder's own X account, read when they choose to share.
   defp load_x(socket) do

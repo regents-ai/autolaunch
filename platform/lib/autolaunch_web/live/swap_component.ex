@@ -64,7 +64,16 @@ defmodule AutolaunchWeb.SwapComponent do
      |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
   end
 
+  # A review's deadline and allowance window are fifteen minutes long, so it
+  # is built again once it is ten minutes old (`OnchainSteps.refresh_later/1`).
   @impl true
+  def update(%{refresh_review: review_id}, socket) do
+    case socket.assigns.review do
+      %{id: ^review_id} -> {:ok, rebuilt(socket, nil)}
+      _other -> {:ok, socket}
+    end
+  end
+
   def update(assigns, socket) do
     socket =
       socket
@@ -175,9 +184,8 @@ defmodule AutolaunchWeb.SwapComponent do
         />
 
         <.swap_review
-          :if={@review}
           id={"#{@id}-review"}
-          review={@prepared.facts}
+          review={@review && @prepared.facts}
           sell_image={if @direction == :sell, do: @image}
           buy_image={if @direction == :buy, do: @image}
           steps={steps(assigns)}
@@ -187,8 +195,8 @@ defmodule AutolaunchWeb.SwapComponent do
           close_event="close_review"
           check_event="check_again"
           target={@myself}
-          signer={@review.signer}
-          chain_name={@review.chain.name}
+          signer={@review && @review.signer}
+          chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
         />
       </div>
@@ -351,7 +359,7 @@ defmodule AutolaunchWeb.SwapComponent do
   end
 
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2, &step_reverted/2)}
 
   def handle_async({:result, hash}, result, socket) do
     logs =
@@ -373,6 +381,12 @@ defmodule AutolaunchWeb.SwapComponent do
       protection: socket.assigns.protection
     }
 
+    with {:ok, socket} <- built(socket, request, nil),
+         do: {:ok, assign(socket, swapped: nil, options_open: false)}
+  end
+
+  # The review for `request`, with `note` beside its button.
+  defp built(socket, request, note) do
     case prepare(socket, request) do
       {:ok, prepared} ->
         review =
@@ -380,14 +394,9 @@ defmodule AutolaunchWeb.SwapComponent do
 
         socket =
           socket
-          |> assign(
-            prepared: prepared,
-            notice: nil,
-            press_note: nil,
-            swapped: nil,
-            options_open: false
-          )
+          |> assign(prepared: prepared, request: request, notice: nil, press_note: note)
           |> OnchainSteps.put_review(review)
+          |> OnchainSteps.refresh_later()
 
         {:ok, socket}
 
@@ -396,6 +405,21 @@ defmodule AutolaunchWeb.SwapComponent do
 
       {:error, error} ->
         {:error, assign(socket, notice: copy(refusal(error)))}
+    end
+  end
+
+  # The open swap built again for the amount and slippage it was reviewed
+  # with, so its price limit, deadline and allowance window are current: once
+  # it is ten minutes old, once an approval lands, and once a step reverts,
+  # when `note` says so beside the new button. While a step sent from it is on
+  # its way it stays, and a timer asks again later. One that can't be built
+  # again stays on the page with the reason beside it.
+  defp rebuilt(%{assigns: %{review: review, presses: presses}} = socket, note) do
+    if OnchainSteps.pending?(presses, review) do
+      OnchainSteps.refresh_later(socket)
+    else
+      {_built, socket} = built(socket, socket.assigns.request, note)
+      socket
     end
   end
 
@@ -451,7 +475,7 @@ defmodule AutolaunchWeb.SwapComponent do
       prepared.context.direction == direction and fields["amount"] == assigns.amount and
         protection == assigns.protection
 
-    if same?, do: next_step(assigns)
+    if same?, do: pressable(next_step(assigns), steps(assigns))
   end
 
   defp open_step(_assigns, _direction, _fields), do: nil
@@ -521,12 +545,20 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp balanced(socket), do: assign(socket, balances: nil)
 
-  # The swap landed: what it paid is read from its receipt. An approval moves
-  # nothing to show.
+  # The swap landed: what it paid is read from its receipt. A landed approval
+  # builds the review again, so the swap it leads to carries a fresh deadline.
   defp confirmed(socket, %{name: "swap", hash: hash, review: review}),
     do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
 
-  defp confirmed(socket, _approval), do: socket
+  defp confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}),
+    do: rebuilt(socket, nil)
+
+  defp confirmed(socket, _earlier_review), do: socket
+
+  defp step_reverted(%{assigns: %{review: %{id: id}}} = socket, %{name: name, review: %{id: id}}),
+    do: rebuilt(socket, rebuilt_copy(name))
+
+  defp step_reverted(socket, _earlier_review), do: socket
 
   # A confirmed swap moved the pool's price, liquidity and fee lanes, so the
   # page reads the pool again, and the balances; a receipt that could not be
@@ -563,7 +595,12 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp closed(socket) do
     socket
-    |> assign(prepared: nil, press_note: nil, revision: socket.assigns.revision + 1)
+    |> assign(
+      prepared: nil,
+      request: nil,
+      press_note: nil,
+      revision: socket.assigns.revision + 1
+    )
     |> OnchainSteps.put_review(nil)
   end
 
@@ -620,6 +657,8 @@ defmodule AutolaunchWeb.SwapComponent do
   defp held(%{} = balances, side), do: Map.fetch!(balances, side).shown
   defp held(_unread, _side), do: nil
 
+  defp steps(%{review: nil}), do: []
+
   defp steps(%{review: review, prepared: prepared, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
@@ -666,6 +705,12 @@ defmodule AutolaunchWeb.SwapComponent do
       "The swap did not go through and nothing was swapped. The price may have moved: close this and review again."
 
   defp reverted_copy(_approval), do: "That step did not go through. Press again."
+
+  defp rebuilt_copy("swap"),
+    do:
+      "The swap did not go through and nothing was swapped. This review now uses the current price: press again to send it."
+
+  defp rebuilt_copy(approval), do: reverted_copy(approval)
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
