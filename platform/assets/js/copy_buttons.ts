@@ -1,4 +1,4 @@
-import {deny} from "./motion/press"
+import {deny} from "./hooks/motion/press"
 
 type Outcome = "copied" | "selected" | "failed"
 

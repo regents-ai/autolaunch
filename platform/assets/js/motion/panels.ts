@@ -6,7 +6,7 @@
  * or finger sinks away first.
  */
 import {spring, type AnimationParams} from "animejs"
-import {BASE, SLOW, halt, moved, play} from "./shared"
+import {BASE, SLOW, lastInputByPointer, play, still} from "../hooks/motion/shared"
 
 type Version = {away: Record<string, number>; open: AnimationParams}
 
@@ -44,8 +44,7 @@ export function openPanel(el: HTMLElement): void {
 export function closeDialog(dialog: HTMLDialogElement): void {
   if (!dialog.open || "closing" in dialog.dataset) return
   delete dialog.dataset.opening
-  if (!moved()) {
-    halt(dialog)
+  if (!lastInputByPointer() || still(dialog)) {
     dialog.close()
     return
   }

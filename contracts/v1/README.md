@@ -4,7 +4,7 @@
 [![Solidity 0.8.26](https://img.shields.io/badge/solidity-0.8.26-lightgrey)](https://soliditylang.org)
 [![Foundry 1.5.1](https://img.shields.io/badge/foundry-1.5.1--stable-lightgrey)](https://getfoundry.sh)
 [![Slither 0.11.5](https://img.shields.io/badge/slither-0.11.5-lightgrey)](https://github.com/crytic/slither)
-[![Status: deployed on Base, launches paused](https://img.shields.io/badge/status-deployed%20on%20Base%2C%20launches%20paused-lightgrey)](deployments/base-mainnet/README.md)
+[![Status: deployed on Base, launches open](https://img.shields.io/badge/status-deployed%20on%20Base%2C%20launches%20open-lightgrey)](deployments/base-mainnet/README.md)
 
 Clean Solidity implementation of the founder-frozen Autolaunch V1 system, written and
 maintained by Regents Labs. Autolaunch is the Regent token-launch system; this directory is the

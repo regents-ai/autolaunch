@@ -1,7 +1,7 @@
 # Autolaunch Stocks: security posture and invariant proofs
 
 Status: unit-proven and fork-proven against fixtures. Deployed on Base on 23 September 2026
-(`deployments/base-mainnet/README.md`), launches paused; ten stocks admitted with
+(`deployments/base-mainnet/README.md`), launches open since 24 September 2026; ten stocks admitted with
 `AerodromeStockRouteV2` routes, which carry no execution price guard.
 
 ## Design rules applied everywhere

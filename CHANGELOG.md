@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v60, 27 September 2026 (d48be63)
+- Buttons and menus move the same way as on the other Regent sites, from their shared
+  motion. With reduced motion turned on, in system settings or on the page, nothing moves.
+
+## v59, 27 September 2026 (c345559)
+- The light and dark switch is in the header on every page, not only the blog, and every
+  page opens in the chosen look straight away, with no flash of the other one.
+- On narrower screens the header search takes its own row, so the switch and buttons fit.
+
 ## v58, 27 September 2026 (2e596c1)
 - Robinhood token and auction pages say when they could not be loaded, with a Retry
   button, instead of failing, and keep what they showed when a later read fails.

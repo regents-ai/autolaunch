@@ -22,8 +22,8 @@ Deployed on Base on 23 September 2026 under packet digest
 `0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5`; the addresses are in
 [deployments/base-mainnet/](deployments/base-mainnet/README.md) and in the top-level
 [contracts/README.md](../README.md). Ten stocks are admitted with `AerodromeStockRouteV2` routes
-and the hook executor is set; the launchpad stays paused until the Governance and Regent Safe calls
-`unpauseLaunches()`. The evidence index in `platform/docs/stocks.md` records the verification
+and the hook executor is set; the Governance and Regent Safe's `unpauseLaunches()` opened the
+launchpad, and launches have been open since 24 September 2026. The evidence index in `platform/docs/stocks.md` records the verification
 status of each claim.
 
 ## Layout

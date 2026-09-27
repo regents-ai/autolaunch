@@ -18,8 +18,8 @@ For what each launch type does, and every deployed address, start with the
 
 | Launch type | Chain | Status |
 |---|---|---|
-| Revstake | Base | Deployed on 22 September 2026 and verified on Basescan. Launches paused until 24 September 2026, 15:00 UTC. [Addresses](README.md#base-8453-revstake) |
-| Memestake | Base | Deployed on 23 September 2026 and verified on Basescan. Ten tokenised stocks admitted, each with an `AerodromeStockRouteV2` route. Launches paused until 24 September 2026, 15:00 UTC. [Addresses](README.md#base-8453-memestake) |
+| Revstake | Base | Deployed on 22 September 2026 and verified on Basescan. Launches open since 24 September 2026. [Addresses](README.md#base-8453-revstake) |
+| Memestake | Base | Deployed on 23 September 2026 and verified on Basescan. Ten tokenised stocks admitted, each with an `AerodromeStockRouteV2` route. Launches open since 24 September 2026. [Addresses](README.md#base-8453-memestake) |
 | Memestake | Robinhood Chain | Deployed on 23–24 September 2026: the launchpad graph and 25 `UniswapV3StockRouteV1` routes on Robinhood Chain, plus one receiver on Base. Launches paused until 24 September 2026, 15:00 UTC. [Addresses](robinhood/deployments/robinhood-mainnet/README.md) |
 
 ## The contracts we wrote
