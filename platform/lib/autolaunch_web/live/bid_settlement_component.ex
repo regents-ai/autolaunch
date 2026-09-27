@@ -341,11 +341,13 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
       <p :if={@action && !@authenticated} class="bid-empty">Sign in to settle this bid.</p>
 
+      <%!-- The panel stays in the page and is only hidden, so its wallet button
+           is never replaced while a person presses it. --%>
       <section
-        :if={@authenticated && (@action || @review)}
         id={"#{@id}-review"}
         class="bid-review"
         aria-label="Settlement"
+        hidden={!(@authenticated && (@action || @review))}
       >
         <.summary
           prepared={@prepared}

@@ -221,7 +221,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
   end
 
   attr :id, :string, required: true
-  attr :review, :map, required: true
+  attr :review, :map, default: nil, doc: "the reviewed facts; nil while no swap is reviewed"
   attr :sell_image, :string, default: nil
   attr :buy_image, :string, default: nil
 
@@ -236,13 +236,22 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :close_event, :string, required: true
   attr :check_event, :string, required: true
   attr :target, :any, default: nil
-  attr :signer, :string, required: true
-  attr :chain_name, :string, required: true
+  attr :signer, :string, default: nil
+  attr :chain_name, :string, default: nil
   attr :mismatch, :string, default: nil
 
+  @doc """
+  The review panel over the swap form. It stays in the page and is only
+  hidden while no swap is reviewed, so its wallet button is never replaced.
+  """
   def swap_review(assigns) do
     ~H"""
-    <section id={@id} class="token-swap__review" aria-labelledby={@id <> "-title"}>
+    <section
+      id={@id}
+      class="token-swap__review"
+      aria-labelledby={@id <> "-title"}
+      hidden={!@review}
+    >
       <header class="token-swap__review-head">
         <h3 id={@id <> "-title"}>You’re swapping</h3>
         <Regent.Primitives.button
@@ -257,49 +266,51 @@ defmodule AutolaunchWeb.Components.SwapForm do
         </Regent.Primitives.button>
       </header>
 
-      <div class="token-swap__review-side">
-        <p>
-          <span class="token-swap__review-label">You pay</span>
-          <AutolaunchWeb.TokenDisplay.written value={@review.pay} unit={@review.sell_symbol} />
-        </p>
-        <img :if={@sell_image} src={@sell_image} width="36" height="36" alt="" />
-      </div>
-      <svg
-        class="token-swap__review-arrow"
-        viewBox="0 0 24 24"
-        width="20"
-        height="20"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path d="M12 4v16m-7-7 7 7 7-7" stroke="currentColor" stroke-width="2" />
-      </svg>
-      <div class="token-swap__review-side">
-        <p>
-          <span class="token-swap__review-label">You get about</span>
-          <AutolaunchWeb.TokenDisplay.written value={@review.receive} unit={@review.buy_symbol} />
-        </p>
-        <img :if={@buy_image} src={@buy_image} width="36" height="36" alt="" />
-      </div>
+      <%= if @review do %>
+        <div class="token-swap__review-side">
+          <p>
+            <span class="token-swap__review-label">You pay</span>
+            <AutolaunchWeb.TokenDisplay.written value={@review.pay} unit={@review.sell_symbol} />
+          </p>
+          <img :if={@sell_image} src={@sell_image} width="36" height="36" alt="" />
+        </div>
+        <svg
+          class="token-swap__review-arrow"
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M12 4v16m-7-7 7 7 7-7" stroke="currentColor" stroke-width="2" />
+        </svg>
+        <div class="token-swap__review-side">
+          <p>
+            <span class="token-swap__review-label">You get about</span>
+            <AutolaunchWeb.TokenDisplay.written value={@review.receive} unit={@review.buy_symbol} />
+          </p>
+          <img :if={@buy_image} src={@buy_image} width="36" height="36" alt="" />
+        </div>
 
-      <dl class="token-swap__review-facts">
-        <div>
-          <dt>Max slippage</dt>
-          <dd><span class="figure__value">{@review.protection}%</span></dd>
-        </div>
-        <div>
-          <dt>Receive at least</dt>
-          <dd>
-            <AutolaunchWeb.TokenDisplay.written value={@review.minimum} unit={@review.buy_symbol} />
-          </dd>
-        </div>
-        <div>
-          <dt>Already in the quote</dt>
-          <dd class="token-swap__review-fees">
-            <span :for={fee <- @review.fees}>{fee}</span>
-          </dd>
-        </div>
-      </dl>
+        <dl class="token-swap__review-facts">
+          <div>
+            <dt>Max slippage</dt>
+            <dd><span class="figure__value">{@review.protection}%</span></dd>
+          </div>
+          <div>
+            <dt>Receive at least</dt>
+            <dd>
+              <AutolaunchWeb.TokenDisplay.written value={@review.minimum} unit={@review.buy_symbol} />
+            </dd>
+          </div>
+          <div>
+            <dt>Already in the quote</dt>
+            <dd class="token-swap__review-fees">
+              <span :for={fee <- @review.fees}>{fee}</span>
+            </dd>
+          </div>
+        </dl>
+      <% end %>
 
       <p class="token-swap__review-rule"><span>Continue in your wallet</span></p>
 
@@ -395,24 +406,28 @@ defmodule AutolaunchWeb.Components.SwapForm do
   The wallet button of a review panel, with the lines above it and "Check
   again" for a step the page stopped reading. The lines stay in the page and
   are only hidden, so one appearing never moves the button a person is
-  pressing; the button is always there too, only hidden while every step is
-  sent, and it has no `phx-click`: the `OnchainSteps` hook sends its step.
+  pressing. The button has no `phx-click`: the `OnchainSteps` hook sends its
+  step. It names the next step to send; once every step is sent it stays on
+  the last one, and a press sends that step again.
   """
   def wallet_step(assigns) do
+    assigns = assign(assigns, shown: pressable(assigns.next_step, assigns.steps))
+
     ~H"""
     <p class="token-swap__review-note" role="status" hidden={!@reverted}>{@reverted}</p>
-    <p class="token-swap__review-from" hidden={!(@next_step && @signer)}>
+    <p class="token-swap__review-from" hidden={!(@shown && @signer)}>
       Sending from <code>{RegentFormat.short_address(@signer)}</code> on {@chain_name}
     </p>
     <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
     <Regent.Primitives.button
       type="button"
       class="token-swap__submit token-swap__wallet-step"
-      data-onchain-step={@next_step && @next_step.name}
-      hidden={!@next_step}
+      data-onchain-step={@shown && @shown.name}
+      data-state={@shown && Map.get(@shown, :state)}
+      hidden={!@shown}
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-awaiting-wallet"])}
     >
-      <span class="token-swap__wallet-step-label">{@next_step && @next_step.label}</span>
+      <span class="token-swap__wallet-step-label">{@shown && button_label(@shown, @next_step)}</span>
       <span class="token-swap__wallet-step-wait">
         <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
       </span>
@@ -431,6 +446,17 @@ defmodule AutolaunchWeb.Components.SwapForm do
     </Regent.Primitives.button>
     """
   end
+
+  @doc """
+  The step a review panel's wallet button sends: the next one, or, once
+  every step is sent, the last one again.
+  """
+  def pressable(nil, []), do: nil
+  def pressable(nil, steps), do: List.last(steps)
+  def pressable(next_step, _steps), do: next_step
+
+  defp button_label(%{label: label}, nil), do: "#{label} again"
+  defp button_label(%{label: label}, _next_step), do: label
 
   @doc "The note beside one step of a review panel."
   def step_note(%{state: :done}, _index, _count, _next), do: "Done"

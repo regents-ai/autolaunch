@@ -120,7 +120,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
       </p>
 
       <div :if={@authenticated && @state} class="subject-wallet-body">
-        <dl :if={!@review} class="subject-wallet-balances">
+        <dl class="subject-wallet-balances" hidden={!!@review}>
           <div>
             <dt>Wallet</dt>
             <dd class="subject-wallet-mono">{RegentFormat.short_address(@state.signer)}</dd>
@@ -132,8 +132,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         </dl>
 
         <form
-          :if={!@review}
           id={"#{@id}-form"}
+          hidden={!!@review}
           class="subject-wallet-choose"
           phx-change="subject_form_changed"
           phx-submit="review_subject_action"
@@ -199,50 +199,54 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </div>
         </form>
 
+        <%!-- The review stays in the page and is only hidden, so its wallet
+             button is never replaced while a person presses it. --%>
         <section
-          :if={@review}
           id={"#{@id}-review"}
           class="subject-wallet-review"
           aria-label="Payment review"
+          hidden={!@review}
         >
-          <h3>{title(@prepared.facts.kind)}</h3>
-          <dl>
-            <div>
-              <dt>You pay</dt>
-              <dd>
-                <TokenDisplay.written
-                  value={@routed || @prepared.facts.amount}
-                  unit={asset_label(@prepared.facts.asset, @symbol)}
-                />
-              </dd>
-            </div>
-            <div>
-              <dt>You get</dt>
-              <dd>Nothing back. This goes into the revenue split.</dd>
-            </div>
-            <div>
-              <dt>Wallet</dt>
-              <dd class="subject-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
-            </div>
-            <div>
-              <dt>Network</dt>
-              <dd>{@review.chain.name}</dd>
-            </div>
-          </dl>
+          <%= if @review do %>
+            <h3>{title(@prepared.facts.kind)}</h3>
+            <dl>
+              <div>
+                <dt>You pay</dt>
+                <dd>
+                  <TokenDisplay.written
+                    value={@routed || @prepared.facts.amount}
+                    unit={asset_label(@prepared.facts.asset, @symbol)}
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt>You get</dt>
+                <dd>Nothing back. This goes into the revenue split.</dd>
+              </div>
+              <div>
+                <dt>Wallet</dt>
+                <dd class="subject-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
+              </div>
+              <div>
+                <dt>Network</dt>
+                <dd>{@review.chain.name}</dd>
+              </div>
+            </dl>
 
-          <%!-- What this transaction is about to divide. Once it settles, its own
+            <%!-- What this transaction is about to divide. Once it settles, its own
                 event says what really moved, so the estimate stops speaking. --%>
-          <p class="subject-wallet-share" hidden={!!@routed}>
-            <TokenDisplay.marked
-              text={share_copy(@prepared.facts, @symbol)}
-              tickers={[@symbol, "USDC", "REGENT"]}
-            />
-          </p>
+            <p class="subject-wallet-share" hidden={!!@routed}>
+              <TokenDisplay.marked
+                text={share_copy(@prepared.facts, @symbol)}
+                tickers={[@symbol, "USDC", "REGENT"]}
+              />
+            </p>
 
-          <p :if={@prepared.facts.kind == :sweep} class="subject-wallet-share">
-            This pays the network fee to move that balance on. Nothing is sent to your wallet, and
-            someone else routing it first can make this fail.
-          </p>
+            <p :if={@prepared.facts.kind == :sweep} class="subject-wallet-share">
+              This pays the network fee to move that balance on. Nothing is sent to your wallet, and
+              someone else routing it first can make this fail.
+            </p>
+          <% end %>
 
           <%!-- The list styling drops list semantics, so the role is stated. --%>
           <ol class="subject-wallet-steps" role="list" aria-label="Payment progress">
@@ -258,7 +262,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </ol>
 
           <p class="subject-wallet-settled" role="status" hidden={!@routed}>
-            {@routed &&
+            {@routed && @prepared &&
               "Routed #{@routed} #{asset_label(@prepared.facts.asset, @symbol)} into the revenue split."}
           </p>
           <p
@@ -274,8 +278,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             next_step={next_step(@steps)}
             steps={@steps}
             reverted={reverted(@steps)}
-            signer={@review.signer}
-            chain_name={@review.chain.name}
+            signer={@review && @review.signer}
+            chain_name={@review && @review.chain.name}
             mismatch={@mismatch}
             check_event="check_again"
             target={@myself}

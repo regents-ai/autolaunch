@@ -176,17 +176,17 @@ defmodule AutolaunchWeb.ConvertComponent do
         </form>
 
         <StakeComponent.stake_review
-          :if={@review}
           id={"#{@id}-review"}
+          open={!!@review}
           title="Converting REGENT's share"
-          facts={@prepared.facts}
+          facts={(@review && @prepared.facts) || []}
           steps={steps(assigns)}
           next_step={next_step(assigns)}
           reverted={reverted(assigns)}
           notice={@press_note}
           target={@myself}
-          signer={@review.signer}
-          chain_name={@review.chain.name}
+          signer={@review && @review.signer}
+          chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
         />
       </div>
@@ -362,6 +362,8 @@ defmodule AutolaunchWeb.ConvertComponent do
        do: Autolaunch.Prelaunch.read_only?() == false and Address.equal?(wallet, converter)
 
   defp converter?(_assigns), do: false
+
+  defp steps(%{review: nil}), do: []
 
   defp steps(%{review: review, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->

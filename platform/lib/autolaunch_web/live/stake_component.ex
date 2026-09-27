@@ -371,17 +371,17 @@ defmodule AutolaunchWeb.StakeComponent do
         </form>
 
         <.stake_review
-          :if={@review}
           id={"#{@id}-review"}
-          title={title(@prepared.kind)}
-          facts={@prepared.facts}
+          open={!!@review}
+          title={@review && title(@prepared.kind)}
+          facts={(@review && @prepared.facts) || []}
           steps={steps(assigns)}
           next_step={next_step(assigns)}
           reverted={reverted(assigns)}
           notice={@press_note}
           target={@myself}
-          signer={@review.signer}
-          chain_name={@review.chain.name}
+          signer={@review && @review.signer}
+          chain_name={@review && @review.chain.name}
           mismatch={@mismatch}
         />
       </div>
@@ -576,7 +576,9 @@ defmodule AutolaunchWeb.StakeComponent do
   # same action and amount; a claim takes no amount.
   defp open_step(%{prepared: %{kind: kind}, review: %{}} = assigns, name, input) do
     same_amount? = name == "claim" or Map.get(input, "amount") == assigns.amount
-    if kind == Map.fetch!(@kinds, name) and same_amount?, do: next_step(assigns)
+
+    if kind == Map.fetch!(@kinds, name) and same_amount?,
+      do: SwapForm.pressable(next_step(assigns), steps(assigns))
   end
 
   defp open_step(_assigns, _name, _input), do: nil
@@ -683,6 +685,8 @@ defmodule AutolaunchWeb.StakeComponent do
     do:
       "Stakers share this launch's trading fees: #{FeeSchedule.lane(pool.chain, :stakers).rate} of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
 
+  defp steps(%{review: nil}), do: []
+
   defp steps(%{review: review, prepared: prepared, presses: presses}) do
     Enum.map(review.steps, fn %{step: name} ->
       entry = OnchainSteps.entry(presses, review, name)
@@ -748,21 +752,31 @@ defmodule AutolaunchWeb.StakeComponent do
   defp unavailable(_other), do: nil
 
   attr :id, :string, required: true
-  attr :title, :string, required: true
-  attr :facts, :list, required: true, doc: "[label, value] pairs"
+  attr :open, :boolean, required: true, doc: "whether a review is on the page"
+  attr :title, :string, default: nil
+  attr :facts, :list, default: [], doc: "[label, value] pairs"
   attr :steps, :list, required: true
   attr :next_step, :map, default: nil
   attr :reverted, :string, default: nil
   attr :notice, :string, default: nil
   attr :target, :any, default: nil
-  attr :signer, :string, required: true
-  attr :chain_name, :string, required: true
+  attr :signer, :string, default: nil
+  attr :chain_name, :string, default: nil
   attr :mismatch, :string, default: nil
 
-  @doc "The review panel over a staking card: the reviewed facts and the wallet steps, one button at a time."
+  @doc """
+  The review panel over a staking card: the reviewed facts and the wallet
+  steps, one button at a time. It stays in the page and is only hidden while
+  nothing is reviewed, so its wallet button is never replaced.
+  """
   def stake_review(assigns) do
     ~H"""
-    <section id={@id} class="token-swap__review" aria-labelledby={@id <> "-title"}>
+    <section
+      id={@id}
+      class="token-swap__review"
+      aria-labelledby={@id <> "-title"}
+      hidden={!@open}
+    >
       <header class="token-swap__review-head">
         <h3 id={@id <> "-title"}>{@title}</h3>
         <Regent.Primitives.button

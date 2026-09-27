@@ -259,11 +259,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         Memestake {@token_symbol}
       </.link>
 
+      <%!-- The panel stays in the page and is only hidden, so its wallet button
+           is never replaced while a person presses it. --%>
       <section
-        :if={@open}
         id={"#{@id}-review"}
         class="bid-review"
         aria-label={"Settle bid ##{@bid["bid_id"]}"}
+        hidden={!@open}
       >
         <.summary
           prepared={@prepared}
