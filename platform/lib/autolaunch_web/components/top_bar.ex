@@ -8,16 +8,12 @@ defmodule AutolaunchWeb.Components.TopBar do
   attr :search_query, :string, default: ""
 
   attr :home?, :boolean, default: false
-  attr :blog?, :boolean, default: false
+  attr :theme, :string, required: true
   attr :market_options, :map, default: %{}
 
   def top_bar(assigns) do
     ~H"""
-    <header
-      class="shell-top home-top"
-      id="home-top"
-      data-blog-header={if @blog?, do: "true"}
-    >
+    <header class="shell-top home-top" id="home-top">
       <%!-- Hidden until opening: before then there is nothing to search. --%>
       <form
         :if={!Autolaunch.Prelaunch.read_only?()}
@@ -83,10 +79,24 @@ defmodule AutolaunchWeb.Components.TopBar do
         </:lead>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
-        <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
+        <.theme_toggle theme={@theme} />
         <.account_control account_control={@account_control} />
       </div>
     </header>
+    """
+  end
+
+  attr :theme, :string, required: true
+
+  # The browser owns the switch: it writes the theme cookie the server reads on
+  # the next render and restates the theme here on load and after every live
+  # navigation, so LiveView leaves it alone. The server renders the theme it
+  # served, so the switch reads correctly before any script runs.
+  defp theme_toggle(assigns) do
+    ~H"""
+    <div id="theme-control" class="theme-control" phx-update="ignore">
+      <Regent.ThemeToggle.button id="theme-control-button" theme={@theme} data-theme-toggle />
+    </div>
     """
   end
 end

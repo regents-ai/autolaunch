@@ -2,3 +2,4 @@
 .shell-search { flex: 1 1 18rem; min-width: 0; }
 .shell-search__label { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
 .shell-search__input::placeholder { color: var(--color-fg-muted); }
+.theme-control { display: flex; }

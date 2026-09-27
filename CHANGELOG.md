@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v58, 27 September 2026 (2e596c1)
+- Robinhood token and auction pages say when they could not be loaded, with a Retry
+  button, instead of failing, and keep what they showed when a later read fails.
+- Auction pages say when the bids could not be read, with Try again.
+- The auction counts keep the last numbers when a refresh fails, marked as the last read.
+- A dollar estimate never carries over from one auction to the next.
+
 ## v57, 27 September 2026 (503b4f3)
 - Behind-the-scenes tidying only: unused styles removed and the site's checks moved to
   the standard places. Nothing changes for visitors.

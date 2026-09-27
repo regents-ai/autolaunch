@@ -77,20 +77,12 @@ defmodule AutolaunchWeb.XOAuthHTML do
   def callback(assigns) do
     ~H"""
     <!doctype html>
-    <html lang="en" data-brand="autolaunch" data-theme="dark">
+    <html lang="en" data-brand="autolaunch" data-theme={@theme}>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width" />
         <title>X connection</title>
         <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
-        <script>
-          ((query) => {
-            const follow = () =>
-              document.documentElement.setAttribute("data-theme", query.matches ? "light" : "dark")
-            follow()
-            query.addEventListener("change", follow)
-          })(window.matchMedia("(prefers-color-scheme: light)"))
-        </script>
       </head>
       <body class="x-oauth-result">
         <Regent.Structure.frame class="x-oauth-sheet">

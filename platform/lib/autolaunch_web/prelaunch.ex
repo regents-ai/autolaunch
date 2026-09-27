@@ -59,7 +59,8 @@ defmodule AutolaunchWeb.Prelaunch do
          })}
       else
         {"text/html",
-         AutolaunchWeb.ErrorHTML.render("#{status}.html", %{}) |> Phoenix.HTML.Safe.to_iodata()}
+         AutolaunchWeb.ErrorHTML.render("#{status}.html", %{conn: conn})
+         |> Phoenix.HTML.Safe.to_iodata()}
       end
 
     conn

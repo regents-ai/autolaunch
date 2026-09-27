@@ -1,6 +1,5 @@
 import "../css/app.css"
 import "../vendor/regent_ui/blog.mjs"
-import "./blog_theme"
 
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
@@ -30,6 +29,7 @@ import {installMotion} from "./motion/page"
 import {Toast} from "./motion/toast"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
+import {installTheme} from "./theme"
 
 const hooks = {
   ...colocatedHooks,
@@ -66,6 +66,7 @@ installMotion()
 installStaticMarketSearch()
 installRegentTokenMenu()
 installCopyButtons()
+installTheme()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
 installPublicTools()

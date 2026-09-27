@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.Router do
     plug :enforce_session_authority
     plug :fetch_live_flash
     plug :put_root_layout, html: {AutolaunchWeb.Layouts, :root}
+    plug AutolaunchWeb.Plugs.Theme
     plug :protect_from_forgery
     # Browser agents may use the tools the pages register, from this site only.
     plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}

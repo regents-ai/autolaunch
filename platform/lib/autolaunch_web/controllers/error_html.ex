@@ -6,25 +6,18 @@ defmodule AutolaunchWeb.ErrorHTML do
     assigns =
       assigns
       |> Map.put_new(:__changed__, nil)
-      |> assign(:message, headline(template))
+      |> assign(message: headline(template), theme: AutolaunchWeb.Plugs.Theme.read(assigns.conn))
 
     ~H"""
     <!DOCTYPE html>
-    <html lang="en" data-brand="autolaunch" data-theme="dark">
+    <html lang="en" data-brand="autolaunch" data-theme={@theme}>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="color-scheme" content="dark light" />
+        <meta name="color-scheme" content={@theme} />
         <title>{@message} · Autolaunch</title>
         <link rel="icon" href={~p"/favicon.svg"} />
         <link rel="stylesheet" href={~p"/assets/js/app.css"} />
-        <script>
-          ((query) => {
-            const follow = () => document.documentElement.setAttribute("data-theme", query.matches ? "light" : "dark")
-            follow()
-            query.addEventListener("change", follow)
-          })(window.matchMedia("(prefers-color-scheme: light)"))
-        </script>
       </head>
       <body>
         <AutolaunchWeb.Layouts.lab_notice />
