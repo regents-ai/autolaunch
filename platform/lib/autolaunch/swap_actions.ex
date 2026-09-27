@@ -41,6 +41,9 @@ defmodule Autolaunch.SwapActions do
   @protection_range 100..1_000
   # The router refuses the swap once this many seconds have passed since the review.
   @deadline_seconds 900
+  # A Permit2 allowance is granted for thirty minutes, so one granted by a
+  # review still outlives the deadline of the review built after it lands.
+  @permit2_seconds 1800
   # The quoter negates the amount as an int128, so an input stays below 2^127.
   @max_input Integer.pow(2, 127) - 1
   @uint128_max Integer.pow(2, 128) - 1
@@ -496,8 +499,9 @@ defmodule Autolaunch.SwapActions do
        when allowed >= amount and until >= deadline,
        do: []
 
-  defp permit2_approval(trade, amount, deadline, _snapshot, venue) do
-    data = Permit2Abi.encode_approve(trade.sell.address, venue.router, amount, deadline)
+  defp permit2_approval(trade, amount, _deadline, _snapshot, venue) do
+    until = System.os_time(:second) + @permit2_seconds
+    data = Permit2Abi.encode_approve(trade.sell.address, venue.router, amount, until)
     [Review.step("permit2_approval", venue.permit2, data)]
   end
 

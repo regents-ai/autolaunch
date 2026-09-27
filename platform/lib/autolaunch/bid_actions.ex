@@ -33,9 +33,10 @@ defmodule Autolaunch.BidActions do
   @uint128_max Integer.pow(2, 128) - 1
   @uint256_max Integer.pow(2, 256) - 1
 
-  # A Permit2 allowance is granted for fifteen minutes, and one that would
-  # lapse within ten is granted again rather than relied on.
-  @permit2_seconds 900
+  # A Permit2 allowance is granted for thirty minutes, and one that would
+  # lapse within ten, the longest a review stays on the page before it is
+  # built again, is granted again rather than relied on.
+  @permit2_seconds 1800
   @reuse_seconds 600
 
   # A Base read that may answer differently later never settles anything.
