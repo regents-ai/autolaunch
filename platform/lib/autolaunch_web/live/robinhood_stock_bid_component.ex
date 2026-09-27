@@ -599,7 +599,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     key = bid_key(assigns)
 
     cond do
-      is_nil(key) or assigns.ended or assigns.placed -> socket
+      is_nil(key) or !is_nil(assigns.ended) or !is_nil(assigns.placed) -> socket
       assigns.preparing -> socket
       assigns.prepared_for in [key, {:refused, key}] -> socket
       true -> start_prepare(socket, key)
