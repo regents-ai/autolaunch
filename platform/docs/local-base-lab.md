@@ -112,7 +112,7 @@ Real Privy sign-in is switched on explicitly, with three more inputs, none of th
 ```sh
 AUTOLAUNCH_LAB_AUTH=privy \
 PRIVY_APP_ID=<the Privy app id> \
-PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-keys.pem)" \
+PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-key.pem)" \
 ... mix phx.server
 ```
 
@@ -120,7 +120,7 @@ PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-keys.pem)" \
 | --- | --- |
 | `AUTOLAUNCH_LAB_AUTH=privy` | Test environment only. Selects the production verifier `Autolaunch.Privy`, admits `http://localhost:PORT` as a site origin alongside `http://127.0.0.1:PORT`, and names `localhost` as the site host. The boot stops if `AUTOLAUNCH_BASE_DEPLOYMENT` or either input below is missing: explicit real sign-in never falls back to the fixture verifier |
 | `PRIVY_APP_ID` | The real public app id of the Privy application |
-| `PRIVY_VERIFICATION_KEY` | The application's public ES256 verification keys as PEM blocks, one after another in this one variable (at most four). Privy publishes them at `https://auth.privy.io/api/v1/apps/<app id>/jwks.json`; the dashboard shows the current one. During rotation, configure the published keys together. Sign-in and the shared profile API (`/api/v1/profile`) independently verify each token against the same bounded configured set through `RegentPrivy`; single-key configuration remains supported |
+| `PRIVY_VERIFICATION_KEY` | The application's current public ES256 verification key as one PEM block. The Privy dashboard shows it, and Privy publishes it at `https://auth.privy.io/api/v1/apps/<app id>/jwks.json`. Sign-in and the shared profile API (`/api/v1/profile`) both verify each token against this key through `RegentPrivy` |
 
 Open the site at `http://localhost:4050`, the origin the Privy application allows, not at
 `127.0.0.1`. Sign in, `/profile`, the shared profile API and sign out then run through the

@@ -6,42 +6,25 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 
-# The Privy application's public verification keys, as PEM blocks in one
-# variable: one key ordinarily, and during a key rotation the keys Privy's
-# published key set lists, newest first. The set is bounded, is read only from
-# this variable, and never from a URL or from a token. The session boundary
-# and the shared identity API both verify against this same set. The singular
-# option remains available for callers using the existing single-PEM contract.
-privy_max_verification_keys = 4
-
-privy_verification_keys =
+# The Privy application's public verification key, as one PEM block. The
+# session boundary and the shared identity API both verify against it; it is
+# read only from this variable, never from a URL or from a token.
+privy_verification_key =
   case System.get_env("PRIVY_VERIFICATION_KEY") do
-    nil ->
-      []
-
-    value ->
-      value
-      |> String.replace("\\r\\n", "\n")
-      |> String.replace("\\n", "\n")
-      |> then(&Regex.scan(~r/-----BEGIN PUBLIC KEY-----.*?-----END PUBLIC KEY-----/s, &1))
-      |> List.flatten()
+    nil -> nil
+    value -> value |> String.replace("\\r\\n", "\n") |> String.replace("\\n", "\n")
   end
-
-if length(privy_verification_keys) > privy_max_verification_keys do
-  raise "PRIVY_VERIFICATION_KEY holds more than #{privy_max_verification_keys} PEM public keys"
-end
 
 config :autolaunch, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
-  verification_key: List.first(privy_verification_keys),
-  verification_keys: privy_verification_keys
+  verification_key: privy_verification_key
 
 # A lab site taking real sign-ins has nothing to verify them with unless both
 # public inputs are present, so it stops at boot rather than at the first
 # Sign in press.
 if System.get_env("AUTOLAUNCH_LAB_AUTH") == "privy" and
-     (System.get_env("PRIVY_APP_ID") in [nil, ""] or privy_verification_keys == []) do
-  raise "AUTOLAUNCH_LAB_AUTH=privy needs PRIVY_APP_ID and PRIVY_VERIFICATION_KEY (PEM public keys)"
+     (System.get_env("PRIVY_APP_ID") in [nil, ""] or privy_verification_key in [nil, ""]) do
+  raise "AUTOLAUNCH_LAB_AUTH=privy needs PRIVY_APP_ID and PRIVY_VERIFICATION_KEY (a PEM public key)"
 end
 
 x_oauth_client_id =
