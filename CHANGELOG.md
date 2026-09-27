@@ -3,6 +3,23 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v50, 27 September 2026 (03b5a7f)
+- Create now starts with a clear choice between a Memestake and a Revstake token, and each
+  page is named for the one it makes.
+- Every page that states Memestake trading fees shows the same three: the 0.30% pool fee
+  and the two 1.00% fees for REGENT stakers and the token's stakers. The trade review now
+  lists the fees already included in the quote.
+- Portfolio says while it is refreshing, when it last read everything, and which part could
+  not be read, keeping that part's last figures with their time. A burst of updates now
+  causes one extra read instead of one each. Signing out elsewhere clears the page.
+- Auction figures show in the auction's own currency when there is no dollar price, and a
+  figure that isn't known yet says so instead of showing a dash.
+- An auction counts as ended from the auction itself, not from the clock.
+- Wording about failed auctions now says each bidder can withdraw their bid, since nothing
+  is sent back without a withdrawal.
+- The bid estimate address now answers each kind of problem with its own code and says
+  whether trying again will help.
+
 ## v49, 27 September 2026 (a6711fc)
 - AI assistants built into web browsers can now bid, finish a bid after its auction, buy,
   sell, stake, unstake and claim staking rewards for a signed-in person, using the same
