@@ -3,7 +3,7 @@
 [![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
 [![Phoenix 1.8](https://img.shields.io/badge/phoenix-1.8-lightgrey)](https://www.phoenixframework.org)
 [Ash](https://ash-hq.org)
-[![PostgreSQL 14](https://img.shields.io/badge/postgres-14-lightgrey)](https://www.postgresql.org)
+[![PostgreSQL 17](https://img.shields.io/badge/postgres-17-lightgrey)](https://www.postgresql.org)
 
 Autolaunch is the Regents Labs site at autolaunch.sh: the place where a token auction is
 created, bid on, and followed. It is a Phoenix, LiveView and Ash application with its own
