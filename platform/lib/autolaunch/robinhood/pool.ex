@@ -12,11 +12,13 @@ defmodule Autolaunch.Robinhood.Pool do
   staker lane and the splitter's totals. Nothing here writes, signs or caches.
   """
 
-  alias Autolaunch.Chain.{Abi, Address, Rpc}
+  alias Autolaunch.Chain.{Abi, Rpc}
+
   alias Autolaunch.{LabAbi, PriceHistory}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Assets, FeeSchedule}
+  alias RegentChain.Address
 
   @token_decimals 18
   @usdg_decimals 6

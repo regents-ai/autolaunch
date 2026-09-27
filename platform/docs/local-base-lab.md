@@ -85,7 +85,7 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
 | Variable | Meaning |
 | --- | --- |
 | `AUTOLAUNCH_BASE_DEPLOYMENT` | Absolute path of `site-config.json`, the Base deployment description, in every environment; required in `fork` chain mode |
-| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; it travels in every envelope's binding |
+| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; the market feed reads a changed label as a new deployment |
 | `PORT` | The port to serve on (test default 4050) |
 | `AUTOLAUNCH_DB_POOL_SIZE` | Database connections for this site (default 10); a long-lived lab site should ask for a few, such as 3, because several test servers share one local PostgreSQL |
 | `AUTOLAUNCH_BROWSER_TEST=1` | Test environment only: serve HTTP and use a plain connection pool instead of the sandbox |

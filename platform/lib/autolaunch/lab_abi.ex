@@ -1,7 +1,9 @@
 defmodule Autolaunch.LabAbi do
   @moduledoc false
 
-  alias Autolaunch.Chain.{Abi, Address}
+  alias Autolaunch.Chain.Abi
+
+  alias RegentChain.Address
 
   @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"

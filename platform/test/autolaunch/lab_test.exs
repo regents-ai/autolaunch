@@ -85,28 +85,6 @@ defmodule Autolaunch.LabTest do
     assert {:ok, %{start_blocks: %{}}} = Lab.load(unnamed)
   end
 
-  test "the envelope binding names the public door, never the site's own" do
-    config = %{
-      run_id: "preview",
-      rpc_url: "http://autolaunch-fork.internal:8545",
-      public_rpc_url: "https://fork.example.test",
-      chain_id: 31_337,
-      addresses: %{
-        "regent" => "0x6f89bca4ea5931edfcb09786267b251dee752b07",
-        "hook" => "0x" <> String.duplicate("1", 40)
-      }
-    }
-
-    assert Lab.binding(config, [:regent]) == %{
-             "run_id" => "preview",
-             "rpc_url" => "https://fork.example.test",
-             "chain_id" => 31_337,
-             "addresses" => %{"regent" => "0x6f89bca4ea5931edfcb09786267b251dee752b07"}
-           }
-
-    refute Lab.binding(config, [:regent, :hook]) |> Jason.encode!() =~ "internal"
-  end
-
   defp load(dir, doors, chain_id \\ 31_337) do
     path = Path.join(dir, "description-#{:erlang.unique_integer([:positive])}.json")
     File.write!(path, Jason.encode!(Map.put(doors, "chain_id", chain_id)))

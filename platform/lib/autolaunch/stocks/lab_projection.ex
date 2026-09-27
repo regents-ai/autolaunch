@@ -16,18 +16,13 @@ defmodule Autolaunch.Stocks.LabProjection do
   its auction row already exists, a second confirmation changes nothing, so it
   can never take that auction back to how it started.
 
-  It runs inside the caller's transaction (the creator's session, or launch
+  It runs inside the caller's transaction (the creator's page, or launch
   discovery), so nothing is announced here: it returns the listing
   notifications of the row it wrote, for the caller to send once that
   transaction has committed. A launch already stored returns none.
   """
-  def project_launch(
-        %{envelope: %{"chain_id" => chain_id, "metadata" => %{"lab" => lab}} = envelope} =
-          operation,
-        result
-      )
-      when is_integer(chain_id) and is_map(lab) and is_map(result) do
-    arguments = envelope["arguments"]
+  def project_launch(%{review: review} = operation, result) when is_map(result) do
+    %{"chain" => %{"chain_id" => chain_id}, "signer" => signer, "facts" => facts} = review
 
     %{
       kind: :stocks,
@@ -36,22 +31,22 @@ defmodule Autolaunch.Stocks.LabProjection do
       chain_id: chain_id,
       auction_address: result["auction"],
       origin: :site,
-      creator_human_account_id: Map.get(operation, :human_account_id),
-      creator_address: String.downcase(envelope["expected_signer"]),
-      title: arguments["name"],
-      summary: arguments["description"],
-      token_symbol: arguments["symbol"],
-      website: arguments["website"],
-      telegram: arguments["telegram"],
-      image: arguments["image"],
-      quote_token_address: arguments["stock"],
-      quote_token_symbol: arguments["stock_symbol"],
-      quote_token_decimals: String.to_integer(arguments["stock_decimals"]),
-      required_currency_raised: arguments["required_stock_raised"],
+      creator_human_account_id: operation.human_account_id,
+      creator_address: String.downcase(signer),
+      title: facts["name"],
+      summary: facts["description"],
+      token_symbol: facts["symbol"],
+      website: facts["website"],
+      telegram: facts["telegram"],
+      image: facts["image"],
+      quote_token_address: facts["stock"],
+      quote_token_symbol: facts["stock_symbol"],
+      quote_token_decimals: String.to_integer(facts["stock_decimals"]),
+      required_currency_raised: facts["required_stock_raised"],
       state: :created,
       # The auction's funds recipient: every raised STOCK goes to the launchpad,
       # which is the only custody a Stocks launch has.
-      treasury_address: arguments["launchpad"]
+      treasury_address: facts["launchpad"]
     }
     |> Autolaunch.record_launch_auction(actor: @actor, return_notifications?: true)
     |> case do
@@ -60,6 +55,4 @@ defmodule Autolaunch.Stocks.LabProjection do
       {:error, error} -> {:error, error}
     end
   end
-
-  def project_launch(_operation, _result), do: {:ok, []}
 end

@@ -24,10 +24,11 @@ defmodule Autolaunch.Robinhood.Positions do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, LabAbi, TokenHoldings}
-  alias Autolaunch.Chain.{Abi, Address, CcaSettlement, Rpc}
+  alias Autolaunch.Chain.{Abi, CcaSettlement, Rpc}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Amounts
+  alias RegentChain.Address
 
   @bid_record_words 7
   @token_decimals 18

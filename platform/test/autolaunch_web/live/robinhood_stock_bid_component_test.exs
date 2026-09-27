@@ -31,11 +31,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponentTest do
       supply: AsyncResult.ok(nil),
       authenticated: true,
       # The panel already holds the signed-in wallet and its reading, so it
-      # does not look the wallet up from the session again.
+      # does not look the account's wallets up from the session again.
       wallet: "0x" <> String.duplicate("11", 20),
       current_human_id: nil,
       session_lease: nil,
-      signed_in_for: {nil, nil},
+      linked_for: {nil, nil},
+      linked: ["0x" <> String.duplicate("11", 20)],
+      signed_in: "0x" <> String.duplicate("11", 20),
       usd_prices: AsyncResult.ok(:test_network),
       reading: %{
         clock: clock,

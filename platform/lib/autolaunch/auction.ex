@@ -390,36 +390,13 @@ defmodule Autolaunch.Auction do
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
-    # The bidder lifecycle. Every one of these names the exact wallet or the
-    # exact operation it acts on, and `BidActions` proves both against the
-    # account the mounted lease locks before anything durable moves.
+    # What one of the signed-in account's wallets may spend on an auction.
+    # `BidActions` proves the wallet against the account the mounted lease
+    # locks before anything is read.
     action :bid_position, :map do
       argument :auction_id, :uuid, allow_nil?: false
       argument :expected_signer, :string, allow_nil?: false
       run fn input, context -> BidActions.position(input, context) end
-    end
-
-    action :prepare_bid, :map do
-      argument :auction_id, :uuid, allow_nil?: false
-      argument :expected_signer, :string, allow_nil?: false
-      argument :amount, :string, allow_nil?: false
-      argument :max_price, :string, allow_nil?: false
-      run fn input, context -> BidActions.prepare(input, context) end
-    end
-
-    # A USDC bid on a Stocks auction: the adapter buys the stock through the
-    # admitted route and bids as the caller, inside one transaction.
-    action :prepare_usdc_bid, :map do
-      argument :auction_id, :uuid, allow_nil?: false
-      argument :expected_signer, :string, allow_nil?: false
-      argument :usdc_amount, :string, allow_nil?: false
-      argument :max_price, :string, allow_nil?: false
-      run fn input, context -> BidActions.prepare_usdc(input, context) end
-    end
-
-    action :cancel_bid_review, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> BidActions.cancel(input, context) end
     end
   end
 
@@ -463,12 +440,7 @@ defmodule Autolaunch.Auction do
       authorize_if Autolaunch.Checks.SystemActor
     end
 
-    policy action([
-             :bid_position,
-             :prepare_bid,
-             :prepare_usdc_bid,
-             :cancel_bid_review
-           ]) do
+    policy action(:bid_position) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
   end

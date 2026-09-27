@@ -157,7 +157,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
     |> Enum.filter(
       &((&1.provider in @social_providers and not MapSet.member?(token_providers, &1.provider)) or
           (&1.provider == :ens and
-             not Autolaunch.Chain.Address.equal?(&1.metadata["wallet"], account.wallet_address)))
+             not RegentChain.Address.equal?(&1.metadata["wallet"], account.wallet_address)))
     )
     |> Enum.reduce_while(:ok, fn identity, :ok ->
       case Accounts.remove_linked_identity(identity, actor: actor) do

@@ -9,7 +9,7 @@ defmodule Autolaunch.LaunchOperations do
 
   Provider reads happen before these calls. Only the resulting row write happens
   inside the lock, and the row is taken `FOR UPDATE` first, so two sockets racing
-  the same dispatch serialize and exactly one of them wins.
+  the same review serialize and exactly one of them wins.
 
   Reading the open operation is the one path that needs no lease: it reads the
   owning account's own row and writes nothing.
@@ -19,8 +19,8 @@ defmodule Autolaunch.LaunchOperations do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.System
-  alias Autolaunch.Chain.Address
   alias Autolaunch.LaunchOperation
+  alias RegentChain.Address
 
   @actor %System{}
   @domain Autolaunch
@@ -37,7 +37,7 @@ defmodule Autolaunch.LaunchOperations do
     end
   end
 
-  @doc "Commits the reviewed envelope as the operation the wallet handoff will need."
+  @doc "Saves one launch review for the account."
   @spec create(Ash.Resource.record(), map()) :: {:ok, Ash.Resource.record()} | {:error, term()}
   def create(account, attributes) do
     LaunchOperation
@@ -74,10 +74,10 @@ defmodule Autolaunch.LaunchOperations do
     |> Ash.update(actor: @actor)
   end
 
-  @doc "The signer is the account's signed-in wallet right now, proved inside the locked transaction."
+  @doc "The signer is one of the account's own wallets right now, proved inside the locked transaction."
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
-  def signer_matches(%{wallet_address: wallet}, signer) do
-    if Address.equal?(wallet, signer),
+  def signer_matches(%{wallet_addresses: wallets}, signer) do
+    if Enum.any?(wallets, &Address.equal?(&1, signer)),
       do: :ok,
       else: unavailable(:wrong_signer)
   end

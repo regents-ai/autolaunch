@@ -15,10 +15,12 @@ defmodule Autolaunch.Stocks.Faucet do
   window is refused with the time the next one opens. `0` is no cooldown.
   """
 
-  alias Autolaunch.Chain.{Address, Rpc}
+  alias Autolaunch.Chain.Rpc
+
   alias Autolaunch.{Lab, LabAbi, Prelaunch}
   alias Autolaunch.Stocks.{Amounts, FaucetCooldown}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias RegentChain.Address
 
   @regent_amount 1_000 * Integer.pow(10, 18)
   @gas_floor_wei 50_000_000_000_000_000

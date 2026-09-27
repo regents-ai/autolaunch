@@ -12,10 +12,10 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
+  alias RegentChain.Address
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
 

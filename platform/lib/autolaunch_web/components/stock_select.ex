@@ -7,9 +7,9 @@ defmodule AutolaunchWeb.Components.StockSelect do
   """
   use Phoenix.Component
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks.{Assets, PriceFeeds}
   alias Phoenix.LiveView.JS
+  alias RegentChain.Address
 
   @logo_dir Application.app_dir(:autolaunch, "priv/static/images/stocks")
 

@@ -4,26 +4,25 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   revenue split, or route a balance already waiting at its payment address.
   Staking and claiming live in the token page's own staking card.
 
-  The wallet the customer signed in with drives everything here, read from the
-  mounted lease, so its balances show as soon as the card mounts. A press opens
-  that wallet, or Privy's connect step when this tab has not connected it, and a
-  note names both wallets while the browser is on another one.
-
-  The browser reports a hash and stops. Every outcome on screen comes from the
-  server's own read of that exact hash. Each distinct press is independent;
-  recovery reports prior outcomes and never sends again automatically.
+  The wallet that acts is Privy's active wallet when the signed-in account
+  links it (`AutolaunchWeb.OnchainSteps`); its balances show, or the signed-in
+  wallet's until Privy reports the active one, and a note names both while the
+  wallet app has another wallet open. The review is prepared on the server and
+  lives on this page only: an exact approval when one is missing, then the
+  payment. Every press reaches the wallet, and every outcome is the server's
+  own read of the hash against the review it was sent from.
   """
 
   use AutolaunchWeb, :live_component
 
-  alias Autolaunch
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.SubjectWalletActions
-  alias AutolaunchWeb.{SignedInWallet, TokenDisplay}
-
   import AutolaunchWeb.Components.StepState
 
-  @chain_id 8453
+  alias Autolaunch.Actors.Human
+  alias Autolaunch.Chain.Client
+  alias Autolaunch.SubjectWalletActions
+  alias AutolaunchWeb.Components.SwapForm
+  alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
+  alias RegentChain.{Presses, Review}
 
   @assets [
     %{id: "usdc", key: :usdc},
@@ -35,9 +34,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     authentication_required: "Sign in to use your wallet here.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
-    invalid_address:
-      "You are now signed in with a different wallet. Reload the page to continue.",
+    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
+    invalid_address: "Connect your wallet, then press again.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     subject_not_found: "Payments are not open on this token yet.",
     subject_unavailable: "This token could not be read just now.",
@@ -60,49 +58,45 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     amount_above_balance: "That is more than this wallet holds.",
     nothing_to_sweep: "There is nothing waiting at the payment address right now.",
     invalid_amount: "Enter an amount using this asset's decimal places.",
-    unsupported_asset: "Choose one of the listed assets.",
-    submitted_hash_conflict: "This step already has a transaction.",
-    submitted_step_mismatch: "That transaction is not the step this payment is waiting for.",
-    subject_wallet_operation_not_found: "That payment is no longer open."
+    unsupported_asset: "Choose one of the listed assets."
   }
 
   @generic "That did not go through. Try again in a moment."
 
-  # The refusals that mean the session no longer vouches for the signed-in
-  # wallet, so no private fact and no control belongs on screen.
-  @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
-
   @impl true
-  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
-    {:ok, AutolaunchWeb.WalletPressComponent.consume(socket, lease, result)}
-  end
-
-  def update(assigns, socket) do
+  def mount(socket) do
     {:ok,
      socket
-     |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
-     |> assign(assigns)
-     |> assign_new(:wallet, fn -> nil end)
-     |> assign_new(:browser_wallets, fn -> [] end)
-     |> assign_new(:state, fn -> nil end)
-     |> assign_new(:asset, fn -> "usdc" end)
-     |> assign_new(:amount, fn -> "" end)
-     |> assign_new(:notice, fn -> nil end)
-     |> assign_new(:wallet_press_history, fn -> %{} end)
-     |> assign_new(:operation, fn -> nil end)
-     |> assign(assets: @assets)
-     |> SignedInWallet.adopt(&adopt/2)}
+     |> OnchainSteps.init()
+     |> assign(
+       signer: nil,
+       mismatch: nil,
+       prepared: nil,
+       reviews: %{},
+       state: nil,
+       state_for: nil,
+       asset: "usdc",
+       amount: "",
+       notice: nil,
+       routed: nil,
+       assets: @assets
+     )}
+  end
+
+  @impl true
+  def update(assigns, socket) do
+    {:ok, socket |> assign(assigns) |> OnchainSteps.adopt() |> followed() |> read_state()}
   end
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, steps: steps(assigns))
+
     ~H"""
     <section
       id={@id}
       class="subject-wallet rg-panel rg-panel--surface"
-      data-wallet-scope={AutolaunchWeb.WalletPressComponent.scope(assigns)}
-      phx-hook="AutolaunchSubjectWallet"
-      phx-target={@myself}
+      phx-hook="OnchainSteps"
       aria-labelledby={@id <> "-title"}
     >
       <header class="subject-wallet-heading">
@@ -117,7 +111,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         </p>
       </header>
 
-      <.notice :if={@notice} notice={@notice} />
+      <p class="subject-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
       <p :if={!@authenticated} class="subject-wallet-empty">
         <Regent.Primitives.button type="button" data-account-target="sign-in">
@@ -125,11 +119,11 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         </Regent.Primitives.button>
       </p>
 
-      <div :if={@authenticated && @wallet && @state} class="subject-wallet-body">
-        <dl :if={!@operation} class="subject-wallet-balances">
+      <div :if={@authenticated && @state} class="subject-wallet-body">
+        <dl :if={!@review} class="subject-wallet-balances">
           <div>
             <dt>Wallet</dt>
-            <dd class="subject-wallet-mono">{RegentFormat.short_address(@wallet)}</dd>
+            <dd class="subject-wallet-mono">{RegentFormat.short_address(@state.signer)}</dd>
           </div>
           <div :for={asset <- @assets}>
             <dt>{asset_label(asset.key, @symbol)}</dt>
@@ -138,7 +132,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         </dl>
 
         <form
-          :if={!@operation}
+          :if={!@review}
           id={"#{@id}-form"}
           class="subject-wallet-choose"
           phx-change="subject_form_changed"
@@ -179,6 +173,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           <p :if={@state.receiver} class="subject-wallet-hint">
             Payment address {RegentFormat.short_address(@state.receiver.address)}
           </p>
+          <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
 
           <Regent.Primitives.button
             class="subject-wallet-primary"
@@ -205,177 +200,121 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         </form>
 
         <section
-          :if={@operation}
+          :if={@review}
           id={"#{@id}-review"}
           class="subject-wallet-review"
           aria-label="Payment review"
         >
-          <h3>{title(@operation.kind)}</h3>
+          <h3>{title(@prepared.facts.kind)}</h3>
           <dl>
-            <div :if={amount_display(@operation)}>
-              <dt>Amount</dt>
+            <div>
+              <dt>You pay</dt>
               <dd>
                 <TokenDisplay.written
-                  value={amount_display(@operation)}
-                  unit={operation_symbol(@operation, @symbol)}
+                  value={@routed || @prepared.facts.amount}
+                  unit={asset_label(@prepared.facts.asset, @symbol)}
                 />
               </dd>
             </div>
             <div>
+              <dt>You get</dt>
+              <dd>Nothing back. This goes into the revenue split.</dd>
+            </div>
+            <div>
               <dt>Wallet</dt>
-              <dd class="subject-wallet-mono">{RegentFormat.short_address(@operation.signer)}</dd>
+              <dd class="subject-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
             </div>
             <div>
               <dt>Network</dt>
-              <dd>Base</dd>
+              <dd>{@review.chain.name}</dd>
             </div>
           </dl>
 
           <%!-- What this transaction is about to divide. Once it settles, its own
                 event says what really moved, so the estimate stops speaking. --%>
-          <p :if={is_nil(@operation.terminal_at)} class="subject-wallet-share">
+          <p class="subject-wallet-share" hidden={!!@routed}>
             <TokenDisplay.marked
-              text={share_copy(@operation, @symbol)}
+              text={share_copy(@prepared.facts, @symbol)}
               tickers={[@symbol, "USDC", "REGENT"]}
             />
           </p>
 
-          <p :if={@operation.kind == :sweep} class="subject-wallet-share">
+          <p :if={@prepared.facts.kind == :sweep} class="subject-wallet-share">
             This pays the network fee to move that balance on. Nothing is sent to your wallet, and
             someone else routing it first can make this fail.
           </p>
 
           <%!-- The list styling drops list semantics, so the role is stated. --%>
           <ol class="subject-wallet-steps" role="list" aria-label="Payment progress">
-            <li :for={step <- SubjectWalletActions.steps(@operation)} data-step={step["step"]}>
+            <li :for={step <- @steps} data-step={step.name}>
               <span>
-                <TokenDisplay.marked
-                  text={step_label(step["step"], @operation, @symbol)}
-                  tickers={[@symbol, "USDC", "REGENT"]}
-                />
+                <TokenDisplay.marked text={step.label} tickers={[@symbol, "USDC", "REGENT"]} />
               </span>
-              <.step_state state={step_word(@operation, step["step"])} />
-              <.transaction hash={SubjectWalletActions.step_hash(@operation, step["step"])} />
+              <.step_state state={chip(step)} />
+              <span class="subject-wallet-mono" hidden={!step.entry}>
+                {step.entry && RegentFormat.short_hash(step.entry.hash)}
+              </span>
             </li>
           </ol>
 
-          <p :if={@operation.state == :confirmed} class="subject-wallet-settled" role="status">
-            Confirmed on Base. Balances update once the payment is read back.
+          <p class="subject-wallet-settled" role="status" hidden={!@routed}>
+            {@routed &&
+              "Routed #{@routed} #{asset_label(@prepared.facts.asset, @symbol)} into the revenue split."}
           </p>
           <p
-            :if={@operation.state in [:cancelled, :expired]}
             class="subject-wallet-settled"
             role="status"
+            aria-live="polite"
+            hidden={!progress_copy(@steps, @review)}
           >
-            {settled_copy(@operation.state)}
+            {progress_copy(@steps, @review)}
           </p>
-
-          <SignedInWallet.note
-            :if={sendable?(@operation, @wallet)}
-            signed_in={@wallet}
-            browser={@browser_wallets}
+          <p class="subject-wallet-notice" role="status" hidden={!@press_note}>{@press_note}</p>
+          <SwapForm.wallet_step
+            next_step={next_step(@steps)}
+            steps={@steps}
+            reverted={reverted(@steps)}
+            signer={@review.signer}
+            chain_name={@review.chain.name}
+            mismatch={@mismatch}
+            check_event="check_again"
+            target={@myself}
           />
           <Regent.Primitives.button
-            :if={sendable?(@operation, @wallet)}
-            type="button"
-            data-subject-wallet-send={@operation.action_id}
-            data-wallet-step={@operation.step}
-            data-subject-wallet-signer={@operation.signer}
-          >
-            Confirm in wallet
-          </Regent.Primitives.button>
-          <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-            This payment belongs to another wallet. Sign in with that wallet to finish.
-          </p>
-          <Regent.Primitives.button
-            :if={@operation.state == :submitted}
-            type="button"
-            phx-click="wallet_press_verify"
-            phx-value-action_id={@operation.action_id}
-            phx-value-press_id={submitted_press(@operation)}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Check again
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@operation.state == :prepared && !started?(@operation)}
             type="button"
             phx-click="cancel_subject_wallet_review"
-            phx-value-action-id={@operation.action_id}
             phx-target={@myself}
             variant="secondary"
+            hidden={!cancellable?(@steps)}
           >
             Cancel
           </Regent.Primitives.button>
           <Regent.Primitives.button
-            :if={@operation.state in [:dispatched, :submitted]}
-            type="button"
-            phx-click="start_new_subject_wallet_action"
-            phx-value-action-id={@operation.action_id}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Start another payment
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@operation.terminal_at}
             type="button"
             phx-click="clear_subject_wallet_action"
             phx-target={@myself}
             variant="secondary"
+            hidden={!finished?(@steps)}
           >
             Make another payment
           </Regent.Primitives.button>
         </section>
       </div>
-      <AutolaunchWeb.WalletPressComponent.history
-        :if={AutolaunchWeb.WalletPressComponent.scope(assigns)}
-        history={@wallet_press_history}
-        target={@myself}
-        label={&step_label(&1, &2, @symbol)}
-      />
     </section>
     """
   end
 
   @impl true
-  def handle_event("wallet_press_dispatch", params, socket),
-    do:
-      {:noreply,
-       AutolaunchWeb.WalletPressComponent.dispatch(
-         socket,
-         :subject,
-         params,
-         opts(socket),
-         __MODULE__
-       )}
+  def handle_event("onchain_active_wallet", params, socket) do
+    active = OnchainSteps.active_wallet(params)
 
-  def handle_event("wallet_press_report", params, socket),
-    do:
-      {:noreply,
-       AutolaunchWeb.WalletPressComponent.report(
-         socket,
-         :subject,
-         params,
-         opts(socket),
-         __MODULE__
-       )}
+    socket =
+      if active == socket.assigns.active,
+        do: socket,
+        else: assign(socket, active: active, press_note: nil)
 
-  def handle_event("wallet_press_verify", params, socket),
-    do:
-      {:noreply,
-       AutolaunchWeb.WalletPressComponent.verify(
-         socket,
-         :subject,
-         params,
-         opts(socket),
-         __MODULE__
-       )}
-
-  # The wallets this tab has connected, whenever they change: only for the note.
-  def handle_event("browser_wallets", params, socket),
-    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
+    {:noreply, socket |> followed() |> read_state()}
+  end
 
   def handle_event("subject_form_changed", params, socket) do
     {:noreply,
@@ -391,64 +330,274 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   def handle_event("review_subject_action", params, socket) do
     case action_kind(params["kind"]) do
-      nil ->
-        {:noreply, socket}
-
-      kind ->
-        {:noreply,
-         socket.assigns.subject_id
-         |> Autolaunch.prepare_subject_wallet_action(
-           socket.assigns.wallet,
-           kind,
-           form_params(socket.assigns, params),
-           opts(socket)
-         )
-         |> settled(socket)}
+      nil -> {:noreply, socket}
+      kind -> {:noreply, review(socket, kind, form_params(socket.assigns, params))}
     end
   end
 
-  def handle_event("cancel_subject_wallet_review", %{"action-id" => action_id}, socket),
-    do:
-      {:noreply,
-       socket.assigns.subject_id
-       |> Autolaunch.cancel_subject_wallet_review(action_id, opts(socket))
-       |> settled(socket)}
+  def handle_event("step_sent", params, socket),
+    do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("start_new_subject_wallet_action", %{"action-id" => action_id}, socket),
-    do:
-      {:noreply,
-       socket.assigns.subject_id
-       |> Autolaunch.start_new_subject_wallet_action(action_id, opts(socket))
-       |> settled(socket)}
+  def handle_event("step_failed", params, socket) do
+    case Presses.failed(params) do
+      {:ok, _name, reason} ->
+        AutolaunchWeb.Telemetry.wallet_failed(:subject, reason)
+        %{linked: linked, active: active, review: review} = socket.assigns
+        chain_name = review && review.chain.name
+        note = OnchainSteps.failure_note(reason, linked, active, chain_name)
+        {:noreply, assign(socket, press_note: note)}
 
-  def handle_event("clear_subject_wallet_action", _params, socket),
-    do: {:noreply, socket |> assign(operation: nil, amount: "") |> cleared() |> refreshed()}
-
-  attr :notice, :map, required: true
-
-  defp notice(assigns) do
-    ~H"""
-    <p class="subject-wallet-notice" role={if @notice.tone == :error, do: "alert", else: "status"}>
-      {@notice.message}
-    </p>
-    """
+      :error ->
+        {:noreply, socket}
+    end
   end
 
-  attr :hash, :string, default: nil
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
-  defp transaction(assigns) do
-    ~H"""
-    <a
-      :if={@hash}
-      class="subject-wallet-mono"
-      href={"https://basescan.org/tx/#{@hash}"}
-      target="_blank"
-      rel="noopener"
-      aria-label="View this transaction on Basescan"
-    >
-      {RegentFormat.short_hash(@hash)}
-    </a>
-    """
+  def handle_event("cancel_subject_wallet_review", _params, socket),
+    do: {:noreply, withdrawn(socket)}
+
+  def handle_event("clear_subject_wallet_action", _params, socket),
+    do: {:noreply, socket |> assign(amount: "", routed: nil) |> withdrawn() |> reread()}
+
+  @impl true
+  def handle_async(:state, {:ok, {wallet, result}}, socket) do
+    cond do
+      wallet != shown_wallet(socket.assigns) -> {:noreply, socket}
+      match?({:ok, _state}, result) -> {:noreply, assign(socket, state: elem(result, 1))}
+      true -> {:noreply, assign(socket, state: nil, notice: copy(refusal(elem(result, 1))))}
+    end
+  end
+
+  def handle_async(:state, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, notice: @generic)}
+
+  def handle_async({:onchain_step, hash}, result, socket),
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+
+  def handle_async({:result, hash}, result, socket) do
+    logs =
+      case result do
+        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
+        _unread -> nil
+      end
+
+    {:noreply, routed(socket, hash, logs)}
+  end
+
+  # The wallet that may act, and the balances the card shows.
+
+  # A review is built for one signer, so an unsent review for another one is
+  # dropped.
+  defp followed(socket) do
+    %{linked: linked, active: active, presses: presses, review: review} = socket.assigns
+    signer = OnchainSteps.signer(linked, active)
+    socket = assign(socket, signer: signer, mismatch: OnchainSteps.mismatch_note(linked, active))
+
+    cond do
+      is_nil(review) -> socket
+      review.signer == signer -> socket
+      started?(presses, review) -> socket
+      true -> withdrawn(socket)
+    end
+  end
+
+  defp shown_wallet(%{signer: signer}) when is_binary(signer), do: signer
+  defp shown_wallet(%{active: nil, signed_in: signed_in}), do: signed_in
+  defp shown_wallet(_assigns), do: nil
+
+  # The balances of the wallet shown, read in the background whenever that
+  # wallet changes and after a payment.
+  defp read_state(socket) do
+    wallet = shown_wallet(socket.assigns)
+
+    cond do
+      !socket.assigns.authenticated -> socket
+      is_nil(wallet) -> assign(socket, state: nil, state_for: nil)
+      wallet == socket.assigns.state_for -> socket
+      true -> start_state(socket, wallet)
+    end
+  end
+
+  defp reread(socket) do
+    case shown_wallet(socket.assigns) do
+      nil -> socket
+      wallet -> start_state(socket, wallet)
+    end
+  end
+
+  defp start_state(socket, wallet) do
+    subject_id = socket.assigns.subject_id
+    opts = opts(socket)
+
+    socket
+    |> assign(state_for: wallet)
+    |> start_async(:state, fn ->
+      {wallet, SubjectWalletActions.wallet_state(subject_id, wallet, opts)}
+    end)
+  end
+
+  # Reviews
+
+  # With no wallet that may act nothing is prepared: with no active wallet
+  # Privy's connect step opens, and with another wallet open the note beside
+  # the button names both.
+  defp review(%{assigns: %{signer: nil, active: nil}} = socket, _kind, _params),
+    do: socket |> assign(notice: nil) |> OnchainSteps.connect()
+
+  defp review(%{assigns: %{signer: nil}} = socket, _kind, _params),
+    do: assign(socket, notice: copy(:wrong_signer))
+
+  defp review(%{assigns: %{signer: signer}} = socket, kind, params) do
+    case SubjectWalletActions.prepare(
+           socket.assigns.subject_id,
+           signer,
+           kind,
+           params,
+           opts(socket)
+         ) do
+      {:ok, prepared} ->
+        review = Review.new(socket.assigns.id, signer, prepared.chain, prepared.steps)
+
+        socket
+        |> assign(
+          prepared: prepared,
+          routed: nil,
+          notice: nil,
+          press_note: nil,
+          reviews: Map.put(socket.assigns.reviews, review.id, prepared)
+        )
+        |> OnchainSteps.put_review(review)
+
+      {:error, error} ->
+        assign(socket, notice: copy(refusal(error)))
+    end
+  end
+
+  defp withdrawn(socket), do: socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
+
+  # Outcomes
+
+  # A confirmed payment is read from its receipt; an approval needs nothing
+  # more, since the payment's button is already on the page.
+  defp confirmed(socket, %{name: "action", hash: hash, review: review}),
+    do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+
+  defp confirmed(socket, _approval), do: socket
+
+  defp routed(socket, hash, logs) do
+    with %{review: %{id: id}} <-
+           Enum.find(Presses.shown(socket.assigns.presses), &(&1.hash == hash)),
+         %{facts: facts} <- Map.get(socket.assigns.reviews, id) do
+      socket
+      |> assign(routed: logs && SubjectWalletActions.result(facts, logs))
+      |> reread()
+    else
+      _other -> socket
+    end
+  end
+
+  # Steps
+
+  defp steps(%{review: %{} = review, prepared: prepared, presses: presses, symbol: symbol}) do
+    Enum.map(review.steps, fn %{step: name} ->
+      entry = OnchainSteps.entry(presses, review, name)
+
+      %{
+        name: name,
+        label: step_label(name, prepared.facts, symbol),
+        state: state(entry),
+        entry: entry
+      }
+    end)
+  end
+
+  defp steps(_assigns), do: []
+
+  defp started?(presses, review),
+    do: Enum.any?(review.steps, &OnchainSteps.entry(presses, review, &1.step))
+
+  # One button at a time: the first step the wallet has not sent from this
+  # review yet, or one that did not go through. A sent approval moves the
+  # button on to the payment at once.
+  defp next_step(steps), do: Enum.find(steps, &(&1.state in [:ready, :reverted, :other]))
+
+  defp state(nil), do: :ready
+
+  defp state(%{outcome: :pending} = entry),
+    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
+
+  defp state(%{outcome: :confirmed}), do: :done
+  defp state(%{outcome: :reverted}), do: :reverted
+  defp state(_not_this_step), do: :other
+
+  defp chip(%{state: :ready}), do: "Ready"
+  defp chip(%{state: state}) when state in [:sent, :stalled], do: "Sent"
+  defp chip(%{state: :done}), do: "Confirmed"
+  defp chip(%{state: :reverted}), do: "Reverted"
+  defp chip(%{state: :other}), do: "Unresolved"
+
+  defp finished?([]), do: false
+  defp finished?(steps), do: Enum.all?(steps, &(&1.state == :done))
+
+  defp cancellable?([]), do: false
+
+  defp cancellable?(steps),
+    do: not finished?(steps) and not Enum.any?(steps, &(&1.state in [:sent, :stalled]))
+
+  defp progress_copy(steps, review) do
+    case steps |> Enum.filter(&(&1.state in [:sent, :stalled, :other])) |> List.last() do
+      %{state: :other} ->
+        "That transaction is not the one this page prepared, so it can't be followed here. Check it in your wallet activity."
+
+      %{state: :stalled} ->
+        "#{review.chain.name} has not confirmed this yet. Check again, or look in your wallet activity."
+
+      %{name: "approval"} ->
+        "Allowing the spend…"
+
+      %{name: _action} ->
+        "Paying into the revenue split…"
+
+      nil ->
+        nil
+    end
+  end
+
+  defp reverted(steps) do
+    case Enum.find(steps, &(&1.state == :reverted)) do
+      %{name: "approval"} ->
+        "That approval did not go through. Only the network fee was spent. Press again."
+
+      %{} ->
+        "That did not go through, so nothing moved. Only the network fee was spent. Press again."
+
+      nil ->
+        nil
+    end
+  end
+
+  defp step_label("approval", facts, symbol),
+    do: "Allow #{asset_label(facts.asset, symbol)} to be spent"
+
+  defp step_label("action", facts, _symbol), do: title(facts.kind)
+
+  defp title(:pay), do: "Pay"
+  defp title(:sweep), do: "Route the waiting balance"
+
+  # The one economic sentence a payment review owes the customer: the exact
+  # amounts this inflow divides into as staking stands at review, never a share
+  # or a rounded estimate. Stakers are paid for the stake they hold against the
+  # whole token supply, so their part stays small until much of that supply is
+  # staked, and the treasury takes the remainder. The split is settled by the
+  # contract when the payment is mined, so the sentence says which figures the
+  # reviewed moment fixes and which it does not.
+  defp share_copy(%{allocation: allocation, asset: asset}, symbol) do
+    %{gross: gross, skim: skim, net: net, stakers: stakers, treasury: treasury} = allocation
+    shown = &"#{SubjectWalletActions.units(&1, asset)} #{asset_label(asset, symbol)}"
+
+    "Of this #{shown.(gross)}, #{shown.(skim)} goes to the protocol. As things stand right now, the remaining #{shown.(net)} divides into #{shown.(stakers)} for everyone staking #{symbol} and #{shown.(treasury)} for its treasury. If staking changes before this goes through, those last two amounts change with it."
   end
 
   # The closed set this card maps a browser value through. Nothing here builds
@@ -464,98 +613,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp asset_label(:usdc, _symbol), do: "USDC"
   defp asset_label(:regent, _symbol), do: "REGENT"
 
-  defp operation_symbol(operation, symbol),
-    do: operation |> argument("asset") |> asset_key() |> asset_label(symbol)
-
-  defp settled({:ok, %{operation: operation}}, socket),
-    do: socket |> assign(operation: operation, notice: nil) |> published()
-
-  defp settled({:error, error}, socket),
-    do: assign(socket, notice: notice(:error, refusal(error)))
-
-  # The whole reviewed sequence, so the browser can check that what it is asked to
-  # send really belongs to the operation it is holding.
-  defp published(%{assigns: %{operation: nil}} = socket), do: cleared(socket)
-
-  defp published(%{assigns: %{operation: operation}} = socket) do
-    push_event(socket, "autolaunch-subject-wallet:operation", %{
-      component_id: socket.assigns.id,
-      action_id: operation.action_id,
-      subject_id: operation.subject_id,
-      signer: operation.signer,
-      chain_id: @chain_id,
-      terminal: not is_nil(operation.terminal_at),
-      steps: SubjectWalletActions.steps(operation)
-    })
-  end
-
-  defp cleared(socket), do: push_event(socket, "autolaunch-subject-wallet:cleared", %{})
-
-  # Signed out: the card reads nothing and says nothing.
-  defp adopt(socket, nil), do: assign(socket, wallet: nil, state: nil, notice: nil)
-
-  defp adopt(socket, address) do
-    case Autolaunch.subject_wallet_state(socket.assigns.subject_id, address, opts(socket)) do
-      {:ok, %{signer: signer} = state} -> switched(socket, signer, state)
-      {:error, error} -> refused(socket, address, refusal(error))
-    end
-  end
-
-  # A review is prepared for one signer, so after signing in with another
-  # wallet it cannot be spent and it is withdrawn. Anything already claimed stays exactly where it is, bound to the
-  # wallet it was reviewed for.
-  defp switched(%{assigns: %{wallet: wallet}} = socket, signer, state) when wallet != signer,
-    do: socket |> assign(wallet: signer, state: state, notice: nil) |> withdraw()
-
-  defp switched(socket, signer, state),
-    do: assign(socket, wallet: signer, state: state, notice: nil)
-
-  defp withdraw(%{assigns: %{operation: %{state: :prepared} = operation}} = socket) do
-    if started?(operation), do: socket, else: cancel(socket, operation)
-  end
-
-  defp withdraw(socket), do: socket
-
-  defp cancel(socket, operation) do
-    case Autolaunch.cancel_subject_wallet_review(
-           socket.assigns.subject_id,
-           operation.action_id,
-           opts(socket)
-         ) do
-      {:ok, _cancelled} -> socket |> assign(operation: nil) |> cleared()
-      denied -> settled(denied, socket)
-    end
-  end
-
-  # Membership is a session fact and a balance is a chain fact. A wallet the
-  # session no longer vouches for is not adopted at all; the signed-in one stays
-  # on screen with the reason its state could not be read.
-  defp refused(socket, _address, reason) when reason in @unheld,
-    do: assign(socket, wallet: nil, state: nil, notice: notice(:error, reason))
-
-  defp refused(socket, address, reason),
-    do:
-      assign(socket,
-        wallet: address,
-        state: nil,
-        notice: notice(:info, reason),
-        signed_in_for: nil
-      )
-
-  defp refreshed(%{assigns: %{wallet: nil}} = socket), do: socket
-  defp refreshed(socket), do: adopt(socket, socket.assigns.wallet)
-
-  defp opts(socket),
-    do: [
-      actor: actor(socket),
-      context: %{session_lease: socket.assigns.session_lease}
-    ]
-
-  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
-    do: %Human{human_account_id: id}
-
-  defp actor(_socket), do: nil
-
   defp form_params(assigns, params) do
     %{
       "asset" => Map.get(params, "asset", assigns.asset),
@@ -563,79 +620,22 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     }
   end
 
-  defp maximum(%{asset: asset, state: state}), do: Map.get(state.balances, asset_key(asset), "")
+  defp maximum(%{asset: asset, state: %{balances: balances}}),
+    do: Map.get(balances, asset_key(asset), "")
+
+  defp maximum(_assigns), do: ""
 
   defp waiting(receiver, asset), do: Map.get(receiver.balances, asset_key(asset))
 
-  defp sendable?(%{state: state, signer: signer, terminal_at: nil}, wallet)
-       when state in [:prepared, :dispatched, :submitted],
-       do: signer == wallet
+  defp opts(socket),
+    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
 
-  defp sendable?(_operation, _wallet), do: false
+  defp actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
+    do: %Human{human_account_id: id}
 
-  defp started?(operation),
-    do:
-      Enum.any?(
-        SubjectWalletActions.steps(operation),
-        &SubjectWalletActions.step_hash(operation, &1["step"])
-      )
+  defp actor(_socket), do: nil
 
-  # Where the sequence has got to, read from the operation's own step and state.
-  defp step_word(%{step: step} = operation, step_name) do
-    cond do
-      Atom.to_string(step) == step_name -> current_state(operation.state)
-      SubjectWalletActions.step_hash(operation, step_name) -> "Confirmed"
-      true -> "Waiting"
-    end
-  end
-
-  defp current_state(:prepared), do: "Ready"
-  defp current_state(:dispatched), do: "In your wallet"
-  defp current_state(:submitted), do: "Sent"
-  defp current_state(:confirmed), do: "Confirmed"
-  defp current_state(:cancelled), do: "Cancelled"
-  defp current_state(:expired), do: "Expired"
-
-  defp step_label("approval", operation, symbol),
-    do: "Allow #{operation_symbol(operation, symbol)} to be spent"
-
-  defp step_label("action", operation, _symbol), do: title(operation.kind)
-
-  defp title(:pay), do: "Pay"
-  defp title(:sweep), do: "Route the waiting balance"
-
-  # The one economic sentence a payment review owes the customer: the exact
-  # amounts this inflow divides into as staking stands at review, never a share
-  # or a rounded estimate. Stakers are paid for the stake they hold against the
-  # whole token supply, so their part stays small until much of that supply is
-  # staked, and the treasury takes the remainder. The split is settled by the
-  # contract when the payment is mined, so the sentence says which figures the
-  # reviewed moment fixes and which it does not.
-  defp share_copy(operation, symbol) do
-    %{"gross" => gross, "skim" => skim, "net" => net} =
-      allocation = argument(operation, "allocation")
-
-    %{"stakers" => stakers, "treasury" => treasury} = allocation
-
-    asset = operation |> argument("asset") |> asset_key()
-    shown = &"#{SubjectWalletActions.units(&1, asset)} #{asset_label(asset, symbol)}"
-
-    "Of this #{shown.(gross)}, #{shown.(skim)} goes to the protocol. As things stand right now, the remaining #{shown.(net)} divides into #{shown.(stakers)} for everyone staking #{symbol} and #{shown.(treasury)} for its treasury. If staking changes before this goes through, those last two amounts change with it."
-  end
-
-  defp settled_copy(:cancelled), do: AutolaunchWeb.WalletPressComponent.withdrawal_copy()
-  defp settled_copy(:expired), do: "This review expired before it was sent. Nothing was sent."
-
-  # The press whose transaction the card is waiting on: the submitted attempt of
-  # the current step, whose hash the chain has not answered about yet.
-  defp submitted_press(operation),
-    do:
-      Enum.find_value(
-        operation.attempts,
-        &(&1.state == :submitted and &1.step == operation.step and &1.id)
-      )
-
-  defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
+  defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
   defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
@@ -644,11 +644,4 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
-
-  defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  # The reviewed estimate is what the customer is shown, right up until this
-  # payment's own event proves what really moved.
-  defp amount_display(operation),
-    do: SubjectWalletActions.verified_amount(operation) || argument(operation, "amount")
 end

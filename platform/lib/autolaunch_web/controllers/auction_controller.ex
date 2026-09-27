@@ -3,10 +3,10 @@ defmodule AutolaunchWeb.AuctionController do
 
   alias Autolaunch
   alias Autolaunch.AuctionFigures
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
   alias AutolaunchWeb.{ApiError, LabMarket, MarketPage, Paths}
+  alias RegentChain.Address
 
   def index(conn, params) do
     case MarketPage.read(params, "auctions") do

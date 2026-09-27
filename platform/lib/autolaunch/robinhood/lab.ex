@@ -14,9 +14,9 @@ defmodule Autolaunch.Robinhood.Lab do
   off.
   """
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.{Lab, LabRpcUrl}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias RegentChain.Address
 
   @test_chain_id 31_338
   @address_keys ~w(
@@ -125,38 +125,6 @@ defmodule Autolaunch.Robinhood.Lab do
   end
 
   def load(_path), do: {:error, :absolute_path_required}
-
-  @doc """
-  The binding an envelope carries: the exact addresses a review depends on,
-  with the public RPC door as its `rpc_url`. The site's own door never leaves
-  the server.
-  """
-  def binding(
-        %{
-          run_id: run_id,
-          public_rpc_url: public_rpc_url,
-          chain_id: chain_id,
-          addresses: addresses
-        },
-        keys
-      )
-      when is_list(keys) do
-    %{
-      "run_id" => run_id,
-      "rpc_url" => public_rpc_url,
-      "chain_id" => chain_id,
-      "addresses" => Map.take(addresses, Enum.map(keys, &to_string/1))
-    }
-  end
-
-  def binding_matches?(binding, keys) when is_map(binding) and is_list(keys) do
-    case current() do
-      {:ok, config} -> binding(config, keys) == stringify(binding)
-      {:error, _reason} -> false
-    end
-  end
-
-  def binding_matches?(_binding, _keys), do: false
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
 
@@ -272,9 +240,4 @@ defmodule Autolaunch.Robinhood.Lab do
   defp present?(value), do: is_binary(value) and value != ""
 
   defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
-
-  defp stringify(value) when is_map(value),
-    do: Map.new(value, fn {key, item} -> {to_string(key), stringify(item)} end)
-
-  defp stringify(value), do: value
 end

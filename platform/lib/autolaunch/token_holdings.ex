@@ -16,12 +16,13 @@ defmodule Autolaunch.TokenHoldings do
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.VerifiedSession
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Address, Rpc}
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.{Lab, LabAbi, LabRpc, Pool, Token}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.{Amounts, StakeActions}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias RegentChain.Address
 
   @token_decimals 18
   @shown_places 4

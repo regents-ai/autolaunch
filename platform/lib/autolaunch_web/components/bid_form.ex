@@ -124,6 +124,22 @@ defmodule AutolaunchWeb.Components.BidForm do
 
   def max_price(_form, _book, _supply, _factor), do: nil
 
+  @doc """
+  The fields a bid's review is built from, as the form shows them: the budget,
+  the max FDV and, where there is a choice, the currency paid. The page
+  compares them with the review before a press sends it. `pay_with` lists the
+  currencies to switch between, as for `bid_form/1`.
+  """
+  def inputs(form, book, supply, rate, price_unit, pay_with) do
+    {_unit, factor} = fdv_currency(form.pay_with, price_unit, rate)
+    max_price = max_price(form, book, supply, factor)
+    fields = %{"amount" => form.amount, "fdv" => shown_fdv(form, max_price, supply, factor)}
+
+    if match?([_, _ | _], pay_with),
+      do: Map.put(fields, "pay_with", form.pay_with),
+      else: fields
+  end
+
   attr :id, :string, required: true, doc: "the bid panel's id"
   attr :title, :string, required: true
   slot :help, doc: "how bidding works, behind the ? beside the title"
@@ -219,6 +235,7 @@ defmodule AutolaunchWeb.Components.BidForm do
               class="bid-box__figure"
               name="amount"
               value={@form.amount}
+              data-onchain-input="amount"
               phx-debounce="400"
               inputmode="decimal"
               autocomplete="off"
@@ -233,6 +250,7 @@ defmodule AutolaunchWeb.Components.BidForm do
                   type="radio"
                   name="pay_with"
                   value={currency}
+                  data-onchain-input="pay_with"
                   checked={@form.pay_with == currency}
                 />
                 <span>{currency}</span>
@@ -264,6 +282,7 @@ defmodule AutolaunchWeb.Components.BidForm do
             class="bid-box__figure"
             name="fdv"
             value={@fdv}
+            data-onchain-input="fdv"
             phx-debounce="400"
             inputmode="decimal"
             autocomplete="off"

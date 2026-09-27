@@ -8,8 +8,9 @@ defmodule Autolaunch.LaunchChainClient do
   founder-frozen launch terms. There is no partial answer: a review is derived
   from one snapshot or from none.
 
-  `verify/3` is read-only. The browser reports a hash and stops; whether that
-  hash confirmed, reverted or contradicted its own review is decided here.
+  `verify/2` is read-only: whether the transaction `hash` carried out a saved
+  review's launch step (`Autolaunch.LaunchOperation`), is still pending,
+  reverted, or created a launch other than the one reviewed.
   """
 
   @type outcome :: %{
@@ -18,7 +19,7 @@ defmodule Autolaunch.LaunchChainClient do
         }
 
   @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
-  @callback verify(map(), :launch, String.t()) :: {:ok, outcome()} | {:error, atom()}
+  @callback verify(map(), String.t()) :: {:ok, outcome()} | {:error, atom()}
 
   def module do
     case Application.fetch_env(:autolaunch, :autolaunch_launch_chain_client) do

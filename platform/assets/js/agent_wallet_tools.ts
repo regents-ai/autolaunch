@@ -2,19 +2,20 @@
 // document.modelContext). A card names the tools it answers in
 // `data-agent-tools`, and a settlement card names its bid in `data-agent-bid`;
 // a tool is registered while a card on the page answers it. A call goes to the
-// card's server side as an `agent_press`, which prepares exactly what the card's
-// own button would send and hands it back to be sent at once, so the call opens
-// the person's wallet the same way a press does. Every call reaches the wallet,
-// including one made while an earlier one is still with it.
+// card's server side as an `agent_press`, which builds exactly the review the
+// card's own button would send from and replies with it, and the call is sent
+// at once, so it opens the person's wallet the same way a press does. Every
+// call reaches the wallet, including one made while an earlier one is still
+// with it.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
+
+import type {Pressed, Review} from "./hooks/onchain_steps"
+import type {Failure} from "./wallet_actions/send_step"
 
 export type AgentOutcome =
   | {outcome: "sent"; transaction_hash: string; message: string}
   | {outcome: "not_sent"; message: string}
   | {outcome: "unknown"; message: string}
-
-/** What the server attaches to a review sent for an agent's call. */
-export type AgentCall = {call: string; remaining: string[]}
 
 type Property = {type: "string"; enum?: string[]; pattern?: string; maxLength?: number}
 type Entry = {
@@ -38,8 +39,7 @@ type ModelContext = {
 }
 type CardHook = {
   el: HTMLElement
-  handleEvent(event: string, callback: (payload: unknown) => void): void
-  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<unknown>[]>
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<{reply: unknown}>[]>
 }
 
 const entries = new Map(
@@ -50,31 +50,31 @@ const registered = new Map<string, {lifetime: AbortController; cards: Set<Card>}
 const notSent = (message: string): AgentOutcome => ({outcome: "not_sent", message})
 
 // Why nothing was sent, or may have been, in words for the agent to act on.
-const failures: Record<string, AgentOutcome> = {
+const failures: Record<Failure, AgentOutcome> = {
   wallet_unavailable: notSent(
-    "Nothing was sent. The wallet the person signed in with is not connected in this tab, so the page asked them to connect it. Call again once it is connected.",
+    "Nothing was sent. The wallet active in this tab is not one on the person's account, or none is connected, so the page asked them to connect one. Call again once a wallet on their account is active.",
+  ),
+  step_unknown: notSent(
+    "Nothing was sent. The page could not prepare this with those values. Check them against the page, then call again.",
   ),
   network_mismatch: notSent(
     "Nothing was sent. The person's wallet is on a different network. Ask them to switch it, then call again.",
   ),
-  switch_declined: notSent(
-    "Nothing was sent. The person declined switching their wallet to this network. Ask them to accept the switch, then call again.",
-  ),
-  wrong_account: notSent(
-    "Nothing was sent. The wallet in this tab is on a different account from the one the person signed in with. Ask them to switch it to the signed-in account, then call again.",
-  ),
   wallet_declined: notSent("The person declined in their wallet. Nothing was sent."),
+  insufficient_funds: notSent(
+    "Nothing was sent. The person's wallet doesn't have enough to pay the network fee on this network.",
+  ),
   send_unconfirmed: {
     outcome: "unknown",
     message: "The wallet may have sent this. Ask the person to check their wallet activity before calling again.",
   },
 }
 
-export function failed(reason: string): AgentOutcome {
-  return failures[reason] ?? notSent("Nothing was sent. The wallet did not open; ask the person to check it is unlocked, then call again.")
+function failed(reason: Failure): AgentOutcome {
+  return failures[reason]
 }
 
-export function sent(transaction_hash: string, remaining: string[]): AgentOutcome {
+function sent(transaction_hash: string, remaining: string[]): AgentOutcome {
   const message = remaining.length
     ? `Sent. Still to send: ${remaining.join(", then ")}. Wait a few seconds for this step to land, then call this tool again with the same values to send the next one; a call before it lands asks the wallet for this step again.`
     : "Sent. The page shows when it lands, and autolaunch_my_positions reads the result."
@@ -153,79 +153,69 @@ const unreached = notSent(
   "Nothing was sent. The page lost its connection to the site before the wallet opened. Call again once the page has reconnected.",
 )
 
+const replaced = notSent(
+  "Nothing was sent. The page changed before the wallet opened. Call again on the page as it is now.",
+)
+
+/** The card's answer to an agent's call: the review to send from, or why there is none. */
+type Reply = {review?: Review; send?: string; remaining?: string[]; message?: string}
+
 /**
- * Makes a mounted card answer the tools it names. The hook settles each call
- * with the wallet's answer through `settle`; the server's refusal arrives as
- * `agent-tools:refused` and settles it with the card's own words. A call is
- * `preparing` until the hook starts a wallet press for it (`pressing`); only
- * the browser opens the wallet, so a preparing call the site can no longer
- * answer is known not to have sent anything.
+ * Makes a mounted card answer the tools it names. Each call asks the card's
+ * server side for its review and sends the named step through `press`, the
+ * same send a button press makes. A call is waiting on the site until the reply
+ * arrives; only the browser opens the wallet, so a waiting call the site can no
+ * longer answer is known not to have sent anything.
  */
-export function agentCard(hook: CardHook) {
+export function agentCard(
+  hook: CardHook,
+  press: (review: Review, name: string) => Promise<Pressed>,
+) {
   const names = (hook.el.dataset.agentTools ?? "").split(" ").filter(name => entries.has(name))
-  const waiting = new Map<string, (outcome: AgentOutcome) => void>()
-  const preparing = new Set<string>()
+  const waiting = new Set<(outcome: AgentOutcome) => void>()
 
   const card: Card = {
     bid: hook.el.dataset.agentBid?.toLowerCase(),
     call(tool, input, signal) {
       if (signal?.aborted) return Promise.resolve(notSent("The call was cancelled before the page prepared anything."))
-      const call = crypto.randomUUID()
       return new Promise(resolve => {
-        const cancelled = () =>
-          finish({
-            outcome: "unknown",
-            message:
-              "The call was cancelled after the page began preparing it; the person's wallet may still ask them to confirm. Check the page or autolaunch_my_positions before calling again.",
-          })
         const finish = (outcome: AgentOutcome) => {
-          if (!waiting.delete(call)) return
-          preparing.delete(call)
-          signal?.removeEventListener("abort", cancelled)
+          if (!waiting.delete(finish)) return
           resolve(outcome)
         }
-        waiting.set(call, finish)
-        preparing.add(call)
-        signal?.addEventListener("abort", cancelled)
-        void hook.pushEventTo(hook.el, "agent_press", {call, tool, input}).then(
-          results => {
-            if (results.some(result => result.status === "rejected") && preparing.has(call)) finish(unreached)
+        waiting.add(finish)
+        void hook.pushEventTo(hook.el, "agent_press", {tool, input}).then(
+          ([result]) => {
+            if (!waiting.has(finish)) return
+            if (result?.status !== "fulfilled") return finish(unreached)
+            const reply = (result.value.reply ?? {}) as Reply
+            if (signal?.aborted) return finish(notSent("The call was cancelled before the wallet opened."))
+            if (reply.message) return finish(notSent(`Nothing was sent. ${reply.message}`))
+            if (!reply.review || !reply.send) return finish(failed("step_unknown"))
+            // The wallet has it now: the call is answered by the wallet, not the site.
+            waiting.delete(finish)
+            void press(reply.review, reply.send).then(pressed =>
+              resolve("transaction_hash" in pressed
+                ? sent(pressed.transaction_hash, reply.remaining ?? [])
+                : failed(pressed.reason)),
+            )
           },
-          () => {
-            if (preparing.has(call)) finish(unreached)
-          },
+          () => finish(unreached),
         )
       })
     },
   }
 
-  hook.handleEvent("agent-tools:refused", payload => {
-    const {component_id, call, message} = payload as {component_id: string; call: string; message: string}
-    if (component_id === hook.el.id) waiting.get(call)?.(notSent(`Nothing was sent. ${message}`))
-  })
   for (const name of names) register(name, card)
 
   return {
-    // The hook is starting a wallet press for this call.
-    pressing(agent: AgentCall | undefined) {
-      if (agent) preparing.delete(agent.call)
-    },
-    settle(agent: AgentCall | undefined, outcome: AgentOutcome) {
-      if (agent) waiting.get(agent.call)?.(outcome)
-    },
-    // The page lost the site: calls it was still preparing can no longer be answered.
+    // The page lost the site: calls still waiting on it can no longer be answered.
     disconnected() {
-      for (const call of [...preparing]) waiting.get(call)?.(unreached)
+      for (const finish of [...waiting]) finish(unreached)
     },
     dispose() {
       for (const name of names) unregister(name, card)
-      for (const finish of [...waiting.values()]) {
-        finish({
-          outcome: "unknown",
-          message:
-            "The page changed before the wallet answered, so the outcome is not known here. Check the person's wallet activity or autolaunch_my_positions before calling again.",
-        })
-      }
+      for (const finish of [...waiting]) finish(replaced)
     },
   }
 }

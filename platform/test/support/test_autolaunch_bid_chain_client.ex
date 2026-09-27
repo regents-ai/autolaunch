@@ -3,7 +3,7 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
   A fixture-bound Base client for the Autolaunch bidder.
 
   It is exactly what the plan permits and no more: an exact predecessor tick and
-  a scripted allowance, balance and per-step outcome, so the product flow that
+  a scripted allowance and balance, so the product flow that
   follows a snapshot can be proved while the production client stays closed. It
   is never installed outside a test, and nothing it answers is reviewed evidence.
   """
@@ -56,29 +56,8 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
            permit2_expiration: fixture.permit2_expiration,
            predecessor_source: fixture.predecessor_source,
            prev_tick_price_q96: predecessor(max_price_q96, fixture),
-           block: fixture.block,
-           lab_binding: Autolaunch.Lab.binding(config, [:regent, :permit2])
+           block: fixture.block
          }}
-    end
-  end
-
-  @impl true
-  def verify(_envelope, step, hash) do
-    put(%{read_in_transaction?: Autolaunch.Repo.in_transaction?()})
-    raced()
-
-    case state() |> Map.get(:outcomes, %{}) |> Map.get(step, %{outcome: :pending}) do
-      {:error, reason} -> {:error, reason}
-      outcome -> {:ok, Map.put_new(outcome, :hash, hash)}
-    end
-  end
-
-  # Moves the operation between the read and the lease transaction, which is the
-  # exact race a settlement has to survive.
-  defp raced do
-    case state()[:raced] do
-      nil -> :ok
-      move -> move.()
     end
   end
 

@@ -18,11 +18,13 @@ defmodule Autolaunch.Pool do
   Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
 
-  alias Autolaunch.Chain.{Abi, Address, Rpc}
+  alias Autolaunch.Chain.{Abi, Rpc}
+
   alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PriceHistory}
   alias Autolaunch.Stocks.FeeSchedule
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias RegentChain.Address
 
   @dead "0x000000000000000000000000000000000000dead"
   @token_decimals 18

@@ -7,18 +7,9 @@ defmodule Autolaunch.SubjectWalletChainClient do
   payment needs them, the signed-in wallet's three balances, and the allowance
   standing between it and the spender. There is no
   partial answer: a review is derived from one snapshot or from none.
-
-  `verify/3` is read-only. The browser reports a hash and stops; whether that
-  hash confirmed, reverted or contradicted its own review is decided here.
   """
 
-  @type outcome :: %{
-          :outcome => :pending | :confirmed | :reverted | :unverified,
-          optional(:result) => map()
-        }
-
   @callback snapshot(map()) :: {:ok, map()} | {:error, atom()}
-  @callback verify(map(), :approval | :action, String.t()) :: {:ok, outcome()} | {:error, atom()}
 
   def module do
     Application.get_env(

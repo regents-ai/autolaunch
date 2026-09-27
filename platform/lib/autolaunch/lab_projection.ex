@@ -21,8 +21,8 @@ defmodule Autolaunch.LabProjection do
   Projects one receipt-verified launch as one replay-safe database unit.
 
   The auction row is written once (`Auction :record_launch`), by whichever
-  confirmation of the launch comes first: the creator's browser report or
-  launch discovery. A later confirmation finds that row and changes nothing,
+  confirmation of the launch comes first: the creator's page or launch
+  discovery (`Autolaunch.LaunchReviews`). A later confirmation finds that row and changes nothing,
   so it can never overwrite the launch's details or take its auction, subject
   or launch back to how they started.
 
@@ -32,47 +32,45 @@ defmodule Autolaunch.LabProjection do
   transaction has committed. A launch already stored changed nothing and
   returns none.
   """
-  def project_launch(%{envelope: envelope} = operation, result) when is_map(result) do
-    arguments = envelope["arguments"]
+  def project_launch(%{review: review} = operation, result) when is_map(result) do
+    %{"chain" => %{"chain_id" => chain_id}, "signer" => signer, "facts" => facts} = review
 
     transaction(fn ->
-      arguments
+      facts
       |> auction_attrs(%{
-        chain_id: envelope["chain_id"],
+        chain_id: chain_id,
         origin: :site,
-        creator_human_account_id: Map.get(operation, :human_account_id),
-        creator_address: String.downcase(envelope["expected_signer"]),
+        creator_human_account_id: operation.human_account_id,
+        creator_address: String.downcase(signer),
         state: :created,
         auction_address: result["auction"],
-        quote_token_address: arguments["regent"],
-        required_currency_raised: arguments["required_regent_raised_atomic"],
+        quote_token_address: facts["regent"],
+        required_currency_raised: facts["required_regent_raised_atomic"],
         treasury_address: result["treasury"],
-        treasury_security_report_id: arguments["treasury_security"]["report_id"]
+        treasury_security_report_id: facts["treasury_security"]["report_id"]
       })
       |> Autolaunch.record_launch_auction(actor: @actor, return_notifications?: true)
-      |> project_launch_records(envelope, arguments, result)
+      |> project_launch_records(chain_id, signer, facts, result)
     end)
   end
 
-  @doc "Projects one receipt-verified bid and its exact on-chain bid id."
-  def project_bid(%{envelope: envelope}, result) when is_map(result) do
-    arguments = envelope["arguments"]
-    auction_address = arguments["auction_address"]
-    bid_id = bid_identity(auction_address, result["onchain_bid_id"])
-
-    # The committed amount comes from the verified result: the reviewed amount
-    # for a direct bid, the adapter's reported STOCK for a USDC bid.
+  @doc """
+  Projects one bid the page read from its receipt, with its exact on-chain bid
+  id, as its bidder's position. The committed amount is the receipt's: the
+  amount bid in the auction's currency, or the stock a USDC bid bought.
+  """
+  def project_bid(context, result) when is_map(result) do
     transact(fn ->
       create(Bid, :project_lab, %{
-        bid_id: bid_id,
-        auction_id: arguments["auction_id"],
-        owner_address: envelope["expected_signer"],
+        bid_id: bid_identity(context.auction_address, result["onchain_bid_id"]),
+        auction_id: context.auction_id,
+        owner_address: context.signer,
         amount: result["amount"],
-        max_price: arguments["max_price"],
-        current_clearing_price: result["current_clearing_price"] || "0",
+        max_price: context.max_price,
+        current_clearing_price: "0",
         estimated_tokens_if_end_now: nil,
         status: "active",
-        auction_address: auction_address,
+        auction_address: context.auction_address,
         onchain_bid_id: result["onchain_bid_id"]
       })
     end)
@@ -86,13 +84,10 @@ defmodule Autolaunch.LabProjection do
   otherwise; a verified claim records the tokens delivered and marks it
   `claimed`.
   """
-  def project_settlement(%{envelope: envelope}, step, result)
-      when step in [:exit, :claim] and is_map(result) do
-    arguments = envelope["arguments"]
-    claim_next? = Enum.any?(arguments["steps"], &(&1["step"] == "claim"))
-
+  def project_settlement(context, step, result)
+      when step in ["exit", "claim"] and is_map(result) do
     transact(fn ->
-      with {:ok, current} <- read_bid_for_projection(arguments["bid_id"]) do
+      with {:ok, current} <- read_bid_for_projection(context.bid_id) do
         create(Bid, :project_lab, %{
           bid_id: current.bid_id,
           auction_id: current.auction_id,
@@ -101,9 +96,9 @@ defmodule Autolaunch.LabProjection do
           max_price: current.max_price,
           current_clearing_price: current.current_clearing_price,
           estimated_tokens_if_end_now: current.estimated_tokens_if_end_now,
-          status: settled_status(step, result, claim_next?),
+          status: settled_status(step, result, context.claim_next?),
           exited_at: current.exited_at || DateTime.utc_now(),
-          claimed_at: if(step == :claim, do: current.claimed_at || DateTime.utc_now()),
+          claimed_at: if(step == "claim", do: current.claimed_at || DateTime.utc_now()),
           auction_address: current.auction_address,
           onchain_bid_id: current.onchain_bid_id,
           currency_refunded: result["currency_refunded_units"] || current.currency_refunded,
@@ -257,25 +252,26 @@ defmodule Autolaunch.LabProjection do
   # and nothing about it changed.
   defp project_launch_records(
          {:ok, %Auction{__metadata__: %{upsert_skipped: true}}, _notifications},
-         _envelope,
-         _arguments,
+         _chain_id,
+         _signer,
+         _facts,
          _result
        ),
        do: {:ok, []}
 
-  defp project_launch_records({:ok, auction, notifications}, envelope, arguments, result) do
+  defp project_launch_records({:ok, auction, notifications}, chain_id, signer, facts, result) do
     subject_id = subject_identity(result["subject"])
 
     with {:ok, _subject, subject_notifications} <-
            create_quietly(Subject, :project_lab, %{
              subject_id: subject_id,
              subject_kind: "regent",
-             chain_id: envelope["chain_id"],
+             chain_id: chain_id,
              token_address: result["subject"],
              ingress_address: result["escrow"],
              treasury_address: result["treasury"],
-             factory_address: arguments["factory"],
-             creator_address: envelope["expected_signer"]
+             factory_address: facts["factory"],
+             creator_address: signer
            }),
          {:ok, _launch, launch_notifications} <-
            create_quietly(LaunchJob, :project_lab, %{
@@ -283,31 +279,28 @@ defmodule Autolaunch.LabProjection do
              status: "active",
              step: "auction",
              agent_id: subject_id,
-             agent_name: arguments["name"],
-             token_name: arguments["name"],
-             token_symbol: arguments["symbol"],
-             chain_id: envelope["chain_id"],
+             agent_name: facts["name"],
+             token_name: facts["name"],
+             token_symbol: facts["symbol"],
+             chain_id: chain_id,
              auction_id: auction.id,
              agent_safe_address: result["treasury"],
              auction_address: result["auction"],
              token_address: result["subject"],
-             hook_address: lab_address(envelope, "hook"),
+             hook_address: facts["hook"],
              treasury_address: result["treasury"]
            }),
          do: {:ok, notifications ++ subject_notifications ++ launch_notifications}
   end
 
-  defp project_launch_records(error, _envelope, _arguments, _result), do: error
+  defp project_launch_records(error, _chain_id, _signer, _facts, _result), do: error
 
-  defp lab_address(envelope, key),
-    do: get_in(envelope, ["metadata", "lab", "addresses", key])
+  defp settled_status("claim", _result, _claim_next?), do: "claimed"
 
-  defp settled_status(:claim, _result, _claim_next?), do: "claimed"
-
-  defp settled_status(:exit, %{"tokens_filled" => filled}, true) when filled != "0",
+  defp settled_status("exit", %{"tokens_filled" => filled}, true) when filled != "0",
     do: "claimable"
 
-  defp settled_status(:exit, _result, _claim_next?), do: "returned"
+  defp settled_status("exit", _result, _claim_next?), do: "returned"
 
   defp present({:ok, nil}, reason), do: {:error, reason}
   defp present(result, _reason), do: result

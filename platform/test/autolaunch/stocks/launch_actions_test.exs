@@ -73,10 +73,6 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     assert floor == executable.floor_price_q96
     assert required == 450_000_000
 
-    # No fee and no allowance: the launch is the only step.
-    assert [%{"step" => "launch", "to" => @launchpad, "data" => ^data}] =
-             LaunchActions.reviewed_steps(@fields, executable, @snapshot, @config)
-
     assert executable.floor_price_evidence.executable_stock_per_new ==
              Autolaunch.Stocks.Amounts.format_cca_price(executable.floor_price_q96, 8, 18)
 

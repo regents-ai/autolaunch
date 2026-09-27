@@ -3,7 +3,7 @@ defmodule Autolaunch.Accounts.ConnectEns do
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
-  alias Autolaunch.Chain.Address
+  alias RegentChain.Address
 
   def run(input, %{actor: %Human{human_account_id: id}}) do
     lease = input.context[:session_lease]

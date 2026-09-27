@@ -38,14 +38,7 @@ defmodule Autolaunch.TestAutolaunchBidSettlementChainClient do
        auction: auction,
        signer: signer,
        bid: Map.put(fixture.bid, :id, bid_id),
-       block: %{number: 100, hash: "0x" <> String.duplicate("ab", 32)},
-       lab_binding:
-         Autolaunch.Lab.binding(
-           Autolaunch.Lab.current!(),
-           Autolaunch.LabBidSettlementChainClient.binding_keys()
-         )
+       block: %{number: 100, hash: "0x" <> String.duplicate("ab", 32)}
      })}
   end
-
-  def verify(_envelope, _step, _hash), do: {:ok, %{outcome: :pending}}
 end

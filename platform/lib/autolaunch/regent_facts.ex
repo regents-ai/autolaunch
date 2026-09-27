@@ -20,8 +20,8 @@ defmodule Autolaunch.RegentFacts do
   require Logger
 
   alias Autolaunch.Chain.Abi
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Chain.Rpc
+  alias RegentChain.Address
 
   @manifest_path Path.expand("../../contracts/chain-contracts.yaml", __DIR__)
   @external_resource @manifest_path

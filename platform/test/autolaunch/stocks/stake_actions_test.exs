@@ -39,16 +39,12 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
 
     request = %{kind: :collect, launch: %{chain: :base, auction: auction}}
 
-    assert {:ok, %{kind: :collect, steps: steps, review: review, envelope: envelope}} =
+    assert {:ok, %{kind: :collect, steps: steps, facts: facts, context: %{locker: ^lp_locker}}} =
              StakeActions.prepare(request, context.wallet, context.opts)
 
-    assert [%{"step" => "collect_full_range", "to" => ^lp_locker, "data" => data}] = steps
+    assert [%{step: "collect_full_range", to: ^lp_locker, data: data}] = steps
     assert data == LabAbi.selector("collect(uint256)") <> BaseRpcStub.hex_word(@lp_token_id)
-    assert review == [["Full range position", "1 LRVS · 2 REGENT"]]
-    assert envelope["arguments"]["locker"] == lp_locker
-
-    assert envelope["metadata"]["lab"]["addresses"] |> Map.keys() |> Enum.sort() ==
-             ["hook", "lp_locker", "strategy"]
+    assert facts == [["Full range position", "1 LRVS · 2 REGENT"]]
   end
 
   # Every block-pinned read the review makes, answered by selector. The subject

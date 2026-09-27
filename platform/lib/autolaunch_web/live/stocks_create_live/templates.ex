@@ -485,7 +485,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       {:ok, config} ->
         config
         |> Autolaunch.Robinhood.Lab.stocks()
-        |> Enum.find(&Autolaunch.Chain.Address.equal?(&1.address, address))
+        |> Enum.find(&RegentChain.Address.equal?(&1.address, address))
 
       {:error, _closed} ->
         nil

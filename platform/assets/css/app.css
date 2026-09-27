@@ -6,7 +6,7 @@
 @import "./components/image_upload.css";
 @import "./components/info_tip.css";
 @import "./components/share_dialog.css";
-@import "./components/signed_in_wallet.css";
+@import "./components/onchain_note.css";
 @import "./components/token_heading.css";
 @import "./components/bid_settlement.css";
 @import "./components/stake_summary.css";

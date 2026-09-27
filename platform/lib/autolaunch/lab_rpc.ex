@@ -90,29 +90,13 @@ defmodule Autolaunch.LabRpc do
     end
   end
 
-  def canonical_outcome(config, envelope, step, hash) do
-    with {:ok, evidence} <- canonical_outcome_evidence(config, envelope, step, hash),
-         do: {:ok, evidence.outcome}
-  end
-
-  def canonical_outcome_evidence(config, envelope, step, hash) do
-    with {:ok, current} <- Lab.current(),
-         true <- current.rpc_url == config.rpc_url,
-         true <- current.chain_id == config.chain_id,
-         opts <- opts(current),
-         {:ok, block} <- Rpc.latest_block(opts) do
-      Rpc.canonical_outcome_evidence(
-        hash,
-        envelope["expected_signer"],
-        step["to"],
-        step["data"],
-        block,
-        opts
-      )
-    else
-      false -> {:error, :lab_config_changed}
-      {:error, reason} -> {:error, reason}
-    end
+  @doc """
+  The outcome of `hash` at the latest block of the chain `opts` reads, when it
+  is `signer`'s transaction to the saved step's target with its exact calldata.
+  """
+  def outcome(opts, signer, %{"to" => to, "data" => data}, hash) do
+    with {:ok, block} <- Rpc.latest_block(opts),
+         do: Rpc.canonical_outcome(hash, signer, to, data, block, opts)
   end
 
   def block_from_logs(logs) when is_list(logs) do

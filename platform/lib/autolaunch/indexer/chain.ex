@@ -11,8 +11,8 @@ defmodule Autolaunch.Indexer.Chain do
   a separately obtained `finalized` header rather than a depth guess.
   """
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Indexer.Rpc
+  alias RegentChain.Address
 
   @doc "Whether the provider configured for `chain_id` answers as that chain."
   @spec verify_chain(pos_integer()) :: :ok | {:error, atom()}

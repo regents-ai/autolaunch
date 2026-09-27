@@ -45,18 +45,17 @@ receipts through it, and the test-funds faucet sends through it using `anvil_imp
 door can move any balance on the fork, mint fixture stock, or reset state. It therefore has to
 be a URL only the site can reach: loopback on the same machine, a Fly private-network address
 (`http://<app>.internal:PORT`), or an `https://` endpoint the fork host restricts to the site. The
-server never sends this URL to a browser, never puts it in an envelope, and never logs it
+server never sends this URL to a browser, never puts it in a review, and never logs it
 (`Autolaunch.Chain.Rpc` logs only the method and an error class). `Autolaunch.LabRpcUrl.admitted/1`
 admits it; plain `http://` anywhere but loopback and `.internal` is refused.
 
 **`public_rpc_url` — the wallet door.** Wallets need an RPC to add chain 31337 and to send the
-reviewed transaction. This is the URL every envelope's `lab_binding.rpc_url` carries to the
-browser and the URL `wallet_addEthereumChain` receives. The fork host exposes it as a plain
+reviewed transaction. This is the URL every review's chain (`Autolaunch.Chain.Client.chain/1`)
+carries to the browser and the URL `wallet_addEthereumChain` receives. The fork host exposes it as a plain
 JSON-RPC endpoint over `https://` with the Anvil administrative methods (`anvil_*`, `evm_*`,
 `hardhat_*`) blocked, so a wallet can read, estimate and send but cannot impersonate or mint.
 `Autolaunch.LabRpcUrl.public/2` admits it: `https://` only, no credentials, query or fragment.
-The browser (`assets/js/wallet_actions/autolaunch_network.ts`) accepts it for the same reasons
-and keeps refusing plain `http://` unless it is loopback.
+The browser hands the wallet exactly the door the review names.
 
 Both files carry both keys, and the Stocks file's values must equal the Agent file's, so one
 site never prepares against two forks.
@@ -72,7 +71,7 @@ public Base reads still go to real Base, labelled as such). Fork mode adds:
 | `AUTOLAUNCH_CHAIN_MODE` | Yes, `fork` | `base` | Selects the mode. Anything but `base` or `fork` stops the boot. |
 | `AUTOLAUNCH_BASE_DEPLOYMENT` | Yes | — | Absolute path of the Agent fork configuration (`site-config.json`). |
 | `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` | Yes | — | Absolute path of the Stocks fork description (`stocks-site-config.json`); its chain id, RPC doors and shared addresses must match the Base description. |
-| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | Yes | — | A label for this fork run. It travels in every envelope's lab binding, so a review made against one run never confirms against another. (The same variable labels a local lab run.) |
+| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | Yes | — | A label for this fork run. The market feed reads a changed label as a new deployment and starts over. (The same variable labels a local lab run.) |
 | `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS` | No | `3600` in fork mode, `0` in base mode | At most one test-funds grant per wallet and asset within this many seconds; `0` disables the cooldown. Must be a non-negative integer. |
 | `AUTOLAUNCH_DEPLOYMENT_ROLE` | Yes (unchanged) | — | `staging` for a preview. The production database pin (`regents_prod` on the approved cluster with the runtime login) applies only to `production`; with `staging`, `Autolaunch.DatabaseConfig.runtime_config!/2` accepts any valid PostgreSQL URL and still refuses `DATABASE_DIRECT_URL` on the serving app (`test/autolaunch/database_config_test.exs` covers the staging path). The pin itself is not weakened. |
 | `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY` | For sign-in | — | The Privy application the preview hostname is allowed on. Production verifier as on the public site. |

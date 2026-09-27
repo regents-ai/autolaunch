@@ -3,7 +3,7 @@ defmodule Autolaunch.Chain.Rpc do
 
   require Logger
 
-  alias Autolaunch.Chain.Address
+  alias RegentChain.Address
 
   @timeout 8_000
   @chain_id 8453
@@ -99,21 +99,10 @@ defmodule Autolaunch.Chain.Rpc do
   @spec canonical_outcome(String.t(), String.t(), String.t(), String.t(), block(), keyword()) ::
           {:ok, :pending | :reverted | {:success, [map()]}} | {:error, atom()}
   def canonical_outcome(hash, signer, to, data, safe_block, opts \\ []) do
-    with {:ok, %{outcome: outcome}} <-
-           canonical_outcome_evidence(hash, signer, to, data, safe_block, opts),
-         do: {:ok, outcome}
-  end
-
-  @doc "Canonical receipt evidence without changing the legacy outcome API."
-  def canonical_outcome_evidence(hash, signer, to, data, safe_block, opts) do
     with {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts),
          {:ok, number, block_hash} <- receipt_block(receipt),
-         :ok <- canonical(number, block_hash, safe_block, opts),
-         {:ok, outcome} <- settled(receipt) do
-      {:ok, %{outcome: outcome, receipt: receipt}}
-    else
-      {:ok, :pending} -> {:ok, %{outcome: :pending, receipt: nil}}
-      error -> error
+         :ok <- canonical(number, block_hash, safe_block, opts) do
+      settled(receipt)
     end
   end
 

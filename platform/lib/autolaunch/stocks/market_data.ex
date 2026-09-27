@@ -18,8 +18,10 @@ defmodule Autolaunch.Stocks.MarketData do
 
   use GenServer
 
-  alias Autolaunch.Chain.{Abi, Address, Rpc}
+  alias Autolaunch.Chain.{Abi, Rpc}
+
   alias Autolaunch.Stocks.{Assets, PriceFeeds}
+  alias RegentChain.Address
 
   @ttl_ms 600_000
   @first_retry_ms 1_000

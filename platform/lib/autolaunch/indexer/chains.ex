@@ -10,7 +10,7 @@ defmodule Autolaunch.Indexer.Chains do
   integer chain id of the entry at fault, since any other field may carry a key.
   """
 
-  alias Autolaunch.Chain.Address
+  alias RegentChain.Address
 
   @type source :: %{address: String.t(), start_block: non_neg_integer()}
   @type chain :: %{chain_id: pos_integer(), rpc_url: String.t(), sources: [source()]}

@@ -1,7 +1,7 @@
 defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
   @moduledoc """
-  The one chain boundary settling a bid on a Robinhood memestock auction has:
-  one snapshot before review, one read after each hash.
+  The one chain read settling a bid on a Robinhood memestock auction needs:
+  one snapshot before review.
 
   `snapshot/1` pins one block on Robinhood, reads the auction's schedule, its
   STOCK and that STOCK's admitted decimals from the launchpad, the bid's own
@@ -9,22 +9,13 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
   `Autolaunch.Chain.CcaSettlement`: the exit that returns unspent STOCK (a
   plain exit, or a partial exit with checkpoint hints when the bid was only
   partly filled) and the claim that delivers the launch tokens.
-
-  `verify/3` decodes `BidExited` and `TokensClaimed` from the canonical
-  receipt and checks the owner is the reviewed signer. A `record` step (the
-  auction's public `checkpoint()`) is confirmed by its own successful receipt:
-  a second call in a block the auction has already recorded succeeds without
-  changing anything, which is as good.
   """
 
-  alias Autolaunch.Chain.{Address, CcaSettlement, Envelope, Rpc}
+  alias Autolaunch.Chain.{CcaSettlement, Rpc}
+
   alias Autolaunch.{LabAbi, LabRpc}
   alias Autolaunch.Robinhood.Lab
-
-  @binding_keys [:stocks_launchpad]
-  @new_decimals 18
-
-  def binding_keys, do: @binding_keys
+  alias RegentChain.Address
 
   @doc "Everything the review states about one bid, read and simulated at one block."
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
@@ -52,46 +43,10 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
          stock: stock,
          stock_decimals: decimals,
          bid: bid,
-         signer: signer,
-         lab_binding: Lab.binding(config, @binding_keys)
+         signer: signer
        })}
     else
       :error -> {:error, :invalid_chain_response}
-      {:error, reason} -> {:error, reason}
-      _other -> {:error, :invalid_chain_response}
-    end
-  end
-
-  @spec verify(map(), :record | :exit | :claim, String.t()) :: {:ok, map()} | {:error, atom()}
-  def verify(envelope, step, hash) do
-    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
-         do: {:ok, Map.delete(result, :receipt)}
-  end
-
-  def verify_with_evidence(envelope, step, hash) when step in [:record, :exit, :claim] do
-    with true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: "autolaunch_robinhood_bid_settlement",
-             chain_id: Lab.chain_id()
-           ),
-         true <- Lab.binding_matches?(envelope["metadata"]["lab"], @binding_keys),
-         {:ok, config} <- Lab.current(),
-         %{} = current <- current_step(envelope, step),
-         opts <- Lab.rpc_opts(config),
-         {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, evidence} <-
-           Rpc.canonical_outcome_evidence(
-             hash,
-             envelope["expected_signer"],
-             current["to"],
-             current["data"],
-             block,
-             opts
-           ),
-         {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
-      {:ok, Map.put(result, :receipt, evidence.receipt)}
-    else
-      false -> {:error, :lab_config_changed}
       {:error, reason} -> {:error, reason}
       _other -> {:error, :invalid_chain_response}
     end
@@ -126,77 +81,6 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
     end
   end
 
-  defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
-  defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
-
-  defp settled({:success, _logs}, _envelope, :record, _config),
-    do: {:ok, %{outcome: :confirmed, result: %{"price_recorded" => true}}}
-
-  # Only the auction's own `BidExited` for this bid and this owner confirms the
-  # exit; the refund and fill are adopted from it.
-  defp settled({:success, logs}, envelope, :exit, config) do
-    arguments = envelope["arguments"]
-    bid_id = String.to_integer(arguments["onchain_bid_id"])
-    abi = Lab.abi!(config, :auction)
-
-    case CcaSettlement.exited(abi, logs, envelope["to"], bid_id, envelope["expected_signer"]) do
-      {:ok, exit} ->
-        decimals = String.to_integer(arguments["stock_decimals"])
-
-        {:ok,
-         %{
-           outcome: :confirmed,
-           result: %{
-             "onchain_bid_id" => arguments["onchain_bid_id"],
-             "exited" => true,
-             "tokens_filled" => Integer.to_string(exit.tokens_filled),
-             "tokens_filled_units" => Rpc.format_units(exit.tokens_filled, @new_decimals),
-             "stock_refunded" => Integer.to_string(exit.currency_refunded),
-             "stock_refunded_units" => Rpc.format_units(exit.currency_refunded, decimals),
-             "local_block_hash" => exit.block.hash
-           }
-         }}
-
-      :unverified ->
-        {:ok, %{outcome: :unverified}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp settled({:success, logs}, envelope, :claim, config) do
-    arguments = envelope["arguments"]
-    bid_id = String.to_integer(arguments["onchain_bid_id"])
-    abi = Lab.abi!(config, :auction)
-
-    case CcaSettlement.claimed(abi, logs, envelope["to"], bid_id, envelope["expected_signer"]) do
-      {:ok, claim} ->
-        {:ok,
-         %{
-           outcome: :confirmed,
-           result: %{
-             "onchain_bid_id" => arguments["onchain_bid_id"],
-             "claimed" => true,
-             "tokens_claimed" => Integer.to_string(claim.tokens_claimed),
-             "tokens_claimed_units" => Rpc.format_units(claim.tokens_claimed, @new_decimals),
-             "local_block_hash" => claim.block.hash
-           }
-         }}
-
-      :unverified ->
-        {:ok, %{outcome: :unverified}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
   defp call_uint(venue, address, signature),
     do: Rpc.call_uint(address, LabAbi.encode(venue.abi, signature, []), venue.block, venue.opts)
-
-  defp current_step(envelope, step) do
-    name = Atom.to_string(step)
-    Enum.find(envelope["arguments"]["steps"], &(&1["step"] == name))
-  end
 end

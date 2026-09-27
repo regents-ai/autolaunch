@@ -1,6 +1,6 @@
 defmodule Autolaunch.BidSettlementActionsTest do
   @moduledoc """
-  Protects one invariant: the settlement envelope carries exactly the steps the
+  Protects one invariant: the settlement review carries exactly the steps the
   auction itself would accept, with the calldata the contract expects, and a
   position this account does not own is never reviewed.
   """
@@ -27,17 +27,13 @@ defmodule Autolaunch.BidSettlementActionsTest do
       claim: {:refused, :nothing_to_claim}
     )
 
-    assert {:ok, %{operation: operation}} =
+    assert {:ok, %{steps: [%{step: "exit", data: data, to: to}], facts: facts}} =
              BidSettlementActions.prepare(position.id, context.wallet, context.opts)
-
-    assert [%{"step" => "exit", "data" => data, "to" => to}] =
-             BidSettlementActions.steps(operation)
 
     assert data == exit_bid_data()
     assert to == Autolaunch.BidFixture.auction_address()
-    assert operation.step == :exit
-    assert operation.envelope["arguments"]["currency_refunded"] == "5"
-    assert operation.envelope["arguments"]["graduated"] == false
+    assert facts.currency_refunded == "5"
+    assert facts.graduated == false
   end
 
   test "a graduated auction with a bid above the final price exits, then claims", context do
@@ -49,17 +45,15 @@ defmodule Autolaunch.BidSettlementActionsTest do
       claim: %{data: claim_data(), tokens_claimed: 1_200_000 * 10 ** 18}
     )
 
-    assert {:ok, %{operation: operation}} =
-             BidSettlementActions.prepare(position.id, context.wallet, context.opts)
-
-    assert ["exit", "claim"] = Enum.map(BidSettlementActions.steps(operation), & &1["step"])
-
-    assert [%{"data" => exit_data}, %{"data" => claim_data}] =
-             BidSettlementActions.steps(operation)
+    assert {:ok,
+            %{
+              steps: [%{step: "exit", data: exit_data}, %{step: "claim", data: claim_data}],
+              facts: facts
+            }} = BidSettlementActions.prepare(position.id, context.wallet, context.opts)
 
     assert exit_data == exit_bid_data()
     assert claim_data == claim_data()
-    assert operation.envelope["arguments"]["tokens_claimed"] == "1200000"
+    assert facts.tokens_claimed == "1200000"
   end
 
   test "an exited bid with fill after the claim block has only the claim step", context do
@@ -71,12 +65,10 @@ defmodule Autolaunch.BidSettlementActionsTest do
       claim: %{data: claim_data(), tokens_claimed: 10 ** 18}
     )
 
-    assert {:ok, %{operation: operation}} =
+    assert {:ok, %{steps: [%{step: "claim", data: data}]}} =
              BidSettlementActions.prepare(position.id, context.wallet, context.opts)
 
-    assert [%{"step" => "claim", "data" => data}] = BidSettlementActions.steps(operation)
     assert data == claim_data()
-    assert operation.step == :claim
   end
 
   test "the auction's own refusals are the reason nothing is reviewed", context do

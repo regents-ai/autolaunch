@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.AuctionLive do
        socket
        |> assign_market()
        |> LiveListings.subscribe()
-       |> assign(my_positions: [])}
+       |> assign(my_positions: [], positions_unread: false)}
 
   # The identifier is read here so a patch to another auction reloads the page
   # instead of keeping the previous record on screen.
@@ -83,9 +83,6 @@ defmodule AutolaunchWeb.AuctionLive do
   # A settlement card verified a step, so the bidder's stored positions changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, assign_positions(socket)}
-
-  def handle_info({:stake_claimed_tokens, path}, socket),
-    do: {:noreply, push_navigate(socket, to: path)}
 
   # LabMarket subscribes to both networks; this page represents a Base auction.
   def handle_info({:robinhood_market_updated, _update}, socket), do: {:noreply, socket}
@@ -234,8 +231,14 @@ defmodule AutolaunchWeb.AuctionLive do
                 Sign in to see your bids
               </Regent.Primitives.button>
             </p>
-            <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
+            <p
+              :if={@account_control.kind == :signed_in && @my_positions == [] && !@positions_unread}
+              class="bid-empty"
+            >
               You placed no bids on this auction from your verified wallets.
+            </p>
+            <p :if={@account_control.kind == :signed_in && @positions_unread} class="bid-empty">
+              Your bids could not be read just now. Reload the page to try again.
             </p>
             <.live_component
               :for={position <- @my_positions}
@@ -504,14 +507,22 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   # The signed-in bidder's own positions on this auction, for settlement once
-  # bidding has ended.
+  # bidding has ended. A read that fails says so rather than showing no bids.
   defp assign_positions(socket) do
     with actor when not is_nil(actor) <- human_actor(socket.assigns.access_context),
-         {:ok, uuid} <- Ash.Type.UUID.cast_input(socket.assigns.record_id, []),
-         {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor) do
-      assign(socket, :my_positions, Enum.filter(positions, &(&1.auction_id == uuid)))
+         {:ok, uuid} <- Ash.Type.UUID.cast_input(socket.assigns.record_id, []) do
+      case Autolaunch.list_my_bid_positions(actor: actor) do
+        {:ok, positions} ->
+          assign(socket,
+            my_positions: Enum.filter(positions, &(&1.auction_id == uuid)),
+            positions_unread: false
+          )
+
+        {:error, _reason} ->
+          assign(socket, my_positions: [], positions_unread: true)
+      end
     else
-      _none -> assign(socket, :my_positions, [])
+      _signed_out -> assign(socket, my_positions: [], positions_unread: false)
     end
   end
 

@@ -2,7 +2,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Changes.ResetStockAmountsOnStockChange d
   @moduledoc false
   use Ash.Resource.Change
 
-  alias Autolaunch.Chain.Address
+  alias RegentChain.Address
 
   # The required raise and the floor price are denominated in the chosen STOCK,
   # so a different stock makes the amounts entered under the old one

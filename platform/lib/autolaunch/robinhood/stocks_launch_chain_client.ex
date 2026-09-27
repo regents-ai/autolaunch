@@ -4,19 +4,17 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
   review, one read after the hash.
 
   `snapshot/1` answers at one latest block: the Stocks launchpad's pause state
-  and the admission record of the chosen STOCK. `verify/3` decodes the
-  launchpad's `StockLaunchCreated` from the canonical receipt and checks it
-  against the reviewed arguments and the launchpad's own record.
+  and the admission record of the chosen STOCK. `verify/2` decodes the
+  launchpad's `StockLaunchCreated` from the receipt of a review's launch step
+  and checks it against the reviewed facts and the launchpad's own record.
   """
 
-  alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
+  alias Autolaunch.Chain.{Abi, Rpc}
+
   alias Autolaunch.{LabAbi, LabRpc}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
-
-  @binding_keys [:stocks_launchpad, :stocks_hook, :bid_adapter]
-
-  def binding_keys, do: @binding_keys
+  alias RegentChain.Address
 
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{stock: stock}) do
@@ -34,8 +32,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
          hook: Lab.address!(config, :stocks_hook),
          paused: paused,
          block: block,
-         admission: admission,
-         lab_binding: Lab.binding(config, @binding_keys)
+         admission: admission
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -44,58 +41,35 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
     end
   end
 
-  @spec verify(map(), :launch, String.t()) :: {:ok, map()} | {:error, atom()}
-  def verify(envelope, step, hash) do
-    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
-         do: {:ok, Map.delete(result, :receipt)}
-  end
-
-  def verify_with_evidence(envelope, :launch, hash) do
-    with true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: "autolaunch_robinhood_stocks_launch",
-             chain_id: Lab.chain_id()
-           ),
-         true <- Lab.binding_matches?(envelope["metadata"]["lab"], @binding_keys),
-         {:ok, config} <- Lab.current(),
-         %{} = current <- current_step(envelope, :launch),
+  @doc """
+  Whether `hash` is `signer`'s transaction of the launch `step`, and the launch
+  it created is the one `facts` reviewed.
+  """
+  @spec verify(String.t(), map(), map(), String.t()) :: {:ok, map()} | {:error, atom()}
+  def verify(signer, %{to: to, data: data}, facts, hash) do
+    with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, evidence} <-
-           Rpc.canonical_outcome_evidence(
-             hash,
-             envelope["expected_signer"],
-             current["to"],
-             current["data"],
-             block,
-             opts
-           ),
-         {:ok, result} <- settled(evidence.outcome, envelope, config) do
-      {:ok, Map.put(result, :receipt, evidence.receipt)}
-    else
-      false -> {:error, :lab_config_changed}
-      {:error, reason} -> {:error, reason}
-      _other -> {:error, :invalid_chain_response}
-    end
+         {:ok, outcome} <- Rpc.canonical_outcome(hash, signer, to, data, block, opts),
+         do: settled(outcome, signer, facts, config)
   end
 
-  defp settled(:pending, _envelope, _config), do: {:ok, %{outcome: :pending}}
-  defp settled(:reverted, _envelope, _config), do: {:ok, %{outcome: :reverted}}
+  defp settled(:pending, _signer, _facts, _config), do: {:ok, %{outcome: :pending}}
+  defp settled(:reverted, _signer, _facts, _config), do: {:ok, %{outcome: :reverted}}
 
   # The launch is confirmed only when the launchpad's event names the reviewed
   # signer, STOCK, floor and required raise, and its own record and auction
   # index agree with that event. The start and end blocks are the launchpad's
   # own: bidding opens a fixed lead after the block the launch was created in.
-  defp settled({:success, logs}, envelope, config) do
-    arguments = envelope["arguments"]
+  defp settled({:success, logs}, signer, facts, config) do
     opts = Lab.rpc_opts(config)
 
     with {:ok, block} <- LabRpc.block_from_logs(logs),
          {:ok, event} <- launch_created(logs, config),
-         true <- Address.equal?(event.launcher, envelope["expected_signer"]),
-         true <- Address.equal?(event.stock, arguments["stock"]),
-         true <- event.floor_price_q96 == integer(arguments, "floor_price_q96"),
-         true <- event.required_stock_raised == integer(arguments, "required_stock_raised"),
+         true <- Address.equal?(event.launcher, signer),
+         true <- Address.equal?(event.stock, facts["stock"]),
+         true <- event.floor_price_q96 == integer(facts, "floor_price_q96"),
+         true <- event.required_stock_raised == integer(facts, "required_stock_raised"),
          {:ok, record} <-
            launchpad_words(
              config,
@@ -216,11 +190,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
     )
   end
 
-  defp current_step(envelope, step) do
-    name = Atom.to_string(step)
-    Enum.find(envelope["arguments"]["steps"], &(&1["step"] == name))
-  end
-
   # `stockAdmission(stock)`: admitted, decimals, route. A stock that was never
   # admitted answers false, 0 and the zero route; a revoked stock answers false
   # with the decimals and route it was admitted with. An admitted stock always
@@ -237,5 +206,5 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
 
   defp admission(_words), do: :error
 
-  defp integer(arguments, key), do: arguments |> Map.fetch!(key) |> String.to_integer()
+  defp integer(facts, key), do: facts |> Map.fetch!(key) |> String.to_integer()
 end

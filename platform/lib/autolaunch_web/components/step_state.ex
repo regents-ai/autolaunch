@@ -1,23 +1,18 @@
 defmodule AutolaunchWeb.Components.StepState do
   @moduledoc """
   Where one wallet step stands, as a status chip whose colour follows the
-  word: waiting steps stay plain, ready and sent ones read as information, a
-  step in the wallet asks for attention, a finished one reads as done and a
-  failed one as an error.
+  word: waiting steps stay plain, ready and sent ones read as information, an
+  unresolved one asks for attention, a finished one reads as done and a
+  reverted one as an error.
   """
   use Phoenix.Component
 
   @tones %{
     "Ready" => "info",
     "Sent" => "info",
-    "In your wallet" => "warning",
     "Confirmed" => "success",
-    "Verified" => "success",
-    "Cancelled" => "error",
-    "Expired" => "error",
     "Reverted" => "error",
-    "Unresolved" => "warning",
-    "Out of date" => "warning"
+    "Unresolved" => "warning"
   }
 
   attr :state, :string, required: true

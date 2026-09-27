@@ -13,9 +13,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :sell_image, :string, default: nil
   attr :buy_image, :string, default: nil
   attr :amount, :string, required: true
-  attr :estimated_output, :string, default: nil
+
+  attr :estimated_output, :any,
+    default: nil,
+    doc: "the quoted amount, `nil` before one arrives, or `:unread` when the pool gave none"
+
   attr :sell_balance, :string, default: nil
   attr :buy_balance, :string, default: nil
+  attr :balances_unread, :boolean, default: false
   attr :rate, :string, default: nil
   attr :error, :string, default: nil
   attr :protection, :string, required: true
@@ -138,6 +143,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
             value={@sell_balance}
             unit={@sell_symbol}
           /></span>
+          <span :if={@balances_unread}>Your balance can't be read right now</span>
         </p>
       </div>
 
@@ -165,9 +171,9 @@ defmodule AutolaunchWeb.Components.SwapForm do
             id={@id <> "-output"}
             for={@id <> "-amount"}
             aria-live="polite"
-            data-empty={is_nil(@estimated_output)}
+            data-empty={!is_binary(@estimated_output)}
           >
-            {@estimated_output || "0"}
+            {output(@estimated_output)}
           </output>
           <.currency symbol={@buy_symbol} image={@buy_image} />
         </div>
@@ -221,16 +227,18 @@ defmodule AutolaunchWeb.Components.SwapForm do
 
   attr :steps, :list,
     required: true,
-    doc: "%{name, label, state}, state one of :ready, :sent, :done, :reverted"
+    doc:
+      "%{name, label, state, entry}, state one of :ready, :sent, :stalled, :done, :reverted, :other"
 
   attr :next_step, :map, default: nil
-  attr :stalled, :list, default: []
+  attr :reverted, :string, default: nil
   attr :notice, :string, default: nil
   attr :close_event, :string, required: true
   attr :check_event, :string, required: true
   attr :target, :any, default: nil
-  attr :wallet, :string, default: nil
-  attr :browser_wallets, :list, default: []
+  attr :signer, :string, required: true
+  attr :chain_name, :string, required: true
+  attr :mismatch, :string, default: nil
 
   def swap_review(assigns) do
     ~H"""
@@ -250,7 +258,10 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </header>
 
       <div class="token-swap__review-side">
-        <p><AutolaunchWeb.TokenDisplay.written value={@review.pay} unit={@review.sell_symbol} /></p>
+        <p>
+          <span class="token-swap__review-label">You pay</span>
+          <AutolaunchWeb.TokenDisplay.written value={@review.pay} unit={@review.sell_symbol} />
+        </p>
         <img :if={@sell_image} src={@sell_image} width="36" height="36" alt="" />
       </div>
       <svg
@@ -265,6 +276,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </svg>
       <div class="token-swap__review-side">
         <p>
+          <span class="token-swap__review-label">You get about</span>
           <AutolaunchWeb.TokenDisplay.written value={@review.receive} unit={@review.buy_symbol} />
         </p>
         <img :if={@buy_image} src={@buy_image} width="36" height="36" alt="" />
@@ -311,33 +323,16 @@ defmodule AutolaunchWeb.Components.SwapForm do
         </li>
       </ol>
 
-      <AutolaunchWeb.SignedInWallet.note
-        :if={@next_step}
-        signed_in={@wallet}
-        browser={@browser_wallets}
+      <.wallet_step
+        next_step={@next_step}
+        steps={@steps}
+        reverted={@reverted}
+        signer={@signer}
+        chain_name={@chain_name}
+        mismatch={@mismatch}
+        check_event={@check_event}
+        target={@target}
       />
-      <Regent.Primitives.button
-        :if={@next_step}
-        type="button"
-        class="token-swap__submit token-swap__wallet-step"
-        data-reviewed-step={@next_step.name}
-      >
-        <span class="token-swap__wallet-step-label">{@next_step.label}</span>
-        <span class="token-swap__wallet-step-wait">
-          <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
-        </span>
-      </Regent.Primitives.button>
-      <Regent.Primitives.button
-        :for={name <- @stalled}
-        type="button"
-        variant="secondary"
-        class="token-swap__submit"
-        phx-click={@check_event}
-        phx-value-step={name}
-        phx-target={@target}
-      >
-        Check again
-      </Regent.Primitives.button>
 
       <p :if={@notice} class="token-swap__error" role="alert">{@notice}</p>
     </section>
@@ -387,14 +382,76 @@ defmodule AutolaunchWeb.Components.SwapForm do
     """
   end
 
-  defp step_note(%{state: :done}, _index, _count, _next), do: "Done"
-  defp step_note(%{state: :sent}, _index, _count, _next), do: "Waiting for the network"
-  defp step_note(%{state: :reverted}, _index, _count, _next), do: "Did not go through"
+  attr :next_step, :map, default: nil
+  attr :steps, :list, required: true
+  attr :reverted, :string, default: nil
+  attr :signer, :string, default: nil, doc: "the review's signer; nil before there is a review"
+  attr :chain_name, :string, default: nil
+  attr :mismatch, :string, default: nil
+  attr :check_event, :string, required: true
+  attr :target, :any, default: nil
 
-  defp step_note(%{name: name}, index, count, %{name: name}) when count > 1,
+  @doc """
+  The wallet button of a review panel, with the lines above it and "Check
+  again" for a step the page stopped reading. The lines stay in the page and
+  are only hidden, so one appearing never moves the button a person is
+  pressing; the button is always there too, only hidden while every step is
+  sent, and it has no `phx-click`: the `OnchainSteps` hook sends its step.
+  """
+  def wallet_step(assigns) do
+    ~H"""
+    <p class="token-swap__review-note" role="status" hidden={!@reverted}>{@reverted}</p>
+    <p class="token-swap__review-from" hidden={!(@next_step && @signer)}>
+      Sending from <code>{RegentFormat.short_address(@signer)}</code> on {@chain_name}
+    </p>
+    <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
+    <Regent.Primitives.button
+      type="button"
+      class="token-swap__submit token-swap__wallet-step"
+      data-onchain-step={@next_step && @next_step.name}
+      hidden={!@next_step}
+      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-awaiting-wallet"])}
+    >
+      <span class="token-swap__wallet-step-label">{@next_step && @next_step.label}</span>
+      <span class="token-swap__wallet-step-wait">
+        <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
+      </span>
+    </Regent.Primitives.button>
+    <Regent.Primitives.button
+      :for={step <- @steps}
+      :if={step.state == :stalled}
+      type="button"
+      variant="secondary"
+      class="token-swap__submit"
+      phx-click={@check_event}
+      phx-value-hash={step.entry.hash}
+      phx-target={@target}
+    >
+      Check again
+    </Regent.Primitives.button>
+    """
+  end
+
+  @doc "The note beside one step of a review panel."
+  def step_note(%{state: :done}, _index, _count, _next), do: "Done"
+  def step_note(%{state: :sent}, _index, _count, _next), do: "Waiting for the network"
+
+  def step_note(%{state: :stalled}, _index, _count, _next),
+    do: "Not confirmed yet. Check again, or look in your wallet activity"
+
+  def step_note(%{state: :reverted}, _index, _count, _next), do: "Did not go through"
+
+  def step_note(%{state: :other}, _index, _count, _next),
+    do: "Sent a different transaction. Check your wallet activity"
+
+  def step_note(%{name: name}, index, count, %{name: name}) when count > 1,
     do: "Step #{index} of #{count}"
 
-  defp step_note(_step, _index, _count, _next), do: nil
+  def step_note(_step, _index, _count, _next), do: nil
+
+  defp output(:unread), do: "No quote right now"
+  defp output(amount) when is_binary(amount), do: amount
+  defp output(nil), do: "0"
 
   attr :size, :string, required: true
 

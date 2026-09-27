@@ -1,7 +1,7 @@
 defmodule Autolaunch.Chain.Abi do
   @moduledoc false
 
-  alias Autolaunch.Chain.Address
+  alias RegentChain.Address
 
   @manifest_path Path.expand("../../../contracts/chain-contracts.yaml", __DIR__)
   @external_resource @manifest_path

@@ -7,9 +7,9 @@ defmodule Autolaunch.BidSettlementActions do
   right now: whether the auction has ended, whether it graduated, whether the
   bid has been exited, what `exitBid` (or `exitPartiallyFilledBid` with derived
   checkpoint hints) would return, and what `claimTokens` would deliver. The
-  exact eligible steps and their calldata are written as one immutable
-  envelope; anything the auction refuses becomes a reason code rather than a
-  wallet prompt.
+  exact eligible steps and their calldata come back for the page's review;
+  anything the auction refuses becomes a reason code rather than a wallet
+  prompt.
 
   While bidding is still open, an outbid bid's unspent money can come back
   early once the auction records a price above the bid's maximum. When the
@@ -17,30 +17,20 @@ defmodule Autolaunch.BidSettlementActions do
   `record` step, the auction's public `checkpoint()`; once that is confirmed,
   the exit is reviewed on its own against the price it stored.
 
-  Every durable write after that runs inside `SessionAuthority.transact_lease/3`
-  against the account that callback locked, with the row taken `FOR UPDATE`,
-  exactly as `BidActions` does.
+  Nothing is stored while a settlement is on its way: the review lives on the
+  page, and `result/3` reads what a confirmed step did from its receipt.
   """
 
   require Ash.Query
 
   alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.{Human, System}
-  alias Autolaunch.Chain.{Address, CcaSettlement, Envelope, Rpc}
+  alias Autolaunch.Actors.Human
+  alias Autolaunch.{Bid, Lab, LabAbi, LabBidSettlementChainClient}
+  alias Autolaunch.Chain.{CcaSettlement, Client, Rpc}
+  alias RegentChain.{Address, Review}
 
-  alias Autolaunch.{Bid, BidSettlementOperation, Lab, LabAbi, LabBidSettlementChainClient}
-
-  @actor %System{}
   @domain Autolaunch
-
-  @resource "autolaunch_bid"
-  @action "settle_bid"
-  @contract_name "IContinuousClearingAuction"
   @new_decimals 18
-
-  @withdrawn "review withdrawn"
-  @lapsed "the reviewed settlement expired before it was sent"
-  @unresolved "account started a new settlement while this one was unresolved"
 
   @transient [
     :chain_unavailable,
@@ -49,37 +39,97 @@ defmodule Autolaunch.BidSettlementActions do
     :transaction_missing
   ]
 
-  @hash_attributes %{
-    record: :record_transaction_hash,
-    exit: :exit_transaction_hash,
-    claim: :claim_transaction_hash
-  }
-
   @doc """
-  Reviews one settlement: one snapshot, one immutable sequence, one operation.
+  Reviews one settlement from `address`, which must be a wallet the signed-in
+  account links and the bid's owner: the chain, the steps, what they return
+  and the context `result/3` reads a receipt against.
 
-  The sequence carries only the steps the auction would accept right now: the
-  exit that returns unspent currency and records the fill, then the claim of
-  the launch token when the auction graduated, the claim block has passed and
-  the bid has fill. A position nothing can be done for yet is refused with the
-  auction's own reason.
+  The steps are only those the auction would accept right now: the exit that
+  returns unspent currency and records the fill, then the claim of the launch
+  token when the auction graduated, the claim block has passed and the bid has
+  fill. A position nothing can be done for yet is refused with the auction's
+  own reason.
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(bid_position_id, address, opts) do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, opts),
-         {:ok, lease} <- lease(opts),
          {:ok, position} <- owned_position(bid_position_id, actor),
          :ok <- position_signer(position, signer),
          {:ok, bid_id} <- onchain_bid_id(position),
          {:ok, snapshot} <- snapshot(position.auction_address, bid_id, signer),
          :ok <- owner_matches(snapshot, signer),
-         {:ok, steps} <- eligible_steps(snapshot, position),
-         envelope <- review(position, signer, snapshot, steps),
-         {:ok, operation} <- open(lease, position, signer, envelope) do
-      {:ok, %{operation: presented(operation)}}
+         {:ok, steps} <- eligible_steps(snapshot),
+         {:ok, config} <- lab() do
+      auction = position.auction
+
+      {:ok,
+       %{
+         chain: Client.chain(config),
+         steps: Enum.map(steps, &Review.step(&1.name, snapshot.auction, &1.data)),
+         facts: facts(auction, snapshot, steps),
+         context: %{
+           bid_id: position.bid_id,
+           auction_address: snapshot.auction,
+           onchain_bid_id: snapshot.bid.id,
+           signer: signer,
+           currency_decimals: auction.quote_token_decimals,
+           claim_next?: Enum.any?(steps, &(&1.name == "claim"))
+         }
+       }}
     end
   end
+
+  @doc """
+  What a confirmed exit or claim did, read from its receipt's logs: only the
+  auction's own `BidExited` or `TokensClaimed` for this bid and this owner
+  counts. `nil` for a recorded price, or for logs that record something else.
+  """
+  @spec result(map(), String.t(), [map()]) :: map() | nil
+  def result(context, "exit", logs) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, exit} <-
+           CcaSettlement.exited(
+             abi(config),
+             logs,
+             context.auction_address,
+             context.onchain_bid_id,
+             context.signer
+           ) do
+      %{
+        "tokens_filled" => Integer.to_string(exit.tokens_filled),
+        "tokens_filled_units" => Rpc.format_units(exit.tokens_filled, @new_decimals),
+        "currency_refunded" => Integer.to_string(exit.currency_refunded),
+        "currency_refunded_units" =>
+          Rpc.format_units(exit.currency_refunded, context.currency_decimals)
+      }
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  def result(context, "claim", logs) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, claim} <-
+           CcaSettlement.claimed(
+             abi(config),
+             logs,
+             context.auction_address,
+             context.onchain_bid_id,
+             context.signer
+           ) do
+      %{
+        "tokens_claimed" => Integer.to_string(claim.tokens_claimed),
+        "tokens_claimed_units" => Rpc.format_units(claim.tokens_claimed, @new_decimals)
+      }
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  def result(_context, _record, _logs), do: nil
+
+  defp abi(config), do: Lab.abi!(config, :auction)
 
   @doc """
   When this position's unspent money can come back, read at one pinned block
@@ -97,65 +147,6 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
-  @doc "Why nothing can be settled for this position right now, from the auction's own answer."
-  @spec refusal_reason(map()) :: atom()
-  def refusal_reason(snapshot) do
-    case snapshot do
-      %{exit: {:refused, :already_exited}, claim: {:refused, reason}} -> reason
-      %{exit: {:refused, reason}} -> reason
-    end
-  end
-
-  def cancel(action_id, opts), do: write(action_id, opts, transition(:cancel, @withdrawn))
-
-  @doc "Ends a settlement whose presses have not resolved, at the account's request; nothing is resent."
-  def start_new(action_id, opts),
-    do: write(action_id, opts, transition(:cancel, @unresolved))
-
-  @doc "One operation of the account, by action id, without a lease and writing nothing."
-  @spec operation_view(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def operation_view(action_id, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, operation} <- operation(actor.human_account_id, action_id, false),
-         do: {:ok, %{operation: presented(operation)}}
-  end
-
-  @doc "The presenter's whole view of one operation."
-  def presented(nil), do: nil
-
-  def presented(operation) do
-    operation
-    |> Map.take([
-      :action_id,
-      :bid_position_id,
-      :state,
-      :step,
-      :signer,
-      :envelope,
-      :result,
-      :reason,
-      :terminal_at
-    ])
-    |> Autolaunch.WalletAttempts.decorate(operation, :bid_settlement)
-  end
-
-  @doc "The reviewed sequence, in order, as the progress list renders it."
-  def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
-
-  @doc "The hash of the confirmed or pending press for one step of a presented operation, or `nil`."
-  def step_hash(operation, step) when step in ["record", "exit", "claim"],
-    do: step_hash(operation, String.to_existing_atom(step))
-
-  def step_hash(operation, step) when is_map_key(@hash_attributes, step),
-    do: Map.get(operation, Map.fetch!(@hash_attributes, step))
-
-  def step_hash(_operation, _unknown), do: nil
-
-  @doc "Read-only dispatch evidence for a wallet press, before any lock is taken."
-  def press_evidence(operation) do
-    if valid_envelope?(operation), do: :ok, else: unavailable(:settlement_review_changed)
-  end
-
   # Reviews
 
   # The exact eligible steps. The exit comes first whenever the auction accepts
@@ -163,130 +154,54 @@ defmodule Autolaunch.BidSettlementActions do
   # that exit (graduated, claim block reached, fill above zero). An already
   # exited bid with claimable fill has only the claim. An outbid bid whose
   # passed price is not recorded yet has only the record step.
-  defp eligible_steps(%{exit: {:refused, :already_exited}, claim: %{} = claim}, _position),
+  defp eligible_steps(%{exit: {:refused, :already_exited}, claim: %{} = claim}),
     do: {:ok, [claim_step(claim)]}
 
-  defp eligible_steps(%{exit: {:refused, :price_not_recorded}}, _position),
-    do: {:ok, [record_step()]}
+  defp eligible_steps(%{exit: {:refused, :price_not_recorded}}), do: {:ok, [record_step()]}
 
-  defp eligible_steps(%{exit: %{} = exit, claim: claim}, _position),
+  defp eligible_steps(%{exit: %{} = exit, claim: claim}),
     do: {:ok, [exit_step(exit) | claim_steps(claim)]}
 
-  defp eligible_steps(snapshot, _position), do: unavailable(refusal_reason(snapshot))
+  defp eligible_steps(snapshot), do: unavailable(refusal_reason(snapshot))
+
+  # Why nothing can be settled for this position right now, in the auction's own answer.
+  defp refusal_reason(%{exit: {:refused, :already_exited}, claim: {:refused, reason}}),
+    do: reason
+
+  defp refusal_reason(%{exit: {:refused, reason}}), do: reason
 
   defp claim_steps(%{} = claim), do: [claim_step(claim)]
   defp claim_steps({:refused, _reason}), do: []
 
-  defp record_step,
-    do: %{
-      "step" => "record",
-      "signature" => "checkpoint()",
-      "data" => LabAbi.selector("checkpoint()")
-    }
+  defp record_step, do: %{name: "record", data: LabAbi.selector("checkpoint()")}
 
-  defp exit_step(exit) do
-    %{
-      "step" => "exit",
-      "signature" => exit.signature,
-      "data" => exit.data,
-      "hints" => hints(exit.hints),
-      "tokens_filled" => Integer.to_string(exit.tokens_filled),
-      "currency_refunded" => Integer.to_string(exit.currency_refunded)
+  defp exit_step(exit),
+    do: %{
+      name: "exit",
+      data: exit.data,
+      tokens_filled: exit.tokens_filled,
+      currency_refunded: exit.currency_refunded
     }
-  end
 
   defp claim_step(claim),
-    do: %{
-      "step" => "claim",
-      "signature" => "claimTokens(uint256)",
-      "data" => claim.data,
-      "tokens_claimed" => Integer.to_string(claim.tokens_claimed)
+    do: %{name: "claim", data: claim.data, tokens_claimed: claim.tokens_claimed}
+
+  # What the review returns, in the auction's units: the currency an exit
+  # sends back and the tokens it fills, and the tokens a claim delivers.
+  defp facts(auction, snapshot, steps) do
+    exit = Enum.find(steps, &(&1.name == "exit"))
+    claim = Enum.find(steps, &(&1.name == "claim"))
+
+    %{
+      currency_symbol: auction.quote_token_symbol,
+      token_symbol: auction.token_symbol,
+      graduated: snapshot.graduated?,
+      currency_refunded:
+        exit && Rpc.format_units(exit.currency_refunded, auction.quote_token_decimals),
+      tokens_filled: exit && Rpc.format_units(exit.tokens_filled, @new_decimals),
+      tokens_claimed: claim && Rpc.format_units(claim.tokens_claimed, @new_decimals)
     }
-
-  defp hints(nil), do: nil
-
-  defp hints(hints),
-    do: %{
-      "last_fully_filled_block" => Integer.to_string(hints.last_fully_filled_block),
-      "outbid_block" => Integer.to_string(hints.outbid_block)
-    }
-
-  defp review(position, signer, snapshot, steps) do
-    auction = position.auction
-    decimals = auction.quote_token_decimals
-    data = steps |> hd() |> Map.fetch!("data")
-    exit = Enum.find(steps, &(&1["step"] == "exit"))
-    claim = Enum.find(steps, &(&1["step"] == "claim"))
-
-    steps = Enum.map(steps, &Map.put(&1, "to", snapshot.auction))
-
-    @action
-    |> Envelope.new(signer, data,
-      to: snapshot.auction,
-      resource: @resource,
-      contract_name: @contract_name,
-      chain_id: Lab.chain_id(),
-      lab_binding: snapshot.lab_binding,
-      risk_copy: risk_copy(exit, claim, auction),
-      arguments: %{
-        "bid_position_id" => position.id,
-        "bid_id" => position.bid_id,
-        "onchain_bid_id" => Integer.to_string(snapshot.bid.id),
-        "auction_id" => auction.id,
-        "auction_address" => snapshot.auction,
-        "auction_kind" => Atom.to_string(auction.kind),
-        "currency" => snapshot.currency,
-        "currency_symbol" => auction.quote_token_symbol,
-        "currency_decimals" => Integer.to_string(decimals),
-        "token_symbol" => auction.token_symbol,
-        "bid_amount" => Rpc.format_units(snapshot.bid.amount, decimals),
-        "bid_amount_atomic" => Integer.to_string(snapshot.bid.amount),
-        "max_price_q96" => Integer.to_string(snapshot.bid.max_price_q96),
-        "final_clearing_price_q96" => Integer.to_string(snapshot.final_clearing_price_q96),
-        "graduated" => snapshot.graduated?,
-        "end_block" => Integer.to_string(snapshot.end_block),
-        "claim_block" => Integer.to_string(snapshot.claim_block),
-        "currency_refunded" =>
-          exit && Rpc.format_units(exit_int(exit, "currency_refunded"), decimals),
-        "tokens_filled" =>
-          exit && Rpc.format_units(exit_int(exit, "tokens_filled"), @new_decimals),
-        "tokens_claimed" =>
-          claim && Rpc.format_units(exit_int(claim, "tokens_claimed"), @new_decimals),
-        "block_number" => snapshot.block.number,
-        "block_hash" => snapshot.block.hash,
-        "steps" => steps
-      }
-    )
-    |> stored()
   end
-
-  defp exit_int(step, key), do: step |> Map.fetch!(key) |> String.to_integer()
-
-  defp risk_copy(nil, nil, _auction) do
-    network = if Lab.test_chain?(), do: "on a Base fork.", else: "on Base."
-
-    "Your wallet signs a transaction that records this auction's current price #{network} It moves no money."
-  end
-
-  defp risk_copy(exit, claim, auction) do
-    parts =
-      Enum.reject(
-        [
-          exit && "returns your unspent #{auction.quote_token_symbol} from this auction",
-          claim && "delivers your #{auction.token_symbol || "launch"} tokens"
-        ],
-        &is_nil/1
-      )
-
-    network =
-      if Lab.test_chain?(),
-        do: "on a Base fork. Test assets have no mainnet value.",
-        else: "on Base."
-
-    "Your wallet signs a transaction that #{Enum.join(parts, ", then one that ")} #{network}"
-  end
-
-  defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 
   # Positions
 
@@ -342,106 +257,11 @@ defmodule Autolaunch.BidSettlementActions do
         LabBidSettlementChainClient
       )
 
-  # Operations
-
-  defp open(lease, position, signer, envelope) do
-    transact(lease, fn account ->
-      with :ok <- signer_matches(account, signer) do
-        BidSettlementOperation
-        |> Ash.Changeset.for_create(
-          :prepare,
-          %{
-            action_id: envelope["action_id"],
-            envelope: envelope,
-            signer: signer,
-            step: first_step(envelope),
-            human_account_id: account.id,
-            bid_position_id: position.id
-          },
-          domain: @domain,
-          actor: @actor
-        )
-        |> Ash.create(actor: @actor)
-      end
-    end)
-  end
-
-  defp first_step(envelope),
-    do: envelope["arguments"]["steps"] |> hd() |> Map.fetch!("step") |> String.to_existing_atom()
-
-  defp valid_envelope?(operation) do
-    Envelope.valid?(operation.envelope,
-      resource: @resource,
-      action: @action,
-      signer: operation.signer,
-      to: operation.envelope["to"],
-      contract_name: @contract_name,
-      chain_id: Lab.chain_id()
-    ) and
-      Lab.binding_matches?(
-        operation.envelope["metadata"]["lab"],
-        LabBidSettlementChainClient.binding_keys()
-      )
-  end
-
-  defp transition(action, reason),
-    do: fn _account, operation -> update(operation, action, %{reason: reason}) end
-
-  defp expire_lapsed(%{state: :prepared, envelope: %{"expires_at" => expires_at}} = operation) do
-    {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
-
-    if DateTime.compare(expires_at, Envelope.current_time()) != :gt and
-         not Autolaunch.WalletAttempts.in_flight?(:bid_settlement, operation),
-       do: update(operation, :expire, %{reason: @lapsed}),
-       else: {:ok, operation}
-  end
-
-  defp expire_lapsed(operation), do: {:ok, operation}
-
-  # Durable write plumbing
-
-  defp write(action_id, opts, transition) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         do: transact(lease, &locked(&1, action_id, transition))
-  end
-
-  defp locked(account, action_id, transition) do
-    with {:ok, operation} <- operation(account.id, action_id, true),
-         {:ok, operation} <- expire_lapsed(operation),
-         {:ok, operation} <- resume(operation, account, transition),
-         do: {:ok, %{operation: presented(operation)}}
-  end
-
-  defp resume(%{state: :expired} = operation, _account, _transition), do: {:ok, operation}
-  defp resume(operation, account, transition), do: transition.(account, operation)
-
-  defp transact(%{lineage: lineage, account_id: account_id}, callback) do
-    case SessionAuthority.transact_lease(lineage, account_id, callback) do
-      {:error, :stale_authority} -> unavailable(:session_unavailable)
-      result -> result
+  defp lab do
+    case Lab.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:chain_unavailable)
     end
-  end
-
-  defp operation(account_id, action_id, lock?) do
-    BidSettlementOperation
-    |> Ash.Query.new(domain: @domain)
-    |> Ash.Query.filter(action_id == ^action_id and human_account_id == ^account_id)
-    |> locked_query(lock?)
-    |> Ash.read_one(domain: @domain, actor: @actor)
-    |> case do
-      {:ok, nil} -> unavailable(:settlement_operation_not_found)
-      other -> other
-    end
-  end
-
-  defp locked_query(query, true), do: Ash.Query.lock(query, :for_update)
-  defp locked_query(query, false), do: query
-
-  defp update(operation, action, input) do
-    operation
-    |> Ash.Changeset.for_update(action, input, domain: @domain, actor: @actor)
-    |> Ash.update(actor: @actor)
   end
 
   # Session and wallet identity
@@ -451,6 +271,13 @@ defmodule Autolaunch.BidSettlementActions do
       %Human{} = actor -> {:ok, actor}
       _anonymous -> unavailable(:authentication_required)
     end
+  end
+
+  # The wallet has to be one the leased account links, read now: never a guess.
+  defp current_wallet(address, opts) do
+    with {:ok, signer} <- normalize(address),
+         {:ok, %{lineage: lineage, account_id: account_id}} <- lease(opts),
+         do: lineage |> SessionAuthority.leased_account(account_id) |> linked_wallet(signer)
   end
 
   defp lease(opts) do
@@ -464,21 +291,11 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
-  defp current_wallet(address, opts) do
-    with {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         :ok <-
-           lease.lineage
-           |> SessionAuthority.leased_account(lease.account_id)
-           |> signer_matches(signer),
-         do: {:ok, signer}
-  end
+  defp linked_wallet(nil, _signer), do: unavailable(:session_unavailable)
 
-  defp signer_matches(nil, _signer), do: unavailable(:session_unavailable)
-
-  defp signer_matches(%{wallet_address: wallet}, signer) do
-    if Address.equal?(wallet, signer),
-      do: :ok,
+  defp linked_wallet(%{wallet_addresses: wallets}, signer) when is_list(wallets) do
+    if Enum.any?(wallets, &Address.equal?(&1, signer)),
+      do: {:ok, signer},
       else: unavailable(:wrong_signer)
   end
 
@@ -492,7 +309,5 @@ defmodule Autolaunch.BidSettlementActions do
   end
 
   defp unavailable(reason),
-    do:
-      {:error,
-       Ash.Error.Invalid.Unavailable.exception(resource: BidSettlementOperation, reason: reason)}
+    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: Bid, reason: reason)}
 end

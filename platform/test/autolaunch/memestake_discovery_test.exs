@@ -10,13 +10,12 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
 
   require Ash.Query
 
-  alias Autolaunch.{Accounts, Auction, BaseRpcStub, LabAbi, LaunchDiscovery}
-  alias Autolaunch.Accounts.SessionAuthority
+  alias Autolaunch.{Accounts, Auction, BaseRpcStub, LabAbi, LaunchDiscovery, LaunchReviews}
   alias Autolaunch.Actors.{Human, System}
-  alias Autolaunch.Chain.{Abi, Envelope}
+  alias Autolaunch.Chain.{Abi, Client}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
-  alias Autolaunch.Stocks.{LabLaunchChainClient, LaunchOperation, LaunchOperations}
+  alias Autolaunch.Stocks.{LaunchOperation, LaunchOperations}
 
   @actor %System{}
   @launcher "0x1414141414141414141414141414141414141414"
@@ -65,7 +64,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
     %{config: config, launchpad: launchpad, account: account, operation: review!(account, config)}
   end
 
-  test "a launch whose browser never reported its hash is listed once, for its creator",
+  test "a launch whose page closed before it was confirmed is listed once, for its creator",
        %{account: account, operation: operation, launchpad: launchpad} do
     mined(launchpad)
     Autolaunch.Listings.subscribe()
@@ -84,30 +83,16 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
     refute_received {:autolaunch_listings_changed, _another}
 
     assert %{state: :chain_verified} = reload(operation)
-    assert [%{state: :confirmed, transaction_hash: @hash}] = attempts(operation)
   end
 
   # Ash sends a notification only outside every transaction, so receiving it
   # proves it went out after the session's transaction committed.
   test "the creator's own browser confirming a new launch announces it exactly once",
        %{account: account, operation: operation, launchpad: launchpad} do
-    {:ok, pressed} = press(operation)
     mined(launchpad)
-    opts = session(account)
-
-    {:ok, _} =
-      Autolaunch.report_wallet_press(
-        :stocks_launch,
-        operation.action_id,
-        pressed.id,
-        %{"transaction_hash" => @hash},
-        opts
-      )
-
     Autolaunch.Listings.subscribe()
 
-    assert {:ok, _response} =
-             Autolaunch.verify_wallet_press(:stocks_launch, operation.action_id, pressed.id, opts)
+    assert {:listed, _account_id, _result} = confirm_in_browser(operation)
 
     assert [%{id: auction_id, creator_human_account_id: creator}] = auctions()
     assert creator == account.id
@@ -117,9 +102,6 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
 
   test "a replayed launch lists nothing twice and takes no auction back to its start",
        %{account: account, operation: operation, launchpad: launchpad} do
-    {:ok, first} = press(operation)
-    {:ok, second} = press(operation)
-
     mined(launchpad)
     discover()
     run_triggers()
@@ -127,8 +109,8 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
     [auction] = auctions()
     Ash.update!(auction, %{state: :graduated}, action: :refresh_lab_market, actor: @actor)
 
-    # The job runs again and records the same launch again, and the other
-    # press's page reports the same hash and checks it after all.
+    # The job runs again and records the same launch again, and the page that
+    # sent it sees it confirmed after all.
     discover()
     [discovery] = discoveries()
 
@@ -137,24 +119,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
 
     run_triggers()
 
-    unfilled =
-      Enum.find([first, second], fn %{id: id} ->
-        Enum.any?(attempts(operation), &(&1.id == id and is_nil(&1.transaction_hash)))
-      end)
-
-    opts = session(account)
-
-    {:ok, _} =
-      Autolaunch.report_wallet_press(
-        :stocks_launch,
-        operation.action_id,
-        unfilled.id,
-        %{"transaction_hash" => @hash},
-        opts
-      )
-
-    {:ok, _} =
-      Autolaunch.verify_wallet_press(:stocks_launch, operation.action_id, unfilled.id, opts)
+    assert {:listed, _account_id, _result} = confirm_in_browser(operation)
 
     assert [%{state: :listed, creator_human_account_id: creator}] = discoveries()
     assert creator == account.id
@@ -194,46 +159,28 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
     assert [_auction] = auctions()
   end
 
-  # The browser's press, recorded before the wallet opens.
-  defp press(operation) do
-    Autolaunch.WalletAttempt
-    |> Ash.Changeset.for_create(
-      :dispatch,
-      %{
-        stock_launch_operation_id: operation.id,
-        step: :launch,
-        envelope: operation.envelope,
-        state: :dispatched
-      },
-      actor: @actor
-    )
-    |> Ash.create(actor: @actor)
-  end
-
-  defp session(account) do
-    {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
-
-    [
-      actor: %Human{human_account_id: account.id},
-      context: %{session_lease: %{lineage: claim.lineage, account_id: account.id}}
-    ]
-  end
+  # The page sees its own press confirmed and lists the launch at once.
+  defp confirm_in_browser(operation),
+    do: LaunchReviews.confirm(:stocks_launch, operation.action_id, @hash)
 
   # One reviewed Memestake launch for `account`, as `prepare` stores it.
   defp review!(account, config) do
     draft =
       Autolaunch.create_stocks_launch_draft!(%{}, actor: %Human{human_account_id: account.id})
 
-    envelope =
-      "autolaunch_stocks_launch"
-      |> Envelope.new(@launcher, @data,
-        to: StocksLab.address!(config, :launchpad),
-        resource: "autolaunch_stocks_launch",
-        contract_name: "StocksLaunchpadV1",
-        chain_id: StocksLab.chain_id(),
-        lab_binding: StocksLab.binding(config, LabLaunchChainClient.binding_keys()),
-        risk_copy: "Launching creates a token and its auction.",
-        arguments: %{
+    launchpad = StocksLab.address!(config, :launchpad)
+
+    review =
+      %{
+        "chain" => Client.chain(config),
+        "signer" => @launcher,
+        "step" => %{
+          "kind" => "transaction",
+          "step" => "launch",
+          "to" => launchpad,
+          "data" => @data
+        },
+        "facts" => %{
           "draft_id" => draft.id,
           "name" => "Mint Research",
           "symbol" => "MINT",
@@ -245,20 +192,17 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
           "stock_decimals" => "8",
           "required_stock_raised" => Integer.to_string(@required),
           "floor_price_q96" => Integer.to_string(@floor),
-          "launchpad" => StocksLab.address!(config, :launchpad),
-          "steps" => [
-            %{"step" => "launch", "to" => StocksLab.address!(config, :launchpad), "data" => @data}
-          ]
+          "launchpad" => launchpad
         }
-      )
+      }
       |> Jason.encode!()
       |> Jason.decode!()
 
     {:ok, operation} =
       LaunchOperations.create(account, %{
-        action_id: envelope["action_id"],
+        action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
         launch_draft_id: draft.id,
-        envelope: envelope,
+        review: review,
         signer: @launcher,
         step: :launch
       })
@@ -371,10 +315,4 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
 
   defp reload(operation),
     do: LaunchOperation |> Ash.Query.filter(id == ^operation.id) |> Ash.read_one!(actor: @actor)
-
-  defp attempts(operation),
-    do:
-      Autolaunch.WalletAttempt
-      |> Ash.Query.filter(stock_launch_operation_id == ^operation.id)
-      |> Ash.read!(actor: @actor)
 end

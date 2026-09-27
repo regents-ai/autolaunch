@@ -12,14 +12,10 @@ import {
   installCrossTabCsrf,
   type PinnedSocket,
 } from "./auth_lazy"
-import {AutolaunchBidSettlement} from "./hooks/autolaunch_bid_settlement"
-import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
-import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
-import {AutolaunchReviewedSteps} from "./hooks/autolaunch_reviewed_steps"
-import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {ImageGradient} from "./hooks/image_gradient"
+import {OnchainSteps} from "./hooks/onchain_steps"
 import {PriceChart} from "./hooks/price_chart"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
@@ -33,13 +29,9 @@ import {installTheme} from "./theme"
 
 const hooks = {
   ...colocatedHooks,
-  AutolaunchBidSettlement,
-  AutolaunchBidWallet,
-  AutolaunchLaunchWallet,
-  AutolaunchReviewedSteps,
-  AutolaunchSubjectWallet,
   AutolaunchSwapDialog,
   ImageGradient,
+  OnchainSteps,
   PriceChart,
   Optics,
   XConnections,
@@ -70,6 +62,12 @@ installTheme()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
 installPublicTools()
+
+// A panel names a field to focus once the page shows its new figures: a box
+// already focused would keep what it held.
+window.addEventListener("phx:autolaunch:focus", event => {
+  document.getElementById((event as CustomEvent<{to: string}>).detail.to)?.focus()
+})
 
 // Exposed for the browser console: liveSocket.enableDebug(), enableLatencySim().
 window.liveSocket = liveSocket

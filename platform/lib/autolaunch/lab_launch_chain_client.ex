@@ -3,8 +3,10 @@ defmodule Autolaunch.LabLaunchChainClient do
 
   @behaviour Autolaunch.LaunchChainClient
 
-  alias Autolaunch.Chain.{Abi, Address}
+  alias Autolaunch.Chain.Abi
+
   alias Autolaunch.{Lab, LabAbi, LabRpc}
+  alias RegentChain.Address
 
   @term_signatures %{
     start_delay_blocks: "START_DELAY_BLOCKS()",
@@ -41,8 +43,7 @@ defmodule Autolaunch.LabLaunchChainClient do
          paused: paused,
          terms: terms,
          block: block,
-         regent: Lab.address!(config, :regent),
-         lab_binding: Lab.binding(config, [:factory, :strategy, :hook, :regent])
+         regent: Lab.address!(config, :regent)
        }}
     else
       false -> {:error, :lab_contract_mismatch}
@@ -52,28 +53,10 @@ defmodule Autolaunch.LabLaunchChainClient do
   end
 
   @impl true
-  def verify(envelope, step, hash) do
-    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
-         do: {:ok, Map.delete(result, :receipt)}
-  end
-
-  def verify_with_evidence(envelope, :launch, hash) do
-    with true <-
-           Autolaunch.Chain.Envelope.valid_for_confirmation?(envelope,
-             resource: "autolaunch_launch",
-             chain_id: Lab.chain_id()
-           ),
-         true <-
-           Lab.binding_matches?(envelope["metadata"]["lab"], [:factory, :strategy, :hook, :regent]),
-         {:ok, config} <- Lab.current(),
-         current <- current_step(envelope, :launch),
-         {:ok, evidence} <- LabRpc.canonical_outcome_evidence(config, envelope, current, hash),
-         {:ok, result} <- settled(evidence.outcome, envelope, config) do
-      {:ok, Map.put(result, :receipt, evidence.receipt)}
-    else
-      false -> {:error, :lab_config_changed}
-      {:error, reason} -> {:error, reason}
-    end
+  def verify(%{"signer" => signer, "step" => step, "facts" => facts}, hash) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, outcome} <- LabRpc.outcome(LabRpc.opts(config), signer, step, hash),
+         do: settled(outcome, signer, facts, config)
   end
 
   defp terms(config, block, opts) do
@@ -85,17 +68,20 @@ defmodule Autolaunch.LabLaunchChainClient do
     end)
   end
 
-  defp settled(:pending, _envelope, _config), do: {:ok, %{outcome: :pending}}
-  defp settled(:reverted, _envelope, _config), do: {:ok, %{outcome: :reverted}}
-  defp settled({:success, logs}, envelope, config), do: verify_launch(logs, envelope, config)
+  defp settled(:pending, _signer, _facts, _config), do: {:ok, %{outcome: :pending}}
+  defp settled(:reverted, _signer, _facts, _config), do: {:ok, %{outcome: :reverted}}
 
-  defp verify_launch(logs, envelope, config) do
+  defp settled({:success, logs}, signer, facts, config),
+    do: verify_launch(logs, signer, facts, config)
+
+  defp verify_launch(logs, signer, facts, config) do
     with {:ok, block} <- LabRpc.block_from_logs(logs),
          {:ok, event} <- launch_created(logs, config),
-         true <- Address.equal?(event.launcher, envelope["expected_signer"]),
-         true <- Address.equal?(event.treasury, envelope["arguments"]["treasury"]),
+         true <- Address.equal?(event.launcher, signer),
+         true <- Address.equal?(event.treasury, facts["treasury"]),
          true <-
-           event.required_regent_raised == integer(envelope, "required_regent_raised_atomic"),
+           event.required_regent_raised ==
+             String.to_integer(facts["required_regent_raised_atomic"]),
          opts <- LabRpc.opts(config),
          {:ok, record_words} <-
            LabRpc.words(config, :factory, "launches(uint256)", [event.launch_id], 5, block, opts),
@@ -188,11 +174,4 @@ defmodule Autolaunch.LabLaunchChainClient do
   end
 
   defp record_matches?(_words, _event), do: false
-
-  defp current_step(envelope, step) do
-    name = Atom.to_string(step)
-    Enum.find(envelope["arguments"]["steps"], &(&1["step"] == name))
-  end
-
-  defp integer(envelope, key), do: envelope["arguments"][key] |> String.to_integer()
 end

@@ -8,9 +8,9 @@ defmodule Autolaunch.TreasurySecurity do
   """
 
   alias Autolaunch.Actors.{Human, System}
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Repo
   alias Autolaunch.{TreasuryChainClient, TreasurySecurityReport}
+  alias RegentChain.Address
 
   @chain_id 8453
   @zero "0x0000000000000000000000000000000000000000"

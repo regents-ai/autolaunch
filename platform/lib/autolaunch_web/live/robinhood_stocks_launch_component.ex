@@ -3,31 +3,26 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   The wallet step of a memestock pair launch on Robinhood: one review, then the
   one launch transaction. There is no launch fee.
 
-  The wallet the customer signed in with, read from the mounted lease, drives
-  everything here. A press opens that wallet, or Privy's connect step when this
-  tab has not connected it, and a note names both wallets while the browser is on
-  another one. Nothing is stored: the
-  review lives on this page only, the browser reports a hash and stops, and
-  every outcome on screen is the server's own read of that hash. A wallet's
-  launches are the launchpad's own records.
+  The review, the step and its outcomes follow `AutolaunchWeb.LaunchSteps`.
+  Nothing is stored while a launch is on its way: the review lives on this
+  page only. A confirmed launch is read back from the launchpad's own records,
+  and the list under the card is the launchpad's launches for the wallet that
+  may act, or the signed-in one until Privy reports its active wallet.
   """
 
   use AutolaunchWeb, :live_component
 
-  import AutolaunchWeb.Components.StepState
-
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
-  alias AutolaunchWeb.{Paths, SignedInWallet}
+  alias AutolaunchWeb.{LaunchSteps, OnchainSteps, Paths}
+  alias RegentChain.Address
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
-    invalid_address:
-      "You are now signed in with a different wallet. Reload the page to continue.",
+    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
+    invalid_address: "Connect your wallet, then press again.",
     chain_unavailable: "Robinhood could not be read just now. Try again in a moment.",
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
     robinhood_unavailable: "Robinhood launches are not open on this site.",
@@ -41,45 +36,41 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       "The required raise must be more than zero, in an amount this stock token can represent. Check it on the draft.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     launch_draft_not_found: "This draft is no longer available.",
-    launch_draft_unavailable: "This draft could not be read just now.",
-    envelope_invalid: "This review is out of date. Review the launch again.",
-    invalid_hash: "That transaction could not be read. Check your wallet activity."
+    launch_draft_unavailable: "This draft could not be read just now."
   }
 
   @generic "That did not go through. Try again in a moment."
-  @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
-  @steps %{"launch" => :launch}
+
+  @impl true
+  def mount(socket),
+    do: {:ok, socket |> LaunchSteps.init() |> assign(launches: [], listed_for: nil)}
 
   @impl true
   def update(assigns, socket) do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign_new(:wallet, fn -> nil end)
-     |> assign_new(:browser_wallets, fn -> [] end)
-     |> assign_new(:notice, fn -> nil end)
-     |> assign_new(:review, fn -> nil end)
-     |> assign_new(:sent, fn -> %{} end)
-     |> assign_new(:launches, fn -> [] end)
-     |> SignedInWallet.adopt(&adopt/2)}
+     |> OnchainSteps.adopt()
+     |> LaunchSteps.followed()
+     |> listed()}
   end
 
   @impl true
   def render(assigns) do
-    ~H"""
-    <section id={@id} class="launch-wallet" phx-hook="AutolaunchReviewedSteps" phx-target={@myself}>
-      <p
-        :if={@notice}
-        class="launch-wallet-notice"
-        role={if @notice.tone == :error, do: "alert", else: "status"}
-      >
-        {@notice.message}
-      </p>
+    assigns = assign(assigns, steps: LaunchSteps.steps(assigns))
 
-      <div :if={@wallet && !@review} class="launch-wallet-open">
+    ~H"""
+    <section id={@id} class="launch-wallet" phx-hook="OnchainSteps">
+      <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
+
+      <div :if={!@review} class="launch-wallet-open">
         <p class="launch-wallet-hint">
-          Launching from {RegentFormat.short_address(@wallet)}. Your wallet confirms every step.
+          Your wallet confirms the launch. You see every value before anything is sent.
         </p>
+        <p class="launch-wallet-from" hidden={!@signer}>
+          Launching from <code>{RegentFormat.short_address(@signer)}</code>
+        </p>
+        <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
         <Regent.Primitives.button
           class="launch-wallet-primary"
           type="button"
@@ -91,7 +82,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       </div>
 
       <section
-        :if={@wallet && @review}
+        :if={@review}
         id={"#{@id}-review"}
         class="launch-wallet-review"
         aria-label="Launch review"
@@ -100,30 +91,26 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         <dl>
           <div>
             <dt>Token</dt>
-            <dd>{argument(@review, "name")} · {argument(@review, "symbol")}</dd>
+            <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
           </div>
           <div>
             <dt>Auction currency</dt>
             <dd>
-              {argument(@review, "stock_symbol")}
-              <span class="launch-wallet-mono">{argument(@review, "stock")}</span>
+              {@prepared.facts["stock_symbol"]}
+              <span class="launch-wallet-mono">{@prepared.facts["stock"]}</span>
             </dd>
           </div>
-          <div :for={[label, value] <- @review.review}>
+          <div :for={[label, value] <- @prepared.review}>
             <dt>{label}</dt>
             <dd>{value}</dd>
           </div>
           <div>
             <dt>Wallet</dt>
-            <dd class="launch-wallet-mono">
-              {RegentFormat.short_address(@review.envelope["expected_signer"])}
-            </dd>
+            <dd class="launch-wallet-mono">{RegentFormat.short_address(@review.signer)}</dd>
           </div>
           <div>
             <dt>Network</dt>
-            <dd>
-              {Lab.network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
-            </dd>
+            <dd>{@review.chain.name} · chain {@review.chain.chain_id}</dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -131,41 +118,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           </div>
         </dl>
 
-        <p class="launch-wallet-risk">{@review.envelope["risk_copy"]}</p>
-
-        <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
-          <li :for={step <- @review.steps} data-step={step["step"]}>
-            <span>{step_label(step["step"])}</span>
-            <.step_state state={step_word(@sent[step["step"]])} />
-            <span
-              :if={@sent[step["step"]]}
-              class="launch-wallet-mono"
-              data-local-transaction-hash
-            >
-              {RegentFormat.short_hash(@sent[step["step"]].hash)}
-            </span>
-          </li>
-        </ol>
-
-        <section :if={launched(@sent)} class="launch-wallet-settled" role="status">
-          <p>
-            The launch was created and its record was verified.
-            <span :if={Lab.test_chain?(@review.envelope["chain_id"])}>Test assets have no real value.</span>
-          </p>
-          <p>
-            Launch #{launched(@sent)["launch_id"]} · Token
-            <span class="launch-wallet-mono">{launched(@sent)["new_token"]}</span>
-            · Auction <span class="launch-wallet-mono">{launched(@sent)["auction"]}</span>
-          </p>
-          <p>
-            Bidding opens at block {launched(@sent)["start_block"]} and ends at block {launched(@sent)[
-              "end_block"
-            ]}.
-          </p>
-          <p :if={page = launch_page(@launches, launched(@sent)["auction"])}>
-            <.link navigate={page}>Open the auction page</.link>
-          </p>
-        </section>
+        <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
 
         <Regent.Primitives.disclosure
           id={"#{@id}-terms"}
@@ -173,7 +126,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           class="launch-wallet-details"
         >
           <dl>
-            <div :for={[label, value] <- argument(@review, "terms")}>
+            <div :for={[label, value] <- @prepared.facts["terms"]}>
               <dt>{label}</dt>
               <dd>{value}</dd>
             </div>
@@ -186,49 +139,38 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           class="launch-wallet-details"
         >
           <dl>
-            <div :for={{label, value} <- exact_values(@review)}>
+            <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
               <dt>{label}</dt>
               <dd class="launch-wallet-mono">{value}</dd>
             </div>
           </dl>
         </Regent.Primitives.disclosure>
 
-        <SignedInWallet.note
-          :if={!launched(@sent)}
-          signed_in={@wallet}
-          browser={@browser_wallets}
+        <LaunchSteps.progress
+          steps={@steps}
+          review={@review}
+          mismatch={@mismatch}
+          press_note={@press_note}
+          target={@myself}
         />
-        <div class="launch-wallet-controls">
-          <Regent.Primitives.button
-            :for={step <- @review.steps}
-            :if={!launched(@sent)}
-            type="button"
-            data-reviewed-step={step["step"]}
-            variant={
-              if step["step"] == next_step(@review.steps, @sent), do: "primary", else: "secondary"
-            }
-          >
-            {step_label(step["step"])}
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :for={{name, %{outcome: :pending}} <- @sent}
-            type="button"
-            phx-click="check_step"
-            phx-value-step={name}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Check again
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            type="button"
-            phx-click="clear_review"
-            phx-target={@myself}
-            variant="secondary"
-          >
-            {if launched(@sent), do: "Done", else: "Start over"}
-          </Regent.Primitives.button>
-        </div>
+      </section>
+
+      <section :if={@launched} class="launch-wallet-settled" role="status">
+        <p>
+          The launch was created and its record was read back from the launchpad.
+          <span :if={Lab.test_chain?()}>Test assets have no real value.</span>
+        </p>
+        <p>
+          Launch #{@launched["launch_id"]} · Token
+          <span class="launch-wallet-mono">{@launched["new_token"]}</span>
+          · Auction <span class="launch-wallet-mono">{@launched["auction"]}</span>
+        </p>
+        <p>
+          Bidding opens at block {@launched["start_block"]} and ends at block {@launched["end_block"]}.
+        </p>
+        <p :if={page = launch_page(@launches, @launched["auction"])}>
+          <.link navigate={page}>Open the auction page</.link>
+        </p>
       </section>
 
       <section :if={@launches != []} class="launch-wallet-settled" aria-label="Your launches">
@@ -250,115 +192,94 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   end
 
   @impl true
-  # The wallets this tab has connected, whenever they change: only for the note.
-  def handle_event("browser_wallets", params, socket),
-    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> LaunchSteps.activated(params) |> listed()}
 
-  def handle_event("review_launch", _params, socket) do
-    case StocksLaunchActions.prepare(socket.assigns.draft.id, socket.assigns.wallet, opts(socket)) do
-      {:ok, review} ->
-        {:noreply, socket |> assign(review: review, sent: %{}, notice: nil) |> published()}
+  def handle_event("review_launch", _params, socket),
+    do: {:noreply, LaunchSteps.review(socket, &prepare(socket, &1))}
 
-      {:error, error} ->
-        {:noreply, assign(socket, notice: notice(:error, refusal(error)))}
-    end
-  end
+  def handle_event("step_sent", params, socket),
+    do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("step_sent", %{"step" => name, "transaction_hash" => hash}, socket)
-      when is_map_key(@steps, name) and is_binary(hash),
-      do: {:noreply, checked(socket, name, hash)}
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, LaunchSteps.failed(socket, params, :robinhood_launch)}
 
-  def handle_event("check_step", %{"step" => name}, socket) do
-    case socket.assigns.sent[name] do
-      %{hash: hash} -> {:noreply, checked(socket, name, hash)}
-      nil -> {:noreply, socket}
-    end
-  end
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
-  def handle_event("step_failed", %{"reason" => reason}, socket) do
-    AutolaunchWeb.Telemetry.wallet_failed(:robinhood_launch, reason)
-    {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
-  end
+  def handle_event("cancel_review", _params, socket),
+    do: {:noreply, LaunchSteps.withdrawn(socket)}
 
-  def handle_event("clear_review", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(review: nil, sent: %{}, notice: nil)
-     |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})}
-  end
+  def handle_event("clear_launch", _params, socket),
+    do: {:noreply, socket |> assign(launched: nil) |> LaunchSteps.withdrawn()}
 
-  def handle_event(_other, _params, socket), do: {:noreply, socket}
+  @impl true
+  def handle_async({:onchain_step, hash}, result, socket),
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
 
-  # The server reads the reported hash itself; the browser's word is only the hash.
-  defp checked(%{assigns: %{review: %{envelope: envelope}}} = socket, name, hash) do
-    case StocksLaunchActions.verify(envelope, Map.fetch!(@steps, name), hash, opts(socket)) do
-      {:ok, %{outcome: outcome} = read} ->
-        entry = %{hash: hash, outcome: outcome, result: Map.get(read, :result)}
-
+  def handle_async(
+        {:launch, _hash},
+        {:ok, {:ok, %{outcome: :confirmed, result: result}}},
         socket
-        |> assign(
-          sent: Map.put(socket.assigns.sent, name, entry),
-          notice: outcome_notice(outcome)
-        )
-        |> listed(outcome)
+      ),
+      do: {:noreply, socket |> assign(launched: result) |> assign(listed_for: nil) |> listed()}
 
-      {:error, error} ->
-        assign(socket, notice: notice(:error, refusal(error)))
+  def handle_async({:launch, _hash}, _unread, socket),
+    do:
+      {:noreply,
+       assign(socket,
+         notice:
+           "Your launch is confirmed. Its record could not be read back just now; it appears in your launches below shortly."
+       )}
+
+  def handle_async(:launches, {:ok, {wallet, {:ok, %{launches: launches}}}}, socket) do
+    if wallet == shown_wallet(socket.assigns),
+      do: {:noreply, assign(socket, launches: with_pages(launches))},
+      else: {:noreply, socket}
+  end
+
+  def handle_async(:launches, _unread, socket), do: {:noreply, socket}
+
+  defp prepare(socket, signer) do
+    case StocksLaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do
+      {:ok, prepared} -> {:ok, prepared}
+      {:error, error} -> {:error, Map.get(@copy, refusal(error), @generic)}
     end
   end
 
-  defp checked(socket, _name, _hash), do: socket
-
-  defp listed(socket, :confirmed), do: with_launches(socket)
-  defp listed(socket, _outcome), do: socket
-
-  defp published(%{assigns: %{review: %{envelope: envelope, steps: steps}}} = socket) do
-    push_event(socket, "reviewed-steps:review", %{
-      component_id: socket.assigns.id,
-      signer: envelope["expected_signer"],
-      chain_id: envelope["chain_id"],
-      lab: envelope["metadata"]["lab"],
-      lab_anchor: %{
-        block_number: envelope["arguments"]["block_number"],
-        block_hash: envelope["arguments"]["block_hash"]
-      },
-      steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"]))
-    })
-  end
-
-  defp adopt(socket, nil), do: assign(socket, wallet: nil, notice: nil)
-
-  defp adopt(socket, address) do
-    case StocksLaunchActions.launches(address, opts(socket)) do
-      {:ok, %{launches: launches}} ->
+  # A confirmed launch is read back from the launchpad against the review it
+  # was sent from.
+  defp confirmed(socket, %{hash: hash} = entry) do
+    case LaunchSteps.prepared(socket, entry) do
+      nil ->
         socket
-        |> assign(wallet: String.downcase(address), launches: with_pages(launches), notice: nil)
-        |> reviewed_for_wallet()
 
-      {:error, error} ->
-        refused(socket, address, refusal(error))
+      prepared ->
+        start_async(socket, {:launch, hash}, fn ->
+          StocksLaunchActions.confirmed(prepared, hash)
+        end)
     end
   end
 
-  # A review belongs to the wallet it was prepared for; signing in with another
-  # wallet starts clean.
-  defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
-    if String.downcase(envelope["expected_signer"]) == wallet,
-      do: socket,
-      else:
-        socket
-        |> assign(review: nil, sent: %{})
-        |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
-  end
+  # The launchpad's launches for the wallet shown, read in the background
+  # whenever that wallet changes or a launch is confirmed.
+  defp listed(socket) do
+    wallet = shown_wallet(socket.assigns)
 
-  defp reviewed_for_wallet(socket), do: socket
+    if is_nil(wallet) or wallet == socket.assigns.listed_for do
+      socket
+    else
+      opts = opts(socket)
 
-  defp with_launches(socket) do
-    case StocksLaunchActions.launches(socket.assigns.wallet, opts(socket)) do
-      {:ok, %{launches: launches}} -> assign(socket, launches: with_pages(launches))
-      {:error, _unavailable} -> socket
+      socket
+      |> assign(listed_for: wallet)
+      |> start_async(:launches, fn -> {wallet, StocksLaunchActions.launches(wallet, opts)} end)
     end
   end
+
+  defp shown_wallet(%{signer: signer}) when is_binary(signer), do: signer
+  defp shown_wallet(%{active: nil, signed_in: signed_in}), do: signed_in
+  defp shown_wallet(_assigns), do: nil
 
   # Each launch links to its auction's page once the site lists the auction.
   defp with_pages(launches),
@@ -368,19 +289,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     Enum.find_value(launches, &(Address.equal?(&1["auction"], auction) && &1["page"]))
   end
 
-  # A wallet the session no longer vouches for is not adopted at all; the
-  # signed-in one stays on screen with the reason.
-  defp refused(socket, _address, reason) when reason in @unheld,
-    do: assign(socket, wallet: nil, review: nil, sent: %{}, notice: notice(:error, reason))
-
-  defp refused(socket, address, reason),
-    do:
-      assign(socket,
-        wallet: String.downcase(address),
-        notice: notice(:info, reason),
-        signed_in_for: nil
-      )
-
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
 
@@ -389,82 +297,25 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp actor(_socket), do: nil
 
-  defp launched(sent) do
-    case sent["launch"] do
-      %{outcome: :confirmed, result: result} -> result
-      _other -> nil
-    end
-  end
-
-  defp next_step(steps, sent) do
-    Enum.find_value(steps, fn %{"step" => name} ->
-      if match?(%{outcome: :confirmed}, sent[name]), do: nil, else: name
-    end)
-  end
-
-  defp step_label("launch"), do: "Create the launch"
-
-  defp step_word(nil), do: "Ready"
-  defp step_word(%{outcome: :pending}), do: "Sent"
-  defp step_word(%{outcome: :confirmed}), do: "Verified"
-  defp step_word(%{outcome: :reverted}), do: "Reverted"
-  defp step_word(%{outcome: :unverified}), do: "Unresolved"
-
-  defp outcome_notice(:pending),
-    do: %{tone: :info, message: "Sent. Waiting for Robinhood to include it."}
-
-  defp outcome_notice(:confirmed), do: nil
-
-  defp outcome_notice(:reverted),
-    do: %{tone: :error, message: "That transaction reverted. Nothing was created."}
-
-  defp outcome_notice(:unverified),
-    do: %{tone: :error, message: "That transaction did not record the step you reviewed."}
-
   defp lifecycle("active"), do: "Active"
   defp lifecycle("graduated"), do: "Graduated"
   defp lifecycle("failed"), do: "Required raise not reached"
   defp lifecycle("none"), do: "Not started"
 
-  defp exact_values(review) do
+  defp exact_values(facts, review) do
     [
-      {"Launchpad", argument(review, "launchpad")},
-      {"Stock route", argument(review, "route")},
-      {"Stock decimals", argument(review, "stock_decimals")},
-      {"Required raise (stock base units)", argument(review, "required_stock_raised")},
-      {"Floor price (Q96)", argument(review, "floor_price_q96")},
-      {"Bid tick spacing (Q96)", argument(review, "tick_spacing_q96")},
-      {"Bidding opens (blocks after creation)", argument(review, "start_lead_blocks")},
-      {"Auction length (blocks)", argument(review, "auction_duration_blocks")},
-      {"Reviewed block",
-       "#{argument(review, "block_number")} · #{argument(review, "block_hash")}"},
-      {"Calldata digest", review.envelope["metadata"]["calldata_sha256"]}
+      {"Launchpad", facts["launchpad"]},
+      {"Stock route", facts["route"]},
+      {"Stock decimals", facts["stock_decimals"]},
+      {"Required raise (stock base units)", facts["required_stock_raised"]},
+      {"Floor price (Q96)", facts["floor_price_q96"]},
+      {"Bid tick spacing (Q96)", facts["tick_spacing_q96"]},
+      {"Bidding opens (blocks after creation)", facts["start_lead_blocks"]},
+      {"Auction length (blocks)", facts["auction_duration_blocks"]},
+      {"Reviewed block", "#{facts["block_number"]} · #{facts["block_hash"]}"},
+      {"Calldata digest", LaunchSteps.digest(review)}
     ]
   end
-
-  defp wallet_failure_copy("wallet_unavailable"),
-    do:
-      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
-
-  defp wallet_failure_copy("network_mismatch"),
-    do:
-      "Your wallet is connected to a different network under the reviewed chain number. Check the network settings in your wallet, then try again. Nothing was sent."
-
-  defp wallet_failure_copy("wrong_account"),
-    do:
-      "Nothing was sent. Your wallet is on a different account from the one you signed in with. Switch it to the signed-in account, then press again."
-
-  defp wallet_failure_copy("switch_declined"),
-    do: "Your wallet did not switch networks. Nothing was sent."
-
-  defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
-
-  defp wallet_failure_copy("send_unconfirmed"),
-    do: "Your wallet may have sent this transaction. Check your wallet activity."
-
-  defp wallet_failure_copy(_unknown), do: @generic
-
-  defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
   defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
@@ -473,6 +324,4 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
-
-  defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
 end

@@ -32,8 +32,7 @@ import {
 } from "./auth_lazy"
 import {
   eligibleActiveWallet,
-  replaceConnectedEthereumWallets,
-  replaceSelectedEthereumAddress,
+  replaceActiveEthereumWallet,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
 
@@ -669,42 +668,33 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     void completeAutomaticLogin().catch(() => undefined)
   }, [authenticated, completeAutomaticLogin, ready, signOutOnly])
 
-  // The active selection is published alongside the connected set and depends on
-  // it, so a selection change with an unchanged wallets array still runs this and
-  // still announces `autolaunch:wallet-state`.
+  // The active selection depends on the connected set, so a selection change
+  // with an unchanged wallets array still runs this and still announces
+  // `autolaunch:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
     if (!isAvailable()) return
     const generation = ++walletSyncGeneration.current
-    const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase() ?? null
+    const selected = eligibleActiveWallet(activeWallet, wallets)
 
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (!isAvailable() || walletSyncGeneration.current !== generation) return
-      replaceConnectedEthereumWallets([])
-      replaceSelectedEthereumAddress(null)
+      replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
       return
     }
 
-    // Each connected wallet's provider is resolved once, and the selection is
-    // taken from those resolved entries. A wallet whose provider does not
-    // resolve is not a wallet here, so a failed selection leaves no selected
-    // address rather than the previous one.
-    const resolved = await Promise.allSettled(
-      wallets.map(
-        async wallet =>
-          [
-            wallet.address.toLowerCase(),
-            (await wallet.getEthereumProvider()) as EthereumProvider,
-          ] as const,
-      ),
-    )
+    // The selected wallet's provider is resolved once. A selection whose
+    // provider does not resolve is no wallet here, never the previous one.
+    const connected = selected
+      ? wallets.find(wallet => wallet.address.toLowerCase() === selected.address.toLowerCase())
+      : undefined
+    const provider = connected
+      ? ((await connected.getEthereumProvider().catch(() => null)) as EthereumProvider | null)
+      : null
     if (!isAvailable() || walletSyncGeneration.current !== generation) return
 
-    const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
-    const active = entries.find(([address]) => address === selected)
-    replaceConnectedEthereumWallets(entries)
-    replaceSelectedEthereumAddress(active ? active[0] : null)
-    showWalletBadge(active ? eligibleActiveWallet(activeWallet, wallets)?.meta : undefined)
+    replaceActiveEthereumWallet(selected && provider ? {address: selected.address, provider} : null)
+    showWalletBadge(selected && provider ? selected.meta : undefined)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
   }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady, isAvailable])
 
@@ -716,8 +706,8 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     }
   }, [signOutOnly, synchronizeWallets])
 
-  // A press whose signed-in wallet is not connected in this tab opens Privy's own
-  // chooser. Nothing here picks a wallet: the customer connects one.
+  // A press with no active wallet in this tab opens Privy's own chooser.
+  // Nothing here picks a wallet: the customer connects one.
   React.useEffect(() => {
     const openChooser = () => void Promise.resolve(connectActiveWallet()).catch(() => undefined)
     window.addEventListener("autolaunch:wallet-connect", openChooser)
@@ -854,8 +844,7 @@ export function startPrivyBridge(
       currentIdentityHandler = null
       currentProfileHandler = null
       currentFinishSignOutOnly = null
-      replaceConnectedEthereumWallets([])
-      replaceSelectedEthereumAddress(null)
+      replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
       // React forbids unmounting from inside the render that just failed, so
       // the tree is torn down properly on a later turn.

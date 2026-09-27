@@ -120,9 +120,6 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, request_reads(socket)}
 
-  def handle_info({:stake_claimed_tokens, path}, socket),
-    do: {:noreply, push_navigate(socket, to: path)}
-
   # A swap confirmed, so the wallets hold something else now.
   def handle_info(:reload_pool, socket), do: {:noreply, request_reads(socket)}
 

@@ -4,6 +4,7 @@ defmodule Autolaunch.BidActionsTest do
   import Autolaunch.BidFixture
 
   alias Autolaunch
+  alias Autolaunch.BidActions
 
   @q96 79_228_162_514_264_337_593_543_950_336
   @other "0x2222222222222222222222222222222222222222"
@@ -15,7 +16,7 @@ defmodule Autolaunch.BidActionsTest do
        %{auction: auction, wallet: wallet, opts: opts} do
     install(currency: @other)
 
-    assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
+    assert {:error, error} = prepare(auction.id, wallet, "12.5", "3", opts)
     assert refusal(error) == :auction_currency_changed
 
     assert {:error, error} = Autolaunch.bid_position(auction.id, wallet, opts)
@@ -31,36 +32,22 @@ defmodule Autolaunch.BidActionsTest do
     assert {:error, error} = Autolaunch.bid_position(auction.id, @other, opts)
     assert refusal(error) == :wrong_signer
 
-    assert {:error, error} = Autolaunch.prepare_bid(auction.id, @other, "1", "3", opts)
+    assert {:error, error} = prepare(auction.id, @other, "1", "3", opts)
     assert refusal(error) == :wrong_signer
   end
 
-  test "TREASURY_DRIFT_REFUSES_EVERY_PRESS_OF_THE_REVIEW", %{
+  test "TREASURY_DRIFT_ENDS_EVERY_NEW_REVIEW", %{
     auction: auction,
     wallet: wallet,
     opts: opts
   } do
     install()
 
-    assert {:ok, %{operation: operation}} =
-             Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts)
+    assert {:ok, %{steps: _steps}} = prepare(auction.id, wallet, "1", "3", opts)
 
-    Autolaunch.TestAutolaunchTreasuryChainClient.install(
-      block_number: 30_000_001,
-      block_hash: "0x" <> String.duplicate("ef", 32),
-      threshold: 1
-    )
+    Autolaunch.TestAutolaunchTreasuryChainClient.install(threshold: 1)
 
-    assert {:error, error} =
-             Autolaunch.dispatch_wallet_press(
-               :bid,
-               operation.action_id,
-               Atom.to_string(operation.step),
-               Ecto.UUID.generate(),
-               wallet,
-               opts
-             )
-
+    assert {:error, error} = prepare(auction.id, wallet, "1", "3", opts)
     assert refusal(error) == :treasury_security_changed
   end
 
@@ -74,10 +61,10 @@ defmodule Autolaunch.BidActionsTest do
              Autolaunch.LabProjection.project_launch(
                %{
                  human_account_id: account.id,
-                 envelope: %{
-                   "chain_id" => 8453,
-                   "expected_signer" => wallet,
-                   "arguments" => %{
+                 review: %{
+                   "chain" => %{"chain_id" => 8453},
+                   "signer" => wallet,
+                   "facts" => %{
                      "name" => "Base launch",
                      "symbol" => "BASE",
                      "required_regent_raised_atomic" => "1000",
@@ -105,8 +92,7 @@ defmodule Autolaunch.BidActionsTest do
 
     assert launched.treasury_security_report_id == report.id
 
-    assert {:ok, %{operation: _operation}} =
-             Autolaunch.prepare_bid(launched.id, wallet, "1", "3", opts)
+    assert {:ok, %{steps: _steps}} = prepare(launched.id, wallet, "1", "3", opts)
   end
 
   test "a Base Memestake auction is bid on against the launchpad its deployment admits, and no other",
@@ -117,13 +103,10 @@ defmodule Autolaunch.BidActionsTest do
 
     admitted = memestake_auction!("0x5555555555555555555555555555555555555555", launchpad)
 
-    assert {:ok, %{operation: operation}} =
-             Autolaunch.prepare_bid(admitted.id, wallet, "1", "3", opts)
-
-    assert operation.envelope["arguments"]["treasury_security"]["address"] == launchpad
+    assert {:ok, %{steps: _steps}} = prepare(admitted.id, wallet, "1", "3", opts)
 
     elsewhere = memestake_auction!("0x6666666666666666666666666666666666666666", @other)
-    assert {:error, error} = Autolaunch.prepare_bid(elsewhere.id, wallet, "1", "3", opts)
+    assert {:error, error} = prepare(elsewhere.id, wallet, "1", "3", opts)
     assert refusal(error) == :treasury_security_changed
   end
 
@@ -132,27 +115,25 @@ defmodule Autolaunch.BidActionsTest do
     install(prev_tick_price_q96: div(@q96, 4))
 
     for invalid <- ["0", "-1", "garbage", "1e3", "1.", ".5", "1.0000000000000000001"] do
-      assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, invalid, "3", opts)
+      assert {:error, error} = prepare(auction.id, wallet, invalid, "3", opts)
       assert refusal(error) == :invalid_amount
     end
 
     for invalid <- ["0", "-1", "garbage", "1e3"] do
-      assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "1", invalid, opts)
+      assert {:error, error} = prepare(auction.id, wallet, "1", invalid, opts)
       assert refusal(error) == :invalid_decimal
     end
 
-    # An empty field is refused by the action's own required argument, before
-    # any amount language is consulted.
-    assert {:error, _required} = Autolaunch.prepare_bid(auction.id, wallet, "", "3", opts)
-    assert {:error, _required} = Autolaunch.prepare_bid(auction.id, wallet, "1", "", opts)
+    assert {:error, error} = prepare(auction.id, wallet, "", "3", opts)
+    assert refusal(error) == :invalid_amount
+    assert {:error, error} = prepare(auction.id, wallet, "1", "", opts)
+    assert refusal(error) == :invalid_decimal
 
-    assert {:ok, %{operation: half}} =
-             Autolaunch.prepare_bid(auction.id, wallet, "1", "0.5", opts)
-
-    assert half.envelope["arguments"]["max_price_q96"] == Integer.to_string(div(@q96, 2))
+    assert {:ok, %{context: half}} = prepare(auction.id, wallet, "1", "0.5", opts)
+    assert half.max_price_q96 == div(@q96, 2)
 
     assert {:error, error} =
-             Autolaunch.prepare_bid(auction.id, wallet, "1", tiny_price(), opts)
+             prepare(auction.id, wallet, "1", tiny_price(), opts)
 
     assert refusal(error) == :invalid_price
   end
@@ -171,18 +152,16 @@ defmodule Autolaunch.BidActionsTest do
           {"0.004", 316_912_650_057_057_350_374_175_600},
           {"0.002", 158_456_325_028_528_675_187_087_800}
         ] do
-      assert {:ok, %{operation: op}} =
-               Autolaunch.prepare_bid(ctx.auction.id, ctx.wallet, "1", requested, ctx.opts)
+      assert {:ok, %{steps: steps, facts: facts, context: context}} =
+               prepare(ctx.auction.id, ctx.wallet, "1", requested, ctx.opts)
 
-      args = op.envelope["arguments"]
-      assert args["requested_max_price"] == requested
-      assert args["max_price_q96"] == Integer.to_string(expected)
+      assert context.max_price_q96 == expected
       assert rem(expected, spacing) == 0
 
-      assert Decimal.compare(Decimal.new(args["max_price"], max_digits: :infinity), requested) ==
+      assert Decimal.compare(Decimal.new(facts.max_price, max_digits: :infinity), requested) ==
                :lt
 
-      assert op.envelope["data"] ==
+      assert Enum.find(steps, &(&1.step == "bid")).data ==
                Autolaunch.LabAbi.encode(
                  Autolaunch.Lab.abi!(Autolaunch.Lab.current!(), :auction),
                  "submitBid(uint256,uint128,address,uint256,bytes)",
@@ -191,7 +170,7 @@ defmodule Autolaunch.BidActionsTest do
     end
 
     assert {:error, error} =
-             Autolaunch.prepare_bid(ctx.auction.id, ctx.wallet, "1", "0.000001", ctx.opts)
+             prepare(ctx.auction.id, ctx.wallet, "1", "0.000001", ctx.opts)
 
     assert refusal(error) == :price_below_admissible_tick
   end
@@ -222,17 +201,25 @@ defmodule Autolaunch.BidActionsTest do
 
     assert {:error, _} = Autolaunch.BidPrice.align(Integer.pow(2, 256), limits)
     assert {:error, _} = Autolaunch.BidPrice.align(40, %{limits | tick_spacing_q96: 0})
-    assert {:error, _} = Autolaunch.BidActions.price_q96(String.duplicate("9", 100), 18)
+    assert {:error, _} = BidActions.price_q96(String.duplicate("9", 100), 18)
     exact = Autolaunch.BidPrice.decimal(30, 18)
-    assert {:ok, 30} = Autolaunch.BidActions.price_q96(exact, 18)
+    assert {:ok, 30} = BidActions.price_q96(exact, 18)
 
     assert {:ok, 29} =
-             Autolaunch.BidActions.price_q96(
+             BidActions.price_q96(
                Decimal.new(1, 30 * Integer.pow(5, 96) - 1, -96)
                |> Decimal.to_string(:normal),
                18
              )
   end
+
+  defp prepare(auction_id, wallet, amount, max_price, opts),
+    do:
+      BidActions.prepare(
+        %{auction_id: auction_id, amount: amount, max_price: max_price},
+        wallet,
+        opts
+      )
 
   defp memestake_auction!(address, launchpad) do
     %{

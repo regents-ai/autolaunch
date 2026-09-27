@@ -2,11 +2,13 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @moduledoc """
   The one boundary between a creator's wallet and the Stocks launchpad.
 
-  Preparation reads the fork once and writes the whole reviewed sequence as a
-  single immutable envelope: the one `launch(LaunchParams)` call. Every durable
-  write after that runs inside `SessionAuthority.transact_lease/3` against the
-  account that callback locked. Wallet presses of the review are
-  `Autolaunch.WalletAttempts`; this module only supplies their evidence.
+  Preparation reads the chain once and saves the review
+  (`Autolaunch.Stocks.LaunchOperation`): the one `launch(LaunchParams)` step for
+  the wallet that may act, and the facts the page shows. The page sends that
+  step as it stands; nothing about a press is stored, and
+  `Autolaunch.LaunchReviews` lists the launch from the chain. The row write runs
+  inside `SessionAuthority.transact_lease/3` against the account that callback
+  locked.
 
   The review derives the executable values from the saved draft and the chain:
   the required raise the creator entered, in the admitted STOCK's base units,
@@ -18,9 +20,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Address, Envelope, Rpc}
+  alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias RegentChain.{Address, Review}
 
   alias Autolaunch.Stocks.{
     Amounts,
@@ -31,10 +34,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
     LaunchDraft,
     LaunchOperations
   }
-
-  @resource "autolaunch_stocks_launch"
-  @action "autolaunch_stocks_launch"
-  @contract_name "StocksLaunchpadV1"
 
   # Preset terms the review states back, from contracts/stocks/README.md.
   @new_decimals 18
@@ -49,11 +48,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
 
   @withdrawn "review withdrawn"
-  @lapsed "the reviewed launch expired before it was sent"
-  @unresolved "account started a new launch while this one was unresolved"
-  @paused "launches were paused after this review"
-  @moved "the reviewed launchpad binding changed"
-  @revoked "this stock token is no longer admitted"
 
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
@@ -89,80 +83,61 @@ defmodule Autolaunch.Stocks.LaunchActions do
   def start_lead_blocks, do: @start_lead_blocks
   def auction_duration_blocks, do: @auction_duration_blocks
 
-  @spec wallet_state(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def wallet_state(address, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, opts),
-         do: {:ok, %{signer: signer}}
-  end
-
-  @doc "Reviews one saved draft: one snapshot, one immutable envelope, one operation."
+  @doc """
+  Reviews one saved draft for `address`, one of the account's own wallets: one
+  snapshot, one saved review. The result carries the review's chain, its one
+  step and the facts the page shows.
+  """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
     with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, opts),
+         {:ok, signer} <- normalize(address),
          {:ok, lease} <- lease(opts),
          {:ok, account} <- leased(lease),
          :ok <- same_account(actor, account),
+         :ok <- LaunchOperations.signer_matches(account, signer),
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- stocks_lab(),
          {:ok, snapshot} <- snapshot(fields),
          {:ok, executable} <- executable(fields, snapshot, config),
-         {:ok, operation} <-
-           open(lease, draft, signer, review(draft, fields, executable, signer, snapshot, config)) do
-      {:ok, %{operation: operation}}
+         review <- review(draft, fields, executable, signer, snapshot, config),
+         {:ok, operation} <- open(lease, draft, signer, review) do
+      {:ok, reviewed(operation)}
     end
   end
 
-  def cancel(action_id, opts), do: write(action_id, opts, transition(:cancel, @withdrawn))
-
-  @doc "Ends a launch whose presses have not resolved, at the account's request; nothing is resent."
-  def start_new(action_id, opts),
-    do: write(action_id, opts, transition(:cancel, @unresolved))
-
-  @doc "The presenter's whole view of one operation."
-  def presented(nil), do: nil
-
-  def presented(operation) do
-    operation
-    |> Map.take([
-      :action_id,
-      :launch_draft_id,
-      :state,
-      :step,
-      :signer,
-      :envelope,
-      :result,
-      :reason,
-      :terminal_at
-    ])
-    |> Autolaunch.WalletAttempts.decorate(operation, :stocks_launch)
+  @doc "Withdraws one saved review the page is done with."
+  def cancel(action_id, opts) do
+    with {:ok, _actor} <- human(opts),
+         {:ok, lease} <- lease(opts),
+         do: transact(lease, &withdraw(&1, action_id))
   end
 
-  @doc "The reviewed sequence, in order, as the progress list renders it."
-  def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
+  defp withdraw(account, action_id) do
+    with {:ok, operation} <- LaunchOperations.fetch(account.id, action_id, true),
+         do: LaunchOperations.update(operation, :cancel, %{reason: @withdrawn})
+  end
 
-  def step_hash(operation, step) when step in [:launch, "launch"],
-    do: Map.get(operation, :launch_transaction_hash)
+  @doc "A saved review as the page uses it: its id, signer, chain, step and facts."
+  def reviewed(%{action_id: action_id, review: review}) do
+    %{"chain" => chain, "signer" => signer, "step" => step, "facts" => facts} = review
 
-  def step_hash(_operation, _unknown), do: nil
-
-  @doc "Read-only dispatch evidence for a wallet press, before any lock is taken."
-  def press_evidence(operation) do
-    with {:ok, fresh} <- snapshot(reviewed_fields(operation)),
-         true <- valid_envelope?(operation),
-         :ok <- still_reviewed(operation, fresh),
-         do: :ok,
-         else: (_ -> unavailable(:launch_step_moved))
+    %{
+      action_id: action_id,
+      signer: signer,
+      chain: %{chain_id: chain["chain_id"], name: chain["name"], rpc_url: chain["rpc_url"]},
+      steps: [Review.step(step["step"], step["to"], step["data"])],
+      facts: facts
+    }
   end
 
   # Executable values
 
   @doc """
   Everything the chain will execute, derived from the saved draft and the
-  admitted STOCK's decimals. Exposed so the review page and the envelope test
-  can state exactly the same numbers.
+  admitted STOCK's decimals. Exposed so the review page and its test can state
+  exactly the same numbers.
   """
   def executable(fields, snapshot, _config) do
     with :ok <- admitted(snapshot),
@@ -209,19 +184,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   # Reviews
 
+  # The saved review: fixed once written, and read back exactly as stored.
   defp review(draft, fields, executable, signer, snapshot, config) do
-    steps = reviewed_steps(fields, executable, snapshot, config)
-    data = steps |> List.last() |> Map.fetch!("data")
-
-    @action
-    |> Envelope.new(signer, data,
-      to: snapshot.launchpad,
-      resource: @resource,
-      contract_name: @contract_name,
-      chain_id: Lab.chain_id(),
-      lab_binding: snapshot.lab_binding,
-      risk_copy: risk_copy(),
-      arguments: %{
+    %{
+      "chain" => Client.chain(config),
+      "signer" => signer,
+      "step" =>
+        Review.step("launch", snapshot.launchpad, launch_data(fields, executable, config)),
+      "facts" => %{
         "draft_id" => draft.id,
         "name" => fields.name,
         "symbol" => fields.symbol,
@@ -251,21 +221,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "block_number" => snapshot.block.number,
         "block_hash" => snapshot.block.hash,
         "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
-        "steps" => steps
+        "risk" => risk_copy()
       }
-    )
-    |> stored()
-  end
-
-  @doc "The reviewed sequence: the one `launch` call."
-  def reviewed_steps(fields, executable, snapshot, config) do
-    [
-      %{
-        "step" => "launch",
-        "to" => snapshot.launchpad,
-        "data" => launch_data(fields, executable, config)
-      }
-    ]
+    }
+    |> Jason.encode!()
+    |> Jason.decode!()
   end
 
   @doc "The exact `launch(LaunchParams)` calldata for reviewed fields and executable values."
@@ -291,8 +251,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
       else:
         "Your wallet creates this launch on Base. There is no launch fee. A launch cannot be undone."
   end
-
-  defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 
   # Stored drafts
 
@@ -359,99 +317,25 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp reviewed_fields(operation), do: %{stock: argument(operation, "stock")}
+  # Saved reviews
 
-  # Operations
-
-  defp open(lease, draft, signer, envelope) do
+  defp open(lease, draft, signer, review) do
     transact(lease, fn account ->
-      with :ok <- LaunchOperations.signer_matches(account, signer),
-           {:ok, operation} <-
-             LaunchOperations.create(account, %{
-               action_id: envelope["action_id"],
-               launch_draft_id: draft.id,
-               envelope: envelope,
-               signer: signer,
-               step: :launch
-             }),
-           do: {:ok, presented(operation)}
+      with :ok <- LaunchOperations.signer_matches(account, signer) do
+        LaunchOperations.create(account, %{
+          action_id: action_id(),
+          launch_draft_id: draft.id,
+          review: review,
+          signer: signer,
+          step: :launch
+        })
+      end
     end)
   end
 
-  # Everything the review promised about the fork, checked against the fork's
-  # answer right now.
-  defp still_reviewed(operation, fresh) do
-    cond do
-      fresh.paused ->
-        {:changed, @paused}
-
-      not Address.equal?(fresh.launchpad, argument(operation, "launchpad")) ->
-        {:changed, @moved}
-
-      not fresh.admission.admitted ->
-        {:changed, @revoked}
-
-      Integer.to_string(fresh.admission.decimals) != argument(operation, "stock_decimals") ->
-        {:changed, @revoked}
-
-      true ->
-        :ok
-    end
-  end
-
-  defp valid_envelope?(operation) do
-    Envelope.valid?(operation.envelope,
-      resource: @resource,
-      action: @action,
-      signer: operation.signer,
-      to: argument(operation, "launchpad"),
-      contract_name: @contract_name,
-      chain_id: Lab.chain_id()
-    ) and
-      Lab.binding_matches?(
-        operation.envelope["metadata"]["lab"],
-        LabLaunchChainClient.binding_keys()
-      )
-  end
-
-  defp transition(action, reason),
-    do: fn _account, operation ->
-      LaunchOperations.update(operation, action, %{reason: reason})
-    end
-
-  defp expire_lapsed(%{state: :prepared, envelope: %{"expires_at" => expires_at}} = operation) do
-    {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
-
-    if DateTime.compare(expires_at, Envelope.current_time()) != :gt and
-         not Autolaunch.WalletAttempts.in_flight?(:stocks_launch, operation),
-       do: LaunchOperations.update(operation, :expire, %{reason: @lapsed}),
-       else: {:ok, operation}
-  end
-
-  defp expire_lapsed(operation), do: {:ok, operation}
-
-  # Durable write plumbing
-
-  defp write(action_id, opts, transition) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         do: transact(lease, &locked(&1, action_id, transition))
-  end
-
-  defp locked(account, action_id, transition) do
-    with {:ok, operation} <- operation(account.id, action_id, true),
-         {:ok, operation} <- expire_lapsed(operation),
-         {:ok, operation} <- resume(operation, account, transition),
-         do: {:ok, %{operation: presented(operation)}}
-  end
-
-  defp resume(%{state: :expired} = operation, _account, _transition), do: {:ok, operation}
-  defp resume(operation, account, transition), do: transition.(account, operation)
+  defp action_id, do: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
 
   defp transact(lease, callback), do: LaunchOperations.transact(lease, callback)
-
-  defp operation(account_id, action_id, lock?),
-    do: LaunchOperations.fetch(account_id, action_id, lock?)
 
   # Session and wallet identity
 
@@ -471,14 +355,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
       _absent ->
         unavailable(:session_lease_required)
     end
-  end
-
-  defp current_wallet(address, opts) do
-    with {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- LaunchOperations.signer_matches(account, signer),
-         do: {:ok, signer}
   end
 
   defp leased(%{lineage: lineage, account_id: account_id}) do
@@ -502,8 +378,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp refusable({:error, reason}), do: unavailable(reason)
   defp refusable(result), do: result
-
-  defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
 
   defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

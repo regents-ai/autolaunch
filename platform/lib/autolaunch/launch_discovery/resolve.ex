@@ -7,7 +7,7 @@ defmodule Autolaunch.LaunchDiscovery.Resolve do
 
   use Ash.Resource.Change
 
-  alias Autolaunch.WalletAttempts
+  alias Autolaunch.LaunchReviews
 
   @kinds %{base_revstake: :launch, base_memestake: :stocks_launch}
 
@@ -17,11 +17,11 @@ defmodule Autolaunch.LaunchDiscovery.Resolve do
   defp resolve(%{data: discovery} = changeset) do
     @kinds
     |> Map.fetch!(discovery.launchpad)
-    |> WalletAttempts.recover_launch(discovery)
+    |> LaunchReviews.recover(discovery)
     |> record(changeset)
   end
 
-  defp record({:listed, account_id}, changeset),
+  defp record({:listed, account_id, _result}, changeset),
     do:
       Ash.Changeset.force_change_attributes(changeset,
         state: :listed,

@@ -12,8 +12,8 @@ defmodule AutolaunchWeb.Paths do
   """
   use AutolaunchWeb, :verified_routes
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias RegentChain.Address
 
   @doc "The auction's page."
   def auction(auction), do: ~p"/auctions/#{symbol(auction)}/#{auction.path_tail}"

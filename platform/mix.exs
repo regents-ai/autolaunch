@@ -77,6 +77,7 @@ defmodule Autolaunch.MixProject do
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
       {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
+      {:regent_chain, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain"},
       {:mdex, "== 0.13.3"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},

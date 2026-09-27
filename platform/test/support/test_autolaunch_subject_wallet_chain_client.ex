@@ -1,9 +1,9 @@
 defmodule Autolaunch.TestAutolaunchSubjectWalletChainClient do
   @moduledoc """
-  A fixture-bound Base client for the clean-V1 subject wallet lane.
+  A fixture-bound Base client for the payment card.
 
   It is exactly what the plan permits and no more: a scripted set of bindings,
-  balances, stake, claimables, allowance and per-step outcomes, so the whole
+  balances, stake, claimables and allowance, so the whole
   product flow that follows a snapshot can be proved while the production client
   stays closed. It is never installed outside a test or the browser-proof server
   process, and nothing it answers is reviewed evidence.
@@ -50,29 +50,9 @@ defmodule Autolaunch.TestAutolaunchSubjectWalletChainClient do
     end
   end
 
-  @impl true
-  def verify(_envelope, step, hash) do
-    put(%{read_in_transaction?: Autolaunch.Repo.in_transaction?()})
-    raced()
-
-    case state() |> Map.get(:outcomes, %{}) |> Map.get(step, %{outcome: :pending}) do
-      {:error, reason} -> {:error, reason}
-      outcome -> {:ok, Map.put_new(outcome, :hash, hash)}
-    end
-  end
-
   # The receiver is only ever read when the subject really has a projected one.
   defp answered(fixture, %{receiver: nil}), do: %{fixture.snapshot | receiver: nil}
   defp answered(fixture, _request), do: fixture.snapshot
-
-  # Moves the operation between the read and the lease transaction, which is the
-  # exact race a settlement has to survive.
-  defp raced do
-    case state()[:raced] do
-      nil -> :ok
-      move -> move.()
-    end
-  end
 
   defp restore(nil), do: Application.delete_env(:autolaunch, @client_key)
   defp restore(value), do: Application.put_env(:autolaunch, @client_key, value)
@@ -198,8 +178,8 @@ defmodule Autolaunch.SubjectWalletFixture do
       allowance: Map.get(overrides, :allowance, 0)
     }
 
-    %{snapshot: snapshot, outcomes: Map.get(overrides, :outcomes, %{})}
-    |> Map.merge(Map.take(overrides, [:unavailable, :raced]))
+    %{snapshot: snapshot}
+    |> Map.merge(Map.take(overrides, [:unavailable]))
   end
 
   @doc "Installs that scripted chain for the calling test."

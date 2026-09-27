@@ -7,14 +7,14 @@ defmodule Autolaunch.Lab do
   it encodes with.
 
   `AUTOLAUNCH_BASE_DEPLOYMENT` names the file and `AUTOLAUNCH_BASE_DEPLOYMENT_ID`
-  labels the deployment; the label travels in every envelope's binding so a
-  review made against one deployment never confirms against another. Chain
+  labels the deployment; the market feed reads a changed label as a new
+  deployment and starts over. Chain
   31337 is a test chain (a local lab or a hosted fork carrying test assets);
   `test_chain?/0` is what the lab-only features key off.
   """
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.LabRpcUrl
+  alias RegentChain.Address
 
   @test_chain_id 31_337
   # 1 / 2^96 = 5^96 / 10^96, so a Q96 price is an exact 96-place decimal.
@@ -140,29 +140,6 @@ defmodule Autolaunch.Lab do
 
   def load(_path), do: {:error, :absolute_path_required}
 
-  @doc """
-  The binding an envelope carries to the browser. Its `rpc_url` is the public
-  door, the one a wallet uses for the chain; the site's own `rpc_url` never
-  leaves the server.
-  """
-  def binding(
-        %{
-          run_id: run_id,
-          public_rpc_url: public_rpc_url,
-          chain_id: chain_id,
-          addresses: addresses
-        },
-        keys
-      )
-      when is_list(keys) do
-    %{
-      "run_id" => run_id,
-      "rpc_url" => public_rpc_url,
-      "chain_id" => chain_id,
-      "addresses" => Map.take(addresses, Enum.map(keys, &to_string/1))
-    }
-  end
-
   def full_binding(%{run_id: run_id} = config) do
     %{
       run_id: run_id,
@@ -173,13 +150,6 @@ defmodule Autolaunch.Lab do
       addresses: config.addresses,
       abis: config.abis
     }
-  end
-
-  def binding_matches?(binding, keys) when is_map(binding) and is_list(keys) do
-    case current() do
-      {:ok, config} -> binding(config, keys) == stringify(binding)
-      {:error, _reason} -> false
-    end
   end
 
   @doc "The exact decimal a Q96 fixed-point price names: `q96 / 2^96`, with no rounding."
@@ -242,10 +212,4 @@ defmodule Autolaunch.Lab do
   defp start_blocks(_blocks, _chain_id), do: {:error, :invalid_start_blocks}
 
   defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
-
-  defp stringify(value) when is_map(value) do
-    Map.new(value, fn {key, item} -> {to_string(key), stringify(item)} end)
-  end
-
-  defp stringify(value), do: value
 end

@@ -2,17 +2,16 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @moduledoc """
   The one boundary between a creator's wallet and the Robinhood Stocks launchpad.
 
-  Preparation reads the local Robinhood lab once and returns the whole reviewed
-  sequence as a single immutable envelope: the one `launch(LaunchParams)` call.
-  The review is stored (`Autolaunch.Robinhood.LaunchReview`) so the market feed
-  can tell this site's launches from launches seen only on chain. Confirmation
-  reads the canonical receipt through
+  Preparation reads the Robinhood chain once and returns the review's chain,
+  its one `launch(LaunchParams)` step and the facts the page shows; the page
+  keeps it. What it would launch is recorded (`Autolaunch.Robinhood.LaunchReview`)
+  so the market feed can tell this site's launches from launches seen only on
+  chain. `confirmed/2` reads the receipt through
   `Autolaunch.Robinhood.StocksLaunchChainClient`, and a wallet's launches are the
   launchpad's own `StockLaunchCreated` records for that wallet.
 
-  Every call binds to the signed-in wallet of the account the session lease
-  names, read inside the lease at call time: the wallet the page presents must
-  be exactly that wallet, never another linked address.
+  Every call binds to one of the wallets of the account the session lease
+  names, read inside the lease at call time.
 
   The review derives the executable values from the saved Robinhood draft and
   the chain: the required raise the creator entered, in the admitted STOCK's
@@ -24,15 +23,12 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
+  alias Autolaunch.Chain.{Abi, Client, Rpc}
   alias Autolaunch.{LabAbi, LaunchChain}
   alias Autolaunch.Robinhood.{Lab, StocksLaunchChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Amounts, Assets, FeeSchedule, LaunchDraft, LaunchOperations}
-
-  @resource "autolaunch_robinhood_stocks_launch"
-  @action "autolaunch_robinhood_stocks_launch"
-  @contract_name "RobinhoodStocksLaunchpadV1"
+  alias RegentChain.{Address, Review}
 
   # Preset terms the review states back, from contracts/robinhood/src/RobinhoodPreset.sol.
   @new_decimals 18
@@ -82,8 +78,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   def auction_duration_blocks, do: @auction_duration_blocks
 
   @doc """
-  Reviews one saved Robinhood draft for the signed-in wallet: one snapshot, one
-  immutable envelope, the reviewed steps and the plain facts the page shows.
+  Reviews one saved Robinhood draft for `address`, one of the account's own
+  wallets: one snapshot, then the review's signer, chain and one step, the
+  facts it was built from and the plain facts the page shows.
   """
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
@@ -118,27 +115,19 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       )
 
   @doc """
-  Reads the sent launch back from the chain for the signed-in wallet. The
-  result is the chain client's own answer: `:pending`, `:reverted`,
-  `:unverified`, or `:confirmed` with the launchpad's record of the launch.
+  Reads the launch `hash` sent from a prepared review back from the chain: `:pending`,
+  `:reverted`, `:unverified`, or `:confirmed` with the launchpad's record of
+  the launch.
   """
-  @spec verify(map(), :launch, String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def verify(envelope, :launch, hash, opts) when is_map(envelope) do
-    with {:ok, actor} <- human(opts),
-         {:ok, _signer} <- current_wallet(envelope["expected_signer"], actor, opts),
-         {:ok, hash} <- canonical_hash(hash),
-         {:ok, config} <- robinhood_lab(),
-         true <- valid_envelope?(envelope, config) || unavailable(:envelope_invalid),
-         do: read_chain(envelope, hash)
-  end
-
-  def verify(_envelope, _step, _hash, _opts), do: unavailable(:unknown_step)
+  @spec confirmed(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def confirmed(%{signer: signer, steps: [step], facts: facts}, hash),
+    do: chain(StocksLaunchChainClient.verify(signer, step, facts, hash))
 
   @doc """
-  Every launch the launchpad records for the signed-in wallet, read at one
-  pinned block: the `StockLaunchCreated` logs for that launcher from the chain's
-  first block to the pinned block, each confirmed against `launches(launchId)`
-  at the same block. A malformed log or a record that does not name the wallet
+  Every launch the launchpad records for `address`, one of the account's own
+  wallets, read at one pinned block: the `StockLaunchCreated` logs for that
+  launcher from the chain's first block to the pinned block, each confirmed
+  against `launches(launchId)` at the same block. A malformed log or a record that does not name the wallet
   refuses the whole read rather than dropping an entry.
   """
   @spec launches(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -233,52 +222,33 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   # The review
 
   defp build(draft, fields, executable, signer, snapshot, config) do
-    steps = reviewed_steps(fields, executable, snapshot, config)
-    data = steps |> List.last() |> Map.fetch!("data")
-
-    envelope =
-      @action
-      |> Envelope.new(signer, data,
-        to: snapshot.launchpad,
-        resource: @resource,
-        contract_name: @contract_name,
-        chain_id: Lab.chain_id(),
-        lab_binding: snapshot.lab_binding,
-        risk_copy: risk_copy(),
-        arguments: %{
-          "draft_id" => draft.id,
-          "name" => fields.name,
-          "symbol" => fields.symbol,
-          "description" => fields.description,
-          "website" => fields.website,
-          "telegram" => fields.telegram,
-          "image" => fields.image,
-          "stock" => fields.stock,
-          "stock_symbol" => fields.stock_symbol,
-          "stock_decimals" => Integer.to_string(executable.stock_decimals),
-          "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
-          "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
-          "required_raise_entered" => draft.required_raise,
-          "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
-          "required_stock_raised_units" =>
-            Rpc.format_units(executable.required_stock_raised, executable.stock_decimals),
-          "floor_price_entered" => draft.floor_price,
-          "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
-          "floor_price_executable" => executable.floor_price_evidence.executable_stock_per_new,
-          "floor_price_adjusted" => floor_adjusted?(executable),
-          "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
-          "launchpad" => snapshot.launchpad,
-          "hook" => snapshot.hook,
-          "route" => snapshot.admission.route,
-          "block_number" => snapshot.block.number,
-          "block_hash" => snapshot.block.hash,
-          "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
-          "steps" => steps
-        }
-      )
-      |> stored()
-
-    %{envelope: envelope, steps: steps, review: review(fields, executable)}
+    %{
+      signer: signer,
+      chain: Client.chain(config),
+      steps: [
+        Review.step("launch", snapshot.launchpad, launch_data(fields, executable, config))
+      ],
+      facts: %{
+        "draft_id" => draft.id,
+        "name" => fields.name,
+        "symbol" => fields.symbol,
+        "stock" => fields.stock,
+        "stock_symbol" => fields.stock_symbol,
+        "stock_decimals" => Integer.to_string(executable.stock_decimals),
+        "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
+        "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
+        "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
+        "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
+        "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
+        "launchpad" => snapshot.launchpad,
+        "route" => snapshot.admission.route,
+        "block_number" => snapshot.block.number,
+        "block_hash" => snapshot.block.hash,
+        "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
+        "risk" => risk_copy()
+      },
+      review: review(fields, executable)
+    }
   end
 
   # The plain facts the page shows before anything is signed.
@@ -295,7 +265,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     ]
   end
 
-  # The page shows a readable price; the envelope keeps the exact one.
+  # The page shows a readable price; the review's facts keep the exact one.
   defp floor_copy(fields, executable) do
     executable_price =
       "#{Amounts.compact_decimal(executable.floor_price_evidence.executable_stock_per_new)} #{fields.stock_symbol} per NEW"
@@ -308,17 +278,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   defp floor_adjusted?(executable) do
     executable.floor_price_evidence.adjustment_required or
       executable.floor_price_evidence.candidate_price_q96 != executable.floor_price_q96
-  end
-
-  # The reviewed sequence: the one `launch` call.
-  defp reviewed_steps(fields, executable, snapshot, config) do
-    [
-      %{
-        "step" => "launch",
-        "to" => snapshot.launchpad,
-        "data" => launch_data(fields, executable, config)
-      }
-    ]
   end
 
   defp launch_data(fields, executable, config) do
@@ -349,31 +308,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         else: "Robinhood Chain (chain #{Lab.chain_id()})"
 
     "Your wallet creates this launch on #{network}. There is no launch fee."
-  end
-
-  defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
-
-  # Confirmation
-
-  # The expected target is the current lab's launchpad, never a field of the
-  # envelope under review.
-  defp valid_envelope?(envelope, config) do
-    Envelope.valid_for_confirmation?(envelope,
-      resource: @resource,
-      action: @action,
-      signer: envelope["expected_signer"],
-      to: Lab.address!(config, :stocks_launchpad),
-      contract_name: @contract_name,
-      chain_id: Lab.chain_id()
-    )
-  end
-
-  defp read_chain(envelope, hash) do
-    case StocksLaunchChainClient.verify(envelope, :launch, hash) do
-      {:ok, result} -> {:ok, result}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, reason} -> unavailable(reason)
-    end
   end
 
   # A wallet's launches, from the launchpad's own records
@@ -424,7 +358,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   end
 
   # The immutable facts one `StockLaunchCreated` log announced, refused unless
-  # the launcher is the signed-in wallet.
+  # the launcher is the wallet asked about.
   defp launch_created(abi, log, launchpad, signer) do
     with {:ok,
           {[launch_id, launcher_word, new_token_word],
@@ -571,14 +505,14 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     end
   end
 
-  # The wallet the page presents has to be the signed-in wallet of the leased
-  # account, read now: not another linked address, and never a guess.
+  # The wallet the page presents has to be one of the leased account's own
+  # wallets, read now.
   defp current_wallet(address, actor, opts) do
     with {:ok, candidate} <- address(address, :invalid_address),
          {:ok, lease} <- lease(opts),
          {:ok, account} <- leased(lease),
          :ok <- same_account(actor, account),
-         do: signed_in_wallet(account, candidate)
+         do: own_wallet(account, candidate)
   end
 
   defp leased(%{lineage: lineage, account_id: account_id}) do
@@ -591,17 +525,13 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
   defp same_account(_actor, _account), do: unavailable(:session_unavailable)
 
-  defp signed_in_wallet(%{wallet_address: wallet}, candidate) when is_binary(wallet) do
-    if Address.equal?(wallet, candidate), do: {:ok, candidate}, else: unavailable(:wrong_signer)
+  defp own_wallet(%{wallet_addresses: wallets}, candidate) do
+    if Enum.any?(wallets, &Address.equal?(&1, candidate)),
+      do: {:ok, candidate},
+      else: unavailable(:wrong_signer)
   end
-
-  defp signed_in_wallet(_account, _candidate), do: unavailable(:wrong_signer)
 
   # Shared helpers
-
-  defp canonical_hash(hash) do
-    if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: unavailable(:invalid_hash)
-  end
 
   defp address(value, reason) do
     case Address.normalize(value) do

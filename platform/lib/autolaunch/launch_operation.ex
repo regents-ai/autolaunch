@@ -1,19 +1,14 @@
 defmodule Autolaunch.LaunchOperation do
   @moduledoc """
-  One durable direct-wallet launch the server owns before any wallet opens.
+  One launch review this site built for an account, saved so the launch it
+  carries out is known as this site's whether or not the page is still open.
 
-  The reviewed sequence is immutable and lives in `envelope`: the one `launch`
-  call. `step` names that transaction and `state` says how far it has got.
+  `review` is fixed once saved: the chain, the signer, the one `launch` step
+  (target and calldata) and the facts the page showed. Nothing about a press is
+  stored. `Autolaunch.LaunchReviews` matches a launch the chain shows to the
+  review whose step it sent, lists it, and marks the review `chain_verified`.
 
-  `action_id` is unique. An account may hold any number of open launch reviews:
-  each press is prepared as its own review, and one never cancels another. A
-  review nobody sends lapses with its envelope. Every wallet press of the review
-  is its own `WalletAttempt`; the operation only summarises how far the reviewed
-  sequence has got.
-
-  `chain_verified` is the honest terminal success: this server proved its own
-  receipt evidence. Canonical public launch confirmation is the finalized
-  `490.8.2` projection and is deliberately not named here.
+  An account may hold any number of reviews; one never cancels another.
   """
 
   use Ash.Resource,
@@ -23,7 +18,7 @@ defmodule Autolaunch.LaunchOperation do
     authorizers: [Ash.Policy.Authorizer]
 
   @steps [:launch]
-  @states [:prepared, :chain_verified, :cancelled, :expired, :invalidated]
+  @states [:prepared, :chain_verified, :cancelled]
 
   postgres do
     table "launch_operations"
@@ -38,12 +33,16 @@ defmodule Autolaunch.LaunchOperation do
   actions do
     defaults [:read]
 
-    update :project_wallet_confirmation do
-      accept [:step, :state, :terminal_at, :result]
+    # The chain shows the launch this review's step carried out.
+    update :verify do
+      accept [:result]
+      require_atomic? false
+      change set_attribute(:state, :chain_verified)
+      change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
     create :prepare do
-      accept [:action_id, :envelope, :signer, :step]
+      accept [:action_id, :review, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
       argument :launch_draft_id, :uuid, allow_nil?: false
       validate Autolaunch.LaunchOperation.Validations.AuctionLimit
@@ -56,27 +55,6 @@ defmodule Autolaunch.LaunchOperation do
       require_atomic? false
       validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :cancelled)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # Base disagreed with the review before this step was ever handed to a
-    # wallet, so the reviewed bytes can no longer be spent at all.
-    update :invalidate do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :invalidated)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # The reviewed envelope has passed its expiry with no press still in flight,
-    # so the old bytes can no longer be spent and a new review has to reread
-    # state.
-    update :expire do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :expired)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
   end
@@ -95,7 +73,7 @@ defmodule Autolaunch.LaunchOperation do
       allow_nil?: false,
       constraints: [min_length: 64, max_length: 64]
 
-    attribute :envelope, :map, allow_nil?: false, sensitive?: true
+    attribute :review, :map, source: :envelope, allow_nil?: false, sensitive?: true
 
     attribute :signer, :string,
       allow_nil?: false,

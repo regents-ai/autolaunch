@@ -13,7 +13,8 @@ defmodule Autolaunch.AuctionActivity do
   require Logger
   alias Autolaunch.Actors.System
   alias Autolaunch.{Auction, AuctionPricePoint, Bid, BidActivity, BidPrice, LabAbi, Repo}
-  alias Autolaunch.Chain.{Address, Rpc}
+  alias Autolaunch.Chain.Rpc
+  alias RegentChain.Address
   @actor %System{}
   @bid "BidSubmitted(uint256,address,uint256,uint128)"
   @checkpoint "CheckpointUpdated(uint256,uint256,uint24)"

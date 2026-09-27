@@ -7,8 +7,10 @@ defmodule Autolaunch.TreasuryChainClient do
   complete Safe configuration is read again at that historical block.
   """
 
-  alias Autolaunch.Chain.{Address, Rpc}
+  alias Autolaunch.Chain.Rpc
+
   alias Autolaunch.TreasurySecurity
+  alias RegentChain.Address
 
   @manifest_path Path.expand("../../contracts/treasury-security-evidence.yaml", __DIR__)
   @external_resource @manifest_path

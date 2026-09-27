@@ -6,8 +6,6 @@ defmodule Autolaunch do
 
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
-  @bid_operation Module.concat(__MODULE__, "BidOperation")
-  @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
   resources do
     resource Autolaunch.BidActivity do
@@ -24,8 +22,6 @@ defmodule Autolaunch do
         args: [:auction_id, :block_number],
         not_found_error?: false
     end
-
-    resource Module.concat(__MODULE__, "WalletAttempt")
 
     resource Autolaunch.LaunchDraft do
       define :create_launch_draft, action: :create_for_owner
@@ -144,36 +140,15 @@ defmodule Autolaunch do
         args: [:state, :current_clearing_price]
 
       define :bid_position, action: :bid_position, args: [:auction_id, :expected_signer]
-
-      define :prepare_bid,
-        action: :prepare_bid,
-        args: [:auction_id, :expected_signer, :amount, :max_price]
-
-      define :prepare_usdc_bid,
-        action: :prepare_usdc_bid,
-        args: [:auction_id, :expected_signer, :usdc_amount, :max_price]
-
-      define :cancel_bid_review, action: :cancel_bid_review, args: [:action_id]
     end
 
-    # The durable bidder operation is written only by `BidActions` under a
-    # session lease, so it is registered without a code interface of any kind.
-    resource @bid_operation
-
-    # The durable subject wallet operation is written only by
-    # `SubjectWalletOperations` under a session lease, on the same terms.
-    resource @subject_wallet_operation
-
-    # The durable bid settlement (exit and claim after an auction ends) is
-    # written only by `BidSettlementActions` under a session lease.
-    resource Autolaunch.BidSettlementOperation
-
-    # The durable direct-wallet launch is written only by `LaunchActions` under
-    # a session lease, on the same terms.
+    # The saved Revstake launch review is written only by `LaunchActions` under
+    # a session lease and marked confirmed by `LaunchReviews`, so it is
+    # registered without a code interface.
     resource @launch_operation
 
-    # The Stocks launch lane: one private draft per account and the durable
-    # single-transaction operation `Autolaunch.Stocks.LaunchActions` owns.
+    # The Stocks launch lane: one private draft per account and the saved
+    # launch review `Autolaunch.Stocks.LaunchActions` owns.
     resource Autolaunch.Stocks.LaunchDraft do
       define :create_stocks_launch_draft, action: :create_for_owner
 
@@ -426,7 +401,7 @@ defmodule Autolaunch do
 
   @doc "Returns the newest stored observation without triggering provider work."
   def current_treasury_security(address, opts \\ []) do
-    with {:ok, address} <- Autolaunch.Chain.Address.normalize(address),
+    with {:ok, address} <- RegentChain.Address.normalize(address),
          {:ok, reports} <- list_treasury_security_reports(address, opts) do
       {:ok, List.first(reports)}
     end
@@ -438,60 +413,6 @@ defmodule Autolaunch do
   # The bidder rule a presenter needs, owned here so the page and the named
   # preparation action can only ever answer the same way.
   defdelegate bid_amount_units(amount, decimals), to: Autolaunch.BidActions, as: :units
-
-  # The clean-V1 subject wallet lane. `SubjectWalletActions` proves the active
-  # Privy wallet against the account the mounted lease locks before anything
-  # private is read or anything durable moves, so these stay thin pass-throughs
-  # and the resource itself keeps no code interface.
-  defdelegate subject_wallet_state(subject_id, address, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :wallet_state
-
-  defdelegate prepare_subject_wallet_action(subject_id, address, kind, params, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :prepare
-
-  defdelegate cancel_subject_wallet_review(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :cancel
-
-  defdelegate start_new_subject_wallet_action(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :start_new
-
-  defdelegate dispatch_wallet_press(kind, action_id, step, press_id, signer, opts),
-    to: Autolaunch.WalletAttempts,
-    as: :dispatch
-
-  defdelegate report_wallet_press(kind, action_id, press_id, report, opts),
-    to: Autolaunch.WalletAttempts,
-    as: :report
-
-  defdelegate verify_wallet_press(kind, action_id, press_id, opts),
-    to: Autolaunch.WalletAttempts,
-    as: :verify
-
-  defdelegate wallet_presses(kind, action_id, opts), to: Autolaunch.WalletAttempts, as: :list
-
-  # The C4 direct-wallet launch lane. `LaunchActions` proves the active Privy
-  # wallet against the account the mounted lease locks before anything private is
-  # read or anything durable moves, so these stay thin pass-throughs and the
-  # resource itself keeps no code interface.
-  defdelegate launch_wallet_state(address, opts),
-    to: Autolaunch.LaunchActions,
-    as: :wallet_state
-
-  defdelegate prepare_launch(draft_id, address, opts),
-    to: Autolaunch.LaunchActions,
-    as: :prepare
-
-  defdelegate cancel_launch_review(action_id, opts),
-    to: Autolaunch.LaunchActions,
-    as: :cancel
-
-  defdelegate start_new_launch(action_id, opts),
-    to: Autolaunch.LaunchActions,
-    as: :start_new
 
   # The account's newest Memestake auction on either chain, read under the
   # system actor like the Revstake count below.
@@ -519,16 +440,8 @@ defmodule Autolaunch do
       |> Ash.Query.filter(human_account_id == ^human_account_id and state == :chain_verified)
       |> Ash.read()
 
-    attempts =
-      Autolaunch.WalletAttempt
-      |> Ash.Query.filter(
-        not is_nil(launch_operation_id) and step == :launch and state == :confirmed
-      )
-      |> Ash.Query.filter(launch_operation.human_account_id == ^human_account_id)
-      |> Ash.read!(actor: actor)
-
     projected_auction_count(human_account_id, actor) +
-      in_flight_count(operations ++ attempts, actor)
+      in_flight_count(operations, actor)
   end
 
   defp projected_auction_count(human_account_id, actor) do

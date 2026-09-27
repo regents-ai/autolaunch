@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.TestFundsComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Stocks.Faucet
-  alias AutolaunchWeb.SignedInWallet
+  alias AutolaunchWeb.OnchainSteps
 
   def available?, do: Faucet.available?()
 
@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.TestFundsComponent do
 
     {:ok,
      socket
-     |> SignedInWallet.adopt(&assign(&1, wallet: &2))
+     |> OnchainSteps.adopt()
      |> assign_new(:outcome, fn -> nil end)
      |> assign(:stocks, Faucet.stocks())}
   end
@@ -47,10 +47,10 @@ defmodule AutolaunchWeb.TestFundsComponent do
         Test assets on this Base fork only; they have no mainnet value. Funds go to the
         receiving wallet shown below.
       </p>
-      <p :if={@wallet} class="autolaunch-draft-hint">
-        Receiving wallet: <span class="launch-wallet-mono">{@wallet}</span>
+      <p :if={@signed_in} class="autolaunch-draft-hint">
+        Receiving wallet: <span class="launch-wallet-mono">{@signed_in}</span>
       </p>
-      <div :if={@wallet} class="launch-wallet-controls">
+      <div :if={@signed_in} class="launch-wallet-controls">
         <Regent.Primitives.button
           type="button"
           phx-click="grant"
@@ -100,7 +100,7 @@ defmodule AutolaunchWeb.TestFundsComponent do
   # One press, one transaction, started right away; the result lands when the
   # lab answers, and a second press meanwhile is another transaction.
   def handle_event("grant", %{"kind" => kind} = params, socket) do
-    wallet = socket.assigns.wallet
+    wallet = socket.assigns.signed_in
     pid = self()
     id = socket.assigns.id
 

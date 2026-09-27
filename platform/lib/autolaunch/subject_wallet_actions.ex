@@ -3,30 +3,22 @@ defmodule Autolaunch.SubjectWalletActions do
   The one boundary between a subject's wallet and Base.
 
   Preparation reads Base once, proves the stored splitter and canonical receiver
-  really are this launch's own, and writes the whole reviewed sequence as a
-  single immutable envelope. Every durable write after that runs inside
-  `SessionAuthority.transact_lease/3` as the outermost transaction, against the
-  account that callback locked, so a review transition cannot outlive a
-  concurrent logout. Wallet presses of the review are
-  `Autolaunch.WalletAttempts`; this module only supplies their evidence.
+  really are this launch's own, and returns the review's chain, its steps (an
+  exact approval when one is missing, then the payment or the sweep) and the
+  facts the page shows. The page keeps it; nothing is stored. `result/2` reads
+  what a confirmed payment or sweep routed from its receipt.
 
-  The wallet is the one the customer signed in with, which the panel reads from
-  its mounted lease. It is still proved against the account that lease resolves
-  to before any private fact is read.
-
-  Provider reads always happen before the lease transaction; only the row write
-  happens inside it, and the row is taken `FOR UPDATE` first, so two sockets
-  racing the same step serialize and exactly one of them wins.
+  The wallet is one of the signed-in account's own, proved against the account
+  the mounted lease resolves to before any private fact is read.
   """
 
-  alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc, SubjectAbi}
-  alias Autolaunch.{SubjectWalletChainClient, SubjectWalletOperations}
+  alias Autolaunch.Chain.{Abi, Client, Rpc, SubjectAbi}
+  alias Autolaunch.{Lab, Subject, SubjectWalletChainClient}
+  alias RegentChain.{Address, Review}
 
   @chain_id 8453
-  @resource "autolaunch_subject_wallet"
   @zero "0x0000000000000000000000000000000000000000"
 
   # The exact 2% every recognized inflow floors once, and the fixed denominator
@@ -43,19 +35,6 @@ defmodule Autolaunch.SubjectWalletActions do
   @sweep_reference "0x" <> String.duplicate("0", 64)
   @assets [:subject, :usdc, :regent]
 
-  @action_name %{pay: "subject_pay", sweep: "subject_sweep"}
-
-  @risk %{
-    pay: "Your wallet pays this amount into the launch's revenue split.",
-    sweep:
-      "Your wallet pays the gas to route a balance already sitting at this address into the launch's revenue split. Nothing is sent to your wallet."
-  }
-
-  @replaced "replaced by a newer review"
-  @withdrawn "review withdrawn"
-  @lapsed "the reviewed action expired before it was sent"
-  @unresolved "account started a new action while this one was unresolved"
-
   # A Base read that may answer differently later never settles anything.
   @transient [
     :chain_unavailable,
@@ -65,7 +44,7 @@ defmodule Autolaunch.SubjectWalletActions do
   ]
 
   @doc """
-  What the signed-in wallet may actually do on this subject.
+  What `address`, one of the signed-in account's wallets, holds on this subject.
 
   The address is proved against the account the mounted lease resolves to before
   any private fact is read, so a wallet the account does not hold is refused
@@ -82,82 +61,33 @@ defmodule Autolaunch.SubjectWalletActions do
   end
 
   @doc """
-  Reviews one action: one snapshot, one immutable envelope, one durable operation.
+  Reviews one action for `address`: one snapshot, then the review's signer,
+  chain, steps and facts.
 
-  The sequence carries only the transactions this wallet still needs — an exact
-  token approval when one is missing, then the single C1 call it enables.
+  The steps are only the transactions this wallet still needs: an exact token
+  approval when one is missing, then the single call it enables.
   """
   @spec prepare(String.t(), String.t(), atom(), map(), keyword()) ::
           {:ok, map()} | {:error, term()}
   def prepare(subject_id, address, kind, params, opts) when kind in @kinds do
     with {:ok, _actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, opts),
-         {:ok, lease} <- lease(opts),
+         {:ok, config} <- lab(),
          {:ok, subject} <- actionable(subject_id),
          {:ok, asset} <- selected_asset(kind, params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
-         {:ok, review} <- reviewed(subject, signer, kind, asset, params, snapshot),
-         {:ok, operation} <- open(lease, subject, signer, kind, review) do
-      {:ok, %{operation: operation}}
+         {:ok, plan} <- planned(kind, asset, params, snapshot, signer) do
+      {:ok,
+       %{
+         signer: signer,
+         chain: Client.chain(config),
+         steps: steps(plan, snapshot, asset),
+         facts: facts(subject, kind, asset, plan, snapshot)
+       }}
     end
   end
 
   def prepare(_subject_id, _address, _kind, _params, _opts), do: unavailable(:unknown_action)
-
-  @spec cancel(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def cancel(subject_id, action_id, opts),
-    do: write(subject_id, action_id, opts, transition(:cancel, @withdrawn))
-
-  @doc """
-  Ends an action whose presses have not resolved, at the account's request.
-
-  Withdrawing the review cancels future admission only: every issued press keeps
-  its own record and its hash, and nothing is ever resent. The row remains for
-  the canonical projector; only this account's open slot for this subject is
-  released.
-  """
-  @spec start_new(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def start_new(subject_id, action_id, opts),
-    do: write(subject_id, action_id, opts, transition(:cancel, @unresolved))
-
-  @doc "The presenter's whole view of one operation. Everything else stays server-side."
-  @spec presented(Ash.Resource.record() | nil) :: map() | nil
-  def presented(nil), do: nil
-
-  def presented(operation) do
-    Map.take(operation, [
-      :action_id,
-      :subject_id,
-      :kind,
-      :state,
-      :step,
-      :signer,
-      :envelope,
-      :result,
-      :terminal_at
-    ])
-    |> Autolaunch.WalletAttempts.decorate(operation, :subject)
-  end
-
-  @doc "The reviewed sequence, in order, as the progress list renders it."
-  @spec steps(map()) :: [map()]
-  def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
-
-  @doc """
-  The hash of the confirmed or pending press for one named step of a presented
-  operation, or `nil`.
-
-  The two reviewed steps are named exactly, so a value that is neither has no
-  hash rather than becoming an atom.
-  """
-  @spec step_hash(map(), String.t() | atom()) :: String.t() | nil
-  def step_hash(operation, step) when step in [:approval, "approval"],
-    do: Map.get(operation, :approval_transaction_hash)
-
-  def step_hash(operation, step) when step in [:action, "action"],
-    do: Map.get(operation, :action_transaction_hash)
-
-  def step_hash(_operation, _unknown), do: nil
 
   @doc "The exact decimal rendering of an atomic amount of one bound asset."
   @spec units(non_neg_integer() | String.t(), atom()) :: String.t()
@@ -167,47 +97,21 @@ defmodule Autolaunch.SubjectWalletActions do
   def units(amount, asset), do: Rpc.format_units(amount, SubjectAbi.decimals(asset))
 
   @doc """
-  The amount a confirmed action's own event proves moved, or `nil`.
-
-  A sweep learns its amount only from the chain: it reads the `result["gross"]`
-  its routing event reported, rendered through the reviewed decimals the
-  envelope pinned.
-
-  Everything else — a payment, a row that has not confirmed, and a stored
-  result that carries no whole atomic amount — has no verified amount, so the
-  reviewed estimate is what still stands.
+  What a confirmed payment or sweep routed, from its receipt `logs`: the gross
+  amount in the reviewed asset's units, or `nil` when its own event is not
+  there. A payment has to route exactly the gross it reviewed; a sweep learns
+  the amount it really moved.
   """
-  @spec verified_amount(map()) :: String.t() | nil
-  def verified_amount(%{state: :confirmed, kind: :sweep} = operation),
-    do: reviewed_units(operation.result["gross"], operation)
+  @spec result(map(), [map()]) :: String.t() | nil
+  def result(%{kind: kind, amount_atomic: reviewed} = facts, logs) do
+    case SubjectAbi.payment_routed(logs, facts.receiver, facts.payment_reference, facts.token) do
+      {:ok, %{gross: gross}} when kind == :sweep or gross == reviewed ->
+        units(gross, facts.asset)
 
-  def verified_amount(_operation), do: nil
-
-  # An atomic amount is exactly digits against the decimals this review pinned.
-  # Anything else is not an amount, so nothing is rendered as one.
-  defp reviewed_units(amount, operation) when is_binary(amount) do
-    decimals = argument(operation, "decimals")
-
-    if String.match?(amount, ~r/^\d+$/) and is_integer(decimals) and decimals >= 0,
-      do: Rpc.format_units(String.to_integer(amount), decimals),
-      else: nil
-  end
-
-  defp reviewed_units(_amount, _operation), do: nil
-
-  defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  # Reviews
-
-  defp reviewed(subject, signer, kind, asset, params, snapshot) do
-    with {:ok, plan} <- planned(kind, asset, params, snapshot, signer) do
-      {:ok, stored(envelope(subject, signer, kind, asset, plan, snapshot))}
+      _not_routed ->
+        nil
     end
   end
-
-  # One stored shape: the envelope is written, read and rendered exactly as the
-  # confirmation token signed it.
-  defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 
   # Every rule the plan fixes for one action, answered from the one snapshot.
   defp planned(:pay, asset, params, snapshot, _signer) do
@@ -242,41 +146,23 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
-  defp envelope(subject, signer, kind, asset, plan, snapshot) do
-    target = snapshot.receiver.address
-
-    steps =
-      approval_step(plan, snapshot, asset) ++
-        [%{"step" => "action", "to" => target, "data" => plan.data}]
-
-    Envelope.new(Map.fetch!(@action_name, kind), signer, plan.data,
-      to: target,
-      resource: @resource,
-      contract_name: "PaymentReceiverV1",
-      risk_copy: Map.fetch!(@risk, kind),
-      arguments: arguments(subject, kind, asset, plan, snapshot, steps)
-    )
+  defp steps(plan, snapshot, asset) do
+    approval_step(plan, snapshot, asset) ++
+      [Review.step("action", snapshot.receiver.address, plan.data)]
   end
 
-  defp arguments(subject, kind, asset, plan, snapshot, steps) do
+  # What the page shows and what `result/2` reads the receipt against.
+  defp facts(subject, kind, asset, plan, snapshot) do
     %{
-      "subject_id" => subject.subject_id,
-      "kind" => Atom.to_string(kind),
-      "splitter" => snapshot.splitter.address,
-      "receiver" => snapshot.receiver.address,
-      "treasury" => snapshot.splitter.treasury,
-      "asset" => Atom.to_string(asset),
-      "token" => asset_address(snapshot, asset),
-      "symbol" => symbol(asset),
-      "decimals" => SubjectAbi.decimals(asset),
-      "amount_atomic" => Integer.to_string(plan.amount),
-      "amount" => units(plan.amount, asset),
-      "payment_reference" => plan.payment_reference,
-      "total_staked" => Integer.to_string(snapshot.splitter.total_staked),
-      "protocol_share_bps" => @protocol_share_bps,
-      "allocation" => allocation(plan, snapshot),
-      "bound_tokens" => Map.new(@assets, &{Atom.to_string(&1), asset_address(snapshot, &1)}),
-      "steps" => steps
+      subject_id: subject.subject_id,
+      kind: kind,
+      asset: asset,
+      receiver: snapshot.receiver.address,
+      token: asset_address(snapshot, asset),
+      amount_atomic: plan.amount,
+      amount: units(plan.amount, asset),
+      payment_reference: plan.payment_reference,
+      allocation: allocation(plan, snapshot)
     }
   end
 
@@ -284,19 +170,15 @@ defmodule Autolaunch.SubjectWalletActions do
   # the reviewed amount is spent exactly as it stands.
   defp approval_step(%{spender: spender, amount: amount}, snapshot, asset)
        when is_binary(spender) do
-    if snapshot.allowance >= amount do
-      []
-    else
-      [
-        %{
-          "step" => "approval",
-          "to" => asset_address(snapshot, asset),
-          "data" => Abi.encode_erc20("approve", [spender, amount]),
-          "amount" => Integer.to_string(amount),
-          "spender" => spender
-        }
+    if snapshot.allowance >= amount,
+      do: [],
+      else: [
+        Review.step(
+          "approval",
+          asset_address(snapshot, asset),
+          Abi.encode_erc20("approve", [spender, amount])
+        )
       ]
-    end
   end
 
   defp approval_step(_plan, _snapshot, _asset), do: []
@@ -310,103 +192,15 @@ defmodule Autolaunch.SubjectWalletActions do
     net = gross - skim
     stakers = div(net * staked, @subject_total_supply)
 
-    Map.new(
-      [gross: gross, skim: skim, net: net, stakers: stakers, treasury: net - stakers],
-      fn {part, amount} -> {Atom.to_string(part), Integer.to_string(amount)} end
-    )
+    %{gross: gross, skim: skim, net: net, stakers: stakers, treasury: net - stakers}
   end
 
-  def press_evidence(operation) do
-    if Envelope.valid?(operation.envelope, resource: @resource),
-      do: :ok,
-      else: unavailable(:subject_wallet_preparation_unavailable)
-  end
-
-  # Operations
-
-  defp open(lease, subject, signer, kind, envelope) do
-    transact(lease, fn account ->
-      with :ok <- SubjectWalletOperations.signer_matches(account, signer),
-           :ok <- release_undispatched(account.id, subject.subject_id),
-           {:ok, operation} <-
-             SubjectWalletOperations.create(account, %{
-               action_id: envelope["action_id"],
-               subject_id: subject.subject_id,
-               kind: kind,
-               envelope: envelope,
-               signer: signer,
-               step:
-                 envelope["arguments"]["steps"]
-                 |> hd()
-                 |> Map.fetch!("step")
-                 |> String.to_existing_atom()
-             }),
-           do: {:ok, presented(operation)}
-    end)
-  end
-
-  # A new prepare always cancels whatever is open as :replaced and proceeds.
-  # A different subject is completely independent.
-  defp release_undispatched(account_id, subject_id) do
-    case SubjectWalletOperations.open(account_id, subject_id, true) do
-      {:ok, nil} ->
-        :ok
-
-      {:ok, open} ->
-        with {:ok, _cancelled} <-
-               SubjectWalletOperations.update(open, :cancel, %{reason: @replaced}),
-             do: :ok
-
-      {:error, reason} ->
-        {:error, reason}
+  defp lab do
+    case Lab.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:chain_unavailable)
     end
   end
-
-  defp transition(action, reason),
-    do: fn _account, operation ->
-      SubjectWalletOperations.update(operation, action, %{reason: reason})
-    end
-
-  # The reviewed envelope lives ten minutes. Past that, no prepared step of it
-  # can be spent, so the operation ends here — inside the locked transaction,
-  # ahead of the transition — and a new review rereads current state.
-  defp expire_lapsed(%{state: :prepared} = operation) do
-    if expired?(operation) and not Autolaunch.WalletAttempts.in_flight?(:subject, operation),
-      do: SubjectWalletOperations.update(operation, :expire, %{reason: @lapsed}),
-      else: {:ok, operation}
-  end
-
-  defp expire_lapsed(operation), do: {:ok, operation}
-
-  defp expired?(%{envelope: %{"expires_at" => expires_at}}) do
-    {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
-    DateTime.compare(expires_at, Envelope.current_time()) != :gt
-  end
-
-  # Durable write plumbing
-
-  defp write(subject_id, action_id, opts, transition) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         do: transact(lease, &locked(&1, subject_id, action_id, transition))
-  end
-
-  defp locked(account, subject_id, action_id, transition) do
-    with {:ok, operation} <- operation(account.id, subject_id, action_id, true),
-         {:ok, operation} <- expire_lapsed(operation),
-         {:ok, operation} <- resume(operation, account, transition),
-         do: {:ok, %{operation: presented(operation)}}
-  end
-
-  # An operation the lapse just ended is itself the outcome, and it commits:
-  # nothing further is asked of bytes that can no longer be spent.
-  defp resume(%{state: :expired} = operation, _account, _transition), do: {:ok, operation}
-  defp resume(operation, account, transition), do: transition.(account, operation)
-
-  defp transact(lease, callback), do: SubjectWalletOperations.transact(lease, callback)
-
-  defp operation(account_id, subject_id, action_id, lock?),
-    do: SubjectWalletOperations.fetch(account_id, subject_id, action_id, lock?)
 
   # Chain snapshot
 
@@ -437,7 +231,7 @@ defmodule Autolaunch.SubjectWalletActions do
   defp spender_request(_kind, _subject), do: nil
 
   # Every binding the review depends on, proved against the pinned product
-  # authority before a durable review can exist. The receiver additionally has to
+  # authority before a review can exist. The receiver additionally has to
   # be canonical: zero referral, and a treasury that is both its beneficiary and
   # its note editor, which is the whole of the economics the page promises.
   defp proved(snapshot, subject, kind) do
@@ -570,7 +364,7 @@ defmodule Autolaunch.SubjectWalletActions do
   defp at_most(amount, limit, _reason) when amount <= limit, do: :ok
   defp at_most(_amount, _limit, reason), do: unavailable(reason)
 
-  # Every operation carries its own cryptographically random reference, so two
+  # Every payment carries its own cryptographically random reference, so two
   # payments of the same amount are never the same reviewed transaction.
   defp payment_reference,
     do: "0x" <> (32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower))
@@ -584,10 +378,6 @@ defmodule Autolaunch.SubjectWalletActions do
   defp subject_asset_address(subject, :subject), do: subject.token_address
   defp subject_asset_address(_subject, :usdc), do: Abi.usdc_address()
   defp subject_asset_address(_subject, :regent), do: Abi.regent_address()
-
-  defp symbol(:subject), do: "SUBJECT"
-  defp symbol(:usdc), do: "USDC"
-  defp symbol(:regent), do: "REGENT"
 
   # The whole private answer for one wallet on one subject.
   defp view(subject, signer, snapshot) do
@@ -604,8 +394,7 @@ defmodule Autolaunch.SubjectWalletActions do
   defp receiver_view(%{receiver: receiver}) do
     %{
       address: receiver.address,
-      balances: Map.new(@assets, &{&1, units(receiver.balances[&1], &1)}),
-      balances_atomic: Map.new(@assets, &{&1, receiver.balances[&1]})
+      balances: Map.new(@assets, &{&1, units(receiver.balances[&1], &1)})
     }
   end
 
@@ -629,29 +418,23 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
+  # The wallet has to be one the leased account links, read now. A lineage that
+  # has been revoked, rebound or whose provider evidence has lapsed resolves to
+  # no account.
   defp current_wallet(address, opts) do
     with {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         :ok <- leased_wallet(lease, signer),
-         do: {:ok, signer}
+         {:ok, %{lineage: lineage, account_id: account_id}} <- lease(opts),
+         do: lineage |> SessionAuthority.leased_account(account_id) |> linked_wallet(signer)
   end
 
-  # The account the mounted lease resolves to right now. A lineage that has been
-  # revoked, rebound or whose provider evidence has lapsed resolves to nothing.
-  defp leased(%{lineage: lineage, account_id: account_id}) do
-    case SessionAuthority.leased_account(lineage, account_id) do
-      nil -> unavailable(:session_unavailable)
-      account -> {:ok, account}
-    end
+  defp linked_wallet(nil, _signer), do: unavailable(:session_unavailable)
+
+  defp linked_wallet(%{wallet_addresses: wallets}, signer) do
+    if Enum.any?(wallets, &Address.equal?(&1, signer)),
+      do: {:ok, signer},
+      else: unavailable(:wrong_signer)
   end
 
-  defp leased_wallet(lease, signer) do
-    with {:ok, account} <- leased(lease),
-         do: SubjectWalletOperations.signer_matches(account, signer)
-  end
-
-  # The lease and the acting human have to name one account, so a lease held for
-  # another account answers about nothing.
   # Shared helpers
 
   defp normalize(value) do
@@ -666,5 +449,6 @@ defmodule Autolaunch.SubjectWalletActions do
     address
   end
 
-  defp unavailable(reason), do: SubjectWalletOperations.unavailable(reason)
+  defp unavailable(reason),
+    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: Subject, reason: reason)}
 end

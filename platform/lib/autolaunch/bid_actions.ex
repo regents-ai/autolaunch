@@ -1,45 +1,26 @@
 defmodule Autolaunch.BidActions do
   @moduledoc """
-  The one boundary between a bidder and Base.
+  The one boundary between a bidder and a Base auction.
 
-  Preparation reads Base once, proves the auction really raises the bound REGENT,
-  and writes the whole reviewed sequence as a single immutable envelope. Every
-  durable write after that runs inside `SessionAuthority.transact_lease/3` as the
-  outermost transaction, against the account that callback locked, so a claim, a
-  bound hash or a settled outcome cannot outlive a concurrent logout.
+  A review reads Base once, proves the auction really raises for the treasury
+  this site recorded, and returns the steps the wallet sends in turn. Nothing
+  is written: the review lives on the page, the wallet sends its steps, and
+  the page reads what the bid placed from its receipt. The chain watcher
+  records every bid an auction announces as its bidder's position.
 
-  Provider reads always happen before the lease transaction; only the row write
-  happens inside it, and the row is taken `FOR UPDATE` first, so two sockets
-  racing the same step serialize and exactly one of them wins.
+  Every review binds to one of the wallets of the account the session lease
+  names, read at call time: the page's active wallet must be one the account
+  links, never a guess.
   """
-
-  require Ash.Query
 
   alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.{Human, System}
-
-  alias Autolaunch.Chain.{Address, Envelope, Rpc}
-
-  alias Autolaunch.{
-    BidOperation,
-    ChainClient,
-    Lab,
-    LabAbi,
-    LabBidChainClient,
-    TreasurySecurity
-  }
-
+  alias Autolaunch.Actors.Human
+  alias Autolaunch.Chain.{Abi, Client, Rpc}
+  alias Autolaunch.{ChainClient, Lab, LabAbi, LabBidChainClient, TreasurySecurity}
   alias Autolaunch.Stocks.Lab, as: StocksLab
-
-  @actor %System{}
-  @domain Autolaunch
-
-  @resource "autolaunch_auction"
-  @contract_name "IContinuousClearingAuction"
-  @action "submit_bid"
-  @usdc_action "bid_with_usdc"
-  @usdc_contract_name "StockBidAdapterV1"
+  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias RegentChain.{Address, Review}
 
   # A bid amount is denominated in the auction's own currency, whose decimals
   # the stored auction row records: REGENT's eighteen, or the admitted stock's.
@@ -52,14 +33,10 @@ defmodule Autolaunch.BidActions do
   @uint128_max Integer.pow(2, 128) - 1
   @uint256_max Integer.pow(2, 256) - 1
 
-  # The reviewed envelope lives ten minutes, so a Permit2 allowance that would
-  # lapse inside that window is granted again rather than relied on, and a
-  # granted one outlives the review it belongs to without lingering.
-  @review_seconds 600
+  # A Permit2 allowance is granted for fifteen minutes, and one that would
+  # lapse within ten is granted again rather than relied on.
   @permit2_seconds 900
-
-  @withdrawn "review withdrawn"
-  @lapsed "the reviewed bid expired before it was sent"
+  @reuse_seconds 600
 
   # A Base read that may answer differently later never settles anything.
   @transient [
@@ -68,14 +45,6 @@ defmodule Autolaunch.BidActions do
     :invalid_block_header,
     :transaction_missing
   ]
-
-  @hash_attributes %{
-    token_approval: :token_approval_transaction_hash,
-    permit2_approval: :permit2_approval_transaction_hash,
-    bid: :bid_transaction_hash,
-    usdc_approval: :usdc_approval_transaction_hash,
-    usdc_bid: :usdc_bid_transaction_hash
-  }
 
   @doc """
   The public estimate for one auction, from its stored snapshot.
@@ -119,10 +88,10 @@ defmodule Autolaunch.BidActions do
   end
 
   @doc """
-  What the signed-in wallet may actually spend on this auction.
+  What one of the signed-in account's wallets may spend on this auction.
 
   The address is proved against the account the mounted lease resolves to before
-  any private fact is read, so a wallet the account does not hold is refused
+  any private fact is read, so a wallet the account does not link is refused
   rather than answered about.
   """
   def position(input, %{actor: %Human{}} = context) do
@@ -138,280 +107,237 @@ defmodule Autolaunch.BidActions do
   def position(_input, _context), do: {:error, :authentication_required}
 
   @doc """
-  Reviews one bid: one snapshot, one immutable sequence, one durable operation.
+  The steps of one bid for `address`, one of the signed-in account's wallets,
+  with the facts the page shows beside them and what the page needs to read
+  the bid from its receipt. `request` names the auction, the amount typed, the
+  most per token and the currency paid (`"USDC"` on a Stocks auction that takes
+  it, otherwise the auction's own).
 
-  The sequence carries only the transactions this wallet still needs — an exact
-  REGENT approval to canonical Permit2, an exact short-lived Permit2 allowance
-  for this auction, then the canonical five-argument bid.
+  A bid in the auction's own currency carries only the transactions this
+  wallet still needs: an exact approval to canonical Permit2, an exact
+  short-lived Permit2 allowance for this auction, then the canonical
+  five-argument bid. A USDC bid carries the exact USDC allowance to the bid
+  adapter it still needs, then the adapter call that buys the stock through
+  the admitted route and places the bid as this wallet; the route's estimate is
+  shown and never trusted, as the adapter is told to deliver at least the
+  estimate less one percent or revert, and to refuse the call after fifteen
+  minutes.
   """
-  def prepare(input, %{actor: %Human{}} = context) do
-    arguments = input.arguments
-
-    with {:ok, signer} <- current_wallet(arguments.expected_signer, context),
-         {:ok, lease} <- lease(context),
-         {:ok, auction} <- auction(arguments.auction_id),
-         {:ok, treasury_report} <- verified_treasury(auction),
-         {:ok, address} <- normalize(auction.auction_address),
-         {:ok, amount} <- refusable(atomic_amount(arguments.amount, auction.quote_token_decimals)),
+  @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def prepare(
+        %{auction_id: auction_id, amount: amount, max_price: max_price} = request,
+        address,
+        opts
+      ) do
+    with {:ok, _actor} <- human(opts),
+         {:ok, signer} <- current_wallet(address, %{source_context: Keyword.get(opts, :context)}),
+         {:ok, auction} <- auction(auction_id),
+         :ok <- verified_treasury(auction),
+         {:ok, auction_address} <- normalize(auction.auction_address),
          {:ok, max_price_q96} <-
-           refusable(price_q96(arguments.max_price, auction.quote_token_decimals)),
-         {:ok, snapshot} <- snapshot(address, signer, max_price_q96),
+           refusable(price_q96(max_price, auction.quote_token_decimals)),
+         {:ok, snapshot} <- snapshot(auction_address, signer, max_price_q96),
          {:ok, max_price_q96} <- refusable(Autolaunch.BidPrice.align(max_price_q96, snapshot)),
          :ok <- bound_currency(snapshot, auction),
-         :ok <- bounded_predecessor(snapshot, max_price_q96),
-         :ok <- affordable(snapshot, amount),
-         {envelope, step} <-
-           review(
-             auction,
-             address,
-             signer,
-             amount,
-             max_price_q96,
-             snapshot,
-             treasury_report,
-             arguments.max_price
-           ),
-         {:ok, operation} <- open(lease, envelope, signer, step) do
-      {:ok, %{operation: view(operation)}}
+         :ok <- bounded_predecessor(snapshot, max_price_q96) do
+      bid = %{
+        auction: auction,
+        auction_address: auction_address,
+        signer: signer,
+        max_price_q96: max_price_q96,
+        snapshot: snapshot
+      }
+
+      if request[:pay_with] == "USDC",
+        do: usdc_bid(bid, amount),
+        else: currency_bid(bid, amount)
     end
   end
 
-  def prepare(_input, _context), do: {:error, :authentication_required}
-
   @doc """
-  Reviews one USDC bid on a Stocks auction: the exact USDC allowance to the bid
-  adapter it still needs, then the adapter call that buys STOCK through the
-  admitted route and places the bid as this wallet.
-
-  The route's estimate is shown and never trusted: the adapter is told to
-  deliver at least the estimate less one percent or revert, and to refuse the
-  whole call after fifteen minutes.
+  What a confirmed step of a bid placed, read from its receipt's logs: the
+  on-chain bid id and the amount it committed in the auction's currency, or
+  `nil` for an approval, or for logs that do not record this very bid.
   """
-  def prepare_usdc(input, %{actor: %Human{}} = context) do
-    arguments = input.arguments
+  @spec result(map(), String.t(), [map()]) :: map() | nil
+  def result(context, "bid", logs) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, {[bid_id, owner_word], [price, amount]}} <-
+           LabAbi.event_words(
+             Lab.abi!(config, :auction),
+             "BidSubmitted(uint256,address,uint256,uint128)",
+             logs,
+             context.auction_address
+           ),
+         {:ok, owner} <- Abi.word_address(owner_word),
+         true <- Address.equal?(owner, context.signer),
+         true <- price == context.max_price_q96 and amount == context.amount_atomic do
+      placed(context, bid_id, amount)
+    else
+      _not_this_bid -> nil
+    end
+  end
 
-    with {:ok, signer} <- current_wallet(arguments.expected_signer, context),
-         {:ok, lease} <- lease(context),
-         {:ok, auction} <- auction(arguments.auction_id),
-         :ok <- stocks_auction(auction),
-         {:ok, treasury_report} <- verified_treasury(auction),
-         {:ok, address} <- normalize(auction.auction_address),
-         {:ok, usdc_amount} <- refusable(atomic_amount(arguments.usdc_amount, @usdc_decimals)),
-         {:ok, max_price_q96} <-
-           refusable(price_q96(arguments.max_price, auction.quote_token_decimals)),
-         {:ok, snapshot} <- snapshot(address, signer, max_price_q96),
-         {:ok, max_price_q96} <- refusable(Autolaunch.BidPrice.align(max_price_q96, snapshot)),
-         :ok <- bound_currency(snapshot, auction),
-         :ok <- bounded_predecessor(snapshot, max_price_q96),
+  # Only the adapter's own `StockBidPlaced` for this auction and this owner
+  # records a USDC bid; its bid id and committed stock are read from it.
+  def result(context, "usdc_bid", logs) do
+    with {:ok, stocks} <- StocksLab.current(),
+         {:ok, {[auction_word, owner_word, bid_id], [usdc_spent, stock_committed, price]}} <-
+           LabAbi.event_words(
+             StocksLab.abi!(stocks, :bid_adapter),
+             StocksLabAbi.bid_placed_signature(),
+             logs,
+             context.adapter
+           ),
+         {:ok, auction} <- Abi.word_address(auction_word),
+         {:ok, owner} <- Abi.word_address(owner_word),
+         true <- Address.equal?(auction, context.auction_address),
+         true <- Address.equal?(owner, context.signer),
+         true <- price == context.max_price_q96 and usdc_spent == context.usdc_atomic do
+      placed(context, bid_id, stock_committed)
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  def result(_context, _approval, _logs), do: nil
+
+  defp placed(context, bid_id, committed),
+    do: %{
+      "onchain_bid_id" => Integer.to_string(bid_id),
+      "amount" => units(committed, context.currency_decimals)
+    }
+
+  # Reviews
+
+  defp currency_bid(bid, typed) do
+    %{auction: auction, auction_address: address, signer: signer, snapshot: snapshot} = bid
+
+    with {:ok, amount} <- refusable(atomic_amount(typed, auction.quote_token_decimals)),
+         :ok <- affordable(snapshot, amount),
+         {:ok, config} <- lab(Lab) do
+      expiration = DateTime.to_unix(DateTime.utc_now()) + @permit2_seconds
+
+      data =
+        LabAbi.encode(
+          Lab.abi!(config, :auction),
+          "submitBid(uint256,uint128,address,uint256,bytes)",
+          [bid.max_price_q96, amount, signer, snapshot.prev_tick_price_q96, "0x"]
+        )
+
+      steps =
+        token_approval(config, snapshot, amount) ++
+          permit2_approval(config, snapshot, amount, expiration) ++
+          [Review.step("bid", address, data)]
+
+      {:ok,
+       %{
+         chain: Client.chain(config),
+         steps: steps,
+         facts:
+           facts(
+             bid,
+             units(amount, auction.quote_token_decimals),
+             auction.quote_token_symbol,
+             nil
+           ),
+         context:
+           context(bid, %{
+             currency_symbol: auction.quote_token_symbol,
+             amount_atomic: amount
+           })
+       }}
+    end
+  end
+
+  defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, typed) do
+    with :ok <- stocks_auction(auction),
+         {:ok, usdc_amount} <- refusable(atomic_amount(typed, @usdc_decimals)),
          {:ok, usdc} <- usdc_snapshot(snapshot.currency, signer, usdc_amount),
          :ok <- usdc_affordable(usdc, usdc_amount),
          {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote),
-         {envelope, step} <-
-           usdc_review(auction, signer, snapshot, usdc, %{
-             auction_address: address,
-             usdc_amount: usdc_amount,
-             min_stock_out: min_stock_out,
-             max_price_q96: max_price_q96,
-             treasury_report: treasury_report,
-             requested_price: arguments.max_price
-           }),
-         {:ok, operation} <- open(lease, envelope, signer, step) do
-      {:ok, %{operation: view(operation)}}
+         {:ok, config} <- lab(StocksLab) do
+      deadline = DateTime.to_unix(DateTime.utc_now()) + @usdc_deadline_seconds
+
+      data =
+        LabAbi.encode(
+          StocksLab.abi!(config, :bid_adapter),
+          "bidWithUsdc(address,uint256,uint128,uint256,uint256,uint256)",
+          [
+            bid.auction_address,
+            usdc_amount,
+            min_stock_out,
+            bid.max_price_q96,
+            snapshot.prev_tick_price_q96,
+            deadline
+          ]
+        )
+
+      steps =
+        usdc_approval(config, usdc, usdc_amount) ++
+          [Review.step("usdc_bid", usdc.adapter, data)]
+
+      {:ok,
+       %{
+         chain: Client.chain(config),
+         steps: steps,
+         facts:
+           facts(
+             bid,
+             units(usdc_amount, @usdc_decimals),
+             "USDC",
+             units(min_stock_out, auction.quote_token_decimals)
+           ),
+         context:
+           context(bid, %{
+             currency_symbol: "USDC",
+             adapter: usdc.adapter,
+             usdc_atomic: usdc_amount
+           })
+       }}
     end
   end
 
-  def prepare_usdc(_input, _context), do: {:error, :authentication_required}
+  # What the page shows beside the button: what the bid spends, the most it
+  # pays per token and, for a USDC bid, the least stock the USDC must buy.
+  defp facts(%{auction: auction, max_price_q96: max_price_q96}, pay, pay_symbol, min_stock_out),
+    do: %{
+      pay: pay,
+      pay_symbol: pay_symbol,
+      max_price: price_decimal(max_price_q96, auction.quote_token_decimals),
+      currency_symbol: auction.quote_token_symbol,
+      token_symbol: auction.token_symbol,
+      min_stock_out: min_stock_out
+    }
 
-  def cancel(input, context),
-    do: write(context, input.arguments.action_id, transition(:cancel, %{reason: @withdrawn}))
-
-  @doc "The presenter's whole view of one operation. Everything else stays server-side."
-  @spec view(Ash.Resource.record() | nil) :: map() | nil
-  def view(nil), do: nil
-
-  def view(operation) do
-    Map.take(operation, [
-      :action_id,
-      :state,
-      :step,
-      :signer,
-      :envelope,
-      :onchain_bid_id,
-      :terminal_at
-    ])
-    |> Autolaunch.WalletAttempts.decorate(operation, :bid)
-  end
-
-  @doc "The reviewed sequence, in order, as the progress list renders it."
-  @spec steps(map()) :: [map()]
-  def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
-
-  @doc "The hash of the confirmed or pending press for one step of a presented operation, or `nil`."
-  @spec step_hash(map(), String.t()) :: String.t() | nil
-  def step_hash(operation, step),
-    do: Map.get(operation, Map.fetch!(@hash_attributes, String.to_existing_atom(step)))
-
-  # Reviews and operations
-
-  defp review(
-         auction,
-         address,
-         signer,
-         amount,
-         max_price_q96,
-         snapshot,
-         treasury_report,
-         requested_price
-       ) do
-    granted = DateTime.add(Envelope.current_time(), @permit2_seconds, :second)
-
-    {data, envelope_options} = bid_data(max_price_q96, amount, signer, snapshot)
-
-    steps =
-      required_steps(snapshot, amount, DateTime.to_unix(granted)) ++
-        [%{"step" => "bid", "to" => address, "data" => data}]
-
-    envelope =
-      Envelope.new(
-        @action,
-        signer,
-        data,
-        envelope_options ++
-          [
-            to: address,
-            resource: @resource,
-            contract_name: @contract_name,
-            risk_copy: risk_copy(),
-            arguments:
-              %{
-                "auction_id" => auction.id,
-                "auction_address" => address,
-                "amount" => units(amount, auction.quote_token_decimals),
-                "amount_atomic" => Integer.to_string(amount),
-                "currency_symbol" => auction.quote_token_symbol,
-                "currency_decimals" => Integer.to_string(auction.quote_token_decimals),
-                "max_price" => price_decimal(max_price_q96, auction.quote_token_decimals),
-                "requested_max_price" => requested_price,
-                "tick_spacing_q96" => Integer.to_string(snapshot.tick_spacing_q96),
-                "floor_price_q96" => Integer.to_string(snapshot.floor_price_q96),
-                "clearing_price_q96" => Integer.to_string(snapshot.clearing_price_q96),
-                "max_bid_price_q96" => Integer.to_string(snapshot.max_bid_price_q96),
-                "max_price_q96" => Integer.to_string(max_price_q96),
-                "prev_tick_price_q96" => Integer.to_string(snapshot.prev_tick_price_q96),
-                "predecessor_source" => snapshot.predecessor_source,
-                "currency" => snapshot.currency,
-                "permit2" => permit2_address(snapshot),
-                "treasury_security" => treasury_binding(treasury_report),
-                "token_allowance_atomic" => Integer.to_string(snapshot.token_allowance),
-                "permit2_allowance_atomic" => Integer.to_string(snapshot.permit2_amount),
-                "permit2_expiration" => Integer.to_string(snapshot.permit2_expiration),
-                "steps" => steps
-              }
-              |> Map.merge(lab_review_anchor(snapshot))
-          ]
+  defp context(bid, fields),
+    do:
+      Map.merge(
+        %{
+          auction_id: bid.auction.id,
+          auction_address: bid.auction_address,
+          signer: bid.signer,
+          max_price_q96: bid.max_price_q96,
+          max_price: price_decimal(bid.max_price_q96, bid.auction.quote_token_decimals),
+          currency_decimals: bid.auction.quote_token_decimals
+        },
+        fields
       )
 
-    {stored(envelope), steps |> hd() |> Map.fetch!("step") |> String.to_existing_atom()}
-  end
-
-  # The USDC sequence: the exact allowance the adapter needs, then the one
-  # adapter call. `to` is the adapter; the auction it bids on is an argument.
-  defp usdc_review(auction, signer, snapshot, usdc, terms) do
-    %{
-      auction_address: address,
-      usdc_amount: usdc_amount,
-      min_stock_out: min_stock_out,
-      max_price_q96: max_price_q96,
-      treasury_report: treasury_report,
-      requested_price: requested_price
-    } = terms
-
-    deadline = DateTime.to_unix(Envelope.current_time()) + @usdc_deadline_seconds
-    config = StocksLab.current!()
-
-    data =
-      LabAbi.encode(
-        StocksLab.abi!(config, :bid_adapter),
-        "bidWithUsdc(address,uint256,uint128,uint256,uint256,uint256)",
-        [
-          address,
-          usdc_amount,
-          min_stock_out,
-          max_price_q96,
-          snapshot.prev_tick_price_q96,
-          deadline
-        ]
-      )
-
-    steps =
-      usdc_approval_step(usdc, usdc_amount, config) ++
-        [%{"step" => "usdc_bid", "to" => usdc.adapter, "data" => data}]
-
-    envelope =
-      Envelope.new(
-        @usdc_action,
-        signer,
-        data,
-        chain_id: Lab.chain_id(),
-        lab_binding: snapshot.lab_binding,
-        to: usdc.adapter,
-        resource: @resource,
-        contract_name: @usdc_contract_name,
-        risk_copy: usdc_risk_copy(auction),
-        arguments:
-          %{
-            "auction_id" => auction.id,
-            "auction_address" => address,
-            "usdc_amount" => units(usdc_amount, @usdc_decimals),
-            "usdc_amount_atomic" => Integer.to_string(usdc_amount),
-            "stock_quote" => units(usdc.stock_quote, auction.quote_token_decimals),
-            "stock_quote_atomic" => Integer.to_string(usdc.stock_quote),
-            "min_stock_out" => units(min_stock_out, auction.quote_token_decimals),
-            "min_stock_out_atomic" => Integer.to_string(min_stock_out),
-            "tolerance_bps" => Integer.to_string(@usdc_tolerance_bps),
-            "deadline" => Integer.to_string(deadline),
-            "currency_symbol" => auction.quote_token_symbol,
-            "currency_decimals" => Integer.to_string(auction.quote_token_decimals),
-            "max_price" => price_decimal(max_price_q96, auction.quote_token_decimals),
-            "requested_max_price" => requested_price,
-            "tick_spacing_q96" => Integer.to_string(snapshot.tick_spacing_q96),
-            "floor_price_q96" => Integer.to_string(snapshot.floor_price_q96),
-            "clearing_price_q96" => Integer.to_string(snapshot.clearing_price_q96),
-            "max_bid_price_q96" => Integer.to_string(snapshot.max_bid_price_q96),
-            "max_price_q96" => Integer.to_string(max_price_q96),
-            "prev_tick_price_q96" => Integer.to_string(snapshot.prev_tick_price_q96),
-            "predecessor_source" => snapshot.predecessor_source,
-            "currency" => snapshot.currency,
-            "usdc" => usdc.usdc,
-            "adapter" => usdc.adapter,
-            "route" => usdc.route,
-            "treasury_security" => treasury_binding(treasury_report),
-            "usdc_allowance_atomic" => Integer.to_string(usdc.usdc_allowance),
-            "steps" => steps
-          }
-          |> Map.merge(lab_review_anchor(snapshot))
-      )
-
-    {stored(envelope), steps |> hd() |> Map.fetch!("step") |> String.to_existing_atom()}
-  end
-
-  defp usdc_approval_step(%{usdc_allowance: allowance}, amount, _config) when allowance >= amount,
+  defp usdc_approval(_config, %{usdc_allowance: allowance}, amount) when allowance >= amount,
     do: []
 
-  defp usdc_approval_step(usdc, amount, config) do
-    [
-      %{
-        "step" => "usdc_approval",
-        "to" => usdc.usdc,
-        "data" =>
-          LabAbi.encode(StocksLab.abi!(config, :erc20), "approve(address,uint256)", [
-            usdc.adapter,
-            amount
-          ]),
-        "amount" => Integer.to_string(amount)
-      }
+  defp usdc_approval(config, usdc, amount),
+    do: [
+      Review.step(
+        "usdc_approval",
+        usdc.usdc,
+        LabAbi.encode(StocksLab.abi!(config, :erc20), "approve(address,uint256)", [
+          usdc.adapter,
+          amount
+        ])
+      )
     ]
-  end
 
   defp usdc_snapshot(stock, signer, usdc_amount) do
     case LabBidChainClient.usdc_snapshot(%{
@@ -438,224 +364,80 @@ defmodule Autolaunch.BidActions do
   defp stocks_auction(%{kind: :stocks}), do: :ok
   defp stocks_auction(_auction), do: unavailable(:usdc_bids_unavailable)
 
-  defp bid_data(max_price_q96, amount, signer, snapshot) do
-    config = Lab.current!()
-
-    data =
-      LabAbi.encode(
-        Lab.abi!(config, :auction),
-        "submitBid(uint256,uint128,address,uint256,bytes)",
-        [max_price_q96, amount, signer, snapshot.prev_tick_price_q96, "0x"]
-      )
-
-    {data, [chain_id: Lab.chain_id(), lab_binding: snapshot.lab_binding]}
-  end
-
-  defp usdc_risk_copy(auction) do
-    if Lab.test_chain?(),
-      do:
-        "Your wallet signs the local-fork USDC allowance this bid still needs, then one transaction that buys #{auction.quote_token_symbol} and places the test bid. These assets have no mainnet value.",
-      else:
-        "Your wallet signs the USDC allowance this bid still needs, then one transaction that buys #{auction.quote_token_symbol} and places the bid."
-  end
-
-  defp risk_copy do
-    if Lab.test_chain?(),
-      do:
-        "Your wallet signs only the local-fork approval steps this bid still needs, then the test bid. These assets have no mainnet value.",
-      else: "Your wallet signs only the steps this bid still needs, then the bid itself."
-  end
-
-  defp lab_review_anchor(%{block: block}),
-    do: %{"block_number" => block.number, "block_hash" => block.hash}
-
   # Only the transactions this wallet still needs. An allowance that already
-  # covers the amount and outlives the review is spent exactly as it stands.
-  defp required_steps(snapshot, amount, expiration) do
-    token_approval(snapshot, amount) ++ permit2_approval(snapshot, amount, expiration)
-  end
+  # covers the amount and outlives the next ten minutes is spent as it stands.
+  defp token_approval(_config, %{token_allowance: allowance}, amount) when allowance >= amount,
+    do: []
 
-  defp token_approval(%{token_allowance: allowance}, amount) when allowance >= amount, do: []
-
-  defp token_approval(snapshot, amount),
+  defp token_approval(config, snapshot, amount),
     do: [
-      %{
-        "step" => "token_approval",
-        "to" => snapshot.currency,
-        "data" => encode_token_approval(snapshot, amount),
-        "amount" => Integer.to_string(amount)
-      }
+      Review.step(
+        "token_approval",
+        snapshot.currency,
+        LabAbi.encode(Lab.abi!(config, :token), "approve(address,uint256)", [
+          snapshot.permit2,
+          amount
+        ])
+      )
     ]
 
-  defp permit2_approval(snapshot, amount, expiration) do
+  defp permit2_approval(config, snapshot, amount, expiration) do
     if permit2_current?(snapshot, amount),
       do: [],
       else: [
-        %{
-          "step" => "permit2_approval",
-          "to" => permit2_address(snapshot),
-          "data" => encode_permit2_approval(snapshot, amount, expiration),
-          "amount" => Integer.to_string(amount),
-          "expiration" => Integer.to_string(expiration)
-        }
+        Review.step(
+          "permit2_approval",
+          snapshot.permit2,
+          LabAbi.encode(
+            Lab.abi!(config, :permit2),
+            "approve(address,address,uint160,uint48)",
+            [snapshot.currency, snapshot.auction, amount, expiration]
+          )
+        )
       ]
   end
 
-  # An existing allowance is reused only if it outlives the whole review window,
-  # so the envelope's own deadline is always the one the sequence expires on.
-  # Its expiry stays a plain integer: a canonical `uint48` maximum is a perfectly
-  # good allowance and no calendar can hold it.
+  # Its expiry stays a plain integer: a canonical `uint48` maximum is a
+  # perfectly good allowance and no calendar can hold it.
   defp permit2_current?(%{permit2_amount: allowed, permit2_expiration: expires}, amount),
-    do:
-      allowed >= amount and
-        expires >= DateTime.to_unix(Envelope.current_time()) + @review_seconds
+    do: allowed >= amount and expires >= DateTime.to_unix(DateTime.utc_now()) + @reuse_seconds
 
-  defp permit2_address(%{permit2: address}), do: address
-
-  defp encode_token_approval(snapshot, amount) do
-    config = Lab.current!()
-
-    LabAbi.encode(
-      Lab.abi!(config, :token),
-      "approve(address,uint256)",
-      [permit2_address(snapshot), amount]
-    )
-  end
-
-  defp encode_permit2_approval(snapshot, amount, expiration) do
-    config = Lab.current!()
-
-    LabAbi.encode(
-      Lab.abi!(config, :permit2),
-      "approve(address,address,uint160,uint48)",
-      [snapshot.currency, snapshot.auction, amount, expiration]
-    )
-  end
-
-  defp open(lease, envelope, signer, step) do
-    transact(lease, fn account ->
-      with :ok <- signer_matches(account, signer) do
-        BidOperation
-        |> Ash.Changeset.for_create(
-          :prepare,
-          %{
-            action_id: envelope["action_id"],
-            envelope: envelope,
-            signer: signer,
-            step: step,
-            human_account_id: account.id
-          },
-          domain: @domain,
-          actor: @actor
-        )
-        |> Ash.create(actor: @actor)
-      end
-    end)
-  end
-
-  # Read-only dispatch evidence, called before the authority/account/review locks.
-  def press_evidence(operation) do
-    with {:ok, :current} <- current_lab_status(operation),
-         {:ok, fresh} <- revalidate_treasury(operation),
-         true <- treasury_still_reviewed?(operation, fresh),
-         true <- valid_envelope?(operation),
-         do: :ok,
-         else: (_ -> unavailable(:treasury_security_changed))
-  end
-
-  # Transitions
-
-  defp transition(action, input),
-    do: fn _account, operation -> update(operation, action, input) end
-
-  # The reviewed envelope lives ten minutes. Past that, no prepared step of it
-  # can be spent, whether it is a lone bid or the remainder of a longer
-  # sequence, so the operation ends here — inside the locked transaction, ahead
-  # of the claim — and a new review rereads current allowance and auction state.
-  defp expire_lapsed(%{state: :prepared} = operation) do
-    if expired?(operation) and not Autolaunch.WalletAttempts.in_flight?(:bid, operation),
-      do: update(operation, :expire, %{reason: @lapsed}),
-      else: {:ok, operation}
-  end
-
-  defp expire_lapsed(operation), do: {:ok, operation}
-
-  defp expired?(%{envelope: %{"expires_at" => expires_at}}) do
-    {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
-    DateTime.compare(expires_at, Envelope.current_time()) != :gt
-  end
-
-  # Durable write plumbing
-
-  defp write(%{actor: %Human{}} = context, action_id, transition) do
-    with {:ok, lease} <- lease(context),
-         do: transact(lease, &locked_transition(&1, action_id, transition))
-  end
-
-  defp write(_context, _action_id, _transition), do: unavailable(:authentication_required)
-
-  defp locked_transition(account, action_id, transition) do
-    with {:ok, operation} <- operation(account.id, action_id, true),
-         {:ok, operation} <- expire_lapsed(operation),
-         {:ok, operation} <- resume(operation, account, transition),
-         do: {:ok, %{operation: view(operation)}}
-  end
-
-  # An operation the lapse just ended is itself the outcome, and it commits:
-  # nothing further is asked of a sequence that can no longer be spent.
-  defp resume(%{state: :expired} = operation, _account, _transition), do: {:ok, operation}
-  defp resume(operation, account, transition), do: transition.(account, operation)
-
-  defp transact(%{lineage: lineage, account_id: account_id}, callback) do
-    case SessionAuthority.transact_lease(lineage, account_id, callback) do
-      {:error, :stale_authority} -> unavailable(:session_unavailable)
-      result -> result
+  defp lab(module) do
+    case module.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:bid_preparation_unavailable)
     end
-  end
-
-  defp operation(account_id, action_id, lock?) do
-    BidOperation
-    |> Ash.Query.new(domain: @domain)
-    |> Ash.Query.filter(action_id == ^action_id and human_account_id == ^account_id)
-    |> then(&if lock?, do: Ash.Query.lock(&1, :for_update), else: &1)
-    |> Ash.read_one(domain: @domain, actor: @actor)
-    |> case do
-      {:ok, nil} -> unavailable(:bid_operation_not_found)
-      other -> other
-    end
-  end
-
-  defp update(operation, action, input) do
-    operation
-    |> Ash.Changeset.for_update(action, input, domain: @domain, actor: @actor)
-    |> Ash.update(actor: @actor)
   end
 
   # Session and wallet identity
 
-  @doc "The mounted lease an Ash action context carries, or the refusal to write at all."
-  @spec lease(map()) :: {:ok, map()} | {:error, :session_lease_required}
+  defp human(opts) do
+    case Keyword.get(opts, :actor) do
+      %Human{} = actor -> {:ok, actor}
+      _anonymous -> unavailable(:authentication_required)
+    end
+  end
+
+  @doc "The mounted lease an Ash action context carries, or the refusal to read for it."
+  @spec lease(map()) :: {:ok, map()} | {:error, term()}
   def lease(%{source_context: %{session_lease: %{lineage: lineage, account_id: account_id}}})
       when is_binary(lineage) and is_integer(account_id),
       do: {:ok, %{lineage: lineage, account_id: account_id}}
 
   def lease(_context), do: unavailable(:session_lease_required)
 
+  # The wallet has to be one the leased account links, read now: never a guess.
   defp current_wallet(address, context) do
     with {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(context),
-         :ok <- leased_wallet(lease, signer),
-         do: {:ok, signer}
+         {:ok, %{lineage: lineage, account_id: account_id}} <- lease(context),
+         do: lineage |> SessionAuthority.leased_account(account_id) |> linked_wallet(signer)
   end
 
-  defp leased_wallet(%{lineage: lineage, account_id: account_id}, signer),
-    do: lineage |> SessionAuthority.leased_account(account_id) |> signer_matches(signer)
+  defp linked_wallet(nil, _signer), do: unavailable(:session_unavailable)
 
-  defp signer_matches(nil, _signer), do: unavailable(:session_unavailable)
-
-  defp signer_matches(%{wallet_address: wallet}, signer) do
-    if Address.equal?(wallet, signer),
-      do: :ok,
+  defp linked_wallet(%{wallet_addresses: wallets}, signer) when is_list(wallets) do
+    if Enum.any?(wallets, &Address.equal?(&1, signer)),
+      do: {:ok, signer},
       else: unavailable(:wrong_signer)
   end
 
@@ -721,6 +503,9 @@ defmodule Autolaunch.BidActions do
     end
   end
 
+  # The auction must raise for the treasury this site recorded for it: a
+  # verified report on Base, the admitted launchpad for a Base memestock
+  # auction, and the recorded addresses on a local fork.
   defp verified_treasury(auction) do
     cond do
       Lab.test_chain?() -> lab_treasury(auction)
@@ -729,27 +514,11 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  # A Base Memestake raise goes to the launchpad, not to a treasury with a
-  # report, so its bids are bound to the launchpad the Base Stocks deployment
-  # description admits, and the auction must name that same launchpad.
-  defp launchpad_treasury(%{
-         id: auction_id,
-         auction_address: auction_address,
-         treasury_address: treasury_address
-       }) do
-    with {:ok, launchpad} <- admitted_launchpad(),
-         true <- Address.equal?(treasury_address, launchpad) || {:error, :launchpad_changed},
-         {:ok, auction_address} <- normalize(auction_address) do
-      {:ok,
-       %{
-         "mode" => "launchpad",
-         "auction_id" => auction_id,
-         "auction_address" => auction_address,
-         "address" => launchpad
-       }}
-    else
-      {:error, :launchpad_changed} -> unavailable(:treasury_security_changed)
-      {:error, reason} -> {:error, reason}
+  defp launchpad_treasury(%{treasury_address: treasury_address}) do
+    with {:ok, launchpad} <- admitted_launchpad() do
+      if Address.equal?(treasury_address, launchpad),
+        do: :ok,
+        else: unavailable(:treasury_security_changed)
     end
   end
 
@@ -760,24 +529,9 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  defp lab_treasury(%{
-         id: auction_id,
-         auction_address: auction_address,
-         treasury_address: treasury_address
-       }) do
-    with {:ok, auction_address} <- normalize(auction_address),
-         {:ok, treasury_address} <- normalize(treasury_address) do
-      {:ok,
-       %{
-         "mode" => "local_lab",
-         "auction_id" => auction_id,
-         "auction_address" => auction_address,
-         "address" => treasury_address
-       }}
-    end
+  defp lab_treasury(%{treasury_address: treasury_address}) do
+    with {:ok, _treasury} <- normalize(treasury_address), do: :ok
   end
-
-  defp lab_treasury(_auction), do: unavailable(:treasury_report_missing)
 
   defp verified_production_treasury(%{treasury_security_report: nil}),
     do: unavailable(:treasury_report_missing)
@@ -788,132 +542,11 @@ defmodule Autolaunch.BidActions do
   defp verified_production_treasury(%{
          treasury_address: address,
          treasury_security_report: %{address: address} = report
-       }),
-       do: TreasurySecurity.revalidate_bound(report)
+       }) do
+    with {:ok, _report} <- TreasurySecurity.revalidate_bound(report), do: :ok
+  end
 
   defp verified_production_treasury(_auction), do: unavailable(:treasury_security_changed)
-
-  defp revalidate_treasury(operation) do
-    binding = operation.envelope["arguments"]["treasury_security"]
-
-    case binding["mode"] do
-      "local_lab" -> revalidate_lab_treasury(operation, binding)
-      "launchpad" -> revalidate_launchpad_treasury(operation, binding)
-      _report -> revalidate_production_treasury(binding)
-    end
-  end
-
-  defp revalidate_launchpad_treasury(operation, binding) do
-    with {:ok, auction} <- auction(binding["auction_id"]),
-         {:ok, fresh} <- launchpad_treasury(auction),
-         true <- fresh == binding,
-         true <-
-           Address.equal?(
-             operation.envelope["arguments"]["auction_address"],
-             binding["auction_address"]
-           ) do
-      {:ok, binding}
-    else
-      _changed -> unavailable(:treasury_security_changed)
-    end
-  end
-
-  defp revalidate_production_treasury(binding) do
-    with {:ok, report} <-
-           Autolaunch.get_treasury_security_report(binding["report_id"], actor: nil),
-         false <- is_nil(report) do
-      if report.address == binding["address"],
-        do: TreasurySecurity.revalidate_bound(report),
-        else: unavailable(:treasury_security_changed)
-    else
-      _missing -> unavailable(:treasury_report_missing)
-    end
-  end
-
-  defp revalidate_lab_treasury(operation, binding) do
-    with {:ok, auction} <- auction(binding["auction_id"]),
-         true <- Address.equal?(auction.auction_address, binding["auction_address"]),
-         true <- Address.equal?(auction.treasury_address, binding["address"]),
-         true <-
-           Address.equal?(
-             operation.envelope["arguments"]["auction_address"],
-             binding["auction_address"]
-           ),
-         true <- Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2]) do
-      {:ok, binding}
-    else
-      _changed -> unavailable(:treasury_security_changed)
-    end
-  end
-
-  defp treasury_still_reviewed?(operation, %{"mode" => mode} = fresh)
-       when mode in ["local_lab", "launchpad"],
-       do: fresh == operation.envelope["arguments"]["treasury_security"]
-
-  defp treasury_still_reviewed?(operation, fresh) do
-    bound = operation.envelope["arguments"]["treasury_security"]
-
-    bound["configuration_fingerprint"] == fresh.configuration_fingerprint and
-      bound["address"] == fresh.address and
-      bound["classification"] == Atom.to_string(fresh.classification) and
-      bound["verification_state"] == "verified" and fresh.verification_state == :verified and
-      bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
-  end
-
-  defp treasury_binding(%{"mode" => mode} = binding) when mode in ["local_lab", "launchpad"],
-    do: binding
-
-  defp treasury_binding(report) do
-    %{
-      "report_id" => report.id,
-      "address" => report.address,
-      "configuration_fingerprint" => report.configuration_fingerprint,
-      "source_block_hash" => report.source_block_hash,
-      "source_block_number" => report.source_block_number,
-      "classification" => Atom.to_string(report.classification),
-      "verification_state" => Atom.to_string(report.verification_state),
-      "downgrade_state" => Atom.to_string(report.downgrade_state),
-      "evidence" => %{
-        "usdc" => report.usdc_evidence,
-        "regent" => report.regent_evidence,
-        "outbound" => report.outbound_evidence
-      }
-    }
-  end
-
-  defp valid_envelope?(operation) do
-    options = [
-      resource: @resource,
-      actions: [@action, @usdc_action],
-      signer: operation.signer,
-      to: operation.envelope["to"],
-      contract_name: operation.envelope["metadata"]["contract_name"],
-      chain_id: Lab.chain_id()
-    ]
-
-    Envelope.valid?(operation.envelope, options) and
-      Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2])
-  end
-
-  # A press is sent against the deployment it was reviewed on: the binding the
-  # envelope carries must still be the current description's, and a USDC review
-  # must still name the current bid adapter.
-  defp current_lab_status(operation) do
-    if Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2]) and
-         adapter_current?(operation),
-       do: {:ok, :current},
-       else: {:ok, :changed}
-  end
-
-  # A USDC review is bound to the adapter the Stocks lab named at the time.
-  defp adapter_current?(%{envelope: %{"action" => @usdc_action, "to" => adapter}}) do
-    case StocksLab.current() do
-      {:ok, config} -> Address.equal?(adapter, StocksLab.address!(config, :bid_adapter))
-      {:error, _reason} -> false
-    end
-  end
-
-  defp adapter_current?(_operation), do: true
 
   # Amounts and prices
 
@@ -1030,12 +663,10 @@ defmodule Autolaunch.BidActions do
   defp refusable({:error, reason}), do: unavailable(reason)
   defp refusable(result), do: result
 
-  # One stored shape: the envelope is written, read and rendered exactly as the
-  # confirmation token signed it.
-  defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
-
   # A typed Ash error, so the refusal survives the action's error class and the
   # presenter can name the fact that actually stopped the bid.
   defp unavailable(reason),
-    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: BidOperation, reason: reason)}
+    do:
+      {:error,
+       Ash.Error.Invalid.Unavailable.exception(resource: Autolaunch.Auction, reason: reason)}
 end

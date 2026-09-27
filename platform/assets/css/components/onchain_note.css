@@ -1,0 +1,15 @@
+/* The lines above a wallet button: what went wrong with the last press, the
+   wallet it sends from, and the note naming both wallets while the wallet app
+   has one open that the account does not link. */
+.onchain-note, .token-swap__review-from, .token-swap__review-note, .launch-wallet-from {
+  margin: 0;
+  font-size: .8125rem;
+  color: var(--color-fg-muted);
+  overflow-wrap: anywhere;
+}
+.token-swap__review-note { color: var(--color-error); }
+.token-swap__review-label {
+  display: block;
+  color: var(--color-fg-muted);
+  font-size: .8125rem;
+}

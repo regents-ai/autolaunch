@@ -10,36 +10,34 @@ defmodule AutolaunchWeb.SwapComponent do
   max-slippage setting behind the gear, then a panel over the form that walks
   the wallet through the swap and closes itself when the swap lands.
 
-  The wallet is the one the customer signed in with, read from the mounted
-  lease. A press opens that wallet, or Privy's connect step when this tab has
-  not connected it, and a note names both wallets while the browser is on
-  another one.
+  The wallet that acts is Privy's active wallet when the signed-in account
+  links it (`AutolaunchWeb.OnchainSteps`); the balances are that wallet's, or
+  the signed-in wallet's until Privy reports one, and a note names both while
+  the wallet app has another one open.
 
   Nothing is stored. The quote and the balances are public reads; the review
   lives on this page only, the browser reports a hash and stops, and every
-  outcome on screen is the server's own read of that hash.
+  outcome on screen is the server's own read of that hash against the review
+  it was sent from.
   """
   use AutolaunchWeb, :live_component
 
   import AutolaunchWeb.Components.SwapForm
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.Chain.Client
   alias Autolaunch.SwapActions
-  alias AutolaunchWeb.{AgentPress, Paths, SignedInWallet}
-  alias Phoenix.LiveView.JS
+  alias AutolaunchWeb.{AgentPress, OnchainSteps, Paths}
+  alias RegentChain.{Presses, Review}
 
   @default_protection "1"
-  # A sent step is read again on its own this often, this many times, before
-  # the form offers the read as a button instead.
-  @recheck_ms 2_000
-  @recheck_limit 90
 
   @copy %{
     authentication_required: "Sign in to swap from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
-    invalid_address: "Connect the wallet you signed in with, then try again.",
+    wrong_signer: "Switch to a wallet on your account in your wallet app, then review again.",
+    invalid_address: "Connect your wallet, then review again.",
     chain_unavailable: "The pool could not be read just now. Try again in a moment.",
     invalid_chain_response: "The pool gave an incomplete answer. Try again in a moment.",
     lab_config_changed: "The network changed while this was prepared. Try again.",
@@ -52,61 +50,81 @@ defmodule AutolaunchWeb.SwapComponent do
     amount_not_representable: "That amount has more decimal places than this token supports.",
     amount_too_large: "That amount is too large to swap at once.",
     amount_above_balance: "This wallet holds less than that.",
-    protection_out_of_range: "Max slippage is a number from 1 to 10.",
-    envelope_invalid: "This swap is out of date. Close it and review again.",
-    invalid_hash: "That transaction could not be read. Check your wallet activity."
+    protection_out_of_range: "Max slippage is a number from 1 to 10."
   }
 
   @generic "That did not go through. Try again in a moment."
-  @steps %{
-    "token_approval" => :token_approval,
-    "permit2_approval" => :permit2_approval,
-    "swap" => :swap
-  }
   @agent_directions %{"autolaunch_buy" => :buy, "autolaunch_sell" => :sell}
 
   @impl true
-  def update(assigns, socket) do
-    scope = {assigns.launch.chain, launch_key(assigns.launch), assigns.currency}
-    fresh? = socket.assigns[:scope] != scope
-
-    socket =
-      if fresh? do
-        assign(socket,
-          scope: scope,
-          direction: Map.get(assigns, :start_direction, :buy),
-          amount: "",
-          error: nil,
-          estimate: nil,
-          protection: @default_protection,
-          protection_error: nil,
-          options_open: false,
-          wallet: nil,
-          signed_in_for: nil,
-          balances: nil,
-          notice: nil,
-          review: nil,
-          sent: %{},
-          swapped: nil,
-          revision: Map.get(socket.assigns, :revision, -1) + 1
-        )
-      else
-        socket
-      end
-
+  def mount(socket) do
     {:ok,
      socket
-     |> assign(assigns)
-     |> assign_new(:authenticated, fn -> false end)
-     |> assign_new(:current_human_id, fn -> nil end)
-     |> assign_new(:session_lease, fn -> nil end)
-     |> assign_new(:image, fn -> nil end)
-     |> assign_new(:agent_tools, fn -> false end)
-     |> assign_new(:browser_wallets, fn -> [] end)
-     |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
-     |> SignedInWallet.adopt(&adopt/2)
-     |> then(&if(fresh?, do: estimated(&1), else: &1))}
+     |> OnchainSteps.init()
+     |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
   end
+
+  @impl true
+  def update(assigns, socket) do
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign_new(:authenticated, fn -> false end)
+      |> assign_new(:current_human_id, fn -> nil end)
+      |> assign_new(:session_lease, fn -> nil end)
+      |> assign_new(:image, fn -> nil end)
+      |> assign_new(:agent_tools, fn -> false end)
+      |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
+      |> OnchainSteps.adopt()
+
+    scope = {assigns.launch.chain, launch_key(assigns.launch), assigns.currency}
+
+    if socket.assigns.scope == scope,
+      do: {:ok, followed(socket)},
+      else: {:ok, socket |> fresh(scope) |> followed() |> estimated()}
+  end
+
+  defp fresh(socket, scope) do
+    socket
+    |> assign(
+      scope: scope,
+      direction: Map.get(socket.assigns, :start_direction, :buy),
+      amount: "",
+      error: nil,
+      estimate: nil,
+      protection: @default_protection,
+      protection_error: nil,
+      options_open: false,
+      wallet: nil,
+      balances: nil,
+      notice: nil,
+      swapped: nil
+    )
+    |> closed()
+  end
+
+  # The form follows the wallet that may act. A review is built for one
+  # signer, so another one closes it; the balances are that signer's, or the
+  # signed-in wallet's while no wallet on the account is active, and another
+  # wallet's are never shown as its own.
+  defp followed(socket) do
+    %{linked: linked, active: active, signed_in: signed_in} = socket.assigns
+    signer = OnchainSteps.signer(linked, active)
+    wallet = signer || signed_in
+
+    socket =
+      socket
+      |> assign(signer: signer, mismatch: OnchainSteps.mismatch_note(linked, active))
+      |> reviewed_for_signer(signer)
+
+    if wallet == socket.assigns.wallet,
+      do: socket,
+      else: socket |> assign(wallet: wallet, balances: nil) |> balanced()
+  end
+
+  defp reviewed_for_signer(%{assigns: %{review: %{signer: signer}}} = socket, signer), do: socket
+  defp reviewed_for_signer(%{assigns: %{review: nil}} = socket, _signer), do: socket
+  defp reviewed_for_signer(socket, _signer), do: closed(socket)
 
   defp launch_key(%{chain: :base, auction: %{id: id}}), do: id
   defp launch_key(%{chain: :robinhood, auction: address}), do: address
@@ -118,9 +136,7 @@ defmodule AutolaunchWeb.SwapComponent do
       id={@id}
       class="token-swap"
       data-agent-tools={@agent_tools && @currency && "autolaunch_buy autolaunch_sell"}
-      phx-hook="AutolaunchReviewedSteps"
-      phx-target={@myself}
-      phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+      phx-hook="OnchainSteps"
     >
       <.swap_done
         :if={@swapped}
@@ -139,10 +155,11 @@ defmodule AutolaunchWeb.SwapComponent do
           sell_image={if @direction == :sell, do: @image}
           buy_image={if @direction == :buy, do: @image}
           amount={@amount}
-          estimated_output={@estimate && @estimate.received}
-          rate={@estimate && @estimate.rate}
+          estimated_output={estimate(@estimate, :received)}
+          rate={estimate(@estimate, :rate)}
           sell_balance={held(@balances, sold(@direction))}
           buy_balance={held(@balances, bought(@direction))}
+          balances_unread={@balances == :unread}
           error={@error || if(is_nil(@review), do: @notice)}
           protection={@protection}
           protection_error={@protection_error}
@@ -160,18 +177,19 @@ defmodule AutolaunchWeb.SwapComponent do
         <.swap_review
           :if={@review}
           id={"#{@id}-review"}
-          review={@review.review}
+          review={@prepared.facts}
           sell_image={if @direction == :sell, do: @image}
           buy_image={if @direction == :buy, do: @image}
-          steps={steps(@review, @sent)}
-          next_step={next_step(@review, @sent)}
-          stalled={stalled(@sent)}
-          notice={@notice}
+          steps={steps(assigns)}
+          next_step={next_step(assigns)}
+          reverted={reverted(assigns)}
+          notice={@press_note}
           close_event="close_review"
-          check_event="check_step"
+          check_event="check_again"
           target={@myself}
-          wallet={@wallet}
-          browser_wallets={@browser_wallets}
+          signer={@review.signer}
+          chain_name={@review.chain.name}
+          mismatch={@mismatch}
         />
       </div>
 
@@ -183,9 +201,16 @@ defmodule AutolaunchWeb.SwapComponent do
   end
 
   @impl true
-  # The wallets this tab has connected, whenever they change: only for the note.
-  def handle_event("browser_wallets", params, socket),
-    do: {:noreply, assign(socket, browser_wallets: SignedInWallet.reported(params))}
+  def handle_event("onchain_active_wallet", params, socket) do
+    active = OnchainSteps.active_wallet(params)
+
+    socket =
+      if active == socket.assigns.active,
+        do: socket,
+        else: assign(socket, active: active, press_note: nil)
+
+    {:noreply, followed(socket)}
+  end
 
   def handle_event("form-" <> revision, params, socket) do
     if revision == Integer.to_string(socket.assigns.revision),
@@ -228,14 +253,14 @@ defmodule AutolaunchWeb.SwapComponent do
          )
          |> estimated()}
 
-      nil ->
+      _unread ->
         {:noreply, socket}
     end
   end
 
   def handle_event("review_swap", params, socket) do
     case reviewed(socket, params) do
-      {:ok, socket} -> {:noreply, published(socket)}
+      {:ok, socket} -> {:noreply, socket}
       {:error, socket} -> {:noreply, socket}
     end
   end
@@ -243,42 +268,43 @@ defmodule AutolaunchWeb.SwapComponent do
   # An agent's press: the next step of the swap open for the same side, amount
   # and slippage, or the first step of a new one, sent at once as the button
   # would.
-  def handle_event("agent_press", %{"call" => call, "tool" => tool} = params, socket)
+  def handle_event("agent_press", %{"tool" => tool} = params, socket)
       when is_map_key(@agent_directions, tool) do
     direction = Map.fetch!(@agent_directions, tool)
-    input = params["input"] || %{}
+    input = if is_map(params["input"]), do: params["input"], else: %{}
     fields = %{"amount" => input["amount"], "protection" => input["max_slippage"]}
 
     case socket.assigns do
       %{read_only?: true} ->
-        {:noreply, AgentPress.refused(socket, call, "Trading is not open on this site yet.")}
+        {:reply, AgentPress.refused("Trading is not open on this site yet."), socket}
 
       %{authenticated: false} ->
-        {:noreply, AgentPress.refused(socket, call, copy(:authentication_required))}
+        {:reply, AgentPress.refused(copy(:authentication_required)), socket}
 
       assigns ->
         case open_step(assigns, direction, fields) do
-          %{name: step} -> {:noreply, published(socket, {step, call})}
-          nil -> {:noreply, agent_reviewed(socket, direction, fields, call)}
+          %{name: step} -> {:reply, sending(socket, step), socket}
+          nil -> agent_reviewed(socket, direction, fields)
         end
     end
   end
 
-  def handle_event("step_sent", %{"step" => name, "transaction_hash" => hash}, socket)
-      when is_map_key(@steps, name) and is_binary(hash),
-      do: {:noreply, checked(socket, name, hash, 0)}
+  def handle_event("step_sent", params, socket),
+    do: {:noreply, OnchainSteps.sent(socket, params)}
 
-  def handle_event("check_step", %{"step" => name}, socket) do
-    case socket.assigns.sent[name] do
-      %{hash: hash} -> {:noreply, checked(socket, name, hash, 0)}
-      nil -> {:noreply, socket}
+  def handle_event("step_failed", params, socket) do
+    case Presses.failed(params) do
+      {:ok, _name, reason} ->
+        AutolaunchWeb.Telemetry.wallet_failed(:swap, reason)
+        {:noreply, assign(socket, press_note: failure_note(socket.assigns, reason))}
+
+      :error ->
+        {:noreply, socket}
     end
   end
 
-  def handle_event("step_failed", %{"reason" => reason}, socket) do
-    AutolaunchWeb.Telemetry.wallet_failed(:swap, reason)
-    {:noreply, assign(socket, notice: wallet_failure_copy(reason, socket.assigns.review))}
-  end
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
   # Closing keeps the entered amount to adjust.
   def handle_event("close_review", _params, socket),
@@ -290,33 +316,52 @@ defmodule AutolaunchWeb.SwapComponent do
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
   # Reads run off the page's own process, and an answer for a form, wallet or
-  # sent step the page has since left is dropped.
+  # review the page has since left is dropped. A quote or a balance that could
+  # not be read says so; a later balance read that fails keeps the last one
+  # read for the same wallet.
   @impl true
   def handle_async(:estimate, {:ok, {asked, result}}, socket) do
     if asked == asked(socket) do
       case result do
         {:ok, estimate} -> {:noreply, assign(socket, estimate: estimate)}
-        {:error, _unavailable} -> {:noreply, assign(socket, estimate: nil)}
+        {:error, _unavailable} -> {:noreply, assign(socket, estimate: :unread)}
       end
     else
       {:noreply, socket}
     end
   end
 
-  def handle_async(:balances, {:ok, {wallet, {:ok, balances}}}, socket) do
-    if wallet == socket.assigns.wallet,
-      do: {:noreply, assign(socket, balances: balances)},
-      else: {:noreply, socket}
-  end
+  def handle_async(:estimate, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, estimate: :unread)}
 
-  def handle_async({:recheck, name}, {:ok, {hash, attempts, read}}, socket) do
-    case socket.assigns.sent[name] do
-      %{hash: ^hash} -> {:noreply, read(socket, name, hash, attempts, read)}
-      _left -> {:noreply, socket}
+  def handle_async(:balances, {:ok, {wallet, read}}, %{assigns: %{wallet: wallet}} = socket) do
+    case {read, socket.assigns.balances} do
+      {{:ok, balances}, _shown} -> {:noreply, assign(socket, balances: balances)}
+      {{:error, _reason}, %{} = _last_read} -> {:noreply, socket}
+      {{:error, _reason}, _none} -> {:noreply, assign(socket, balances: :unread)}
     end
   end
 
-  def handle_async(_read, _unavailable, socket), do: {:noreply, socket}
+  def handle_async(:balances, {:ok, _other_wallet}, socket), do: {:noreply, socket}
+
+  def handle_async(:balances, {:exit, _reason}, socket) do
+    if is_map(socket.assigns.balances),
+      do: {:noreply, socket},
+      else: {:noreply, assign(socket, balances: :unread)}
+  end
+
+  def handle_async({:onchain_step, hash}, result, socket),
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+
+  def handle_async({:result, hash}, result, socket) do
+    logs =
+      case result do
+        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
+        _unread -> nil
+      end
+
+    {:noreply, swapped(socket, hash, logs)}
+  end
 
   defp reviewed(socket, params) do
     socket = entered(socket, params)
@@ -328,29 +373,74 @@ defmodule AutolaunchWeb.SwapComponent do
       protection: socket.assigns.protection
     }
 
-    case SwapActions.prepare(request, socket.assigns.wallet, opts(socket)) do
-      {:ok, review} ->
-        {:ok,
-         assign(socket, review: review, sent: %{}, notice: nil, swapped: nil, options_open: false)}
+    case prepare(socket, request) do
+      {:ok, prepared} ->
+        review =
+          Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
+
+        socket =
+          socket
+          |> assign(
+            prepared: prepared,
+            notice: nil,
+            press_note: nil,
+            swapped: nil,
+            options_open: false
+          )
+          |> OnchainSteps.put_review(review)
+
+        {:ok, socket}
+
+      {:error, :no_signer} ->
+        {:error, no_signer(socket)}
 
       {:error, error} ->
         {:error, assign(socket, notice: copy(refusal(error)))}
     end
   end
 
-  defp agent_reviewed(socket, direction, fields, call) do
+  defp prepare(%{assigns: %{signer: nil}}, _request), do: {:error, :no_signer}
+
+  defp prepare(socket, request),
+    do: SwapActions.prepare(request, socket.assigns.signer, opts(socket))
+
+  # With no wallet on the account active, the review asks for one; with none
+  # connected in this tab, it opens Privy's connect step too.
+  defp no_signer(%{assigns: %{linked: nil}} = socket),
+    do: assign(socket, notice: copy(:authentication_required))
+
+  defp no_signer(%{assigns: %{active: nil}} = socket),
+    do:
+      socket
+      |> assign(notice: "Connect your wallet, then review again.")
+      |> OnchainSteps.connect()
+
+  defp no_signer(socket),
+    do:
+      assign(socket,
+        notice: "Switch to a wallet on your account in your wallet app, then review again."
+      )
+
+  defp agent_reviewed(socket, direction, fields) do
     socket = assign(socket, direction: direction, revision: socket.assigns.revision + 1)
     fields = Map.update!(fields, "protection", &(&1 || socket.assigns.protection))
 
     case reviewed(socket, fields) do
-      {:ok, socket} -> published(socket, {first_step(socket.assigns.review), call})
-      {:error, socket} -> AgentPress.refused(socket, call, agent_refusal(socket.assigns))
+      {:ok, socket} ->
+        [%{step: first} | _rest] = socket.assigns.review.steps
+        {:reply, sending(socket, first), socket}
+
+      {:error, socket} ->
+        {:reply, AgentPress.refused(agent_refusal(socket.assigns)), socket}
     end
   end
 
+  defp sending(%{assigns: %{review: review, prepared: prepared}}, step),
+    do: AgentPress.sending(review, step, &step_label(&1, prepared))
+
   # The step the open swap's button would send, when it is for the same side,
   # amount and slippage (as the form would round it).
-  defp open_step(%{review: %{envelope: envelope} = review} = assigns, direction, fields) do
+  defp open_step(%{review: %{}, prepared: prepared} = assigns, direction, fields) do
     protection =
       case SwapActions.protection(fields["protection"] || assigns.protection) do
         {:ok, bps} -> SwapActions.protection_percent(bps)
@@ -358,15 +448,13 @@ defmodule AutolaunchWeb.SwapComponent do
       end
 
     same? =
-      envelope["arguments"]["direction"] == Atom.to_string(direction) and
-        fields["amount"] == assigns.amount and protection == assigns.protection
+      prepared.context.direction == direction and fields["amount"] == assigns.amount and
+        protection == assigns.protection
 
-    if same?, do: next_step(review, assigns.sent)
+    if same?, do: next_step(assigns)
   end
 
   defp open_step(_assigns, _direction, _fields), do: nil
-
-  defp first_step(%{steps: [%{"step" => step} | _rest]}), do: step
 
   defp agent_refusal(%{protection_error: error}) when is_binary(error), do: error
   defp agent_refusal(%{notice: notice}), do: notice
@@ -414,6 +502,10 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp estimated(socket), do: assign(socket, estimate: nil)
 
+  defp estimate(%{} = estimate, field), do: Map.fetch!(estimate, field)
+  defp estimate(:unread, :received), do: :unread
+  defp estimate(_none, _field), do: nil
+
   defp asked(socket),
     do: %{
       direction: socket.assigns.direction,
@@ -429,117 +521,56 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp balanced(socket), do: assign(socket, balances: nil)
 
-  # The server reads the reported hash itself; the browser's word is only the hash.
-  defp checked(%{assigns: %{review: %{envelope: envelope}}} = socket, name, hash, attempts) do
-    read = SwapActions.verify(envelope, Map.fetch!(@steps, name), hash, opts(socket))
-    read(socket, name, hash, attempts, read)
-  end
+  # The swap landed: what it paid is read from its receipt. An approval moves
+  # nothing to show.
+  defp confirmed(socket, %{name: "swap", hash: hash, review: review}),
+    do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
 
-  defp checked(socket, _name, _hash, _attempts), do: socket
+  defp confirmed(socket, _approval), do: socket
 
   # A confirmed swap moved the pool's price, liquidity and fee lanes, so the
-  # page reads the pool again.
-  defp read(socket, "swap", _hash, _attempts, {:ok, %{outcome: :confirmed, result: result}}) do
-    send(self(), :reload_pool)
+  # page reads the pool again, and the balances; a receipt that could not be
+  # read leaves out what it paid.
+  defp swapped(%{assigns: %{review: %{id: id}, prepared: prepared}} = socket, hash, logs) do
+    case Enum.find(Presses.shown(socket.assigns.presses), &(&1.hash == hash)) do
+      %{review: %{id: ^id, signer: signer}} ->
+        send(self(), :reload_pool)
 
-    result =
-      if socket.assigns.review.envelope["arguments"]["direction"] == "buy" do
-        Map.put(result, "stake_href", purchased_stake_path(socket.assigns.launch, result))
-      else
-        result
-      end
+        socket
+        |> assign(
+          amount: "",
+          estimate: nil,
+          notice: nil,
+          swapped: logs && swap_result(socket, prepared.context, signer, logs)
+        )
+        |> closed()
+        |> balanced()
 
-    socket
-    |> assign(amount: "", estimate: nil, notice: nil, swapped: result)
-    |> closed()
-    |> balanced()
-  end
-
-  defp read(socket, name, hash, attempts, {:ok, %{outcome: outcome}}) do
-    socket
-    |> assign(
-      sent: Map.put(socket.assigns.sent, name, sent(hash, outcome, attempts)),
-      notice: if(outcome == :reverted, do: reverted_copy(name))
-    )
-    |> rechecked(name)
-  end
-
-  # A read that failed is not an answer about the step; it is read again.
-  defp read(socket, name, hash, attempts, {:error, error}) do
-    socket
-    |> assign(
-      sent: Map.put(socket.assigns.sent, name, sent(hash, :pending, attempts)),
-      notice: if(attempts == 0, do: copy(refusal(error)))
-    )
-    |> rechecked(name)
-  end
-
-  defp sent(hash, outcome, attempts), do: %{hash: hash, outcome: outcome, attempts: attempts}
-
-  # Nothing waits on this: it only saves the person pressing "check again"
-  # while the network includes what the wallet already sent.
-  defp rechecked(%{assigns: %{review: %{envelope: envelope}}} = socket, name) do
-    case socket.assigns.sent[name] do
-      %{outcome: :pending, hash: hash, attempts: attempts} when attempts < @recheck_limit ->
-        step = Map.fetch!(@steps, name)
-        opts = opts(socket)
-
-        start_async(socket, {:recheck, name}, fn ->
-          Process.sleep(@recheck_ms)
-          {hash, attempts + 1, SwapActions.verify(envelope, step, hash, opts)}
-        end)
-
-      _settled ->
+      _other_review ->
         socket
     end
   end
 
+  defp swapped(socket, _hash, _logs), do: socket
+
+  defp swap_result(socket, %{direction: direction} = context, signer, logs) do
+    result = SwapActions.result(context, signer, logs)
+
+    if direction == :buy,
+      do: Map.put(result, "stake_href", purchased_stake_path(socket.assigns.launch, result)),
+      else: result
+  end
+
   defp closed(socket) do
     socket
-    |> assign(review: nil, sent: %{}, revision: socket.assigns.revision + 1)
-    |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
+    |> assign(prepared: nil, press_note: nil, revision: socket.assigns.revision + 1)
+    |> OnchainSteps.put_review(nil)
   end
 
-  # With `{step, call}`, the review answers an agent's call and sends that step.
-  defp published(
-         %{assigns: %{review: %{envelope: envelope, steps: steps} = review}} = socket,
-         agent \\ nil
-       ) do
-    payload = %{
-      component_id: socket.assigns.id,
-      signer: envelope["expected_signer"],
-      chain_id: envelope["chain_id"],
-      lab: envelope["metadata"]["lab"],
-      lab_anchor: %{
-        block_number: envelope["arguments"]["block_number"],
-        block_hash: envelope["arguments"]["block_hash"]
-      },
-      steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"]))
-    }
-
-    payload =
-      case agent do
-        nil ->
-          payload
-
-        {step, call} ->
-          remaining = AgentPress.remaining(steps, step, &step_label(&1, review))
-          AgentPress.sending(payload, step, call, remaining)
-      end
-
-    push_event(socket, "reviewed-steps:review", payload)
+  defp failure_note(%{review: review} = assigns, reason) do
+    chain_name = if review, do: review.chain.name, else: "this network"
+    OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
   end
-
-  # The signed-in wallet; every read that matters proves it against the session
-  # again. A review belongs to the wallet it was made for.
-  defp adopt(socket, wallet),
-    do: socket |> assign(wallet: wallet) |> reviewed_for_wallet() |> balanced()
-
-  defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
-    if String.downcase(envelope["expected_signer"]) == wallet, do: socket, else: closed(socket)
-  end
-
-  defp reviewed_for_wallet(socket), do: socket
 
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
@@ -586,81 +617,55 @@ defmodule AutolaunchWeb.SwapComponent do
   defp bought(:buy), do: :token
   defp bought(:sell), do: :currency
 
-  defp held(nil, _side), do: nil
-  defp held(balances, side), do: Map.fetch!(balances, side).shown
+  defp held(%{} = balances, side), do: Map.fetch!(balances, side).shown
+  defp held(_unread, _side), do: nil
 
-  defp steps(review, sent) do
-    Enum.map(review.steps, fn %{"step" => name} ->
-      %{name: name, label: step_label(name, review), state: step_state(sent[name])}
+  defp steps(%{review: review, prepared: prepared, presses: presses}) do
+    Enum.map(review.steps, fn %{step: name} ->
+      entry = OnchainSteps.entry(presses, review, name)
+      %{name: name, label: step_label(name, prepared), state: step_state(entry), entry: entry}
     end)
   end
 
-  # One button at a time: the first step the wallet has not sent yet, or one
-  # that reverted. A sent step moves the button on at once; nothing waits for
-  # the network before the next press can reach the wallet.
-  defp next_step(review, sent) do
-    Enum.find(steps(review, sent), &(&1.state in [:ready, :reverted]))
+  # One button at a time: the first step the wallet has not sent from this
+  # review yet, or one that did not go through. A sent step moves the button on
+  # at once; nothing waits for the network before the next press can reach the
+  # wallet.
+  defp next_step(%{review: %{}} = assigns),
+    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
+
+  defp next_step(_assigns), do: nil
+
+  defp reverted(%{review: %{}} = assigns) do
+    case Enum.find(steps(assigns), &(&1.state == :reverted)) do
+      %{name: name} -> reverted_copy(name)
+      nil -> nil
+    end
   end
 
-  defp stalled(sent) do
-    for {name, %{outcome: :pending, attempts: attempts}} <- sent,
-        attempts >= @recheck_limit,
-        do: name
-  end
+  defp reverted(_assigns), do: nil
 
-  defp step_label("token_approval", review), do: "Approve #{review.review.sell_symbol}"
+  defp step_label("token_approval", prepared), do: "Approve #{prepared.facts.sell_symbol}"
 
-  defp step_label("permit2_approval", review),
-    do: "Allow #{review.review.sell_symbol} for this swap"
+  defp step_label("permit2_approval", prepared),
+    do: "Allow #{prepared.facts.sell_symbol} for this swap"
 
-  defp step_label("swap", _review), do: "Confirm swap"
+  defp step_label("swap", _prepared), do: "Confirm swap"
 
   defp step_state(nil), do: :ready
-  defp step_state(%{outcome: :pending}), do: :sent
+
+  defp step_state(%{outcome: :pending} = entry),
+    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
+
   defp step_state(%{outcome: :confirmed}), do: :done
   defp step_state(%{outcome: :reverted}), do: :reverted
+  defp step_state(_not_this_step), do: :other
 
   defp reverted_copy("swap"),
     do:
       "The swap did not go through and nothing was swapped. The price may have moved: close this and review again."
 
-  defp reverted_copy(_approval), do: "That step did not go through. Try it again."
-
-  defp wallet_failure_copy("wallet_unavailable", _review),
-    do:
-      "Nothing was sent. Check the wallet you signed in with is connected and open, then press again."
-
-  defp wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
-    if test_chain?(chain_id),
-      do:
-        "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent.",
-      else:
-        "Your wallet is on a different network. Switch it to #{network_name(chain_id)}, then try again. Nothing was sent."
-  end
-
-  defp wallet_failure_copy("wrong_account", _review),
-    do:
-      "Nothing was sent. Your wallet is on a different account from the one you signed in with. Switch it to the signed-in account, then press again."
-
-  defp wallet_failure_copy("switch_declined", _review),
-    do: "Your wallet did not switch networks. Nothing was sent."
-
-  defp wallet_failure_copy("wallet_declined", _review),
-    do: "Your wallet declined this. Nothing was sent."
-
-  defp wallet_failure_copy("send_unconfirmed", _review),
-    do: "Your wallet may have sent this transaction. Check your wallet activity."
-
-  defp wallet_failure_copy(_unknown, _review), do: @generic
-
-  defp test_chain?(chain_id),
-    do: Autolaunch.Lab.test_chain?(chain_id) or Autolaunch.Robinhood.Lab.test_chain?(chain_id)
-
-  defp network_name(chain_id) do
-    if chain_id == Autolaunch.Robinhood.Lab.chain_id(),
-      do: Autolaunch.Robinhood.Lab.network_name(chain_id),
-      else: Autolaunch.Lab.network_name(chain_id)
-  end
+  defp reverted_copy(_approval), do: "That step did not go through. Press again."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 

@@ -44,9 +44,6 @@ defmodule Autolaunch.TestAutolaunchLaunchChainClient do
 
   @impl true
   def snapshot(_request) do
-    put(%{snapshot_read_in_transaction?: Autolaunch.Repo.in_transaction?()})
-    raced()
-
     case state() do
       %{unavailable: reason} -> {:error, reason}
       fixture -> {:ok, fixture.snapshot}
@@ -54,22 +51,12 @@ defmodule Autolaunch.TestAutolaunchLaunchChainClient do
   end
 
   @impl true
-  def verify(_envelope, step, hash) do
-    put(%{read_in_transaction?: Autolaunch.Repo.in_transaction?()})
-    raced()
-
-    case state() |> Map.get(:outcomes, %{}) |> Map.get(step, %{outcome: :pending}) do
+  def verify(%{"step" => %{"step" => step}}, hash) do
+    case state()
+         |> Map.get(:outcomes, %{})
+         |> Map.get(String.to_existing_atom(step), %{outcome: :pending}) do
       {:error, reason} -> {:error, reason}
       outcome -> {:ok, Map.put_new(outcome, :hash, hash)}
-    end
-  end
-
-  # Moves the operation between the read and the lease transaction, which is the
-  # exact race a settlement has to survive.
-  defp raced do
-    case state()[:raced] do
-      nil -> :ok
-      move -> move.()
     end
   end
 
@@ -198,13 +185,11 @@ defmodule Autolaunch.LaunchFixture do
       hook: Map.get(overrides, :hook, @hook),
       terms: Map.merge(@terms, Map.get(overrides, :terms, %{})),
       block: Map.get(overrides, :block, %{number: 30_000_000, hash: block_hash()}),
-      regent: Map.get(overrides, :regent, Abi.regent_address()),
-      lab_binding:
-        Autolaunch.Lab.binding(Autolaunch.Lab.current!(), [:factory, :strategy, :hook, :regent])
+      regent: Map.get(overrides, :regent, Abi.regent_address())
     }
 
     %{snapshot: snapshot, outcomes: Map.get(overrides, :outcomes, %{})}
-    |> Map.merge(Map.take(overrides, [:unavailable, :raced]))
+    |> Map.merge(Map.take(overrides, [:unavailable]))
   end
 
   @doc "Installs that scripted chain for the calling test."

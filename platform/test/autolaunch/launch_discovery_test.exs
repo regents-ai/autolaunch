@@ -11,7 +11,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     LaunchFixture,
     LaunchOperation,
     LaunchProjection,
-    WalletAttempt
+    LaunchReviews
   }
 
   alias Autolaunch.Actors.System
@@ -57,11 +57,9 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     context |> Map.new() |> Map.put(:operation, operation)
   end
 
-  test "a launch whose browser never reported its hash is listed once, for its creator",
+  test "a launch whose page closed before it was confirmed is listed once, for its creator",
        %{account: account, operation: operation} do
-    # The wallet opened, the transaction went out, and the page was closed.
-    {:ok, _} = press(operation)
-
+    # The wallet sent the review's step, and the page was closed.
     record_launch(LaunchFixture.wallet())
     run_triggers()
 
@@ -72,14 +70,10 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert auction.state == :created
 
     assert %{state: :chain_verified, terminal_at: %DateTime{}} = reload(operation)
-    assert [%{state: :confirmed, transaction_hash: @hash}] = attempts(operation)
   end
 
   test "a replayed launch lists nothing twice and takes no auction back to its start",
-       %{account: account, operation: operation, opts: opts} do
-    {:ok, first} = press(operation)
-    {:ok, second} = press(operation)
-
+       %{account: account, operation: operation} do
     record_launch(LaunchFixture.wallet())
     run_triggers()
 
@@ -90,27 +84,12 @@ defmodule Autolaunch.LaunchDiscoveryTest do
       |> Ash.Changeset.for_update(:refresh_lab_market, %{state: :graduated}, actor: @actor)
       |> Ash.update(actor: @actor)
 
-    # The ledger replays the same log, and the other press's page reports the
-    # same hash and checks it after all.
+    # The ledger replays the same log, and the page that sent it sees it
+    # confirmed after all.
     record_launch(LaunchFixture.wallet())
     run_triggers()
 
-    unfilled =
-      Enum.find([first, second], fn %{id: id} ->
-        Enum.any?(attempts(operation), &(&1.id == id and is_nil(&1.transaction_hash)))
-      end)
-
-    {:ok, _} =
-      Autolaunch.report_wallet_press(
-        :launch,
-        operation.action_id,
-        unfilled.id,
-        %{"transaction_hash" => @hash},
-        opts
-      )
-
-    {:ok, _} =
-      Autolaunch.verify_wallet_press(:launch, operation.action_id, unfilled.id, opts)
+    assert {:listed, _account_id, _result} = confirm_in_browser(operation)
 
     assert [%{state: :listed, creator_human_account_id: creator}] = discoveries()
     assert creator == account.id
@@ -118,9 +97,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
   end
 
   test "a creator who signs in with another wallet after sending still gets the launch",
-       %{account: account, operation: operation} do
-    {:ok, _} = press(operation)
-
+       %{account: account} do
     {:ok, _} =
       Accounts.refresh_verified(account, @other_wallet, [@other_wallet], actor: @actor)
 
@@ -136,10 +113,10 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     # Ash sends a notification only outside every transaction, so receiving
     # it proves it went out after the session's transaction committed.
     test "announces the new auction exactly once, after commit",
-         %{operation: operation, opts: opts} do
+         %{operation: operation} do
       Autolaunch.Listings.subscribe()
 
-      assert {:ok, _response} = confirm_in_browser(operation, opts)
+      assert {:listed, _account_id, _result} = confirm_in_browser(operation)
 
       assert [%{id: auction_id}] = auctions()
       assert_received {:autolaunch_listings_changed, ^auction_id}
@@ -147,13 +124,12 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     end
 
     test "announces nothing when the confirmation rolls back",
-         %{operation: operation, opts: opts} do
+         %{operation: operation} do
       refuse_inserts("launch_jobs")
       Autolaunch.Listings.subscribe()
 
       # The launch job is written after the auction, inside the same transaction.
-      assert {:error, %Ash.Changeset{resource: Autolaunch.LaunchJob}} =
-               confirm_in_browser(operation, opts)
+      assert {:pending, _reason} = confirm_in_browser(operation)
 
       assert auctions() == []
       refute_received {:autolaunch_listings_changed, _auction_id}
@@ -168,7 +144,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert auctions() == []
   end
 
-  test "a hash another account reported is listed for the account whose review sent it",
+  test "another account's review for another wallet is never matched to this launch",
        %{account: account, operation: operation} do
     other =
       Accounts.register_verified!(
@@ -178,25 +154,8 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         actor: @actor
       )
 
-    # The other account's own review, onto which it reports this launch's hash.
     other_draft = LaunchFixture.draft!(%Autolaunch.Actors.Human{human_account_id: other.id})
-
     other_operation = review!(other, other_draft, @other_wallet)
-
-    {:ok, _} =
-      WalletAttempt
-      |> Ash.Changeset.for_create(
-        :dispatch,
-        %{
-          launch_operation_id: other_operation.id,
-          step: :launch,
-          envelope: other_operation.envelope,
-          state: :submitted,
-          transaction_hash: @hash
-        },
-        actor: @actor
-      )
-      |> Ash.create(actor: @actor)
 
     record_launch(LaunchFixture.wallet())
     run_triggers()
@@ -206,24 +165,11 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert [%{creator_human_account_id: ^creator}] = auctions()
     assert %{state: :chain_verified} = reload(operation)
     assert %{state: :prepared, terminal_at: nil} = reload(other_operation)
-    assert [%{state: :submitted}] = attempts(other_operation)
   end
 
-  # The page reports the launch's hash, then checks it on the chain.
-  defp confirm_in_browser(operation, opts) do
-    {:ok, pressed} = press(operation)
-
-    {:ok, _} =
-      Autolaunch.report_wallet_press(
-        :launch,
-        operation.action_id,
-        pressed.id,
-        %{"transaction_hash" => @hash},
-        opts
-      )
-
-    Autolaunch.verify_wallet_press(:launch, operation.action_id, pressed.id, opts)
-  end
+  # The page sees its own press confirmed and lists the launch at once.
+  defp confirm_in_browser(operation),
+    do: LaunchReviews.confirm(:launch, operation.action_id, @hash)
 
   defp refuse_inserts(table) do
     Autolaunch.Repo.query!("""
@@ -237,33 +183,20 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     )
   end
 
-  # The browser's press, recorded before the wallet opens; it never reports.
-  defp press(operation) do
-    WalletAttempt
-    |> Ash.Changeset.for_create(
-      :dispatch,
-      %{
-        launch_operation_id: operation.id,
-        step: :launch,
-        envelope: operation.envelope,
-        state: :dispatched
-      },
-      actor: @actor
-    )
-    |> Ash.create(actor: @actor)
-  end
-
-  # One reviewed launch, as `prepare_launch` stores it for `account`.
+  # One saved launch review, as `LaunchActions.prepare` stores it for `account`.
   defp review!(account, draft, signer) do
     deployment = Lab.current!()
     factory = Lab.address!(deployment, :factory)
 
-    envelope = %{
-      "chain_id" => deployment.chain_id,
-      "expected_signer" => signer,
-      "expires_at" => DateTime.utc_now() |> DateTime.add(600) |> DateTime.to_iso8601(),
-      "arguments" => %{
-        "steps" => [%{"step" => "launch", "to" => factory, "data" => "0x"}],
+    review = %{
+      "chain" => %{
+        "chain_id" => deployment.chain_id,
+        "name" => "Base",
+        "rpc_url" => deployment.public_rpc_url
+      },
+      "signer" => signer,
+      "step" => %{"kind" => "transaction", "step" => "launch", "to" => factory, "data" => "0x"},
+      "facts" => %{
         "name" => "Open Research",
         "symbol" => "OPEN",
         "description" => "A launch profile awaiting review.",
@@ -272,9 +205,9 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         "regent" => Abi.regent_address(),
         "required_regent_raised_atomic" => "1000",
         "factory" => factory,
-        "treasury" => LaunchFixture.treasury()
-      },
-      "metadata" => %{"lab" => %{"addresses" => %{"hook" => LaunchFixture.hook()}}}
+        "treasury" => LaunchFixture.treasury(),
+        "hook" => LaunchFixture.hook()
+      }
     }
 
     LaunchOperation
@@ -282,7 +215,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
       :prepare,
       %{
         action_id: Base.encode16(:crypto.strong_rand_bytes(32), case: :lower),
-        envelope: envelope,
+        review: review,
         signer: signer,
         step: :launch,
         human_account_id: account.id,
@@ -335,12 +268,6 @@ defmodule Autolaunch.LaunchDiscoveryTest do
 
   defp reload(operation),
     do: LaunchOperation |> Ash.Query.filter(id == ^operation.id) |> Ash.read_one!(actor: @actor)
-
-  defp attempts(operation),
-    do:
-      WalletAttempt
-      |> Ash.Query.filter(launch_operation_id == ^operation.id)
-      |> Ash.read!(actor: @actor)
 
   defp word(number),
     do: "0x" <> String.pad_leading(String.downcase(Integer.to_string(number, 16)), 64, "0")

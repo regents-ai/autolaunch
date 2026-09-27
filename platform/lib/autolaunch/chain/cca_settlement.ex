@@ -32,8 +32,10 @@ defmodule Autolaunch.Chain.CcaSettlement do
   canonical receipt's logs and check the owner is the reviewed signer.
   """
 
-  alias Autolaunch.Chain.{Abi, Address}
+  alias Autolaunch.Chain.Abi
+
   alias Autolaunch.{LabAbi, LabRpc}
+  alias RegentChain.Address
 
   @max_checkpoint_walk 256
   @max_block_number Integer.pow(2, 64) - 1

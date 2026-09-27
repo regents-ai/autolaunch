@@ -1,7 +1,7 @@
 defmodule Autolaunch.Robinhood.StockBidChainClient do
   @moduledoc """
   The one chain boundary a USDG bid on a Robinhood memestock auction has: one
-  snapshot before review, one read after the hash.
+  snapshot before review.
 
   A bid is funded in USDG, committed in STOCK (the auction's currency), and any
   unspent auction currency comes back as STOCK; the purchased token a winning
@@ -10,26 +10,18 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   signer's USDG balance and allowance to the adapter, the admitted route's
   estimate of the STOCK the USDG buys, the auction's price limits, the
   requested maximum aligned to the auction's tick grid, and that tick's
-  predecessor. `verify/3` reads the allowance back for the approval step, and
-  for the bid step decodes the adapter's `StockBidPlaced` and the auction's
-  `BidSubmitted` from the canonical receipt and checks them against the
-  reviewed arguments and the auction's own bid record.
+  predecessor.
   """
 
   alias Autolaunch.BidPrice
-  alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
+  alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.{LabAbi, LabRpc}
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
-  alias Autolaunch.Stocks.Amounts
+  alias RegentChain.Address
 
-  @binding_keys [:stocks_launchpad, :bid_adapter, :usdg]
-  @new_decimals 18
   @max_tick_walk 256
   @uint256_max Integer.pow(2, 256) - 1
-  @bid_record_words 7
-
-  def binding_keys, do: @binding_keys
 
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{auction: auction, signer: signer, usdg_amount: usdg_amount, max_price_q96: max}) do
@@ -70,8 +62,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          max_price_q96: aligned,
          prev_tick_price_q96: prev_tick,
          predecessor_source: "bounded local auction tick walk",
-         block: block,
-         lab_binding: Lab.binding(config, @binding_keys)
+         block: block
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -79,185 +70,6 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
       _other -> {:error, :invalid_chain_response}
     end
   end
-
-  @spec verify(map(), :usdg_approval | :usdg_bid, String.t()) :: {:ok, map()} | {:error, atom()}
-  def verify(envelope, step, hash) do
-    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
-         do: {:ok, Map.delete(result, :receipt)}
-  end
-
-  def verify_with_evidence(envelope, step, hash) when step in [:usdg_approval, :usdg_bid] do
-    with true <-
-           Envelope.valid_for_confirmation?(envelope,
-             resource: "autolaunch_robinhood_bid",
-             chain_id: Lab.chain_id()
-           ),
-         true <- Lab.binding_matches?(envelope["metadata"]["lab"], @binding_keys),
-         {:ok, config} <- Lab.current(),
-         %{} = current <- current_step(envelope, step),
-         opts <- Lab.rpc_opts(config),
-         {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, evidence} <-
-           Rpc.canonical_outcome_evidence(
-             hash,
-             envelope["expected_signer"],
-             current["to"],
-             current["data"],
-             block,
-             opts
-           ),
-         {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
-      {:ok, Map.put(result, :receipt, evidence.receipt)}
-    else
-      false -> {:error, :lab_config_changed}
-      {:error, reason} -> {:error, reason}
-      _other -> {:error, :invalid_chain_response}
-    end
-  end
-
-  defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
-  defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
-
-  # The allowance correction is confirmed only when USDG recorded exactly the
-  # reviewed approval to the adapter and the standing allowance now equals it.
-  defp settled({:success, logs}, envelope, :usdg_approval, config) do
-    signer = envelope["expected_signer"]
-
-    amount =
-      envelope |> current_step(:usdg_approval) |> Map.fetch!("amount") |> String.to_integer()
-
-    with {:ok, block} <- LabRpc.block_from_logs(logs),
-         true <-
-           Abi.approval_recorded?(
-             logs,
-             Lab.address!(config, :usdg),
-             signer,
-             Lab.address!(config, :bid_adapter),
-             amount
-           ),
-         {:ok, allowance} <- allowance(config, signer, block, Lab.rpc_opts(config)) do
-      {:ok, %{outcome: if(allowance == amount, do: :confirmed, else: :unverified)}}
-    else
-      false -> {:ok, %{outcome: :unverified}}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  # The bid is confirmed only when the adapter's own event names the reviewed
-  # auction, owner and maximum price with a net USDG spend no larger than the
-  # reviewed amount (the adapter refunds any residue inside the call and emits
-  # the net), the auction's own event records the same bid for the same owner,
-  # amount and price, and the auction's bid record agrees at the receipt block.
-  # The STOCK decimals for formatting are the launchpad's admission record for
-  # this STOCK at that block; atomic amounts are the authoritative fields.
-  defp settled({:success, logs}, envelope, :usdg_bid, config) do
-    arguments = envelope["arguments"]
-    signer = envelope["expected_signer"]
-    opts = Lab.rpc_opts(config)
-    adapter = Lab.address!(config, :bid_adapter)
-
-    with {:ok, block} <- LabRpc.block_from_logs(logs),
-         {:ok, placed} <- bid_placed(logs, config, adapter),
-         true <- Address.equal?(placed.auction, arguments["auction"]),
-         true <- Address.equal?(placed.owner, signer),
-         true <- placed.max_price_q96 == integer(arguments, "max_price_q96"),
-         true <- placed.usdg_spent <= integer(arguments, "usdg_amount_atomic"),
-         {:ok, submitted} <- bid_submitted(logs, config, placed.auction),
-         true <- submitted.bid_id == placed.bid_id,
-         true <- Address.equal?(submitted.owner, signer),
-         true <- submitted.price_q96 == placed.max_price_q96,
-         true <- submitted.amount == placed.stock_committed,
-         {:ok, record} <-
-           auction_words(config, placed.auction, "bids(uint256)", [placed.bid_id], block, opts),
-         true <- record_matches?(record, placed, signer),
-         {:ok, stock} <- auction_stock(config, placed.auction, block, opts),
-         {:ok, words} <-
-           launchpad_words(config, "stockAdmission(address)", [stock], 3, block, opts),
-         {:ok, admission} <- admission(words),
-         {:ok, clearing} <-
-           auction_uint(config, placed.auction, "clearingPrice()", [], block, opts) do
-      {:ok,
-       %{
-         outcome: :confirmed,
-         onchain_bid_id: Integer.to_string(placed.bid_id),
-         result: %{
-           "onchain_bid_id" => Integer.to_string(placed.bid_id),
-           "usdg_spent_atomic" => Integer.to_string(placed.usdg_spent),
-           "stock_committed_atomic" => Integer.to_string(placed.stock_committed),
-           "stock_committed" => Rpc.format_units(placed.stock_committed, admission.decimals),
-           "stock_decimals" => Integer.to_string(admission.decimals),
-           "max_price_q96" => Integer.to_string(placed.max_price_q96),
-           "current_clearing_price" =>
-             Amounts.format_cca_price(clearing, admission.decimals, @new_decimals),
-           "local_block_hash" => block.hash
-         }
-       }}
-    else
-      false -> {:ok, %{outcome: :unverified}}
-      :error -> {:ok, %{outcome: :unverified}}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp bid_placed(logs, config, adapter) do
-    with {:ok, {[auction_word, owner_word, bid_id], [usdg_spent, stock_committed, price]}} <-
-           LabAbi.event_words(
-             Lab.abi!(config, :bid_adapter),
-             RobinhoodLabAbi.stock_bid_placed_signature(),
-             logs,
-             adapter
-           ),
-         {:ok, auction} <- Abi.word_address(auction_word),
-         {:ok, owner} <- Abi.word_address(owner_word) do
-      {:ok,
-       %{
-         auction: auction,
-         owner: owner,
-         bid_id: bid_id,
-         usdg_spent: usdg_spent,
-         stock_committed: stock_committed,
-         max_price_q96: price
-       }}
-    else
-      _ -> :error
-    end
-  end
-
-  defp bid_submitted(logs, config, auction) do
-    with {:ok, {[bid_id, owner_word], [price, amount]}} <-
-           LabAbi.event_words(
-             Lab.abi!(config, :auction),
-             RobinhoodLabAbi.bid_submitted_signature(),
-             logs,
-             auction
-           ),
-         {:ok, owner} <- Abi.word_address(owner_word) do
-      {:ok, %{bid_id: bid_id, owner: owner, price_q96: price, amount: amount}}
-    else
-      _ -> :error
-    end
-  end
-
-  # `bids(bidId)`: startBlock, startCumulativeMps, exitedBlock, maxPrice, owner,
-  # amountQ96 (the committed STOCK shifted left by 96 bits), tokensFilled. Only
-  # the immutable fields are checked; whether the bid was since exited is
-  # lifecycle, not submission evidence.
-  defp record_matches?(
-         [_start_block, _start_mps, _exited_block, max_price, owner_word, amount_q96, _filled],
-         placed,
-         signer
-       ) do
-    case Abi.word_address(owner_word) do
-      {:ok, owner} ->
-        Address.equal?(owner, signer) and max_price == placed.max_price_q96 and
-          amount_q96 == Bitwise.bsl(placed.stock_committed, 96)
-
-      :error ->
-        false
-    end
-  end
-
-  defp record_matches?(_record, _placed, _signer), do: false
 
   # The adapter is bound at construction to one launchpad and that launchpad's
   # USDG; a lab whose adapter names other contracts is not the reviewed lab.
@@ -422,16 +234,8 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   defp auction_address(config, auction, signature, arguments, block, opts),
     do: Rpc.call_address(auction, auction_data(config, signature, arguments), block, opts)
 
-  defp auction_words(
-         config,
-         auction,
-         signature,
-         arguments,
-         block,
-         opts,
-         count \\ @bid_record_words
-       ),
-       do: Rpc.call_words(auction, auction_data(config, signature, arguments), block, count, opts)
+  defp auction_words(config, auction, signature, arguments, block, opts, count),
+    do: Rpc.call_words(auction, auction_data(config, signature, arguments), block, count, opts)
 
   defp auction_data(config, signature, arguments),
     do: LabAbi.encode(Lab.abi!(config, :auction), signature, arguments)
@@ -473,11 +277,4 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
       opts
     )
   end
-
-  defp current_step(envelope, step) do
-    name = Atom.to_string(step)
-    Enum.find(envelope["arguments"]["steps"], &(&1["step"] == name))
-  end
-
-  defp integer(arguments, key), do: arguments |> Map.fetch!(key) |> String.to_integer()
 end

@@ -60,8 +60,6 @@
 .autolaunch-live-market { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(10rem,100%),1fr)); margin: 0; border-top: 1px solid var(--hairline); }
 .autolaunch-live-market > div { padding: var(--space-2); border-bottom: 1px solid var(--hairline); min-width: 0; }
 .autolaunch-live-market dd { margin: 0; overflow-wrap: anywhere; }
-[data-wallet-press] { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding-block: var(--space-2); border-bottom: 1px solid var(--hairline); }
-[data-wallet-press] > * { min-width: 0; }
 @media (max-width: 24rem) { .subject-wallet-amount { flex-wrap: wrap; } .subject-wallet-amount input { flex-basis: 100%; } }
 
 /* The same compact hierarchy as Explore, without changing action ownership. */

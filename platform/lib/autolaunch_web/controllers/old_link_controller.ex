@@ -9,8 +9,8 @@ defmodule AutolaunchWeb.OldLinkController do
   """
   use AutolaunchWeb, :controller
 
-  alias Autolaunch.Chain.Address
   alias AutolaunchWeb.{NotFoundError, Paths, ShareCard}
+  alias RegentChain.Address
 
   def base_auction(conn, %{"auction_id" => id}),
     do: move(conn, Paths.auction(base_auction!(id)) |> with_query(conn.query_string))

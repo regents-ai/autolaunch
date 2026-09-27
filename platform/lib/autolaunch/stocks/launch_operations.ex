@@ -12,8 +12,8 @@ defmodule Autolaunch.Stocks.LaunchOperations do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.System
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks.LaunchOperation
+  alias RegentChain.Address
 
   @actor %System{}
   @domain Autolaunch
@@ -64,8 +64,8 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   end
 
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
-  def signer_matches(%{wallet_address: wallet}, signer) do
-    if Address.equal?(wallet, signer),
+  def signer_matches(%{wallet_addresses: wallets}, signer) do
+    if Enum.any?(wallets, &Address.equal?(&1, signer)),
       do: :ok,
       else: unavailable(:wrong_signer)
   end

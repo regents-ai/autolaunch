@@ -38,7 +38,7 @@ defmodule AutolaunchWeb.Telemetry do
   import Ecto.Query
   import Telemetry.Metrics
 
-  @wallet_failures ~w(not_started not_sent submission_unknown wallet_unavailable network_mismatch wallet_declined send_unconfirmed)
+  @wallet_failures ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
 
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)

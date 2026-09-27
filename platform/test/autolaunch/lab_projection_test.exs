@@ -52,8 +52,8 @@ defmodule Autolaunch.LabProjectionTest do
     assert launch.token_symbol == "LOCAL"
     assert launch.hook_address == @hook
 
-    assert :ok = LabProjection.project_bid(bid_operation(auction.id), bid_result())
-    assert :ok = LabProjection.project_bid(bid_operation(auction.id), bid_result())
+    assert :ok = LabProjection.project_bid(bid_context(auction.id), bid_result())
+    assert :ok = LabProjection.project_bid(bid_context(auction.id), bid_result())
 
     [bid] = all(Bid)
     assert bid.bid_id == LabProjection.bid_identity(@auction, "9")
@@ -81,7 +81,7 @@ defmodule Autolaunch.LabProjectionTest do
     second =
       account!("second-confirmation").id
       |> launch_operation()
-      |> update_in([:envelope, "arguments"], fn arguments ->
+      |> update_in([:review, "facts"], fn arguments ->
         Map.merge(arguments, %{
           "name" => "Other Name",
           "description" => "Other words.",
@@ -113,7 +113,7 @@ defmodule Autolaunch.LabProjectionTest do
   end
 
   test "a later invalid resource refuses and rolls the whole launch projection back" do
-    operation = put_in(launch_operation(), [:envelope, "arguments", "symbol"], "not-valid")
+    operation = put_in(launch_operation(), [:review, "facts", "symbol"], "not-valid")
 
     assert {:error, _reason} = LabProjection.project_launch(operation, launch_result())
     assert all(Auction) == []
@@ -124,17 +124,10 @@ defmodule Autolaunch.LabProjectionTest do
   defp launch_operation(human_account_id \\ nil) do
     %{
       human_account_id: human_account_id || account!("launch-op").id,
-      envelope: %{
-        "chain_id" => 31_337,
-        "expected_signer" => @wallet,
-        "metadata" => %{
-          "lab" => %{
-            "rpc_url" => "http://127.0.0.1:49713",
-            "chain_id" => 31_337,
-            "addresses" => %{"hook" => @hook}
-          }
-        },
-        "arguments" => %{
+      review: %{
+        "chain" => %{"chain_id" => 31_337},
+        "signer" => @wallet,
+        "facts" => %{
           "name" => "Local Regent",
           "symbol" => "LOCAL",
           "description" => "A local fork launch.",
@@ -142,7 +135,8 @@ defmodule Autolaunch.LabProjectionTest do
           "image" => "https://example.test/local.png",
           "required_regent_raised_atomic" => "500000000000000000000000",
           "regent" => @regent,
-          "factory" => @factory
+          "factory" => @factory,
+          "hook" => @hook
         }
       }
     }
@@ -160,27 +154,8 @@ defmodule Autolaunch.LabProjectionTest do
     }
   end
 
-  defp bid_operation(auction_id) do
-    %{
-      envelope: %{
-        "chain_id" => 31_337,
-        "expected_signer" => @wallet,
-        "to" => @auction,
-        "metadata" => %{
-          "lab" => %{
-            "rpc_url" => "http://127.0.0.1:49713",
-            "chain_id" => 31_337,
-            "addresses" => %{"regent" => @regent}
-          }
-        },
-        "arguments" => %{
-          "auction_id" => auction_id,
-          "auction_address" => @auction,
-          "amount" => "100",
-          "max_price" => "2.5"
-        }
-      }
-    }
+  defp bid_context(auction_id) do
+    %{auction_id: auction_id, auction_address: @auction, signer: @wallet, max_price: "2.5"}
   end
 
   defp bid_result do
