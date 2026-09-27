@@ -1,7 +1,8 @@
-# Launch profiles: v1 today, v2 proposal
+# Launch profiles: v1 today, v2 defaults and bounds
 
-**Status: proposal awaiting Sean's approval. No v2 contract code is written until Sean
-approves this file.**
+**Status: the defaults, bounds, fixed rows and release schedule are approved (decisions 2–4,
+27 September 2026). How bounds change later (decision 1) is still open. No v2 contract
+code is authorised yet, and the v2 contracts owner is not yet named.**
 
 Founder decision (27 September 2026, "1a"): in v2, the creator sets each launch's
 parameters within bounds the founder sets. The defaults are written down here before any
@@ -14,19 +15,10 @@ How to read the tables:
   value is counted in **blocks**, not seconds. Base makes a block every 2 seconds and
   Robinhood Chain every 0.1 seconds.
 - **v2 default** is what a launch gets when the creator leaves the value alone. Each
-  proposed default is the v1 value, so a creator who changes nothing gets a v1 launch.
+  default is the v1 value, so a creator who changes nothing gets a v1 launch.
 - **v2 bounds** is the range a creator may choose from. "Fixed" means the creator cannot
-  change it (the lowest and highest allowed value are both the default). Every bound is a
-  proposal for Sean to edit.
+  change it (the lowest and highest allowed value are both the default).
 - **Already chosen by the creator in v1** marks values the creator already picks today.
-
-## The 25 September study is not on disk
-
-The study with the 50/50 and 15/15/70 splits is not in any repository or handoff. If those
-splits are meant to be the v2 defaults, paste the study here first; the defaults below
-then change to match. The proposed bounds are wide enough to contain both splits. That
-assumes 50/50 means Memestake auction and reserve shares, and 15/15/70 means Revstake
-auction, reserve and vesting shares.
 
 ## Limits the auction contract sets on every launch
 
@@ -115,13 +107,13 @@ blocks come every 0.1 seconds, so each block count is twenty times the Base coun
 
 ## Who may change the bounds later
 
-Proposed: each v2 factory is administered by the Safe that administers its v1 counterpart. On Base
+Each v2 factory is administered by the Safe that administers its v1 counterpart. On Base
 that is the Governance and Regent Safe for both Revstake and Memestake. On Robinhood Chain
 it is the admin Safe. No other address can change a bound. A launch keeps the parameters
 it was created with, whatever happens to the bounds afterwards. Decision 1 covers how a
 bound changes.
 
-## Decisions for Sean
+## Decisions
 
 1. **How bounds change later.**
    - (a) The Safe changes a bound on the live factory with one transaction. The change
@@ -134,6 +126,9 @@ bound changes.
    ceremony and a site release. The HQL-H03 handoff describes the bounds as "immutable"
    in step 1 and as changeable by the admin Safe in step 0; this decision settles it.
 
+   **Open.** Sean asked for the difference between (a) and (b) to be explained before he
+   decides.
+
 2. **Release schedule.**
    - (a) Keep the v1 shape (twelve windows of about 5.8% each, then a final block) and
      compute it from whatever length the creator picks.
@@ -142,8 +137,10 @@ bound changes.
    Recommendation: (a). The shape is founder-frozen economics today, and (b) makes every
    launch's release a separate thing to explain and check.
 
+   **Decided: (a).** Sean, 27 September 2026, relayed by HQ: "1a 2 explain these differences 3a 4a 5a" (this decision is his "3a").
+
 3. **The fixed rows.** The start delay, claim and migration delays, pool fee, tick
-   spacing, supply, hook lanes, skim, referral cap and name limits are proposed fixed.
+   spacing, supply, hook lanes, skim, referral cap and name limits.
    - (a) Keep them fixed.
    - (b) Open any of them to the creator.
 
@@ -151,10 +148,15 @@ bound changes.
    is a 21 September founder decision. The rest are safety margins or plumbing rather
    than launch choices.
 
-4. **The proposed defaults and ranges.** These are the shares, lengths, vesting and
+   **Decided: (a).** Sean, 27 September 2026, relayed by HQ: "1a 2 explain these differences 3a 4a 5a" (this decision is his "4a").
+
+4. **The defaults and ranges.** These are the shares, lengths, vesting and
    Revstake floor price in the tables.
    - (a) Approve them as written.
    - (b) Edit them in this file.
    - (c) Paste the 25 September study, and its splits become the defaults.
 
    Recommendation: (c) if the study is the intended plan, otherwise (a).
+
+   **Decided: (a), approved as written.** Sean, 27 September 2026, relayed by HQ: "1a 2 explain these differences 3a 4a 5a" (this decision is his "5a"). The
+   25 September study (50/50 and 15/15/70 splits) is not used.
