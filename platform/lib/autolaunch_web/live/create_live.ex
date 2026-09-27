@@ -36,6 +36,7 @@ defmodule AutolaunchWeb.CreateLive do
 
     socket =
       socket
+      |> assign(AutolaunchWeb.PublicDocuments.page("/create/revstake"))
       |> assign_auction_stats()
       |> assign_defaults(actor)
       |> UsdValue.assign_rate(:regent_usd_rate, :base, fn ->

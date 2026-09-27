@@ -102,7 +102,7 @@ defmodule AutolaunchWeb.Router do
 
     live_session :product_shell,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
-      on_mount: [{AutolaunchWeb.Live.Session, :load_human}, AutolaunchWeb.Live.PageTitle] do
+      on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
       live "/create", StocksCreateLive, :create
       live "/create/revstake", CreateLive, :create
       live "/auctions", AuctionsLive, :index

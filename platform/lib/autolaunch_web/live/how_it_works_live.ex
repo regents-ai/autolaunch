@@ -13,7 +13,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
   def mount(_params, _session, socket),
     do:
       {:ok,
-       assign(socket,
+       socket
+       |> assign(AutolaunchWeb.PublicDocuments.page("/how-it-works"))
+       |> assign(
          share: if(connected?(socket), do: nil, else: ShareCard.how_it_works_meta()),
          agent_guide: AutolaunchWeb.PublicDocuments.agent_guide()
        )}

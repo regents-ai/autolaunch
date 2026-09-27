@@ -121,8 +121,8 @@ defmodule AutolaunchWeb.ShareCard do
   defp bucket(now), do: now |> DateTime.to_unix() |> div(900) |> Integer.to_string()
 
   attr :share, :map, default: nil, doc: "a page's details, or nil for the site's own"
-  attr :page_title, :string, default: nil
-  attr :page_description, :string, default: nil
+  attr :title, :string, required: true, doc: "the page's full browser title"
+  attr :description, :string, required: true
   attr :path, :string, required: true, doc: "the address the page is known by, without its query"
 
   @doc """
@@ -164,8 +164,8 @@ defmodule AutolaunchWeb.ShareCard do
 
   defp site_meta(assigns) do
     %{
-      title: assigns.page_title || "Autolaunch",
-      description: assigns.page_description || PublicDocuments.description(),
+      title: assigns.title,
+      description: assigns.description,
       url: PublicDocuments.url(assigns.path),
       image: url(~p"/images/og-image.png"),
       image_alt:

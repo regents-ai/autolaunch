@@ -44,19 +44,57 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   @description "Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
 
+  @site_name "Autolaunch"
+
+  # The browser-tab title and search description of every page, kept in one
+  # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
+    "/" => {@site_name, @description},
+    "/create" =>
+      {"Create a Memestake token",
+       "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
+    "/create/revstake" =>
+      {"Create a Revstake token",
+       "Tokenize a stablecoin-earning service or agent on Base and open its auction."},
+    "/auctions" =>
+      {"Auctions", "Every Revstake and Memestake auction on Autolaunch, live and graduated."},
+    :auction =>
+      {"Auction", "An Autolaunch auction on Base: its price, its bids and its time left."},
+    :robinhood_auction =>
+      {"Robinhood auction",
+       "An Autolaunch auction on Robinhood Chain: its price, its bids and its time left."},
+    "/tokens" =>
+      {"Tokens", "Every token launched through Autolaunch, on Base and Robinhood Chain."},
+    :token => {"Token", "A token launched through Autolaunch on Base, to trade and stake."},
+    :robinhood_token =>
+      {"Robinhood token",
+       "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
+    "/how-it-works" =>
+      {"How Autolaunch works",
+       "Supply, trading fees and staking rewards for every Autolaunch token."},
+    "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
+    "/profile" => {"Profile", "The accounts you have connected to Autolaunch."},
+    "/settings" => {"Settings", "Your Autolaunch sign-in and account."},
+    "/regent" =>
+      {"REGENT",
+       "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},
+    "/convert" =>
+      {"REGENT's share of fees",
+       "REGENT's share of trading fees waiting in each graduated Memestake launch."},
     "/developers" =>
-      {"Autolaunch developer guide",
+      {"Developer guide",
        "Read Autolaunch auctions, tokens, bid estimates and treasury reports over HTTP or WebMCP, without an account or API key."},
     "/about" =>
-      {"About Autolaunch",
+      {"About",
        "What Autolaunch is for, how Revstake and Memestake launches work, and who runs it."},
     "/contact" =>
-      {"Contact Autolaunch",
+      {"Contact",
        "How to reach the people behind Autolaunch about launches, security reports, privacy requests and legal questions."},
     "/privacy" =>
-      {"Autolaunch privacy",
-       "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."}
+      {"Privacy",
+       "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
+    "/blog" => {"Blog", "Latest updates from Autolaunch."},
+    :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
   }
 
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
@@ -73,11 +111,20 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "Whether the page at `path` also answers as Markdown."
   def markdown?(path), do: Map.has_key?(@paths, path)
 
-  @doc "The browser title and search description of a document page."
-  def page(path), do: Map.fetch!(@pages, path)
+  @doc """
+  The `page_title` and `page_description` assigns the root layout reads. Every
+  page that renders in the root layout assigns them from here.
+  """
+  def page(key) do
+    {title, description} = Map.fetch!(@pages, key)
+    [page_title: title, page_description: description]
+  end
 
-  @doc "The site's description, for pages that do not name their own."
-  def description, do: @description
+  @doc "The page's full browser title, the suffix that adds the site name, and its description."
+  def metadata(path, title, description) do
+    suffix = if path == "/", do: "", else: " · #{@site_name}"
+    %{title: title <> suffix, suffix: suffix, description: description}
+  end
 
   @doc "An address on this site, absolute."
   def url(path), do: AutolaunchWeb.Endpoint.url() <> path

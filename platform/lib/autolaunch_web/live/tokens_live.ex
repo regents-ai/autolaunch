@@ -15,6 +15,7 @@ defmodule AutolaunchWeb.TokensLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(AutolaunchWeb.PublicDocuments.page("/tokens"))
      |> assign(
        options: nil,
        records: [],

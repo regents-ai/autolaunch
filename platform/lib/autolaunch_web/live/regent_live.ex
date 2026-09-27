@@ -20,6 +20,7 @@ defmodule AutolaunchWeb.RegentLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(AutolaunchWeb.PublicDocuments.page("/regent"))
      |> assign(:local_lab?, Lab.test_chain?())
      |> assign(:revenue_sources, @revenue_sources)
      |> assign_async(:facts, fn ->

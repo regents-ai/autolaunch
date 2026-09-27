@@ -62,6 +62,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(AutolaunchWeb.PublicDocuments.page("/portfolio"))
      |> assign(
        robinhood_swap?: RobinhoodLab.swap_configured?(),
        market: LabMarket.subscribe(socket)

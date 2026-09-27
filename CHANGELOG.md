@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v55, 27 September 2026 (865890b)
+- The $REGENT address copy in the header says "Copied" on every page, like the site's
+  other copy buttons.
+
 ## v54, 27 September 2026 (67847e4)
 - A visit to www.autolaunch.sh moves to the same page on autolaunch.sh.
 - A missing page says "We can’t find that page"; any other error says "Something went

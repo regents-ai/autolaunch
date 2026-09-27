@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.AuctionsLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(AutolaunchWeb.PublicDocuments.page("/auctions"))
      |> assign(
        options: nil,
        records: [],

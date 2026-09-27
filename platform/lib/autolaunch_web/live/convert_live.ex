@@ -22,7 +22,8 @@ defmodule AutolaunchWeb.ConvertLive do
   @concurrency 4
   @read_timeout 30_000
 
-  def mount(_params, _session, socket), do: {:ok, load(socket, true)}
+  def mount(_params, _session, socket),
+    do: {:ok, socket |> assign(AutolaunchWeb.PublicDocuments.page("/convert")) |> load(true)}
 
   def handle_event("reload", _params, socket), do: {:noreply, load(socket, false)}
 

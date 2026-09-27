@@ -30,7 +30,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # to the same page, now with their account's draft.
   def mount(params, _session, socket) do
     socket =
-      assign(socket,
+      socket
+      |> assign(AutolaunchWeb.PublicDocuments.page("/create"))
+      |> assign(
         launch_chain: :base,
         linked_token: params["token"],
         draft: nil,

@@ -12,14 +12,9 @@ defmodule AutolaunchWeb.PublicPagesController do
 
   def show(conn, _params) do
     path = conn.request_path
-    {title, description} = PublicDocuments.page(path)
     %{markdown: markdown} = PublicDocuments.document(path)
 
-    render(conn, :show,
-      page_title: title,
-      page_description: description,
-      document: PublicDocuments.html(markdown)
-    )
+    render(conn, :show, [document: PublicDocuments.html(markdown)] ++ PublicDocuments.page(path))
   end
 
   def sitemap(conn, _params) do

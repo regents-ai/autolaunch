@@ -13,16 +13,24 @@ defmodule AutolaunchWeb.MarketPageLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias AutolaunchWeb.Live.PageTitle
 
   alias AutolaunchWeb.{
     AuctionLive,
     NotFoundError,
     Paths,
+    PublicDocuments,
     RobinhoodAuctionLive,
     RobinhoodTokenLive,
     ShareCard,
     TokenLive
+  }
+
+  # Each chain's page names its tab from its entry in `PublicDocuments`.
+  @pages %{
+    AuctionLive => :auction,
+    RobinhoodAuctionLive => :robinhood_auction,
+    TokenLive => :token,
+    RobinhoodTokenLive => :robinhood_token
   }
 
   def mount(%{"symbol" => symbol, "tail" => tail}, session, socket) do
@@ -31,7 +39,7 @@ defmodule AutolaunchWeb.MarketPageLive do
     socket
     |> assign(market_page: page, market_page_params: page_params)
     |> assign(:share, if(connected?(socket), do: nil, else: share))
-    |> PageTitle.assign_title(page)
+    |> assign(PublicDocuments.page(Map.fetch!(@pages, page)))
     |> then(&page.mount(page_params, session, &1))
   end
 

@@ -8,8 +8,12 @@ defmodule AutolaunchWeb.ProfileLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
-  def mount(_params, _session, socket),
-    do: {:ok, assign(socket, current_human_id: current_human_id(socket.assigns.access_context))}
+  def mount(_params, _session, socket) do
+    {:ok,
+     socket
+     |> assign(AutolaunchWeb.PublicDocuments.page("/profile"))
+     |> assign(current_human_id: current_human_id(socket.assigns.access_context))}
+  end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 

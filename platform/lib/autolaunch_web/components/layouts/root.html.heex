@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<!DOCTYPE html> <% metadata =
+  AutolaunchWeb.PublicDocuments.metadata(@conn.request_path, @page_title, @page_description) %>
 <html
   lang="en"
   data-brand="autolaunch"
@@ -15,11 +16,11 @@
       name="privy-bridge-src"
       content={AutolaunchWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
     />
-    <.live_title default="Autolaunch">{assigns[:page_title]}</.live_title>
+    <.live_title suffix={metadata.suffix}>{@page_title}</.live_title>
     <AutolaunchWeb.ShareCard.head
       share={assigns[:share]}
-      page_title={assigns[:page_title]}
-      page_description={assigns[:page_description]}
+      title={metadata.title}
+      description={metadata.description}
       path={@conn.request_path}
     />
     <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg"} />

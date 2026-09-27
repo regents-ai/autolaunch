@@ -31,7 +31,9 @@ defmodule AutolaunchWeb.HomeLive do
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket,
+     socket
+     |> assign(AutolaunchWeb.PublicDocuments.page("/"))
+     |> assign(
        market_options: nil,
        trade: nil,
        records: [],
