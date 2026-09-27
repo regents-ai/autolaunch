@@ -106,7 +106,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp refresh_market(%{assigns: %{draft_values: %{"stock_address" => same}}} = socket, same),
     do: socket
 
-  defp refresh_market(socket, _before), do: assign_market(socket)
+  # Another stock's venues are not this one's, so they come down at once.
+  defp refresh_market(socket, _before),
+    do: socket |> assign(:market, %{socket.assigns.market | venues: []}) |> assign_market()
 
   def handle_event(event, params, socket) when event in @autosave_events do
     values = Map.take(params["stock_draft"] || %{}, Templates.section_params(event))

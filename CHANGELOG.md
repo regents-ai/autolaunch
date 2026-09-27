@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v57, 27 September 2026 (503b4f3)
+- Behind-the-scenes tidying only: unused styles removed and the site's checks moved to
+  the standard places. Nothing changes for visitors.
+
+## v56, 27 September 2026 (91ec923)
+- Every page's browser tab title and link preview name the page, then "Autolaunch", from
+  one list, so shared links describe the page they point to.
+
 ## v55, 27 September 2026 (865890b)
 - The $REGENT address copy in the header says "Copied" on every page, like the site's
   other copy buttons.

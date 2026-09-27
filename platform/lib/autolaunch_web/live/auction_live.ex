@@ -41,6 +41,9 @@ defmodule AutolaunchWeb.AuctionLive do
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
 
+  def handle_event("retry_history", _params, socket),
+    do: {:noreply, load_history(socket, reset: false)}
+
   # Either feed may have moved; the combined reading decides whether the page
   # has anything new to show.
   def handle_info({:autolaunch_market_updated, _update}, socket) do
@@ -143,6 +146,7 @@ defmodule AutolaunchWeb.AuctionLive do
       />
       <div class="auction-layout">
         <section class="auction-layout__chart" aria-label="Price and progress">
+          <.history_note history={@history} />
           <.auction_chart
             :if={@market_snapshot && @history.ok?}
             id="auction-chart"

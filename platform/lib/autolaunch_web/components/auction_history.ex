@@ -14,6 +14,26 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
 
+  attr :history, Phoenix.LiveView.AsyncResult, required: true
+
+  @doc """
+  Says when the bids could not be read: a failed first read shows no bids
+  rather than none, and a failed re-read keeps the last ones marked as such.
+  "Try again" sends `retry_history` to the page.
+  """
+  def history_note(assigns) do
+    ~H"""
+    <p :if={@history.failed} class="auction-history__failed" role="status">
+      {if @history.ok?,
+        do: "The bids could not be read again just now, so these are the last ones read.",
+        else: "The bids could not be read just now."}
+      <Regent.Primitives.button phx-click="retry_history" variant="secondary">
+        Try again
+      </Regent.Primitives.button>
+    </p>
+    """
+  end
+
   attr :id, :string, required: true
   attr :bids, :list, required: true, doc: "the auction's bids, oldest first"
   attr :points, :list, required: true, doc: "the auction's clearing prices, oldest first"

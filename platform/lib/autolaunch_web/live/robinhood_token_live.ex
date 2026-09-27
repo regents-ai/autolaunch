@@ -44,6 +44,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     {:noreply, socket |> assign(:token_address, token) |> load_page()}
   end
 
+  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
   # The staking card confirmed something that moved the pool's figures, so the
@@ -82,6 +83,9 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       </header>
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this token shows what was last read.
+      </p>
+      <p :if={@token_failed?} class="autolaunch-live-market" role="status">
+        This token could not be read again just now, so it shows what was last read.
       </p>
       <.detail_card
         kind={:token}
@@ -194,7 +198,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     </article>
 
     <section
-      :if={!@open? || !@token}
+      :if={!@open? || (!@token && !@token_failed?)}
       id="autolaunch-robinhood-token"
       class="autolaunch-page autolaunch-empty"
     >
@@ -205,13 +209,30 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <p :if={@open?}>No graduated Robinhood token exists at {@token_address}.</p>
       <.link navigate="/tokens">Return to Tokens</.link>
     </section>
+
+    <section
+      :if={@open? && !@token && @token_failed?}
+      id="autolaunch-robinhood-token"
+      class="autolaunch-page autolaunch-empty"
+      role="alert"
+    >
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Token unavailable</h1>
+      </Regent.Structure.section_bar>
+      <p>This token could not be loaded right now.</p>
+      <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
+      <.link navigate="/tokens">Return to Tokens</.link>
+    </section>
     """
   end
 
-  defp load_page(%{assigns: %{open?: false}} = socket), do: assign(socket, token: nil)
+  defp load_page(%{assigns: %{open?: false}} = socket),
+    do: assign(socket, token: nil, token_failed?: false)
 
+  # Another token's page starts from nothing, so a failed read never leaves
+  # the previous token on screen.
   defp load_page(socket) do
-    socket = reload_token(socket)
+    socket = socket |> assign(:token, nil) |> reload_token()
     token = socket.assigns.token
 
     socket
@@ -228,9 +249,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   defp reload_token(%{assigns: %{open?: false}} = socket), do: socket
 
+  # A failed re-read keeps the token already on screen and says so.
   defp reload_token(socket) do
-    {:ok, token} = Autolaunch.get_robinhood_token(socket.assigns.token_address, actor: nil)
-    assign(socket, :token, token)
+    case Autolaunch.get_robinhood_token(socket.assigns.token_address, actor: nil) do
+      {:ok, token} -> assign(socket, token: token, token_failed?: false)
+      {:error, _reason} -> assign(socket, :token_failed?, true)
+    end
   end
 
   # The pool is its own read of the chain: the token renders from its stored

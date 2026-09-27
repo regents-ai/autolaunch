@@ -41,6 +41,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   def handle_params(%{"auction" => address}, _uri, socket),
     do: {:noreply, socket |> assign(:auction, address) |> load_launch()}
 
+  def handle_event("retry", _params, socket), do: {:noreply, load_launch(socket)}
+  def handle_event("retry_history", _params, socket), do: {:noreply, load_history(socket, false)}
+
   # The feed read Robinhood again: the stored auction, its reading and its
   # price move together.
   def handle_info({:robinhood_market_updated, _update}, socket),
@@ -87,6 +90,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this auction shows what was last read.
       </p>
+      <p :if={@launch_failed?} class="autolaunch-live-market" role="status">
+        This auction could not be read again just now, so it shows what was last read.
+      </p>
       <.headline
         record={@launch}
         minimum={required(@launch)}
@@ -95,6 +101,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       />
       <div class="auction-layout">
         <section class="auction-layout__chart" aria-label="Price and progress">
+          <.history_note history={@history} />
           <.auction_chart
             :if={@reading && @history.ok? && @history.result}
             id="robinhood-auction-chart"
@@ -234,7 +241,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     </article>
 
     <section
-      :if={!@open? || !@launch}
+      :if={!@open? || (!@launch && !@launch_failed?)}
       id="autolaunch-robinhood-auction"
       class="autolaunch-page autolaunch-empty"
     >
@@ -245,14 +252,30 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       <p :if={@open?}>No Robinhood auction exists at {@auction}.</p>
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
+
+    <section
+      :if={@open? && !@launch && @launch_failed?}
+      id="autolaunch-robinhood-auction"
+      class="autolaunch-page autolaunch-empty"
+      role="alert"
+    >
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Auction unavailable</h1>
+      </Regent.Structure.section_bar>
+      <p>This auction could not be loaded right now.</p>
+      <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
+      <.link navigate="/auctions">Return to Auctions</.link>
+    </section>
     """
   end
 
   defp load_launch(%{assigns: %{open?: false}} = socket),
-    do: assign(socket, launch: nil)
+    do: assign(socket, launch: nil, launch_failed?: false)
 
+  # Another auction's page starts from nothing, so a failed read never leaves
+  # the previous auction on screen.
   defp load_launch(socket) do
-    socket = socket |> reload_launch() |> load_history(true)
+    socket = socket |> assign(:launch, nil) |> reload_launch() |> load_history(true)
     launch = socket.assigns.launch
 
     socket
@@ -308,11 +331,12 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   defp reload_launch(%{assigns: %{open?: false}} = socket), do: socket
 
+  # A failed re-read keeps the auction already on screen and says so.
   defp reload_launch(socket) do
-    {:ok, launch} =
-      Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil, load: [:fdv])
-
-    assign(socket, :launch, launch)
+    case Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil, load: [:fdv]) do
+      {:ok, launch} -> assign(socket, launch: launch, launch_failed?: false)
+      {:error, _reason} -> assign(socket, :launch_failed?, true)
+    end
   end
 
   # The minimum is stored in the stock's smallest unit.

@@ -2,7 +2,8 @@ defmodule AutolaunchWeb.Components.AuctionStats do
   @moduledoc """
   The thin band of Revstake and Memestake auction counts shown on the home,
   auctions and create pages. Each group loads on its own, so a slow or failed
-  Robinhood read leaves the Revstake counts in place.
+  Robinhood read leaves the Revstake counts in place. A failed re-read keeps
+  the last counts and says they are the last ones read.
   """
   use Phoenix.Component
 
@@ -40,8 +41,10 @@ defmodule AutolaunchWeb.Components.AuctionStats do
     ~H"""
     <div id={@id} class="auction-stats__group" aria-busy={to_string(@stats.loading != nil)}>
       <p class="auction-stats__title">{@title}</p>
-      <p :if={@stats.failed} class="auction-stats__note">Counts unavailable right now</p>
-      <dl :if={!@stats.failed} class="auction-stats__counts">
+      <p :if={@stats.failed && !@stats.ok?} class="auction-stats__note">
+        Counts unavailable right now
+      </p>
+      <dl :if={@stats.ok? || !@stats.failed} class="auction-stats__counts">
         <div>
           <dt>Live:</dt>
           <dd>{count(@stats, :live)}</dd>
@@ -51,6 +54,7 @@ defmodule AutolaunchWeb.Components.AuctionStats do
           <dd>{count(@stats, :graduated)}</dd>
         </div>
       </dl>
+      <p :if={@stats.failed && @stats.ok?} class="auction-stats__note">Last counts read</p>
     </div>
     """
   end

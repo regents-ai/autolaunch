@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.UsdValue do
   """
   use Phoenix.Component
 
-  import Phoenix.LiveView, only: [assign_async: 3]
+  import Phoenix.LiveView, only: [assign_async: 4]
 
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -19,13 +19,14 @@ defmodule AutolaunchWeb.UsdValue do
 
   @doc """
   Reads a chain's dollar prices into `key` in the background, as `assign_async/3`
-  does. On that chain's test network nothing is read: `key` holds
-  `:test_network` from the first render.
+  does. Each call is for a new record, so the previous record's price comes
+  down until the new one lands. On that chain's test network nothing is read:
+  `key` holds `:test_network` from the first render.
   """
   def assign_rate(socket, key, chain, read) do
     if test_network?(chain),
       do: assign(socket, key, AsyncResult.ok(:test_network)),
-      else: assign_async(socket, key, read)
+      else: assign_async(socket, key, read, reset: true)
   end
 
   defp test_network?(:base), do: Lab.test_chain?()
