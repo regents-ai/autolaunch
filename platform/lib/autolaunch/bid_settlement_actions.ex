@@ -53,7 +53,7 @@ defmodule Autolaunch.BidSettlementActions do
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(bid_position_id, address, opts) do
     with {:ok, actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, opts),
+         {:ok, signer} <- current_wallet(address, actor, opts),
          {:ok, position} <- owned_position(bid_position_id, actor),
          :ok <- position_signer(position, signer),
          {:ok, bid_id} <- onchain_bid_id(position),
@@ -274,11 +274,24 @@ defmodule Autolaunch.BidSettlementActions do
   end
 
   # The wallet has to be one the leased account links, read now: never a guess.
-  defp current_wallet(address, opts) do
+  defp current_wallet(address, actor, opts) do
     with {:ok, signer} <- normalize(address),
-         {:ok, %{lineage: lineage, account_id: account_id}} <- lease(opts),
-         do: lineage |> SessionAuthority.leased_account(account_id) |> linked_wallet(signer)
+         {:ok, lease} <- lease(opts),
+         {:ok, account} <- leased(lease),
+         :ok <- same_account(actor, account),
+         do: linked_wallet(account, signer)
   end
+
+  defp leased(%{lineage: lineage, account_id: account_id}) do
+    case SessionAuthority.leased_account(lineage, account_id) do
+      nil -> unavailable(:session_unavailable)
+      account -> {:ok, account}
+    end
+  end
+
+  # The lease and the acting human have to name one account.
+  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
+  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
 
   defp lease(opts) do
     case Keyword.get(opts, :context) do
@@ -290,8 +303,6 @@ defmodule Autolaunch.BidSettlementActions do
         unavailable(:session_lease_required)
     end
   end
-
-  defp linked_wallet(nil, _signer), do: unavailable(:session_unavailable)
 
   defp linked_wallet(%{wallet_addresses: wallets}, signer) when is_list(wallets) do
     if Enum.any?(wallets, &Address.equal?(&1, signer)),
