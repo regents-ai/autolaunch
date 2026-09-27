@@ -13,10 +13,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
   def mount(_params, _session, socket),
     do:
       {:ok,
-       assign(
-         socket,
-         :share,
-         if(connected?(socket), do: nil, else: ShareCard.how_it_works_meta())
+       assign(socket,
+         share: if(connected?(socket), do: nil, else: ShareCard.how_it_works_meta()),
+         agent_guide: AutolaunchWeb.PublicDocuments.agent_guide()
        )}
 
   def render(assigns) do
@@ -25,14 +24,14 @@ defmodule AutolaunchWeb.HowItWorksLive do
       <header class="autolaunch-heading">
         <div class="fact-page__title">
           <h1>How Autolaunch works</h1>
-          <Regent.Primitives.button
+          <Regent.Primitives.copy_button
             id="copy-agent-guide"
+            text={@agent_guide}
+            variant="primary"
             class="copy-agent-guide"
-            data-copy-agent-guide={~p"/llms.txt"}
-            phx-update="ignore"
           >
-            <span data-copy-agent-label aria-live="polite">Copy to Agent</span>
-          </Regent.Primitives.button>
+            Copy to Agent
+          </Regent.Primitives.copy_button>
         </div>
         <p>Supply, trading fees and staking rewards for every Autolaunch token.</p>
       </header>

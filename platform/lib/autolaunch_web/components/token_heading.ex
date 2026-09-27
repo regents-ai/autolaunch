@@ -26,32 +26,16 @@ defmodule AutolaunchWeb.Components.TokenHeading do
       </h1>
     </Regent.Structure.section_bar>
     <div :if={@pool} class="token-heading__links">
-      <button
-        type="button"
+      <Regent.Primitives.copy_button
+        id="token-heading-copy"
+        text={@pool.token.address}
+        variant="quiet"
         class="token-heading__copy"
-        data-regent-copy
-        data-copy-address={@pool.token.address}
         aria-label={"Copy the #{@symbol} token address"}
       >
         <span class="token-heading__address">{RegentFormat.short_address(@pool.token.address)}</span>
-        <span class="regent-token-menu__copy-icon" aria-hidden="true">
-          <span class="regent-token-menu__glyph" data-copy-glyph><.copy_icon /></span>
-          <span
-            class="regent-token-menu__glyph regent-token-menu__glyph--check"
-            data-check-glyph
-            hidden
-          >
-            <.check_icon />
-          </span>
-        </span>
-        <span
-          class="regent-token-menu__toast"
-          data-copy-toast
-          data-variant={AutolaunchWeb.Motion.standard("toast")}
-          role="status"
-          aria-live="polite"
-        ></span>
-      </button>
+        <span class="regent-token-menu__copy-icon" aria-hidden="true"><.copy_icon /></span>
+      </Regent.Primitives.copy_button>
       <a
         :if={@network}
         class="rg-button rg-button--secondary token-heading__link"
@@ -93,14 +77,6 @@ defmodule AutolaunchWeb.Components.TokenHeading do
     ~H"""
     <svg viewBox="0 0 24 24" fill="currentColor">
       <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" />
-    </svg>
-    """
-  end
-
-  defp check_icon(assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
     </svg>
     """
   end

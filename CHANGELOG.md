@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v52, 27 September 2026 (af7caea)
+- Addresses show the same short way on every page (0x1234..abcd), and times read as
+  "3 minutes ago" or "in 2 hours" everywhere, from the shared Regent formatting.
+
 ## v51, 27 September 2026 (9061676)
 - The site now uses Regent's shared sign-in, design and blog code at fixed published
   versions, the same ones every Regent site checks against, so the release no longer
