@@ -1,6 +1,7 @@
 import type {Address, Hex} from "viem"
 
 import type {Hook} from "../hook_composition"
+import {agentCard, failed, sent, type AgentCall, type AgentCardHandle} from "../agent_wallet_tools"
 import {builtFor, formOnScreen, type BidInputs} from "./bid_form_on_screen"
 import {reportBrowserWallets} from "./browser_wallets"
 import {connectedEthereumWallet, signerWalletOrConnect} from "../wallet_actions/connected_wallet"
@@ -25,9 +26,11 @@ type Review = {
   lab_anchor: AutolaunchLabAnchor
   steps: {step: string; to: Address; data: Hex}[]
   // A bid review carries the form values it was built for; one answering a
-  // press names the step that press sends.
+  // press names the step that press sends, and one answering an agent's call
+  // names that call.
   inputs?: BidInputs
   send?: string
+  agent?: AgentCall
 }
 
 // `wallet_unavailable` and `network_mismatch` are the reasons that prove nothing was sent.
@@ -37,11 +40,14 @@ type FailureReason =
   | "wallet_declined"
   | "send_unconfirmed"
 
+type Sent = {transaction_hash: string} | {reason: FailureReason}
+
 type ReviewedStepsHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload: unknown): void
   review?: Review | null
+  agent?: AgentCardHandle
   stopReporting?: () => void
   clicked?: (event: Event) => void
 }
@@ -58,12 +64,21 @@ export const AutolaunchReviewedSteps: Hook = {
 
     this.review = null
     this.stopReporting = reportBrowserWallets(push)
+    const agent = (this.agent = agentCard(this))
 
     this.handleEvent("reviewed-steps:review", payload => {
       if (!mine(payload)) return
       const review = payload as Review
       this.review = review
-      if (review.send) void send(this.el, review, review.send, push)
+      if (!review.send) return
+      void send(this.el, review, review.send, push).then(result =>
+        agent.settle(
+          review.agent,
+          "transaction_hash" in result
+            ? sent(result.transaction_hash, review.agent?.remaining ?? [])
+            : failed(result.reason),
+        ),
+      )
     })
     this.handleEvent("reviewed-steps:cleared", payload => {
       if (mine(payload)) this.review = null
@@ -92,6 +107,7 @@ export const AutolaunchReviewedSteps: Hook = {
   destroyed(this: ReviewedStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     this.stopReporting?.()
+    this.agent?.dispose()
   },
 }
 
@@ -100,13 +116,13 @@ export const AutolaunchReviewedSteps: Hook = {
 // the press opens Privy's connect step instead and nothing is sent. The hash is
 // reported and nothing is read afterwards: the server owns every question about
 // what that hash did. While a press is with the wallet the panel is only marked,
-// never locked.
+// never locked. The answer is also returned, for an agent's call waiting on it.
 async function send(
   el: HTMLElement,
   review: Review | null,
   name: string,
   push: (event: string, payload: unknown) => void,
-): Promise<void> {
+): Promise<Sent> {
   const step = review?.steps.find(candidate => candidate.step === name)
   let started = false
 
@@ -130,8 +146,11 @@ async function send(
     )
 
     push("step_sent", {step: name, transaction_hash})
+    return {transaction_hash}
   } catch (error) {
-    push("step_failed", {step: name, reason: failure(started, error)})
+    const reason = failure(started, error)
+    push("step_failed", {step: name, reason})
+    return {reason}
   } finally {
     if (el.dataset.awaitingWallet === name) delete el.dataset.awaitingWallet
   }

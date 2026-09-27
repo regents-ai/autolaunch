@@ -2,6 +2,7 @@ import {installWalletPresses} from "./wallet_presses"
 import {reportBrowserWallets} from "./browser_wallets"
 import {builtFor, formOnScreen, type BidInputs} from "./bid_form_on_screen"
 import type {Hook} from "../hook_composition"
+import {agentCard, type AgentCardHandle} from "../agent_wallet_tools"
 import {sendBidStep, sendableStep, type BidOperation} from "../wallet_actions/autolaunch_bids"
 
 type BidHook = Hook & {
@@ -9,6 +10,7 @@ type BidHook = Hook & {
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload: unknown): void
   removePressListener?: ReturnType<typeof installWalletPresses>
+  agent?: AgentCardHandle
   stopReporting?: () => void
 }
 
@@ -21,7 +23,9 @@ export const AutolaunchBidWallet: Hook = {
   mounted(this: BidHook) {
     const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
     this.stopReporting = reportBrowserWallets(push)
+    this.agent = agentCard(this)
     this.removePressListener = installWalletPresses<BidOperation & {inputs?: BidInputs}>(this, {
+      agent: this.agent,
       prefix: "autolaunch-bid", selector: "[data-bid-send]",
       send: (operation, step, started, resolveWallet) => sendBidStep(operation,
         sendableStep(operation, operation.action_id, step), resolveWallet, started),
@@ -43,5 +47,6 @@ export const AutolaunchBidWallet: Hook = {
   destroyed(this: BidHook) {
     this.removePressListener?.()
     this.stopReporting?.()
+    this.agent?.dispose()
   },
 }

@@ -1,7 +1,9 @@
 // WebMCP Draft Community Group Report, 4 September 2026: document.modelContext.
-// Public HTTP responses remain authoritative; these tools never use wallet hooks.
-// Every tool the page registers is described once, in priv/tool_manifest.json;
-// this file only adds the request each public tool makes.
+// HTTP responses remain authoritative; these tools only read and never use wallet
+// hooks (the wallet tools are agent_wallet_tools.ts). Every tool the page
+// registers is described once, in priv/tool_manifest.json; this file only adds
+// the request each read makes. Public reads send no cookies; the one read of the
+// person's own bids and tokens sends the site's sign-in.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
@@ -13,7 +15,7 @@ type Property = {
   minimum?: number
   maximum?: number
 }
-type Request = {path: string; body?: Input}
+type Request = {path: string; body?: Input; session?: true}
 type Failure = {
   ok: false
   error: {code: "invalid_input" | "aborted" | "network_error" | "invalid_response"; message: string}
@@ -58,7 +60,7 @@ type ModelContext = {
 }
 
 const invalidInput = () => failure("invalid_input", "Use the documented fields and input types.")
-const cancelled = () => failure("aborted", "The public read was cancelled.")
+const cancelled = () => failure("aborted", "The read was cancelled.")
 
 function failure(code: Failure["error"]["code"], message: string): Failure {
   return {ok: false, error: {code, message}}
@@ -153,7 +155,7 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
         ...(target.body ? {"Content-Type": "application/json"} : {}),
       },
       body: target.body ? JSON.stringify(target.body) : undefined,
-      credentials: "omit",
+      credentials: target.session ? "same-origin" : "omit",
       mode: "same-origin",
       redirect: "error",
       cache: "no-store",
@@ -165,7 +167,7 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
     } catch {
       if (cancellation.aborted) return cancelled()
       return {
-        ...failure("invalid_response", "The public API did not return JSON."),
+        ...failure("invalid_response", "The site's API did not return JSON."),
         status: response.status,
       }
     }
@@ -174,7 +176,7 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
   } catch {
     return cancellation.aborted
       ? cancelled()
-      : failure("network_error", "The public API could not be reached.")
+      : failure("network_error", "The site's API could not be reached.")
   }
 }
 
@@ -196,6 +198,7 @@ const requests: Record<string, (input: Input) => Request> = {
     path: `/api/v1/auctions/${pathValue(input.id)}/bid-quote`,
     body: {amount: input.amount, max_price: input.max_price},
   }),
+  autolaunch_my_positions: () => ({path: "/api/v1/me/positions", session: true}),
 }
 
 // The manifest's profile_* tools register through the shared identity package

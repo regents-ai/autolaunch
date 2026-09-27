@@ -323,8 +323,35 @@ paths:
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
         "500": {$ref: "#/components/responses/InternalError"}
+  /api/v1/me/positions:
+    get:
+      operationId: listMyPositions
+      summary: List your bids and tokens
+      description: The signed-in person's own bids on Base and Robinhood auctions and the launched tokens their verified wallets hold, stake or can claim from staking, read now from the site's records and the chain. Needs the site's sign-in in the same browser; the page tool autolaunch_my_positions calls it.
+      security:
+        - SiteSession: []
+      responses:
+        "200":
+          description: Every bid and token of the person's verified wallets
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MyPositionsEnvelope"}
+        "401":
+          description: Nobody is signed in on this site in this browser
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ApiError"}
+        "503":
+          description: The chain could not be read; nothing is left out, the whole answer is refused
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ApiError"}
 components:
   securitySchemes:
+    SiteSession:
+      type: apiKey
+      in: cookie
+      name: _autolaunch_key
     PrivyAccess:
       type: http
       scheme: bearer
@@ -578,6 +605,59 @@ components:
             usdc: {type: [object, "null"], additionalProperties: true}
             regent: {type: [object, "null"], additionalProperties: true}
             outbound: {type: [object, "null"], additionalProperties: true}
+    MyPositionsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [bids, tokens]
+          properties:
+            bids: {type: array, items: {$ref: "#/components/schemas/MyBid"}}
+            tokens: {type: array, items: {$ref: "#/components/schemas/MyToken"}}
+    MyBid:
+      type: object
+      additionalProperties: false
+      required: [bid, chain, name, symbol, currency, amount, max_price, standing, can, page]
+      properties:
+        bid: {type: string, description: "The id the page tool autolaunch_settle_bid takes."}
+        chain: {type: string, enum: [base, robinhood]}
+        name: {type: string, description: "The auction's name, as its creator wrote it."}
+        symbol: {type: string}
+        currency: {type: string, description: "What the bid spends and prices in."}
+        amount: {$ref: "#/components/schemas/DecimalString"}
+        max_price: {$ref: "#/components/schemas/DecimalString"}
+        standing:
+          type: string
+          enum: [bidding_open, buying, sharing_price, outbid, bidding_ended, withdraw_ready, claim_ready, claim_later, done]
+        can:
+          type: [string, "null"]
+          enum: [withdraw, claim, early_return, null]
+          description: "What autolaunch_settle_bid can press for this bid now. early_return means the unspent money may come back before the auction ends; the bid's card says when."
+        page: {type: [string, "null"], format: uri, description: "The auction page where the bid's card is; null for a Robinhood auction this site does not list."}
+    MyToken:
+      type: object
+      additionalProperties: false
+      required: [name, symbol, chain, held, staked, claimable, page]
+      properties:
+        name: {type: string}
+        symbol: {type: string}
+        chain: {type: string, enum: [base, robinhood]}
+        held: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Cut to four decimal places, never rounded up."}
+        staked: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Cut to four decimal places, never rounded up."}
+        claimable:
+          type: array
+          description: "What staking has earned, each amount cut to twelve significant digits, never rounded up."
+          items:
+            type: object
+            additionalProperties: false
+            required: [amount, symbol]
+            properties:
+              amount: {$ref: "#/components/schemas/DecimalString"}
+              symbol: {type: string}
+        page: {type: [string, "null"], format: uri, description: "The token's page; null for a Robinhood token this site does not list."}
     ApiError:
       type: object
       additionalProperties: false
@@ -588,7 +668,7 @@ components:
           additionalProperties: false
           required: [code, message, hint]
           properties:
-            code: {type: string, enum: [invalid_request, internal_error]}
+            code: {type: string, enum: [invalid_request, internal_error, authentication_required, chain_unavailable]}
             message: {type: string}
             hint: {type: string, description: What to do next.}
     NotFoundApiError:

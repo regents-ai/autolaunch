@@ -31,11 +31,15 @@ defmodule AutolaunchWeb.PublicDocuments do
   @tool_manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
   @external_resource @tool_manifest_path
   @tools @tool_manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
-  @needs %{"none" => "Nothing", "session" => "The person's sign-in"}
+  @needs %{
+    "none" => "Nothing",
+    "session" => "The person's sign-in",
+    "wallet_signed" => "The person's sign-in and their wallet's confirmation"
+  }
   @tool_table """
-  | Tool | Needs | What it does |
-  | --- | --- | --- |
-  #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
+  | Tool | Where | Needs | What it does |
+  | --- | --- | --- | --- |
+  #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{if &1["scope"] == "site", do: "Every page", else: &1["scope"]} | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
 
   @description "Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."

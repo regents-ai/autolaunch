@@ -186,6 +186,7 @@ defmodule AutolaunchWeb.AuctionLive do
             :if={!Autolaunch.Prelaunch.read_only?() && !@bidding_ended?}
             module={AutolaunchWeb.BidComponent}
             id="autolaunch-bid"
+            agent_tools
             auction={@page_record}
             book={@book}
             authenticated={@account_control.kind == :signed_in}

@@ -129,6 +129,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             module={AutolaunchWeb.RobinhoodStockBidComponent}
             id="autolaunch-robinhood-bid"
             outbid_banner
+            agent_tools
             auction={@auction}
             launch={@launch}
             ended={AutolaunchWeb.RobinhoodStockBidComponent.ended_copy(@launch)}

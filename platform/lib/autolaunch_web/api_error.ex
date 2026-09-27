@@ -25,6 +25,12 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "List what exists with GET #{PublicDocuments.url("/api/v1/auctions")} or GET #{PublicDocuments.url("/api/v1/tokens")}. Every endpoint is described at #{PublicDocuments.url("/openapi.json")}."
 
+  defp hint("authentication_required"),
+    do:
+      "Ask the person to sign in at #{PublicDocuments.url("/")} in this browser, then call again."
+
+  defp hint("chain_unavailable"), do: "Try again in a moment."
+
   defp hint("internal_error"),
     do:
       "Try again in a moment. If it keeps failing, tell us at #{PublicDocuments.url("/contact")}."

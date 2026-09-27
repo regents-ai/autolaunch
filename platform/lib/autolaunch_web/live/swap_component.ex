@@ -5,7 +5,8 @@ defmodule AutolaunchWeb.SwapComponent do
   does, `symbol` and `image` present its token, `currency` names what the pool
   is entered with (`nil` where the token cannot be swapped here), and
   `start_direction` the side the form opens on (buying unless it says
-  `:sell`). Everything happens on the one form: an amount, a live quote, a
+  `:sell`). With `agent_tools`, the form also answers the page tools that buy
+  and sell the page's token (`AutolaunchWeb.AgentPress`). Everything happens on the one form: an amount, a live quote, a
   max-slippage setting behind the gear, then a panel over the form that walks
   the wallet through the swap and closes itself when the swap lands.
 
@@ -24,7 +25,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.SwapActions
-  alias AutolaunchWeb.{Paths, SignedInWallet}
+  alias AutolaunchWeb.{AgentPress, Paths, SignedInWallet}
   alias Phoenix.LiveView.JS
 
   @default_protection "1"
@@ -62,6 +63,7 @@ defmodule AutolaunchWeb.SwapComponent do
     "permit2_approval" => :permit2_approval,
     "swap" => :swap
   }
+  @agent_directions %{"autolaunch_buy" => :buy, "autolaunch_sell" => :sell}
 
   @impl true
   def update(assigns, socket) do
@@ -99,6 +101,7 @@ defmodule AutolaunchWeb.SwapComponent do
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
      |> assign_new(:image, fn -> nil end)
+     |> assign_new(:agent_tools, fn -> false end)
      |> assign_new(:browser_wallets, fn -> [] end)
      |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
      |> SignedInWallet.adopt(&adopt/2)
@@ -114,6 +117,7 @@ defmodule AutolaunchWeb.SwapComponent do
     <div
       id={@id}
       class="token-swap"
+      data-agent-tools={@agent_tools && @currency && "autolaunch_buy autolaunch_sell"}
       phx-hook="AutolaunchReviewedSteps"
       phx-target={@myself}
       phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
@@ -230,24 +234,33 @@ defmodule AutolaunchWeb.SwapComponent do
   end
 
   def handle_event("review_swap", params, socket) do
-    socket = entered(socket, params)
+    case reviewed(socket, params) do
+      {:ok, socket} -> {:noreply, published(socket)}
+      {:error, socket} -> {:noreply, socket}
+    end
+  end
 
-    request = %{
-      launch: socket.assigns.launch,
-      direction: socket.assigns.direction,
-      amount: socket.assigns.amount,
-      protection: socket.assigns.protection
-    }
+  # An agent's press: the next step of the swap open for the same side, amount
+  # and slippage, or the first step of a new one, sent at once as the button
+  # would.
+  def handle_event("agent_press", %{"call" => call, "tool" => tool} = params, socket)
+      when is_map_key(@agent_directions, tool) do
+    direction = Map.fetch!(@agent_directions, tool)
+    input = params["input"] || %{}
+    fields = %{"amount" => input["amount"], "protection" => input["max_slippage"]}
 
-    case SwapActions.prepare(request, socket.assigns.wallet, opts(socket)) do
-      {:ok, review} ->
-        {:noreply,
-         socket
-         |> assign(review: review, sent: %{}, notice: nil, swapped: nil, options_open: false)
-         |> published()}
+    case socket.assigns do
+      %{read_only?: true} ->
+        {:noreply, AgentPress.refused(socket, call, "Trading is not open on this site yet.")}
 
-      {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)))}
+      %{authenticated: false} ->
+        {:noreply, AgentPress.refused(socket, call, copy(:authentication_required))}
+
+      assigns ->
+        case open_step(assigns, direction, fields) do
+          %{name: step} -> {:noreply, published(socket, {step, call})}
+          nil -> {:noreply, agent_reviewed(socket, direction, fields, call)}
+        end
     end
   end
 
@@ -304,6 +317,59 @@ defmodule AutolaunchWeb.SwapComponent do
   end
 
   def handle_async(_read, _unavailable, socket), do: {:noreply, socket}
+
+  defp reviewed(socket, params) do
+    socket = entered(socket, params)
+
+    request = %{
+      launch: socket.assigns.launch,
+      direction: socket.assigns.direction,
+      amount: socket.assigns.amount,
+      protection: socket.assigns.protection
+    }
+
+    case SwapActions.prepare(request, socket.assigns.wallet, opts(socket)) do
+      {:ok, review} ->
+        {:ok,
+         assign(socket, review: review, sent: %{}, notice: nil, swapped: nil, options_open: false)}
+
+      {:error, error} ->
+        {:error, assign(socket, notice: copy(refusal(error)))}
+    end
+  end
+
+  defp agent_reviewed(socket, direction, fields, call) do
+    socket = assign(socket, direction: direction, revision: socket.assigns.revision + 1)
+    fields = Map.update!(fields, "protection", &(&1 || socket.assigns.protection))
+
+    case reviewed(socket, fields) do
+      {:ok, socket} -> published(socket, {first_step(socket.assigns.review), call})
+      {:error, socket} -> AgentPress.refused(socket, call, agent_refusal(socket.assigns))
+    end
+  end
+
+  # The step the open swap's button would send, when it is for the same side,
+  # amount and slippage (as the form would round it).
+  defp open_step(%{review: %{envelope: envelope} = review} = assigns, direction, fields) do
+    protection =
+      case SwapActions.protection(fields["protection"] || assigns.protection) do
+        {:ok, bps} -> SwapActions.protection_percent(bps)
+        {:error, _out_of_range} -> nil
+      end
+
+    same? =
+      envelope["arguments"]["direction"] == Atom.to_string(direction) and
+        fields["amount"] == assigns.amount and protection == assigns.protection
+
+    if same?, do: next_step(review, assigns.sent)
+  end
+
+  defp open_step(_assigns, _direction, _fields), do: nil
+
+  defp first_step(%{steps: [%{"step" => step} | _rest]}), do: step
+
+  defp agent_refusal(%{protection_error: error}) when is_binary(error), do: error
+  defp agent_refusal(%{notice: notice}), do: notice
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()
@@ -434,8 +500,12 @@ defmodule AutolaunchWeb.SwapComponent do
     |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
   end
 
-  defp published(%{assigns: %{review: %{envelope: envelope, steps: steps}}} = socket) do
-    push_event(socket, "reviewed-steps:review", %{
+  # With `{step, call}`, the review answers an agent's call and sends that step.
+  defp published(
+         %{assigns: %{review: %{envelope: envelope, steps: steps} = review}} = socket,
+         agent \\ nil
+       ) do
+    payload = %{
       component_id: socket.assigns.id,
       signer: envelope["expected_signer"],
       chain_id: envelope["chain_id"],
@@ -445,7 +515,19 @@ defmodule AutolaunchWeb.SwapComponent do
         block_hash: envelope["arguments"]["block_hash"]
       },
       steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"]))
-    })
+    }
+
+    payload =
+      case agent do
+        nil ->
+          payload
+
+        {step, call} ->
+          remaining = AgentPress.remaining(steps, step, &step_label(&1, review))
+          AgentPress.sending(payload, step, call, remaining)
+      end
+
+    push_event(socket, "reviewed-steps:review", payload)
   end
 
   # The signed-in wallet; every read that matters proves it against the session

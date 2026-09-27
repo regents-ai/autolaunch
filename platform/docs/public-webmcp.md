@@ -11,13 +11,20 @@ There is no older `navigator.modelContext` fallback. Pages send
 Every tool a page registers is described once, in
 [`priv/tool_manifest.json`](../priv/tool_manifest.json): its name, title,
 description, input schema, annotations, what it needs, whether it changes
-anything, the HTTP route behind it and its `scope` (`site` for all of them today).
-The browser registers the five `autolaunch_` tools from it
-(`assets/js/public_tools.ts` adds only each tool's request), and the developer
-guide at `/developers` and the agent guide at `/llms.txt` build their tool tables
-from it. The three `profile_` entries describe the shared profile tools, which
-register through the shared identity package (`assets/js/shared_profile.ts`) and
-need the person's sign-in.
+anything, the HTTP route behind it and its `scope`: `site` for a tool every page
+offers, otherwise the pages that offer it. The developer guide at `/developers`
+and the agent guide at `/llms.txt` build their tool tables from it. There are
+three kinds:
+
+- **Reads on every page.** `assets/js/public_tools.ts` registers the `site`
+  `autolaunch_` tools, adding only each tool's request. Five are public reads; the
+  sixth, `autolaunch_my_positions`, reads the signed-in person's own bids and tokens.
+- **Profile tools.** The three `profile_` entries describe the shared profile
+  tools, which register through the shared identity package
+  (`assets/js/shared_profile.ts`) and need the person's sign-in.
+- **Wallet tools on the pages that have the card.** `assets/js/agent_wallet_tools.ts`
+  registers each of the other tools while a card that answers it is on the page
+  (see [Wallet tools](#wallet-tools)).
 
 The list options are the website's own, read through the same discovery as its
 auction and token lists (`Autolaunch.HomeMarket`), with the same names and meanings in
@@ -54,10 +61,9 @@ Adapter failures are `{ok: false, error: {code, message}}`, with codes
 `invalid_input`, `aborted`, `network_error`, or `invalid_response`. A non-JSON HTTP
 response also includes `status`. Network exception details are not returned.
 
-Tools read stored public projections with credentials omitted, same-origin mode,
-and redirects refused. Quote POSTs calculate estimates; they do not prepare bids,
-open wallets, submit transactions, or fetch chain data. No private account data or
-portfolio operations are exposed by these public tools. Tool results
+The public reads use stored public projections with credentials omitted,
+same-origin mode, and redirects refused. Quote POSTs calculate estimates; they do
+not prepare bids, open wallets, submit transactions, or fetch chain data. Read results
 are marked read-only and untrusted, since public titles and summaries may contain
 user-authored text. Output does not depend on which visual disclosures are open.
 
@@ -70,6 +76,55 @@ one as `signal` on the second argument, native or polyfilled (anything with a
 boolean `aborted` and abort-event listeners). Hosts that pass no second argument,
 a client object without `signal`, or `{signal: undefined}` still execute; only the
 page lifetime can then cancel the read.
+
+## The signed-in read
+
+`autolaunch_my_positions` calls `GET /api/v1/me/positions` with the site's own
+session cookie (`credentials: same-origin`), so it reads only the person signed in
+on this site in this browser, and only the wallets that sign-in has verified, as on
+`/portfolio`. Signed out it answers 401 `authentication_required` with a hint to
+sign in. It reads the site's records and the chain at call time; when any of those
+reads fails, the whole answer is a 503 `chain_unavailable`, never a partial list.
+
+`bids` lists Base and Robinhood bids with `bid` (the id `autolaunch_settle_bid`
+takes), `standing` and `can` (`early_return`, `withdraw`, `claim` or null), and the
+auction `page`. `tokens` lists holdings with `held`, `staked` (cut to four decimal
+places) and `claimable` (cut to twelve significant digits), never rounded up.
+
+## Wallet tools
+
+`autolaunch_bid`, `autolaunch_settle_bid`, `autolaunch_buy`, `autolaunch_sell`,
+`autolaunch_stake`, `autolaunch_unstake` and `autolaunch_claim_rewards` press a
+card's own button for the agent. A card names the tools it answers in
+`data-agent-tools` (a settlement card also names its bid in `data-agent-bid`), and
+a tool is registered while such a card is on the page and removed when the last
+one goes. The bid and trade cards carry them on the auction and token pages only,
+not in the swap dialogs or outbid prompts.
+
+A call pushes `agent_press` to the card's LiveView component. The component
+prepares exactly what its button would send for those values, the same server
+code and the same checks, and pushes that step with `send` and an `agent` call id
+(`AutolaunchWeb.AgentPress`); the browser then presses it at once, which opens the
+person's wallet. When the card cannot prepare anything (signed out, bidding ended,
+nothing left to settle, a value the card refuses) it answers `agent-tools:refused`
+in the card's own words, and nothing reaches the wallet.
+
+Nothing is gated or merged: a second call while the first is with the wallet opens
+the wallet again, and the same values with a step already prepared send that step
+again. A call with different values prepares afresh, as editing the card would.
+
+Results are `{outcome, transaction_hash?, message}`:
+
+- `sent` with the hash, and a message naming any steps still to send (an approval
+  comes first; call again with the same values for the next step).
+- `not_sent` when nothing reached the chain: the card refused, the input did not
+  match the schema, the signed-in wallet is not connected in this tab, the wallet
+  is on another account or network, or the person declined.
+- `unknown` when the wallet may have sent it but did not say, or the page changed
+  or the call was cancelled after the card began preparing it.
+
+Launching has no tool; it stays on `/create`. Paying an agent's revenue and the
+public upkeep buttons are not tools yet.
 
 ## Verification
 

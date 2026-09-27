@@ -23,6 +23,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   is on another one. The browser reports a hash and stops, and every outcome on
   screen is the server's own read of that hash. Press plumbing is
   `WalletPressComponent`, shared with bids.
+
+  Both cards answer the page tool that settles a bid, named by the bid's id
+  (`AutolaunchWeb.AgentPress`): the call presses what the card offers now.
   """
 
   use AutolaunchWeb, :live_component
@@ -35,7 +38,15 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{Paths, SignedInWallet, TokenDisplay, UsdValue, WalletPressComponent}
+
+  alias AutolaunchWeb.{
+    AgentPress,
+    Paths,
+    SignedInWallet,
+    TokenDisplay,
+    UsdValue,
+    WalletPressComponent
+  }
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
@@ -135,6 +146,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       class="bid-early-return"
       data-wallet-scope={WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchBidSettlement"
+      data-agent-tools="autolaunch_settle_bid"
+      data-agent-bid={@position.bid_id}
       phx-target={@myself}
     >
       <AuctionBook.return_line
@@ -232,6 +245,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       class="bid-settlement"
       data-wallet-scope={WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchBidSettlement"
+      data-agent-tools="autolaunch_settle_bid"
+      data-agent-bid={@position.bid_id}
       phx-target={@myself}
     >
       <header class="bid-settlement__head">
@@ -534,6 +549,47 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> settled(socket)}
   end
 
+  # An agent's press: the step the card's button would send now, or, after the
+  # auction, the settlement the card offers, prepared and sent at once.
+  def handle_event("agent_press", %{"call" => call, "tool" => "autolaunch_settle_bid"}, socket) do
+    %{assigns: %{operation: operation, wallet: wallet} = assigns} = socket
+
+    cond do
+      !assigns.authenticated ->
+        {:noreply, AgentPress.refused(socket, call, copy(:authentication_required))}
+
+      sendable?(operation, wallet) ->
+        {:noreply, published(socket, {Atom.to_string(operation.step), call})}
+
+      assigns.early ->
+        {:noreply, AgentPress.refused(socket, call, early_refusal(assigns))}
+
+      action(assigns.position, assigns.position.auction) ->
+        socket = assign(socket, after_claim: :wallet)
+
+        case BidSettlementActions.prepare(assigns.position.id, wallet, opts(socket)) do
+          {:ok, %{operation: %{bid_position_id: id} = operation}}
+          when id == assigns.position.id ->
+            {:noreply,
+             socket
+             |> assign(operation: operation, notice: nil)
+             |> published({Atom.to_string(operation.step), call})
+             |> notify_settled()}
+
+          {:error, error} ->
+            message = copy(refusal(error))
+
+            {:noreply,
+             socket
+             |> assign(notice: %{tone: :error, message: message})
+             |> AgentPress.refused(call, message)}
+        end
+
+      true ->
+        {:noreply, AgentPress.refused(socket, call, settled_refusal(assigns))}
+    end
+  end
+
   def handle_event("cancel_settlement_review", %{"action-id" => action_id}, socket),
     do: {:noreply, action_id |> BidSettlementActions.cancel(opts(socket)) |> settled(socket)}
 
@@ -694,6 +750,29 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp early_progress(_operation), do: nil
 
+  # Why an early card has nothing to send, in the words of its line.
+  defp early_refusal(%{operation: %{state: :confirmed}}),
+    do: "This bid's unspent money has already come back."
+
+  defp early_refusal(%{notice: %{message: message}}), do: message
+
+  defp early_refusal(%{status: :buying}),
+    do: "This bid is still buying at the current price, so none of its money is unspent yet."
+
+  defp early_refusal(%{status: {:minimum, _raised}}),
+    do: "The unspent money can come back once the auction raises its minimum."
+
+  defp early_refusal(_assigns),
+    do: "The page is still asking the auction about this bid. Call again in a moment."
+
+  # Why a card after the auction has nothing to offer.
+  defp settled_refusal(%{position: position, market: market}) do
+    case reasons(position, market, position.auction) do
+      [reason | _rest] -> reason
+      [] -> "Nothing is left to settle on this bid."
+    end
+  end
+
   # Where claimed tokens are staked, once the auction's token exists.
   defp stake_path(%{state: :graduated, id: id} = auction) do
     case Autolaunch.get_public_token_by_auction(id) do
@@ -788,8 +867,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp settled({:error, error}, socket),
     do: assign(socket, notice: %{tone: :error, message: copy(refusal(error))})
 
-  defp published(%{assigns: %{operation: operation}} = socket) do
-    push_event(socket, "autolaunch-settlement:operation", %{
+  # With `{step, call}`, the operation answers an agent's call and sends that step.
+  defp published(%{assigns: %{operation: operation}} = socket, agent \\ nil) do
+    payload = %{
       component_id: socket.assigns.id,
       action_id: operation.action_id,
       signer: operation.signer,
@@ -801,7 +881,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       },
       terminal: not is_nil(operation.terminal_at),
       steps: BidSettlementActions.steps(operation)
-    })
+    }
+
+    payload =
+      case agent do
+        nil ->
+          payload
+
+        {step, call} ->
+          remaining = AgentPress.remaining(payload.steps, step, &step_label(&1, operation))
+          AgentPress.sending(payload, step, call, remaining)
+      end
+
+    push_event(socket, "autolaunch-settlement:operation", payload)
   end
 
   # A verified step changed the stored position, so the page that owns the

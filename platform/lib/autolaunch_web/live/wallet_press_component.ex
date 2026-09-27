@@ -149,11 +149,28 @@ defmodule AutolaunchWeb.WalletPressComponent do
     )
   end
 
-  def completed(socket, {_tag, result}) do
-    socket
-    |> apply_result(result)
-    |> push_event("wallet-press:updated", %{component_id: socket.assigns.id})
+  # A press the server would not hand to the wallet: the browser hears why, so
+  # an agent's call it answers learns it too.
+  def completed(socket, {{:dispatch, params}, result}) do
+    socket = apply_result(socket, result)
+
+    message =
+      case result do
+        {:error, _reason} ->
+          socket.assigns.notice.message
+
+        {:ok, _handled} ->
+          "The page did not hand this to the wallet. Call again to send the step it shows now."
+      end
+
+    push_event(socket, "wallet-press:refused", %{
+      component_id: socket.assigns.id,
+      press_id: params["press_id"],
+      message: message
+    })
   end
+
+  def completed(socket, {_tag, result}), do: apply_result(socket, result)
 
   defp apply_result(socket, {:ok, %{operation: operation}}) do
     previous = Map.get(socket.assigns[:wallet_press_history] || %{}, operation.action_id)

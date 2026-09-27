@@ -20,6 +20,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   (its own review, one wallet confirmation); once that is confirmed, the
   auction is asked again at once and the return is reviewed against the
   recorded price.
+
+  Both rows answer the page tool that settles a bid, named `auction:bid id`
+  (`AutolaunchWeb.AgentPress`): the call presses what the row offers now.
   """
 
   use AutolaunchWeb, :live_component
@@ -28,7 +31,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias AutolaunchWeb.Components.AuctionBook
-  alias AutolaunchWeb.{RobinhoodStockBidComponent, SignedInWallet, TokenDisplay, UsdValue}
+
+  alias AutolaunchWeb.{
+    AgentPress,
+    RobinhoodStockBidComponent,
+    SignedInWallet,
+    TokenDisplay,
+    UsdValue
+  }
 
   import AutolaunchWeb.Components.StepState
 
@@ -115,7 +125,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       )
 
     ~H"""
-    <div id={@id} class="bid-early-return" phx-hook="AutolaunchReviewedSteps" phx-target={@myself}>
+    <div
+      id={@id}
+      class="bid-early-return"
+      phx-hook="AutolaunchReviewedSteps"
+      data-agent-tools="autolaunch_settle_bid"
+      data-agent-bid={agent_bid(assigns)}
+      phx-target={@myself}
+    >
       <AuctionBook.return_line
         :if={@line}
         id={"#{@id}-when"}
@@ -192,7 +209,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   def render(assigns) do
     ~H"""
-    <div id={@id} class="bid-settlement-row" phx-hook="AutolaunchReviewedSteps" phx-target={@myself}>
+    <div
+      id={@id}
+      class="bid-settlement-row"
+      phx-hook="AutolaunchReviewedSteps"
+      data-agent-tools="autolaunch_settle_bid"
+      data-agent-bid={agent_bid(assigns)}
+      phx-target={@myself}
+    >
       <p
         :if={@notice}
         class="launch-wallet-notice"
@@ -367,14 +391,38 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     socket =
       assign(socket, :after_claim, if(params["after"] == "stake", do: :stake, else: :wallet))
 
-    request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
+    case reviewed(socket) do
+      {:ok, socket} -> {:noreply, published(socket)}
+      {:error, socket} -> {:noreply, socket}
+    end
+  end
 
-    case StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket)) do
-      {:ok, review} ->
-        {:noreply, socket |> assign(review: review, sent: %{}, notice: nil) |> published()}
+  # An agent's press: the step the row's button would send now, or, after the
+  # auction, the settlement the row offers, reviewed and sent at once.
+  def handle_event("agent_press", %{"call" => call, "tool" => "autolaunch_settle_bid"}, socket) do
+    %{assigns: assigns} = socket
 
-      {:error, error} ->
-        {:noreply, assign(socket, notice: notice(:info, refusal(error)))}
+    cond do
+      is_nil(assigns.wallet) ->
+        {:noreply, AgentPress.refused(socket, call, @copy.authentication_required)}
+
+      step = offered_step(assigns) ->
+        {:noreply, published(socket, {step, call})}
+
+      assigns.early ->
+        {:noreply, AgentPress.refused(socket, call, early_refusal(assigns))}
+
+      assigns.returned? ->
+        {:noreply, AgentPress.refused(socket, call, returned_copy())}
+
+      true ->
+        case reviewed(assign(socket, after_claim: :wallet)) do
+          {:ok, socket} ->
+            {:noreply, published(socket, {hd(socket.assigns.review.steps)["step"], call})}
+
+          {:error, socket} ->
+            {:noreply, AgentPress.refused(socket, call, socket.assigns.notice.message)}
+        end
     end
   end
 
@@ -591,8 +639,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp listed(socket, _outcome), do: socket
 
-  defp published(%{assigns: %{review: %{envelope: envelope, steps: steps}}} = socket) do
-    push_event(socket, "reviewed-steps:review", %{
+  defp reviewed(socket) do
+    request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
+
+    case StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket)) do
+      {:ok, review} -> {:ok, assign(socket, review: review, sent: %{}, notice: nil)}
+      {:error, error} -> {:error, assign(socket, notice: notice(:info, refusal(error)))}
+    end
+  end
+
+  # With `{step, call}`, the review answers an agent's call and sends that step.
+  defp published(
+         %{assigns: %{review: %{envelope: envelope, steps: steps} = review}} = socket,
+         agent \\ nil
+       ) do
+    payload = %{
       component_id: socket.assigns.id,
       signer: envelope["expected_signer"],
       chain_id: envelope["chain_id"],
@@ -602,8 +663,46 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         block_hash: envelope["arguments"]["block_hash"]
       },
       steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"]))
-    })
+    }
+
+    payload =
+      case agent do
+        nil ->
+          payload
+
+        {step, call} ->
+          remaining = AgentPress.remaining(steps, step, &step_label(&1, review))
+          AgentPress.sending(payload, step, call, remaining)
+      end
+
+    push_event(socket, "reviewed-steps:review", payload)
   end
+
+  # The bid as the page tool names it: its auction and its id.
+  defp agent_bid(%{auction: auction, bid: %{"bid_id" => bid_id}}),
+    do: String.downcase("#{auction}:#{bid_id}")
+
+  # The step the row's button sends now: the early row's one step until it is
+  # confirmed, or the next unconfirmed step of the settlement on screen.
+  defp offered_step(%{review: nil}), do: nil
+
+  defp offered_step(%{early: true, review: %{steps: [%{"step" => step} | _rest]}, sent: sent}),
+    do: if(!match?(%{outcome: :confirmed}, sent[step]), do: step)
+
+  defp offered_step(%{review: review, sent: sent}), do: next_step(review.steps, sent)
+
+  # Why an early row has nothing to send, in the words of its line.
+  defp early_refusal(%{review: %{}}), do: "This bid's unspent stock has already come back."
+  defp early_refusal(%{notice: %{message: message}}), do: message
+
+  defp early_refusal(%{status: :buying}),
+    do: "This bid is still buying at the current price, so none of its stock is unspent yet."
+
+  defp early_refusal(%{status: {:minimum, _raised}}),
+    do: "The unspent stock can come back once the auction raises its minimum."
+
+  defp early_refusal(_assigns),
+    do: "The page is still asking the auction about this bid. Call again in a moment."
 
   # An exited bid with nothing filled on an auction that did not graduate has
   # had its whole stake returned; the auction offers it nothing further. On a

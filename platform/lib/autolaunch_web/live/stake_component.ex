@@ -24,6 +24,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.StakeActions
+  alias AutolaunchWeb.AgentPress
   alias AutolaunchWeb.Components.ShareDialog
   alias AutolaunchWeb.{SignedInWallet, TokenDisplay}
   alias Phoenix.LiveView.JS
@@ -68,6 +69,12 @@ defmodule AutolaunchWeb.StakeComponent do
     "claim" => :claim,
     "settle" => :settle,
     "collect" => :collect
+  }
+  # The page tools an agent presses this card with, and the kind each reviews.
+  @agent_kinds %{
+    "autolaunch_stake" => "stake",
+    "autolaunch_unstake" => "unstake",
+    "autolaunch_claim_rewards" => "claim"
   }
 
   @impl true
@@ -127,6 +134,7 @@ defmodule AutolaunchWeb.StakeComponent do
       id={@id}
       class="token-swap token-stake"
       data-stake-panel
+      data-agent-tools={agent_tools()}
       phx-hook="AutolaunchReviewedSteps"
       phx-target={@myself}
       phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
@@ -402,23 +410,37 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   def handle_event("review", %{"kind" => name} = params, socket) when is_map_key(@kinds, name) do
-    socket = entered(socket, params)
+    case reviewed(socket, name, params) do
+      {:ok, socket} -> {:noreply, published(socket)}
+      {:error, socket} -> {:noreply, socket}
+    end
+  end
 
-    request = %{
-      kind: Map.fetch!(@kinds, name),
-      launch: socket.assigns.launch,
-      amount: socket.assigns.amount
-    }
+  # An agent's press: the next step of the review open for the same action,
+  # or the first step of a new one, sent at once as the button would send it.
+  def handle_event("agent_press", %{"call" => call, "tool" => tool} = params, socket)
+      when is_map_key(@agent_kinds, tool) do
+    name = Map.fetch!(@agent_kinds, tool)
+    input = Map.take(params["input"] || %{}, ["amount"])
 
-    case StakeActions.prepare(request, socket.assigns.wallet, opts(socket)) do
-      {:ok, review} ->
-        {:noreply,
-         socket
-         |> assign(review: review, sent: %{}, notice: nil, done: nil)
-         |> published()}
+    case {action(socket.assigns), open_step(socket.assigns, name, input)} do
+      {:sign_in, _step} ->
+        {:noreply, AgentPress.refused(socket, call, copy(:authentication_required))}
 
-      {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)))}
+      {:closed, _step} ->
+        {:noreply, AgentPress.refused(socket, call, "Staking is not open on this site yet.")}
+
+      {:act, %{name: step}} ->
+        {:noreply, published(socket, {step, call})}
+
+      {:act, nil} ->
+        case reviewed(socket, name, input) do
+          {:ok, socket} ->
+            {:noreply, published(socket, {first_step(socket.assigns.review), call})}
+
+          {:error, socket} ->
+            {:noreply, AgentPress.refused(socket, call, socket.assigns.notice)}
+        end
     end
   end
 
@@ -462,6 +484,36 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   def handle_async(_read, _unavailable, socket), do: {:noreply, socket}
+
+  defp reviewed(socket, name, params) do
+    socket = entered(socket, params)
+
+    request = %{
+      kind: Map.fetch!(@kinds, name),
+      launch: socket.assigns.launch,
+      amount: socket.assigns.amount
+    }
+
+    case StakeActions.prepare(request, socket.assigns.wallet, opts(socket)) do
+      {:ok, review} -> {:ok, assign(socket, review: review, sent: %{}, notice: nil, done: nil)}
+      {:error, error} -> {:error, assign(socket, notice: copy(refusal(error)))}
+    end
+  end
+
+  # The step the open review's button would send, when that review is for the
+  # same action and amount; a claim takes no amount.
+  defp open_step(%{review: %{kind: kind} = review, sent: sent} = assigns, name, input) do
+    same_amount? = name == "claim" or Map.get(input, "amount") == assigns.amount
+
+    if kind == Map.fetch!(@kinds, name) and same_amount?,
+      do: next_step(review, sent)
+  end
+
+  defp open_step(_assigns, _name, _input), do: nil
+
+  defp first_step(%{steps: [%{"step" => step} | _rest]}), do: step
+
+  defp agent_tools, do: @agent_kinds |> Map.keys() |> Enum.join(" ")
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()
@@ -561,8 +613,12 @@ defmodule AutolaunchWeb.StakeComponent do
     |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
   end
 
-  defp published(%{assigns: %{review: %{envelope: envelope, steps: steps}}} = socket) do
-    push_event(socket, "reviewed-steps:review", %{
+  # With `{step, call}`, the review answers an agent's call and sends that step.
+  defp published(
+         %{assigns: %{review: %{envelope: envelope, steps: steps} = review}} = socket,
+         agent \\ nil
+       ) do
+    payload = %{
       component_id: socket.assigns.id,
       signer: envelope["expected_signer"],
       chain_id: envelope["chain_id"],
@@ -572,7 +628,19 @@ defmodule AutolaunchWeb.StakeComponent do
         block_hash: envelope["arguments"]["block_hash"]
       },
       steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"]))
-    })
+    }
+
+    payload =
+      case agent do
+        nil ->
+          payload
+
+        {step, call} ->
+          remaining = AgentPress.remaining(steps, step, &step_label(&1, review))
+          AgentPress.sending(payload, step, call, remaining)
+      end
+
+    push_event(socket, "reviewed-steps:review", payload)
   end
 
   # The signed-in wallet; every read that matters proves it against the session

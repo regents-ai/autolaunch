@@ -132,6 +132,7 @@ defmodule AutolaunchWeb.TokenLive do
       <.live_component
         module={AutolaunchWeb.SwapComponent}
         id={"token-trade-#{@page_record.id}"}
+        agent_tools
         launch={%{chain: :base, auction: @page_record.auction}}
         symbol={@presentation.symbol}
         image={@presentation.image}

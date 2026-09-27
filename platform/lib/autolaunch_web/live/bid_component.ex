@@ -9,6 +9,9 @@ defmodule AutolaunchWeb.BidComponent do
   signed-in wallet, or Privy's connect step when this tab has not connected it,
   and a note names both wallets while the browser is on another one.
 
+  With `agent_tools`, the panel also answers the page tool that bids
+  (`AutolaunchWeb.AgentPress`): the call is pressed exactly as the button would be.
+
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash, read again every few seconds until the
   chain answers; reading never sends anything or opens the wallet.
@@ -23,11 +26,12 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.AuctionBook
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias AutolaunchWeb.{AgentPress, Paths, ShareCard, SignedInWallet, TokenDisplay, UsdValue}
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
-  alias AutolaunchWeb.{Paths, ShareCard, SignedInWallet, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
   @copy %{
+    authentication_required: "Sign in to bid from your wallet.",
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     wrong_signer: "You are now signed in with a different wallet. Reload the page to continue.",
@@ -95,6 +99,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:heading, fn -> "Place a bid" end)
+     |> assign_new(:agent_tools, fn -> false end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:balance, fn -> nil end)
@@ -129,6 +134,7 @@ defmodule AutolaunchWeb.BidComponent do
       class="bid-panel"
       data-wallet-scope={AutolaunchWeb.WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchBidWallet"
+      data-agent-tools={@agent_tools && "autolaunch_bid"}
       data-press-form={"#{@id}-form"}
       phx-target={@myself}
     >
@@ -297,6 +303,28 @@ defmodule AutolaunchWeb.BidComponent do
     {:noreply, pressed(socket, bid_key(socket.assigns))}
   end
 
+  # An agent's press, for exactly the values it names: the step on screen when
+  # the panel already holds that bid, otherwise the first step of the bid
+  # prepared for them. The form shows the values, as if typed.
+  def handle_event("agent_press", %{"call" => call, "tool" => "autolaunch_bid"} = params, socket) do
+    input = params["input"] || %{}
+
+    case agent_pay_with(input["pay_with"], socket.assigns) do
+      {:ok, pay_with} ->
+        form = %{
+          BidForm.at_price(socket.assigns.form, input["max_price"])
+          | amount: input["amount"],
+            pay_with: pay_with
+        }
+
+        socket = assign(socket, form: form, notice: nil)
+        {:noreply, agent_pressed(socket, bid_key(socket.assigns), call)}
+
+      {:error, reason} ->
+        {:noreply, AgentPress.refused(socket, call, copy(reason))}
+    end
+  end
+
   def handle_event("fill_bid_amount", _params, socket) do
     amount = balance(socket.assigns.balance, socket.assigns.auction)
 
@@ -329,13 +357,14 @@ defmodule AutolaunchWeb.BidComponent do
 
   @impl true
   def handle_async(:prepare, {:ok, {key, inputs, result}}, socket) do
-    {presses, owed} = Enum.split_with(socket.assigns.owed, &match?({^key, _inputs}, &1))
+    {presses, owed} = Enum.split_with(socket.assigns.owed, &match?({^key, _inputs, _call}, &1))
+    presses = Enum.map(presses, fn {_key, _inputs, call} -> call end)
     socket = assign(socket, preparing: nil, owed: owed)
 
     cond do
       # Presses wait for this review: it goes back to be pressed once for each.
       presses != [] ->
-        {:noreply, socket |> reviewed(key, inputs, result, length(presses)) |> prepare_owed()}
+        {:noreply, socket |> reviewed(key, inputs, result, presses) |> prepare_owed()}
 
       # A press reached the wallet while this was prepared: the panel keeps
       # that bid, and the unused review lapses on its own.
@@ -349,12 +378,18 @@ defmodule AutolaunchWeb.BidComponent do
         {:noreply, prepare_when_ready(socket)}
 
       true ->
-        {:noreply, reviewed(socket, key, inputs, result, 0)}
+        {:noreply, reviewed(socket, key, inputs, result, [])}
     end
   end
 
-  def handle_async(:prepare, {:exit, _reason}, socket),
-    do: {:noreply, assign(socket, preparing: nil, owed: [], notice: notice(:error, :unavailable))}
+  def handle_async(:prepare, {:exit, _reason}, socket) do
+    calls = Enum.map(socket.assigns.owed, fn {_key, _inputs, call} -> call end)
+
+    {:noreply,
+     socket
+     |> assign(preparing: nil, owed: [], notice: notice(:error, :unavailable))
+     |> agents_refused(calls)}
+  end
 
   attr :operation, :map, required: true
   attr :rate, :any, required: true
@@ -444,10 +479,13 @@ defmodule AutolaunchWeb.BidComponent do
       |> settled(assign(socket, prepared_for: key, inputs: inputs), presses)
       |> refresh_later()
 
-  defp reviewed(socket, key, _inputs, result, _presses),
-    do: settled(result, assign(socket, prepared_for: {:refused, key}))
+  defp reviewed(socket, key, _inputs, result, presses),
+    do:
+      result
+      |> settled(assign(socket, prepared_for: {:refused, key}))
+      |> agents_refused(presses)
 
-  defp settled(result, socket, presses \\ 0)
+  defp settled(result, socket, presses \\ [])
 
   defp settled({:ok, %{operation: operation}}, socket, presses),
     do: socket |> assign(operation: operation, notice: nil) |> published(presses)
@@ -460,7 +498,8 @@ defmodule AutolaunchWeb.BidComponent do
   # The whole reviewed sequence, so the browser can check that what it is asked
   # to send really belongs to the operation it is holding.
   # It carries the form values it was prepared for. Answering presses, it is
-  # handed over once per press, each naming the step that press sends.
+  # handed over once per press, each naming the step that press sends; a press
+  # an agent made carries its call.
   defp published(%{assigns: %{operation: nil}} = socket, _presses), do: cleared(socket)
 
   defp published(%{assigns: %{operation: operation}} = socket, presses) do
@@ -476,16 +515,28 @@ defmodule AutolaunchWeb.BidComponent do
       inputs: socket.assigns.inputs
     }
 
-    if presses == 0,
+    if presses == [],
       do: push_event(socket, "autolaunch-bid:operation", payload),
       else:
-        Enum.reduce(1..presses, socket, fn _press, socket ->
-          push_event(
-            socket,
-            "autolaunch-bid:operation",
-            Map.put(payload, :send, Atom.to_string(operation.step))
-          )
+        Enum.reduce(presses, socket, fn call, socket ->
+          push_event(socket, "autolaunch-bid:operation", press_payload(payload, operation, call))
         end)
+  end
+
+  defp press_payload(payload, operation, nil),
+    do: Map.put(payload, :send, Atom.to_string(operation.step))
+
+  defp press_payload(payload, operation, call) do
+    step = Atom.to_string(operation.step)
+
+    remaining =
+      AgentPress.remaining(
+        payload.steps,
+        step,
+        &press_label(%{operation | step: String.to_existing_atom(&1)})
+      )
+
+    AgentPress.sending(payload, step, call, remaining)
   end
 
   defp lab_anchor(envelope),
@@ -596,16 +647,54 @@ defmodule AutolaunchWeb.BidComponent do
   defp pressed(%{assigns: %{prepared_for: key} = assigns} = socket, key)
        when is_map(assigns.operation) do
     if ready?(assigns),
-      do: published(socket, 1),
+      do: published(socket, [nil]),
       else: socket |> owe(key) |> prepare_owed()
   end
 
   defp pressed(socket, key), do: socket |> owe(key) |> prepare_owed()
 
-  defp owe(socket, key),
-    do: assign(socket, owed: socket.assigns.owed ++ [{key, socket.assigns.form}])
+  # An agent presses the button on screen when the panel holds the bid for its
+  # values, whatever step that bid is on; otherwise the bid is prepared for it.
+  defp agent_pressed(socket, nil, call) do
+    %{assigns: assigns} = socket
 
-  defp prepare_owed(%{assigns: %{preparing: nil, owed: [{key, form} | _rest]}} = socket),
+    reason =
+      cond do
+        !assigns.authenticated -> :authentication_required
+        is_nil(assigns.wallet) or is_nil(assigns.balance) -> nil
+        true -> incomplete(socket)
+      end
+
+    message = if reason, do: copy(reason), else: (assigns.notice || %{message: @generic}).message
+    AgentPress.refused(socket, call, message)
+  end
+
+  defp agent_pressed(%{assigns: %{prepared_for: key} = assigns} = socket, key, call)
+       when is_map(assigns.operation) do
+    if sendable?(assigns.operation, assigns.wallet),
+      do: published(socket, [call]),
+      else: socket |> owe(key, call) |> prepare_owed()
+  end
+
+  defp agent_pressed(socket, key, call), do: socket |> owe(key, call) |> prepare_owed()
+
+  defp agent_pay_with(nil, %{auction: auction}), do: {:ok, auction.quote_token_symbol}
+  defp agent_pay_with("USDC", %{usdc_bids?: true}), do: {:ok, "USDC"}
+  defp agent_pay_with("USDC", _assigns), do: {:error, :usdc_bids_unavailable}
+
+  # Agent calls answered with the refusal now on the panel.
+  defp agents_refused(socket, calls) do
+    message = (socket.assigns.notice || %{message: @generic}).message
+
+    for call <- calls, call, reduce: socket do
+      socket -> AgentPress.refused(socket, call, message)
+    end
+  end
+
+  defp owe(socket, key, call \\ nil),
+    do: assign(socket, owed: socket.assigns.owed ++ [{key, socket.assigns.form, call}])
+
+  defp prepare_owed(%{assigns: %{preparing: nil, owed: [{key, form, _call} | _rest]}} = socket),
     do: start_prepare(socket, key, form)
 
   defp prepare_owed(socket), do: socket

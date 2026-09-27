@@ -1,8 +1,11 @@
 import {connectedEthereumWallet, currentAccount, signerWalletOrConnect, type SelectedWallet} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_bids"
+import {failed, sent, type AgentCall, type AgentCardHandle, type AgentOutcome} from "../agent_wallet_tools"
 
-// `send` names the step to press at once: the server built this review to answer a press.
-type Review = {action_id: string; signer: string; terminal: boolean; step?: string; send?: string}
+// `send` names the step to press at once: the server built this review to answer
+// a press, and `agent` names the agent's call it answers.
+type Review = {action_id: string; signer: string; terminal: boolean; step?: string; send?: string;
+  agent?: AgentCall}
 type Report = {component_id: string; action_id: string; press_id: string; step: string;
   transaction_hash?: string; outcome?: string}
 type Hook = {el: HTMLElement; handleEvent(name: string, callback: (payload: any) => void): void;
@@ -19,12 +22,15 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
   send(operation: O, step: string, started: () => void, resolveWallet: () => SelectedWallet | null): Promise<string>;
   // Takes a press over (returning true) when the review held for it no longer fits the page.
   claim?(operation: O | undefined): boolean;
+  // Answers the agent's calls this card's reviews name, on a card that takes them.
+  agent?: AgentCardHandle;
 }) {
   let disposed = false
   let scope = hook.el.dataset?.walletScope
   const operations = new Map<string, O>()
   const presses = new Map<string, {operation: O; step: string; sent: boolean;
-    selected: SelectedWallet; invalid: boolean}>()
+    selected: SelectedWallet; invalid: boolean; agent?: AgentCall}>()
+  const settle = (agent: AgentCall | undefined, outcome: AgentOutcome) => config.agent?.settle(agent, outcome)
   const invalidate = () => {
     operations.clear()
     for (const press of presses.values()) press.invalid = true
@@ -53,7 +59,9 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     if (disposed || !mine(op)) return
     checkScope()
     operations.set(op.action_id, structuredClone(op))
-    if (op.send && scope && !op.terminal) void press(op, op.send)
+    if (!op.send) return
+    if (scope && !op.terminal) void press(op, op.send, op.agent)
+    else settle(op.agent, failed("wallet_unavailable"))
   })
   hook.handleEvent("wallet-press:invalidated", p => { if (mine(p)) invalidate() })
 
@@ -71,20 +79,20 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     if (!op || !step || op.terminal) return
     await press(op, step)
   }
-  async function press(op: O, step: string) {
+  async function press(op: O, step: string, agent?: AgentCall) {
     const pressId = crypto.randomUUID()
     const held = structuredClone(op)
     const selected = signerWalletOrConnect(held.signer)
-    if (!selected) return
-    const pending = {operation: held, step, sent: false, selected: {...selected}, invalid: false}
+    if (!selected) return settle(agent, failed("wallet_unavailable"))
+    const pending = {operation: held, step, sent: false, selected: {...selected}, invalid: false, agent}
     presses.set(pressId, pending)
     // A wallet on another of its accounts cannot send for the signer: the panel
     // reads the wallets again and names that account beside the button.
     if ((await currentAccount(selected.provider)) !== held.signer.toLowerCase()) {
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
-      return
+      return settle(agent, failed("wrong_account"))
     }
-    if (!resolve(pending)) return
+    if (!resolve(pending)) return settle(agent, failed("wallet_unavailable"))
     push("wallet_press_dispatch", {action_id: held.action_id, press_id: pressId, step, signer: held.signer})
   }
   hook.el.addEventListener("click", clicked)
@@ -101,9 +109,19 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
         started = true
       }, () => resolve(held))
       report({...base, transaction_hash: hash})
+      settle(held.agent, sent(hash, held.agent?.remaining ?? []))
     } catch (error) {
-      report({...base, outcome: !started ? "not_started" : userRejected(error) ? "not_sent" : "submission_unknown"})
+      const outcome = !started ? "not_started" : userRejected(error) ? "not_sent" : "submission_unknown"
+      report({...base, outcome})
+      settle(held.agent, failed(outcome === "not_sent" ? "wallet_declined"
+        : outcome === "submission_unknown" ? "send_unconfirmed" : "not_started"))
     }
+  })
+  // The server would not hand this press to the wallet; its reason, in the card's words.
+  hook.handleEvent("wallet-press:refused", (p: {component_id?: string; press_id: string; message: string}) => {
+    if (!mine(p)) return
+    const held = presses.get(p.press_id)
+    settle(held?.agent, {outcome: "not_sent", message: `Nothing was sent. ${p.message}`})
   })
   const cleanup = () => {
     disposed = true

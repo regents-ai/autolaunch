@@ -316,6 +316,245 @@
       "payment": "none",
       "route": "PATCH /api/v1/profile",
       "scope": "site"
+    },
+    {
+      "name": "autolaunch_my_positions",
+      "title": "Your bids and tokens",
+      "description": "The signed-in person's own bids on Base and Robinhood auctions and the launched tokens their wallets hold, stake or can claim from staking. Reads only. Each bid gives its auction, amount, most per token, where it stands, what it can do now (withdraw, claim, early return or nothing yet), its page, and `bid`, the id autolaunch_settle_bid takes. Each token gives what is held, staked and claimable, and its page. Amounts are decimal strings; held and staked are cut to four decimal places and claimable to twelve significant digits, never rounded up. Signed out, it answers authentication_required.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "session",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/me/positions",
+      "scope": "site"
+    },
+    {
+      "name": "autolaunch_bid",
+      "title": "Place a bid",
+      "description": "Bid on the auction this page shows, from the wallet the person signed in with; it opens their wallet exactly as the page's own bid button does. amount is what the bid spends and max_price the most it pays per token, both in the auction's currency (REGENT or its stock on Base, USDG on Robinhood). pay_with is USDC where the page offers it (the USDC is bought into the auction's stock on the way), otherwise leave it out. The first step may approve the currency, then the next places the bid. To raise a bid or add to one, place another bid. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "What the bid spends, in the auction's currency, or in USDC with pay_with USDC."
+          },
+          "max_price": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "The most per token, in the auction's currency."
+          },
+          "pay_with": {
+            "type": "string",
+            "enum": [
+              "USDC"
+            ],
+            "description": "Only where the page offers USDC bids."
+          }
+        },
+        "required": [
+          "amount",
+          "max_price"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Auction pages"
+    },
+    {
+      "name": "autolaunch_settle_bid",
+      "title": "Get money back or claim tokens",
+      "description": "For one of the person's bids, press what its card offers now: while bidding is open, take the unspent money of an outbid bid back early (recording the new price first when the auction needs it); once the auction is over, withdraw the unspent money, then claim the tokens it won. bid is the id autolaunch_my_positions gives. Works on the bid's auction page, and for early returns of Base bids on /portfolio. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "bid": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The bid's id from autolaunch_my_positions."
+          }
+        },
+        "required": [
+          "bid"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Auction pages, /portfolio"
+    },
+    {
+      "name": "autolaunch_buy",
+      "title": "Buy this token",
+      "description": "Buy the token this page shows with the pool's currency (REGENT or the launch's stock), from the person's signed-in wallet. amount is how much currency to spend; max_slippage is the most the price may move against the trade, in percent from 1 to 10 (1 unless given). Approvals come first when needed, then the swap. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "How much of the pool's currency to spend."
+          },
+          "max_slippage": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "Percent from 1 to 10."
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Token pages"
+    },
+    {
+      "name": "autolaunch_sell",
+      "title": "Sell this token",
+      "description": "Sell the token this page shows for the pool's currency, from the person's signed-in wallet. amount is how many tokens to sell; max_slippage is the most the price may move against the trade, in percent from 1 to 10 (1 unless given). Approvals come first when needed, then the swap. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "How many tokens to sell."
+          },
+          "max_slippage": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "Percent from 1 to 10."
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Token pages"
+    },
+    {
+      "name": "autolaunch_stake",
+      "title": "Stake this token",
+      "description": "Stake the token this page shows from the person's signed-in wallet, to earn its share of the launch's revenue. An approval comes first when needed, then the stake. Unstaking is allowed from the next block. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "How many tokens to stake."
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Token pages"
+    },
+    {
+      "name": "autolaunch_unstake",
+      "title": "Unstake this token",
+      "description": "Unstake the token this page shows back to the person's signed-in wallet. Not in the same block as staking. Moves the person's tokens. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "How many staked tokens to take out."
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Token pages"
+    },
+    {
+      "name": "autolaunch_claim_rewards",
+      "title": "Claim staking rewards",
+      "description": "Claim everything staking has earned for the person's signed-in wallet on the token this page shows. Moves tokens to the person. The result is the outcome (sent, not_sent or unknown), the transaction hash once sent, and a message saying what happened and whether a next step is left; call again with the same values to send the next step. A second call while the first is with the wallet opens the wallet again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": false,
+        "consequentialHint": true
+      },
+      "requires": "wallet_signed",
+      "state_changing": true,
+      "payment": "moves_tokens",
+      "route": null,
+      "scope": "Token pages"
     }
   ]
 }

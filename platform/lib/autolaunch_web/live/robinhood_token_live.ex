@@ -147,6 +147,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         :if={@swap?}
         module={AutolaunchWeb.SwapComponent}
         id={"robinhood-trade-#{@token.auction.auction_address}"}
+        agent_tools
         launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
         symbol={@token.symbol}
         currency={@token.auction.quote_token_symbol}

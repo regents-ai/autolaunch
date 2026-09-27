@@ -16,6 +16,14 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # The signed-in person's own reads, for the page tools in their browser.
+  pipeline :session_api do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :protect_from_forgery
+  end
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -56,6 +64,12 @@ defmodule AutolaunchWeb.Router do
     post "/auctions/:id/bid-quote", AuctionController, :bid_quote
     get "/tokens", TokenController, :index
     get "/treasury-security/:address", TreasuryController, :show
+  end
+
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through :session_api
+
+    get "/me/positions", MyPositionsController, :show
   end
 
   scope "/", AutolaunchWeb do

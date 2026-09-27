@@ -1,6 +1,7 @@
 import {installWalletPresses} from "./wallet_presses"
 import {reportBrowserWallets} from "./browser_wallets"
 import type {Hook} from "../hook_composition"
+import {agentCard, type AgentCardHandle} from "../agent_wallet_tools"
 import {sendBidStep, sendableStep, type BidOperation} from "../wallet_actions/autolaunch_bids"
 
 type SettlementHook = Hook & {
@@ -8,6 +9,7 @@ type SettlementHook = Hook & {
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload: unknown): void
   removePressListener?: ReturnType<typeof installWalletPresses>
+  agent?: AgentCardHandle
   stopReporting?: () => void
 }
 
@@ -21,7 +23,9 @@ export const AutolaunchBidSettlement: Hook = {
   mounted(this: SettlementHook) {
     const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
     this.stopReporting = reportBrowserWallets(push)
+    this.agent = agentCard(this)
     this.removePressListener = installWalletPresses<BidOperation>(this, {
+      agent: this.agent,
       prefix: "autolaunch-settlement",
       selector: "[data-settlement-send]",
       send: (operation, step, started, resolveWallet) =>
@@ -36,5 +40,6 @@ export const AutolaunchBidSettlement: Hook = {
   destroyed(this: SettlementHook) {
     this.removePressListener?.()
     this.stopReporting?.()
+    this.agent?.dispose()
   },
 }
