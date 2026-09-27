@@ -3,7 +3,7 @@ defmodule Autolaunch.LaunchDraftTest do
 
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.{Human, System}
-  alias Autolaunch.{LaunchDraft}
+  alias Autolaunch.LaunchDraft
 
   test "owner autosave persists bounded incomplete text and refuses cross-account writes" do
     owner = account!("autosave-owner")

@@ -1,7 +1,7 @@
 import {getAddress, type Hash, type Hex} from "viem"
 import {describe, expect, it, vi} from "vitest"
 
-import {sendLaunchStep, type LaunchOperation} from "../../assets/js/wallet_actions/autolaunch_launch"
+import {sendLaunchStep, type LaunchOperation} from "../js/wallet_actions/autolaunch_launch"
 
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
 const factory = getAddress("0x7777777777777777777777777777777777777777")

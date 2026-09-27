@@ -420,6 +420,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     do: "0x" <> String.pad_leading(Integer.to_string(launch_id, 16), 64, "0")
 
   defp tokens(auction_address) do
+    # Counts the rows the feed wrote, whatever policies would show a reader.
     Repo.one(
       from token in "tokens",
         join: auction in "auctions",

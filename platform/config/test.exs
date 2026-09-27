@@ -45,10 +45,9 @@ end
 # fixtures name. A review server given AUTOLAUNCH_BASE_DEPLOYMENT loads that
 # description instead (runtime.exs).
 config :autolaunch,
-  autolaunch_base_deployment:
-    Path.expand("../core_tests/elixir/fixtures/base-deployment.json", __DIR__),
+  autolaunch_base_deployment: Path.expand("../test/fixtures/base-deployment.json", __DIR__),
   autolaunch_base_stocks_deployment:
-    Path.expand("../core_tests/elixir/fixtures/base-stocks-deployment.json", __DIR__),
+    Path.expand("../test/fixtures/base-stocks-deployment.json", __DIR__),
   autolaunch_base_deployment_id: "fixture",
   autolaunch_base_chain_id: 8453
 

@@ -1,9 +1,9 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {installWalletPresses} from "../../assets/js/hooks/wallet_presses"
-import {replaceConnectedEthereumWallets} from "../../assets/js/wallet_actions/connected_wallet"
-import {sendBidStep, sendableStep as bidStep, type BidOperation} from "../../assets/js/wallet_actions/autolaunch_bids"
-import {sendLaunchStep, sendableStep as launchStep, type LaunchOperation} from "../../assets/js/wallet_actions/autolaunch_launch"
-import {sendSubjectStep, sendableStep as subjectStep, type SubjectWalletOperation} from "../../assets/js/wallet_actions/autolaunch_subject_wallet"
+import {installWalletPresses} from "../js/hooks/wallet_presses"
+import {replaceConnectedEthereumWallets} from "../js/wallet_actions/connected_wallet"
+import {sendBidStep, sendableStep as bidStep, type BidOperation} from "../js/wallet_actions/autolaunch_bids"
+import {sendLaunchStep, sendableStep as launchStep, type LaunchOperation} from "../js/wallet_actions/autolaunch_launch"
+import {sendSubjectStep, sendableStep as subjectStep, type SubjectWalletOperation} from "../js/wallet_actions/autolaunch_subject_wallet"
 import type {Address, Hash} from "viem"
 const signer = "0x1111111111111111111111111111111111111111" as Address
 const to = "0x2222222222222222222222222222222222222222" as Address

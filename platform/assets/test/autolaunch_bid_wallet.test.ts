@@ -5,7 +5,7 @@ import {
   sendBidStep,
   sendableStep,
   type BidOperation,
-} from "../../assets/js/wallet_actions/autolaunch_bids"
+} from "../js/wallet_actions/autolaunch_bids"
 
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
 const other = getAddress("0x4444444444444444444444444444444444444444")

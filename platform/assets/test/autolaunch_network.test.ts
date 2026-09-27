@@ -5,8 +5,8 @@ import {
   labNetwork,
   sendLabTransaction,
   type AutolaunchLabBinding,
-} from "../../assets/js/wallet_actions/autolaunch_network"
-import type {EthereumProvider} from "../../assets/js/wallet_actions/connected_wallet"
+} from "../js/wallet_actions/autolaunch_network"
+import type {EthereumProvider} from "../js/wallet_actions/connected_wallet"
 
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
 const target = getAddress("0x3333333333333333333333333333333333333333")

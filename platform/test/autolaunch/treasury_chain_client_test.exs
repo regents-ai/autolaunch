@@ -36,13 +36,12 @@ defmodule Autolaunch.TreasuryChainClientTest do
         previous = Application.get_env(:autolaunch, key)
         Application.put_env(:autolaunch, key, value)
 
-        ExUnit.Callbacks.on_exit(fn ->
-          if previous,
-            do: Application.put_env(:autolaunch, key, previous),
-            else: Application.delete_env(:autolaunch, key)
-        end)
+        ExUnit.Callbacks.on_exit(fn -> restore(key, previous) end)
       end
     end
+
+    defp restore(key, nil), do: Application.delete_env(:autolaunch, key)
+    defp restore(key, previous), do: Application.put_env(:autolaunch, key, previous)
 
     def post(_url, options) do
       %{method: method, params: params} = options[:json]

@@ -10,6 +10,6 @@
     "types": ["vitest/globals"],
     "noEmit": true
   },
-  "include": ["js/**/*.ts", "js/**/*.tsx", "js/**/*.d.ts", "../core_tests/js/**/*.ts"],
+  "include": ["js/**/*.ts", "js/**/*.tsx", "js/**/*.d.ts", "test/**/*.ts"],
   "exclude": ["js/optics/**"]
 }

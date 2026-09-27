@@ -5,7 +5,7 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
   alias Autolaunch.LabAbi
   alias Autolaunch.Stocks.LaunchActions
 
-  @abi "../../../../contracts/abi/stocks-launchpad-v1.json"
+  @abi "../../../contracts/abi/stocks-launchpad-v1.json"
        |> Path.expand(__DIR__)
        |> File.read!()
        |> Jason.decode!()

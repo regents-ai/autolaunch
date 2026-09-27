@@ -5,7 +5,7 @@ defmodule Autolaunch.LabProjectionTest do
 
   alias Autolaunch
   alias Autolaunch.Accounts
-  alias Autolaunch.Actors.{System}
+  alias Autolaunch.Actors.System
 
   alias Autolaunch.{
     Auction,

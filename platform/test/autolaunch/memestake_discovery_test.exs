@@ -14,9 +14,9 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Abi, Envelope}
-  alias Autolaunch.Stocks.{LabLaunchChainClient, LaunchOperation, LaunchOperations}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias Autolaunch.Stocks.{LabLaunchChainClient, LaunchOperation, LaunchOperations}
 
   @actor %System{}
   @launcher "0x1414141414141414141414141414141414141414"

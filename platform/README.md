@@ -96,7 +96,7 @@ contracts/              The OpenAPI contract; the chain-contract manifest and ru
 config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
-core_tests/             The kept Elixir and JavaScript cases (see core_tests/README.md)
+test/                   The kept Elixir cases; assets/test/ the kept TypeScript cases (see test/README.md)
 scripts/                The release build-context assembler
 rel/                    Release overlays: the migrate and pending-migrations commands
 ```

@@ -227,6 +227,6 @@ defmodule Autolaunch.LaunchFixture do
   defp block_hash, do: "0x" <> String.duplicate("ab", 32)
 
   defp launch_image do
-    File.read!("core_tests/elixir/support/fixtures/launch-draft.png")
+    File.read!("test/support/fixtures/launch-draft.png")
   end
 end

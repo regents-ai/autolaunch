@@ -3,8 +3,17 @@ defmodule Autolaunch.LaunchDiscoveryTest do
 
   require Ash.Query
 
-  alias Autolaunch.{Accounts, Auction, Lab, LaunchDiscovery, LaunchFixture, LaunchProjection}
-  alias Autolaunch.{LaunchOperation, WalletAttempt}
+  alias Autolaunch.{
+    Accounts,
+    Auction,
+    Lab,
+    LaunchDiscovery,
+    LaunchFixture,
+    LaunchOperation,
+    LaunchProjection,
+    WalletAttempt
+  }
+
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.{Abi, LaunchAbi}
 

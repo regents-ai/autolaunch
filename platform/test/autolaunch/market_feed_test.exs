@@ -376,6 +376,7 @@ defmodule Autolaunch.MarketFeedTest do
   end
 
   defp stocks_rows do
+    # Counts the rows the feed wrote, whatever policies would show a reader.
     Autolaunch.Repo.aggregate(
       from(row in "auctions", where: row.kind == "stocks" and row.chain_id == 8453),
       :count

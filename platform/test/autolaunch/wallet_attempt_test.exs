@@ -1,9 +1,9 @@
 defmodule Autolaunch.WalletAttemptTest do
   use AutolaunchWeb.ConnCase, async: false
   require Ash.Query
-  alias Autolaunch.WalletAttempt
-  alias Autolaunch.TestAutolaunchBidChainClient, as: Chain
   alias Autolaunch.BidFixture, as: Bid
+  alias Autolaunch.TestAutolaunchBidChainClient, as: Chain
+  alias Autolaunch.WalletAttempt
   @hash "0x" <> String.duplicate("a1", 32)
   @other "0x" <> String.duplicate("b2", 32)
 

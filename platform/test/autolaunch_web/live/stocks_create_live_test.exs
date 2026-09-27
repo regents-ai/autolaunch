@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     {:ok, %{draft: _attached}} =
       Autolaunch.Stocks.LaunchDraftImageStorage.store_and_attach(
         draft_for_image,
-        File.read!("core_tests/elixir/support/fixtures/launch-draft.png"),
+        File.read!("test/support/fixtures/launch-draft.png"),
         "image/png",
         "launch.png",
         actor
