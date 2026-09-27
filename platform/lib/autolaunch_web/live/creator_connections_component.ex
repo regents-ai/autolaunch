@@ -176,7 +176,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
         icon={:ens}
         name={@ens && @ens.username}
         href={@ens && "https://app.ens.domains/#{URI.encode_www_form(@ens.username)}"}
-        detail={@ens && @ens_address && "Resolves to #{short_address(@ens_address)}"}
+        detail={@ens && @ens_address && "Resolves to #{RegentFormat.short_address(@ens_address)}"}
       >
         <:actions>
           <Regent.Primitives.button
@@ -226,9 +226,4 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
     </.x_connections>
     """
   end
-
-  defp short_address(<<"0x", _::binary-size(40)>> = address),
-    do: "#{String.slice(address, 0, 6)}…#{String.slice(address, -4, 4)}"
-
-  defp short_address(address), do: address
 end

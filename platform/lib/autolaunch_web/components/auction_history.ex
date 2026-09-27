@@ -127,9 +127,12 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
                 </thead>
                 <tbody>
                   <tr :for={bid <- @newest}>
-                    <td title={bid.bidder}>{short_address(bid.bidder)}</td>
+                    <td title={bid.bidder}>{RegentFormat.short_address(bid.bidder)}</td>
                     <td>
-                      <time datetime={DateTime.to_iso8601(bid.occurred_at)}>{ago(bid.occurred_at)}</time>
+                      <time datetime={DateTime.to_iso8601(bid.occurred_at)}>{RegentFormat.relative_time(
+                        bid.occurred_at,
+                        DateTime.utc_now()
+                      )}</time>
                     </td>
                     <td>
                       <TokenDisplay.price
@@ -324,22 +327,8 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
   defp transaction_url(:base, hash), do: "https://basescan.org/tx/#{hash}"
   defp transaction_url(:robinhood, hash), do: "https://robinhoodchain.blockscout.com/tx/#{hash}"
 
-  defp short_address(address),
-    do: "#{String.slice(address, 0, 6)}…#{String.slice(address, -4, 4)}"
-
   defp explorer(:base), do: "Basescan"
   defp explorer(:robinhood), do: "Blockscout"
-
-  defp ago(at) do
-    seconds = DateTime.utc_now() |> DateTime.diff(at, :second) |> max(0)
-
-    cond do
-      seconds < 60 -> "just now"
-      seconds < 3_600 -> "#{div(seconds, 60)}m ago"
-      seconds < 86_400 -> "#{div(seconds, 3_600)}h ago"
-      true -> "#{div(seconds, 86_400)}d ago"
-    end
-  end
 
   defp grouped(block), do: block |> Integer.to_string() |> Amounts.grouped()
 end

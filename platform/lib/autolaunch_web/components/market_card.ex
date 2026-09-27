@@ -796,7 +796,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   defp ended(label, %{estimated_end_at: %DateTime{} = end_at}),
-    do: "#{label} #{relative_age(end_at)} ago"
+    do: "#{label} #{ended_ago(end_at)}"
 
   defp ended(label, _auction), do: label
 
@@ -1082,7 +1082,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp wallet_link(%{creator_address: address, chain: chain}),
     do: %{
       address: address,
-      short: short_address(address),
+      short: RegentFormat.short_address(address),
       url: BidPlaced.address_url(if(chain == "Robinhood", do: :robinhood, else: :base), address)
     }
 
@@ -1126,7 +1126,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol, "No price yet"),
       path: Paths.auction(auction),
-      creator: short_address(auction.creator_address),
+      creator: RegentFormat.short_address(auction.creator_address),
       creator_address: auction.creator_address,
       age: auction_age(auction),
       connections: connection_list(connections),
@@ -1166,7 +1166,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric_label: "Price",
       metric: metric(token.price_quote, currency, "No price yet"),
       path: Paths.token(token.auction),
-      creator: short_address(token.auction.creator_address),
+      creator: RegentFormat.short_address(token.auction.creator_address),
       creator_address: token.auction.creator_address,
       age: ago(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
@@ -1245,31 +1245,21 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp connection(_key, _value), do: []
 
-  defp short_address(<<"0x", _::binary-size(40)>> = address),
-    do: "#{String.slice(address, 0, 6)}…#{String.slice(address, -4, 4)}"
-
-  defp short_address(nil), do: nil
-
-  defp relative_age(%DateTime{} = at) do
-    seconds = DateTime.diff(DateTime.utc_now(), at, :second) |> max(0)
-
-    cond do
-      seconds < 60 -> "#{seconds}s"
-      seconds < 3_600 -> "#{div(seconds, 60)}m"
-      seconds < 86_400 -> "#{div(seconds, 3_600)}h"
-      true -> "#{div(seconds, 86_400)}d"
-    end
+  # An auction the chain says has ended may have an estimated end a moment
+  # ahead; it still reads as past.
+  defp ended_ago(end_at) do
+    now = DateTime.utc_now()
+    RegentFormat.relative_time(Enum.min([end_at, now], DateTime), now)
   end
 
-  defp relative_age(_at), do: nil
-
-  defp ago(at), do: if(age = relative_age(at), do: "#{age} ago")
+  defp ago(nil), do: nil
+  defp ago(at), do: RegentFormat.relative_time(at, DateTime.utc_now())
 
   # Once its lifecycle says bidding is over an auction counts from its end;
   # before that, from when it was listed.
   defp auction_age(%{state: state, estimated_end_at: %DateTime{} = end_at})
        when state in [:ended, :graduated, :failed],
-       do: "Ended #{ago(end_at)}"
+       do: "Ended #{ended_ago(end_at)}"
 
   defp auction_age(auction), do: listed_age(auction)
 

@@ -65,8 +65,10 @@ defmodule AutolaunchWeb.SignedInWallet do
 
     ~H"""
     <p :if={@other} class="signed-in-wallet-note" role="status">
-      You're signed in as {short(@signed_in)} but your wallet is on {short(@other)}.
-      Switch your wallet to {short(@signed_in)}, then press again.
+      You're signed in as {RegentFormat.short_address(@signed_in)} but your wallet is on {RegentFormat.short_address(
+        @other
+      )}.
+      Switch your wallet to {RegentFormat.short_address(@signed_in)}, then press again.
     </p>
     """
   end
@@ -75,8 +77,4 @@ defmodule AutolaunchWeb.SignedInWallet do
 
   defp other(signed_in, browser),
     do: if(signed_in in browser, do: nil, else: List.first(browser))
-
-  @doc "An address as 0x45c9…98e0."
-  def short("0x" <> _rest = address),
-    do: "#{String.slice(address, 0, 6)}…#{String.slice(address, -4, 4)}"
 end

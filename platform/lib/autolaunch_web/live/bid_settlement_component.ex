@@ -306,7 +306,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <div>
           <dt>Wallet</dt>
           <dd class="bid-settlement__address" title={@position.owner_address}>
-            {SignedInWallet.short(@position.owner_address)}
+            {RegentFormat.short_address(@position.owner_address)}
           </dd>
         </div>
       </dl>
@@ -409,7 +409,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           <div>
             <dt>Receiving wallet</dt>
             <dd class="bid-settlement__address" title={@position.owner_address}>
-              {SignedInWallet.short(@position.owner_address)}
+              {RegentFormat.short_address(@position.owner_address)}
             </dd>
           </div>
           <div>
@@ -435,7 +435,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
               class="bid-mono"
               data-local-transaction-hash
             >
-              {short_hash(BidSettlementActions.step_hash(@operation, step["step"]))}
+              {RegentFormat.short_hash(BidSettlementActions.step_hash(@operation, step["step"]))}
             </span>
           </li>
         </ol>
@@ -1058,7 +1058,4 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   # A token amount cut to four significant digits, never rounded up, its whole
   # part grouped in thousands: 68493.15 reads as 68,490.
   defp tokens(value), do: value |> TokenDisplay.short(:down) |> Amounts.grouped()
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 end

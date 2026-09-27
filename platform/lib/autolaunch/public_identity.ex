@@ -8,8 +8,12 @@ defmodule Autolaunch.PublicIdentity do
     |> preferred_labels()
     |> Enum.find_value(&present_label/1)
     |> case do
-      nil -> short_wallet(Map.get(identity, :wallet_address))
-      label -> label
+      nil ->
+        identity |> Map.get(:wallet_address) |> normalize_wallet() |> RegentFormat.short_address() ||
+          "Account"
+
+      label ->
+        label
     end
   end
 
@@ -39,14 +43,6 @@ defmodule Autolaunch.PublicIdentity do
   end
 
   defp present_label(_label), do: nil
-
-  defp short_wallet(<<"0x", hex::binary-size(40)>> = wallet) do
-    if String.match?(hex, ~r/\A[0-9a-fA-F]{40}\z/),
-      do: "#{String.slice(wallet, 0, 6)}…#{String.slice(wallet, -4, 4)}",
-      else: "Account"
-  end
-
-  defp short_wallet(_wallet), do: "Account"
 
   defp normalize_wallet(wallet) when is_binary(wallet) do
     wallet = String.trim(wallet)

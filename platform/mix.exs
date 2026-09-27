@@ -6,7 +6,7 @@ defmodule Autolaunch.MixProject do
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "7a876e8673a230e8fb2f7b6f64fe1dec5579fab8"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "a64ec86721a171faea39ae525a9478daa1f66847"
+  @design_system_ref "95785ab95ac5ff4f696ee0cc1f7e04d126e7d45f"
   @regents "https://github.com/regents-ai/regents.git"
   @regents_ref "0d5d18c2f4501a6a5bd00b0bedb005677d8876cc"
 
@@ -77,6 +77,7 @@ defmodule Autolaunch.MixProject do
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
       {:mdex, "== 0.13.3"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},

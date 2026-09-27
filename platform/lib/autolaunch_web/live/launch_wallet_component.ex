@@ -100,7 +100,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
       <section :if={!@local_lab?} class="treasury-verification" aria-label="Treasury verification">
         <h4>Verify immutable treasury</h4>
-        <p class="launch-wallet-mono">{short(@draft.treasury)}</p>
+        <p class="launch-wallet-mono">{RegentFormat.short_address(@draft.treasury)}</p>
         <p
           :if={freshly_verified?(@treasury_report, @fresh_treasury_report_id)}
           data-treasury-verification-state="verified"
@@ -133,7 +133,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
       <div :if={@authenticated && @wallet && !@operation} class="launch-wallet-open">
         <p class="launch-wallet-hint">
-          Launching from {short(@wallet)}. Your wallet confirms every step.
+          Launching from {RegentFormat.short_address(@wallet)}. Your wallet confirms every step.
         </p>
         <Regent.Primitives.button
           class="launch-wallet-primary"
@@ -176,7 +176,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           </div>
           <div>
             <dt>Wallet</dt>
-            <dd class="launch-wallet-mono">{short(@operation.signer)}</dd>
+            <dd class="launch-wallet-mono">{RegentFormat.short_address(@operation.signer)}</dd>
           </div>
           <div>
             <dt>Network</dt>
@@ -399,10 +399,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       rel="noopener"
       aria-label="View this transaction on Basescan"
     >
-      {short_hash(@hash)}
+      {RegentFormat.short_hash(@hash)}
     </a>
     <span :if={@hash && @chain_id == 31_337} class="launch-wallet-mono" data-local-transaction-hash>
-      {short_hash(@hash)}
+      {RegentFormat.short_hash(@hash)}
     </span>
     """
   end
@@ -683,10 +683,4 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp custody_label(:safe), do: "2-of-3 Safe"
   defp custody_label(:contract), do: "Existing contract"
   defp custody_label(:eoa), do: "Single-key EOA"
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 end

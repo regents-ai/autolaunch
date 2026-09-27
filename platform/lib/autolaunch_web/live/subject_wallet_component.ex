@@ -129,7 +129,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         <dl :if={!@operation} class="subject-wallet-balances">
           <div>
             <dt>Wallet</dt>
-            <dd class="subject-wallet-mono">{short(@wallet)}</dd>
+            <dd class="subject-wallet-mono">{RegentFormat.short_address(@wallet)}</dd>
           </div>
           <div :for={asset <- @assets}>
             <dt>{asset_label(asset.key, @symbol)}</dt>
@@ -177,7 +177,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </div>
 
           <p :if={@state.receiver} class="subject-wallet-hint">
-            Payment address {short(@state.receiver.address)}
+            Payment address {RegentFormat.short_address(@state.receiver.address)}
           </p>
 
           <Regent.Primitives.button
@@ -223,7 +223,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             </div>
             <div>
               <dt>Wallet</dt>
-              <dd class="subject-wallet-mono">{short(@operation.signer)}</dd>
+              <dd class="subject-wallet-mono">{RegentFormat.short_address(@operation.signer)}</dd>
             </div>
             <div>
               <dt>Network</dt>
@@ -446,7 +446,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
       rel="noopener"
       aria-label="View this transaction on Basescan"
     >
-      {short_hash(@hash)}
+      {RegentFormat.short_hash(@hash)}
     </a>
     """
   end
@@ -651,10 +651,4 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   # payment's own event proves what really moved.
   defp amount_display(operation),
     do: SubjectWalletActions.verified_amount(operation) || argument(operation, "amount")
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 end

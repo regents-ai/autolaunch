@@ -102,7 +102,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
     assert Autolaunch.Stocks.LaunchDraft.launch_ready?(complete)
     assert html =~ ~s(id="autolaunch-stocks-launch-wallet-#{complete.id}")
-    assert html =~ "Launching from 0x1111…1111"
+    assert html =~ "Launching from 0x1111..1111"
   end
 
   defp restore(nil), do: Application.delete_env(:autolaunch, :prelaunch_read_only)

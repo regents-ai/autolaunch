@@ -286,7 +286,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           <div>
             <dt>Receiving wallet</dt>
             <dd class="bid-settlement__address" title={@review.envelope["expected_signer"]}>
-              {SignedInWallet.short(@review.envelope["expected_signer"])}
+              {RegentFormat.short_address(@review.envelope["expected_signer"])}
             </dd>
           </div>
           <div>
@@ -322,7 +322,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
               class="launch-wallet-mono"
               data-local-transaction-hash
             >
-              {short_hash(@sent[step["step"]].hash)}
+              {RegentFormat.short_hash(@sent[step["step"]].hash)}
             </span>
           </li>
         </ol>
@@ -828,7 +828,4 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 end

@@ -8,7 +8,6 @@ defmodule AutolaunchWeb.Components.TokenHeading do
   use Phoenix.Component
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias AutolaunchWeb.SignedInWallet
 
   attr :name, :string, required: true
   attr :symbol, :string, required: true
@@ -34,7 +33,7 @@ defmodule AutolaunchWeb.Components.TokenHeading do
         data-copy-address={@pool.token.address}
         aria-label={"Copy the #{@symbol} token address"}
       >
-        <span class="token-heading__address">{SignedInWallet.short(@pool.token.address)}</span>
+        <span class="token-heading__address">{RegentFormat.short_address(@pool.token.address)}</span>
         <span class="regent-token-menu__copy-icon" aria-hidden="true">
           <span class="regent-token-menu__glyph" data-copy-glyph><.copy_icon /></span>
           <span

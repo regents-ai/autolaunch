@@ -157,7 +157,7 @@ defmodule AutolaunchWeb.StakeComponent do
       </p>
       <p :if={@wallet} class="token-stake__lead">
         Staking wallet:
-        <span class="token-stake__wallet" title={@wallet}>{SignedInWallet.short(@wallet)}</span>
+        <span class="token-stake__wallet" title={@wallet}>{RegentFormat.short_address(@wallet)}</span>
       </p>
       <details>
         <summary>How rewards work</summary>

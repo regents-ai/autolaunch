@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
       <div :if={@wallet && !@review} class="launch-wallet-open">
         <p class="launch-wallet-hint">
-          Launching from {short(@wallet)}. Your wallet confirms every step.
+          Launching from {RegentFormat.short_address(@wallet)}. Your wallet confirms every step.
         </p>
         <Regent.Primitives.button
           class="launch-wallet-primary"
@@ -115,7 +115,9 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           </div>
           <div>
             <dt>Wallet</dt>
-            <dd class="launch-wallet-mono">{short(@review.envelope["expected_signer"])}</dd>
+            <dd class="launch-wallet-mono">
+              {RegentFormat.short_address(@review.envelope["expected_signer"])}
+            </dd>
           </div>
           <div>
             <dt>Network</dt>
@@ -140,7 +142,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
               class="launch-wallet-mono"
               data-local-transaction-hash
             >
-              {short_hash(@sent[step["step"]].hash)}
+              {RegentFormat.short_hash(@sent[step["step"]].hash)}
             </span>
           </li>
         </ol>
@@ -473,10 +475,4 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 end
