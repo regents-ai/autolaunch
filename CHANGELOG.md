@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v54, 27 September 2026 (67847e4)
+- A visit to www.autolaunch.sh moves to the same page on autolaunch.sh.
+- A missing page says "We can’t find that page"; any other error says "Something went
+  wrong".
+
+## v53, 27 September 2026 (fadd996)
+- Copying a token's address or the agent guide says "Copied", or "Couldn't copy" when the
+  browser refuses, and screen readers hear the same.
+
 ## v52, 27 September 2026 (af7caea)
 - Addresses show the same short way on every page (0x1234..abcd), and times read as
   "3 minutes ago" or "in 2 hours" everywhere, from the shared Regent formatting.

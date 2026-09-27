@@ -31,34 +31,18 @@ defmodule AutolaunchWeb.Components.RegentLinks do
         <summary aria-label="$REGENT links"><.source_icon kind={:regent} /></summary>
         <div class="regent-token-menu__panel" {AutolaunchWeb.Motion.panel("menu")}>
           <nav class="regent-token-menu__content" aria-label="$REGENT">
-            <button
-              type="button"
+            <Regent.Primitives.copy_button
+              id="header-regent-copy"
+              text={TokenLinks.address()}
+              variant="quiet"
               class="regent-token-menu__copy"
-              data-regent-copy
-              data-copy-address={TokenLinks.address()}
               aria-label="Copy $REGENT contract address"
             >
               <span class="regent-token-menu__copy-label">$REGENT</span>
               <span class="regent-token-menu__copy-icon" aria-hidden="true">
-                <span class="regent-token-menu__glyph" data-copy-glyph>
-                  <.source_icon kind={:copy} />
-                </span>
-                <span
-                  class="regent-token-menu__glyph regent-token-menu__glyph--check"
-                  data-check-glyph
-                  hidden
-                >
-                  <.source_icon kind={:check} />
-                </span>
+                <.source_icon kind={:copy} />
               </span>
-              <span
-                class="regent-token-menu__toast"
-                data-copy-toast
-                data-variant={AutolaunchWeb.Motion.standard("toast")}
-                role="status"
-                aria-live="polite"
-              ></span>
-            </button>
+            </Regent.Primitives.copy_button>
             <a
               id="regent-buy"
               class="rg-button regent-token-menu__link"
@@ -137,14 +121,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
     ~H"""
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" />
-    </svg>
-    """
-  end
-
-  defp source_icon(%{kind: :check} = assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
     </svg>
     """
   end

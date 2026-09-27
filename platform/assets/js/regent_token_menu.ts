@@ -1,6 +1,3 @@
-import {deny} from "./motion/press";
-import {popIn, popOut} from "./motion/toast";
-
 // Delegation survives LiveView patches and also serves ordinary HTML pages.
 // Native details/summary retains click, touch and keyboard operation without JS.
 export function installRegentTokenMenu(): void {
@@ -38,52 +35,5 @@ export function installRegentTokenMenu(): void {
       menu.open = false;
       if (contains(menu, document.activeElement)) menu.querySelector("summary")?.focus();
     });
-  });
-
-  // The $REGENT heading copies the contract address: green check and a
-  // "CA copied" toast that pops in for three seconds, then back to the copy
-  // glyph. A copy the browser refuses shakes the button.
-  const timers = new WeakMap<HTMLElement, number>();
-  const restore = (button: HTMLElement) => {
-    button.classList.remove("is-copied");
-    const copyGlyph = button.querySelector<HTMLElement>("[data-copy-glyph]");
-    const checkGlyph = button.querySelector<HTMLElement>("[data-check-glyph]");
-    const toast = button.querySelector<HTMLElement>("[data-copy-toast]");
-    if (copyGlyph) copyGlyph.hidden = false;
-    if (checkGlyph) checkGlyph.hidden = true;
-    if (toast) toast.textContent = "";
-  };
-  document.addEventListener("click", async (event) => {
-    const button =
-      event.target instanceof Element
-        ? event.target.closest<HTMLElement>("[data-regent-copy]")
-        : null;
-    if (!button) return;
-    const address = button.dataset.copyAddress;
-    if (!address) return;
-    try {
-      await navigator.clipboard.writeText(address);
-    } catch {
-      deny(button);
-      return;
-    }
-    const copyGlyph = button.querySelector<HTMLElement>("[data-copy-glyph]");
-    const checkGlyph = button.querySelector<HTMLElement>("[data-check-glyph]");
-    const toast = button.querySelector<HTMLElement>("[data-copy-toast]");
-    if (copyGlyph) copyGlyph.hidden = true;
-    if (checkGlyph) checkGlyph.hidden = false;
-    if (toast) toast.textContent = "CA copied";
-    button.classList.add("is-copied");
-    if (toast) popIn(toast);
-    window.clearTimeout(timers.get(button));
-    // A copy made again while the toast leaves keeps the newer one showing.
-    const shown = window.setTimeout(() => {
-      const gone = () => {
-        if (timers.get(button) === shown) restore(button);
-      };
-      if (toast) popOut(toast, gone);
-      else gone();
-    }, 3000);
-    timers.set(button, shown);
   });
 }

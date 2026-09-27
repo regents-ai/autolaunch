@@ -22,7 +22,7 @@ import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {ImageGradient} from "./hooks/image_gradient"
 import {PriceChart} from "./hooks/price_chart"
-import {CopyText} from "./hooks/copy_text"
+import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
@@ -43,7 +43,6 @@ const hooks = {
   PriceChart,
   Optics,
   XConnections,
-  CopyText,
   CreatorConnections,
   HomeSearch,
   Toast,
@@ -66,6 +65,7 @@ liveSocket.connect()
 installMotion()
 installStaticMarketSearch()
 installRegentTokenMenu()
+installCopyButtons()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
 installPublicTools()
