@@ -25,6 +25,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   alias Autolaunch.Stocks.{
     Amounts,
     Assets,
+    FeeSchedule,
     Lab,
     LabLaunchChainClient,
     LaunchDraft,
@@ -70,15 +71,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
       {"Creator allocation", "None"},
       {"Vesting", "None"},
-      {"Treasury", "None"},
-      {"REGENT revenue lane", "1.00% of stock-side pool volume"},
-      {"Staker revenue lane",
-       "1.00% of stock-side pool volume to the token's stakers, always on"},
-      {"Pool fee", "0.30%"},
-      {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-      {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
-      {"If the required raise is not reached", "Every bid is refundable through the auction"}
-    ]
+      {"Treasury", "None"}
+    ] ++
+      FeeSchedule.terms(:base) ++
+      [
+        {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
+        {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
+        {"If the required raise is not reached", "Every bid is refundable through the auction"}
+      ]
   end
 
   @doc "How long the schedule's parts take, as blocks with an estimated duration."

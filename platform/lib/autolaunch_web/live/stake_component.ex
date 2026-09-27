@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.StakeComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Stocks.StakeActions
+  alias Autolaunch.Stocks.{FeeSchedule, StakeActions}
   alias AutolaunchWeb.AgentPress
   alias AutolaunchWeb.Components.ShareDialog
   alias AutolaunchWeb.{SignedInWallet, TokenDisplay}
@@ -672,7 +672,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp lead(%{kind: :stocks} = pool),
     do:
-      "Stakers share this launch's trading fees: 1% of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
+      "Stakers share this launch's trading fees: #{FeeSchedule.lane(pool.chain, :stakers).rate} of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
 
   defp steps(review, sent) do
     Enum.map(review.steps, fn %{"step" => name} ->

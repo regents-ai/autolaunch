@@ -4,11 +4,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
+  import AutolaunchWeb.Components.LaunchKindChoice
   import AutolaunchWeb.Components.StockSelect
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
-  alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
+  alias Autolaunch.Stocks.{Amounts, FeeSchedule, LaunchActions, LaunchDraft}
   alias Phoenix.LiveView.JS
 
   @new_decimals 18
@@ -28,14 +29,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def draft_values(draft),
     do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
 
-  @doc "The page title, and the way to the Revstake launch in the top corner."
+  @doc "The choice between the two launches, then the page title."
   def header(assigns) do
     ~H"""
+    <.launch_kind_choice current={:memestake} />
     <header class="memestock__header">
-      <h1>Launch memestock</h1>
-      <.link navigate="/create/revstake" class="memestock__alt" data-squish>
-        Agentic Revenue Launch <span aria-hidden="true">→</span>
-      </.link>
+      <h1>Create a Memestake token</h1>
     </header>
     """
   end
@@ -344,9 +343,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </dd>
               <dd :if={!@stock}>Choose a stock</dd>
             </div>
-            <div>
-              <dt>Trading fees</dt>
-              <dd>1% to stakers · 1% to Regent</dd>
+            <div :for={lane <- FeeSchedule.lanes(@launch_chain)}>
+              <dt>{lane.label}</dt>
+              <dd>{lane.rate} of {FeeSchedule.charged_on(lane.charged_on)}</dd>
             </div>
             <div>
               <dt>Bidding opens</dt>

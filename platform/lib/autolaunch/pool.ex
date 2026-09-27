@@ -20,6 +20,7 @@ defmodule Autolaunch.Pool do
 
   alias Autolaunch.Chain.{Abi, Address, Rpc}
   alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PriceHistory}
+  alias Autolaunch.Stocks.FeeSchedule
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
@@ -528,8 +529,8 @@ defmodule Autolaunch.Pool do
            decimals: decimals
          },
          token_is_currency0?: token_is_currency0?,
-         lp_fee: percent(3_000),
-         pool_fee: 3_000,
+         lp_fee: FeeSchedule.lane(:base, :pool).rate,
+         pool_fee: FeeSchedule.pool_fee(:base),
          tick_spacing: 60,
          hook: StocksLab.address!(config, :hook),
          pool_manager: StocksLab.address!(config, :pool_manager),
@@ -690,7 +691,6 @@ defmodule Autolaunch.Pool do
 
       {:ok,
        %{
-         lane_bps: @lane_bps,
          trades: length(accrued),
          charged: Enum.map(accrued, &charged/1),
          regent: %{

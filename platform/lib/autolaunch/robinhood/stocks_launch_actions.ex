@@ -28,7 +28,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   alias Autolaunch.{LabAbi, LaunchChain}
   alias Autolaunch.Robinhood.{Lab, StocksLaunchChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
-  alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraft, LaunchOperations}
+  alias Autolaunch.Stocks.{Amounts, Assets, FeeSchedule, LaunchDraft, LaunchOperations}
 
   @resource "autolaunch_robinhood_stocks_launch"
   @action "autolaunch_robinhood_stocks_launch"
@@ -63,12 +63,14 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {"Creator allocation", "None"},
       {"Vesting", "None"},
       {"Treasury", "None"},
-      {"Pool pair", "#{ticker} and the stock it was launched against"},
-      {"Staker revenue lane", "1% of stock-side volume to the token's stakers, always on"},
-      {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-      {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
-      {"If the required raise is not reached", "Every bid is refundable through the auction"}
-    ]
+      {"Pool pair", "#{ticker} and the stock it was launched against"}
+    ] ++
+      FeeSchedule.terms(:robinhood) ++
+      [
+        {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
+        {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
+        {"If the required raise is not reached", "Every bid is refundable through the auction"}
+      ]
   end
 
   @doc "How long the schedule's parts take, as blocks with an estimated duration."

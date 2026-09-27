@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.StocksCreateLive do
   @moduledoc """
-  Launch memestock, at /create: one form for the account's one Memestake
+  Create a Memestake token, at /create: one form for the account's one Memestake
   draft. The Base and Robinhood switch moves the draft between chains; every
   field autosaves.
 

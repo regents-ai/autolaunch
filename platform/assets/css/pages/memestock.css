@@ -1,10 +1,7 @@
-/* Launch memestock: one narrow form beside a summary of the token it makes. */
+/* Create a Memestake token: one narrow form beside a summary of the token it makes. */
 .memestock { --memestock-base: #0052ff; --memestock-robinhood: #00c805; display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
 .memestock__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 .memestock__header h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
-/* The other launch, as a small bordered text box in the corner. */
-.memestock__alt { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); border: 1px solid var(--hairline-strong); border-radius: 6px; color: var(--color-fg); font-size: .875rem; font-weight: 600; text-decoration: none; transition: border-color var(--duration-fast) ease; }
-.memestock__alt:hover { border-color: var(--color-fg); }
 .memestock__sign-in { display: grid; justify-items: start; gap: var(--space-3); }
 .memestock__sign-in h2 { margin: 0; }
 
@@ -91,7 +88,7 @@
 .memestock-token__names span { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .8125rem; overflow-wrap: anywhere; }
 .memestock-terms { display: grid; margin: 0; }
 .memestock-terms > div { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: var(--space-2); border-top: 1px solid var(--hairline); font-size: .8125rem; }
-.memestock-terms dt { color: var(--color-fg-muted); }
+.memestock-terms dt { flex: none; color: var(--color-fg-muted); }
 .memestock-terms dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
 .memestock-terms__stock { display: inline-flex; align-items: center; gap: var(--space-1); }
 .memestock-terms__stock .stock-logo { width: 1.25rem; height: 1.25rem; }

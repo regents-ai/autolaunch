@@ -281,6 +281,12 @@ defmodule AutolaunchWeb.Components.SwapForm do
             <AutolaunchWeb.TokenDisplay.written value={@review.minimum} unit={@review.buy_symbol} />
           </dd>
         </div>
+        <div>
+          <dt>Already in the quote</dt>
+          <dd class="token-swap__review-fees">
+            <span :for={fee <- @review.fees}>{fee}</span>
+          </dd>
+        </div>
       </dl>
 
       <p class="token-swap__review-rule"><span>Continue in your wallet</span></p>
