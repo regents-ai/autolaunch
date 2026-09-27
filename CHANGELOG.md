@@ -3,6 +3,19 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v49, 27 September 2026 (a6711fc)
+- AI assistants built into web browsers can now bid, finish a bid after its auction, buy,
+  sell, stake, unstake and claim staking rewards for a signed-in person, using the same
+  cards the person would. Every one opens the person's own wallet to confirm; nothing is
+  sent without it. Launching a token still happens on the Create page.
+- A signed-in person's assistant can read their bids and tokens, and the same list is
+  available at autolaunch.sh/api/v1/me/positions.
+- Each of these calls now says plainly what happened: sent, not sent and why (including the
+  wallet being on the wrong account or refusing to switch networks), or unknown.
+- Signing in with an agent wallet and looking up ENS names use corrected address hashing.
+- A security update to the data layer the site is built on.
+- The leftover opening countdown is gone.
+
 ## v48, 26 September 2026 (8d96f71)
 - The tools Autolaunch offers to AI assistants built into web browsers are now described in
   one place, and the developer guide and agent guide list all eight of them, including the
