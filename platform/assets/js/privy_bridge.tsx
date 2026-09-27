@@ -8,7 +8,6 @@ import {
   useLinkAccount,
   usePrivy,
   useToken,
-  useUnlinkFarcaster,
   useUnlinkOAuth,
   useWallets,
 } from "@privy-io/react-auth"
@@ -137,38 +136,24 @@ export function createSignInRequest({
 
 type IdentityRequestHandlerOptions = {
   linkGithub: () => void
-  linkFarcaster: () => void
   unlinkGithub: (subject: string) => Promise<void>
-  unlinkFarcaster: (fid: number) => Promise<void>
   refreshSession: () => Promise<void>
 }
 
 export function createIdentityRequestHandler({
   linkGithub,
-  linkFarcaster,
   unlinkGithub,
-  unlinkFarcaster,
   refreshSession,
 }: IdentityRequestHandlerOptions): (request: IdentityRequest) => Promise<void> {
   return async request => {
     if (request.action === "link") {
-      if (request.provider === "github") linkGithub()
-      if (request.provider === "farcaster") linkFarcaster()
+      linkGithub()
       return
     }
 
     if (!request.subject) throw new Error("The connected account is unavailable.")
 
-    if (request.provider === "farcaster") {
-      const fid = Number(request.subject)
-      if (!Number.isSafeInteger(fid) || fid <= 0) {
-        throw new Error("The connected account is unavailable.")
-      }
-      await unlinkFarcaster(fid)
-    } else {
-      await unlinkGithub(request.subject)
-    }
-
+    await unlinkGithub(request.subject)
     await refreshSession()
   }
 }
@@ -664,9 +649,8 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     }),
     [notifyIdentityState, refreshIdentitySession, isAvailable],
   )
-  const {linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
+  const {linkGithub} = useLinkAccount(linkCallbacks)
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
-  const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const walletSyncGeneration = React.useRef(0)
   const reconcileProviderSession = React.useMemo(
     () =>
@@ -759,22 +743,12 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     () =>
       createIdentityRequestHandler({
         linkGithub,
-        linkFarcaster,
         unlinkGithub: async subject => {
           await unlinkOAuth({provider: "github", subject})
         },
-        unlinkFarcaster: async fid => {
-          await unlinkFarcasterAccount({fid})
-        },
         refreshSession: refreshIdentitySession,
       }),
-    [
-      linkFarcaster,
-      linkGithub,
-      refreshIdentitySession,
-      unlinkFarcasterAccount,
-      unlinkOAuth,
-    ],
+    [linkGithub, refreshIdentitySession, unlinkOAuth],
   )
 
   const ordinaryRequestHandlerRef = React.useRef(ordinaryRequestHandler)

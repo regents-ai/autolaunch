@@ -74,49 +74,12 @@ defmodule Autolaunch.SubjectWalletRpcClient do
     end
   end
 
-  defp proved(envelope, :action, logs, block),
-    do: action(envelope["arguments"]["kind"], envelope, logs, block)
-
-  # The exact staking events, for this signer and this reviewed amount.
-  defp action("stake", envelope, logs, _block),
-    do:
-      settled_outcome(
-        SubjectAbi.staked?(logs, splitter(envelope), signer(envelope), amount(envelope))
-      )
-
-  defp action("unstake", envelope, logs, _block),
-    do:
-      settled_outcome(
-        SubjectAbi.unstaked?(logs, splitter(envelope), signer(envelope), amount(envelope))
-      )
-
-  # A canonical success with no `Claimed` log is a truthful no-op: the contract
-  # returns early when nothing is owed, so nothing was available to claim.
-  defp action("claim", envelope, logs, _block) do
-    token = argument(envelope, "token")
-
-    case SubjectAbi.claimed(logs, splitter(envelope), signer(envelope), bound_tokens(envelope)) do
-      {:ok, claims} when claims == %{} ->
-        claimed(%{})
-
-      {:ok, %{^token => amount} = claims} when map_size(claims) == 1 ->
-        claimed(%{token => amount})
-
-      _contradiction ->
-        {:ok, %{outcome: :unverified}}
-    end
-  end
-
-  defp action("claim_all", envelope, logs, _block) do
-    case SubjectAbi.claimed(logs, splitter(envelope), signer(envelope), bound_tokens(envelope)) do
-      {:ok, claims} -> claimed(claims)
-      :error -> {:ok, %{outcome: :unverified}}
-    end
-  end
+  defp proved(envelope, :action, logs, _block),
+    do: action(envelope["arguments"]["kind"], envelope, logs)
 
   # The event supplies the actual result: a payment has to route exactly the
   # gross it reviewed, while a sweep learns the amount it really moved.
-  defp action("pay", envelope, logs, _block) do
+  defp action("pay", envelope, logs) do
     reviewed = amount(envelope)
 
     case routed(envelope, logs) do
@@ -128,35 +91,10 @@ defmodule Autolaunch.SubjectWalletRpcClient do
     end
   end
 
-  defp action("sweep", envelope, logs, _block) do
+  defp action("sweep", envelope, logs) do
     case routed(envelope, logs) do
       {:ok, routed} -> {:ok, %{outcome: :confirmed, result: routed_result(routed)}}
       :error -> {:ok, %{outcome: :unverified}}
-    end
-  end
-
-  # The exact event is the authority. The receipt-block read is corroboration
-  # only, so a later same-block write that moved the note on cannot turn the
-  # exact event this transaction emitted into an unverified outcome.
-  defp action("set_note", envelope, logs, block) do
-    receiver = argument(envelope, "receiver")
-    note = argument(envelope, "note")
-
-    if SubjectAbi.receiver_note_updated?(logs, receiver, note) do
-      corroborated(receiver, note, block)
-    else
-      {:ok, %{outcome: :unverified}}
-    end
-  end
-
-  defp corroborated(receiver, note, block) do
-    case Rpc.call_words(receiver, SubjectAbi.encode_read(:receiver_note), block, 1, @rpc_opts) do
-      {:ok, [word]} ->
-        {:ok,
-         %{outcome: :confirmed, result: %{"note" => hex_word(word), "reviewed_note" => note}}}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
@@ -172,20 +110,6 @@ defmodule Autolaunch.SubjectWalletRpcClient do
   defp routed_result(%{gross: gross, note: note}),
     do: %{"gross" => Integer.to_string(gross), "note" => note}
 
-  defp claimed(claims),
-    do:
-      {:ok,
-       %{
-         outcome: :confirmed,
-         result: %{
-           "claimed" =>
-             Map.new(claims, fn {token, amount} -> {token, Integer.to_string(amount)} end)
-         }
-       }}
-
-  defp settled_outcome(true), do: {:ok, %{outcome: :confirmed}}
-  defp settled_outcome(false), do: {:ok, %{outcome: :unverified}}
-
   defp outcome(true), do: :confirmed
   defp outcome(false), do: :unverified
 
@@ -194,14 +118,7 @@ defmodule Autolaunch.SubjectWalletRpcClient do
     Enum.find(argument(envelope, "steps"), &(&1["step"] == current))
   end
 
-  defp splitter(envelope), do: argument(envelope, "splitter")
-  defp signer(envelope), do: envelope["expected_signer"]
   defp amount(envelope), do: envelope |> argument("amount_atomic") |> String.to_integer()
-  defp bound_tokens(envelope), do: envelope |> argument("bound_tokens") |> Map.values()
 
   defp argument(envelope, key), do: envelope["arguments"][key]
-
-  defp hex_word(value),
-    do:
-      "0x" <> (value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0"))
 end

@@ -3,8 +3,8 @@ defmodule Autolaunch.Chain.SubjectAbiTest do
 
   alias Autolaunch.Chain.SubjectAbi
 
-  @calls [:stake, :unstake, :claim, :claim_all, :pay, :sweep, :set_receiver_note]
-  @events [:payment_routed, :receiver_note_updated]
+  @calls [:pay, :sweep]
+  @events [:payment_routed]
 
   test "every selector and topic is the keccak of its declared signature" do
     for id <- @calls do

@@ -20,7 +20,7 @@ defmodule Autolaunch.SubjectWalletOperation do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @kinds [:stake, :unstake, :claim, :claim_all, :pay, :sweep, :set_note]
+  @kinds [:pay, :sweep]
   @steps [:approval, :action]
   @states [:prepared, :confirmed, :cancelled, :expired]
 

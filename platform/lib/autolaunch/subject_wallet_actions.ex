@@ -37,37 +37,18 @@ defmodule Autolaunch.SubjectWalletActions do
   @bps_denominator 10_000
   @subject_total_supply 100_000_000_000 * Integer.pow(10, 18)
 
-  @kinds [:stake, :unstake, :claim, :claim_all, :pay, :sweep, :set_note]
-  @splitter_kinds [:stake, :unstake, :claim, :claim_all]
-  @receiver_kinds [:pay, :sweep, :set_note]
-  # The two actions that recognize an inflow, and so divide one.
-  @inflow_kinds [:pay, :sweep]
+  # Both actions recognize an inflow at the canonical receiver, and so divide one.
+  @kinds [:pay, :sweep]
   # The receiver routes every sweep under the zero payment reference.
   @sweep_reference "0x" <> String.duplicate("0", 64)
   @assets [:subject, :usdc, :regent]
 
-  @contract_name %{splitter: "SubjectSplitterV1", receiver: "PaymentReceiverV1"}
-
-  @action_name %{
-    stake: "subject_stake",
-    unstake: "subject_unstake",
-    claim: "subject_claim",
-    claim_all: "subject_claim_all",
-    pay: "subject_pay",
-    sweep: "subject_sweep",
-    set_note: "subject_set_note"
-  }
+  @action_name %{pay: "subject_pay", sweep: "subject_sweep"}
 
   @risk %{
-    stake:
-      "Your wallet stakes this SUBJECT into the launch's revenue split. It counts straight away, and you can take it back out from the next block onwards.",
-    unstake: "Your wallet takes this staked SUBJECT back out of the launch's revenue split.",
-    claim: "Your wallet collects the revenue this launch has already set aside for it.",
-    claim_all: "Your wallet collects every asset this launch has already set aside for it.",
     pay: "Your wallet pays this amount into the launch's revenue split.",
     sweep:
-      "Your wallet pays the gas to route a balance already sitting at this address into the launch's revenue split. Nothing is sent to your wallet.",
-    set_note: "Your wallet sets the short label this address shows on its payments."
+      "Your wallet pays the gas to route a balance already sitting at this address into the launch's revenue split. Nothing is sent to your wallet."
   }
 
   @replaced "replaced by a newer review"
@@ -94,7 +75,7 @@ defmodule Autolaunch.SubjectWalletActions do
   def wallet_state(subject_id, address, opts) do
     with {:ok, _actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, opts),
-         {:ok, subject} <- stakeable(subject_id),
+         {:ok, subject} <- stored_split(subject_id),
          {:ok, snapshot} <- snapshot(subject, signer, nil, nil) do
       {:ok, view(subject, signer, snapshot)}
     end
@@ -112,7 +93,7 @@ defmodule Autolaunch.SubjectWalletActions do
     with {:ok, _actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, opts),
          {:ok, lease} <- lease(opts),
-         {:ok, subject} <- actionable(subject_id, kind),
+         {:ok, subject} <- actionable(subject_id),
          {:ok, asset} <- selected_asset(kind, params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
          {:ok, review} <- reviewed(subject, signer, kind, asset, params, snapshot),
@@ -188,31 +169,19 @@ defmodule Autolaunch.SubjectWalletActions do
   @doc """
   The amount a confirmed action's own event proves moved, or `nil`.
 
-  Two of the seven learn an amount only from the chain. A claim reads the
-  reviewed token's entry in `result["claimed"]`, where an absent entry is the
-  truthful zero of a canonical success that had nothing to collect; a sweep reads
-  the `result["gross"]` its routing event reported. Both render through the
-  reviewed decimals the envelope pinned.
+  A sweep learns its amount only from the chain: it reads the `result["gross"]`
+  its routing event reported, rendered through the reviewed decimals the
+  envelope pinned.
 
-  Everything else — another action, a row that has not confirmed, and a stored
+  Everything else — a payment, a row that has not confirmed, and a stored
   result that carries no whole atomic amount — has no verified amount, so the
   reviewed estimate is what still stands.
   """
   @spec verified_amount(map()) :: String.t() | nil
-  def verified_amount(%{state: :confirmed, kind: :claim} = operation),
-    do: reviewed_units(collected(operation), operation)
-
   def verified_amount(%{state: :confirmed, kind: :sweep} = operation),
     do: reviewed_units(operation.result["gross"], operation)
 
   def verified_amount(_operation), do: nil
-
-  # A canonical claim records only its own reviewed token, so an absent entry is
-  # a success that collected nothing rather than an unknown amount.
-  defp collected(%{result: %{"claimed" => claimed}} = operation) when is_map(claimed),
-    do: Map.get(claimed, argument(operation, "token"), "0")
-
-  defp collected(_operation), do: nil
 
   # An atomic amount is exactly digits against the decimals this review pinned.
   # Anything else is not an amount, so nothing is rendered as one.
@@ -241,41 +210,6 @@ defmodule Autolaunch.SubjectWalletActions do
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 
   # Every rule the plan fixes for one action, answered from the one snapshot.
-  defp planned(:stake, asset, params, snapshot, _signer) do
-    with :ok <- stakeable_asset(asset),
-         {:ok, amount} <- positive_amount(params, asset),
-         :ok <- at_most(amount, balance(snapshot, asset), :amount_above_balance) do
-      {:ok,
-       %{
-         amount: amount,
-         spender: snapshot.splitter.address,
-         data: SubjectAbi.encode_stake(amount)
-       }}
-    end
-  end
-
-  defp planned(:unstake, asset, params, snapshot, _signer) do
-    with :ok <- stakeable_asset(asset),
-         {:ok, amount} <- positive_amount(params, asset),
-         :ok <- at_most(amount, snapshot.splitter.staked_of, :amount_above_stake) do
-      {:ok, %{amount: amount, data: SubjectAbi.encode_unstake(amount)}}
-    end
-  end
-
-  defp planned(:claim, asset, _params, snapshot, _signer) do
-    address = asset_address(snapshot, asset)
-
-    if claimable(snapshot, asset) > 0,
-      do: {:ok, %{amount: claimable(snapshot, asset), data: SubjectAbi.encode_claim(address)}},
-      else: unavailable(:nothing_claimable)
-  end
-
-  defp planned(:claim_all, _asset, _params, snapshot, _signer) do
-    if Enum.any?(@assets, &(claimable(snapshot, &1) > 0)),
-      do: {:ok, %{data: SubjectAbi.encode_claim_all()}},
-      else: unavailable(:nothing_claimable)
-  end
-
   defp planned(:pay, asset, params, snapshot, _signer) do
     with {:ok, amount} <- positive_amount(params, asset),
          :ok <- at_most(amount, balance(snapshot, asset), :amount_above_balance) do
@@ -308,15 +242,8 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
-  defp planned(:set_note, _asset, params, snapshot, signer) do
-    with :ok <- note_editor(snapshot, signer),
-         {:ok, note} <- note(params) do
-      {:ok, %{note: note, data: SubjectAbi.encode_set_receiver_note(note)}}
-    end
-  end
-
   defp envelope(subject, signer, kind, asset, plan, snapshot) do
-    target = target(kind, snapshot)
+    target = snapshot.receiver.address
 
     steps =
       approval_step(plan, snapshot, asset) ++
@@ -325,7 +252,7 @@ defmodule Autolaunch.SubjectWalletActions do
     Envelope.new(Map.fetch!(@action_name, kind), signer, plan.data,
       to: target,
       resource: @resource,
-      contract_name: Map.fetch!(@contract_name, contract(kind)),
+      contract_name: "PaymentReceiverV1",
       risk_copy: Map.fetch!(@risk, kind),
       arguments: arguments(subject, kind, asset, plan, snapshot, steps)
     )
@@ -336,19 +263,18 @@ defmodule Autolaunch.SubjectWalletActions do
       "subject_id" => subject.subject_id,
       "kind" => Atom.to_string(kind),
       "splitter" => snapshot.splitter.address,
-      "receiver" => receiver_address(snapshot),
+      "receiver" => snapshot.receiver.address,
       "treasury" => snapshot.splitter.treasury,
-      "asset" => asset && Atom.to_string(asset),
-      "token" => asset && asset_address(snapshot, asset),
-      "symbol" => asset && symbol(asset),
-      "decimals" => asset && SubjectAbi.decimals(asset),
-      "amount_atomic" => plan[:amount] && Integer.to_string(plan.amount),
-      "amount" => plan[:amount] && units(plan.amount, asset),
-      "payment_reference" => plan[:payment_reference],
-      "note" => plan[:note],
+      "asset" => Atom.to_string(asset),
+      "token" => asset_address(snapshot, asset),
+      "symbol" => symbol(asset),
+      "decimals" => SubjectAbi.decimals(asset),
+      "amount_atomic" => Integer.to_string(plan.amount),
+      "amount" => units(plan.amount, asset),
+      "payment_reference" => plan.payment_reference,
       "total_staked" => Integer.to_string(snapshot.splitter.total_staked),
       "protocol_share_bps" => @protocol_share_bps,
-      "allocation" => allocation(kind, plan, snapshot),
+      "allocation" => allocation(plan, snapshot),
       "bound_tokens" => Map.new(@assets, &{Atom.to_string(&1), asset_address(snapshot, &1)}),
       "steps" => steps
     }
@@ -379,8 +305,7 @@ defmodule Autolaunch.SubjectWalletActions do
   # atomic units of the reviewed asset: the 2% skim, then the staker allocation
   # the stake covers of the complete SUBJECT supply, then the exact remainder to
   # the treasury. Nothing here is a percentage, an estimate, or a chain read.
-  defp allocation(kind, %{amount: gross}, %{splitter: %{total_staked: staked}})
-       when kind in @inflow_kinds do
+  defp allocation(%{amount: gross}, %{splitter: %{total_staked: staked}}) do
     skim = div(gross * @protocol_share_bps, @bps_denominator)
     net = gross - skim
     stakers = div(net * staked, @subject_total_supply)
@@ -390,17 +315,6 @@ defmodule Autolaunch.SubjectWalletActions do
       fn {part, amount} -> {Atom.to_string(part), Integer.to_string(amount)} end
     )
   end
-
-  defp allocation(_kind, _plan, _snapshot), do: nil
-
-  defp target(kind, snapshot) when kind in @splitter_kinds, do: snapshot.splitter.address
-  defp target(_receiver_kind, snapshot), do: snapshot.receiver.address
-
-  defp contract(kind) when kind in @splitter_kinds, do: :splitter
-  defp contract(_receiver_kind), do: :receiver
-
-  defp receiver_address(%{receiver: %{address: address}}), do: address
-  defp receiver_address(_none), do: nil
 
   def press_evidence(operation) do
     if Envelope.valid?(operation.envelope, resource: @resource),
@@ -513,13 +427,12 @@ defmodule Autolaunch.SubjectWalletActions do
   end
 
   # A receiver is read whenever the subject has a projected one, so the page can
-  # show the note and the receiver's own balances before any action is chosen.
+  # show the receiver's own balances before any action is chosen.
   defp receiver_request(%{canonical_receiver_address: address}) when is_binary(address),
     do: address
 
   defp receiver_request(_subject), do: nil
 
-  defp spender_request(:stake, subject), do: subject.splitter_address
   defp spender_request(:pay, subject), do: subject.canonical_receiver_address
   defp spender_request(_kind, _subject), do: nil
 
@@ -544,7 +457,7 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
-  defp canonical_receiver(%{receiver: nil}, _subject, kind) when kind in @receiver_kinds,
+  defp canonical_receiver(%{receiver: nil}, _subject, kind) when kind in @kinds,
     do: unavailable(:canonical_receiver_unavailable)
 
   defp canonical_receiver(%{receiver: nil}, _subject, _kind), do: :ok
@@ -582,7 +495,7 @@ defmodule Autolaunch.SubjectWalletActions do
 
   # Stored subjects
 
-  defp stakeable(subject_id) do
+  defp stored_split(subject_id) do
     with {:ok, subject} <- stored_subject(subject_id),
          :ok <- base_chain(subject),
          :ok <- standard(subject.token_address, :subject_token_unavailable),
@@ -591,13 +504,11 @@ defmodule Autolaunch.SubjectWalletActions do
          do: {:ok, subject}
   end
 
-  defp actionable(subject_id, kind) when kind in @receiver_kinds do
-    with {:ok, subject} <- stakeable(subject_id),
+  defp actionable(subject_id) do
+    with {:ok, subject} <- stored_split(subject_id),
          :ok <- standard(subject.canonical_receiver_address, :canonical_receiver_unavailable),
          do: {:ok, subject}
   end
-
-  defp actionable(subject_id, _splitter_kind), do: stakeable(subject_id)
 
   defp stored_subject(subject_id) do
     case Autolaunch.get_public_subject(subject_id, actor: nil) do
@@ -620,11 +531,6 @@ defmodule Autolaunch.SubjectWalletActions do
 
   # Assets and amounts
 
-  defp selected_asset(:stake, _params), do: {:ok, :subject}
-  defp selected_asset(:unstake, _params), do: {:ok, :subject}
-  defp selected_asset(:claim_all, _params), do: {:ok, nil}
-  defp selected_asset(:set_note, _params), do: {:ok, nil}
-
   defp selected_asset(_kind, params) do
     case params["asset"] do
       "subject" -> {:ok, :subject}
@@ -633,9 +539,6 @@ defmodule Autolaunch.SubjectWalletActions do
       _unsupported -> unavailable(:unsupported_asset)
     end
   end
-
-  defp stakeable_asset(:subject), do: :ok
-  defp stakeable_asset(_other), do: unavailable(:unsupported_asset)
 
   defp positive_amount(params, asset), do: params |> Map.get("amount") |> atomic_amount(asset)
 
@@ -667,26 +570,12 @@ defmodule Autolaunch.SubjectWalletActions do
   defp at_most(amount, limit, _reason) when amount <= limit, do: :ok
   defp at_most(_amount, _limit, reason), do: unavailable(reason)
 
-  defp note(params) do
-    case params |> Map.get("note", "") |> SubjectAbi.encode_note() do
-      {:ok, note} -> {:ok, note}
-      :error -> unavailable(:invalid_note)
-    end
-  end
-
-  defp note_editor(%{receiver: %{note_editor: editor}}, signer) do
-    if Address.equal?(editor, signer), do: :ok, else: unavailable(:not_note_editor)
-  end
-
-  defp note_editor(_snapshot, _signer), do: unavailable(:canonical_receiver_unavailable)
-
   # Every operation carries its own cryptographically random reference, so two
   # payments of the same amount are never the same reviewed transaction.
   defp payment_reference,
     do: "0x" <> (32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower))
 
   defp balance(snapshot, asset), do: snapshot.balances[asset]
-  defp claimable(snapshot, asset), do: snapshot.splitter.claimable[asset]
 
   defp asset_address(snapshot, :subject), do: snapshot.splitter.subject
   defp asset_address(snapshot, :usdc), do: snapshot.splitter.usdc
@@ -705,22 +594,16 @@ defmodule Autolaunch.SubjectWalletActions do
     %{
       signer: signer,
       subject_id: subject.subject_id,
-      total_staked: units(snapshot.splitter.total_staked, :subject),
-      staked: units(snapshot.splitter.staked_of, :subject),
       balances: Map.new(@assets, &{&1, units(balance(snapshot, &1), &1)}),
-      claimable: Map.new(@assets, &{&1, units(claimable(snapshot, &1), &1)}),
-      claimable_atomic: Map.new(@assets, &{&1, claimable(snapshot, &1)}),
-      receiver: receiver_view(snapshot, signer)
+      receiver: receiver_view(snapshot)
     }
   end
 
-  defp receiver_view(%{receiver: nil}, _signer), do: nil
+  defp receiver_view(%{receiver: nil}), do: nil
 
-  defp receiver_view(%{receiver: receiver}, signer) do
+  defp receiver_view(%{receiver: receiver}) do
     %{
       address: receiver.address,
-      note: SubjectAbi.note_display(receiver.note),
-      note_editor?: Address.equal?(receiver.note_editor, signer),
       balances: Map.new(@assets, &{&1, units(receiver.balances[&1], &1)}),
       balances_atomic: Map.new(@assets, &{&1, receiver.balances[&1]})
     }
