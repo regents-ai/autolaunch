@@ -77,11 +77,18 @@ defmodule Autolaunch.BidActions do
     usdc_bid: :usdc_bid_transaction_hash
   }
 
-  @doc "The public estimate for one auction, from its stored snapshot."
+  @doc """
+  The public estimate for one auction, from its stored snapshot.
+
+  A refusal names the first thing that stopped it, checked in this order:
+  `:auction_not_found` (the id names no auction this site created),
+  `:invalid_amount`, `:invalid_max_price`, or `:database_unavailable` when the
+  stored auction could not be read.
+  """
   def quote(auction_id, amount, max_price, opts \\ []) do
-    with {:ok, auction} <- auction(auction_id, opts),
-         {:ok, amount} <- positive_decimal(amount),
-         {:ok, max_price} <- positive_decimal(max_price) do
+    with {:ok, auction} <- quoted_auction(auction_id, opts),
+         {:ok, amount} <- positive_decimal(amount, :invalid_amount),
+         {:ok, max_price} <- positive_decimal(max_price, :invalid_max_price) do
       current_price = nonnegative_decimal_or_zero(auction.current_clearing_price)
       projected_price = if Decimal.gt?(current_price, 0), do: current_price, else: max_price
       active? = Decimal.compare(max_price, current_price) != :lt
@@ -694,10 +701,23 @@ defmodule Autolaunch.BidActions do
 
   # Stored auctions
 
-  defp auction(auction_id, opts \\ []) do
-    case Autolaunch.get_public_auction(auction_id, Keyword.put(opts, :actor, nil)) do
+  defp auction(auction_id) do
+    case Autolaunch.get_public_auction(auction_id, actor: nil) do
       {:ok, nil} -> unavailable(:auction_not_found)
       result -> result
+    end
+  end
+
+  # Only an id can name an auction, so anything else is simply not found; a
+  # read that fails for a real id is the database's, not the caller's.
+  defp quoted_auction(auction_id, opts) do
+    with {:ok, id} when is_binary(id) <- Ash.Type.UUID.cast_input(auction_id, []),
+         {:ok, %Autolaunch.Auction{} = auction} <-
+           Autolaunch.get_public_auction(id, Keyword.put(opts, :actor, nil)) do
+      {:ok, auction}
+    else
+      {:error, %{}} -> {:error, :database_unavailable}
+      _not_found -> {:error, :auction_not_found}
     end
   end
 
@@ -952,7 +972,7 @@ defmodule Autolaunch.BidActions do
   defp price_decimal(q96, currency_decimals),
     do: Autolaunch.BidPrice.decimal(q96, currency_decimals)
 
-  defp positive_decimal(value) when is_binary(value) do
+  defp positive_decimal(value, refusal) when is_binary(value) do
     value = String.trim(value)
 
     with true <- byte_size(value) <= 100,
@@ -961,11 +981,11 @@ defmodule Autolaunch.BidActions do
          :gt <- Decimal.compare(decimal, 0) do
       {:ok, decimal}
     else
-      _refused -> {:error, :invalid_decimal}
+      _refused -> {:error, refusal}
     end
   end
 
-  defp positive_decimal(_value), do: {:error, :invalid_decimal}
+  defp positive_decimal(_value, refusal), do: {:error, refusal}
 
   defp nonnegative_decimal_or_zero(value) when is_binary(value) do
     case Decimal.parse(String.trim(value)) do

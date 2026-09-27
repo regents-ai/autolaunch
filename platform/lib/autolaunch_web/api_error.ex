@@ -19,11 +19,19 @@ defmodule AutolaunchWeb.ApiError do
 
   defp hint("invalid_request"),
     do:
-      "Check the request against #{PublicDocuments.url("/openapi.json")}. An unknown parameter or value is refused."
+      "Check the request against #{PublicDocuments.url("/openapi.json")}. An unknown parameter or value is refused. Sending the same request again will not help."
 
   defp hint("not_found"),
     do:
-      "List what exists with GET #{PublicDocuments.url("/api/v1/auctions")} or GET #{PublicDocuments.url("/api/v1/tokens")}. Every endpoint is described at #{PublicDocuments.url("/openapi.json")}."
+      "List what exists with GET #{PublicDocuments.url("/api/v1/auctions")} or GET #{PublicDocuments.url("/api/v1/tokens")}. Every endpoint is described at #{PublicDocuments.url("/openapi.json")}. Sending the same request again will not help."
+
+  defp hint("invalid_amount"),
+    do:
+      "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."
+
+  defp hint("invalid_max_price"),
+    do:
+      "Send max_price as digits with at most one decimal point, no sign, exponent or thousands separator: the most you would pay per token, in the auction's quote token. Sending the same value again will not help."
 
   defp hint("authentication_required"),
     do:
