@@ -1162,8 +1162,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   # Until the contracts are deployed no bid or buy button opens anything.
   defp closed_before_deployment,
-    do:
-      if(Autolaunch.Prelaunch.read_only?(), do: "Opens #{Autolaunch.Prelaunch.opens_at_label()}")
+    do: if(Autolaunch.Prelaunch.read_only?(), do: "Opens soon")
 
   # A card whose image has a known colour carries it for its border, background
   # and graduated badge.

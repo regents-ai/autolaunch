@@ -604,7 +604,7 @@ defmodule AutolaunchWeb.HomeLive do
                 !@market_options.github
             }
             disabled
-            title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
+            title="Opens soon"
           >Create an auction</Regent.Primitives.button>
           <.link
             :if={

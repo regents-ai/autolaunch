@@ -171,7 +171,7 @@ defmodule AutolaunchWeb.AuctionsLive do
         <Regent.Primitives.button
           :if={Autolaunch.Prelaunch.read_only?()}
           disabled
-          title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
+          title="Opens soon"
         >Launch auction</Regent.Primitives.button>
         <.link
           :if={!Autolaunch.Prelaunch.read_only?()}

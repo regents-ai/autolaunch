@@ -28,7 +28,6 @@ import {Optics} from "./optics_controller.js"
 import {installCopyAgentGuide} from "./copy_agent_guide"
 import {installMotion} from "./motion/page"
 import {Toast} from "./motion/toast"
-import {installOpeningCountdown} from "./opening_countdown"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
 
@@ -66,7 +65,6 @@ liveSocket.connect()
 installMotion()
 installStaticMarketSearch()
 installRegentTokenMenu()
-installOpeningCountdown()
 installCopyAgentGuide()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()

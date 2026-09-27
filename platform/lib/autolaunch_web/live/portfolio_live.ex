@@ -700,7 +700,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   # Until the contracts are deployed no bid or trade opens.
   defp opens do
-    if Autolaunch.Prelaunch.read_only?(), do: Autolaunch.Prelaunch.opens_at_label()
+    if Autolaunch.Prelaunch.read_only?(), do: "soon"
   end
 
   # The page of an auction the bid is in: its token's once it has graduated.

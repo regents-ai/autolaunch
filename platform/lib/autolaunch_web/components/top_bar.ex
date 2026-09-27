@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.Components.TopBar do
             :if={Autolaunch.Prelaunch.read_only?()}
             disabled
             class="create-button"
-            title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
+            title="Opens soon"
           >+ Create</Regent.Primitives.button>
           <.link
             :if={!Autolaunch.Prelaunch.read_only?()}
@@ -84,9 +84,6 @@ defmodule AutolaunchWeb.Components.TopBar do
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
         <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
-        <span :if={Autolaunch.Prelaunch.read_only?()} class="home-top__opening">
-          <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
-        </span>
         <.account_control account_control={@account_control} />
       </div>
     </header>

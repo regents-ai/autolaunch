@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.Components.Rail do
             :if={item.path == "/create" && Autolaunch.Prelaunch.read_only?()}
             class="rg-button rg-button--primary shell-rail__link"
             aria-disabled="true"
-            title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
+            title="Opens soon"
           >
             {item.label}
           </span>

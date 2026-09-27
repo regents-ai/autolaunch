@@ -54,7 +54,7 @@ defmodule AutolaunchWeb.Prelaunch do
          Jason.encode!(%{
            error: %{
              code: "prelaunch_read_only",
-             message: "Autolaunch opens #{Prelaunch.opens_at_label()}."
+             message: "Autolaunch opens soon."
            }
          })}
       else
