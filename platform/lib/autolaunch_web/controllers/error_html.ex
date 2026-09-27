@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.ErrorHTML do
     assigns =
       assigns
       |> Map.put_new(:__changed__, nil)
-      |> assign(:message, Phoenix.Controller.status_message_from_template(template))
+      |> assign(:message, headline(template))
 
     ~H"""
     <!DOCTYPE html>
@@ -51,4 +51,7 @@ defmodule AutolaunchWeb.ErrorHTML do
     </html>
     """
   end
+
+  defp headline("404" <> _format), do: "We can’t find that page"
+  defp headline(_template), do: "Something went wrong"
 end
