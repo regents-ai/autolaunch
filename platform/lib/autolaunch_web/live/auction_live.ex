@@ -534,18 +534,19 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
     do:
-      "The auction raised its minimum. Bids above the final price return their unspent #{symbol} and receive tokens; the rest return what was not spent."
+      "The auction raised its minimum. Bids above the final price can claim tokens and withdraw their unspent #{symbol}; the rest can withdraw what was not spent."
 
   defp ended_copy(%{state: :failed, quote_token_symbol: symbol}),
-    do: "The auction did not raise its minimum. Every bid returns its #{symbol} in full."
+    do:
+      "The auction did not raise its minimum. Every bidder can withdraw their whole bid in #{symbol}."
 
   defp ended_copy(%{minimum_reached: true, quote_token_symbol: symbol}),
     do:
-      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids above the final price receive tokens and their unspent #{symbol}; the rest return what was not spent."
+      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids above the final price can claim tokens and withdraw their unspent #{symbol}; the rest can withdraw what was not spent."
 
   defp ended_copy(%{quote_token_symbol: symbol}),
     do:
-      "Bidding has ended. If the final count stays below the minimum, every bid returns its #{symbol} in full; if it reached the minimum, the trading pool opens once the auction is finished."
+      "Bidding has ended. If the final count stays below the minimum, every bidder can withdraw their whole bid in #{symbol}; if it reached the minimum, the trading pool opens once the auction is finished."
 
   # The auction with its FDV for the headline, and a graduated auction's token
   # row, when it exists, so the page can point at the pool that auction

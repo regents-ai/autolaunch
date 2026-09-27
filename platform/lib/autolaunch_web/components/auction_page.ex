@@ -201,9 +201,8 @@ defmodule AutolaunchWeb.Components.AuctionPage do
         <li>
           <h3>Claim your tokens and what you didn't spend</h3>
           <p>
-            When bidding ends, claim the tokens your bid bought; the part it didn't spend
-            comes back to you. If the auction doesn't reach its minimum, every bid comes
-            back in full.
+            When bidding ends, claim the tokens your bid bought, then withdraw the part it
+            didn't spend. If the auction doesn't reach its minimum, withdraw your whole bid.
           </p>
         </li>
       </ol>

@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
         Bids placed is everything bidders have put in. Sold so far is the part
         already spent on tokens: tokens are released a little every block until
         bidding ends, and each bid buys its share as they come. What a bid does
-        not spend goes back to the bidder.
+        not spend, the bidder can withdraw.
       </p>
       <progress
         class="raise-progress__bar"
@@ -165,7 +165,7 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
     do: required |> Decimal.new() |> Decimal.sub(Decimal.new(raised))
 
   defp outcome(:graduated), do: "The auction graduated."
-  defp outcome(:failed), do: "Every bidder can take back their full bid."
+  defp outcome(:failed), do: "Every bidder can withdraw their whole bid."
   defp outcome(_settling), do: "Bidding has ended."
 
   defp reached(_raised, percent) when percent >= 100, do: "Minimum reached."

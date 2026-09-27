@@ -150,18 +150,19 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   """
   def ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
     do:
-      "The auction raised its minimum. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
+      "The auction raised its minimum. Bids at or above the final price can claim tokens, and every bidder can withdraw the #{symbol} their bid did not spend."
 
   def ended_copy(%{state: :failed, quote_token_symbol: symbol}),
-    do: "The auction did not raise its minimum. Every bid gets its #{symbol} back in full."
+    do:
+      "The auction did not raise its minimum. Every bidder can withdraw their whole bid in #{symbol}."
 
   def ended_copy(%{state: :ended, minimum_reached: true, quote_token_symbol: symbol}),
     do:
-      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
+      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids at or above the final price can claim tokens, and every bidder can withdraw the #{symbol} their bid did not spend."
 
   def ended_copy(%{state: :ended, quote_token_symbol: symbol}),
     do:
-      "Bidding has ended. If the final count stays below the minimum, every bid gets its #{symbol} back in full; if it reached the minimum, the trading pool opens once the auction is finished."
+      "Bidding has ended. If the final count stays below the minimum, every bidder can withdraw their whole bid in #{symbol}; if it reached the minimum, the trading pool opens once the auction is finished."
 
   def ended_copy(_launch), do: nil
 

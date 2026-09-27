@@ -225,7 +225,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   form_id="stocks-terms"
                   param="required_raise"
                   label={"Required raise in #{symbol(@stock)}"}
-                  hint="The least the auction must raise. If bids fall short, every bid is refunded."
+                  hint="The least the auction must raise. If bids fall short, each bidder can withdraw their whole bid."
                   values={@draft_values}
                   errors={@draft_errors}
                 />

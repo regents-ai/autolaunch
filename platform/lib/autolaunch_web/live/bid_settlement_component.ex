@@ -334,7 +334,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         class="bid-settlement__note"
       >
         The auction for <span class="ticker">{@auction.token_symbol}</span>
-        did not meet its minimum raise. Your whole bid comes back in
+        did not meet its minimum raise. Withdraw your whole bid in
         <span class="ticker">{@auction.quote_token_symbol}</span>
         to the wallet above.
       </p>

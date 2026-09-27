@@ -130,7 +130,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
               {Amounts.grouped(argument(@operation, "required_stock_raised_units"))} {argument(
                 @operation,
                 "stock_symbol"
-              )}. If bids fall short, every bid is refundable.
+              )}. If bids fall short, each bidder can withdraw their whole bid.
             </dd>
           </div>
           <div>

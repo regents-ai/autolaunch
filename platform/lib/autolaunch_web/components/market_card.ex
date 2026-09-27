@@ -20,9 +20,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
   @tips %{
     fdv:
       "What the whole token supply is worth at the price bidders pay right now. It rises as bids push the price up.",
-    volume: "Everything bidders have put in so far, in dollars.",
+    volume: "Everything bidders have put in so far.",
     threshold:
-      "What the auction must raise for the token to launch, set by its creator. If it ends short, every bid is returned."
+      "What the auction must raise for the token to launch, set by its creator. If it ends short, every bidder can withdraw their whole bid."
   }
 
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
@@ -96,7 +96,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     >
       <.card_head view={@view} />
       <div class="home-coin__metric">
-        <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} fallback="-" /><span>Clearing price</span>
+        <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /><span>Clearing price</span>
       </div>
       <.card_links view={@view} />
       <div class="home-coin__figures">
@@ -112,7 +112,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
           </p>
           <p>
             <span>Launch threshold</span>
-            <.info_tip id={"threshold-#{@figures.id}"} text={tip(:threshold)} icon={false}>
+            <.info_tip
+              id={"threshold-#{@figures.id}"}
+              text={tip(:threshold, @figures.unpriced)}
+              icon={false}
+            >
               {@figures.threshold}
             </.info_tip>
           </p>
@@ -120,7 +124,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <p class="home-coin__floor">
           <span class="visually-hidden">FDV </span><.info_tip
             id={"fdv-#{@figures.id}"}
-            text={tip(:fdv)}
+            text={tip(:fdv, @figures.unpriced)}
             icon={false}
           >
             {@figures.fdv}
@@ -195,10 +199,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   def explore_card(%{kind: :token} = assigns) do
+    view = view(:token, assigns.record, assigns.creator_connections)
+
     assigns =
       assign(assigns,
-        view: view(:token, assigns.record, assigns.creator_connections),
-        market_cap: dollars(assigns.record.market_cap, assigns.rate)
+        view: view,
+        market_cap:
+          money(assigns.record.market_cap, assigns.rate, view.metric.unit) || "No price yet"
       )
 
     ~H"""
@@ -454,6 +461,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp tip(figure), do: Map.fetch!(@tips, figure)
 
+  # A figure shown in its own currency says why it is not in dollars.
+  defp tip(figure, nil), do: tip(figure)
+
+  defp tip(figure, unit),
+    do:
+      "#{tip(figure)} There is no dollar price for #{unit} right now, so it is shown in #{unit}."
+
   attr :auction, :map, required: true
   attr :rate, :any, default: nil
 
@@ -531,10 +545,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :rate, :any, default: nil
 
   defp token_list_row(assigns) do
+    view = view(:token, assigns.token, %{})
+
     assigns =
       assign(assigns,
-        view: view(:token, assigns.token, %{}),
-        market_cap: dollars(assigns.token.market_cap, assigns.rate)
+        view: view,
+        market_cap:
+          money(assigns.token.market_cap, assigns.rate, view.metric.unit) || "No price yet"
       )
 
     ~H"""
@@ -630,7 +647,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     <span :if={@usd && @shown != @usd}>
       <span aria-hidden="true">{@shown}</span><span class="visually-hidden">{@usd}</span>
     </span>
-    <TokenDisplay.price :if={!@usd} amount={@amount} unit={@unit} fallback="-" />
+    <TokenDisplay.price :if={!@usd} amount={@amount} unit={@unit} />
     """
   end
 
@@ -669,10 +686,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def figure_rate(_rates, _auction), do: nil
 
   defp figures(auction, rate) do
+    unit = auction.quote_token_symbol
+
     %{
-      fdv: dollars(auction.fdv, rate),
-      volume: dollars(auction.bid_volume_usd, 1),
-      threshold: dollars(AuctionFigures.minimum(auction), rate),
+      fdv: money(auction.fdv, rate, unit) || "No price yet",
+      volume:
+        money(auction.bid_volume_usd, Decimal.new(1)) || money(auction.bid_volume, nil, unit) ||
+          "Not counted yet",
+      threshold: money(AuctionFigures.minimum(auction), rate, unit),
+      unpriced: if(is_nil(rate), do: unit),
       met: AuctionFigures.percent_met(auction),
       progress: time_progress(auction),
       opens_at: live_open(auction),
@@ -685,12 +707,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   # Dollar figures are shortened the way market lists write them, to three
   # significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M.
-  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
+  defp dollars(%Decimal{} = amount, rate) do
     value = Decimal.mult(amount, rate)
     if Decimal.eq?(value, 0), do: "$0", else: "$" <> compact(value)
   end
 
-  defp dollars(_amount, _rate), do: "-"
+  # An amount in dollars where its currency's dollar price is known, otherwise
+  # in the currency itself; nil while the amount is not known.
+  defp money(amount, rate, unit \\ nil)
+  defp money(nil, _rate, _unit), do: nil
+  defp money(%Decimal{} = amount, nil, unit), do: String.trim("#{compact(amount)} #{unit}")
+  defp money(%Decimal{} = amount, rate, _unit), do: dollars(amount, rate)
 
   @doc "An amount shortened to three significant digits: 0.0000123, 1.48, 24.7K, 1.48M."
   def compact(value) do
@@ -1238,13 +1265,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp ago(at), do: if(age = relative_age(at), do: "#{age} ago")
 
-  # Once bidding is over an auction counts from its end; before that, from
-  # when it was listed.
-  defp auction_age(%{estimated_end_at: %DateTime{} = end_at} = auction) do
-    if DateTime.after?(DateTime.utc_now(), end_at),
-      do: "Ended #{ago(end_at)}",
-      else: listed_age(auction)
-  end
+  # Once its lifecycle says bidding is over an auction counts from its end;
+  # before that, from when it was listed.
+  defp auction_age(%{state: state, estimated_end_at: %DateTime{} = end_at})
+       when state in [:ended, :graduated, :failed],
+       do: "Ended #{ago(end_at)}"
 
   defp auction_age(auction), do: listed_age(auction)
 
