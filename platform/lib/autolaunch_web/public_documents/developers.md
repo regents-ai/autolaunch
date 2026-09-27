@@ -39,10 +39,10 @@ The two lists take the website's filters as query parameters: `q` (search), `sta
 A refused request keeps its HTTP status and answers with a code, a message and a hint saying what to do next:
 
 ```json
-{"error": {"code": "invalid_request", "message": "The query parameters are invalid.", "hint": "Check the request against {{origin}}/openapi.json. An unknown parameter or value is refused."}}
+{"error": {"code": "invalid_request", "message": "The query parameters are invalid.", "hint": "Check the request against {{origin}}/openapi.json. An unknown parameter or value is refused. Sending the same request again will not help."}}
 ```
 
-An unknown parameter or value is refused with a 400, never ignored. A figure the site has not recorded yet is `null`, and `unavailable` says why.
+An unknown parameter or value is refused with a 400, never ignored. A bid estimate answers 400 `invalid_request` for a body without exactly `amount` and `max_price`, 404 `not_found` for an id that names no auction this site created, 422 `invalid_amount` or `invalid_max_price` for a value that is not a plain decimal string greater than zero, and 500 `internal_error` when the site cannot read the auction; only the 500 is worth retrying. A figure the site has not recorded yet is `null`, and `unavailable` says why.
 
 ## In the browser (WebMCP)
 

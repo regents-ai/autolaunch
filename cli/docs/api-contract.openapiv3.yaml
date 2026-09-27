@@ -252,7 +252,7 @@ paths:
     post:
       operationId: quoteAuctionBid
       summary: Estimate a bid
-      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns.
+      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns. An id that names no auction this site created, including a Robinhood auction, answers 404.
       security: []
       parameters:
         - {$ref: "#/components/parameters/AuctionId"}
@@ -269,6 +269,8 @@ paths:
               schema: {$ref: "#/components/schemas/AuctionBidQuoteEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/InvalidBidInput"}
+        "500": {$ref: "#/components/responses/InternalError"}
   /api/v1/tokens:
     get:
       operationId: listTokens
@@ -402,7 +404,7 @@ components:
           schema: {$ref: "#/components/schemas/ApiError"}
           examples:
             invalidQuery:
-              value: {error: {code: invalid_request, message: The query parameters are invalid., hint: Check the request against https://autolaunch.sh/openapi.json. An unknown parameter or value is refused.}}
+              value: {error: {code: invalid_request, message: The query parameters are invalid., hint: Check the request against https://autolaunch.sh/openapi.json. An unknown parameter or value is refused. Sending the same request again will not help.}}
     NotFound:
       description: The requested public record was not found
       content:
@@ -410,7 +412,15 @@ components:
           schema: {$ref: "#/components/schemas/NotFoundApiError"}
           examples:
             notFound:
-              value: {error: {code: not_found, message: Auction not found., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json.}}
+              value: {error: {code: not_found, message: Auction not found., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json. Sending the same request again will not help.}}
+    InvalidBidInput:
+      description: The body has the right fields, but amount or max_price is not a plain decimal string greater than zero. The code names which; amount is checked first.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/InvalidBidInputApiError"}
+          examples:
+            invalidAmount:
+              value: {error: {code: invalid_amount, message: "amount must be a plain decimal string greater than zero, such as \"12.5\".", hint: "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."}}
     InternalError:
       description: The request could not be completed
       content:
@@ -682,5 +692,18 @@ components:
           required: [code, message, hint]
           properties:
             code: {type: string, enum: [not_found]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    InvalidBidInputApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [invalid_amount, invalid_max_price]}
             message: {type: string}
             hint: {type: string, description: What to do next.}
