@@ -35,6 +35,7 @@ defmodule Autolaunch.TokenHoldings do
           staked: String.t(),
           claimable: [claimable()],
           unit: String.t(),
+          address: String.t(),
           token: Token.t() | nil
         }
 
@@ -247,6 +248,7 @@ defmodule Autolaunch.TokenHoldings do
         staked: shown(position.staked),
         claimable: claimable,
         unit: pool.currency.symbol,
+        address: pool.token.address,
         token: token
       }
     end

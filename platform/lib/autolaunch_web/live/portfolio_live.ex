@@ -14,6 +14,13 @@ defmodule AutolaunchWeb.PortfolioLive do
   after the page; under a bid that is outbid or sharing at the price, the
   early return says when its unspent money can come back, as on the auction
   page.
+
+  The stored bids, the tokens, the Robinhood bids and the price books are
+  four reads, each with its own outcome: the page says while any is still
+  running, when the last complete set was read, and which part could not be
+  read, keeping that part's previous result marked with its time. One set of
+  reads runs at a time; a reason to read again while one runs reads once more
+  after it.
   """
 
   use AutolaunchWeb, :live_view
@@ -30,6 +37,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   import AutolaunchWeb.Components.SwapModal
 
+  alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.AuctionBook
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
@@ -45,35 +53,27 @@ defmodule AutolaunchWeb.PortfolioLive do
     UsdValue
   }
 
+  alias Phoenix.LiveView.AsyncResult
+
   @history ~w(claimed returned)
   @robinhood_history [:returned, :claimed]
+  @chain_reads [:token_holdings, :robinhood_positions, :books]
 
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(
-       refreshed_at: nil,
-       status: :ready,
-       positions: [],
-       token_holdings: :loading,
-       robinhood_positions: :loading,
-       books: %{},
-       dialog: nil,
        robinhood_swap?: RobinhoodLab.swap_configured?(),
        market: LabMarket.subscribe(socket)
      )
+     |> clear_wallet_state()
      |> assign_figure_rates()
-     |> load_signed_in_holdings()}
+     |> read_holdings()}
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  def handle_event("refresh", _params, socket) do
-    socket = load_signed_in_holdings(socket)
-
-    {:noreply,
-     assign(socket, :refreshed_at, if(socket.assigns.status == :ready, do: DateTime.utc_now()))}
-  end
+  def handle_event("refresh", _params, socket), do: {:noreply, request_reads(socket)}
 
   # Each dialog is named by the record its form acts on; the dialog's own
   # close names the same record.
@@ -111,47 +111,69 @@ defmodule AutolaunchWeb.PortfolioLive do
     market = LabMarket.snapshot()
 
     if market.generation > socket.assigns.market.generation,
-      do: {:noreply, socket |> assign(:market, market) |> load_signed_in_holdings()},
+      do: {:noreply, socket |> assign(:market, market) |> request_reads()},
       else: {:noreply, socket}
   end
 
   # A settlement card verified a step, so the stored position changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
-    do: {:noreply, load_signed_in_holdings(socket)}
+    do: {:noreply, request_reads(socket)}
 
   def handle_info({:stake_claimed_tokens, path}, socket),
     do: {:noreply, push_navigate(socket, to: path)}
 
   # A swap confirmed, so the wallets hold something else now.
-  def handle_info(:reload_pool, socket), do: {:noreply, load_signed_in_holdings(socket)}
+  def handle_info(:reload_pool, socket), do: {:noreply, request_reads(socket)}
 
-  def handle_async(:token_holdings, {:ok, {:ok, holdings}}, socket),
-    do: {:noreply, assign(socket, :token_holdings, holdings)}
+  def handle_async(key, {:ok, {:ok, rows}}, socket)
+      when key in [:token_holdings, :robinhood_positions],
+      do: {:noreply, socket |> read_ok(key, rows) |> read_queued()}
 
-  def handle_async(:token_holdings, _failed, socket),
-    do: {:noreply, assign(socket, :token_holdings, :error)}
+  def handle_async(key, failed, socket) when key in [:token_holdings, :robinhood_positions],
+    do: {:noreply, socket |> read_failed(key, failed) |> read_queued()}
 
-  def handle_async(:robinhood_positions, {:ok, {:ok, positions}}, socket),
-    do: {:noreply, assign(socket, :robinhood_positions, positions)}
+  def handle_async(:books, {:ok, reads}, socket),
+    do:
+      {:noreply,
+       socket |> read_ok(:books, merge_books(socket.assigns.books.result, reads)) |> read_queued()}
 
-  def handle_async(:robinhood_positions, _failed, socket),
-    do: {:noreply, assign(socket, :robinhood_positions, :error)}
+  def handle_async(:books, failed, socket) do
+    books = socket.assigns.books
 
-  def handle_async(:books, {:ok, books}, socket), do: {:noreply, assign(socket, :books, books)}
-  def handle_async(:books, _failed, socket), do: {:noreply, socket}
+    {:noreply,
+     socket
+     |> assign(:books, AsyncResult.failed(%{books | result: stale_books(books.result)}, failed))
+     |> read_queued()}
+  end
 
   def render(assigns) do
-    {history, current} = Enum.split_with(assigns.positions, &(&1.status in @history))
-    robinhood = if is_list(assigns.robinhood_positions), do: assigns.robinhood_positions, else: []
+    positions = assigns.bids.result || []
+    {history, current} = Enum.split_with(positions, &(&1.status in @history))
+    robinhood = assigns.robinhood_positions.result || []
     {robinhood_history, robinhood_current} = Enum.split_with(robinhood, &past_robinhood?/1)
+    robinhood? = RobinhoodLab.configured?()
+
+    reads =
+      [:bids, :token_holdings, :books] ++ if(robinhood?, do: [:robinhood_positions], else: [])
+
+    refreshing? = Enum.any?(reads, &assigns[&1].loading)
+    complete? = Enum.all?(reads, &read?(assigns[&1]))
 
     assigns =
       assign(assigns,
+        positions: positions,
         history: history,
         current: Enum.sort_by(current, &(&1.status == "active")),
         robinhood_history: robinhood_history,
         robinhood_current: Enum.sort_by(robinhood_current, &(robinhood_action(&1) == nil)),
-        robinhood?: Autolaunch.Robinhood.Lab.configured?(),
+        robinhood?: robinhood?,
+        refreshing?: refreshing?,
+        incomplete?: Enum.any?(reads, &assigns[&1].failed),
+        updated_at:
+          if(complete? && !refreshing?,
+            do: assigns.read_at |> Map.take(reads) |> Map.values() |> Enum.min(DateTime)
+          ),
+        holdings: assigns.token_holdings.result || [],
         opens: opens(),
         signed_in?: assigns.account_control.kind == :signed_in,
         human_id: current_human_id(assigns.access_context)
@@ -171,8 +193,13 @@ defmodule AutolaunchWeb.PortfolioLive do
         </Regent.Primitives.button>
       </header>
       <p class="memestock__hint portfolio__lede">
-        Bids and tokens from your verified wallets.<span :if={@refreshed_at} role="status">
-          Updated {Calendar.strftime(@refreshed_at, "%H:%M UTC")}.
+        Bids and tokens from your verified wallets.<span
+          :if={@account_control.kind != :sign_in}
+          role="status"
+        >
+          <span :if={@refreshing?}>Refreshing.</span>
+          <span :if={@updated_at}>Updated {Calendar.strftime(@updated_at, "%H:%M UTC")}.</span>
+          <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
         </span>
         <span :if={@opens && @account_control.kind != :sign_in}>
           Bidding and trading open {@opens}.
@@ -193,23 +220,18 @@ defmodule AutolaunchWeb.PortfolioLive do
         <.link navigate="/">Keep exploring</.link>
       </section>
 
-      <p
-        :if={@account_control.kind != :sign_in && @status == :error}
-        class="autolaunch-empty"
-        role="alert"
-      >
-        Your portfolio is unavailable right now.
-      </p>
-
       <section
-        :if={@account_control.kind != :sign_in && @status == :ready}
+        :if={@account_control.kind != :sign_in}
         id="autolaunch-bid-positions"
         class="portfolio__section"
         aria-labelledby="portfolio-bids-title"
       >
         <h2 id="portfolio-bids-title" class="portfolio__title">Your bids</h2>
+        <.read_note read={@bids} read_at={@read_at[:bids]} subject="Your bids" />
         <div
-          :if={@current != [] || @robinhood_current != [] || @robinhood_positions == :loading}
+          :if={
+            @current != [] || @robinhood_current != [] || unread?(@robinhood?, @robinhood_positions)
+          }
           class="market-list__scroll"
         >
           <table class="market-list__table portfolio__table">
@@ -218,7 +240,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             <.base_bid
               :for={position <- @current}
               position={position}
-              book={@books[position.auction.id]}
+              price={@books.result[position.auction.id]}
               rates={@rates}
               opens={@opens}
               signed_in?={@signed_in?}
@@ -231,18 +253,24 @@ defmodule AutolaunchWeb.PortfolioLive do
               rates={@rates}
               opens={@opens}
             />
-            <tbody :if={@robinhood? && @robinhood_positions == :loading}>
+            <tbody :if={unread?(@robinhood?, @robinhood_positions)}>
               <tr class="market-list__skeleton" aria-hidden="true">
                 <td colspan="5"></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p :if={@robinhood? && @robinhood_positions == :error} class="memestock__hint" role="alert">
-          Your Robinhood bids are unavailable right now.
-        </p>
+        <.read_note
+          :if={@robinhood?}
+          read={@robinhood_positions}
+          read_at={@read_at[:robinhood_positions]}
+          subject="Your Robinhood bids"
+        />
         <div
-          :if={@current == [] && @robinhood_current == [] && @robinhood_positions != :loading}
+          :if={
+            read?(@bids) && @current == [] &&
+              (!@robinhood? || (read?(@robinhood_positions) && @robinhood_current == []))
+          }
           class="market-list__scroll market-list__empty"
         >
           <h2>No open bids</h2>
@@ -281,17 +309,19 @@ defmodule AutolaunchWeb.PortfolioLive do
       </section>
 
       <section
-        :if={@account_control.kind != :sign_in && @status == :ready}
+        :if={@account_control.kind != :sign_in}
         id="autolaunch-held-tokens"
         class="portfolio__section"
         aria-labelledby="portfolio-tokens-title"
       >
         <h2 id="portfolio-tokens-title" class="portfolio__title">Your tokens</h2>
-        <p :if={@token_holdings == :error} class="memestock__hint" role="alert">
-          Your token balances are unavailable right now.
-        </p>
+        <.read_note
+          read={@token_holdings}
+          read_at={@read_at[:token_holdings]}
+          subject="Your token balances"
+        />
         <div
-          :if={@token_holdings == :loading || (is_list(@token_holdings) && @token_holdings != [])}
+          :if={@holdings != [] || unread?(true, @token_holdings)}
           class="market-list__scroll"
         >
           <table class="market-list__table portfolio__table portfolio__table--tokens">
@@ -305,23 +335,23 @@ defmodule AutolaunchWeb.PortfolioLive do
               </tr>
             </thead>
             <.holding
-              :for={
-                {holding, index} <-
-                  Enum.with_index(if is_list(@token_holdings), do: @token_holdings, else: [])
-              }
-              id={"portfolio-token-#{index}"}
+              :for={holding <- @holdings}
+              id={"portfolio-token-#{holding.chain}-#{holding.address}"}
               holding={holding}
               robinhood_swap?={@robinhood_swap?}
               opens={@opens}
             />
-            <tbody :if={@token_holdings == :loading}>
+            <tbody :if={unread?(true, @token_holdings)}>
               <tr class="market-list__skeleton" aria-hidden="true">
                 <td colspan="4"></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div :if={@token_holdings == []} class="market-list__scroll market-list__empty">
+        <div
+          :if={read?(@token_holdings) && @holdings == []}
+          class="market-list__scroll market-list__empty"
+        >
           <h2>No tokens yet</h2>
           <p>Tokens held or staked by your verified wallets will appear here.</p>
           <.link navigate="/tokens" class="rg-button rg-button--secondary">Explore tokens</.link>
@@ -332,7 +362,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         dialog={@dialog}
         positions={@positions}
         robinhood={@robinhood_current ++ @robinhood_history}
-        holdings={if is_list(@token_holdings), do: @token_holdings, else: []}
+        holdings={@holdings}
         market={@market}
         signed_in?={@signed_in?}
         human_id={@human_id}
@@ -357,7 +387,11 @@ defmodule AutolaunchWeb.PortfolioLive do
   end
 
   attr :position, :map, required: true, doc: "a stored Base bid with its auction and token"
-  attr :book, :map, default: nil, doc: "its auction's price book, once read"
+
+  attr :price, :map,
+    default: nil,
+    doc: "its auction's price book read: `%{book: book | nil, fresh?: boolean}`, nil before one"
+
   attr :rates, :any, required: true
   attr :opens, :string, default: nil
   attr :signed_in?, :boolean, required: true
@@ -369,9 +403,11 @@ defmodule AutolaunchWeb.PortfolioLive do
   # Bid more while bidding is open; under a bid that is outbid or sharing at
   # the price, its early return.
   defp base_bid(assigns) do
-    %{position: position, book: book} = assigns
+    %{position: position, price: price} = assigns
     auction = position.auction
     live? = auction.state == :active
+    book = price && price.book
+    standing = if(live? && book, do: AuctionBook.bid_standing(position, auction, book))
 
     assigns =
       assign(assigns,
@@ -384,7 +420,9 @@ defmodule AutolaunchWeb.PortfolioLive do
         rate: figure_rate(assigns.rates, auction),
         settle: settle_label(position),
         live?: live?,
-        standing: if(live? && book, do: AuctionBook.bid_standing(position, auction, book))
+        book: book,
+        standing: standing,
+        is: base_standing(position, standing, price)
       )
 
     ~H"""
@@ -414,7 +452,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               {@settle}
             </Regent.Primitives.button>
-            <.standing :if={!@settle} is={base_standing(@position, @standing)} />
+            <.standing :if={!@settle} is={@is} />
             <Regent.Primitives.button
               :if={@live?}
               variant="secondary"
@@ -727,21 +765,30 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp past_robinhood?(%{standing: standing}), do: standing in @robinhood_history
 
   # Where a Base bid stands: against its auction's price while bidding is
-  # open and the book has been read, otherwise from its stored settlement.
-  defp base_standing(%{status: "active"}, standing) when standing != nil,
+  # open and the book has been read (marked when that read is an earlier
+  # one), otherwise from its stored settlement.
+  defp base_standing(%{status: "active"}, standing, %{fresh?: true}) when standing != nil,
     do: book_standing(standing)
 
-  defp base_standing(%{status: "active", auction: %{state: :active}}, nil),
+  defp base_standing(%{status: "active"}, standing, _price) when standing != nil do
+    {words, tone} = book_standing(standing)
+    {words <> " · may be out of date", tone}
+  end
+
+  defp base_standing(%{status: "active", auction: %{state: :active}}, nil, %{book: nil}),
+    do: {"Price unavailable", "neutral"}
+
+  defp base_standing(%{status: "active", auction: %{state: :active}}, nil, _price),
     do: {"In the auction", "info"}
 
-  defp base_standing(%{status: "active"}, nil), do: {"Bidding ended", "neutral"}
-  defp base_standing(%{status: "claimed"}, _standing), do: {"Completed", "success"}
+  defp base_standing(%{status: "active"}, nil, _price), do: {"Bidding ended", "neutral"}
+  defp base_standing(%{status: "claimed"}, _standing, _price), do: {"Completed", "success"}
 
-  defp base_standing(%{status: "returned", tokens_filled: filled}, _standing)
+  defp base_standing(%{status: "returned", tokens_filled: filled}, _standing, _price)
        when is_binary(filled) and filled not in ["", "0"],
        do: {"Tokens claimable soon", "info"}
 
-  defp base_standing(%{status: "returned"}, _standing), do: {"Completed", "success"}
+  defp base_standing(%{status: "returned"}, _standing, _price), do: {"Completed", "success"}
 
   # Where a Robinhood bid stands, in the auction's own terms.
   defp robinhood_standing(%{standing: standing}) when standing in [:in, :sharing, :outbid],
@@ -778,47 +825,107 @@ defmodule AutolaunchWeb.PortfolioLive do
     """
   end
 
-  defp load_signed_in_holdings(socket) do
-    case human_actor(socket.assigns.access_context) do
-      nil ->
-        assign(socket, status: :ready, positions: [])
+  attr :read, AsyncResult, required: true
+  attr :read_at, DateTime, default: nil
+  attr :subject, :string, required: true, doc: "what the read is, as the note's subject"
 
-      actor ->
-        socket = read_chain_holdings(socket, actor)
+  # A part of the page that could not be read: unavailable when it never has
+  # been, otherwise kept from its last read with that read's time.
+  defp read_note(assigns) do
+    ~H"""
+    <p :if={@read.failed && is_nil(@read.result)} class="memestock__hint" role="alert">
+      {@subject} are unavailable right now.
+    </p>
+    <p :if={@read.failed && @read.result} class="memestock__hint" role="alert">
+      {@subject} could not be updated just now. These are from {Calendar.strftime(
+        @read_at,
+        "%H:%M UTC"
+      )}.
+    </p>
+    """
+  end
 
-        case Autolaunch.list_my_bid_positions(actor: actor) do
-          {:ok, positions} ->
-            socket |> assign(status: :ready, positions: positions) |> read_books(positions)
+  defp read?(read), do: read.ok? and is_nil(read.failed)
 
-          {:error, _error} ->
-            assign(socket, status: :error, positions: [])
-        end
+  # A read shown for the first time: its rows are still on their way.
+  defp unread?(shown?, read), do: shown? and read.loading != nil and is_nil(read.result)
+
+  # Nothing from a previous account or session outlives it: running reads
+  # stop and every result starts empty.
+  defp clear_wallet_state(socket) do
+    @chain_reads
+    |> Enum.reduce(socket, &cancel_async(&2, &1))
+    |> assign(
+      bids: %AsyncResult{},
+      token_holdings: %AsyncResult{},
+      robinhood_positions: %AsyncResult{},
+      books: %AsyncResult{},
+      read_at: %{},
+      queued?: false,
+      dialog: nil
+    )
+  end
+
+  # The signed-in account's bids and tokens, while its session holds. A
+  # session that has lapsed since the page opened shows nothing of it and
+  # opens the page again as the session now stands.
+  defp read_holdings(socket) do
+    actor = human_actor(socket.assigns.access_context)
+
+    cond do
+      is_nil(actor) ->
+        clear_wallet_state(socket)
+
+      connected?(socket) and not leased?(socket.assigns) ->
+        socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
+
+      true ->
+        socket |> read_bids(actor) |> read_chain(actor)
+    end
+  end
+
+  defp leased?(%{session_lease: %{lineage: lineage, account_id: account_id}}),
+    do: SessionAuthority.leased_account(lineage, account_id) != nil
+
+  defp leased?(_assigns), do: false
+
+  defp read_bids(socket, actor) do
+    case Autolaunch.list_my_bid_positions(actor: actor) do
+      {:ok, positions} -> socket |> read_ok(:bids, positions) |> read_books(positions)
+      {:error, reason} -> read_failed(socket, :bids, reason)
     end
   end
 
   # The price books of the auctions still taking bids that the open Base bids
-  # are in; a book that cannot be read leaves its bids' standing unread.
+  # are in; each book's read is kept on its own.
   defp read_books(socket, positions) do
     auctions =
       for %{status: "active", auction: %{state: :active} = auction} <- positions,
           uniq: true,
           do: auction
 
-    if connected?(socket),
-      do: start_async(socket, :books, fn -> books(auctions) end),
-      else: socket
-  end
+    cond do
+      not connected?(socket) ->
+        socket
 
-  defp books(auctions) do
-    for auction <- auctions,
-        {:ok, book} <- [AuctionBook.base(auction)],
-        into: %{},
-        do: {auction.id, book}
+      auctions == [] ->
+        read_ok(socket, :books, %{})
+
+      true ->
+        socket
+        |> assign(:books, AsyncResult.loading(socket.assigns.books))
+        |> start_async(:books, fn -> Map.new(auctions, &{&1.id, AuctionBook.base(&1)}) end)
+    end
   end
 
   # Wallet balances and Robinhood bids come from the chain, so they arrive
-  # after the page.
-  defp read_chain_holdings(socket, actor) do
+  # after the page; the first paint shows them as on their way.
+  defp read_chain(socket, actor) do
+    socket =
+      socket
+      |> assign(:token_holdings, AsyncResult.loading(socket.assigns.token_holdings))
+      |> assign(:robinhood_positions, AsyncResult.loading(socket.assigns.robinhood_positions))
+
     if connected?(socket),
       do:
         socket
@@ -826,4 +933,42 @@ defmodule AutolaunchWeb.PortfolioLive do
         |> start_async(:robinhood_positions, fn -> RobinhoodPositions.read(actor) end),
       else: socket
   end
+
+  # While a set of reads runs, another reason to read waits for it and
+  # reads once after it, however many arrive.
+  defp request_reads(socket) do
+    if Enum.any?(@chain_reads, &socket.assigns[&1].loading),
+      do: assign(socket, :queued?, true),
+      else: read_holdings(socket)
+  end
+
+  defp read_queued(%{assigns: %{queued?: true}} = socket) do
+    if Enum.any?(@chain_reads, &socket.assigns[&1].loading),
+      do: socket,
+      else: socket |> assign(:queued?, false) |> read_holdings()
+  end
+
+  defp read_queued(socket), do: socket
+
+  defp read_ok(socket, key, value) do
+    socket
+    |> assign(key, AsyncResult.ok(socket.assigns[key], value))
+    |> assign(:read_at, Map.put(socket.assigns.read_at, key, DateTime.utc_now()))
+  end
+
+  defp read_failed(socket, key, reason),
+    do: assign(socket, key, AsyncResult.failed(socket.assigns[key], reason))
+
+  # Each auction's book from this read, or its last one marked as earlier.
+  defp merge_books(previous, reads) do
+    Map.new(reads, fn
+      {id, {:ok, book}} -> {id, %{book: book, fresh?: true}}
+      {id, _failed} -> {id, %{book: previous && get_in(previous, [id, :book]), fresh?: false}}
+    end)
+  end
+
+  defp stale_books(nil), do: nil
+
+  defp stale_books(books),
+    do: Map.new(books, fn {id, entry} -> {id, %{entry | fresh?: false}} end)
 end
