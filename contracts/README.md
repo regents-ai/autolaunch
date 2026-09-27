@@ -15,8 +15,8 @@ contracts set and every one the launcher chooses.
 
 | Project | What it is | Chain | Status on 23 September 2026 | Verify |
 | --- | --- | --- | --- | --- |
-| [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | **Deployed** on Base on 22 September 2026 (eight contracts, verified on Basescan); launches paused until the Governance and Regent Safe calls `unpauseLaunches()` | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
-| [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | **Deployed** on Base on 23 September 2026 (launchpad, bid adapter, hook, locker, splitter implementation); ten stocks admitted with `AerodromeStockRouteV2` routes and the hook executor set by the Safe; launches paused until `unpauseLaunches()` | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
+| [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | **Deployed** on Base on 22 September 2026 (eight contracts, verified on Basescan); launches open since 24 September 2026 | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
+| [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | **Deployed** on Base on 23 September 2026 (launchpad, bid adapter, hook, locker, splitter implementation); ten stocks admitted with `AerodromeStockRouteV2` routes and the hook executor set by the Safe; launches open since 24 September 2026 | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
 | [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | **Deployed** on 23–24 September 2026 (launchpad graph, 25 `UniswapV3StockRouteV1` routes, the Base receiver; addresses in `robinhood/deployments/robinhood-mainnet/deployed-manifest.json`); no stock admitted yet; launches paused until the admin Safe admits the stocks and calls `unpauseLaunches()` | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
 | [revenue-mesh/](revenue-mesh/README.md) | Immutable USDC payment routes over Circle CCTP from other chains into a Base `PaymentReceiverV1` | Source chains into Base | **Experimental.** Not deployed and not on the launch path | `cd revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
 
@@ -72,8 +72,8 @@ Ours (this repository):
 
 Deployed 22 September 2026 by deployer `0x9b2C414614aEE294202c1219520955EF3B596031`, nonces 0–4,
 packet digest `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`. Record:
-[v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md). `launchesPaused()` reads
-`true`.
+[v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md). `launchesPaused()` read
+`false` at Base block 51,875,928 (27 September 2026): launches are open.
 
 | Contract | Address |
 | --- | --- |
@@ -91,7 +91,7 @@ packet digest `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f3532
 Deployed 23 September 2026 by the same deployer, nonces 5–16, packet digest
 `0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5`. Record:
 [stocks/deployments/base-mainnet/](stocks/deployments/base-mainnet/README.md). `launchesPaused()`
-reads `true`; `executor()` on the hook reads `0x72E2FB09147d3E6E5c9F44A4E127E6321e022045`.
+read `false` at Base block 51,875,928 (27 September 2026): launches are open. `executor()` on the hook reads `0x72E2FB09147d3E6E5c9F44A4E127E6321e022045`.
 
 | Contract | Address |
 | --- | --- |
@@ -222,8 +222,9 @@ hand; no key, endpoint or credential appears in this repository.
    approved its digest, `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`, and
    sent the five creations on 22 September 2026 (Base blocks 51660956–51661052);
    `bin/ceremony.py record` proved the receipts against the packet and wrote the deployed manifest,
-   and `bin/ceremony.py site-config` renders the website's deployment file from it. The factory is
-   born paused: opening it is a later `unpauseLaunches()` from the Governance and Regent Safe.
+   and `bin/ceremony.py site-config` renders the website's deployment file from it. The factory was
+   born paused; the Governance and Regent Safe's `unpauseLaunches()` opened it, and launches have
+   been open since 24 September 2026.
 2. **Base Memestake next** ([stocks/deployments/base-mainnet/](stocks/deployments/base-mainnet/README.md)).
    Twelve zero-value creations from the same deployer (nonces 5–16): `StocksLaunchpadV1` (creating
    its splitter implementation, `MemestockLPLocker` and `StocksFeeHookV1`), `StockBidAdapterV1`, and
@@ -234,7 +235,8 @@ hand; no key, endpoint or credential appears in this repository.
    receipts and wrote the deployed manifest. On the same day ten `AerodromeStockRouteV2` routes
    were created by hand from the deployer, the Safe admitted each stock with its V2 route in one
    transaction (block 51698209), and the hook's `executor()` now reads the account the Safe named.
-   The launchpad stays paused until the Safe's `unpauseLaunches()` at website activation.
+   The Safe's `unpauseLaunches()` opened the launchpad at website activation; launches have been
+   open since 24 September 2026.
 3. **Robinhood as its own track** ([robinhood/deployments/robinhood-mainnet/](robinhood/deployments/robinhood-mainnet/README.md)).
    Six creations on Robinhood Chain (`UERC20Factory`, the revenue inbox, the positions library,
    the hook factory, the launchpad and the bid adapter), 25 `UniswapV3StockRouteV1` routes, and
