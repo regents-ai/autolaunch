@@ -14,7 +14,7 @@ library StocksPreset {
     // Founder decision 2026-09-09
     uint8 internal constant NEW_DECIMALS = 18;
 
-    /// @notice `S0`. Divisible by five; below the CCA `MAX_TOTAL_SUPPLY` (1 << 100).
+    /// @notice `S0`. Even; below the CCA `MAX_TOTAL_SUPPLY` (1 << 100).
     // Founder decision 2026-09-09
     uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
 
