@@ -177,7 +177,8 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> Map.put("servers", [%{"url" => url("")}])
     |> Map.put("externalDocs", %{
       "url" => url("/docs"),
-      "description" => "Developer guide: errors, and the versioning and deprecation policy"
+      "description" =>
+        "Developer guide: errors, rate limits, and the versioning and deprecation policy"
     })
     |> put_in(["info", "termsOfService"], url("/terms"))
   end

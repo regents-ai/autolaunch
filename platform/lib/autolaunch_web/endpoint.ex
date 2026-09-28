@@ -43,6 +43,11 @@ defmodule AutolaunchWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # One budget per client address, shared by the health check and every /api
+  # address, answered or not. Every answer says what is left of it; past it the
+  # answer is 429 with Retry-After.
+  plug :limit_rate
+
   plug AutolaunchWeb.Prelaunch
 
   # Before the parsers, so a body they refuse on an /api address is answered
@@ -62,4 +67,20 @@ defmodule AutolaunchWeb.Endpoint do
   plug AutolaunchWeb.Plugs.LaunchImage
   plug AutolaunchWeb.Plugs.RuntimeSession
   plug AutolaunchWeb.Router
+
+  @rate_limit RegentAgentAccess.RateLimit.init(
+                policy: "default",
+                limit: 120,
+                window: 60,
+                admit: &Autolaunch.Accounts.RequestRateLimiter.admit/3,
+                key: &AutolaunchWeb.ClientAddress.key/1
+              )
+
+  defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),
+    do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
+
+  defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
+    do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
+
+  defp limit_rate(conn, _opts), do: conn
 end

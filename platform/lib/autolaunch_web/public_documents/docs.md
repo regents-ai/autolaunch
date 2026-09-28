@@ -42,9 +42,20 @@ A refused request keeps its HTTP status and answers with a code, a message and a
 
 `code` is stable and meant for programs, `message` says what went wrong and `hint` says what to do next. Branch on the status and the `code`, never on the wording of `message`. The `/api/v1/profile` answers carry the `code` alone, for example `authentication_required` or `profile_not_created`.
 
-An unknown parameter or value is refused with a 400, never ignored. A bid estimate answers 400 `invalid_request` for a body without exactly `amount` and `max_price`, 404 `not_found` for an id that names no auction this site created, 422 `invalid_amount` or `invalid_max_price` for a value that is not a plain decimal string greater than zero, and 500 `internal_error` when the site cannot read the auction; only the 500 is worth retrying. `GET /api/v1/me/positions` answers 401 `authentication_required` when nobody is signed in, and 503 `chain_unavailable` when the chain could not be read. A figure the site has not recorded yet is `null`, and `unavailable` says why.
+An unknown parameter or value is refused with a 400, never ignored. A bid estimate answers 400 `invalid_request` for a body without exactly `amount` and `max_price`, 404 `not_found` for an id that names no auction this site created, 422 `invalid_amount` or `invalid_max_price` for a value that is not a plain decimal string greater than zero, and 500 `internal_error` when the site cannot read the auction; only the 500 is worth retrying. `GET /api/v1/me/positions` answers 401 `authentication_required` when nobody is signed in, and 503 `chain_unavailable` when the chain could not be read. Any address under `/api` answers 429 `too_many_requests` past the rate limit below. A figure the site has not recorded yet is `null`, and `unavailable` says why.
 
 An unknown address under `/api` answers a JSON 404 whatever the `Accept` header says. An unknown page answers 404 as HTML, or as Markdown when you ask for `text/markdown`. The [OpenAPI description]({{origin}}/openapi.json) lists every status each request can return.
+
+## Rate limits
+
+Each client address has 120 requests per 60 seconds, shared by `/healthz` and every address under `/api`, including the calls the browser tools make. Every answer there says where you stand:
+
+```http
+RateLimit-Policy: "default";q=120;w=60
+RateLimit: "default";r=119;t=42
+```
+
+`q` is the number of requests allowed in a window of `w` seconds, `r` is how many remain and `t` is the number of seconds until the window resets. Past the limit the answer is `429` with the code `too_many_requests` and a `Retry-After` header in seconds; wait that long, then send the request again. Pages, sign-in and wallet steps on the website do not count against this budget.
 
 ## Versioning and deprecation
 

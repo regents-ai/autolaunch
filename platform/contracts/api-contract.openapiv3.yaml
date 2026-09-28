@@ -16,6 +16,9 @@ paths:
       responses:
         "200":
           description: Owner-only shared profile
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema:
@@ -56,6 +59,7 @@ paths:
             application/json:
               schema:
                 type: object
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
     patch:
       operationId: profile_update
@@ -67,6 +71,9 @@ paths:
       responses:
         "200":
           description: Owner-only shared profile
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema:
@@ -107,6 +114,7 @@ paths:
             application/json:
               schema:
                 type: object
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
       requestBody:
         required: true
@@ -138,6 +146,9 @@ paths:
       responses:
         "200":
           description: Owner-only shared profile
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema:
@@ -178,6 +189,7 @@ paths:
             application/json:
               schema:
                 type: object
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions:
     get:
@@ -222,11 +234,15 @@ paths:
       responses:
         "200":
           description: Public Autolaunch auctions on Base and Robinhood, found and ordered as the website's auction list finds and orders them; every entry names its chain.
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AuctionListEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions/{id}:
     get:
@@ -246,12 +262,16 @@ paths:
       responses:
         "200":
           description: Public Autolaunch auction on Base or Robinhood
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AuctionEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
         "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions/{id}/bid-quote:
     post:
@@ -269,6 +289,9 @@ paths:
       responses:
         "200":
           description: Quote from the stored auction snapshot
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AuctionBidQuoteEnvelope"}
@@ -276,6 +299,7 @@ paths:
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {$ref: "#/components/responses/InvalidBidInput"}
         "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
   /api/v1/tokens:
     get:
@@ -306,11 +330,15 @@ paths:
       responses:
         "200":
           description: Public Autolaunch tokens on Base and Robinhood, found as the website's token list finds them, newest graduation first; every entry names its chain.
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/TokenListEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
   /api/v1/treasury-security/{address}:
     get:
@@ -326,12 +354,16 @@ paths:
       responses:
         "200":
           description: Newest stored treasury observation; this read never calls a provider
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/TreasurySecurityEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
         "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
   /api/v1/me/positions:
     get:
@@ -343,6 +375,9 @@ paths:
       responses:
         "200":
           description: Every bid and token of the person's verified wallets
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
           content:
             application/json:
               schema: {$ref: "#/components/schemas/MyPositionsEnvelope"}
@@ -356,6 +391,7 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/ApiError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
 components:
   securitySchemes:
@@ -370,6 +406,18 @@ components:
       type: apiKey
       in: header
       name: privy-id-token
+  headers:
+    RateLimitPolicy:
+      description: 'The budget this request counted against, as "policy";q=requests;w=window seconds. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address. Every answer under /api carries this header.'
+      schema: {type: string}
+      example: '"default";q=120;w=60'
+    RateLimit:
+      description: 'What is left of that budget, as "policy";r=remaining;t=seconds until the window resets. Every answer under /api carries this header.'
+      schema: {type: string}
+      example: '"default";r=119;t=42'
+    RetryAfter:
+      description: Seconds to wait before the window resets.
+      schema: {type: integer, minimum: 1}
   parameters:
     AuctionId:
       name: id
@@ -430,6 +478,18 @@ components:
           examples:
             invalidAmount:
               value: {error: {code: invalid_amount, message: "amount must be a plain decimal string greater than zero, such as \"12.5\".", hint: "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."}}
+    TooManyRequests:
+      description: Too many requests from this client address in the current window. Wait the seconds in Retry-After, then send the request again.
+      headers:
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        Retry-After: {$ref: "#/components/headers/RetryAfter"}
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TooManyRequestsApiError"}
+          examples:
+            tooManyRequests:
+              value: {error: {code: too_many_requests, message: Too Many Requests, hint: "Wait the number of seconds in Retry-After, then send the request again."}}
     OtherError:
       description: Any other error, such as an unknown address, a method the address does not answer, or a body that could not be read
       content:
@@ -721,6 +781,19 @@ components:
           required: [code, message, hint]
           properties:
             code: {type: string, enum: [not_found]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    TooManyRequestsApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [too_many_requests]}
             message: {type: string}
             hint: {type: string, description: What to do next.}
     InvalidBidInputApiError:
