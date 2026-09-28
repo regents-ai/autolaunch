@@ -24,17 +24,20 @@ import {IRobinhoodFeeHookV1} from "./interfaces/IRobinhoodFeeHookV1.sol";
 import {IRobinhoodProtocolRevenueInboxV1} from "./interfaces/IRobinhoodProtocolRevenueInboxV1.sol";
 import {IRobinhoodStockAdmission} from "./interfaces/IRobinhoodStockAdmission.sol";
 import {IRobinhoodStockRoute} from "./interfaces/IRobinhoodStockRoute.sol";
+import {RobinhoodPreset} from "./RobinhoodPreset.sol";
 
 /// @title RobinhoodFeeHookV1
 /// @notice The one shared Uniswap v4 hook every official NEW/STOCK pool of the Robinhood launchpad
-///         carries. It is the Base `StocksFeeHookV1` with the chain's destinations: it charges two
-///         equal STOCK-side lanes on every swap of a registered pool and only accrues them, the
-///         protocol lane (converted to USDG and deposited into the protocol revenue inbox) and the
-///         staker lane of the pool's memestock splitter. Conversion and deposits happen outside swaps
-///         through `settleProtocolLane` and `settleStakerLane`.
+///         carries. It is the Base `StocksFeeHookV1` with the chain's destinations: it charges three
+///         STOCK-side lanes on every swap of a registered pool and only accrues them, the creator lane
+///         (0.3%, to the launch's creator), the protocol lane (1%, converted to USDG and deposited
+///         into the protocol revenue inbox) and the staker lane (3%, to the pool's memestock
+///         splitter). Conversion and payouts happen outside swaps through `settleCreatorLane`,
+///         `settleProtocolLane` and `settleStakerLane`.
 /// @dev Fee base is the gross realized STOCK amount of the swap: the trader's total STOCK debit
 ///      (including the fee) for STOCK-input swaps, the pool's total STOCK output (before the fee) for
-///      STOCK-output swaps. Each lane is `feeBase / LANE_DIVISOR`, floored independently.
+///      STOCK-output swaps. The fee is `hookFee(feeBase)`, 4.3% floored once; the creator and protocol
+///      lanes are each their own share of the fee base, floored, and the staker lane is the rest.
 ///
 ///      v4 lets an after-swap return delta charge only the *unspecified* currency, so the two swap
 ///      forms in which STOCK is unspecified (exact-input NEW->STOCK, exact-output STOCK->NEW) are
@@ -45,8 +48,8 @@ import {IRobinhoodStockRoute} from "./interfaces/IRobinhoodStockRoute.sol";
 ///      would make that pre-committed fee inexact, so it reverts (`PartialFillNotSupported`) instead
 ///      of over- or under-charging; STOCK-unspecified swaps fill partially as usual.
 ///
-///      Nothing in a swap calls a splitter, a route or the inbox. A pool's splitter is fixed when
-///      the pool is registered; nothing redirects either lane afterwards.
+///      Nothing in a swap calls a splitter, a route, the inbox or the creator. A pool's splitter and
+///      creator are fixed when the pool is registered; nothing redirects any lane afterwards.
 contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFeeHookV1 {
     using SafeTransferLib for address;
     using PoolIdLibrary for PoolKey;
@@ -57,31 +60,36 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
         address newToken;
         /// @dev The launch's memestock splitter, the staker lane's only destination.
         address splitter;
+        /// @dev The wallet that created the launch, the creator lane's only destination.
+        address creator;
     }
 
     /// @dev STOCK accrued and not yet settled, per lane.
     struct Accrued {
+        uint256 creatorLane;
         uint256 protocolLane;
         uint256 stakerLane;
     }
 
     struct SettledTotals {
+        uint256 stockPaidToCreator;
         uint256 stockConverted;
         uint256 usdgDeposited;
         uint256 stockDepositedToStakers;
     }
 
-    /// @dev Both lanes are always charged.
-    uint256 private constant LANES = 2;
+    /// @dev The whole hook fee, in basis points of the fee base: the sum of the three lanes.
+    uint256 private constant HOOK_FEE_BPS =
+        RobinhoodPreset.CREATOR_LANE_BPS + RobinhoodPreset.PROTOCOL_LANE_BPS + RobinhoodPreset.STAKER_LANE_BPS;
 
     /// @notice `sourceTag` the protocol lane deposits carry into the inbox.
     // forge-lint: disable-next-line(unsafe-typecast)
     bytes32 public constant PROTOCOL_SOURCE_TAG = bytes32("robinhood-hook");
 
-    /// @dev Transient slots carrying a STOCK-specified swap's pre-committed lane from `beforeSwap` to
+    /// @dev Transient slots carrying a STOCK-specified swap's pre-committed fee from `beforeSwap` to
     ///      `afterSwap`. PoolManager runs the two callbacks back to back for one swap, and the hook's
     ///      own nested calls never reach these callbacks (`Hooks.noSelfCall`).
-    bytes32 private constant PENDING_LANE_SLOT = keccak256("autolaunch-robinhood.hook.pending-lane");
+    bytes32 private constant PENDING_FEE_SLOT = keccak256("autolaunch-robinhood.hook.pending-fee");
     bytes32 private constant PENDING_POOL_SLOT = keccak256("autolaunch-robinhood.hook.pending-pool");
 
     /// @notice The only account that may register pools, initialize them or credit launch dust.
@@ -97,7 +105,9 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
     mapping(bytes32 poolId => Accrued) private _accrued;
     mapping(bytes32 poolId => SettledTotals) private _settled;
 
-    event PoolRegistered(bytes32 indexed poolId, address indexed stock, address indexed newToken, address splitter);
+    event PoolRegistered(
+        bytes32 indexed poolId, address indexed stock, address indexed newToken, address splitter, address creator
+    );
     event ExecutorSet(address indexed previous, address indexed current);
     /// @notice STOCK the launchpad's graduation could not place in the position, credited to the
     ///         pool's protocol lane.
@@ -171,14 +181,14 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
     // launchpad surface
     // -------------------------------------------------------------------------
 
-    /// @notice Bind one exact official `PoolKey` to its STOCK and its memestock splitter. Launchpad
-    ///         only, once per pool.
-    function registerPool(PoolKey calldata key, address stock, address newToken, address splitter)
+    /// @notice Bind one exact official `PoolKey` to its STOCK, its memestock splitter and the wallet that
+    ///         created the launch. Launchpad only, once per pool.
+    function registerPool(PoolKey calldata key, address stock, address newToken, address splitter, address creator)
         external
         onlyLaunchpad
         returns (bytes32 poolId)
     {
-        if (splitter == address(0)) revert ZeroAddress();
+        if (splitter == address(0) || creator == address(0)) revert ZeroAddress();
         if (address(key.hooks) != address(this)) revert ForeignHook(address(key.hooks));
         if (key.fee != StocksPreset.POOL_FEE) revert UnexpectedPoolFee(key.fee);
         if (key.tickSpacing != StocksPreset.POOL_TICK_SPACING) revert UnexpectedTickSpacing(key.tickSpacing);
@@ -193,9 +203,9 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
 
         poolId = PoolId.unwrap(key.toId());
         if (_pools[poolId].stock != address(0)) revert PoolAlreadyRegistered(poolId);
-        _pools[poolId] = PoolRecord({stock: stock, newToken: newToken, splitter: splitter});
+        _pools[poolId] = PoolRecord({stock: stock, newToken: newToken, splitter: splitter, creator: creator});
 
-        emit PoolRegistered(poolId, stock, newToken, splitter);
+        emit PoolRegistered(poolId, stock, newToken, splitter, creator);
     }
 
     /// @notice Credit STOCK the launchpad's graduation did not place in the position to the pool's
@@ -287,6 +297,31 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
     }
 
     /// @inheritdoc IRobinhoodFeeHookV1
+    /// @dev Permissionless because it decides nothing: the whole creator lane, in STOCK as it accrued,
+    ///      always to the creator fixed when the pool was registered.
+    // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
+    function settleCreatorLane(bytes32 poolId) external override nonReentrant returns (uint256 stockPaid) {
+        PoolRecord storage record = _requireRegistered(poolId);
+
+        Accrued storage bucket = _accrued[poolId];
+        stockPaid = bucket.creatorLane;
+        if (stockPaid == 0) revert ZeroAmount();
+
+        // Effects before interactions: the lane is debited before any token moves.
+        bucket.creatorLane = 0;
+        _settled[poolId].stockPaidToCreator += stockPaid;
+
+        address stock = record.stock;
+        address creator = record.creator;
+        uint256 stockBefore = stock.balanceOf(address(this));
+        stock.safeTransfer(creator, stockPaid);
+        uint256 sent = stockBefore - stock.balanceOf(address(this));
+        if (sent != stockPaid) revert InexactTransfer(stockPaid, sent);
+
+        emit CreatorLaneSettled(poolId, creator, stockPaid);
+    }
+
+    /// @inheritdoc IRobinhoodFeeHookV1
     /// @dev Permissionless because it decides nothing: the whole staker lane, in STOCK as it accrued,
     ///      always into the pool's fixed splitter.
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
@@ -320,9 +355,14 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
     // -------------------------------------------------------------------------
 
     /// @inheritdoc IRobinhoodFeeHookV1
-    function accrued(bytes32 poolId) external view override returns (uint256 protocolLane, uint256 stakerLane) {
+    function accrued(bytes32 poolId)
+        external
+        view
+        override
+        returns (uint256 creatorLane, uint256 protocolLane, uint256 stakerLane)
+    {
         Accrued storage bucket = _accrued[poolId];
-        return (bucket.protocolLane, bucket.stakerLane);
+        return (bucket.creatorLane, bucket.protocolLane, bucket.stakerLane);
     }
 
     /// @inheritdoc IRobinhoodFeeHookV1
@@ -330,23 +370,35 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
         external
         view
         override
-        returns (uint256 stockConverted, uint256 usdgDeposited, uint256 stockDepositedToStakers)
+        returns (
+            uint256 stockPaidToCreator,
+            uint256 stockConverted,
+            uint256 usdgDeposited,
+            uint256 stockDepositedToStakers
+        )
     {
         SettledTotals storage totals = _settled[poolId];
-        return (totals.stockConverted, totals.usdgDeposited, totals.stockDepositedToStakers);
+        return (totals.stockPaidToCreator, totals.stockConverted, totals.usdgDeposited, totals.stockDepositedToStakers);
     }
 
-    /// @notice The registered record of a pool: its STOCK, its NEW and its memestock splitter.
+    /// @notice The registered record of a pool: its STOCK, its NEW, its memestock splitter and its
+    ///         creator.
     function pool(bytes32 poolId) external view returns (PoolRecord memory) {
         return _pools[poolId];
     }
 
-    /// @notice The smallest per-lane fee `q` with `q == (net + 2 * q) / LANE_DIVISOR`, so that charging
-    ///         both lanes on top of a net STOCK amount makes each lane exactly one percent, floored, of
-    ///         the gross amount.
-    function grossLane(uint256 net) public pure returns (uint256) {
-        if (net < StocksPreset.LANE_DIVISOR) return 0;
-        return (net - StocksPreset.LANE_DIVISOR) / (StocksPreset.LANE_DIVISOR - LANES) + 1;
+    /// @notice The whole hook fee on a gross STOCK amount: 4.3% of it, floored once.
+    function hookFee(uint256 gross) public pure returns (uint256) {
+        return gross * HOOK_FEE_BPS / StocksPreset.BPS_DENOMINATOR;
+    }
+
+    /// @notice The smallest gross STOCK amount `g` with `g - hookFee(g) == net`, so that charging the fee
+    ///         on top of a net STOCK amount makes it exactly `hookFee` of the gross amount.
+    /// @dev `g - hookFee(g)` is `ceil(g * (D - F) / D)` for denominator `D` and fee `F` basis points; it
+    ///      never steps by more than one, so the smallest `g` above `(net - 1) * D / (D - F)` meets it.
+    function grossOf(uint256 net) public pure returns (uint256) {
+        if (net == 0) return 0;
+        return (net - 1) * StocksPreset.BPS_DENOMINATOR / (StocksPreset.BPS_DENOMINATOR - HOOK_FEE_BPS) + 1;
     }
 
     // -------------------------------------------------------------------------
@@ -377,18 +429,18 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
         if (!stockSpecified) return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
 
         uint256 requested = _abs(params.amountSpecified);
-        // Exact input: the trader's debit is `requested`, so each lane is one percent of it and the
-        // core swaps the rest. Exact output: the trader receives `requested`, so the pool outputs the
-        // gross amount and each lane is one percent of that gross amount.
-        uint256 lane = exactInput ? requested / StocksPreset.LANE_DIVISOR : grossLane(requested);
+        // Exact input: the trader's debit is `requested`, so the fee is `hookFee` of it and the core
+        // swaps the rest. Exact output: the trader receives `requested`, so the pool outputs the gross
+        // amount and the fee is `hookFee` of that gross amount.
+        uint256 fee = exactInput ? hookFee(requested) : grossOf(requested) - requested;
 
-        _tstore(PENDING_LANE_SLOT, lane);
+        _tstore(PENDING_FEE_SLOT, fee);
         _tstore(PENDING_POOL_SLOT, uint256(poolId));
-        return (BaseHook.beforeSwap.selector, toBeforeSwapDelta(SafeCast.toInt128(LANES * lane), 0), 0);
+        return (BaseHook.beforeSwap.selector, toBeforeSwapDelta(SafeCast.toInt128(fee), 0), 0);
     }
 
-    /// @dev Takes the fee in STOCK and accrues it to both lanes. STOCK-unspecified swaps return the fee
-    ///      as a positive unspecified delta; STOCK-specified swaps already carry it from `beforeSwap`.
+    /// @dev Takes the fee in STOCK and accrues it to the three lanes. STOCK-unspecified swaps return the
+    ///      fee as a positive unspecified delta; STOCK-specified swaps already carry it from `beforeSwap`.
     function _afterSwap(address, PoolKey calldata key, SwapParams calldata params, BalanceDelta delta, bytes calldata)
         internal
         override
@@ -403,44 +455,42 @@ contract RobinhoodFeeHookV1 is BaseHook, ReentrancyGuardTransient, IRobinhoodFee
         bool stockIsInput = stockIsCurrency0 == params.zeroForOne;
         uint256 realized = _abs(stockIsCurrency0 ? int256(delta.amount0()) : int256(delta.amount1()));
 
-        uint256 lane;
+        uint256 fee;
         uint256 feeBase;
         int128 hookDeltaUnspecified = 0;
         if (stockSpecified) {
             bytes32 pendingPool = bytes32(_tload(PENDING_POOL_SLOT));
             if (pendingPool != poolId) revert PendingPoolMismatch(poolId, pendingPool);
-            lane = _tload(PENDING_LANE_SLOT);
-            _tstore(PENDING_LANE_SLOT, 0);
+            fee = _tload(PENDING_FEE_SLOT);
+            _tstore(PENDING_FEE_SLOT, 0);
             _tstore(PENDING_POOL_SLOT, 0);
 
             uint256 requested = _abs(params.amountSpecified);
-            uint256 fee = LANES * lane;
             uint256 expectedRealized = exactInput ? requested - fee : requested + fee;
             if (realized != expectedRealized) revert PartialFillNotSupported(expectedRealized, realized);
             feeBase = exactInput ? requested : requested + fee;
-        } else if (stockIsInput) {
-            lane = grossLane(realized);
-            feeBase = realized + LANES * lane;
-            hookDeltaUnspecified = SafeCast.toInt128(LANES * lane);
         } else {
-            // Each lane is floored independently and the same lane is charged twice: two equal lanes,
-            // never one floored two percent.
-            // slither-disable-next-line divide-before-multiply
-            lane = realized / StocksPreset.LANE_DIVISOR;
-            feeBase = realized;
-            hookDeltaUnspecified = SafeCast.toInt128(LANES * lane);
+            feeBase = stockIsInput ? grossOf(realized) : realized;
+            fee = stockIsInput ? feeBase - realized : hookFee(feeBase);
+            hookDeltaUnspecified = SafeCast.toInt128(fee);
         }
 
-        if (lane != 0) {
+        // The creator and protocol lanes are each floored; the staker lane is the rest of the fee, which
+        // is never less than its own floored share.
+        uint256 creatorLane = feeBase * RobinhoodPreset.CREATOR_LANE_BPS / StocksPreset.BPS_DENOMINATOR;
+        uint256 protocolLane = feeBase * RobinhoodPreset.PROTOCOL_LANE_BPS / StocksPreset.BPS_DENOMINATOR;
+        uint256 stakerLane = fee - creatorLane - protocolLane;
+
+        if (fee != 0) {
             Accrued storage bucket = _accrued[poolId];
-            bucket.protocolLane += lane;
-            bucket.stakerLane += lane;
-            // slither-disable-next-line divide-before-multiply
-            poolManager.take(Currency.wrap(record.stock), address(this), LANES * lane);
+            bucket.creatorLane += creatorLane;
+            bucket.protocolLane += protocolLane;
+            bucket.stakerLane += stakerLane;
+            poolManager.take(Currency.wrap(record.stock), address(this), fee);
         }
 
         // slither-disable-next-line reentrancy-events
-        emit HookFeeAccrued(poolId, feeBase, lane, lane);
+        emit HookFeeAccrued(poolId, feeBase, creatorLane, protocolLane, stakerLane);
         return (BaseHook.afterSwap.selector, hookDeltaUnspecified);
     }
 

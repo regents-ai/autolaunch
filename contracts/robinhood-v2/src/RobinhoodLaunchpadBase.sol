@@ -462,7 +462,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         emit MemestockSplitterCreated(launchId, newToken, currency, splitter);
 
         PoolKey memory key = _poolKeyOf(newToken, currency);
-        bytes32 poolId = RobinhoodFeeHookV1(hook).registerPool(key, currency, newToken, splitter);
+        bytes32 poolId = RobinhoodFeeHookV1(hook).registerPool(key, currency, newToken, splitter, record.launcher);
 
         uint256 currencyBefore = currency.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepCurrency();

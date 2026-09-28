@@ -70,11 +70,15 @@ library StocksPreset {
     // Founder decision 2026-09-09
     int24 internal constant POOL_TICK_SPACING = 60;
 
-    /// @notice Brief P08: each hook lane is `feeBase / LANE_DIVISOR`, floored per lane.
-    uint256 internal constant LANE_DIVISOR = 100;
+    /// @notice The hook's lanes, in basis points of a swap's gross STOCK amount: 0.3% to the launch's
+    ///         creator, 1% to REGENT stakers (converted to USDC outside swaps) and 3% to the launch's
+    ///         memestock stakers. The hook takes their sum, 4.3%, floored once; the creator and REGENT
+    ///         lanes are each floored and the staker lane is the rest.
+    // Founder decision 2026-09-28
+    uint256 internal constant BPS_DENOMINATOR = 10_000;
+    uint16 internal constant CREATOR_LANE_BPS = 30;
     uint16 internal constant REGENT_LANE_BPS = 100;
-    /// @notice Founder decision: every launch's memestock stakers always earn exactly this lane.
-    uint16 internal constant STAKER_LANE_BPS = 100;
+    uint16 internal constant STAKER_LANE_BPS = 300;
 
     // -------------------------------------------------------------------------
     // metadata caps (same shape as the Agent factory; bytes, inclusive, each nonempty)

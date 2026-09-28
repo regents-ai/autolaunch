@@ -18,8 +18,8 @@ import {RobinhoodLaunchpadBase} from "./RobinhoodLaunchpadBase.sol";
 ///         one full-range position of the whole reserve and the whole raise in the fee-only locker,
 ///         credits the rounding remainder to the pool's protocol lane and retires the NEW left over.
 ///         There is no launch fee and no governance minimum raise.
-/// @dev No launch has an administrator. Both hook lanes are always on and the splitter, created by
-///      this contract at graduation, is their only configuration.
+/// @dev No launch has an administrator. All three hook lanes are always on; the splitter, created by
+///      this contract at graduation, and the launcher are their only configuration.
 contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksLaunchpadV2 {
     using SafeTransferLib for address;
 

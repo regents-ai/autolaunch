@@ -215,7 +215,7 @@ contract StocksForkLifecycleTest is Test {
         _approveRouter(bidderDirect, newToken);
         stock.mint(bidderDirect, 1_000e8);
         bool stockIs0 = ForkAddresses.AAPLC < newToken;
-        (uint256 regentBefore, uint256 stakerBefore) = hook.accrued(record.poolId);
+        (uint256 creatorBefore, uint256 regentBefore, uint256 stakerBefore) = hook.accrued(record.poolId);
         uint256 stockBefore = stock.balanceOf(bidderDirect);
         vm.prank(bidderDirect);
         swapRouter.swap(
@@ -225,9 +225,10 @@ contract StocksForkLifecycleTest is Test {
             ""
         );
         assertEq(stockBefore - stock.balanceOf(bidderDirect), 50e8, "exact STOCK input");
-        (uint256 regentLane, uint256 stakerLane) = hook.accrued(record.poolId);
-        assertEq(regentLane - regentBefore, 50e8 / 100, "one REGENT lane");
-        assertEq(stakerLane - stakerBefore, 50e8 / 100, "one staker lane");
+        (uint256 creatorLane, uint256 regentLane, uint256 stakerLane) = hook.accrued(record.poolId);
+        assertEq(creatorLane - creatorBefore, 50e8 * 30 / 10_000, "creator lane 0.3%");
+        assertEq(regentLane - regentBefore, 50e8 / 100, "REGENT lane 1%");
+        assertEq(stakerLane - stakerBefore, 50e8 * 300 / 10_000, "staker lane 3%");
 
         regentBefore = regentLane;
         vm.prank(bidderDirect);
@@ -237,7 +238,7 @@ contract StocksForkLifecycleTest is Test {
             PoolSwapTest.TestSettings(false, false),
             ""
         );
-        (regentLane,) = hook.accrued(record.poolId);
+        (, regentLane,) = hook.accrued(record.poolId);
         assertGt(regentLane, regentBefore, "STOCK output charged");
 
         // Settle the REGENT lane through the fixture route into the real live staking contract.
@@ -249,9 +250,9 @@ contract StocksForkLifecycleTest is Test {
         assertEq(
             usdc.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, expectedUsdc, "live staking received USDC"
         );
-        (regentLane,) = hook.accrued(record.poolId);
+        (, regentLane,) = hook.accrued(record.poolId);
         assertEq(regentLane, accruedBefore - amount);
-        (uint256 converted, uint256 deposited,) = hook.settled(record.poolId);
+        (, uint256 converted, uint256 deposited,) = hook.settled(record.poolId);
         assertEq(converted, amount);
         assertEq(deposited, expectedUsdc);
         assertEq(usdc.balanceOf(address(hook)), 0);
@@ -330,7 +331,7 @@ contract StocksForkLifecycleTest is Test {
         vm.stopPrank();
 
         // Anyone settles the staker lane: STOCK in kind, 2% to the Safe, the rest to the staker.
-        (, uint256 stakerLane) = hook.accrued(record.poolId);
+        (,, uint256 stakerLane) = hook.accrued(record.poolId);
         assertGt(stakerLane, 1e8, "staker lane accrued on both swaps");
         uint256 safeStockBefore = stock.balanceOf(governance);
         assertEq(hook.settleStakerLane(record.poolId), stakerLane);
@@ -399,7 +400,7 @@ contract StocksForkLifecycleTest is Test {
         assertEq(info.tickUpper(), TickMath.maxUsableTick(spacing));
         assertEq(positions.nextTokenId(), record.lpTokenId + 1, "one position minted");
 
-        (uint256 dust,) = hook.accrued(record.poolId);
+        (, uint256 dust,) = hook.accrued(record.poolId);
         assertEq(uint256(record.lpStockUsed) + dust, raised, "raised == paired + dust");
         assertLe(dust, raised / 1e9 + 2, "dust is rounding");
         assertApproxEqAbs(

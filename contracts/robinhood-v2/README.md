@@ -16,12 +16,14 @@ fee-only locker, and the few units of NEW left over (the auction's rounding and 
 position could not pair) are retired to the dead address. A launch that misses the raise retires
 its reserve and unsold NEW and refunds every bidder through the auction.
 
-Official-pool trading pays the 0.30% LP fee plus two STOCK-side hook lanes, both always on: a 100 bps
-protocol lane, converted to USDG and deposited into the inbox, and a 100 bps staker lane, deposited
-as STOCK into the launch's own splitter. Holders stake the MEMESTOCK there and divide, pro rata,
-everything the splitter recognizes in USDG, MEMESTOCK and STOCK after a 2% protocol share. The locked
-position's LP fees flow into the same splitter. No launch has a creator, an administrator or a
-treasury.
+Official-pool trading pays the 0.30% LP fee plus three STOCK-side hook lanes, all always on: a 30 bps
+creator lane, paid as STOCK to the launcher, a 100 bps protocol lane, converted to USDG and deposited
+into the inbox, and a 300 bps staker lane, deposited as STOCK into the launch's own splitter. The hook
+fee is 4.3% of the gross STOCK-side amount, floored once; the creator and protocol lanes are each
+floored and the staker lane takes the rest (founder decision 2026-09-28). Holders stake the MEMESTOCK
+there and divide, pro rata, everything the splitter recognizes in USDG, MEMESTOCK and STOCK after a
+2% protocol share. The locked position's LP fees flow into the same splitter. No launch has a creator
+allocation, an administrator or a treasury.
 
 ## Status
 
@@ -41,11 +43,11 @@ names a bridge adapter, protocol USDG stays in the inbox.
 
 | Contract | Role |
 | --- | --- |
-| `RobinhoodPreset` | Every Robinhood-specific fixed term: USDG decimals, the auction schedule in Robinhood's 0.1-second blocks (fixed ten-minute start lead of 6,000 blocks, one-day duration of 864,000, claim and migration delays, the thirteen-step release vector), the two lane percentages, the Base chain id. |
+| `RobinhoodPreset` | Every Robinhood-specific fixed term: USDG decimals, the auction schedule in Robinhood's 0.1-second blocks (fixed ten-minute start lead of 6,000 blocks, one-day duration of 864,000, claim and migration delays, the thirteen-step release vector), the three lane rates, the Base chain id. |
 | `RobinhoodProtocolRevenueInboxV1` | The on-chain collection point for every protocol dollar (hook protocol lane, the splitters' USDG protocol share). Safe-only bridging to Base through a reviewed adapter, with destination versioning and batch records. |
 | `RobinhoodBaseRevenueReceiverV1` | The Base-side address bridged USDC lands on. Base-Safe-attested batch attribution, permissionless deposit into live REGENT staking, surplus sweep. |
 | `RobinhoodMemestockSplitterV1` | The per-launch staking splitter (clone target) over `MemestockSplitterCore`: recognizes USDG, MEMESTOCK and STOCK; 2% protocol share of each (USDG into the inbox, tagged `robinhood-splitter`; MEMESTOCK and STOCK to the Robinhood Safe); the other 98% wholly to MEMESTOCK stakers pro rata; everything to the protocol route while nothing is staked. No owner, no parameters. |
-| `RobinhoodFeeHookV1` + `RobinhoodFeeHookFactory` | The official-pool v4 hook: two always-on STOCK-side lanes of one percent each. `settleProtocolLane` (executor only, admitted route, `minUsdgOut`) deposits USDG into the inbox; `settleStakerLane` (anyone) deposits the whole staker lane as STOCK into the pool's splitter. The factory holds the hook's creation code so the launchpad stays under the EIP-170 size limit. |
+| `RobinhoodFeeHookV1` + `RobinhoodFeeHookFactory` | The official-pool v4 hook: three always-on STOCK-side lanes (0.3% creator, 1% protocol, 3% staker). `settleCreatorLane` (anyone) pays the whole creator lane as STOCK to the launcher; `settleProtocolLane` (executor only, admitted route, `minUsdgOut`) deposits USDG into the inbox; `settleStakerLane` (anyone) deposits the whole staker lane as STOCK into the pool's splitter. The factory holds the hook's creation code so the launchpad stays under the EIP-170 size limit. |
 | `RobinhoodLaunchpadBase` | The launch machinery: validated constructor bindings, pause governance, NEW and auction creation on the fixed Robinhood schedule with full read-back, the required raise derived from the floor, custody and migration. A launch costs nothing beyond gas. Deploys the splitter implementation and the `MemestockLPLocker` in its constructor; at graduation clones the launch's splitter, registers it with the hook, opens the pool at the raise divided by the sale allocation, mints one full-range position to the locker and registers it to that splitter. |
 | `RobinhoodStocksLaunchpadV2` | Stock-pair launches: admitted STOCK as the auction currency, the required raise the whole sale allocation at the floor in STOCK, rounded up (`requiredStockRaisedFor`); the STOCK the position could not pair goes to the hook's protocol lane. |
 | `RobinhoodStockBidAdapterV1` | USDG in, STOCK bid out, in one transaction, owned by the caller. |
@@ -130,8 +132,8 @@ decimals, matching cross-bindings). None is known at build time.
 3. Every auction opens exactly ten minutes after its creation block (6,000 Robinhood blocks); the opening block is in the launch record and the creation event. The launcher supplies only the floor price; the required raise is the whole sale allocation at the floor, rounded up, so it is never zero and an auction nobody bid in never graduates; there is no governance minimum (founder decisions 2026-09-21 and 2026-09-27).
 4. Robinhood is memestake-only (founder decision 2026-09-18): the USDG agent launch, its splitter and its vesting were removed.
 5. The splitter is created at graduation as a clone of an implementation the launchpad deploys in its constructor; the launch record's `splitter` is the only splitter provenance, and the hook and the locker accept a splitter only from the launchpad.
-6. There is no payment-receiver clone and no administrator: both lanes are always on, and the splitter's `depositRecognizedRevenue` and `recognizeSurplusRevenue` are its only revenue surfaces.
-7. The protocol lane settles executor-only (it chooses an amount and a minimum price); the staker lane and the locker's `collect` are permissionless (they choose nothing). The splitter's 2% protocol share goes to the inbox in USDG and to the Robinhood Safe in MEMESTOCK and STOCK (founder decision 2026-09-18).
+6. There is no payment-receiver clone and no administrator: all three lanes are always on, and the splitter's `depositRecognizedRevenue` and `recognizeSurplusRevenue` are its only revenue surfaces.
+7. The protocol lane settles executor-only (it chooses an amount and a minimum price); the creator lane, the staker lane and the locker's `collect` are permissionless (they choose nothing). The splitter's 2% protocol share goes to the inbox in USDG and to the Robinhood Safe in MEMESTOCK and STOCK (founder decision 2026-09-18).
 8. The auction block schedule is the Base Stocks schedule scaled twentyfold for 0.1-second blocks: start lead 6,000, duration 864,000, claim delay 1,280, migration delay 2,560, and a thirteen-step release vector whose scheduled steps each last twenty times the Base blocks at a twentieth of the Base rate (`RobinhoodPreset.t.sol` proves the sums). Because a per-block rate is a whole number of mps, dividing by twenty rounds each step's rate, so the per-step releases differ slightly from Base's (founder, 21 September 2026: accepted as is). For reference:
 
    | Step | Base blocks (2 s) | Base release | Robinhood blocks (0.1 s) | Robinhood release |

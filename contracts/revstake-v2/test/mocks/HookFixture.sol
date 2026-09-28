@@ -58,6 +58,7 @@ abstract contract HookFixture is Test {
 
     address internal constant REGENT = BaseBindings.REGENT;
     address internal constant REGENT_SAFE = BaseBindings.GOVERNANCE_AND_REGENT_SAFE;
+    address internal constant LIVE_STAKING = BaseBindings.LIVE_STAKING;
 
     /// @dev Chosen so `SUBJECT_LOW < REGENT < SUBJECT_HIGH`, giving both PoolKey orderings.
     address internal constant SUBJECT_LOW = 0x1111111111111111111111111111111111111111;
@@ -241,6 +242,7 @@ abstract contract HookFixture is Test {
 
     struct Ledger {
         uint256 safeRegent;
+        uint256 stakingRegent;
         uint256 hookRegent;
         uint256 splitterRegent;
         uint256 treasuryRegent;
@@ -253,6 +255,7 @@ abstract contract HookFixture is Test {
 
     function _ledger(Pool memory pool, address trader) internal view returns (Ledger memory snapshot) {
         snapshot.safeRegent = regent.balanceOf(REGENT_SAFE);
+        snapshot.stakingRegent = regent.balanceOf(LIVE_STAKING);
         snapshot.hookRegent = regent.balanceOf(address(hook));
         snapshot.splitterRegent = regent.balanceOf(address(pool.splitter));
         snapshot.treasuryRegent = regent.balanceOf(treasury);
@@ -265,6 +268,7 @@ abstract contract HookFixture is Test {
 
     function _assertLedgerUnchanged(Ledger memory before, Ledger memory found) internal pure {
         assertEq(found.safeRegent, before.safeRegent, "Regent Safe REGENT moved");
+        assertEq(found.stakingRegent, before.stakingRegent, "live staking REGENT moved");
         assertEq(found.hookRegent, before.hookRegent, "hook REGENT moved");
         assertEq(found.splitterRegent, before.splitterRegent, "splitter REGENT moved");
         assertEq(found.treasuryRegent, before.treasuryRegent, "treasury REGENT moved");
@@ -275,20 +279,11 @@ abstract contract HookFixture is Test {
         assertEq(found.splitterAllowance, before.splitterAllowance, "splitter allowance moved");
     }
 
-    /// @dev The exact destinations one settled lane must reach: the direct Regent Safe lane, plus
-    ///      the splitter lane's own floored 2% REGENT skim, which also lands at the Regent Safe.
-    function _assertLanesLanded(Pool memory pool, Ledger memory before, uint256 lane) internal view {
-        uint256 skim = (lane * pool.splitter.SKIM_BPS()) / pool.splitter.BPS_DENOMINATOR();
-        assertEq(regent.balanceOf(REGENT_SAFE), before.safeRegent + lane + skim, "Safe lane plus splitter skim");
-        assertEq(regent.balanceOf(address(hook)), before.hookRegent, "hook retained attributable REGENT");
-        assertEq(regent.allowance(address(hook), address(pool.splitter)), 0, "stale splitter allowance");
-    }
-
     /// @dev Every account that can hold REGENT in this fixture. A swap only moves REGENT between
     ///      them, so the sum is invariant and no lane can be created or destroyed. `C2-I2`.
     function _regentInSystem(Pool memory pool, address trader) internal view returns (uint256) {
-        return regent.balanceOf(trader) + regent.balanceOf(REGENT_SAFE) + regent.balanceOf(treasury)
-            + regent.balanceOf(address(pool.splitter)) + regent.balanceOf(address(hook))
+        return regent.balanceOf(trader) + regent.balanceOf(REGENT_SAFE) + regent.balanceOf(LIVE_STAKING)
+            + regent.balanceOf(treasury) + regent.balanceOf(address(pool.splitter)) + regent.balanceOf(address(hook))
             + regent.balanceOf(address(manager)) + regent.balanceOf(staker);
     }
 
@@ -302,7 +297,8 @@ abstract contract HookFixture is Test {
         address sender;
         address feeToken;
         uint256 charged;
-        uint256 lane;
+        uint256 regentLane;
+        uint256 stakerLane;
         bool exactInput;
     }
 
@@ -321,13 +317,35 @@ abstract contract HookFixture is Test {
             entry.poolId = PoolId.wrap(logs[i].topics[1]);
             entry.sender = address(uint160(uint256(logs[i].topics[2])));
             entry.feeToken = address(uint160(uint256(logs[i].topics[3])));
-            (entry.charged, entry.lane, entry.exactInput) = abi.decode(logs[i].data, (uint256, uint256, bool));
+            (entry.charged, entry.regentLane, entry.stakerLane, entry.exactInput) =
+                abi.decode(logs[i].data, (uint256, uint256, uint256, bool));
             buffer[count++] = entry;
         }
         found = new Settlement[](count);
         for (uint256 i; i < count; ++i) {
             found[i] = buffer[i];
         }
+    }
+
+    /// @dev The whole fee one settlement took out of the swap: both lanes, exactly.
+    function _fee(Settlement memory settled) internal pure returns (uint256) {
+        return settled.regentLane + settled.stakerLane;
+    }
+
+    /// @dev Where one settlement's fee must land. The Regent lane goes to the live staking contract
+    ///      when the fee is REGENT and to the Regent Safe when it is SUBJECT. The staker lane goes
+    ///      through the splitter, whose floored 2% skim reaches the Regent Safe and whose rest
+    ///      reaches the treasury, since nobody is staked in these fixtures.
+    function _expectedRoutes(SubjectSplitterV1 splitter, Settlement memory settled)
+        internal
+        view
+        returns (uint256 toSafe, uint256 toStaking, uint256 toTreasury)
+    {
+        uint256 skim = (settled.stakerLane * splitter.SKIM_BPS()) / splitter.BPS_DENOMINATOR();
+        bool regentFee = settled.feeToken == REGENT;
+        toSafe = skim + (regentFee ? 0 : settled.regentLane);
+        toStaking = regentFee ? settled.regentLane : 0;
+        toTreasury = settled.stakerLane - skim;
     }
 
     function _onlySettlement() internal returns (Settlement memory settlement) {

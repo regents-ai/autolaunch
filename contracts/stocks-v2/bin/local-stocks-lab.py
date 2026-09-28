@@ -816,11 +816,13 @@ def command_migrate(args: argparse.Namespace) -> None:
 
 
 def hook_lanes(client: RpcClient, hook: str, pool_id: str) -> dict[str, int]:
-    regent_lane, staker_lane = words(rpc_call(client, hook, selector("accrued(bytes32)") + abi_bytes32(pool_id)))
-    converted, deposited, to_stakers = words(rpc_call(client, hook, selector("settled(bytes32)") + abi_bytes32(pool_id)))
+    creator_lane, regent_lane, staker_lane = words(rpc_call(client, hook, selector("accrued(bytes32)") + abi_bytes32(pool_id)))
+    to_creator, converted, deposited, to_stakers = words(rpc_call(client, hook, selector("settled(bytes32)") + abi_bytes32(pool_id)))
     return {
+        "accrued_creator_lane": creator_lane,
         "accrued_regent_lane": regent_lane,
         "accrued_staker_lane": staker_lane,
+        "settled_stock_to_creator": to_creator,
         "settled_stock_converted": converted,
         "settled_usdc_deposited": deposited,
         "settled_stock_to_stakers": to_stakers,
@@ -836,6 +838,15 @@ def command_settle_regent(args: argparse.Namespace) -> None:
             lab.client, STOCKS_LAB_DEPLOYER, hook,
             selector("settleRegentLane(bytes32,uint256,uint256)") + abi_bytes32(args.pool_id) + abi_uint(int(args.amount)) + abi_uint(int(args.min_usdc)),
         )
+    print(json.dumps({"transaction_hash": transaction_hash, "before": before, "after": hook_lanes(lab.client, hook, args.pool_id)}, sort_keys=True))
+
+
+def command_settle_creator(args: argparse.Namespace) -> None:
+    lab = Lab(Path(args.agent_lab_dir), args.rpc_url)
+    hook = lab.load_state()["addresses"]["hook"]
+    before = hook_lanes(lab.client, hook, args.pool_id)
+    with impersonated(lab.client, STOCKS_LAB_DEPLOYER):
+        transaction_hash = send_and_wait(lab.client, STOCKS_LAB_DEPLOYER, hook, selector("settleCreatorLane(bytes32)") + abi_bytes32(args.pool_id))
     print(json.dumps({"transaction_hash": transaction_hash, "before": before, "after": hook_lanes(lab.client, hook, args.pool_id)}, sort_keys=True))
 
 
@@ -902,6 +913,10 @@ def build_parser() -> argparse.ArgumentParser:
     settle_regent.add_argument("--amount", required=True, help="STOCK base units")
     settle_regent.add_argument("--min-usdc", default="1", help="minimum USDC base units out")
     settle_regent.set_defaults(handler=command_settle_regent)
+
+    settle_creator = commands.add_parser("settle-creator", help="pay the whole creator lane, in STOCK, to the launcher")
+    settle_creator.add_argument("--pool-id", required=True)
+    settle_creator.set_defaults(handler=command_settle_creator)
 
     settle_stakers = commands.add_parser("settle-stakers", help="deposit the whole staker lane, in STOCK, into the launch's splitter")
     settle_stakers.add_argument("--pool-id", required=True)

@@ -299,7 +299,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         assertEq(UERC20(l.newToken).balanceOf(address(positionManager)), pmNewBefore, "PositionManager NEW unchanged");
 
         // STOCK: the whole raise is paired but for rounding, which goes to the hook's REGENT lane.
-        (uint256 dust,) = hook.accrued(poolId);
+        (, uint256 dust,) = hook.accrued(poolId);
         assertEq(uint256(record.lpStockUsed) + dust, lbp.currencyRaised, "raised == paired + dust");
         assertLe(dust, lbp.currencyRaised / 1e9 + 2, "the unpaired STOCK is rounding");
         assertEq(MockERC20(l.stock).balanceOf(address(hook)), dust, "hook holds exactly the dust");

@@ -58,8 +58,9 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      themselves are paid the allocation by the auction. The official pool opens at the raise
 ///      divided by the sale allocation, the price bidders paid on average, and one full-range position
 ///      pairs the whole reserve with the whole raise. Graduation creates the launch's own memestock
-///      splitter, the fixed destination of the hook's staker lane, and mints the position to the
-///      permanent fee-only locker, which deposits its LP fees into that same splitter. Every unit of
+///      splitter, the fixed destination of the hook's staker lane, registers the launcher as the fixed
+///      destination of the hook's creator lane, and mints the position to the permanent fee-only
+///      locker, which deposits its LP fees into that same splitter. Every unit of
 ///      the launch's NEW still held afterwards (rounding crumbs and anything sent here) is retired to
 ///      the dead address. No principal path exists.
 ///
@@ -478,7 +479,7 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         emit MemestockSplitterCreated(launchId, newToken, stock, splitter);
 
         PoolKey memory key = _poolKeyOf(newToken, stock);
-        bytes32 poolId = StocksFeeHookV1(hook).registerPool(key, stock, newToken, splitter);
+        bytes32 poolId = StocksFeeHookV1(hook).registerPool(key, stock, newToken, splitter, record.launcher);
 
         uint256 stockBefore = stock.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepCurrency();

@@ -58,9 +58,10 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Raise into the pool | whole raise | up to three quarters: the full-range position takes what it can pair from a three-quarter budget; the treasury receives the rest of the raise (at least a quarter) |
 | Pool price | the final clearing price | raise ÷ 20B, reserve in one full-range position (any reserve it cannot pair goes to the escrow) |
 | Auction length | 86,401 blocks, 13-step schedule | same |
+| Swap hook fee | 1% Regent lane and 1% staker lane | 2%: a 1% Regent lane (to REGENT staking when the fee is in REGENT, to the Regent Safe when it is in the launch's token) and a 1% staker lane through the splitter |
 
 Unchanged from v1: start delay 300 blocks; claim delay 64; migration delay 128; pool fee 0.30%;
-pool tick spacing 60; two equal swap hook lanes; 2% splitter skim; 2.5% referral cap; name,
+pool tick spacing 60; 2% splitter skim; 2.5% referral cap; name,
 symbol, description, website and image limits of 64, 16, 512, 256 and 256 bytes.
 
 ## Memestake (Base)
@@ -77,15 +78,17 @@ Source: `stocks-v2/src/StocksPreset.sol`.
 | Raise into the pool | whole raise | whole raise |
 | Pool price | the final clearing price | raise ÷ 500M, one full-range position, locked |
 | Auction length | 43,200 blocks, 13-step schedule | same |
+| Swap hook fee | 1% REGENT lane and 1% staker lane | 4.3%, all in STOCK: a 0.3% creator lane paid to the launcher, a 1% REGENT lane sold for USDC into REGENT staking, and a 3% staker lane into the splitter |
 
 Unchanged from v1: start delay 300 blocks; claim delay 64; migration delay 128; pool fee 0.30%;
-pool tick spacing 60; 1% REGENT lane and 1% staker lane; 2% splitter skim.
+pool tick spacing 60; 2% splitter skim.
 
 ## Memestake (Robinhood Chain)
 
 Source: `robinhood-v2/src/RobinhoodPreset.sol`. The same terms as Memestake on Base, in USDG,
 with Robinhood's block counts: start delay 6,000; auction 864,000; claim delay 1,280; migration
-delay 2,560. Stock the pool position cannot pair goes to the protocol lane.
+delay 2,560. The 1% lane is the protocol lane, sold for USDG into the Robinhood protocol inbox. Stock
+the pool position cannot pair goes to the protocol lane.
 
 ## Founder decisions, 27 September 2026
 
@@ -103,3 +106,13 @@ contract carries ("no more of the variable ranges").
    minimum. The Revstake default floor is 0.000001 REGENT.
 6. Rounding crumbs are acceptable.
 7. Our bot sends graduation.
+
+## Founder decisions, 28 September 2026
+
+1. Memestake swap fees: 0.3% to the launch's creator, 3% to stakers, 1% to Regent, plus the 0.3%
+   Uniswap LP fee. The creator's share is paid in the stock itself and anyone can send it.
+2. Revstake swap fees: 1% to stakers and 1% to Regent, plus the 0.3% Uniswap LP fee. Regent's 1%
+   goes to the REGENT staking contract when the fee is in REGENT and to the Regent Safe when it is
+   in the launch's token.
+3. Regent's Memestake share is not sold inside the trade. It waits in the hook and is sold for USDC
+   into REGENT staking on Base, or for USDG into the protocol inbox on Robinhood, in a separate step.

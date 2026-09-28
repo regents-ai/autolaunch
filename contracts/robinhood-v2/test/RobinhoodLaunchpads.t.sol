@@ -226,7 +226,8 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
         assertEq(MockERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "the leftover NEW is retired");
         assertEq(stockHigh.balanceOf(address(stocks)), 0);
-        (uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);
+        (uint256 creatorLane, uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);
+        assertEq(creatorLane, 0);
         assertEq(stakerLane, 0);
         assertEq(protocolLane, stockHigh.balanceOf(address(stocksHook)));
     }

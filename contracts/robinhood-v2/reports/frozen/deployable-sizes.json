@@ -56,84 +56,84 @@
       "contract": "RobinhoodFeeHookFactory",
       "source": "src/RobinhoodFeeHookFactory.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 9835,
-      "runtime_keccak256": "0x67b5219e3e05f3807993e4e649cac816000b2b440d90403ad7d5ded19e847125",
-      "runtime_sha256": "7d1568df65ce064d40d288ccfb08ffec0576bb461980db120c94abe8ceb0a465",
-      "runtime_object_sha256": "ef1b710b36fe79affe0778dcc87f5423def9459642ad06d2d5a17f4df7054060",
+      "runtime_bytes": 10491,
+      "runtime_keccak256": "0x87220f19c1acedd955e3fa4b04437a79a073bd456dd2c05793133a0bc477271a",
+      "runtime_sha256": "834b80aa47abae80967e30c038d16f646e44c113c599f76234f1a3fc181e9863",
+      "runtime_object_sha256": "c4d0130757097e81779676cf36c708da064a8658a7b962716066ed382411c066",
       "runtime_immutable_references": 1,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 10020,
-      "creation_keccak256": "0x4b99ca189cc47cb86fd39f3ec9f997887020561b9e6182701cb56b45da738a43",
-      "creation_sha256": "505518139bc41d2f4e813ce43c5dcef2f254745a45d019014c3c9e40cf85e9a4",
-      "creation_object_sha256": "2f098bbcf6d557487fc20151f1457db054cd34cc60326921a4f0fca6ef970567",
+      "creation_bytes": 10676,
+      "creation_keccak256": "0xa7180982e9cbb2a94daf194c532ddb7ea596d624c54b4bef00b304aecde2bad9",
+      "creation_sha256": "22457aff0090d0eb0df814c0632900c405b1b79b52d93dd236c1c7380f5cd254",
+      "creation_object_sha256": "0e5e4c20ac4286f5d9b6332a99ea25f431189688fec3a0b8e1653783012bd32f",
       "creation_linked_libraries": [],
-      "runtime_margin_bytes": 14741,
+      "runtime_margin_bytes": 14085,
       "constructor": [
         "address poolManager_"
       ],
       "constructor_args_bytes": 32,
-      "initcode_bytes": 10052,
-      "initcode_margin_bytes": 39100
+      "initcode_bytes": 10708,
+      "initcode_margin_bytes": 38444
     },
     {
       "contract": "RobinhoodStocksLaunchpadV2",
       "source": "src/RobinhoodStocksLaunchpadV2.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 16073,
+      "runtime_bytes": 16099,
       "runtime_keccak256": null,
       "runtime_sha256": null,
-      "runtime_object_sha256": "09786614152c9e246594b579c44924eff651c901aabb30bb18b139ca57403037",
+      "runtime_object_sha256": "6fb4c6fd24fdbcd8db2d28fa4fbeb4b4282b86aa8cc9d97275ec0ddb444b4dc8",
       "runtime_immutable_references": 11,
       "runtime_linked_libraries": [
         {
           "library": "RobinhoodPositionsLib",
           "source": "src/libraries/RobinhoodPositionsLib.sol",
           "offsets": [
-            13992
+            14018
           ]
         }
       ],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 28738,
+      "creation_bytes": 28764,
       "creation_keccak256": null,
       "creation_sha256": null,
-      "creation_object_sha256": "43094db6e00c044de8e8486246d8ab7af608235d2d7e97cf8bd9f26e150f649d",
+      "creation_object_sha256": "1ef016243970973eddb2bdfdf1ccb90a0260018147138a8816d6650c4d928397",
       "creation_linked_libraries": [
         {
           "library": "RobinhoodPositionsLib",
           "source": "src/libraries/RobinhoodPositionsLib.sol",
           "offsets": [
-            16437
+            16463
           ]
         }
       ],
-      "runtime_margin_bytes": 8503,
+      "runtime_margin_bytes": 8477,
       "constructor": [
         "(address,address,address,address,address,address,address,address) bindings",
         "bytes32 hookSalt"
       ],
       "constructor_args_bytes": 288,
-      "initcode_bytes": 29026,
-      "initcode_margin_bytes": 20126
+      "initcode_bytes": 29052,
+      "initcode_margin_bytes": 20100
     },
     {
       "contract": "RobinhoodFeeHookV1",
       "source": "src/RobinhoodFeeHookV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 8022,
-      "runtime_keccak256": "0x28c9f58a10195ec2565a7f3dcb5af2c359d43f5cad56367ad38287a75f48725d",
-      "runtime_sha256": "dc04d795ce433131102f30961bb08d8bd57cbcd3a8b73c7d199c4a5fd5c07d55",
-      "runtime_object_sha256": "bd2b4bdd1c7cb9886dc3ba630193a5a5c58e0c9a11eac248e4134c2ad850e59d",
+      "runtime_bytes": 8678,
+      "runtime_keccak256": "0x824da832e4d8fafa0047ba095335e50e23cea4fe4e2e157c833b644961ff420f",
+      "runtime_sha256": "85f9bb3f03eaadb11e908fe5ba2a8714625528920e0e43b5055a2cc0972c1dde",
+      "runtime_object_sha256": "fe3e06688ee74fa939c20d9178dc8b95449081b3400571be265cbf07a3c82583",
       "runtime_immutable_references": 5,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 9003,
-      "creation_keccak256": "0xfa567da6f5e3b4237989a06aa6353d81801dc726e9a3917b1849f24e76985a3e",
-      "creation_sha256": "c73e40fa335497f5aad1101dce2d7108fec71a9bda9c06d21f5889f878c4d6f6",
-      "creation_object_sha256": "f5108b23eb77b6f977ea78ac44c8d73cd6ce0080d78a33d2d6dfdc85c3bb68c1",
+      "creation_bytes": 9659,
+      "creation_keccak256": "0x590ef5c4509450c4859f5fdb4384462e4e2fb7c575396ba877f02196b2f212ac",
+      "creation_sha256": "6614c3c9b191fa89938f4d2382ba79b753774659b5cbf93affd623cf7eb221eb",
+      "creation_object_sha256": "f0687d26c61db9c215fc6b0bd13e12b309921f0a913d76427b2e3580c8facdae",
       "creation_linked_libraries": [],
-      "runtime_margin_bytes": 16554,
+      "runtime_margin_bytes": 15898,
       "constructor": [
         "address manager_",
         "address launchpad_",
@@ -142,8 +142,8 @@
         "address adminSafe_"
       ],
       "constructor_args_bytes": 160,
-      "initcode_bytes": 9163,
-      "initcode_margin_bytes": 39989
+      "initcode_bytes": 9819,
+      "initcode_margin_bytes": 39333
     },
     {
       "contract": "RobinhoodMemestockSplitterV1",

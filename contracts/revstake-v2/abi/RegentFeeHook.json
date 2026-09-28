@@ -21,7 +21,20 @@
     },
     {
       "type": "function",
-      "name": "LANE_DIVISOR",
+      "name": "BPS_DENOMINATOR",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "HOOK_FEE_BPS",
       "inputs": [],
       "outputs": [
         {
@@ -54,6 +67,32 @@
           "name": "",
           "type": "int24",
           "internalType": "int24"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "REGENT_LANE_BPS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "STAKER_LANE_BPS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
         }
       ],
       "stateMutability": "view"
@@ -1074,7 +1113,13 @@
           "internalType": "uint256"
         },
         {
-          "name": "lane",
+          "name": "regentLane",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "stakerLane",
           "type": "uint256",
           "indexed": false,
           "internalType": "uint256"
@@ -1261,9 +1306,12 @@
     }
   ],
   "method_identifiers": {
-    "LANE_DIVISOR()": "76b46955",
+    "BPS_DENOMINATOR()": "e1a45218",
+    "HOOK_FEE_BPS()": "89f69f01",
     "POOL_FEE()": "dd1b9c4a",
     "POOL_TICK_SPACING()": "7381527f",
+    "REGENT_LANE_BPS()": "f703631d",
+    "STAKER_LANE_BPS()": "08a4ed92",
     "afterAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)": "9f063efc",
     "afterDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)": "e1b4af69",
     "afterInitialize(address,(address,address,uint24,int24,address),uint160,int24)": "6fe7e6eb",

@@ -183,19 +183,20 @@
       ],
       "functions": [
         "0x02669b52 launchpad()",
-        "0x136c77f1 registerPool((address,address,uint24,int24,address),address,address,address)",
         "0x1b7a4480 pool(bytes32)",
         "0x1c3c0ea8 setExecutor(address)",
         "0x21d0ee70 beforeRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
         "0x259982e5 beforeAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
-        "0x383cbc5f grossLane(uint256)",
+        "0x34dafbd2 registerPool((address,address,uint24,int24,address),address,address,address,address)",
         "0x575e24b4 beforeSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),bytes)",
         "0x63fba12d creditRegentLane(bytes32,uint256)",
         "0x6c2bbe7e afterRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
         "0x6fe7e6eb afterInitialize(address,(address,address,uint24,int24,address),uint160,int24)",
         "0x8ba55f91 settleRegentLane(bytes32,uint256,uint256)",
         "0x8bf170c1 settleStakerLane(bytes32)",
+        "0x9a139fe0 grossOf(uint256)",
         "0x9f063efc afterAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
+        "0xaa2c226c hookFee(uint256)",
         "0xb47b2fb1 afterSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),int256,bytes)",
         "0xb6a8b0fa beforeDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
         "0xb735356b REGENT_SOURCE_TAG()",
@@ -204,14 +205,15 @@
         "0xd945af1d settled(bytes32)",
         "0xdc4c90d3 poolManager()",
         "0xdc98354e beforeInitialize(address,(address,address,uint24,int24,address),uint160)",
+        "0xe149d0cc settleCreatorLane(bytes32)",
         "0xe1b4af69 afterDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
         "0xf92f23a7 accrued(bytes32)"
       ],
       "mutating_functions": [
-        "0x136c77f1 registerPool((address,address,uint24,int24,address),address,address,address)",
         "0x1c3c0ea8 setExecutor(address)",
         "0x21d0ee70 beforeRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
         "0x259982e5 beforeAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
+        "0x34dafbd2 registerPool((address,address,uint24,int24,address),address,address,address,address)",
         "0x575e24b4 beforeSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),bytes)",
         "0x63fba12d creditRegentLane(bytes32,uint256)",
         "0x6c2bbe7e afterRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
@@ -222,12 +224,14 @@
         "0xb47b2fb1 afterSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),int256,bytes)",
         "0xb6a8b0fa beforeDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
         "0xdc98354e beforeInitialize(address,(address,address,uint24,int24,address),uint160)",
+        "0xe149d0cc settleCreatorLane(bytes32)",
         "0xe1b4af69 afterDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)"
       ],
       "view_functions": [
         "0x02669b52 launchpad()",
         "0x1b7a4480 pool(bytes32)",
-        "0x383cbc5f grossLane(uint256)",
+        "0x9a139fe0 grossOf(uint256)",
+        "0xaa2c226c hookFee(uint256)",
         "0xb735356b REGENT_SOURCE_TAG()",
         "0xc34c08e5 executor()",
         "0xc4e833ce getHookPermissions()",
@@ -236,14 +240,20 @@
         "0xf92f23a7 accrued(bytes32)"
       ],
       "events": [
-        "0x01bf263a1db1652580721573296e1a1fa70b3d4c87f61d02a69c4e1109d2d573 PoolRegistered(bytes32,address,address,address) indexed=3",
         "0x0dfedc5814766e4df7b1aed027f3b5a917040e0b3afe9d16255bb1f3b59c0767 RegentLaneSettled(bytes32,uint256,uint256) indexed=1",
+        "0x2fe21aa815767bbb193edcfb54bd499f29947c54e39d6b60eba8ade116567906 CreatorLaneSettled(bytes32,address,uint256) indexed=2",
         "0x3f60d87ccb859a88bb7c35d382d699e30711db8932969f3cccad7ea0a22c3645 LaunchDustAccrued(bytes32,uint256) indexed=1",
-        "0x77f29b33d794ab859f479d8aceaa55d04e203db891dbc7f09096212aa6415bdb HookFeeAccrued(bytes32,uint256,uint256,uint256) indexed=1",
         "0x7c398b6d8d279a2ca7076ed56c3a14868fb49bdf4a415334b824ba311e00e9ba StakerLaneSettled(bytes32,address,uint256) indexed=2",
+        "0x8296a712a8a40412718799ea39d29f1d3484525661a52f3681bdfc6372496b07 PoolRegistered(bytes32,address,address,address,address) indexed=3",
+        "0xfb28a345241d1c9f92e2e299486d25fc04b1505479490a63fcbc3e947b60a383 HookFeeAccrued(bytes32,uint256,uint256,uint256,uint256) indexed=1",
         "0xfb9f0b64a386bfdab88dc9625b782778e7f8eea8cf15b7fe829cdbc603fd4794 ExecutorSet(address,address) indexed=2"
       ],
       "event_fields": {
+        "CreatorLaneSettled": [
+          "bytes32 indexed poolId",
+          "address indexed creator",
+          "uint256 stockPaid"
+        ],
         "ExecutorSet": [
           "address indexed previous",
           "address indexed current"
@@ -251,6 +261,7 @@
         "HookFeeAccrued": [
           "bytes32 indexed poolId",
           "uint256 feeBase",
+          "uint256 creatorLane",
           "uint256 regentLane",
           "uint256 stakerLane"
         ],
@@ -262,7 +273,8 @@
           "bytes32 indexed poolId",
           "address indexed stock",
           "address indexed newToken",
-          "address splitter"
+          "address splitter",
+          "address creator"
         ],
         "RegentLaneSettled": [
           "bytes32 indexed poolId",
@@ -436,7 +448,8 @@
         "pool_return0": [
           "address stock",
           "address newToken",
-          "address splitter"
+          "address splitter",
+          "address creator"
         ]
       }
     },

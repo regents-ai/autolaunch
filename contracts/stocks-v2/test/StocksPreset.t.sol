@@ -65,9 +65,10 @@ contract StocksPresetTest is Test {
     }
 
     function test_lane_constants() public pure {
-        assertEq(StocksPreset.LANE_DIVISOR, 100);
+        assertEq(StocksPreset.BPS_DENOMINATOR, 10_000);
+        assertEq(StocksPreset.CREATOR_LANE_BPS, 30);
         assertEq(StocksPreset.REGENT_LANE_BPS, 100);
-        assertEq(StocksPreset.STAKER_LANE_BPS, 100);
+        assertEq(StocksPreset.STAKER_LANE_BPS, 300);
         assertEq(StocksPreset.POOL_FEE, 3000);
         assertEq(StocksPreset.POOL_TICK_SPACING, 60);
     }

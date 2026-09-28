@@ -48,6 +48,7 @@ contract RegentFeeHookTest is HookFixture {
 
     struct TokenLedger {
         uint256 safe;
+        uint256 staking;
         uint256 treasury;
         uint256 hookBalance;
         uint256 splitter;
@@ -165,7 +166,7 @@ contract RegentFeeHookTest is HookFixture {
 
         assertEq(
             RegentFeeHook.SwapFeeSettled.selector,
-            keccak256("SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"),
+            keccak256("SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,bool)"),
             "FA07-I6 settlement event identity"
         );
     }
@@ -215,9 +216,9 @@ contract RegentFeeHookTest is HookFixture {
         rawHook.registerPool(key, address(rawSplitter));
 
         uint256 feeBase = uint256(1) << 127;
-        uint256 lane = feeBase / rawHook.LANE_DIVISOR();
-        regent.mint(address(rawManager), lane * 2);
-        rawSubject.mint(address(rawManager), lane * 2);
+        uint256 fee = feeBase * rawHook.HOOK_FEE_BPS() / rawHook.BPS_DENOMINATOR();
+        regent.mint(address(rawManager), fee);
+        rawSubject.mint(address(rawManager), fee);
 
         _assertRawMinimum(
             rawManager,
@@ -227,8 +228,7 @@ contract RegentFeeHookTest is HookFixture {
             SwapParams({zeroForOne: true, amountSpecified: 1, sqrtPriceLimitX96: MIN_LIMIT}),
             toBalanceDelta(type(int128).min, 1),
             regent,
-            feeBase,
-            lane
+            feeBase
         );
         _assertRawMinimum(
             rawManager,
@@ -238,8 +238,7 @@ contract RegentFeeHookTest is HookFixture {
             SwapParams({zeroForOne: false, amountSpecified: 1, sqrtPriceLimitX96: MAX_LIMIT}),
             toBalanceDelta(1, type(int128).min),
             rawSubject,
-            feeBase,
-            lane
+            feeBase
         );
     }
 
@@ -247,8 +246,9 @@ contract RegentFeeHookTest is HookFixture {
         Pool memory pool = _openPool(SUBJECT_LOW, DEFAULT_LIQUIDITY);
         bool zeroForOne = _regentIsInput(pool);
         bool sawSubThreshold;
-        bool sawOneUnitLane;
-        bool sawTwoUnitLane;
+        bool sawStakerOnlyFee;
+        bool sawOneUnitRegentLane;
+        bool sawTwoUnitRegentLane;
 
         for (uint256 amountSpecified = 1; amountSpecified <= 260; ++amountSpecified) {
             vm.recordLogs();
@@ -256,21 +256,23 @@ contract RegentFeeHookTest is HookFixture {
             Settlement[] memory settlements = _recordedSettlements();
             int128 netOutput = zeroForOne ? delta.amount1() : delta.amount0();
             if (settlements.length == 0) {
-                assertLt(uint256(uint128(netOutput)), 100, "FA07-I2 sub-threshold execution charged");
+                assertLt(uint256(uint128(netOutput)), 50, "FA07-I2 sub-threshold execution charged");
                 sawSubThreshold = true;
                 continue;
             }
             assertEq(settlements.length, 1, "FA07-I2 more than one settlement");
             Settlement memory settled = settlements[0];
             assertEq(settled.feeToken, SUBJECT_LOW, "FA07-I2 boundary asset");
-            assertEq(settled.charged, uint256(uint128(netOutput)) + 2 * settled.lane, "FA07-I2 realized base");
-            assertEq(settled.lane, settled.charged / 100, "FA07-I2 independently floored lane");
-            if (settled.lane == 1) sawOneUnitLane = true;
-            if (settled.lane == 2) sawTwoUnitLane = true;
+            assertEq(settled.charged, uint256(uint128(netOutput)) + _fee(settled), "FA07-I2 realized base");
+            _assertExactLanes(settled, settled.charged);
+            if (settled.regentLane == 0) sawStakerOnlyFee = true;
+            if (settled.regentLane == 1) sawOneUnitRegentLane = true;
+            if (settled.regentLane == 2) sawTwoUnitRegentLane = true;
         }
         assertTrue(sawSubThreshold, "FA07-I2 no measured sub-threshold execution");
-        assertTrue(sawOneUnitLane, "FA07-I2 no measured one-unit lane boundary");
-        assertTrue(sawTwoUnitLane, "FA07-I2 no measured two-unit lane boundary");
+        assertTrue(sawStakerOnlyFee, "FA07-I2 no measured fee below the Regent lane floor");
+        assertTrue(sawOneUnitRegentLane, "FA07-I2 no measured one-unit Regent lane boundary");
+        assertTrue(sawTwoUnitRegentLane, "FA07-I2 no measured two-unit Regent lane boundary");
     }
 
     function test_HOK_002_FA07_I2_BothAssetsRouteInKindWithExactCleanLanes() public {
@@ -349,7 +351,7 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(settled.feeToken, SUBJECT_LOW, "FA07-I5 fee token");
         assertTrue(settled.exactInput, "FA07-I5 exact-input mode");
         int128 netOutput = pool.regentIsCurrency0 ? delta.amount1() : delta.amount0();
-        assertEq(settled.charged, uint256(uint128(netOutput)) + 2 * settled.lane, "FA07-I5 realized base");
+        assertEq(settled.charged, uint256(uint128(netOutput)) + _fee(settled), "FA07-I5 realized base");
     }
 
     function _assertAllFourForms(Pool memory pool) private {
@@ -372,18 +374,18 @@ contract RegentFeeHookTest is HookFixture {
         int128 specifiedDelta = specifiedIsCurrency0 ? delta.amount0() : delta.amount1();
         int128 unspecifiedDelta = specifiedIsCurrency0 ? delta.amount1() : delta.amount0();
         uint256 postHookUnspecified = _abs(unspecifiedDelta);
-        uint256 feeBase = exactInput ? postHookUnspecified + 2 * settled.lane : postHookUnspecified - 2 * settled.lane;
+        uint256 feeBase = exactInput ? postHookUnspecified + _fee(settled) : postHookUnspecified - _fee(settled);
 
         assertEq(settled.feeToken, expectedFeeToken, "FA07-I1 unspecified fee token");
         assertEq(settled.charged, feeBase, "FA07-I1 actual realized fee base");
-        assertEq(settled.lane, feeBase / 100, "FA07-I2 lane");
+        _assertExactLanes(settled, feeBase);
         assertEq(settled.exactInput, exactInput, "FA07-I5 event mode");
         assertEq(
             specifiedDelta,
             exactInput ? -int128(int256(_abs256(amountSpecified))) : int128(int256(uint256(amountSpecified))),
             "FA07-I1 specified core result changed"
         );
-        _assertLanesInKind(pool, feeToken, before, settled.lane);
+        _assertLanesInKind(pool, feeToken, before, settled);
     }
 
     function _assertPartialAndZero(Pool memory pool, bool zeroForOne, bool exactInput, address expectedFeeToken)
@@ -402,13 +404,13 @@ contract RegentFeeHookTest is HookFixture {
         int128 specifiedDelta = specifiedIsCurrency0 ? partialDelta.amount0() : partialDelta.amount1();
         int128 unspecifiedDelta = specifiedIsCurrency0 ? partialDelta.amount1() : partialDelta.amount0();
         uint256 postHookUnspecified = _abs(unspecifiedDelta);
-        uint256 feeBase = exactInput ? postHookUnspecified + 2 * settled.lane : postHookUnspecified - 2 * settled.lane;
+        uint256 feeBase = exactInput ? postHookUnspecified + _fee(settled) : postHookUnspecified - _fee(settled);
         assertEq(settled.feeToken, expectedFeeToken, "FA07-I1 partial fee token");
         assertEq(settled.charged, feeBase, "FA07-I1 partial realized base");
-        assertEq(settled.lane, feeBase / hook.LANE_DIVISOR(), "FA07-I2 partial lane");
+        _assertExactLanes(settled, feeBase);
         assertEq(
             exactInput ? feeBase - postHookUnspecified : postHookUnspecified - feeBase,
-            2 * settled.lane,
+            _fee(settled),
             "FA07-I1 partial returned delta"
         );
         assertGt(_abs(specifiedDelta), 0, "FA07-I1 partial fill executed nothing");
@@ -431,7 +433,7 @@ contract RegentFeeHookTest is HookFixture {
         int128 zeroOutput = exactInput ? zeroUnspecified : zeroSpecified;
         int128 dustInput = exactInput ? zeroSpecified : zeroUnspecified;
         assertEq(zeroOutput, 0, "FA07-I1 zero fill realized output currency");
-        assertLt(_abs(dustInput), 100, "FA07-I2 zero fill crossed lane floor");
+        assertLt(_abs(dustInput), 50, "FA07-I2 zero fill crossed the fee floor");
         assertEq(_recordedSettlements().length, 0, "FA07-I2 zero fill settled a lane");
     }
 
@@ -443,8 +445,7 @@ contract RegentFeeHookTest is HookFixture {
         SwapParams memory params,
         BalanceDelta rawDelta,
         MockERC20 feeToken,
-        uint256 feeBase,
-        uint256 lane
+        uint256 feeBase
     ) private {
         bool specifiedIsCurrency0 = params.zeroForOne == false;
         int128 specified = specifiedIsCurrency0 ? rawDelta.amount0() : rawDelta.amount1();
@@ -453,20 +454,22 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(unspecified, type(int128).min, "FA07-I1 raw unspecified component");
 
         uint256 safeBefore = feeToken.balanceOf(REGENT_SAFE);
+        uint256 stakingBefore = feeToken.balanceOf(LIVE_STAKING);
         uint256 treasuryBefore = feeToken.balanceOf(treasury);
         vm.recordLogs();
         (bytes4 selector, int128 returned) = rawManager.callAfterSwap(rawHook, key, params, rawDelta);
         Settlement memory settled = _onlySettlementFrom(address(rawHook));
-        uint256 skim = (lane * rawSplitter.SKIM_BPS()) / rawSplitter.BPS_DENOMINATOR();
+        (uint256 toSafe, uint256 toStaking, uint256 toTreasury) = _expectedRoutes(rawSplitter, settled);
 
         assertEq(selector, IHooks.afterSwap.selector, "FA07-I1 raw callback selector");
-        assertEq(returned, int128(int256(lane * 2)), "FA07-I1 raw returned delta");
+        assertEq(returned, int128(int256(_fee(settled))), "FA07-I1 raw returned delta");
         assertEq(settled.feeToken, address(feeToken), "FA07-I1 raw unspecified asset");
         assertEq(settled.charged, feeBase, "FA07-I1 raw fee base");
-        assertEq(settled.lane, lane, "FA07-I2 raw lane");
+        _assertExactLanes(settled, feeBase);
         assertFalse(settled.exactInput, "FA07-I1 raw mode");
-        assertEq(feeToken.balanceOf(REGENT_SAFE), safeBefore + lane + skim, "FA07-I2 raw Safe route");
-        assertEq(feeToken.balanceOf(treasury), treasuryBefore + lane - skim, "FA07-I2 raw splitter route");
+        assertEq(feeToken.balanceOf(REGENT_SAFE), safeBefore + toSafe, "FA07-I2 raw Safe route");
+        assertEq(feeToken.balanceOf(LIVE_STAKING), stakingBefore + toStaking, "FA07-I2 raw staking route");
+        assertEq(feeToken.balanceOf(treasury), treasuryBefore + toTreasury, "FA07-I2 raw splitter route");
         assertEq(feeToken.balanceOf(address(rawHook)), 0, "FA07-I4 raw hook balance");
         assertEq(feeToken.allowance(address(rawHook), address(rawSplitter)), 0, "FA07-I4 raw allowance");
     }
@@ -481,7 +484,8 @@ contract RegentFeeHookTest is HookFixture {
             settled.poolId = PoolId.wrap(logs[i].topics[1]);
             settled.sender = address(uint160(uint256(logs[i].topics[2])));
             settled.feeToken = address(uint160(uint256(logs[i].topics[3])));
-            (settled.charged, settled.lane, settled.exactInput) = abi.decode(logs[i].data, (uint256, uint256, bool));
+            (settled.charged, settled.regentLane, settled.stakerLane, settled.exactInput) =
+                abi.decode(logs[i].data, (uint256, uint256, uint256, bool));
         }
         assertTrue(settled.found, "FA07-I1 missing raw settlement");
     }
@@ -559,6 +563,7 @@ contract RegentFeeHookTest is HookFixture {
     {
         TokenLedger memory after_ = _tokenLedger(pool, feeToken);
         assertEq(after_.safe, before.safe, "FA07-I4 Safe rolled forward");
+        assertEq(after_.staking, before.staking, "FA07-I4 staking rolled forward");
         assertEq(after_.treasury, before.treasury, "FA07-I4 treasury rolled forward");
         assertEq(after_.hookBalance, before.hookBalance, "FA07-I4 hook rolled forward");
         assertEq(after_.splitter, before.splitter, "FA07-I4 splitter rolled forward");
@@ -568,13 +573,27 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(_currentSqrtPrice(pool), sqrtBefore, "FA07-I4 pool state rolled forward");
     }
 
-    function _assertLanesInKind(Pool memory pool, MockERC20 feeToken, TokenLedger memory before, uint256 lane)
-        private
-        view
-    {
-        uint256 skim = (lane * pool.splitter.SKIM_BPS()) / pool.splitter.BPS_DENOMINATOR();
-        assertEq(feeToken.balanceOf(REGENT_SAFE), before.safe + lane + skim, "FA07-I2 Safe lane");
-        assertEq(feeToken.balanceOf(treasury), before.treasury + lane - skim, "FA07-I2 splitter lane");
+    /// @dev Both lanes are measured from the one fee base: the 2% fee floored once, the 1% Regent
+    ///      lane floored on its own, and the staker lane the exact remainder. `FA07-I2`.
+    function _assertExactLanes(Settlement memory settled, uint256 feeBase) private view {
+        uint256 fee = feeBase * hook.HOOK_FEE_BPS() / hook.BPS_DENOMINATOR();
+        assertEq(settled.regentLane, feeBase * hook.REGENT_LANE_BPS() / hook.BPS_DENOMINATOR(), "FA07-I2 Regent lane");
+        assertEq(settled.stakerLane, fee - settled.regentLane, "FA07-I2 staker lane");
+        assertGe(
+            settled.stakerLane, feeBase * hook.STAKER_LANE_BPS() / hook.BPS_DENOMINATOR(), "FA07-I2 staker lane floor"
+        );
+    }
+
+    function _assertLanesInKind(
+        Pool memory pool,
+        MockERC20 feeToken,
+        TokenLedger memory before,
+        Settlement memory settled
+    ) private view {
+        (uint256 toSafe, uint256 toStaking, uint256 toTreasury) = _expectedRoutes(pool.splitter, settled);
+        assertEq(feeToken.balanceOf(REGENT_SAFE), before.safe + toSafe, "FA07-I2 Safe lane");
+        assertEq(feeToken.balanceOf(LIVE_STAKING), before.staking + toStaking, "FA07-I2 staking lane");
+        assertEq(feeToken.balanceOf(treasury), before.treasury + toTreasury, "FA07-I2 splitter lane");
         assertEq(feeToken.balanceOf(address(hook)), before.hookBalance, "FA07-I4 hook balance");
         assertEq(feeToken.allowance(address(hook), address(pool.splitter)), before.allowance, "FA07-I4 hook allowance");
     }
@@ -582,6 +601,7 @@ contract RegentFeeHookTest is HookFixture {
     function _tokenLedger(Pool memory pool, MockERC20 token) private view returns (TokenLedger memory found) {
         address splitter = hook.splitterOf(pool.id);
         found.safe = token.balanceOf(REGENT_SAFE);
+        found.staking = token.balanceOf(LIVE_STAKING);
         found.treasury = token.balanceOf(treasury);
         found.hookBalance = token.balanceOf(address(hook));
         found.splitter = token.balanceOf(splitter);

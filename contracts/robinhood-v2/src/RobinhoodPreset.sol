@@ -5,7 +5,7 @@ pragma solidity 0.8.26;
 /// @notice Every fixed Robinhood-chain launch term, in one place, with its provenance.
 /// @dev USDG is the local dollar asset of the Robinhood chain: the protocol lane's settlement and the
 ///      protocol inbox are USDG. Nothing here depends on Base USDC or on REGENT. Supply split, tick
-///      grid, pool fee, lane divisor and metadata caps are shared with the Base Stocks component
+///      grid, pool fee, basis-point denominator and metadata caps are shared with the Base Stocks component
 ///      through `StocksPreset`; the block schedule is Robinhood's own, because a Robinhood block is a
 ///      tenth of a second where a Base block is two seconds. There is no launch fee and no
 ///      governance minimum raise: the launcher chooses the required raise in STOCK.
@@ -52,10 +52,15 @@ library RobinhoodPreset {
     // protocol revenue
     // -------------------------------------------------------------------------
 
-    /// @notice Each hook lane is one percent of the realized STOCK amount of a swap: the protocol
-    ///         lane and the staker lane of the launch's memestock splitter. Both are always on.
+    /// @notice The hook's lanes, in basis points (`StocksPreset.BPS_DENOMINATOR`) of a swap's gross
+    ///         STOCK amount: 0.3% to the launch's creator, 1% to the protocol lane (converted to USDG
+    ///         outside swaps) and 3% to the launch's memestock stakers. The hook takes their sum, 4.3%,
+    ///         floored once; the creator and protocol lanes are each floored and the staker lane is the
+    ///         rest.
+    // Founder decision 2026-09-28
+    uint16 internal constant CREATOR_LANE_BPS = 30;
     uint16 internal constant PROTOCOL_LANE_BPS = 100;
-    uint16 internal constant STAKER_LANE_BPS = 100;
+    uint16 internal constant STAKER_LANE_BPS = 300;
 
     // -------------------------------------------------------------------------
     // Base destination

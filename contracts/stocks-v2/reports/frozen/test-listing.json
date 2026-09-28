@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 113,
+  "total": 115,
   "tests": {
     "test/AerodromeStockRoute.t.sol": {
       "AerodromeStockRouteTest": [
@@ -75,13 +75,15 @@
     },
     "test/StocksFeeHook.t.sol": {
       "StocksFeeHookTest": [
-        "testFuzz_grossLane_is_the_smallest_fixed_point",
-        "test_accrual_event_reports_both_lanes",
+        "testFuzz_grossOf_is_the_smallest_gross_amount_for_a_net_amount",
+        "test_accrual_event_reports_all_three_lanes",
         "test_callbacks_are_pool_manager_only",
         "test_fee_matrix_charges_stock_on_every_swap_form_with_conservation",
         "test_hook_address_carries_exactly_the_declared_permission_bits",
         "test_launchpad_only_surface",
         "test_registration_validates_the_whole_key",
+        "test_settle_creator_lane_guards",
+        "test_settle_creator_lane_is_permissionless_and_pays_the_creator_in_stock",
         "test_settle_regent_lane_deposits_usdc_into_live_staking",
         "test_settle_regent_lane_guards",
         "test_settle_regent_lane_re_credits_route_residue",
@@ -91,7 +93,7 @@
         "test_small_stock_inputs_are_charged_exactly_and_floored",
         "test_stock_specified_partial_fills_revert_and_stock_unspecified_partial_fills_are_charged",
         "test_swaps_on_an_unregistered_pool_with_this_hook_cannot_exist",
-        "test_the_hooks_stock_balance_is_exactly_the_sum_of_both_lanes",
+        "test_the_hooks_stock_balance_is_exactly_the_sum_of_the_three_lanes",
         "test_zero_fee_swaps_make_no_take"
       ]
     },

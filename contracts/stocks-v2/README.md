@@ -5,12 +5,13 @@ pinned Uniswap Continuous Clearing Auction denominated in one admitted Base stoc
 **STOCK**, and after a successful auction gives its bidders that whole half and opens the official
 **NEW/STOCK** Uniswap v4 pool at the raise divided by the sale allocation, with the whole raise and the
 other half of the supply locked forever in one full-range position. Official-pool trading pays
-two STOCK-side hook fees on top of the 0.30% LP fee, both always on: a 100 bps REGENT lane, converted
-to USDC and deposited into REGENT staking, and a 100 bps staker lane, deposited as STOCK into the
-launch's own **memestock splitter**. Holders stake NEW (the MEMESTOCK) in that splitter and divide,
-pro rata, everything it recognizes in USDC, MEMESTOCK and STOCK after a 2% protocol share. The
-locked position sits in a fee-only locker whose LP fees also flow into the splitter. No launch has a
-creator, an administrator or a treasury.
+three STOCK-side hook fees on top of the 0.30% LP fee, all always on: a 30 bps creator lane, paid as
+STOCK to the launcher, a 100 bps REGENT lane, converted to USDC and deposited into REGENT staking,
+and a 300 bps staker lane, deposited as STOCK into the launch's own **memestock splitter**. Holders
+stake NEW (the MEMESTOCK) in that splitter and divide, pro rata, everything it recognizes in USDC,
+MEMESTOCK and STOCK after a 2% protocol share. The locked position sits in a fee-only locker whose
+LP fees also flow into the splitter. No launch has a creator allocation, an administrator or a
+treasury.
 
 This is a separate Foundry component. It reuses the frozen `contracts/v1` dependencies at their
 pinned revisions and never modifies them. Nothing here changes the Agent factory, strategy,
@@ -35,7 +36,7 @@ version 2 deployment creates new instances bound to the new launchpad.
 | `src/interfaces/` | The cross-component ABI. Website, indexer and CLI consume these shapes. |
 | `src/StocksPreset.sol` | Every fixed launch term, in one place, with its provenance label. |
 | `src/StocksLaunchpadV2.sol` | Admission, creation, custody, migration; deploys the locker and the splitter implementation, clones one splitter per graduation. |
-| `src/StocksFeeHookV1.sol` | The official-pool hook: two accrual-only fee lanes and out-of-swap settlement. |
+| `src/StocksFeeHookV1.sol` | The official-pool hook: three accrual-only fee lanes and out-of-swap settlement. |
 | `src/MemestockSplitterCore.sol` | The shared staking and revenue accounting: three recognized assets, 2% protocol share, pro rata accrual, one-block exit rule, recovery of unsupported tokens. Chain-neutral; the Robinhood splitter inherits it too. |
 | `src/MemestockSplitterV1.sol` | The Base clone target: USDC protocol share into live REGENT staking, MEMESTOCK and STOCK protocol shares to the Governance and REGENT Safe. |
 | `src/MemestockLPLocker.sol` | Permanent fee-only owner of every launch position; anyone may `collect`, the fees always land in the launch's splitter. Shared with the Robinhood launchpad. |
@@ -73,8 +74,10 @@ shared it is because the same pinned dependency imposes it.
 | Bid tick spacing | `floorPriceQ96 / 100`, requiring `floorPriceQ96 % 100 == 0` and the result ≥ CCA `MIN_TICK_SPACING` | Derived; floor ≥ CCA `MIN_FLOOR_PRICE` |
 | Official pool LP fee | 3000 (0.30%) | Founder decision 2026-09-09 |
 | Official pool tick spacing | 60 | Founder decision 2026-09-09 |
-| REGENT hook lane | 100 bps of realized STOCK-side amount, floored | Brief P08 |
-| Staker hook lane | 100 bps of realized STOCK-side amount, floored, always on; deposited as STOCK into the launch's splitter by anyone (`settleStakerLane`) | Founder decision 2026-09-18 |
+| Hook fee | 430 bps of the gross STOCK-side amount, floored once, split into the three lanes below | Founder decision 2026-09-28 |
+| Creator hook lane | 30 bps of the gross STOCK-side amount, floored, always on; paid as STOCK to the launcher by anyone (`settleCreatorLane`) | Founder decision 2026-09-28 |
+| REGENT hook lane | 100 bps of the gross STOCK-side amount, floored; converted to USDC into REGENT staking by the executor (`settleRegentLane`) | Founder decision 2026-09-28 |
+| Staker hook lane | the rest of the hook fee, never less than 300 bps of the gross STOCK-side amount floored, always on; deposited as STOCK into the launch's splitter by anyone (`settleStakerLane`) | Founder decision 2026-09-28 |
 | Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
 | Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe); the rule holds only while `totalStaked == 0`, so any stake placed before a settlement takes the 98% share of that settlement | Founder decision 2026-09-18 |
 | Launch fee | none: a launch costs nothing beyond gas; no REGENT is pulled and the launchpad never holds REGENT | Founder decision 2026-09-21 |
@@ -120,11 +123,14 @@ pre-commit their exact fee in `beforeSwap` as a specified-currency delta and rev
 (`PartialFillNotSupported`) if the trader's own price limit cuts the fill short, since the pre-committed
 fee would otherwise be inexact. STOCK-unspecified swaps are charged in `afterSwap` and fill partially
 as usual. The fee base is the gross STOCK amount: the trader's whole debit for STOCK-input swaps, the
-pool's whole output for STOCK-output swaps; each lane is one percent of it, floored. Both lanes are
-always charged. `settleRegentLane` (executor only, with `minUsdcOut`) converts REGENT-lane STOCK
-through the admitted route and deposits the USDC into live REGENT staking. `settleStakerLane`
-(anyone) deposits the whole staker lane, as STOCK, into the pool's splitter; it decides nothing, so it
-needs no authority.
+pool's whole output for STOCK-output swaps. The hook fee is 4.3% of it, floored once; the creator
+lane is 0.3% of it and the REGENT lane 1%, each floored, and the staker lane takes the rest, so it is
+never less than its own floored 3%. All three lanes are always charged. `settleCreatorLane` (anyone)
+pays the whole creator lane, as STOCK, to the launcher. `settleRegentLane` (executor only, with
+`minUsdcOut`) converts REGENT-lane STOCK through the admitted route and deposits the USDC into live
+REGENT staking. `settleStakerLane` (anyone) deposits the whole staker lane, as STOCK, into the pool's
+splitter. The two permissionless settlements decide nothing, so they need no authority, and a STOCK
+that refuses the launcher only stalls that launcher's own lane, never a swap.
 
 ## Staking
 
@@ -149,7 +155,7 @@ and collect often. Tokens other than the three recognized assets can be swept to
   each deployed route; delivery to the Safe was shown on 19 September. The issuer changing its
   transfer policy later remains an accepted limit (see SECURITY.md, AT04, AT48).
 - The Governance and REGENT Safe (`0x9fa1…9a3e`) is the only governance. No launch has an
-  administrator: both lanes and the splitter are fixed by the contracts.
+  administrator: the three lanes, the launcher and the splitter are fixed by the contracts.
 
 ### Stock routes
 
@@ -214,10 +220,13 @@ AAPLc pool whenever it is run against Base itself.
    inventory; never touch bidder STOCK.
 4. Bidder refunds and claims go through the CCA and depend on nothing in this component. The bids
    of a graduated launch receive the whole sale allocation from the auction but for crumbs.
-5. The hook only accrues. The REGENT lane leaves only through `settleRegentLane` (executor-only, via
-   the admitted route, with `minUsdcOut`) and the staker lane only through `settleStakerLane` (anyone,
-   whole lane, as STOCK, into the pool's fixed splitter); a failing settlement reverts only itself.
-6. A pool's splitter is fixed when the pool is registered; nothing redirects either lane afterwards.
+5. The hook only accrues. The creator lane leaves only through `settleCreatorLane` (anyone, whole
+   lane, as STOCK, to the launcher), the REGENT lane only through `settleRegentLane` (executor-only,
+   via the admitted route, with `minUsdcOut`) and the staker lane only through `settleStakerLane`
+   (anyone, whole lane, as STOCK, into the pool's fixed splitter); a failing settlement reverts only
+   itself.
+6. A pool's splitter and launcher are fixed when the pool is registered; nothing redirects any lane
+   afterwards.
    The splitter pays out exactly what it recognized: `gross == protocolShare + stakerShare`, staked
    principal is never revenue, and the locker can never move liquidity.
 7. The adapter uses invocation balance deltas only, restores every allowance to zero, and bids as
@@ -288,6 +297,7 @@ python3 bin/local-stocks-lab.py status [--launch ID] [--auction ADDR]
 python3 bin/local-stocks-lab.py advance --auction ADDR --to start|end|claim|migration
 python3 bin/local-stocks-lab.py migrate --launch ID
 python3 bin/local-stocks-lab.py settle-regent --pool-id 0x… --amount UNITS --min-usdc UNITS
+python3 bin/local-stocks-lab.py settle-creator --pool-id 0x…
 python3 bin/local-stocks-lab.py settle-stakers --pool-id 0x…
 python3 bin/local-stocks-lab.py collect --token-id ID
 ```

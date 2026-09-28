@@ -22,8 +22,8 @@ contract HookSwapHandler is CommonBase, StdUtils {
     ///      constraint and every swap settles.
     uint256 internal constant MAX_SWAP = 1e20;
 
-    /// @dev A lane is `feeBase / 100` floored, so anything below one hundred units charges nothing.
-    uint256 internal constant ZERO_LANE_CEILING = 99;
+    /// @dev The fee is 2% of the fee base floored, so anything below fifty units charges nothing.
+    uint256 internal constant ZERO_FEE_CEILING = 49;
 
     PoolSwapTest public immutable pinnedRouter;
     SimpleSwapRouter public immutable altRouter;
@@ -39,7 +39,7 @@ contract HookSwapHandler is CommonBase, StdUtils {
     /// @notice Swaps that actually settled, by shape.
     uint256 public exactInputSwaps;
     uint256 public exactOutputSwaps;
-    uint256 public zeroLaneSwaps;
+    uint256 public zeroFeeSwaps;
 
     constructor(
         PoolSwapTest pinnedRouter_,
@@ -82,12 +82,12 @@ contract HookSwapHandler is CommonBase, StdUtils {
         exactOutputSwaps += 1;
     }
 
-    /// @dev The zero-lane shape: too small for either 1% lane to floor above zero, which the hook
-    ///      must treat as a valid no-op rather than a charge of zero.
-    function swapZeroLane(uint256 amount, bool zeroForOne, bool exactOutput) external {
-        int256 specified = int256(bound(amount, 1, ZERO_LANE_CEILING));
+    /// @dev The zero-fee shape: too small for the 2% fee to floor above zero, which the hook must
+    ///      treat as a valid no-op rather than a charge of zero.
+    function swapZeroFee(uint256 amount, bool zeroForOne, bool exactOutput) external {
+        int256 specified = int256(bound(amount, 1, ZERO_FEE_CEILING));
         _swap(exactOutput ? specified : -specified, zeroForOne, false);
-        zeroLaneSwaps += 1;
+        zeroFeeSwaps += 1;
     }
 
     /// @dev An explained external gift. It is not lane inventory and the hook must never spend it.

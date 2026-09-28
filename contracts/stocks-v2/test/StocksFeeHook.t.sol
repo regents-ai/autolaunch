@@ -22,8 +22,9 @@ import {IStocksLaunchpadV2} from "../src/interfaces/IStocksLaunchpadV2.sol";
 import {MemestockSplitterV1} from "../src/MemestockSplitterV1.sol";
 import {StocksFixture} from "./StocksFixture.sol";
 
-/// @notice Rules 5 and 6: the hook only accrues, two equal lanes per pool, in STOCK, on every swap form
-///         and both currency orders; `settleRegentLane` and `settleStakerLane` are the only paths out.
+/// @notice Rules 5 and 6: the hook only accrues, three lanes per pool (creator 0.3%, REGENT 1%, stakers
+///         3%), in STOCK, on every swap form and both currency orders; `settleCreatorLane`,
+///         `settleRegentLane` and `settleStakerLane` are the only paths out.
 contract StocksFeeHookTest is StocksFixture {
     using StateLibrary for IPoolManager;
     using PoolIdLibrary for PoolKey;
@@ -32,6 +33,8 @@ contract StocksFeeHookTest is StocksFixture {
     uint256 internal constant NEW_AMOUNT = 1e24;
     /// @dev Stands in for a splitter where a test registers a pool by hand; the hook stores it only.
     address internal constant SPLITTER_STANDIN = address(0x5717);
+    /// @dev Stands in for a creator where a test registers a pool by hand; the hook stores it only.
+    address internal constant CREATOR_STANDIN = address(0xC4EA);
 
     struct Snapshot {
         uint256 traderStock;
@@ -39,6 +42,7 @@ contract StocksFeeHookTest is StocksFixture {
         uint256 poolStock;
         uint256 hookStock;
         uint256 hookNew;
+        uint256 creatorBucket;
         uint256 regentBucket;
         uint256 stakerBucket;
     }
@@ -64,7 +68,7 @@ contract StocksFeeHookTest is StocksFixture {
         bytes32 poolId = _poolId(l);
         vm.startPrank(outsider);
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.NotLaunchpad.selector, outsider));
-        hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN);
+        hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.NotLaunchpad.selector, outsider));
         hook.creditRegentLane(poolId, 1);
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.NotGovernance.selector, outsider));
@@ -98,32 +102,36 @@ contract StocksFeeHookTest is StocksFixture {
         PoolKey memory wrong = _poolKey(l);
         wrong.fee = 500;
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.UnexpectedPoolFee.selector, 500));
-        hook.registerPool(wrong, l.stock, l.newToken, SPLITTER_STANDIN);
+        hook.registerPool(wrong, l.stock, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
 
         wrong = _poolKey(l);
         wrong.tickSpacing = 10;
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.UnexpectedTickSpacing.selector, 10));
-        hook.registerPool(wrong, l.stock, l.newToken, SPLITTER_STANDIN);
+        hook.registerPool(wrong, l.stock, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
 
         wrong = _poolKey(l);
         wrong.hooks = IHooks(address(0));
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.ForeignHook.selector, address(0)));
-        hook.registerPool(wrong, l.stock, l.newToken, SPLITTER_STANDIN);
+        hook.registerPool(wrong, l.stock, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
 
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.StockNotInPoolKey.selector, STOCK_HIGH));
-        hook.registerPool(key, STOCK_HIGH, l.newToken, SPLITTER_STANDIN);
+        hook.registerPool(key, STOCK_HIGH, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
 
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.StockNotInPoolKey.selector, outsider));
-        hook.registerPool(key, l.stock, outsider, SPLITTER_STANDIN);
+        hook.registerPool(key, l.stock, outsider, SPLITTER_STANDIN, CREATOR_STANDIN);
 
         vm.expectRevert(StocksFeeHookV1.ZeroAddress.selector);
-        hook.registerPool(key, l.stock, l.newToken, address(0));
+        hook.registerPool(key, l.stock, l.newToken, address(0), CREATOR_STANDIN);
 
-        bytes32 poolId = hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN);
+        vm.expectRevert(StocksFeeHookV1.ZeroAddress.selector);
+        hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN, address(0));
+
+        bytes32 poolId = hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
         assertEq(poolId, _poolId(l));
         assertEq(hook.pool(poolId).splitter, SPLITTER_STANDIN);
+        assertEq(hook.pool(poolId).creator, CREATOR_STANDIN);
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.PoolAlreadyRegistered.selector, poolId));
-        hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN);
+        hook.registerPool(key, l.stock, l.newToken, SPLITTER_STANDIN, CREATOR_STANDIN);
         vm.stopPrank();
     }
 
@@ -182,10 +190,14 @@ contract StocksFeeHookTest is StocksFixture {
             feeBase = uint256(-poolDelta);
             assertEq(uint256(traderDelta) + uint256(hookDelta), feeBase, "trader receives the output minus the fee");
         }
-        uint256 lane = feeBase / StocksPreset.LANE_DIVISOR;
-        assertEq(uint256(hookDelta), 2 * lane, "each lane is one percent of the gross STOCK amount, floored");
-        assertEq(post.regentBucket - before.regentBucket, lane, "REGENT lane credited one lane");
-        assertEq(post.stakerBucket - before.stakerBucket, lane, "staker lane credited one lane");
+        uint256 creatorLane = feeBase * 30 / 10_000;
+        uint256 regentLane = feeBase * 100 / 10_000;
+        uint256 stakerLane = feeBase * 430 / 10_000 - creatorLane - regentLane;
+        assertEq(uint256(hookDelta), feeBase * 430 / 10_000, "the fee is 4.3% of the gross STOCK amount, floored");
+        assertEq(post.creatorBucket - before.creatorBucket, creatorLane, "creator lane: 0.3%, floored");
+        assertEq(post.regentBucket - before.regentBucket, regentLane, "REGENT lane: 1%, floored");
+        assertEq(post.stakerBucket - before.stakerBucket, stakerLane, "staker lane: the rest of the fee");
+        assertGe(stakerLane, feeBase * 300 / 10_000, "the staker lane is at least 3%, floored");
 
         // The specified amount is honoured exactly, whichever side it is on.
         bool stockSpecified = buyNew == exactInput;
@@ -200,12 +212,14 @@ contract StocksFeeHookTest is StocksFixture {
     function test_small_stock_inputs_are_charged_exactly_and_floored() public {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
-        for (uint256 amount = 98; amount <= 203; amount += 35) {
+        for (uint256 amount = 98; amount <= 343; amount += 35) {
             Snapshot memory before = _snapshot(l, poolId);
             _swap(l, trader, true, -int256(amount));
             Snapshot memory post = _snapshot(l, poolId);
             assertEq(before.traderStock - post.traderStock, amount, "debit is exactly the input");
-            assertEq(post.hookStock - before.hookStock, 2 * (amount / 100), "two floored lanes");
+            assertEq(post.hookStock - before.hookStock, amount * 430 / 10_000, "one floored fee");
+            assertEq(post.creatorBucket - before.creatorBucket, amount * 30 / 10_000, "creator lane floored");
+            assertEq(post.regentBucket - before.regentBucket, amount / 100, "REGENT lane floored");
         }
     }
 
@@ -229,8 +243,8 @@ contract StocksFeeHookTest is StocksFixture {
         Snapshot memory post = _snapshot(l, poolId);
         assertLt(post.traderNew - before.traderNew, 1e26, "partial fill");
         uint256 debit = before.traderStock - post.traderStock;
-        assertEq(post.hookStock - before.hookStock, 2 * (debit / 100), "two lanes of the gross debit");
-        assertEq(post.poolStock - before.poolStock, debit - 2 * (debit / 100));
+        assertEq(post.hookStock - before.hookStock, debit * 430 / 10_000, "the fee on the gross debit");
+        assertEq(post.poolStock - before.poolStock, debit - debit * 430 / 10_000);
 
         // STOCK unspecified, exact input NEW (STOCK out): fills partially, charged on the gross output.
         before = _snapshot(l, poolId);
@@ -238,27 +252,31 @@ contract StocksFeeHookTest is StocksFixture {
         post = _snapshot(l, poolId);
         assertLt(before.traderNew - post.traderNew, 1e26, "partial fill");
         uint256 output = before.poolStock - post.poolStock;
-        assertEq(post.hookStock - before.hookStock, 2 * (output / 100), "two lanes of the gross output");
-        assertEq(post.traderStock - before.traderStock, output - 2 * (output / 100));
+        assertEq(post.hookStock - before.hookStock, output * 430 / 10_000, "the fee on the gross output");
+        assertEq(post.traderStock - before.traderStock, output - output * 430 / 10_000);
     }
 
     function test_zero_fee_swaps_make_no_take() public {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         Snapshot memory before = _snapshot(l, poolId);
-        _swap(l, trader, true, -int256(50));
+        // 23 is the largest STOCK amount whose 4.3% floors to zero.
+        _swap(l, trader, true, -int256(23));
         Snapshot memory post = _snapshot(l, poolId);
         assertEq(post.hookStock, before.hookStock);
+        assertEq(post.creatorBucket, before.creatorBucket);
         assertEq(post.regentBucket, before.regentBucket);
         assertEq(post.stakerBucket, before.stakerBucket);
-        assertEq(before.traderStock - post.traderStock, 50);
+        assertEq(before.traderStock - post.traderStock, 23);
     }
 
-    function test_accrual_event_reports_both_lanes() public {
+    function test_accrual_event_reports_all_three_lanes() public {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         vm.expectEmit(true, true, false, true, address(hook));
-        emit IStocksFeeHookV1.HookFeeAccrued(poolId, STOCK_AMOUNT, STOCK_AMOUNT / 100, STOCK_AMOUNT / 100);
+        emit IStocksFeeHookV1.HookFeeAccrued(
+            poolId, STOCK_AMOUNT, STOCK_AMOUNT * 30 / 10_000, STOCK_AMOUNT / 100, STOCK_AMOUNT * 300 / 10_000
+        );
         _swap(l, trader, _stockIsCurrency0(l), -int256(STOCK_AMOUNT));
     }
 
@@ -266,23 +284,69 @@ contract StocksFeeHookTest is StocksFixture {
     // lanes are fixed per pool
     // -------------------------------------------------------------------------
 
-    function test_the_hooks_stock_balance_is_exactly_the_sum_of_both_lanes() public {
+    function test_the_hooks_stock_balance_is_exactly_the_sum_of_the_three_lanes() public {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         assertEq(
             hook.pool(poolId).splitter, address(_splitter(l)), "the staker lane's destination is the launch's splitter"
         );
+        assertEq(hook.pool(poolId).creator, launcher, "the creator lane's destination is the launch's creator");
 
-        (uint256 dust, uint256 stakerBefore) = hook.accrued(poolId);
+        (uint256 creatorBefore, uint256 dust, uint256 stakerBefore) = hook.accrued(poolId);
         assertEq(dust, _dust(l), "graduation dust sits in the REGENT lane");
+        assertEq(creatorBefore, 0);
         assertEq(stakerBefore, 0);
 
         _swap(l, trader, true, -int256(STOCK_AMOUNT));
         _swap(l, trader, true, -int256(STOCK_AMOUNT));
-        (uint256 regentLane, uint256 stakerLane) = hook.accrued(poolId);
+        (uint256 creatorLane, uint256 regentLane, uint256 stakerLane) = hook.accrued(poolId);
+        assertEq(creatorLane, 2 * (STOCK_AMOUNT * 30 / 10_000));
         assertEq(regentLane - dust, 2 * (STOCK_AMOUNT / 100));
-        assertEq(stakerLane, 2 * (STOCK_AMOUNT / 100));
+        assertEq(stakerLane, 2 * (STOCK_AMOUNT * 300 / 10_000));
+        assertEq(FixtureStockToken(l.stock).balanceOf(address(hook)), creatorLane + regentLane + stakerLane);
+    }
+
+    // -------------------------------------------------------------------------
+    // settlement: creator lane
+    // -------------------------------------------------------------------------
+
+    function test_settle_creator_lane_is_permissionless_and_pays_the_creator_in_stock() public {
+        Launched memory l = _graduatedMarket(STOCK_LOW);
+        bytes32 poolId = _poolId(l);
+        _swap(l, trader, true, -int256(1_000e8));
+        (uint256 creatorLane, uint256 regentLane, uint256 stakerLane) = hook.accrued(poolId);
+        uint256 launcherBefore = FixtureStockToken(l.stock).balanceOf(launcher);
+
+        vm.expectEmit(true, true, false, true, address(hook));
+        emit IStocksFeeHookV1.CreatorLaneSettled(poolId, launcher, creatorLane);
+        vm.prank(outsider);
+        uint256 paid = hook.settleCreatorLane(poolId);
+
+        assertEq(paid, creatorLane);
+        assertEq(FixtureStockToken(l.stock).balanceOf(launcher) - launcherBefore, creatorLane);
+        (uint256 creatorAfter, uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
+        assertEq(creatorAfter, 0, "the whole lane leaves");
+        assertEq(regentAfter, regentLane, "the REGENT lane is untouched");
+        assertEq(stakerAfter, stakerLane, "the staker lane is untouched");
+        (uint256 toCreator,,,) = hook.settled(poolId);
+        assertEq(toCreator, creatorLane);
         assertEq(FixtureStockToken(l.stock).balanceOf(address(hook)), regentLane + stakerLane);
+    }
+
+    function test_settle_creator_lane_guards() public {
+        Launched memory l = _graduatedMarket(STOCK_LOW);
+        bytes32 poolId = _poolId(l);
+
+        vm.expectRevert(StocksFeeHookV1.ZeroAmount.selector);
+        hook.settleCreatorLane(poolId);
+        vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.PoolNotRegistered.selector, bytes32(uint256(1))));
+        hook.settleCreatorLane(bytes32(uint256(1)));
+
+        // Settlement needs neither an executor nor a STOCK route.
+        _swap(l, trader, true, -int256(STOCK_AMOUNT));
+        vm.prank(governance);
+        hook.setExecutor(address(0));
+        assertEq(hook.settleCreatorLane(poolId), STOCK_AMOUNT * 30 / 10_000);
     }
 
     // -------------------------------------------------------------------------
@@ -293,7 +357,7 @@ contract StocksFeeHookTest is StocksFixture {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         _swap(l, trader, true, -int256(1_000e8));
-        (uint256 accrued, uint256 stakerLane) = hook.accrued(poolId);
+        (uint256 creatorLane, uint256 accrued, uint256 stakerLane) = hook.accrued(poolId);
         uint256 amount = accrued / 2;
         uint256 expectedUsdc = amount * USDC_PER_SHARE / 1e8;
         uint256 stakingBefore = usdc.balanceOf(address(liveStaking));
@@ -304,10 +368,11 @@ contract StocksFeeHookTest is StocksFixture {
         vm.prank(executor);
         hook.settleRegentLane(poolId, amount, expectedUsdc);
 
-        (uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
+        (uint256 creatorAfter, uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
         assertEq(regentAfter, accrued - amount);
+        assertEq(creatorAfter, creatorLane, "the creator lane is untouched by the REGENT settlement");
         assertEq(stakerAfter, stakerLane, "the staker lane is untouched by the REGENT settlement");
-        (uint256 converted, uint256 deposited, uint256 toStakers) = hook.settled(poolId);
+        (, uint256 converted, uint256 deposited, uint256 toStakers) = hook.settled(poolId);
         assertEq(converted, amount);
         assertEq(deposited, expectedUsdc);
         assertEq(toStakers, 0);
@@ -327,7 +392,7 @@ contract StocksFeeHookTest is StocksFixture {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         _swap(l, trader, true, -int256(1_000e8));
-        (uint256 accrued,) = hook.accrued(poolId);
+        (, uint256 accrued,) = hook.accrued(poolId);
 
         ResidueRoute residueRoute = new ResidueRoute(l.stock, 7);
         usdc.mint(address(residueRoute), 1_000_000e6);
@@ -336,9 +401,9 @@ contract StocksFeeHookTest is StocksFixture {
 
         vm.prank(executor);
         hook.settleRegentLane(poolId, 1_000, 1);
-        (uint256 regentAfter,) = hook.accrued(poolId);
+        (, uint256 regentAfter,) = hook.accrued(poolId);
         assertEq(regentAfter, accrued - 1_000 + 7, "residue re-credited");
-        (uint256 converted,,) = hook.settled(poolId);
+        (, uint256 converted,,) = hook.settled(poolId);
         assertEq(converted, 993);
     }
 
@@ -346,7 +411,7 @@ contract StocksFeeHookTest is StocksFixture {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         _swap(l, trader, true, -int256(1_000e8));
-        (uint256 accrued,) = hook.accrued(poolId);
+        (, uint256 accrued,) = hook.accrued(poolId);
 
         vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.NotExecutor.selector, outsider));
         vm.prank(outsider);
@@ -363,7 +428,7 @@ contract StocksFeeHookTest is StocksFixture {
         vm.expectRevert();
         hook.settleRegentLane(poolId, 1e8, type(uint256).max);
         vm.stopPrank();
-        (uint256 regentAfter,) = hook.accrued(poolId);
+        (, uint256 regentAfter,) = hook.accrued(poolId);
         assertEq(regentAfter, accrued, "a failed settle changes nothing");
 
         // A disabled executor stops REGENT-lane settlement entirely.
@@ -378,7 +443,7 @@ contract StocksFeeHookTest is StocksFixture {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
         _swap(l, trader, true, -int256(1_000e8));
-        (uint256 regentAccrued, uint256 stakerAccrued) = hook.accrued(poolId);
+        (uint256 creatorAccrued, uint256 regentAccrued, uint256 stakerAccrued) = hook.accrued(poolId);
 
         liveStaking.setPaused(true);
         vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("Paused()"))));
@@ -401,17 +466,19 @@ contract StocksFeeHookTest is StocksFixture {
         hook.settleRegentLane(poolId, 1e8, 1);
         liveStaking.setReportsWrongAmount(false);
 
-        (uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
+        (uint256 creatorAfter, uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
         assertEq(regentAfter, regentAccrued, "lanes unchanged by failed settles");
+        assertEq(creatorAfter, creatorAccrued);
         assertEq(stakerAfter, stakerAccrued);
 
         // Swaps and the staker lane keep working regardless of REGENT settlement problems.
         liveStaking.setPaused(true);
         _swap(l, trader, true, -int256(STOCK_AMOUNT));
-        (regentAfter,) = hook.accrued(poolId);
+        (, regentAfter,) = hook.accrued(poolId);
         assertEq(regentAfter, regentAccrued + STOCK_AMOUNT / 100);
         _stake(l, trader, 1e18);
         hook.settleStakerLane(poolId);
+        hook.settleCreatorLane(poolId);
     }
 
     // -------------------------------------------------------------------------
@@ -424,7 +491,7 @@ contract StocksFeeHookTest is StocksFixture {
         MemestockSplitterV1 splitter = _splitter(l);
         _swap(l, trader, true, -int256(1_000e8));
         _stake(l, trader, 1e18);
-        (uint256 regentLane, uint256 stakerLane) = hook.accrued(poolId);
+        (uint256 creatorLane, uint256 regentLane, uint256 stakerLane) = hook.accrued(poolId);
         uint256 protocolShare = stakerLane * 200 / 10_000;
         uint256 safeBefore = FixtureStockToken(l.stock).balanceOf(governance);
 
@@ -434,17 +501,22 @@ contract StocksFeeHookTest is StocksFixture {
         uint256 deposited = hook.settleStakerLane(poolId);
 
         assertEq(deposited, stakerLane);
-        (uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
+        (uint256 creatorAfter, uint256 regentAfter, uint256 stakerAfter) = hook.accrued(poolId);
         assertEq(stakerAfter, 0, "the whole lane leaves");
         assertEq(regentAfter, regentLane, "the REGENT lane is untouched");
-        (,, uint256 toStakers) = hook.settled(poolId);
+        assertEq(creatorAfter, creatorLane, "the creator lane is untouched");
+        (,,, uint256 toStakers) = hook.settled(poolId);
         assertEq(toStakers, stakerLane);
         assertEq(FixtureStockToken(l.stock).balanceOf(address(splitter)), stakerLane - protocolShare);
         assertEq(
             FixtureStockToken(l.stock).balanceOf(governance) - safeBefore, protocolShare, "2% of STOCK to the Safe"
         );
         assertEq(FixtureStockToken(l.stock).allowance(address(hook), address(splitter)), 0);
-        assertEq(FixtureStockToken(l.stock).balanceOf(address(hook)), regentLane, "only the REGENT lane remains");
+        assertEq(
+            FixtureStockToken(l.stock).balanceOf(address(hook)),
+            creatorLane + regentLane,
+            "only the creator and REGENT lanes remain"
+        );
         // The sole staker is owed the whole net amount, up to accumulator rounding.
         assertApproxEqAbs(splitter.claimable(l.stock, trader), stakerLane - protocolShare, 1);
     }
@@ -462,18 +534,18 @@ contract StocksFeeHookTest is StocksFixture {
         _swap(l, trader, true, -int256(STOCK_AMOUNT));
         vm.prank(governance);
         hook.setExecutor(address(0));
-        assertEq(hook.settleStakerLane(poolId), STOCK_AMOUNT / 100);
+        assertEq(hook.settleStakerLane(poolId), STOCK_AMOUNT * 300 / 10_000);
     }
 
     // -------------------------------------------------------------------------
     // arithmetic
     // -------------------------------------------------------------------------
 
-    function testFuzz_grossLane_is_the_smallest_fixed_point(uint256 net) public view {
+    function testFuzz_grossOf_is_the_smallest_gross_amount_for_a_net_amount(uint256 net) public view {
         net = bound(net, 0, type(uint128).max);
-        uint256 q = hook.grossLane(net);
-        assertEq(q, (net + 2 * q) / 100, "q is one percent, floored, of the gross amount");
-        if (q != 0) assertNotEq(q - 1, (net + 2 * (q - 1)) / 100, "q - 1 is not a fixed point");
+        uint256 gross = hook.grossOf(net);
+        assertEq(gross - hook.hookFee(gross), net, "the gross amount less its fee is the net amount");
+        if (gross != 0) assertLt(gross - 1 - hook.hookFee(gross - 1), net, "no smaller gross amount reaches it");
     }
 
     // -------------------------------------------------------------------------
@@ -486,7 +558,7 @@ contract StocksFeeHookTest is StocksFixture {
         s.poolStock = FixtureStockToken(l.stock).balanceOf(address(poolManager));
         s.hookStock = FixtureStockToken(l.stock).balanceOf(address(hook));
         s.hookNew = UERC20(l.newToken).balanceOf(address(hook));
-        (s.regentBucket, s.stakerBucket) = hook.accrued(poolId);
+        (s.creatorBucket, s.regentBucket, s.stakerBucket) = hook.accrued(poolId);
     }
 
     /// @dev The graduation's rounding remainder: the raise less what the locked position holds.

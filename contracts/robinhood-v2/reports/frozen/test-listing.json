@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 109,
+  "total": 110,
   "tests": {
     "test/RobinhoodBaseReceiver.t.sol": {
       "RobinhoodBaseReceiverTest": [
@@ -18,7 +18,8 @@
     },
     "test/RobinhoodFeeHook.t.sol": {
       "RobinhoodFeeHookTest": [
-        "test_every_swap_accrues_two_equal_stock_lanes_and_the_pool_is_bound_to_its_splitter",
+        "test_creator_lane_settles_permissionlessly_in_stock_to_the_launcher",
+        "test_every_swap_accrues_three_stock_lanes_and_the_pool_is_bound_to_its_splitter_and_creator",
         "test_hook_bindings",
         "test_launchpad_only_and_safe_only_surfaces",
         "test_protocol_lane_refuses_a_conversion_below_the_executor_minimum",

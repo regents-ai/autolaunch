@@ -53,7 +53,7 @@ contract HookInvariantsTest is HookFixture {
         // Nothing was minted after setup, so every unit of REGENT is still somewhere in the system.
         assertEq(
             regent.balanceOf(address(handler)) + regent.balanceOf(address(this)) + regent.balanceOf(REGENT_SAFE)
-                + regent.balanceOf(treasury) + regent.balanceOf(address(pool.splitter))
+                + regent.balanceOf(LIVE_STAKING) + regent.balanceOf(treasury) + regent.balanceOf(address(pool.splitter))
                 + regent.balanceOf(address(hook)) + regent.balanceOf(address(manager)),
             regent.totalSupply(),
             "REGENT left the system"

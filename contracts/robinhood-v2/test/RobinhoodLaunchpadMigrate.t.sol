@@ -301,7 +301,8 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertEq(UERC20(l.newToken).balanceOf(address(positionManager)), pmNewBefore, "PositionManager NEW unchanged");
 
         // STOCK: the whole raise is paired but for rounding, which goes to the hook's protocol lane.
-        (uint256 dust, uint256 stakerLane) = stocksHook.accrued(poolId);
+        (uint256 creatorLane, uint256 dust, uint256 stakerLane) = stocksHook.accrued(poolId);
+        assertEq(creatorLane, 0, "the creator lane starts empty");
         assertEq(stakerLane, 0, "the staker lane starts empty");
         assertEq(uint256(record.lpCurrencyUsed) + dust, lbp.currencyRaised, "raised == paired + dust");
         assertLe(dust, lbp.currencyRaised / 1e9 + 2, "the unpaired STOCK is rounding");

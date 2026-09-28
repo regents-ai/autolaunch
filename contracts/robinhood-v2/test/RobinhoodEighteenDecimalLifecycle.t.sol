@@ -21,7 +21,7 @@ interface IERC721Owner {
 ///         stock has 18) and the production route in both caller paths: launch, an auction bid
 ///         through the bid adapter and the route, graduation (pool creation, the positions library,
 ///         the one full-range position in the locker, the leftover NEW retired), the bid's claim,
-///         official-pool swaps accruing both fee lanes, the protocol lane settled through the route
+///         official-pool swaps accruing the three fee lanes, the protocol lane settled through the route
 ///         into the inbox, the staker lane settled into the splitter, the locker's `collect`, and the
 ///         staker's claims. Once with the STOCK sorting
 ///         below USDG and NEW (the stock is `token0` of its v3 pool) and once above both.
@@ -35,9 +35,11 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
     uint256 internal constant BID_USDG = 115_000e6;
     uint128 internal constant BID_STOCK = 500e18;
 
-    /// @dev Ten shares traded on the official pool; each lane takes one percent.
+    /// @dev Ten shares traded on the official pool; the protocol lane takes one percent and the staker
+    ///         lane three.
     uint256 internal constant TRADE_STOCK = 10e18;
-    uint256 internal constant LANE = TRADE_STOCK / StocksPreset.LANE_DIVISOR;
+    uint256 internal constant LANE = TRADE_STOCK / 100;
+    uint256 internal constant STAKER_LANE = TRADE_STOCK * 300 / 10_000;
 
     function setUp() public {
         _deployRobinhood();
@@ -89,7 +91,7 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(record.poolId));
         assertEq(sqrtPriceX96, record.finalSqrtPriceX96, "pool initialized at the graduation price");
         assertEq(record.poolId, _poolId(l, address(stocksHook)));
-        (uint256 dust,) = stocksHook.accrued(record.poolId);
+        (, uint256 dust,) = stocksHook.accrued(record.poolId);
         assertEq(record.lpCurrencyUsed + dust, BID_STOCK, "every raised STOCK unit is in the pool or the lane");
         assertEq(stock.balanceOf(address(stocks)), 0, "the launchpad keeps no STOCK");
         assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
@@ -104,14 +106,15 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         splitter.stake(staked);
         vm.stopPrank();
 
-        // --- official-pool swaps: ten shares in, both lanes accrue one percent each ---
+        // --- official-pool swaps: ten shares in; 0.3% to the creator, 1% protocol, 3% stakers ---
         _fundTrader(l, TRADE_STOCK);
         _swapCurrencyIn(l, address(stocksHook), TRADE_STOCK);
-        (uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);
+        (uint256 creatorLane, uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);
+        assertEq(creatorLane, TRADE_STOCK * 30 / 10_000, "creator lane");
         assertEq(protocolLane, dust + LANE, "protocol lane");
-        assertEq(stakerLane, LANE, "staker lane");
+        assertEq(stakerLane, STAKER_LANE, "staker lane");
         _swapNewIn(l, address(stocksHook), MockERC20(l.newToken).balanceOf(trader) / 2);
-        (uint256 protocolAfterRoundTrip,) = stocksHook.accrued(record.poolId);
+        (, uint256 protocolAfterRoundTrip,) = stocksHook.accrued(record.poolId);
         assertGt(protocolAfterRoundTrip, protocolLane, "the NEW leg accrues in STOCK too");
 
         // --- protocol lane: STOCK through the production route into the inbox in USDG ---
@@ -121,7 +124,7 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         vm.prank(executor);
         stocksHook.settleProtocolLane(record.poolId, LANE, expectedUsdg);
         assertEq(inbox.totalCollected(), inboxBefore + expectedUsdg, "the inbox received 23 USDG");
-        (uint256 stockConverted, uint256 usdgDeposited,) = stocksHook.settled(record.poolId);
+        (, uint256 stockConverted, uint256 usdgDeposited,) = stocksHook.settled(record.poolId);
         assertEq(stockConverted, LANE);
         assertEq(usdgDeposited, expectedUsdg);
         _assertEmpty(route, stock);
@@ -131,7 +134,7 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         uint256 safeStockBefore = stock.balanceOf(safe);
         vm.prank(outsider);
         uint256 deposited = stocksHook.settleStakerLane(record.poolId);
-        assertGt(deposited, LANE, "both swaps fed the staker lane");
+        assertGt(deposited, STAKER_LANE, "both swaps fed the staker lane");
         uint256 protocolShare = deposited * 200 / 10_000;
         assertEq(stock.balanceOf(safe), safeStockBefore + protocolShare);
         assertApproxEqAbs(splitter.claimable(stockAddress, staker), deposited - protocolShare, 1);
