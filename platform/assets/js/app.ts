@@ -18,9 +18,9 @@ import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchReviewedSteps} from "./hooks/autolaunch_reviewed_steps"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
-import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {ImageGradient} from "./hooks/image_gradient"
 import {PriceChart} from "./hooks/price_chart"
+import {SiteSearch} from "./hooks/site_search"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
@@ -44,7 +44,7 @@ const hooks = {
   Optics,
   XConnections,
   CreatorConnections,
-  HomeSearch,
+  SiteSearch,
   Toast,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
@@ -63,7 +63,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
 installMotion()
-installStaticMarketSearch()
 installRegentTokenMenu()
 installCopyButtons()
 installTheme()

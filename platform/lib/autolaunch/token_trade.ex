@@ -28,6 +28,12 @@ defmodule Autolaunch.TokenTrade do
       filter expr(occurred_at > ago(1, :hour))
     end
 
+    # Trades as the sums over a token's trades read them; Ash sums only over a
+    # resource with a primary read.
+    read :for_totals do
+      primary? true
+    end
+
     create :record do
       accept [
         :token_id,
@@ -58,7 +64,7 @@ defmodule Autolaunch.TokenTrade do
   end
 
   policies do
-    policy action(:recent) do
+    policy action([:recent, :for_totals]) do
       authorize_if always()
     end
 

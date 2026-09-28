@@ -3,13 +3,7 @@
   <Regent.Structure.row class="shell-body">
     <:rail_content><.rail current_path={@current_path} /></:rail_content>
     <div class="shell-main">
-      <.top_bar
-        account_control={@account_control}
-        search_query={@search_query}
-        home?={@current_path == "/"}
-        theme={@theme}
-        market_options={Map.get(assigns, :market_options) || %{}}
-      />
+      <.top_bar account_control={@account_control} theme={@theme} />
       <div id="shell-content" class="shell-content" tabindex="-1">
         {@inner_content}
       </div>
@@ -20,4 +14,8 @@
 
 {Phoenix.Component.live_render(assigns[:socket] || assigns[:conn], AutolaunchWeb.MarketTickerLive,
   id: "market-ticker"
+)}
+
+{Phoenix.Component.live_render(assigns[:socket] || assigns[:conn], AutolaunchWeb.SearchLive,
+  id: "site-search"
 )}

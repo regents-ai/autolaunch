@@ -626,6 +626,18 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :token, :map, required: true, doc: "a launched token with its auction loaded"
+  attr :rate, :any, default: nil, doc: "the USD price of one unit of the token's currency"
+
+  @doc "A launched token's price, as its card and list row show it."
+  def token_price(assigns) do
+    assigns = assign(assigns, :unit, view(:token, assigns.token, %{}).metric.unit)
+
+    ~H"""
+    <.price_figure amount={@token.price_quote} unit={@unit} rate={@rate} />
+    """
+  end
+
   attr :amount, :string, default: nil, doc: "a price per token in its currency"
   attr :unit, :string, default: nil, doc: "the currency the price is in"
 
@@ -653,20 +665,22 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   @doc """
   Reads the dollar prices the auction figures use into `:rates`, in the
-  background: REGENT's price and each chain's stock prices. A test network's
-  coins carry no dollar value, so its prices stay unknown.
+  background; see `figure_rates/0`.
   """
-  def assign_figure_rates(socket) do
-    Phoenix.LiveView.assign_async(socket, :rates, fn ->
-      {:ok,
-       %{
-         rates: %{
-           regent: if(!Lab.test_chain?(), do: MarketData.regent_price()),
-           base: if(!Lab.test_chain?(), do: MarketData.prices(:base)),
-           robinhood: if(!RobinhoodLab.test_chain?(), do: MarketData.prices(:robinhood))
-         }
-       }}
-    end)
+  def assign_figure_rates(socket),
+    do: Phoenix.LiveView.assign_async(socket, :rates, fn -> {:ok, %{rates: figure_rates()}} end)
+
+  @doc """
+  The dollar prices the auction figures use: REGENT's price and each chain's
+  stock prices. A test network's coins carry no dollar value, so its prices
+  stay unknown.
+  """
+  def figure_rates do
+    %{
+      regent: if(!Lab.test_chain?(), do: MarketData.regent_price()),
+      base: if(!Lab.test_chain?(), do: MarketData.prices(:base)),
+      robinhood: if(!RobinhoodLab.test_chain?(), do: MarketData.prices(:robinhood))
+    }
   end
 
   @doc "The USD price of one unit of the auction's currency; nil while none is known."
@@ -690,9 +704,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
     %{
       fdv: money(auction.fdv, rate, unit) || "No price yet",
-      volume:
-        money(auction.bid_volume_usd, Decimal.new(1)) || money(auction.bid_volume, nil, unit) ||
-          "Not counted yet",
+      volume: bid_volume(auction),
       threshold: money(AuctionFigures.minimum(auction), rate, unit),
       unpriced: if(is_nil(rate), do: unit),
       met: AuctionFigures.percent_met(auction),
@@ -703,6 +715,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
       state: auction.state,
       id: auction.id
     }
+  end
+
+  @doc """
+  Everything bid on the auction so far: in dollars once it has been counted in
+  dollars, otherwise in the auction's currency.
+  """
+  def bid_volume(auction) do
+    money(auction.bid_volume_usd, Decimal.new(1)) ||
+      money(auction.bid_volume, nil, auction.quote_token_symbol) || "Not counted yet"
   end
 
   # Dollar figures are shortened the way market lists write them, to three

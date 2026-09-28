@@ -15,7 +15,6 @@ defmodule AutolaunchWeb.SettingsController do
       :show,
       [
         current_path: "/settings",
-        search_query: "",
         account_control: Autolaunch.AccessContext.account_control(access)
       ] ++ AutolaunchWeb.PublicDocuments.page("/settings")
     )

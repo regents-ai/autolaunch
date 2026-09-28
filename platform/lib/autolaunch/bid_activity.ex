@@ -32,6 +32,12 @@ defmodule Autolaunch.BidActivity do
       prepare build(sort: [block_number: :asc, log_index: :asc])
     end
 
+    # Bids as the sums over an auction's bids read them; Ash sums only over a
+    # resource with a primary read.
+    read :for_totals do
+      primary? true
+    end
+
     create :record do
       accept [
         :auction_id,
@@ -69,7 +75,7 @@ defmodule Autolaunch.BidActivity do
   end
 
   policies do
-    policy action([:recent, :for_auction]) do
+    policy action([:recent, :for_auction, :for_totals]) do
       authorize_if always()
     end
 

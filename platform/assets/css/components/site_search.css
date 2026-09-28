@@ -1,0 +1,85 @@
+/* The search window over a dimmed page (`AutolaunchWeb.SearchLive`): the
+   field, three rows of choices, then the rows it found. An auction's picture
+   is square with a gavel on its corner; a token's is round like a coin. */
+.site-search {
+  width: min(42rem, calc(100vw - 32px));
+  max-height: min(44rem, calc(100dvh - 20vh));
+  margin: 10vh auto auto;
+  padding: 0;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  box-shadow: 0 24px 64px rgb(0 0 0 / .28);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.site-search[open] { display: flex; flex-direction: column; }
+.site-search::backdrop { background: rgb(0 0 0 / .55); }
+
+.site-search__field { display: flex; flex: none; align-items: center; gap: 12px; padding: 0 12px 0 18px; border-bottom: 1px solid var(--hairline); color: var(--color-fg-muted); }
+.site-search__field svg { flex: none; }
+.site-search__field input { flex: 1; min-width: 0; min-height: 60px; padding: 0; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--color-fg); font: inherit; font-size: 1.125rem; }
+.site-search__field input::placeholder { color: var(--color-fg-muted); }
+.site-search__field input::-webkit-search-cancel-button { display: none; }
+.site-search__close { display: grid; flex: none; place-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; cursor: pointer; }
+.site-search__close-word { display: none; }
+
+.site-search kbd { display: inline-block; min-width: 1.5em; padding: 1px 6px; border: 1px solid var(--hairline); border-radius: 5px; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); color: var(--color-fg-muted); font-family: inherit; font-size: .6875rem; line-height: 1.5; text-align: center; }
+
+.site-search__filters { display: grid; flex: none; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--hairline); }
+.site-search__choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.site-search__choices-label { width: 3.5rem; flex: none; color: var(--color-fg-muted); font-size: .75rem; }
+.site-search__choice { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 999px; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.site-search__choice .chain-icon { inline-size: 14px; block-size: 14px; }
+.site-search__choice[aria-pressed="true"] { border-color: var(--color-fg); background: var(--color-fg); color: var(--color-surface); }
+@media (hover: hover) and (pointer: fine) {
+  .site-search__choice[aria-pressed="false"]:hover { border-color: var(--hairline-strong); color: var(--color-fg); }
+}
+
+.site-search__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 8px 10px; }
+.site-search__heading { display: flex; align-items: baseline; gap: 8px; margin: 10px 10px 6px; color: var(--color-fg-muted); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.site-search__heading span { font-weight: 400; letter-spacing: 0; text-transform: none; }
+
+.site-search__row { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 8px 10px; border-radius: 10px; color: inherit; }
+.site-search a, .site-search a:hover { text-decoration: none; }
+.site-search__row[aria-selected="true"], .site-search__all[aria-selected="true"] { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
+
+.site-search__art { position: relative; display: grid; flex: none; place-items: center; width: 44px; height: 44px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-weight: 600; }
+.site-search__art img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.site-search__art--auction { border-radius: 9px; }
+.site-search__art--token { border-radius: 50%; }
+.site-search__gavel, .site-search__art .site-search__chain { position: absolute; bottom: -5px; box-sizing: border-box; inline-size: 20px; block-size: 20px; border: 1.5px solid var(--color-surface); border-radius: 6px; background: var(--color-surface); }
+.site-search__gavel { left: -5px; display: grid; place-items: center; background: var(--color-fg); color: var(--color-surface); }
+.site-search__gavel svg { inline-size: 12px; block-size: 12px; }
+.site-search__art .site-search__chain { right: -5px; padding: 2px; }
+
+.site-search__name { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.site-search__name strong, .site-search__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site-search__name strong { font-weight: 600; }
+.site-search__name small, .site-search__figure small { color: var(--color-fg-muted); font-size: .8125rem; }
+.site-search__figure { display: grid; flex: none; gap: 2px; justify-items: end; max-width: 45%; text-align: right; font-variant-numeric: tabular-nums; }
+.site-search__figure strong { font-weight: 600; white-space: nowrap; }
+
+.site-search__all { display: flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 0 10px; border-top: 1px solid var(--hairline); border-radius: 10px; color: var(--color-fg); font-size: .875rem; font-weight: 600; }
+.site-search__notice { display: grid; gap: 4px; margin: 0; padding: 28px 12px; color: var(--color-fg-muted); font-size: .875rem; text-align: center; }
+.site-search__notice p { margin: 0; }
+.site-search__notice p:first-child { color: var(--color-fg); }
+
+.site-search__keys { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 0; padding: 10px 18px; border-top: 1px solid var(--hairline); color: var(--color-fg-muted); font-size: .75rem; }
+.site-search__keys span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Phones and touch screens: no keys to press, so the hints go and the close
+   button says what it does. On a phone the window takes the screen. */
+@media (hover: none), (max-width: 42rem) {
+  .site-search__keys { display: none; }
+  .site-search .site-search__esc { display: none; }
+  .site-search__close-word { display: inline; padding: 0 4px; color: var(--color-fg); font-size: .875rem; }
+}
+@media (max-width: 42rem) {
+  .site-search { width: calc(100vw - 16px); max-width: none; height: calc(100dvh - 16px); max-height: none; margin: 8px auto; border-radius: 12px; }
+  .site-search__field { padding: 0 8px 0 16px; }
+  .site-search__filters { padding: 10px 16px; }
+  .site-search__body { padding-inline: 4px; }
+  .site-search__row { gap: 12px; padding-inline: 8px; }
+}

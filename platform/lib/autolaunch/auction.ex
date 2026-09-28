@@ -215,6 +215,14 @@ defmodule Autolaunch.Auction do
       end
     end
 
+    # Every listed auction bid on in the last day, with what was bid;
+    # `Autolaunch.Popular` ranks them.
+    read :popular do
+      filter expr(bid_amount_today > 0)
+      prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:bid_amount_today, :path_tail])
+    end
+
     read :recent_public do
       filter expr(state in [:created, :active, :ended, :failed])
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
@@ -438,6 +446,7 @@ defmodule Autolaunch.Auction do
              :path_peers,
              :list_public,
              :home_market,
+             :popular,
              :recent_public,
              :featured_public,
              :public_by_id,
@@ -710,6 +719,12 @@ defmodule Autolaunch.Auction do
       attribute_public? true
     end
 
+    # The auction's confirmed bids of the last day.
+    has_many :bids_today, Autolaunch.BidActivity do
+      read_action :for_totals
+      filter expr(occurred_at > ago(1, :day))
+    end
+
     # The stock a Stocks auction raises, when the site lists it.
     has_one :quote_stock, Autolaunch.Stocks.Stock do
       no_attributes? true
@@ -787,6 +802,9 @@ defmodule Autolaunch.Auction do
     end
 
     first :quote_stock_search_text, :quote_stock, :search_text
+
+    # What was bid in the last day, in the auction's currency.
+    sum :bid_amount_today, :bids_today, :amount
   end
 
   identities do

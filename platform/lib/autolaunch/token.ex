@@ -120,6 +120,14 @@ defmodule Autolaunch.Token do
       end
     end
 
+    # Every listed token traded in the last day, with what was traded;
+    # `Autolaunch.Popular` ranks them.
+    read :popular do
+      filter expr(traded_today > 0)
+      prepare Autolaunch.Token.Preparations.ListedAuction
+      prepare build(load: [:traded_today, :auction])
+    end
+
     read :top_public do
       filter expr(not is_nil(top_rank))
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
@@ -273,6 +281,7 @@ defmodule Autolaunch.Token do
              :sitemap,
              :list_public,
              :home_market,
+             :popular,
              :top_public,
              :recently_graduated_public,
              :for_subject,
@@ -383,6 +392,12 @@ defmodule Autolaunch.Token do
                Autolaunch.TreasurySecurityReport do
       attribute_public? true
     end
+
+    # The token's confirmed trades of the last day.
+    has_many :trades_today, Autolaunch.TokenTrade do
+      read_action :for_totals
+      filter expr(occurred_at > ago(1, :day))
+    end
   end
 
   calculations do
@@ -407,6 +422,11 @@ defmodule Autolaunch.Token do
       argument :term, :string, allow_nil?: false
       argument :address, :string
     end
+  end
+
+  aggregates do
+    # What was traded in the last day, in the pool's currency.
+    sum :traded_today, :trades_today, :currency_amount
   end
 
   identities do

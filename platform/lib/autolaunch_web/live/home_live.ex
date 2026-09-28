@@ -55,29 +55,13 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_params(params, _uri, socket) do
     options = HomeMarket.options(params)
     previous = socket.assigns.market_options
-    socket = assign(socket, market_options: options, search_query: options.q, trade: nil)
+    socket = assign(socket, market_options: options, trade: nil)
 
     cond do
       is_nil(previous) -> {:noreply, first_market(socket)}
       Map.drop(previous, [:display]) == Map.drop(options, [:display]) -> {:noreply, socket}
       true -> {:noreply, load_market(socket, false)}
     end
-  end
-
-  def handle_event("search", params, socket) do
-    {:noreply,
-     push_patch(socket,
-       to: HomeMarket.path(socket.assigns.market_options, %{q: Map.get(params, "q", "")})
-     )}
-  end
-
-  # Results follow the header field as it is typed, without a history step per pause.
-  def handle_event("type_search", params, socket) do
-    {:noreply,
-     push_patch(socket,
-       to: HomeMarket.path(socket.assigns.market_options, %{q: Map.get(params, "q", "")}),
-       replace: true
-     )}
   end
 
   def handle_event(
