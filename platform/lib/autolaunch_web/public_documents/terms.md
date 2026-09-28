@@ -43,15 +43,59 @@ Marketing pages, roadmaps, examples, demos, and status labels do not create a wa
 
 A profile, display name, or identifier is a product record. It does **not** by itself create a legal entity, grant intellectual-property rights in a name, establish regulatory approval or legal status, or authorize an agent to act for any person other than the person who actually granted that authority.
 
-## 6. No financial, legal, or tax advice
+## 6. Autolaunch
+
+Autolaunch provides software and interfaces for preparing or interacting with token launches, auctions, liquidity formation, vesting, treasury ownership, staking, revenue routing, payment receivers, and related onchain systems.
+
+Autolaunch does not guarantee that:
+
+- a launch will complete;
+- an auction will receive bids;
+- a token will have value or liquidity;
+- liquidity will remain available;
+- a project will generate revenue;
+- recognized revenue will reach a receiver;
+- a token or launch will have any particular legal classification;
+- a holder will receive a return; or
+- any third-party protocol, oracle, bridge, stablecoin, or blockchain will operate as expected.
+
+A launch creator or operator is solely responsible for the project, token, disclosures, marketing, treasury, ownership structure, revenue claims, and legal compliance. You must obtain qualified legal, tax, accounting, and regulatory advice before launching or promoting a token or revenue-linked arrangement.
+
+You may not use Autolaunch to conduct fraud, market manipulation, wash trading, deceptive promotion, unlawful securities or commodities activity, sanctions evasion, money laundering, or any other prohibited activity.
+
+You are responsible for reviewing every address and parameter before signing, including token metadata, owner and treasury addresses, Safe or smart-account configuration, allocations, auction terms, vesting, fee routes, revenue receivers, staking terms, and contract permissions. A wrong address, compromised key, or unsafe ownership configuration can cause permanent loss.
+
+## 7. Blockchain, smart-contract, and digital-asset risks
+
+Blockchain transactions are generally public, permanent, and irreversible. Before signing, you must independently verify the network, contract, asset, token approval, amount, recipient, calldata, permissions, and expected result.
+
+Digital assets and blockchain systems involve substantial risks, including:
+
+- loss or compromise of private keys;
+- smart-contract bugs or exploits;
+- malicious tokens, approvals, interfaces, or counterparties;
+- transaction reordering, front-running, and maximal extractable value;
+- price volatility and loss of some or all value;
+- low or unavailable liquidity;
+- forks, congestion, failed transactions, and network outages;
+- oracle, bridge, sequencer, stablecoin, or infrastructure failure;
+- changes in law, regulation, taxation, or enforcement;
+- scams, impersonation, phishing, and social engineering; and
+- inability to reverse, cancel, refund, or recover a transaction.
+
+Except where a Service expressly discloses custody or escrow, Regents Labs does not take custody of your digital assets. Assets intentionally transferred to a smart contract are controlled by that contract, the applicable blockchain, and any roles disclosed for that contract.
+
+Digital assets are not bank deposits. They are not insured by the Federal Deposit Insurance Corporation, the Securities Investor Protection Corporation, or any similar governmental or private insurance scheme unless expressly stated by the relevant provider.
+
+## 8. No financial, legal, or tax advice
 
 The Services provide software, technical information, and records. Regents Labs does not provide individualized investment, legal, tax, accounting, or fiduciary advice through the Services. You are solely responsible for your decisions and should consult qualified advisers.
 
-## 7. Fees and taxes
+## 9. Fees and taxes
 
 The Services are provided without charge unless a feature says otherwise before you use it. Where a fee applies, its amount and material terms will be presented before the relevant purchase. You are responsible for all taxes arising from your use of the Services.
 
-## 8. User content
+## 10. User content
 
 "User Content" means content you, your organization, or your agent submits through the Services, including profile details and feedback.
 
@@ -61,7 +105,7 @@ You represent and warrant that you have all rights and permissions needed to sub
 
 Do not submit secrets, private keys, recovery phrases, passwords, confidential business information, or personal data you are not authorized to disclose.
 
-## 9. Acceptable use
+## 11. Acceptable use
 
 You may not use the Services to:
 
@@ -81,13 +125,13 @@ Security research must be authorized, proportionate, and conducted in a manner d
 
 We may investigate suspected abuse and may remove content, restrict features, suspend accounts, or cooperate with lawful authorities.
 
-## 10. Third-party services
+## 12. Third-party services
 
 The Services may integrate with or link to third parties, including authentication and wallet providers, hosting services, and social networks. We do not control third-party services and are not responsible for their availability, security, accuracy, fees, content, policies, or acts. Your use of a third party is governed by that party's terms and privacy policy.
 
 A link, integration, or use of open-source software does not imply endorsement or partnership unless we expressly say so.
 
-## 11. Our intellectual property and open-source software
+## 13. Our intellectual property and open-source software
 
 The Services, excluding User Content and third-party materials, are owned by Regents Labs or its licensors and are protected by intellectual-property laws. Subject to these Terms, we grant you a limited, revocable, non-exclusive, non-transferable license to access and use the hosted Services for their intended purpose.
 
@@ -95,17 +139,17 @@ Some Autolaunch software is released under an open-source license. The applicabl
 
 You may not use our names, logos, trademarks, or branding in a way that implies sponsorship, endorsement, or affiliation without permission.
 
-## 12. Feedback
+## 14. Feedback
 
 If you provide ideas, suggestions, or feedback, you grant Regents Labs a perpetual, irrevocable, worldwide, royalty-free right to use and incorporate it without restriction or compensation.
 
-## 13. Suspension, removal, and termination
+## 15. Suspension, removal, and termination
 
 You may stop using the Services at any time and may request closure of an account through available controls or by contacting us, subject to legal, security, and retention limitations.
 
 We may suspend, restrict, or terminate access, remove content, or disable a feature if we reasonably believe it is necessary to enforce these Terms; comply with law or a service-provider requirement; prevent fraud, abuse, security incidents, or harm; protect users, third parties, Regents Labs, or the Services; address technical or operational risk; or discontinue a Service.
 
-## 14. Disclaimers
+## 16. Disclaimers
 
 **TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY.**
 
@@ -115,7 +159,7 @@ WE DO NOT WARRANT THAT THE SERVICES WILL BE UNINTERRUPTED, SECURE, ERROR-FREE, C
 
 Some jurisdictions do not allow certain warranty exclusions, so some exclusions may not apply to you.
 
-## 15. Limitation of liability
+## 17. Limitation of liability
 
 **TO THE MAXIMUM EXTENT PERMITTED BY LAW, REGENTS LABS AND ITS DIRECTORS, OFFICERS, EMPLOYEES, CONTRACTORS, AFFILIATES, LICENSORS, AND SERVICE PROVIDERS WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES; LOSS OF PROFITS, REVENUE, DATA, GOODWILL, OR OPPORTUNITY; BUSINESS INTERRUPTION; COST OF SUBSTITUTE SERVICES; OR DAMAGES ARISING FROM UNAUTHORIZED WALLET ACCESS OR AGENT ACTIONS.**
 
@@ -123,23 +167,23 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE TOTAL LIABILITY OF REGENTS LABS FOR 
 
 These limitations apply regardless of the legal theory and even if a remedy fails of its essential purpose. They do not limit liability that cannot lawfully be limited.
 
-## 16. Indemnification
+## 18. Indemnification
 
 To the fullest extent permitted by law, you will defend, indemnify, and hold harmless Regents Labs and its directors, officers, employees, contractors, affiliates, licensors, and service providers from claims, liabilities, damages, losses, and expenses, including reasonable attorneys' fees, arising from or related to your or your agent's use of the Services; your User Content; your violation of these Terms or applicable law; your infringement or violation of another person's rights; or your fraud, negligence, misconduct, or security failures.
 
 We may control the defense of a covered claim, and you agree to cooperate. You may not settle a claim imposing liability or obligations on Regents Labs without our written consent.
 
-## 17. Governing law and disputes
+## 19. Governing law and disputes
 
 Contact **[legal@regents.sh](mailto:legal@regents.sh)** for the current governing law and venue.
 
 Before filing a claim, you and Regents Labs agree to attempt in good faith to resolve the dispute by written notice and 30 days of informal discussion.
 
-## 18. Changes to these Terms
+## 20. Changes to these Terms
 
 We may update these Terms. We will post the updated Terms and revise the effective date. If a change is material, we will provide additional notice where reasonably practicable or legally required. Changes apply prospectively when they take effect. Your continued use after the effective date constitutes acceptance, except where applicable law requires a different form of consent.
 
-## 19. Miscellaneous
+## 21. Miscellaneous
 
 These Terms, the Privacy Policy, and any applicable supplemental terms form the agreement between you and Regents Labs concerning the Services. If any provision is unenforceable, it will be modified to the minimum extent necessary, and the remaining provisions will remain in effect.
 
@@ -147,7 +191,7 @@ Our failure to enforce a provision is not a waiver. You may not assign these Ter
 
 Sections that by their nature should survive termination will survive, including ownership, disclaimers, limitations, indemnification, and dispute provisions.
 
-## 20. Contact
+## 22. Contact
 
 **Regents Labs, Inc.**  
 Email: **[legal@regents.sh](mailto:legal@regents.sh)**
