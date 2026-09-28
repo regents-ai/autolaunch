@@ -50,9 +50,10 @@ Noted 28 September 2026 from the ash-template chief's review.
   row is deleted. It was run on a local copy seeded with both old states and every row read back
   in an allowed state. Before release, count production's rows by state (read-only, with the
   founder's go) and confirm no other state exists.
-- **Four wallet-press tables have no resource.** `wallet_attempts`, `bid_operations`,
-  `bid_settlement_operations` and `subject_wallet_operations` are no longer written. The drop
-  migration waits on founder decision 8: (a) export them to an archive file, then drop them
-  (recommended), or (b) keep them unused. Under (a), `mix ash.codegen` generates the drop after the
-  export; under (b), nothing changes. `mix ash.codegen --dry-run` shows these four drops as the
-  only pending schema change.
+- **Four wallet-press tables are archived, then dropped.** `wallet_attempts`, `bid_operations`,
+  `bid_settlement_operations` and `subject_wallet_operations` are no longer written. The founder
+  chose (a) on 28 September 2026: export them to an archive file, then drop them. The migration
+  `20260928033335_drop_wallet_press_tables` drops them (`wallet_attempts` first, since it holds the
+  keys to the other three); it was run on a local copy and `mix ash.codegen --check` is clean.
+  Before it runs in production, export all four tables to CSV files in a dated archive folder
+  (read-only `\copy`, one file per table), then release.
