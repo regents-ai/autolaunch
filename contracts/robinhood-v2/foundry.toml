@@ -1,0 +1,67 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+# The Robinhood component builds against the exact dependency snapshot the Stocks component
+# exported (contracts/stocks-v2/lib, pinned by contracts/stocks-v2/dependencies.json). It exports nothing
+# of its own and never fetches.
+libs = ["../stocks-v2/lib"]
+allow_paths = ["../stocks-v2"]
+
+# Same build identity as contracts/v1 and contracts/stocks-v2: Solidity 0.8.26, Cancun, optimizer 200,
+# via-IR, bytecode metadata disabled, offline.
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+offline = true
+ffi = false
+fs_permissions = []
+
+# `test/fork/` runs only under the `fork` profile against Robinhood Chain itself.
+no_match_path = "test/fork/**"
+
+[profile.default.fuzz]
+runs = 64
+seed = "0x524f42494e484f4f44"
+max_test_rejects = 65536
+fail_on_revert = true
+
+# The live-chain suite: the production route against Robinhood Chain's own pools and feeds.
+# Forge is only ever pointed at the `robinhood` alias below (`--fork-url robinhood`); the endpoint
+# value is never written anywhere.
+[profile.fork]
+test = "test/fork"
+out = "out-fork"
+cache_path = "cache-fork"
+match_path = "test/fork/**"
+# Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
+no_match_path = "none/**"
+
+# The deployment-ceremony profile, the only profile `../stocks-v2/bin/ceremony.py` runs for this
+# package. Same frozen build; a separate test root and build directory. The externally linked
+# `RobinhoodPositionsLib` is pinned to the address the hermetic ceremony test's deployer creates it
+# at (its third creation from nonce zero); a real ceremony overrides the pin on the command line with
+# its own prediction, and the script proves the link before it creates anything.
+[profile.deployment]
+test = "test-deployment"
+out = "reports/generated/deployment-out"
+cache_path = "reports/generated/deployment-cache"
+offline = false
+ffi = false
+fs_permissions = []
+libraries = ["src/libraries/RobinhoodPositionsLib.sol:RobinhoodPositionsLib:0x968fa82eb9898E7ED76bC36FA44dB539483cd7c6"]
+
+# The endpoint aliases: Robinhood Chain for the launch graph, Base for the receiver. Their values
+# stay unresolved environment references in every committed file; the required gate never reads them.
+[rpc_endpoints]
+robinhood = "${REGENT_ROBINHOOD_RPC_URL}"
+base = "${REGENT_BASE_RPC_URL}"
+
+[lint]
+ignore = ["test/**/*.sol", "script/**/*.sol"]
+exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]
