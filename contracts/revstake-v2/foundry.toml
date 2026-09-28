@@ -1,0 +1,56 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+# Revstake v2 builds against the exact dependency snapshot the Base Memestake v2 package exported
+# (contracts/stocks-v2/lib, pinned by contracts/stocks-v2/dependencies.json to the revisions
+# contracts/v1 builds against). It exports nothing of its own and never fetches.
+libs = ["../stocks-v2/lib"]
+allow_paths = ["../stocks-v2"]
+
+# Same build identity as contracts/v1 and contracts/stocks-v2: Solidity 0.8.26, Cancun, optimizer 200,
+# via-IR, bytecode metadata disabled, offline.
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+offline = true
+ffi = false
+fs_permissions = []
+
+# The fuzz and invariant portfolio contracts/v1 runs, unchanged.
+[profile.default.fuzz]
+runs = 512
+seed = "0x5245474e54"
+max_test_rejects = 65536
+fail_on_revert = true
+
+[profile.default.invariant]
+runs = 256
+depth = 128
+fail_on_revert = true
+max_assume_rejects = 65536
+shrink_run_limit = 5000
+
+# The deployment-ceremony profile. Same frozen build; a separate test root and build directory so
+# ceremony artifacts never touch the set the required gate reconciles. No filesystem access.
+[profile.deployment]
+test = "test-deployment"
+out = "reports/generated/deployment-out"
+cache_path = "reports/generated/deployment-cache"
+offline = false
+ffi = false
+fs_permissions = []
+
+# The one Base endpoint alias. Its value stays an unresolved environment reference in every
+# committed file; the required offline gate never reads it.
+[rpc_endpoints]
+base = "${REGENT_BASE_RPC_URL}"
+
+[lint]
+ignore = ["test/**/*.sol", "script/**/*.sol", "test-deployment/**/*.sol"]
+exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]

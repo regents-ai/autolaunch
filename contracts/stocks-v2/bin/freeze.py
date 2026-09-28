@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Deterministic freezer for a Memestake contracts package (Base `contracts/stocks-v2`, Robinhood
-`contracts/robinhood-v2`).
+"""Deterministic freezer for a v2 contracts package (Base Memestake `contracts/stocks-v2`, Robinhood
+Memestake `contracts/robinhood-v2`, Base Revstake `contracts/revstake-v2`).
 
 Every committed file under `abi/` and every document under `reports/frozen/` is *generated* from
 the exact compiler artifacts in `out/`, the pinned dependency snapshot and Foundry's own compiled

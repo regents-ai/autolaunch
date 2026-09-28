@@ -1,6 +1,7 @@
 #!/bin/sh
-# The shared body of the Memestake required gates. It is not an entrypoint: `contracts/stocks-v2/bin/gate.sh`
-# and `contracts/robinhood-v2/bin/gate.sh` each set their component and source this file.
+# The shared body of the v2 required gates. It is not an entrypoint: `contracts/stocks-v2/bin/gate.sh`,
+# `contracts/robinhood-v2/bin/gate.sh` and `contracts/revstake-v2/bin/gate.sh` each set their component
+# and source this file.
 #
 # The gate is offline: it performs no download, no package or registry lookup, and no git fetch.
 # The dependency snapshot and the Solidity compiler are materialized before the gate, never by it;
@@ -105,7 +106,7 @@ trap 'cleanup_unpublished_receipt; exit 1' HUP INT TERM
 # Compare every tracked file in the repository directly with its indexed blob and reject hidden
 # index flags. The Foundry and report roots of every contracts package, and the exported dependency
 # snapshot under contracts/stocks-v2/lib, are the only worktree-state exclusions. Submodules are not
-# walked: no Memestake package reads a submodule; the dependency bytes the build reads are pinned
+# walked: no v2 package reads a submodule; the dependency bytes the build reads are pinned
 # by content in reports/frozen/dependency-closure.json, which the freezer reconciles.
 repository_snapshot() {
     python3 - <<'PYTHON'

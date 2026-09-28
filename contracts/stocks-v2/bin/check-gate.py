@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Structured reconciliation for the Memestake required gates (`contracts/stocks-v2/bin/gate.sh` and
-`contracts/robinhood-v2/bin/gate.sh`).
+"""Structured reconciliation for the v2 required gates (`contracts/stocks-v2/bin/gate.sh`,
+`contracts/robinhood-v2/bin/gate.sh` and `contracts/revstake-v2/bin/gate.sh`).
 
 The gate scripts run the external tools; this script performs every structured comparison and is
 the only place that decides whether frozen material still equals its authority. Every check fails
