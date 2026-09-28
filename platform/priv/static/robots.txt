@@ -1,5 +1,0 @@
-# Every public page may be read. The agent guide is at /llms.txt.
-User-agent: *
-Allow: /
-
-Sitemap: https://autolaunch.sh/sitemap.xml

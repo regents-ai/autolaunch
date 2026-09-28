@@ -18,8 +18,7 @@ defmodule AutolaunchWeb do
   """
 
   def static_paths,
-    do:
-      ~w(assets images fonts apple-touch-icon.png favicon.svg favicon-32.png favicon-192.png robots.txt)
+    do: ~w(assets images fonts apple-touch-icon.png favicon.svg favicon-32.png favicon-192.png)
 
   def router do
     quote do

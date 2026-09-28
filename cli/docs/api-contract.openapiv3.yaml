@@ -56,6 +56,7 @@ paths:
             application/json:
               schema:
                 type: object
+        default: {$ref: "#/components/responses/OtherError"}
     patch:
       operationId: profile_update
       summary: Update the verified owner’s shared profile
@@ -106,6 +107,7 @@ paths:
             application/json:
               schema:
                 type: object
+        default: {$ref: "#/components/responses/OtherError"}
       requestBody:
         required: true
         content:
@@ -176,6 +178,7 @@ paths:
             application/json:
               schema:
                 type: object
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions:
     get:
       operationId: listAuctions
@@ -224,6 +227,7 @@ paths:
               schema: {$ref: "#/components/schemas/AuctionListEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "500": {$ref: "#/components/responses/InternalError"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions/{id}:
     get:
       operationId: getAuction
@@ -248,6 +252,7 @@ paths:
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
         "500": {$ref: "#/components/responses/InternalError"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/auctions/{id}/bid-quote:
     post:
       operationId: quoteAuctionBid
@@ -271,6 +276,7 @@ paths:
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {$ref: "#/components/responses/InvalidBidInput"}
         "500": {$ref: "#/components/responses/InternalError"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/tokens:
     get:
       operationId: listTokens
@@ -305,6 +311,7 @@ paths:
               schema: {$ref: "#/components/schemas/TokenListEnvelope"}
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "500": {$ref: "#/components/responses/InternalError"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/treasury-security/{address}:
     get:
       operationId: getTreasurySecurity
@@ -325,6 +332,7 @@ paths:
         "400": {$ref: "#/components/responses/InvalidQuery"}
         "404": {$ref: "#/components/responses/NotFound"}
         "500": {$ref: "#/components/responses/InternalError"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/me/positions:
     get:
       operationId: listMyPositions
@@ -348,6 +356,7 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/ApiError"}
+        default: {$ref: "#/components/responses/OtherError"}
 components:
   securitySchemes:
     SiteSession:
@@ -421,6 +430,14 @@ components:
           examples:
             invalidAmount:
               value: {error: {code: invalid_amount, message: "amount must be a plain decimal string greater than zero, such as \"12.5\".", hint: "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."}}
+    OtherError:
+      description: Any other error, such as an unknown address, a method the address does not answer, or a body that could not be read
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: There is nothing at this address., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json. Sending the same request again will not help.}}
     InternalError:
       description: The request could not be completed
       content:
@@ -668,6 +685,18 @@ components:
               amount: {$ref: "#/components/schemas/DecimalString"}
               symbol: {type: string}
         page: {type: [string, "null"], format: uri, description: "The token's page; null for a Robinhood token this site does not list."}
+    Error:
+      description: "Every error keeps its HTTP status and answers this shape. The profile endpoints carry the code alone; every other endpoint adds the message and the hint."
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code]
+          properties:
+            code: {type: string, description: "A stable code for programs. An error no endpoint names uses its status name in snake case, such as not_found or method_not_allowed."}
+            message: {type: string, description: What went wrong, in words.}
+            hint: {type: string, description: What to do next.}
     ApiError:
       type: object
       additionalProperties: false

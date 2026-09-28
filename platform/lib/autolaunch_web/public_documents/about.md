@@ -19,6 +19,7 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 ## Where to go next
 
 - [Explore auctions]({{origin}}/auctions)
-- [Developer guide]({{origin}}/developers)
+- [Developer guide]({{origin}}/docs)
 - [Contact]({{origin}}/contact)
 - [Privacy]({{origin}}/privacy)
+- [Terms of Use]({{origin}}/terms)

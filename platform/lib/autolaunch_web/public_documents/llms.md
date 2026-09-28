@@ -10,7 +10,8 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 - [How Autolaunch works](https://autolaunch.sh/how-it-works): supply, trading fees and staking rewards for every Autolaunch token.
 - [REGENT](https://autolaunch.sh/regent): the Regents Labs token, with live staking figures.
 - [Source](https://github.com/regents-ai/autolaunch)
-- [Developer guide](https://autolaunch.sh/developers): the public API, WebMCP tools and what needs a wallet.
+- [Developer guide](https://autolaunch.sh/docs): the public API, errors, versioning, WebMCP tools and what needs a wallet.
+- [Tool manifest](https://autolaunch.sh/capabilities): every WebMCP tool the pages register, as JSON.
 
 ## When to use Autolaunch
 
@@ -132,7 +133,7 @@ Regents Labs is an agentic product lab with Autolaunch, techtree.sh, patchbay.he
 
 ### In the browser (WebMCP)
 
-Browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft) get these tools on autolaunch.sh, each on the pages its row names. The reads change nothing: they make the same reads as the API, and `autolaunch_my_positions` reads the signed-in person's own bids and tokens. The wallet tools press the same button the page shows: the person's wallet opens and asks them to confirm, and nothing is sent without that. A call answers whether it was sent, with the transaction, or why not. The `profile_` tools work only for the signed-in person's own shared profile and never move money. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
+Browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft) get these tools on autolaunch.sh, each on the pages its row names. The reads change nothing: they make the same reads as the API, and `autolaunch_my_positions` reads the signed-in person's own bids and tokens. The wallet tools press the same button the page shows: the person's wallet opens and asks them to confirm, and nothing is sent without that. A call answers whether it was sent, with the transaction, or why not. The `profile_` tools work only for the signed-in person's own shared profile and never move money. The [tool manifest](https://autolaunch.sh/capabilities) lists them as JSON. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
 
 {{tools}}
 

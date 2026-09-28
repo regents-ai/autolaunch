@@ -28,4 +28,4 @@ Autolaunch never holds your private keys and never asks for them. Every transact
 
 ## Hosting, requests and removal
 
-Autolaunch runs on Fly.io. To ask what is held about you, or to have it corrected or removed, email [privacy@regents.sh](mailto:privacy@regents.sh). The [Terms of Use](https://regents.sh/terms) apply to the site.
+Autolaunch runs on Fly.io. To ask what is held about you, or to have it corrected or removed, email [privacy@regents.sh](mailto:privacy@regents.sh). The [Terms of Use]({{origin}}/terms) apply to the site.

@@ -12,7 +12,7 @@ Every tool a page registers is described once, in
 [`priv/tool_manifest.json`](../priv/tool_manifest.json): its name, title,
 description, input schema, annotations, what it needs, whether it changes
 anything, the HTTP route behind it and its `scope`: `site` for a tool every page
-offers, otherwise the pages that offer it. The developer guide at `/developers`
+offers, otherwise the pages that offer it. The developer guide at `/docs`
 and the agent guide at `/llms.txt` build their tool tables from it. There are
 three kinds:
 
