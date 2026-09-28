@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v61, 28 September 2026 (abb4c66)
+- New Terms page, with the Autolaunch and blockchain-risk sections from the Regents Labs
+  terms. The footer links it, and the privacy page points to it.
+- The developer guide moves to /docs (the old /developers address forwards there) and
+  explains errors, versions and request limits.
+- The public API and health check allow 120 requests a minute from each visitor.
+- Files that help agents find the site: security contact, API catalog and tool list.
+- Security update to a web library the site uses.
+
 ## v60, 27 September 2026 (d48be63)
 - Buttons and menus move the same way as on the other Regent sites, from their shared
   motion. With reduced motion turned on, in system settings or on the page, nothing moves.
