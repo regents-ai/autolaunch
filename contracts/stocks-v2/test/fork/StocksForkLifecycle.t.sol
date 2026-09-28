@@ -189,26 +189,25 @@ contract StocksForkLifecycleTest is Test {
         (uint160 sqrtPriceX96,,,) = IPoolManager(StocksBindings.POOL_MANAGER).getSlot0(PoolId.wrap(record.poolId));
         assertEq(sqrtPriceX96, record.finalSqrtPriceX96, "real PoolManager initialized at raise / sale allocation");
         assertGt(IPoolManager(StocksBindings.POOL_MANAGER).getLiquidity(PoolId.wrap(record.poolId)), 0);
-        assertEq(IERC20(newToken).balanceOf(address(launchpad)), record.newShared, "only the share-out is held");
+        assertEq(IERC20(newToken).balanceOf(address(launchpad)), 0, "the NEW left over is retired");
+        assertEq(IERC20(newToken).balanceOf(StocksBindings.DEAD_ADDRESS), record.retiredNew, "at the dead address");
         assertEq(stock.balanceOf(address(launchpad)), 0);
         _assertLocked(record, auction.lbpInitializationParams().currencyRaised);
 
-        // Both bidders settle through the CCA and take their shares; between them they hold the whole
-        // sale allocation but for crumbs.
+        // Both bidders settle through the CCA; between them they hold the whole sale allocation but
+        // for crumbs: the supply divided by the floor price in Q96, the hermetic suite's bound.
         vm.prank(bidderDirect);
         auction.exitBid(directBid);
         vm.prank(bidderDirect);
         auction.claimTokens(directBid);
-        launchpad.claimUnsoldShare(launchId, directBid, 0, 0);
         vm.prank(bidderUsdc);
         auction.exitBid(adapterBid);
-        launchpad.claimUnsoldShare(launchId, adapterBid, 0, 0);
         vm.prank(bidderUsdc);
         auction.claimTokens(adapterBid);
         assertApproxEqAbs(
             IERC20(newToken).balanceOf(bidderDirect) + IERC20(newToken).balanceOf(bidderUsdc),
             StocksPreset.AUCTION_INVENTORY,
-            StocksPreset.INITIAL_SUPPLY / 1e9,
+            StocksPreset.INITIAL_SUPPLY / FLOOR_PRICE_Q96,
             "the bidders hold the whole sale allocation"
         );
 

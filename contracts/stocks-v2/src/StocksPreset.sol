@@ -18,8 +18,8 @@ library StocksPreset {
     // Founder decision 2026-09-09
     uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
 
-    /// @notice Half of `S0` is the sale allocation. Every unit of it reaches bidders when a launch
-    ///         graduates: what the auction sells, and what it does not sell shared out pro rata.
+    /// @notice Half of `S0` is the sale allocation. A launch that graduates has sold all of it to its
+    ///         bidders through the auction, but for rounding.
     // Founder decision 2026-09-27
     // forge-lint: disable-next-line(unsafe-typecast)
     uint128 internal constant AUCTION_INVENTORY = uint128(INITIAL_SUPPLY / 2);
@@ -99,13 +99,13 @@ library StocksPreset {
     /// @notice Graduation locks one full-range position in the fee-only `MemestockLPLocker`, opened at
     ///         the raise divided by the whole sale allocation and funded by the whole reserve and the
     ///         whole raise. Only the rounding remainder below one unit of liquidity is left over: its
-    ///         STOCK accrues to the REGENT lane of the pool's hook, its NEW joins the bidders' share.
+    ///         STOCK accrues to the REGENT lane of the pool's hook, its NEW is retired.
     // Founder decision 2026-09-09 (the destination of the STOCK rounding remainder)
     bool internal constant LP_STOCK_DUST_TO_REGENT_BUCKET = true;
 
-    /// @notice Every unit of NEW the auction did not sell, with the reserve NEW the pool could not pair,
-    ///         is claimable by the bids in proportion to the tokens each won; nothing is retired on
-    ///         graduation. Each claim rounds down, so a few base units per bid stay unclaimed.
+    /// @notice Every unit of a graduated launch's NEW still held by the launchpad after the position is
+    ///         minted (the auction's unsold rounding, the reserve the pool could not pair and anything
+    ///         sent to the launchpad) is retired to the dead address, as a failed launch's is.
     // Founder decision 2026-09-27
-    bool internal constant UNSOLD_NEW_TO_BIDDERS = true;
+    bool internal constant RETIRE_LEFTOVER_NEW_ON_GRADUATION = true;
 }

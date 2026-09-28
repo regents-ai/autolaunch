@@ -14,7 +14,7 @@ import {LifecycleHandler} from "./handlers/LifecycleHandler.sol";
 /// @dev Each model answers a different question and none of them is a restatement of another.
 ///
 ///      `INV-001` is *supply*: every unit of a launch's SUBJECT is somewhere reachable, always.
-///      `INV-006` is *one launch's reserve and share-out*: this launch's 15% and unsold sale allocation
+///      `INV-006` is *one launch's reserve and leftover*: this launch's 15% and unsold sale allocation
 ///      against this launch's own destinations.
 ///      `INV-007` is *lifecycle*: exactly one state, terminal once reached, escrow agreeing.
 ///      `INV-009` is *isolation across launches*: no launch's reserve is credited to, consumed by, or
@@ -26,6 +26,13 @@ import {LifecycleHandler} from "./handlers/LifecycleHandler.sol";
 ///      entry point, so no state here is one a real chain could not reach.
 contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
     uint256 internal constant LAUNCHES = 3;
+
+    /// @dev The most SUBJECT, in base units, a graduated auction may leave unsold. The pinned auction
+    ///      rounds each clearing price up by less than one Q96 unit, so what it leaves unsold is under
+    ///      the allocation divided by the floor price in Q96 units: 252,435 base units at the default
+    ///      floor. The campaign reaches unsold remainders above 200,000 and stayed under this bound
+    ///      across six seeds.
+    uint256 internal constant UNSOLD_CRUMBS = AUCTION_ALLOCATION / DEFAULT_FLOOR_Q96;
 
     LifecycleHandler internal handler;
     Launched[LAUNCHES] internal launches;
@@ -87,11 +94,6 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
         handler.giftSubject(1, 1, type(uint256).max);
         assertEq(handler.subjectGifts(), 1, "the treasury could not gift its own SUBJECT onward");
         assertGt(handler.strategySubjectGifts(1), 0, "the gift did not reach the shared strategy");
-
-        // Each bid takes its share of the share-out, whichever way it ended.
-        handler.claimShare(1, 0);
-        handler.claimShare(1, 1);
-        assertEq(handler.shareClaims(), 2, "the bids could not take their share-out");
     }
 
     // -------------------------------------------------------------------------
@@ -124,9 +126,10 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
     // -------------------------------------------------------------------------
 
     /// @notice `INV-006`: while a launch is active the strategy custodies exactly its 15% reserve;
-    ///         after graduation it holds exactly the share-out not yet paid, which is the unpaired
-    ///         reserve plus the auction's unsold remainder plus the gifts it absorbed; after failure
-    ///         the reserve and the sale allocation went to this launch's own escrow and nowhere else.
+    ///         graduation sends this launch's own escrow exactly the unpaired reserve plus the
+    ///         auction's unsold remainder plus the gifts it absorbed, keeps none of it, and the unsold
+    ///         remainder is never more than crumbs; after failure the reserve and the sale allocation
+    ///         went to this launch's own escrow and nowhere else.
     /// @dev The terminal halves are equations, not bounds. A `<=` bound would be satisfied by a
     ///      graduation that consumed one wei of LP and quietly sent the rest to the treasury, which
     ///      is exactly the misrouting this invariant exists to reject.
@@ -158,23 +161,17 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
                 );
 
                 // The whole equation: every unit of the 15% either funded the full-range position or
-                // joined the share-out, with the auction's unsold remainder and the absorbed gifts.
+                // went to the escrow, with the auction's unsold remainder and the absorbed gifts.
                 assertEq(
-                    uint256(d.subjectShared),
+                    handler.graduationSentToEscrow(i),
                     RESERVE_ALLOCATION - d.lpSubjectUsed + handler.graduationUnsoldSwept(i)
                         + handler.graduationGiftsAbsorbed(i),
-                    "the share-out is not the unpaired reserve plus the unsold remainder plus gifts"
+                    "the escrow did not receive the unpaired reserve plus the unsold remainder plus gifts"
                 );
-                assertEq(
-                    uint256(d.subjectSold) + handler.graduationUnsoldSwept(i),
-                    AUCTION_ALLOCATION,
-                    "the sold amount and the unsold remainder are not the sale allocation"
+                assertLe(
+                    handler.graduationUnsoldSwept(i), UNSOLD_CRUMBS, "a graduated auction left more than crumbs unsold"
                 );
-                assertEq(
-                    attributable,
-                    d.subjectShared - handler.sharesPaid(i),
-                    "the strategy holds other than the share-out not yet paid"
-                );
+                assertEq(attributable, 0, "a graduated launch left SUBJECT at the strategy");
             } else {
                 assertEq(attributable, 0, "a failed launch left SUBJECT stranded at the strategy");
                 assertEq(
@@ -318,14 +315,9 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
             assertEq(subject.balanceOf(address(factory)), handler.factorySubjectGifts(i), "unexplained factory SUBJECT");
             assertEq(subject.balanceOf(address(hook)), handler.hookSubjectGifts(i), "unexplained hook SUBJECT");
 
-            // The strategy holds the reserve while active, the unpaid share-out once graduated, and
-            // gifts it has not absorbed. Nothing else.
+            // The strategy holds the reserve while active and gifts it has not absorbed. Nothing else.
             uint256 expected;
-            if (d.lifecycle == RegentLBPStrategyV2.Lifecycle.Active) {
-                expected = RESERVE_ALLOCATION;
-            } else if (d.lifecycle == RegentLBPStrategyV2.Lifecycle.Graduated) {
-                expected = d.subjectShared - handler.sharesPaid(i);
-            }
+            if (d.lifecycle == RegentLBPStrategyV2.Lifecycle.Active) expected = RESERVE_ALLOCATION;
             assertEq(
                 subject.balanceOf(address(strategy)),
                 expected + handler.strategySubjectGifts(i),

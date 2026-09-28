@@ -20,7 +20,7 @@ interface IERC721Owner {
 /// @notice The whole Robinhood launch life cycle with an 18-decimal STOCK (every real Robinhood
 ///         stock has 18) and the production route in both caller paths: launch, an auction bid
 ///         through the bid adapter and the route, graduation (pool creation, the positions library,
-///         the one full-range position in the locker), the bid's share of the unsold NEW,
+///         the one full-range position in the locker, the leftover NEW retired), the bid's claim,
 ///         official-pool swaps accruing both fee lanes, the protocol lane settled through the route
 ///         into the inbox, the staker lane settled into the splitter, the locker's `collect`, and the
 ///         staker's claims. Once with the STOCK sorting
@@ -92,11 +92,10 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         (uint256 dust,) = stocksHook.accrued(record.poolId);
         assertEq(record.lpCurrencyUsed + dust, BID_STOCK, "every raised STOCK unit is in the pool or the lane");
         assertEq(stock.balanceOf(address(stocks)), 0, "the launchpad keeps no STOCK");
-        assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), record.newShared, "held for the share-out");
+        assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
+        assertEq(MockERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "the leftover NEW is retired");
 
-        // --- the sole bid takes its share of the unsold NEW, claims its fill and stakes the lot ---
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-        assertLe(MockERC20(l.newToken).balanceOf(address(stocks)), 1, "only rounding stays");
+        // --- the sole bid claims its fill and stakes it ---
         uint256 staked = _claimNewTo(l, bidId, staker);
         assertApproxEqAbs(staked, StocksPreset.AUCTION_INVENTORY, StocksPreset.INITIAL_SUPPLY / 1e9, "the allocation");
         RobinhoodMemestockSplitterV1 splitter = _splitter(l);

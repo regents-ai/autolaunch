@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 116,
+  "total": 113,
   "tests": {
     "test/AerodromeStockRoute.t.sol": {
       "AerodromeStockRouteTest": [
@@ -121,7 +121,7 @@
         "testFuzz_minimum_plus_one_unit_graduates_in_any_block",
         "testFuzz_sole_bidder_receives_the_whole_sale_allocation",
         "test_each_graduation_gets_its_own_splitter",
-        "test_eighteen_decimal_stock_graduates_and_shares_out",
+        "test_eighteen_decimal_stock_graduates_and_sells_the_whole_sale_allocation",
         "test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca",
         "test_graduation_emits_the_record",
         "test_launch_nobody_bid_in_never_graduates",
@@ -129,13 +129,10 @@
         "test_migrate_guards",
         "test_minimum_bid_after_the_first_block_is_counted_one_unit_short_and_fails",
         "test_minimum_met_exactly_graduates_and_one_unit_below_fails",
-        "test_new_sent_to_the_launchpad_before_migration_joins_the_share_out",
+        "test_new_sent_to_the_launchpad_before_migration_is_retired",
         "test_no_principal_path_exists_for_the_locked_position",
         "test_nobody_can_initialize_the_official_pool_before_migration",
-        "test_several_bidders_each_way_a_bid_ends_share_out_both_orderings",
-        "test_share_is_paid_once_to_the_owner_whoever_calls",
-        "test_share_is_refused_for_a_bid_the_auction_never_took",
-        "test_share_is_refused_until_graduation_and_for_a_failed_launch",
+        "test_several_bidders_each_way_a_bid_ends_receive_the_whole_sale_allocation_both_orderings",
         "test_sole_bidder_at_the_start_receives_the_whole_sale_allocation_both_orderings",
         "test_sole_bidder_in_the_last_eligible_block_receives_the_whole_sale_allocation",
         "test_sole_bidder_partly_filled_at_its_limit_receives_the_whole_sale_allocation"

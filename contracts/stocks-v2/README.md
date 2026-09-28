@@ -23,8 +23,9 @@ Version 2, not deployed. It replaces the Base launchpad in `contracts/stocks`, w
 and stays there for the launches made on it; nothing in that folder changes. Version 2 changes only
 the sale and graduation terms (founder decisions of 27 September 2026): half of the supply is sold
 and half pairs the raise in the pool, the required raise is the whole sale allocation at the floor,
-bidders receive the whole sale allocation, and the pool opens at the raise divided by it in one
-full-range position. The hook, splitter, locker, bid adapter and routes are the same source; a
+bidders receive the whole sale allocation from the auction itself, the pool opens at the raise
+divided by it in one full-range position, and the few crumbs of NEW left over after graduation are
+retired. The hook, splitter, locker, bid adapter and routes are the same source; a
 version 2 deployment creates new instances bound to the new launchpad.
 
 ## Layout
@@ -79,7 +80,7 @@ shared it is because the same pinned dependency imposes it.
 | Launch fee | none: a launch costs nothing beyond gas; no REGENT is pulled and the launchpad never holds REGENT | Founder decision 2026-09-21 |
 | Required raise | the whole sale allocation at the floor price, rounded up: `ceil(AUCTION_INVENTORY × floorPriceQ96 / 2^96)` STOCK base units (`requiredStockRaisedFor`), never zero, so an auction nobody bid in never graduates; the launcher chooses only the floor; below it the auction fails and bidders are refunded | Founder decision 2026-09-27 |
 | Creator allocation, vesting, treasury | none | Brief P05 |
-| Unsold NEW after graduation | held by the launchpad with the reserve the position did not pair (`newShared`) and paid to the bids pro rata to the NEW each won, `newShared × tokensFilled / newSold` rounded down, by `claimUnsoldShare` (anyone may call, once per bid, paid to the bid's owner); only rounding crumbs stay behind | Founder decision 2026-09-27 |
+| Leftover NEW after graduation | every unit of the launch's NEW the launchpad still holds once the position is minted (the auction's unsold rounding, the reserve the position could not pair, and anything sent to the launchpad) is transferred to `0x…dEaD` in `migrate` and recorded as `retiredNew`; bidders receive the whole sale allocation from the auction itself | Founder decision 2026-09-27 |
 | Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decision 2026-09-09 |
 | Locked liquidity | One full-range position, its NFT to the `MemestockLPLocker`, funded by the whole reserve and the whole raise at the pool's opening price, the raise divided by the sale allocation; no STOCK-only position and nothing burned | Founder decision 2026-09-27 |
 | LP rounding remainder (STOCK the position could not pair) | accrued to the REGENT lane of the pool's hook; below one part in a billion of the raise in every test | Founder decision 2026-09-09 (the destination) |
@@ -91,22 +92,19 @@ The pinned auction never lowers its clearing price and carries every unit it has
 blocks that follow. An auction that ended at the floor therefore sold its raise divided by the floor,
 which is at least the sale allocation once the raise meets the minimum; an auction that ended above
 the floor sold everything left in its final block. Either way a graduated auction has sold the whole
-sale allocation but for its own rounding, and `claimUnsoldShare` hands those crumbs, with the reserve
-the position could not pair, to the bids. The tests measure them below one NEW in a billion of the
-supply (`StocksLaunchpadMigrateTest`).
+sale allocation to its bidders but for its own rounding, so bidders receive the whole sale allocation
+from the auction itself. The shortfall, and the NEW retired at graduation, come from prices kept to
+one unit of 2^-96 and never below the floor, so the tests hold them below the supply divided by the
+floor price (`_newCrumbs` in `StocksLaunchpadMigrateTest`): about 0.0126 NEW at the test floor. The
+largest seen in the tests is about 0.0024 NEW.
 
-`claimUnsoldShare` cannot read the fill the auction stores for a bid, because anyone may call the
-auction's `claimTokens` for any bid and that zeroes it. `BidFillLib` recomputes the fill from the
-auction's permanent records with the pinned accounting its exits use, validating the same hints as
-`exitPartiallyFilledBid`; the denominator is `newSold`, what the auction kept for its bids' claims,
-measured from the auction's own sweep so NEW a bidder sends to the launchpad before migration only adds
-to `newShared`, and the shares never add up to more than `newShared`.
-
-Every bidder pays the clearing price of the blocks it bought in, and with the share-out counted the
-average over the whole sale allocation is the raise divided by the sale allocation. The pool opens at
-exactly that price, never above the final clearing price, and one full-range position pairs the whole
-reserve with the whole raise at it. The planner's rounding leaves a sliver of one side unpaired: STOCK
-goes to the REGENT lane, NEW to the share-out.
+Every bidder pays the clearing price of the blocks it bought in, and the average over the whole sale
+allocation is the raise divided by the sale allocation. The pool opens at exactly that price, never
+above the final clearing price, and one full-range position pairs the whole reserve with the whole
+raise at it. The planner's rounding leaves a sliver of one side unpaired: STOCK goes to the REGENT
+lane, NEW is retired. Every unit of the launch's NEW the launchpad still holds after the position is
+minted, the auction's unsold rounding, the unpaired reserve and anything sent to the launchpad, goes
+to the dead address.
 
 The pinned auction may count a bid placed after its first block one STOCK base unit short, so a
 single bid of exactly the minimum graduates only in the first block; the minimum plus one base unit
@@ -211,12 +209,11 @@ AAPLc pool whenever it is run against Base itself.
    the pool with the hook, sweep STOCK, sweep unsold NEW, initialize at the raise divided by the sale
    allocation, mint one full-range position from the whole reserve and the whole raise to the locker
    and register it to the splitter, so `lpStockUsed + dust == raised` with `dust` the rounding the
-   REGENT lane takes, and hold the rest of the NEW for the share-out:
-   `newSold + newShared + lpNewUsed == S0`. Failed: retire reserve and swept inventory; never touch
-   bidder STOCK.
-4. Bidder refunds and claims go through the CCA and depend on nothing in this component. The
-   share-out pays each bid of a graduated launch at most once, to its owner, whoever calls, before
-   or after the bid's own exit and claim, and the shares never add up to more than `newShared`.
+   REGENT lane takes, and retire every unit of the launch's NEW still held:
+   `NEW kept by the auction + lpNewUsed + retiredNew == S0`. Failed: retire reserve and swept
+   inventory; never touch bidder STOCK.
+4. Bidder refunds and claims go through the CCA and depend on nothing in this component. The bids
+   of a graduated launch receive the whole sale allocation from the auction but for crumbs.
 5. The hook only accrues. The REGENT lane leaves only through `settleRegentLane` (executor-only, via
    the admitted route, with `minUsdcOut`) and the staker lane only through `settleStakerLane` (anyone,
    whole lane, as STOCK, into the pool's fixed splitter); a failing settlement reverts only itself.

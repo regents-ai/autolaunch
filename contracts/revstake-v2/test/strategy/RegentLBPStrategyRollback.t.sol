@@ -64,20 +64,28 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
         _bidToGraduationAt(launch, 3 * FLOOR_RAISE, 500);
 
         uint256 root = vm.snapshotState();
+        uint256 escrowBefore = launch.subject.balanceOf(address(launch.escrow));
         regent.resetMovements();
         launch.subject.resetMovements();
         strategy.migrate(address(launch.auction));
         uint256 regentStages = regent.movements();
         uint256 subjectStages = launch.subject.movements();
         uint256 unsold = launch.auction.remainingSupply();
+        uint256 leftover = launch.subject.balanceOf(address(launch.escrow)) - escrowBefore;
         require(vm.revertToState(root), "revert to root failed");
 
         // Every REGENT stage: the auction sweep, the PositionManager funding transfer, the
         // PositionManager settlement, and the treasury payout. Every SUBJECT stage: the auction's
         // unsold sweep to the strategy when anything went unsold, the PositionManager funding
-        // transfer and the PositionManager settlement.
+        // transfer, the PositionManager settlement, and the leftover to the escrow when anything
+        // was left.
         assertEq(regentStages, 4, "the REGENT stages graduation moves through");
-        assertEq(subjectStages, unsold == 0 ? 2 : 3, "the SUBJECT stages graduation moves through");
+        assertGt(leftover, 0, "this graduation leaves SUBJECT for the escrow");
+        assertEq(
+            subjectStages,
+            2 + (unsold == 0 ? 0 : 1) + (leftover == 0 ? 0 : 1),
+            "the SUBJECT stages graduation moves through"
+        );
 
         for (uint256 stage = 1; stage <= regentStages; ++stage) {
             _assertStageRollsBack(launch, regent, stage, "REGENT stage ");

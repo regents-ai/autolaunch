@@ -148,8 +148,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     }
 
     /// @notice `MIG-005`: the raised REGENT is swept out of the auction and the pool opens at exactly
-    ///         the raise over the whole sale allocation — what every bidder paid on average once the
-    ///         unsold share-out is counted.
+    ///         the raise over the whole sale allocation — what the bidders paid on average for it.
     function test_MIG_005_InitializesThePoolAtTheRaiseOverTheSaleAllocation() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduationAt(launched, 3 * FLOOR_RAISE, 500);
@@ -221,30 +220,29 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertEq(regent.balanceOf(BaseBindings.POSITION_MANAGER), 0, "the PositionManager kept REGENT");
     }
 
-    /// @notice `MIG-008`: the SUBJECT the position did not pair stays with the strategy for the bids'
-    ///         share-out; escrow receives nothing from a graduation and keeps exactly the 65%.
-    function test_MIG_008_UnpairedReserveJoinsTheShareOutNotEscrow() public {
+    /// @notice `MIG-008`: the SUBJECT the position did not pair and the auction's unsold remainder go
+    ///         to the launch's escrow, on top of its 65%, and the strategy keeps none of it.
+    function test_MIG_008_LeftoverSubjectGoesToTheEscrow() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduation(launched, FLOOR_RAISE);
 
+        vm.recordLogs();
         strategy.migrate(address(launched.auction));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
-        uint256 reserveResidue = RESERVE_ALLOCATION - d.lpSubjectUsed;
-        uint256 auctionUnsold = launched.auction.remainingSupply();
-        assertEq(
-            d.subjectShared, reserveResidue + auctionUnsold, "the share-out is not the unpaired reserve plus unsold"
-        );
-        assertEq(
-            launched.subject.balanceOf(address(strategy)),
-            d.subjectShared,
-            "the strategy holds other than the share-out"
-        );
+        uint256 leftover = RESERVE_ALLOCATION - d.lpSubjectUsed + launched.auction.remainingSupply();
         assertEq(
             launched.subject.balanceOf(address(launched.escrow)),
-            PENDING_ALLOCATION,
-            "graduation moved SUBJECT into escrow"
+            PENDING_ALLOCATION + leftover,
+            "the escrow did not receive the unpaired reserve plus the unsold remainder"
         );
+        assertEq(launched.subject.balanceOf(address(strategy)), 0, "the strategy kept SUBJECT");
+
+        uint256 settled = _firstLog(logs, keccak256("LaunchSettled(address,uint256,uint256,uint256)"));
+        assertLt(settled, type(uint256).max, "the settlement was never announced");
+        (,, uint256 subjectToEscrow) = abi.decode(logs[settled].data, (uint256, uint256, uint256));
+        assertEq(subjectToEscrow, leftover, "the announced leftover is not what the escrow received");
     }
 
     /// @notice `MIG-009`: a graduated auction's unsold SUBJECT is swept to the strategy exactly once and
@@ -257,11 +255,9 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         strategy.migrate(address(launched.auction));
 
         uint256 unsold = launched.auction.remainingSupply();
-        RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
-        assertEq(d.subjectSold, AUCTION_ALLOCATION - unsold, "the recorded sold amount is not the auction's");
         assertEq(
             launched.subject.balanceOf(address(launched.auction)),
-            d.subjectSold,
+            AUCTION_ALLOCATION - unsold,
             "the auction kept other than exactly what its bidders may claim"
         );
 
@@ -388,7 +384,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         strategy.migrate(address(launched.auction));
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        uint256[11] memory order = [
+        uint256[12] memory order = [
             _firstLog(logs, keccak256("CheckpointUpdated(uint256,uint256,uint24)")),
             _firstLog(logs, keccak256("SplitterInitialized(address,address,address,address,address,address)")),
             _firstLog(logs, keccak256("PoolRegistered(bytes32,address,address)")),
@@ -397,6 +393,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
             _firstLog(logs, keccak256("Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)")),
             _firstLog(logs, keccak256("ModifyLiquidity(bytes32,address,int24,int24,int256,bytes32)")),
             _firstTransfer(logs, BaseBindings.REGENT, address(strategy), treasury),
+            _firstTransfer(logs, address(launched.subject), address(strategy), address(launched.escrow)),
             _firstLog(logs, keccak256("ReceiverInitialized(address,address,uint16,address)")),
             _firstLog(logs, keccak256("VestingActivated(uint64,uint256)")),
             _firstLog(
@@ -404,7 +401,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
                 keccak256("LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128)")
             )
         ];
-        string[11] memory names = [
+        string[12] memory names = [
             "final checkpoint",
             "splitter clone",
             "hook registration",
@@ -413,6 +410,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
             "pool initialization",
             "full-range mint",
             "treasury payout",
+            "leftover SUBJECT to escrow",
             "canonical receiver",
             "vesting activation",
             "graduation announcement"
@@ -424,8 +422,8 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
             }
         }
         assertLt(
-            order[10],
-            _firstLog(logs, keccak256("LaunchSettled(address,uint256,uint256,uint256,uint256)")),
+            order[11],
+            _firstLog(logs, keccak256("LaunchSettled(address,uint256,uint256,uint256)")),
             "the settlement was announced before the graduation"
         );
         assertEq(
@@ -498,18 +496,23 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
         uint256 raised = launched.auction.lbpInitializationParams().currencyRaised;
 
-        // SUBJECT: the pool position, escrow, what the auction sold (bidders claim it from the auction
-        // after the claim block) and the share-out the strategy holds for the bids, and nowhere else.
+        // SUBJECT: the pool position, what the auction sold (bidders claim it from the auction after
+        // the claim block) and escrow, which holds the 65% plus everything else, and nowhere else.
+        uint256 sold = AUCTION_ALLOCATION - launched.auction.remainingSupply();
         assertEq(
             launched.subject.balanceOf(BaseBindings.POOL_MANAGER) + launched.subject.balanceOf(address(launched.escrow))
-                + launched.subject.balanceOf(address(launched.auction)) + launched.subject.balanceOf(address(strategy)),
+                + launched.subject.balanceOf(address(launched.auction)),
             TOTAL_SUPPLY,
-            "the whole supply is not in the four named places"
+            "the whole supply is not in the three named places"
         );
         assertEq(launched.subject.balanceOf(BaseBindings.POOL_MANAGER), d.lpSubjectUsed, "pool SUBJECT");
-        assertEq(launched.subject.balanceOf(address(launched.auction)), d.subjectSold, "auction SUBJECT");
-        assertEq(launched.subject.balanceOf(address(strategy)), d.subjectShared, "strategy SUBJECT");
-        assertEq(launched.subject.balanceOf(address(launched.escrow)), PENDING_ALLOCATION, "escrow SUBJECT");
+        assertEq(launched.subject.balanceOf(address(launched.auction)), sold, "auction SUBJECT");
+        assertEq(
+            launched.subject.balanceOf(address(launched.escrow)),
+            PENDING_ALLOCATION + (RESERVE_ALLOCATION - d.lpSubjectUsed) + (AUCTION_ALLOCATION - sold),
+            "escrow SUBJECT"
+        );
+        assertEq(launched.subject.balanceOf(address(strategy)), 0, "the strategy stranded SUBJECT");
         assertEq(launched.subject.balanceOf(BaseBindings.POSITION_MANAGER), 0, "the PositionManager stranded SUBJECT");
         assertEq(launched.subject.balanceOf(address(factory)), 0, "the factory stranded SUBJECT");
         assertEq(launched.subject.balanceOf(d.splitter), 0, "the splitter stranded SUBJECT");

@@ -80,42 +80,42 @@
       "contract": "RobinhoodStocksLaunchpadV2",
       "source": "src/RobinhoodStocksLaunchpadV2.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 18719,
+      "runtime_bytes": 16073,
       "runtime_keccak256": null,
       "runtime_sha256": null,
-      "runtime_object_sha256": "106c1ed0f33a54b03677758eb6e530337ba04ee442a34a6c2a6f7dcfc8a4c6e2",
+      "runtime_object_sha256": "09786614152c9e246594b579c44924eff651c901aabb30bb18b139ca57403037",
       "runtime_immutable_references": 11,
       "runtime_linked_libraries": [
         {
           "library": "RobinhoodPositionsLib",
           "source": "src/libraries/RobinhoodPositionsLib.sol",
           "offsets": [
-            16178
+            13992
           ]
         }
       ],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 31384,
+      "creation_bytes": 28738,
       "creation_keccak256": null,
       "creation_sha256": null,
-      "creation_object_sha256": "4939101a2c3cbc08f9c87d5a6f368e079170cd84b4e324edafbd6becaeae609e",
+      "creation_object_sha256": "43094db6e00c044de8e8486246d8ab7af608235d2d7e97cf8bd9f26e150f649d",
       "creation_linked_libraries": [
         {
           "library": "RobinhoodPositionsLib",
           "source": "src/libraries/RobinhoodPositionsLib.sol",
           "offsets": [
-            18623
+            16437
           ]
         }
       ],
-      "runtime_margin_bytes": 5857,
+      "runtime_margin_bytes": 8503,
       "constructor": [
         "(address,address,address,address,address,address,address,address) bindings",
         "bytes32 hookSalt"
       ],
       "constructor_args_bytes": 288,
-      "initcode_bytes": 31672,
-      "initcode_margin_bytes": 17480
+      "initcode_bytes": 29026,
+      "initcode_margin_bytes": 20126
     },
     {
       "contract": "RobinhoodFeeHookV1",
@@ -200,26 +200,26 @@
       "contract": "RobinhoodStockBidAdapterV1",
       "source": "src/RobinhoodStockBidAdapterV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 3179,
-      "runtime_keccak256": "0x7118b80954fde3d36430e1435d27e9acf03e1165270a5ae2e3cd8b6ed8480f3f",
-      "runtime_sha256": "c46db2ec694c5a58ceea9ec8823e73631508c80d9ac9be08530e30af0684b356",
-      "runtime_object_sha256": "9dadf848d867752e4a565f19fad5024740c457c61a9fc209393fc2cd97489ed9",
+      "runtime_bytes": 3155,
+      "runtime_keccak256": "0x8074cd60c856ef252aa0d07919c54e26998787a4cbd0bbbf0ca0bfb7c35bf332",
+      "runtime_sha256": "7cdb630c1ad9d800da3e2e56b925125e3dfc19822c4ebd17fb5bdf37859dfe3f",
+      "runtime_object_sha256": "da7b927c7bd6bb59eaa7ce48df9d96f39e607c18b991178560f4629f3d794d86",
       "runtime_immutable_references": 3,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 3622,
-      "creation_keccak256": "0x73e62078a5bbd265c86d3f2e5def91d1dff8c2922d4fa4289b498bb997038b06",
-      "creation_sha256": "8874f7669fc151c2c60999e760280561bf6f93f570653624b71d6d541dfb5b44",
-      "creation_object_sha256": "8bf523decc29a1a7ba7a4a4d802ecdbf66071a2bf8422a6bbfe6c6d52960e100",
+      "creation_bytes": 3598,
+      "creation_keccak256": "0x8f723b06dde631bdf8b063b0b7f9801886d50d7213af7f427ce7cabfa5bde5dc",
+      "creation_sha256": "984918bc4ae461cf8a38c12e877bc2868b43879d846098e614d114aec68395d0",
+      "creation_object_sha256": "3b17f778a2c6c10499f304c1e3807effd64dbb53037dba58ae261251e178ac36",
       "creation_linked_libraries": [],
-      "runtime_margin_bytes": 21397,
+      "runtime_margin_bytes": 21421,
       "constructor": [
         "address launchpad_",
         "address permit2_"
       ],
       "constructor_args_bytes": 64,
-      "initcode_bytes": 3686,
-      "initcode_margin_bytes": 45466
+      "initcode_bytes": 3662,
+      "initcode_margin_bytes": 45490
     },
     {
       "contract": "UniswapV3StockRouteV1",

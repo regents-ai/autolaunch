@@ -11,7 +11,6 @@
         "0x03631d24 stockAdmission(address)",
         "0x06432e91 launch((string,string,string,string,string,address,uint256))",
         "0x06b0b7f2 revokeStock(address)",
-        "0x1ca1898e claimUnsoldShare(uint256,uint256,uint64,uint64)",
         "0x3bc340c2 launchesPaused()",
         "0x454b0608 migrate(uint256)",
         "0x5af02677 unpauseLaunches()",
@@ -25,13 +24,11 @@
         "0xe63db9b2 splitterImplementation()",
         "0xe79b502e pauseLaunches()",
         "0xeab65e5d requiredStockRaisedFor(uint256)",
-        "0xebe64cbd unsoldShareOf(uint256,uint256,uint64,uint64)",
         "0xf6f19fe1 admitStock(address,address)"
       ],
       "mutating_functions": [
         "0x06432e91 launch((string,string,string,string,string,address,uint256))",
         "0x06b0b7f2 revokeStock(address)",
-        "0x1ca1898e claimUnsoldShare(uint256,uint256,uint64,uint64)",
         "0x454b0608 migrate(uint256)",
         "0x5af02677 unpauseLaunches()",
         "0xe79b502e pauseLaunches()",
@@ -48,17 +45,15 @@
         "0xa568a4fe launchIdOfAuction(address)",
         "0xd7b96d4e locker()",
         "0xe63db9b2 splitterImplementation()",
-        "0xeab65e5d requiredStockRaisedFor(uint256)",
-        "0xebe64cbd unsoldShareOf(uint256,uint256,uint64,uint64)"
+        "0xeab65e5d requiredStockRaisedFor(uint256)"
       ],
       "events": [
         "0x07b3e48e8c6545581bdbef8629eb988aa7dcb66c8a7152384af19096cf2b4d1d LaunchesPaused() indexed=0",
         "0x07ec20fda323d7aad667bc196c6195b67fa0027c76058fe6d9fb0ffa94f1719a LaunchesUnpaused() indexed=0",
         "0x173a9d41d59ee0ef30fd9e876eaebe9b8931676ff0faa1d478d076b3d14f2435 MemestockSplitterCreated(uint256,address,address,address) indexed=3",
-        "0x661bc65567838299b43a853719b435b476c7b44256eff698d908e90b1502e977 StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256,uint256) indexed=2",
         "0x71d49be0d00dcc4c0c9e05a30c4138b88e086deaee5dcb4ab1693d975e3cdd77 StockRevoked(address) indexed=1",
         "0x7e7f3a1d71a4a18e34818c98bb76b98c4696f5d56766bbe50efef39906ed46c9 StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256) indexed=3",
-        "0x8a22fd1c5ea54fbf54e8440bb5f6c35d55e0d2169cc8c73af2057a2f49e66904 UnsoldShareClaimed(uint256,uint256,address,uint256,uint256) indexed=3",
+        "0x8089c60f9d6ba503905a86ec1e4fc6097cfde8deebc2d20f68090f5d6161b646 StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256) indexed=2",
         "0x94f115389e7de5c186956a439d6bd7158b7b41c95a9f9fa6a52716632b3fdfca StockAdmitted(address,uint8) indexed=1",
         "0xb1ccbd2e92e7e2fa21e441f615858e3910b791d362613b197e73bf3a3172d683 StockLaunchRetired(uint256,address,uint256) indexed=2"
       ],
@@ -98,8 +93,7 @@
           "uint128 lpNewUsed",
           "uint256 stockRaised",
           "uint256 stockDustToRevenue",
-          "uint256 newSold",
-          "uint256 newShared"
+          "uint256 unsoldNewRetired"
         ],
         "StockLaunchRetired": [
           "uint256 indexed launchId",
@@ -108,13 +102,6 @@
         ],
         "StockRevoked": [
           "address indexed stock"
-        ],
-        "UnsoldShareClaimed": [
-          "uint256 indexed launchId",
-          "uint256 indexed bidId",
-          "address indexed owner",
-          "uint256 tokensFilled",
-          "uint256 share"
         ]
       },
       "errors": [
@@ -124,12 +111,9 @@
         "0x1bd658b6 ProtocolFeeControllerNotZero(address)",
         "0x27a9468c FloorPriceTooLow(uint256)",
         "0x2adf950a AllowanceNotConsumed(address,uint256)",
-        "0x2b654e0f UnsoldShareAlreadyClaimed(uint256,uint256)",
         "0x3a1455a0 LaunchesArePaused()",
-        "0x516cb4ba InvalidOutbidBlockCheckpointHint()",
         "0x6727b942 SqrtPriceX96OutOfBounds(uint160,uint160,uint160)",
         "0x674520b6 NoCode(address)",
-        "0x6a009455 InvalidLastFullyFilledCheckpointHint()",
         "0x736574f7 RouteBindingMismatch(address,address)",
         "0x87ebe85d PriceTooHigh(uint256,uint256)",
         "0x9366facf InexactTransfer(uint256,uint256)",
@@ -154,9 +138,7 @@
         "0xd92e233d ZeroAddress()",
         "0xde2d0a30 NoFullRangePosition()",
         "0xde4ebb3a UnknownLaunch(uint256)",
-        "0xf6cbcdd2 LaunchNotGraduated(uint8)",
         "0xfd21a132 AuctionBindingMismatch(uint256,uint256,uint256)",
-        "0xfde5fd1e BidNotAtFinalClearingPrice()",
         "0xff37c42c TokenSupplyMismatch(uint256,uint256)"
       ],
       "input_structs": {
@@ -189,8 +171,6 @@
           "uint256 lpTokenId",
           "uint128 lpStockUsed",
           "uint128 lpNewUsed",
-          "uint256 newSold",
-          "uint256 newShared",
           "uint256 retiredNew"
         ]
       }

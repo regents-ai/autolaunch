@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {BaseBindings} from "../bindings/BaseBindings.sol";
 import {ConditionalVestingEscrowV2} from "../escrow/ConditionalVestingEscrowV2.sol";
 import {RegentFeeHook} from "../hook/RegentFeeHook.sol";
-import {BidFillLib} from "../libraries/BidFillLib.sol";
 import {PaymentReceiverV1} from "../revenue/PaymentReceiverV1.sol";
 import {RevstakeLPLocker} from "../revenue/RevstakeLPLocker.sol";
 import {SubjectSplitterV1} from "../revenue/SubjectSplitterV1.sol";
@@ -46,14 +45,16 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 ///         C2 hook once, creates each launch's CCA auction at the launcher's floor price, custodies
 ///         that launch's isolated 15% LP reserve, and finally drives the launch to exactly one
 ///         terminal state.
-/// @notice Version 2 (founder decisions, 27 September 2026): the auction sells 20% and a graduated
-///         launch gives its bidders that whole 20%. The auction pays each bid what it won, and this
-///         strategy holds the SUBJECT the auction did not sell for the bids to claim pro rata
-///         (`claimUnsoldShare`). The official pool opens at the raise divided by the sale allocation
-///         and one full-range position pairs the whole reserve with three quarters of the raise; the
-///         other quarter goes to the treasury. The required raise is the whole sale allocation at the
-///         floor price, rounded up, or the launcher's own higher minimum, so an auction nobody bid in
-///         never graduates.
+/// @notice Version 2 (founder decisions, 27 September 2026): the auction sells 20%, and a graduated
+///         auction sells that whole 20% to its bidders through the auction itself. The required raise
+///         is the whole sale allocation at the floor price, rounded up, or the launcher's own higher
+///         minimum; the pinned CCA rolls unsold supply forward and never lowers its clearing price,
+///         so an auction that raises that much has sold its whole allocation, and an auction nobody
+///         bid in never graduates. The official pool opens at the raise divided by the sale
+///         allocation and one full-range position pairs the whole reserve with three quarters of the
+///         raise; the other quarter goes to the treasury. Whatever SUBJECT of the launch is left here
+///         after the position is minted — rounding crumbs and anything sent here — goes to the
+///         launch's escrow and vests to the treasury with the 65%.
 /// @dev This is a hard-cut fork of the pinned Liquidity Launcher `LBPStrategy`
 ///      (`3a3103543f50a13a0ae52a253bb98a925d72146f`). The preserved behaviour is the CCA creation and
 ///      readback discipline, the final-price conversion through `TokenPricing`, the full-range
@@ -145,9 +146,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     }
 
     /// @notice One launch's complete recorded state.
-    /// @dev `subjectSold` is the SUBJECT the auction kept for its bids' claims and `subjectShared` the
-    ///      SUBJECT this strategy holds for them on top (see `claimUnsoldShare`); both are set at
-    ///      graduation.
     struct Distribution {
         Lifecycle lifecycle;
         uint64 startBlock;
@@ -160,8 +158,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         uint128 lpSubjectUsed;
         uint160 finalSqrtPriceX96;
         uint256 floorPriceQ96;
-        uint256 subjectSold;
-        uint256 subjectShared;
         uint256 launchId;
         address subject;
         address escrow;
@@ -198,8 +194,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
 
     mapping(address auction => Distribution) private _distributions;
 
-    mapping(address auction => mapping(uint256 bidId => bool)) private _unsoldShareClaimed;
-
     event HookBound(address indexed hook);
     event DistributionCreated(
         uint256 indexed launchId,
@@ -225,17 +219,10 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         uint128 lpRegentUsed,
         uint128 lpSubjectUsed
     );
-    /// @notice What a graduation raised and how its SUBJECT was assigned.
+    /// @notice What a graduation raised, what of it the treasury received, and the leftover SUBJECT
+    ///         it sent to the launch's escrow.
     event LaunchSettled(
-        address indexed auction,
-        uint256 regentRaised,
-        uint256 regentToTreasury,
-        uint256 subjectSold,
-        uint256 subjectShared
-    );
-    /// @notice One bid's share of the SUBJECT the auction did not sell, paid to the bid's owner.
-    event UnsoldShareClaimed(
-        address indexed auction, uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 share
+        address indexed auction, uint256 regentRaised, uint256 regentToTreasury, uint256 subjectToEscrow
     );
 
     error ZeroAddress();
@@ -266,8 +253,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     error CurrencyRaisedMismatch(uint256 expected, uint256 found);
     error NoFullRangePosition();
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
-    error LaunchNotGraduated(Lifecycle found);
-    error UnsoldShareAlreadyClaimed(address auction, uint256 bidId);
 
     /// @dev The factory is deliberately not required to carry code: the canonical Autolaunch factory
     ///      binds the hook from inside its own constructor, when it has none yet. The three clone
@@ -449,38 +434,9 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         }
     }
 
-    /// @notice Pay one bid of a graduated launch its share of the SUBJECT the auction did not sell:
-    ///         `subjectShared * tokensFilled / subjectSold`, rounded down, to the bid's owner.
-    /// @dev Anyone may call, once per bid, before or after the bid's own exit and claim at the
-    ///      auction. The claimed mark is written before the transfer.
-    /// @param lastFullyFilledCheckpointBlock, outbidBlock The hints the auction's
-    ///        `exitPartiallyFilledBid` takes; ignored for a bid priced above the final clearing price.
-    function claimUnsoldShare(address auction, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-        nonReentrant
-    {
-        (address owner, uint256 filled, uint256 share, bool claimed) =
-            _unsoldShare(auction, bidId, lastFullyFilledCheckpointBlock, outbidBlock);
-        if (claimed) revert UnsoldShareAlreadyClaimed(auction, bidId);
-
-        _unsoldShareClaimed[auction][bidId] = true;
-        emit UnsoldShareClaimed(auction, bidId, owner, filled, share);
-        if (share != 0) _distributions[auction].subject.safeTransfer(owner, share);
-    }
-
     /// @notice One launch's complete recorded state.
     function distribution(address auction) external view returns (Distribution memory) {
         return _distributions[auction];
-    }
-
-    /// @notice What `claimUnsoldShare` would pay one bid of a graduated launch, and whether it was
-    ///         already paid.
-    function unsoldShareOf(address auction, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-        view
-        returns (address owner, uint256 share, bool claimed)
-    {
-        (owner,, share, claimed) = _unsoldShare(auction, bidId, lastFullyFilledCheckpointBlock, outbidBlock);
     }
 
     /// @notice The bid tick spacing (Q96) an auction at this floor price is created with.
@@ -592,15 +548,12 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         uint256 raised = regent.balanceOf(address(this)) - regentBefore;
         if (raised != lbp.currencyRaised) revert CurrencyRaisedMismatch(lbp.currencyRaised, raised);
 
-        // What the sweep delivers is what the auction did not sell; the rest of the sale allocation
-        // stays in the auction for its bids. Measured as a delta, because a bidder may already hold
-        // claimed SUBJECT and send some here before migration.
-        uint256 subjectBefore = subject.balanceOf(address(this));
+        // A graduated auction has sold its whole allocation, so this sweep brings back at most the
+        // auction's rounding crumbs; the sold SUBJECT stays in the auction for its bids' claims.
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
-        uint256 subjectSold = AUCTION_ALLOCATION - (subject.balanceOf(address(this)) - subjectBefore);
 
         // The pool opens at the raise divided by the whole sale allocation (REGENT per SUBJECT, Q96),
-        // the price every bidder paid on average once the share-out is counted.
+        // the price the bidders paid on average for it.
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == regent;
         uint256 priceX96 = FullMath.mulDiv(raised, FixedPoint96.Q96, AUCTION_ALLOCATION);
         uint160 sqrtPriceX96 =
@@ -619,9 +572,11 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         uint256 regentToTreasury = regent.balanceOf(address(this)) - regentBefore;
         if (regentToTreasury != 0) regent.safeTransfer(d.treasury, regentToTreasury);
 
-        // Every unit of this launch's SUBJECT still here — the unsold sale allocation, the reserve the
-        // position did not pair and anything sent here — is held for the bids (`claimUnsoldShare`).
-        uint256 subjectShared = subject.balanceOf(address(this));
+        // Every remaining unit of this launch's SUBJECT — the auction's unsold crumbs, the reserve the
+        // position did not pair and anything sent here — belongs to the launch and goes to escrow,
+        // where it vests to the treasury with the 65%.
+        uint256 subjectToEscrow = subject.balanceOf(address(this));
+        if (subjectToEscrow != 0) subject.safeTransfer(escrow, subjectToEscrow);
 
         address receiver = LibClone.clone(receiverImplementation);
         PaymentReceiverV1(payable(receiver)).initialize(splitter, d.treasury, 0, d.treasury, true);
@@ -635,8 +590,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         d.lpTokenId = lpTokenId;
         d.lpRegentUsed = lpRegentUsed;
         d.lpSubjectUsed = lpSubjectUsed;
-        d.subjectSold = subjectSold;
-        d.subjectShared = subjectShared;
 
         (bool registered, bytes memory reason) =
             factory.call(abi.encodeWithSignature("registerCanonicalPaymentReceiver(address)", auction));
@@ -649,25 +602,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         emit LaunchGraduated(
             auction, subject, poolId, splitter, receiver, sqrtPriceX96, lpTokenId, lpRegentUsed, lpSubjectUsed
         );
-        emit LaunchSettled(auction, raised, regentToTreasury, subjectSold, subjectShared);
-    }
-
-    /// @dev One bid's share of a graduated launch's unsold SUBJECT, from the tokens the bid won
-    ///      (`BidFillLib`). The auction keeps `subjectSold` for its bids' claims, so the tokens its
-    ///      bids won never add up to more than it, and the shares never add up to more than
-    ///      `subjectShared`.
-    function _unsoldShare(address auction, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        private
-        view
-        returns (address owner, uint256 filled, uint256 share, bool claimed)
-    {
-        Distribution storage d = _distributions[auction];
-        if (d.lifecycle != Lifecycle.Graduated) revert LaunchNotGraduated(d.lifecycle);
-        (owner, filled) = BidFillLib.tokensFilled(
-            IContinuousClearingAuction(auction), bidId, lastFullyFilledCheckpointBlock, outbidBlock
-        );
-        share = FullMath.mulDiv(d.subjectShared, filled, d.subjectSold);
-        claimed = _unsoldShareClaimed[auction][bidId];
+        emit LaunchSettled(auction, raised, regentToTreasury, subjectToEscrow);
     }
 
     /// @dev Resolves exactly one full-range position from the raised REGENT and the recorded reserve,

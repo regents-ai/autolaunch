@@ -148,9 +148,10 @@ contract ConditionalVestingEscrowV2 is Initializable, ReentrancyGuard {
     }
 
     /// @notice Resolve this launch as graduated and start the 365-day schedule at this timestamp.
-    /// @dev The strategy calls this from its graduation, after the auction proved it graduated. The
-    ///      vesting schedule opens over exactly the pending allocation: a graduated launch's unsold
-    ///      SUBJECT goes to its bidders, never here. The start and the duration are never
+    /// @dev The strategy calls this from its graduation, after the auction proved it graduated and
+    ///      after it sent this launch's leftover SUBJECT here (the auction's unsold crumbs, the reserve
+    ///      the pool did not pair and anything sent to the strategy), so the schedule opens over the
+    ///      pending allocation plus that leftover. The start and the duration are never
     ///      caller-supplied. `C1-I1`.
     function activateVesting() external onlyStrategy whilePending {
         vestingStart = uint64(block.timestamp);

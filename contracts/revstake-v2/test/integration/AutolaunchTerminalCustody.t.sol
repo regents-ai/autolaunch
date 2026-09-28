@@ -82,8 +82,8 @@ contract AutolaunchTerminalCustodyTest is AutolaunchFixture {
         );
 
         // And the foreign inventory reached neither of this launch's two value destinations: the
-        // treasury received exactly the unused raise and the share-out holds exactly the unpaired
-        // reserve plus the auction's unsold remainder.
+        // treasury received exactly the unused raise and the escrow exactly the unpaired reserve plus
+        // the auction's unsold remainder.
         RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
         uint256 swept = auctionRegentBefore - regent.balanceOf(address(launched.auction));
         assertGt(swept, d.lpRegentUsed, "the position consumed the whole raise, so there is no residue to check");
@@ -94,12 +94,9 @@ contract AutolaunchTerminalCustodyTest is AutolaunchFixture {
         );
         uint256 unsoldSwept = auctionSubjectBefore - launched.subject.balanceOf(address(launched.auction));
         assertEq(
-            d.subjectShared,
-            RESERVE_ALLOCATION - d.lpSubjectUsed + unsoldSwept,
-            "the share-out holds more than this launch's own unpaired reserve and unsold remainder"
-        );
-        assertEq(
-            launched.subject.balanceOf(address(launched.escrow)), PENDING_ALLOCATION, "graduation moved escrow SUBJECT"
+            launched.subject.balanceOf(address(launched.escrow)),
+            PENDING_ALLOCATION + RESERVE_ALLOCATION - d.lpSubjectUsed + unsoldSwept,
+            "the escrow received other than this launch's own unpaired reserve and unsold remainder"
         );
 
         // The graduation itself is entirely normal.
@@ -108,10 +105,6 @@ contract AutolaunchTerminalCustodyTest is AutolaunchFixture {
         assertGt(d.lpRegentUsed, 0, "the position consumed no REGENT");
         assertGt(d.lpSubjectUsed, 0, "the position consumed no SUBJECT");
         assertEq(regent.balanceOf(address(strategy)), 0, "the strategy kept REGENT after graduation");
-        assertEq(
-            launched.subject.balanceOf(address(strategy)),
-            d.subjectShared,
-            "the strategy holds other than the share-out"
-        );
+        assertEq(launched.subject.balanceOf(address(strategy)), 0, "the strategy kept SUBJECT after graduation");
     }
 }

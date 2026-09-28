@@ -16,9 +16,8 @@ import {RobinhoodLaunchpadBase} from "./RobinhoodLaunchpadBase.sol";
 ///         the whole sale allocation at the floor price, rounded up. Graduation creates the launch's
 ///         own memestock splitter, opens the pool at the raise divided by the sale allocation, locks
 ///         one full-range position of the whole reserve and the whole raise in the fee-only locker,
-///         credits the rounding remainder to the pool's protocol lane and holds the NEW the auction
-///         did not sell for the bids to claim pro rata. There is no launch fee and no governance
-///         minimum raise.
+///         credits the rounding remainder to the pool's protocol lane and retires the NEW left over.
+///         There is no launch fee and no governance minimum raise.
 /// @dev No launch has an administrator. Both hook lanes are always on and the splitter, created by
 ///      this contract at graduation, is their only configuration.
 contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksLaunchpadV2 {
@@ -154,8 +153,7 @@ contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksL
             record.lpNewUsed,
             raised,
             stockDust,
-            record.newSold,
-            record.newShared
+            record.retiredNew
         );
     }
 }

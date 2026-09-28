@@ -5,9 +5,10 @@ pragma solidity 0.8.26;
 /// @notice The launch, custody and migration surface of Autolaunch Stocks. One launch creates a
 ///         new token (NEW), sells half of its initial supply through a pinned Continuous Clearing
 ///         Auction denominated in one admitted Base stock token (STOCK) and holds the other half as
-///         the migration reserve. A graduated launch pairs the whole reserve with the whole raise in
-///         the official NEW/STOCK Uniswap v4 pool and gives bidders every unit of the sale
-///         allocation; a failed launch refunds bidders and retires the launch inventory.
+///         the migration reserve. A graduated launch has sold its whole sale allocation to its bidders
+///         through the auction, pairs the whole reserve with the whole raise in the official NEW/STOCK
+///         Uniswap v4 pool and retires the NEW left over; a failed launch refunds bidders and retires
+///         the launch inventory.
 /// @dev This interface is the contract between the Solidity component and the website, indexer
 ///      and CLI. Event and function shapes here are consumed off-chain; change them only together
 ///      with `platform/contracts/abi/stocks-*.json` and the platform ABI validation.
@@ -41,9 +42,9 @@ interface IStocksLaunchpadV2 {
     /// @notice One recorded launch. Identity and lifecycle only; the record carries no authority.
     /// @dev `splitter` is the launch's memestock splitter, created at graduation and zero before it. A
     ///      graduated launch locks one full-range position, `lpTokenId`, funded by
-    ///      `(lpStockUsed, lpNewUsed)`. `newSold` is the NEW the auction kept for its bids' claims and
-    ///      `newShared` the NEW this launchpad holds for them on top (see `claimUnsoldShare`).
-    ///      `retiredNew` is set only for a failed launch.
+    ///      `(lpStockUsed, lpNewUsed)`. `retiredNew` is the NEW sent to the dead address at the terminal
+    ///      state: for a graduated launch the rounding left over after the position (and anything sent
+    ///      to the launchpad), for a failed launch the whole inventory and reserve.
     struct Launch {
         address launcher;
         address newToken;
@@ -62,8 +63,6 @@ interface IStocksLaunchpadV2 {
         uint256 lpTokenId;
         uint128 lpStockUsed;
         uint128 lpNewUsed;
-        uint256 newSold;
-        uint256 newShared;
         uint256 retiredNew;
     }
 
@@ -91,13 +90,7 @@ interface IStocksLaunchpadV2 {
         uint128 lpNewUsed,
         uint256 stockRaised,
         uint256 stockDustToRevenue,
-        uint256 newSold,
-        uint256 newShared
-    );
-
-    /// @notice One bid's share of the NEW the auction did not sell, paid to the bid's owner.
-    event UnsoldShareClaimed(
-        uint256 indexed launchId, uint256 indexed bidId, address indexed owner, uint256 tokensFilled, uint256 share
+        uint256 unsoldNewRetired
     );
 
     /// @notice The launch's memestock splitter, created as the first step of its graduation: where
@@ -125,22 +118,10 @@ interface IStocksLaunchpadV2 {
     /// @notice Drive a launch past its end to its terminal state. Anyone may call once the
     ///         migration block is reached. Graduated: create the launch's memestock splitter,
     ///         initialize the official pool at the raise divided by the sale allocation, lock the whole
-    ///         reserve and the whole raise in the fee-only locker as one full-range position, and hold
-    ///         the unsold NEW for the bids. Failed: retire the reserve and every unsold unit; bidders
-    ///         refund through the CCA.
+    ///         reserve and the whole raise in the fee-only locker as one full-range position, and retire
+    ///         the NEW left over. Failed: retire the reserve and every unsold unit; bidders refund
+    ///         through the CCA.
     function migrate(uint256 launchId) external;
-
-    /// @notice Pay one bid of a graduated launch its share of the unsold NEW:
-    ///         `newShared * tokensFilled / newSold`, rounded down, to the bid's owner. Anyone may call,
-    ///         once per bid, before or after the bid's own exit and claim at the auction.
-    /// @param lastFullyFilledCheckpointBlock, outbidBlock The hints the auction's
-    ///        `exitPartiallyFilledBid` takes; ignored for a bid priced above the final clearing price.
-    function claimUnsoldShare(
-        uint256 launchId,
-        uint256 bidId,
-        uint64 lastFullyFilledCheckpointBlock,
-        uint64 outbidBlock
-    ) external;
 
     // -------------------------------------------------------------------------
     // governance (frozen Regent Safe only)
@@ -167,12 +148,6 @@ interface IStocksLaunchpadV2 {
     /// @notice The STOCK a launch at this floor must raise to graduate: the whole sale allocation at
     ///         the floor price, rounded up, so it is never zero.
     function requiredStockRaisedFor(uint256 floorPriceQ96) external pure returns (uint128);
-    /// @notice What `claimUnsoldShare` would pay for one bid of a graduated launch, and whether it was
-    ///         already paid.
-    function unsoldShareOf(uint256 launchId, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-        view
-        returns (address owner, uint256 share, bool claimed);
     function hook() external view returns (address);
     /// @notice The clone target every launch's memestock splitter is created from.
     function splitterImplementation() external view returns (address);

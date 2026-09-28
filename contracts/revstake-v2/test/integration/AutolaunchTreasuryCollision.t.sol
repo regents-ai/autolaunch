@@ -158,15 +158,9 @@ contract AutolaunchTreasuryCollisionTest is AutolaunchFixture {
             uint8(ConditionalVestingEscrowV2.Lifecycle.Graduated),
             "the stalled launch's escrow did not graduate"
         );
+        assertEq(stalled.subject.balanceOf(address(strategy)), 0, "the stalled launch left SUBJECT at the strategy");
         assertEq(
-            stalled.subject.balanceOf(address(strategy)),
-            stalledRecord.subjectShared,
-            "the stalled launch holds other than its share-out"
-        );
-        assertEq(
-            intervening.subject.balanceOf(address(strategy)),
-            interveningRecord.subjectShared,
-            "the intervening launch holds other than its share-out"
+            intervening.subject.balanceOf(address(strategy)), 0, "the intervening launch left SUBJECT at the strategy"
         );
         assertEq(stalled.subject.totalSupply(), TOTAL_SUPPLY, "the stalled launch's supply moved");
         assertEq(intervening.subject.totalSupply(), TOTAL_SUPPLY, "the intervening launch's supply moved");

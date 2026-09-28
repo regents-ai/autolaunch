@@ -184,8 +184,9 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
     ///        the funded amounts means the settlement left no credit, so `TAKE_PAIR` returned zero;
     ///      - the treasury's REGENT delta, which is the strategy's own unused *raise* and nothing
     ///        else — any REGENT the refund had returned would be added to it;
-    ///      - the strategy's own SUBJECT delta net of the auction's unsold sweep, which is the reserve
-    ///        the position consumed and nothing else, on the same reasoning.
+    ///      - the strategy's own SUBJECT delta plus what it sent to the escrow, net of the auction's
+    ///        unsold sweep, which is the reserve the position consumed and nothing else, on the same
+    ///        reasoning.
     ///
     ///      A nonzero `TAKE_PAIR` residue is therefore not reachable through this plan, and the
     ///      claim records that exact zero-only proof rather than a shape that cannot occur.
@@ -195,6 +196,7 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
         uint256 positionManagerRegentBefore = regent.balanceOf(BaseBindings.POSITION_MANAGER);
         uint256 treasuryRegentBefore = regent.balanceOf(treasury);
         uint256 strategySubjectBefore = launched.subject.balanceOf(address(strategy));
+        uint256 escrowSubjectBefore = launched.subject.balanceOf(address(launched.escrow));
         uint256 auctionSubjectBefore = launched.subject.balanceOf(address(launched.auction));
         uint256 auctionRegentBefore = regent.balanceOf(address(launched.auction));
 
@@ -224,14 +226,15 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
 
         // And the strategy kept or forwarded only its own unused raise and unused reserve. A refund of
         // R REGENT would land at the treasury on top of the unused raise, and a refund of S SUBJECT
-        // would stay at the strategy on top of the unused reserve; both are exactly zero.
+        // would reach the escrow on top of the unused reserve; both are exactly zero.
         // What `sweepCurrency` actually delivered to the strategy, read as the auction's own
         // outflow: losing-bidder REGENT stays at the auction until each bidder exits, so this
         // delta is the swept raise and nothing else.
         uint256 swept = auctionRegentBefore - regent.balanceOf(address(launched.auction));
         uint256 regentResidue = (regent.balanceOf(treasury) - treasuryRegentBefore) - (swept - graduated.lpRegentUsed);
         uint256 unsoldSwept = auctionSubjectBefore - launched.subject.balanceOf(address(launched.auction));
-        uint256 subjectResidue = launched.subject.balanceOf(address(strategy)) + graduated.lpSubjectUsed
+        uint256 subjectResidue = launched.subject.balanceOf(address(strategy))
+            + (launched.subject.balanceOf(address(launched.escrow)) - escrowSubjectBefore) + graduated.lpSubjectUsed
             - strategySubjectBefore - unsoldSwept;
 
         emit log_named_uint("MIG-017 TAKE_PAIR REGENT residue at the strategy", regentResidue);

@@ -605,9 +605,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             second.subject.balanceOf(BaseBindings.DEAD_ADDRESS), TOTAL_SUPPLY, "the failed launch was not retired whole"
         );
         assertEq(first.subject.balanceOf(BaseBindings.DEAD_ADDRESS), 0, "the graduated launch retired SUBJECT");
-        assertEq(
-            first.subject.balanceOf(address(strategy)), a.subjectShared, "the graduated launch holds only its share-out"
-        );
+        assertEq(first.subject.balanceOf(address(strategy)), 0, "the graduated launch left SUBJECT at the strategy");
         assertEq(second.subject.balanceOf(address(strategy)), 0, "the failed reserve was not returned");
         assertTrue(hook.splitterOf(_poolId(first)) != address(0), "the graduated pool was not registered");
         assertEq(hook.splitterOf(_poolId(second)), address(0), "the failed pool was registered");

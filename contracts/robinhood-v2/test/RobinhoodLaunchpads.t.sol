@@ -25,7 +25,7 @@ interface IERC721Owner {
 /// @notice The launchpad end to end: Safe-only admission, the fixed ten-minute start, a launch that
 ///         costs nothing, the raise the floor sets, creation, graduation into the official pool with
 ///         the launch's own splitter and one full-range position locked in the fee-only locker, and
-///         retirement. The share-out and the graduation arithmetic are proved in
+///         retirement. The graduation arithmetic and the leftover NEW are proved in
 ///         `RobinhoodLaunchpadMigrateTest`.
 contract RobinhoodLaunchpadsTest is RobinhoodFixture {
     using StateLibrary for IPoolManager;
@@ -223,9 +223,8 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
 
         (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(record.poolId));
         assertEq(sqrtPriceX96, record.finalSqrtPriceX96);
-        assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), record.newShared, "held for the share-out");
-        assertEq(record.retiredNew, 0, "nothing is retired");
-        assertEq(MockERC20(l.newToken).balanceOf(DEAD), 0);
+        assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
+        assertEq(MockERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "the leftover NEW is retired");
         assertEq(stockHigh.balanceOf(address(stocks)), 0);
         (uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);
         assertEq(stakerLane, 0);
@@ -255,8 +254,6 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         assertEq(MockERC20(l.newToken).balanceOf(DEAD), StocksPreset.INITIAL_SUPPLY);
         assertEq(record.poolId, bytes32(0));
         assertEq(record.splitter, address(0));
-        assertEq(record.newSold, 0);
-        assertEq(record.newShared, 0);
     }
 
     function test_migration_waits_for_the_migration_block() public {

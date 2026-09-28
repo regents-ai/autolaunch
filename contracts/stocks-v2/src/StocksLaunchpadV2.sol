@@ -37,7 +37,6 @@ import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {IERC20Views} from "./interfaces/IERC20Views.sol";
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksLaunchpadV2} from "./interfaces/IStocksLaunchpadV2.sol";
-import {BidFillLib} from "./libraries/BidFillLib.sol";
 import {MemestockLPLocker} from "./MemestockLPLocker.sol";
 import {MemestockSplitterV1} from "./MemestockSplitterV1.sol";
 import {StocksBindings} from "./StocksBindings.sol";
@@ -54,14 +53,15 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      afterwards. The required raise is the whole sale allocation at the floor price, rounded up, so
 ///      an auction nobody bid in never graduates. The auction opens `START_LEAD_BLOCKS` after creation.
 ///
-///      Graduation gives bidders the entire sale allocation: the auction pays each bid what it won,
-///      and this contract holds the NEW the auction did not sell for the bids to claim pro rata
-///      (`claimUnsoldShare`). The official pool opens at the raise divided by the sale allocation, the
-///      price every bidder paid on average once the share-out is counted, and one full-range position
+///      An auction that reaches the required raise has sold its whole sale allocation, but for rounding:
+///      the pinned CCA carries unsold supply forward and never lowers its clearing price, so the bids
+///      themselves are paid the allocation by the auction. The official pool opens at the raise
+///      divided by the sale allocation, the price bidders paid on average, and one full-range position
 ///      pairs the whole reserve with the whole raise. Graduation creates the launch's own memestock
 ///      splitter, the fixed destination of the hook's staker lane, and mints the position to the
-///      permanent fee-only locker, which deposits its LP fees into that same splitter. No principal
-///      path exists.
+///      permanent fee-only locker, which deposits its LP fees into that same splitter. Every unit of
+///      the launch's NEW still held afterwards (rounding crumbs and anything sent here) is retired to
+///      the dead address. No principal path exists.
 ///
 ///      The CCA creation, `_graduate`, `_mintLockedPosition` and `_exactlyFundedPlan` mirror the
 ///      frozen Agent `RegentLBPStrategy` technique: the auction is read back field by field before any
@@ -114,7 +114,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
     mapping(uint256 launchId => Launch) private _launches;
     mapping(address auction => uint256 launchId) public override launchIdOfAuction;
     mapping(address newToken => uint256 launchId) public override launchIdOfToken;
-    mapping(uint256 launchId => mapping(uint256 bidId => bool)) private _unsoldShareClaimed;
 
     error UnexpectedRuntimeCodeHash(address account, bytes32 expected, bytes32 found);
     error ZeroAddress();
@@ -142,8 +141,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
     error ReserveMismatch(uint256 expected, uint256 found);
     error UnknownLaunch(uint256 launchId);
     error LaunchNotActive(Lifecycle found);
-    error LaunchNotGraduated(Lifecycle found);
-    error UnsoldShareAlreadyClaimed(uint256 launchId, uint256 bidId);
     error MigrationNotYetAllowed(uint64 migrationBlock, uint256 currentBlock);
     error CurrencyRaisedMismatch(uint256 expected, uint256 found);
     error NoFullRangePosition();
@@ -267,22 +264,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         }
     }
 
-    /// @inheritdoc IStocksLaunchpadV2
-    function claimUnsoldShare(
-        uint256 launchId,
-        uint256 bidId,
-        uint64 lastFullyFilledCheckpointBlock,
-        uint64 outbidBlock
-    ) external override nonReentrant {
-        (address owner, uint256 filled, uint256 share, bool claimed) =
-            _unsoldShare(launchId, bidId, lastFullyFilledCheckpointBlock, outbidBlock);
-        if (claimed) revert UnsoldShareAlreadyClaimed(launchId, bidId);
-
-        _unsoldShareClaimed[launchId][bidId] = true;
-        emit UnsoldShareClaimed(launchId, bidId, owner, filled, share);
-        if (share != 0) _launches[launchId].newToken.safeTransfer(owner, share);
-    }
-
     // -------------------------------------------------------------------------
     // governance
     // -------------------------------------------------------------------------
@@ -335,16 +316,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
     }
 
     /// @inheritdoc IStocksLaunchpadV2
-    function unsoldShareOf(uint256 launchId, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-        view
-        override
-        returns (address owner, uint256 share, bool claimed)
-    {
-        (owner,, share, claimed) = _unsoldShare(launchId, bidId, lastFullyFilledCheckpointBlock, outbidBlock);
-    }
-
-    /// @inheritdoc IStocksLaunchpadV2
     function stockAdmission(address stock)
         external
         view
@@ -368,23 +339,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         return SafeCastLib.toUint128(
             FullMath.mulDivRoundingUp(StocksPreset.AUCTION_INVENTORY, floorPriceQ96, FixedPoint96.Q96)
         );
-    }
-
-    /// @dev One bid's share of a graduated launch's unsold NEW, from the tokens the bid won
-    ///      (`BidFillLib`). The auction keeps `newSold` for its bids' claims, so the tokens its bids won
-    ///      never add up to more than it, and the shares never add up to more than `newShared`.
-    function _unsoldShare(uint256 launchId, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        private
-        view
-        returns (address owner, uint256 filled, uint256 share, bool claimed)
-    {
-        Launch storage record = _launches[launchId];
-        if (record.lifecycle != Lifecycle.Graduated) revert LaunchNotGraduated(record.lifecycle);
-        (owner, filled) = BidFillLib.tokensFilled(
-            IContinuousClearingAuction(record.auction), bidId, lastFullyFilledCheckpointBlock, outbidBlock
-        );
-        share = FullMath.mulDiv(record.newShared, filled, record.newSold);
-        claimed = _unsoldShareClaimed[launchId][bidId];
     }
 
     /// @dev The official pool key one launch graduates into.
@@ -531,12 +485,7 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         uint256 raised = stock.balanceOf(address(this)) - stockBefore;
         if (raised != lbp.currencyRaised) revert CurrencyRaisedMismatch(lbp.currencyRaised, raised);
 
-        // What the sweep delivers is what the auction did not sell; the rest of the sale allocation
-        // stays in the auction for its bids. Measured as a delta, because a bidder may already hold
-        // claimed NEW and send some here before migration.
-        uint256 newBefore = newToken.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
-        uint256 newSold = StocksPreset.AUCTION_INVENTORY - (newToken.balanceOf(address(this)) - newBefore);
 
         // The pool opens at the raise divided by the whole sale allocation (STOCK per NEW, Q96).
         bool stockIsCurrency0 = Currency.unwrap(key.currency0) == stock;
@@ -567,17 +516,17 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             if (remaining != 0) revert AllowanceNotConsumed(hook, remaining);
         }
 
-        // Every unit of this launch's NEW still here — the unsold inventory, the reserve the position
-        // did not pair and anything sent here — is held for the bids (`claimUnsoldShare`).
-        uint256 newShared = newToken.balanceOf(address(this));
+        // Every unit of this launch's NEW still here — the unsold rounding, the reserve the position
+        // did not pair and anything sent here — is retired. No principal path exists.
+        uint256 retired = newToken.balanceOf(address(this));
+        if (retired != 0) newToken.safeTransfer(StocksBindings.DEAD_ADDRESS, retired);
 
         record.poolId = poolId;
         record.finalSqrtPriceX96 = sqrtPriceX96;
         record.lpTokenId = locked.tokenId;
         record.lpStockUsed = locked.stockUsed;
         record.lpNewUsed = locked.newUsed;
-        record.newSold = newSold;
-        record.newShared = newShared;
+        record.retiredNew = retired;
 
         emit StockLaunchGraduated(
             launchId,
@@ -589,8 +538,7 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             locked.newUsed,
             raised,
             stockDust,
-            newSold,
-            newShared
+            retired
         );
     }
 

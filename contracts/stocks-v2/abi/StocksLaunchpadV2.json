@@ -58,34 +58,6 @@
     },
     {
       "type": "function",
-      "name": "claimUnsoldShare",
-      "inputs": [
-        {
-          "name": "launchId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "lastFullyFilledCheckpointBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "outbidBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
       "name": "hook",
       "inputs": [],
       "outputs": [
@@ -303,16 +275,6 @@
               "internalType": "uint128"
             },
             {
-              "name": "newSold",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "newShared",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
               "name": "retiredNew",
               "type": "uint256",
               "internalType": "uint256"
@@ -461,50 +423,6 @@
       "inputs": [],
       "outputs": [],
       "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "unsoldShareOf",
-      "inputs": [
-        {
-          "name": "launchId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "lastFullyFilledCheckpointBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "outbidBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "owner",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "share",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "claimed",
-          "type": "bool",
-          "internalType": "bool"
-        }
-      ],
-      "stateMutability": "view"
     },
     {
       "type": "event",
@@ -700,13 +618,7 @@
           "internalType": "uint256"
         },
         {
-          "name": "newSold",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "newShared",
+          "name": "unsoldNewRetired",
           "type": "uint256",
           "indexed": false,
           "internalType": "uint256"
@@ -748,43 +660,6 @@
           "type": "address",
           "indexed": true,
           "internalType": "address"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "UnsoldShareClaimed",
-      "inputs": [
-        {
-          "name": "launchId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "owner",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "tokensFilled",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "share",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -836,11 +711,6 @@
           "internalType": "address"
         }
       ]
-    },
-    {
-      "type": "error",
-      "name": "BidNotAtFinalClearingPrice",
-      "inputs": []
     },
     {
       "type": "error",
@@ -909,28 +779,7 @@
     },
     {
       "type": "error",
-      "name": "InvalidLastFullyFilledCheckpointHint",
-      "inputs": []
-    },
-    {
-      "type": "error",
-      "name": "InvalidOutbidBlockCheckpointHint",
-      "inputs": []
-    },
-    {
-      "type": "error",
       "name": "LaunchNotActive",
-      "inputs": [
-        {
-          "name": "found",
-          "type": "uint8",
-          "internalType": "enum IStocksLaunchpadV2.Lifecycle"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "LaunchNotGraduated",
       "inputs": [
         {
           "name": "found",
@@ -1246,22 +1095,6 @@
     },
     {
       "type": "error",
-      "name": "UnsoldShareAlreadyClaimed",
-      "inputs": [
-        {
-          "name": "launchId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "ZeroAddress",
       "inputs": []
     }
@@ -1269,7 +1102,6 @@
   "method_identifiers": {
     "admitStock(address,address)": "f6f19fe1",
     "bidTickSpacingFor(uint256)": "9e82ecfc",
-    "claimUnsoldShare(uint256,uint256,uint64,uint64)": "1ca1898e",
     "hook()": "7f5a7c7b",
     "launch((string,string,string,string,string,address,uint256))": "06432e91",
     "launchIdOfAuction(address)": "a568a4fe",
@@ -1284,7 +1116,6 @@
     "revokeStock(address)": "06b0b7f2",
     "splitterImplementation()": "e63db9b2",
     "stockAdmission(address)": "03631d24",
-    "unpauseLaunches()": "5af02677",
-    "unsoldShareOf(uint256,uint256,uint64,uint64)": "ebe64cbd"
+    "unpauseLaunches()": "5af02677"
   }
 }

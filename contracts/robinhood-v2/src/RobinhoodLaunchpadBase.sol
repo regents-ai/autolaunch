@@ -29,7 +29,6 @@ import {IUERC20Factory} from "uerc20-factory/interfaces/IUERC20Factory.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
-import {BidFillLib} from "autolaunch-stocks/libraries/BidFillLib.sol";
 import {MemestockLPLocker} from "autolaunch-stocks/MemestockLPLocker.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 import {IRobinhoodLaunchpadBase} from "./interfaces/IRobinhoodLaunchpadBase.sol";
@@ -43,14 +42,15 @@ import {RobinhoodPositionsLib} from "./libraries/RobinhoodPositionsLib.sol";
 /// @title RobinhoodLaunchpadBase
 /// @notice The chain-level machinery of a Robinhood launch: bindings, pause governance, NEW
 ///         creation, CCA creation and read-back on the fixed Robinhood schedule, custody, migration,
-///         the launch's own memestock splitter, the locked-liquidity technique of the Base Stocks
-///         launchpad and the share-out of the NEW the auction did not sell. The required raise is the
-///         whole sale allocation at the floor price, rounded up, so an auction nobody bid in never
-///         graduates. Graduation opens the official pool at the raise divided by the sale allocation
-///         and pairs the whole reserve with the whole raise in one full-range position; every unit of
-///         the launch's NEW still held afterwards is held for the bids (`claimUnsoldShare`). The
-///         launchpad on top supplies its terms (supply split) and what it does with the currency the
-///         full range could not pair. A launch costs nothing beyond gas: no fee is pulled and the
+///         the launch's own memestock splitter and the locked-liquidity technique of the Base Stocks
+///         launchpad. The required raise is the whole sale allocation at the floor price, rounded up,
+///         so an auction nobody bid in never graduates, and an auction that reaches it has sold its
+///         whole sale allocation to its bidders but for rounding. Graduation opens the official pool
+///         at the raise divided by the sale allocation and pairs the whole reserve with the whole raise
+///         in one full-range position; every unit of the launch's NEW still held afterwards (rounding
+///         crumbs and anything sent here) is retired to the dead address. The launchpad on top
+///         supplies its terms (supply split) and what it does with the currency the full range could
+///         not pair. A launch costs nothing beyond gas: no fee is pulled and the
 ///         launchpad never holds USDG.
 /// @dev Bindings are constructor immutables, each proved to be deployed code and, where it has one,
 ///      to present the expected binding (USDG decimals, the inbox's USDG). Nothing is hard-coded:
@@ -106,7 +106,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     mapping(uint256 launchId => Launch) internal _launches;
     mapping(address auction => uint256 launchId) public override launchIdOfAuction;
     mapping(address newToken => uint256 launchId) public override launchIdOfToken;
-    mapping(uint256 launchId => mapping(uint256 bidId => bool)) private _unsoldShareClaimed;
 
     error ZeroAddress();
     error SelfAddress();
@@ -135,8 +134,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     error ReserveMismatch(uint256 expected, uint256 found);
     error UnknownLaunch(uint256 launchId);
     error LaunchNotActive(Lifecycle found);
-    error LaunchNotGraduated(Lifecycle found);
-    error UnsoldShareAlreadyClaimed(uint256 launchId, uint256 bidId);
     error MigrationNotYetAllowed(uint64 migrationBlock, uint256 currentBlock);
     error CurrencyRaisedMismatch(uint256 expected, uint256 found);
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
@@ -230,22 +227,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         }
     }
 
-    /// @inheritdoc IRobinhoodLaunchpadBase
-    function claimUnsoldShare(
-        uint256 launchId,
-        uint256 bidId,
-        uint64 lastFullyFilledCheckpointBlock,
-        uint64 outbidBlock
-    ) external override nonReentrant {
-        (address owner, uint256 filled, uint256 share, bool claimed) =
-            _unsoldShare(launchId, bidId, lastFullyFilledCheckpointBlock, outbidBlock);
-        if (claimed) revert UnsoldShareAlreadyClaimed(launchId, bidId);
-
-        _unsoldShareClaimed[launchId][bidId] = true;
-        emit UnsoldShareClaimed(launchId, bidId, owner, filled, share);
-        if (share != 0) _launches[launchId].newToken.safeTransfer(owner, share);
-    }
-
     // -------------------------------------------------------------------------
     // Safe surface
     // -------------------------------------------------------------------------
@@ -282,16 +263,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     }
 
     /// @inheritdoc IRobinhoodLaunchpadBase
-    function unsoldShareOf(uint256 launchId, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        external
-        view
-        override
-        returns (address owner, uint256 share, bool claimed)
-    {
-        (owner,, share, claimed) = _unsoldShare(launchId, bidId, lastFullyFilledCheckpointBlock, outbidBlock);
-    }
-
-    /// @inheritdoc IRobinhoodLaunchpadBase
     function currentBlock() external view override returns (uint256) {
         return _getBlockNumberish();
     }
@@ -301,23 +272,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     function _requiredRaiseFor(uint256 floorPriceQ96) internal pure returns (uint128) {
         return
             SafeCastLib.toUint128(FullMath.mulDivRoundingUp(_terms().auctionInventory, floorPriceQ96, FixedPoint96.Q96));
-    }
-
-    /// @dev One bid's share of a graduated launch's unsold NEW, from the tokens the bid won
-    ///      (`BidFillLib`). The auction keeps `newSold` for its bids' claims, so the tokens its bids won
-    ///      never add up to more than it, and the shares never add up to more than `newShared`.
-    function _unsoldShare(uint256 launchId, uint256 bidId, uint64 lastFullyFilledCheckpointBlock, uint64 outbidBlock)
-        private
-        view
-        returns (address owner, uint256 filled, uint256 share, bool claimed)
-    {
-        Launch storage record = _launches[launchId];
-        if (record.lifecycle != Lifecycle.Graduated) revert LaunchNotGraduated(record.lifecycle);
-        (owner, filled) = BidFillLib.tokensFilled(
-            IContinuousClearingAuction(record.auction), bidId, lastFullyFilledCheckpointBlock, outbidBlock
-        );
-        share = FullMath.mulDiv(record.newShared, filled, record.newSold);
-        claimed = _unsoldShareClaimed[launchId][bidId];
     }
 
     // -------------------------------------------------------------------------
@@ -515,12 +469,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         uint256 raised = currency.balanceOf(address(this)) - currencyBefore;
         if (raised != lbp.currencyRaised) revert CurrencyRaisedMismatch(lbp.currencyRaised, raised);
 
-        // What the sweep delivers is what the auction did not sell; the rest of the sale allocation
-        // stays in the auction for its bids. Measured as a delta, because a bidder may already hold
-        // claimed NEW and send some here before migration.
-        uint256 newBefore = newToken.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
-        uint256 newSold = terms.auctionInventory - (newToken.balanceOf(address(this)) - newBefore);
 
         // The pool opens at the raise divided by the whole sale allocation (currency per NEW, Q96).
         bool currencyIsCurrency0 = Currency.unwrap(key.currency0) == currency;
@@ -541,15 +490,17 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         );
         MemestockLPLocker(locker).register(tokenId, key, splitter);
 
-        // Every unit of this launch's NEW still here — the unsold inventory, the reserve the position
-        // did not pair and anything sent here — is held for the bids (`claimUnsoldShare`).
+        // Every unit of this launch's NEW still here — the unsold rounding, the reserve the position
+        // did not pair and anything sent here — is retired. No principal path exists.
+        uint256 retired = newToken.balanceOf(address(this));
+        if (retired != 0) newToken.safeTransfer(DEAD_ADDRESS, retired);
+
         record.poolId = poolId;
         record.finalSqrtPriceX96 = sqrtPriceX96;
         record.lpTokenId = tokenId;
         record.lpCurrencyUsed = currencyUsed;
         record.lpNewUsed = newUsed;
-        record.newSold = newSold;
-        record.newShared = newToken.balanceOf(address(this));
+        record.retiredNew = retired;
 
         // Only this launch's own currency delta moves on. Anything unrelated already held here stays.
         // After the position this is the rounding remainder below one unit of liquidity.

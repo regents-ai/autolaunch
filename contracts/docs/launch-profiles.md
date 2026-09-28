@@ -26,12 +26,12 @@ These come from the pinned Continuous Clearing Auction library (`ConstantsLib`, 
 - **Minimum raise.** The whole sale allocation at the floor price, rounded up:
   `ceil(sale allocation × floorPriceQ96 / 2^96)`. A Revstake creator may set a higher minimum;
   Memestake has none. The minimum is never zero, so an auction nobody bid in never graduates.
-- **Bidders receive the whole sale allocation.** After graduation each bid claims what the auction
-  sold it plus a share of everything of the launch's token left with the launch contract: what the
-  auction did not sell, the reserve the pool position did not pair, and any of the token someone
-  sent to that contract before graduation:
-  `shared × tokens the bid won / tokens the auction sold`. It is a claim anyone can send for a
-  bid; the tokens always go to the bid's owner, once. Nothing is burned.
+- **Bidders receive the whole sale allocation.** The pinned auction carries unsold supply forward
+  and never lowers its price, so an auction that reaches the minimum below sells its whole sale
+  allocation; bidders claim it from the auction as in v1. The pool price below pairs the reserve
+  with the raise almost exactly, so what is left of the launch's token after graduation is rounding
+  crumbs plus anything someone sent to the launch contract. Revstake sends it to the launch's
+  escrow, where it vests to the treasury; Memestake retires it to the dead address, as in v1.
 - **Pool price.** The raise divided by the whole sale allocation.
 - **Failure.** Below the minimum the auction fails, every bidder is refunded by the auction, and
   the launch's whole supply is retired to the dead address, as in v1 (for Revstake that includes
@@ -56,7 +56,7 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Bid tick | floor ÷ 100 | same rule |
 | Minimum raise | creator's | the larger of the floor minimum and the creator's minimum |
 | Raise into the pool | whole raise | up to three quarters: the full-range position takes what it can pair from a three-quarter budget; the treasury receives the rest of the raise (at least a quarter) |
-| Pool price | the final clearing price | raise ÷ 20B, reserve in one full-range position (any reserve it cannot pair joins the bidders' share) |
+| Pool price | the final clearing price | raise ÷ 20B, reserve in one full-range position (any reserve it cannot pair goes to the escrow) |
 | Auction length | 86,401 blocks, 13-step schedule | same |
 
 Unchanged from v1: start delay 300 blocks; claim delay 64; migration delay 128; pool fee 0.30%;
@@ -93,11 +93,13 @@ These replace the earlier ranges, Safe-adjustable bounds and hard ceilings, whic
 contract carries ("no more of the variable ranges").
 
 1. Revstake sells 20%, pools 15% and vests 65%; Memestake sells 50% and pools 50%.
-2. Keep the pinned auction and add the share-out after it.
-3. Unsold tokens go to the bidders pro rata to what each won, as a claim; nothing is burned.
+2. Keep the pinned auction.
+3. First: unsold tokens go to the bidders pro rata to what each won, as a claim. Then (28 September):
+   that share only ever pays rounding crumbs, because a successful auction always sells out, so it
+   was removed to keep the contracts simple.
 4. The pool opens at the raise divided by the whole sale allocation. Revstake puts three quarters
    of the raise in the pool and the rest in the treasury; Memestake puts all of it in the pool.
 5. The minimum raise is the sale allocation at the floor, or a Revstake creator's higher
    minimum. The Revstake default floor is 0.000001 REGENT.
-6. Rounding crumbs left with the strategy are acceptable.
+6. Rounding crumbs are acceptable.
 7. Our bot sends graduation.

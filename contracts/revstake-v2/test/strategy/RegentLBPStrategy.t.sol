@@ -797,15 +797,19 @@ contract RegentLBPStrategyTest is StrategyFixture {
         // 7. no REGENT stays at the strategy.
         assertEq(regent.balanceOf(address(strategy)), 0, "no REGENT stranded at the strategy");
 
-        // 8. the auction keeps what it sold for its bids' claims, and the strategy holds the rest of
-        //    this launch's SUBJECT for the share-out.
-        assertEq(d.subjectSold, AUCTION_ALLOCATION - unsold, "8. the sold tokens are the unswept ones");
-        assertEq(launch.subject.balanceOf(address(launch.auction)), d.subjectSold, "the auction keeps them");
+        // 8. the auction keeps what it sold for its bids' claims, and the rest of this launch's
+        //    SUBJECT goes to the escrow on top of its 65%.
         assertEq(
-            d.subjectShared, unsold + RESERVE_ALLOCATION - d.lpSubjectUsed, "unsold plus the reserve the pool left"
+            launch.subject.balanceOf(address(launch.auction)),
+            AUCTION_ALLOCATION - unsold,
+            "8. the auction keeps the sold"
         );
-        assertEq(launch.subject.balanceOf(address(strategy)), d.subjectShared, "held for the share-out");
-        assertEq(launch.subject.balanceOf(address(launch.escrow)), PENDING_ALLOCATION, "escrow keeps exactly 65%");
+        assertEq(
+            launch.subject.balanceOf(address(launch.escrow)),
+            PENDING_ALLOCATION + unsold + RESERVE_ALLOCATION - d.lpSubjectUsed,
+            "escrow holds its 65% plus the unsold remainder and the reserve the pool left"
+        );
+        assertEq(launch.subject.balanceOf(address(strategy)), 0, "no SUBJECT stranded at the strategy");
 
         // 9. the canonical zero-referral receiver.
         assertEq(d.receiver.codehash, _cloneCodehash(address(receiverImplementation)), "9. authentic receiver clone");
@@ -840,12 +844,12 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertLt(uint256(d.lpRegentUsed), raised, "strictly less than the offered raise maximum");
 
         assertEq(regent.balanceOf(treasury), raised - d.lpRegentUsed, "the rest of the raise reached the treasury");
+        assertEq(launch.subject.balanceOf(address(strategy)), 0, "no SUBJECT stays at the strategy");
         assertEq(
-            launch.subject.balanceOf(address(strategy)),
-            unsold + (RESERVE_ALLOCATION - d.lpSubjectUsed),
-            "unused reserve plus unsold SUBJECT stay for the share-out"
+            launch.subject.balanceOf(address(launch.escrow)),
+            PENDING_ALLOCATION + unsold + (RESERVE_ALLOCATION - d.lpSubjectUsed),
+            "unused reserve plus unsold SUBJECT go to the escrow"
         );
-        assertEq(launch.subject.balanceOf(address(launch.escrow)), PENDING_ALLOCATION, "escrow is untouched");
         assertEq(
             regent.balanceOf(BaseBindings.POOL_MANAGER), d.lpRegentUsed, "the pool holds exactly the consumed REGENT"
         );
@@ -870,34 +874,6 @@ contract RegentLBPStrategyTest is StrategyFixture {
 
         assertEq(regent.balanceOf(address(strategy)), 777e18, "the unrelated REGENT is untouched");
         assertEq(regent.balanceOf(treasury), raised - d.lpRegentUsed, "only this launch's delta reached the treasury");
-    }
-
-    /// @notice `C3-I5`: a voluntary SUBJECT gift to the shared strategy joins the share-out of the launch
-    ///         it belongs to; only the recorded reserve is ever budgeted for LP.
-    function test_STR_015_GiftedSubjectJoinsTheShareOut() public {
-        Launch memory launch = _defaultLaunch();
-
-        // A gift is a transfer, never new supply: the 3,000 is moved out of the escrow's pending
-        // custody to an ordinary holder, who then gifts it on, against an unchanged total supply.
-        address donor = makeAddr("subject-donor");
-        vm.prank(address(launch.escrow));
-        launch.subject.transfer(donor, 3_000e18);
-        vm.prank(donor);
-        launch.subject.transfer(address(strategy), 3_000e18);
-
-        _bidToGraduation(launch, FLOOR_RAISE);
-        uint256 escrowBefore = launch.subject.balanceOf(address(launch.escrow));
-
-        strategy.migrate(address(launch.auction));
-        RegentLBPStrategyV2.Distribution memory d = strategy.distribution(address(launch.auction));
-        uint256 unsold = launch.auction.remainingSupply();
-
-        assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "the gift was never budgeted for LP");
-        assertEq(
-            d.subjectShared, unsold + (RESERVE_ALLOCATION - d.lpSubjectUsed) + 3_000e18, "the gift joined the share-out"
-        );
-        assertEq(launch.subject.balanceOf(address(strategy)), d.subjectShared, "and is held for it");
-        assertEq(launch.subject.balanceOf(address(launch.escrow)), escrowBefore, "escrow received nothing");
     }
 
     /// @notice `C3-I3`: migration before the fixed eligibility block is refused, and classification
@@ -1041,14 +1017,6 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.prank(bidder);
         launch.auction.exitBid(0);
         assertEq(regent.balanceOf(bidder), FLOOR_RAISE, "the bidder was fully refunded");
-
-        // A failed launch has no share-out.
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RegentLBPStrategyV2.LaunchNotGraduated.selector, RegentLBPStrategyV2.Lifecycle.Failed
-            )
-        );
-        strategy.claimUnsoldShare(address(launch.auction), 0, 0, 0);
     }
 
     function test_ESC_003_ZeroBidFailureRetiresTheCompleteSupply() public {

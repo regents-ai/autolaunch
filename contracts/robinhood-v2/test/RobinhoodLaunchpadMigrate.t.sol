@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {Vm} from "forge-std/Vm.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
-import {IBidStorage} from "continuous-clearing-auction/interfaces/IBidStorage.sol";
 import {Bid} from "continuous-clearing-auction/libraries/BidLib.sol";
 import {Checkpoint} from "continuous-clearing-auction/libraries/CheckpointLib.sol";
 import {LBPInitializationParams} from "liquidity-launcher/src/interfaces/ILBPInitializer.sol";
@@ -21,7 +20,6 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
-import {BidFillLib} from "autolaunch-stocks/libraries/BidFillLib.sol";
 import {MockERC20} from "autolaunch-stocks-test/mocks/MockERC20.sol";
 import {FixtureUsdgStockRoute} from "../src/fixtures/FixtureUsdgStockRoute.sol";
 import {IRobinhoodLaunchpadBase} from "../src/interfaces/IRobinhoodLaunchpadBase.sol";
@@ -33,27 +31,17 @@ import {RobinhoodPreset} from "../src/RobinhoodPreset.sol";
 import {RobinhoodFixture} from "./RobinhoodFixture.sol";
 
 /// @notice Graduation and failure, as the Base Stocks launchpad proves them, on the Robinhood graph. A
-///         graduated launch gives its bidders the entire sale allocation (what the auction sold, plus a
-///         pro-rata share of anything it did not), opens the official pool at the raise divided by the
-///         sale allocation and locks the whole reserve with the whole raise in one full-range position
-///         held by the fee-only locker; the rounding remainder of the raise goes to the pool's protocol
-///         lane. An auction that raised less than the sale allocation at the floor, including one
+///         graduated launch has sold its whole sale allocation to its bidders through the auction but
+///         for rounding, opens the official pool at the raise divided by the sale allocation, locks the
+///         whole reserve with the whole raise in one full-range position held by the fee-only locker,
+///         credits the rounding remainder of the raise to the pool's protocol lane and retires the NEW
+///         left over. An auction that raised less than the sale allocation at the floor, including one
 ///         nobody bid in, fails: the inventory is retired and bidders are refunded through the CCA alone.
 contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     using StateLibrary for IPoolManager;
     using PoolIdLibrary for PoolKey;
 
     uint256 private constant Q96 = FixedPoint96.Q96;
-
-    /// @dev The crumbs a graduation may leave unassigned, in NEW base units: the full-range position's
-    ///      unpaired reserve and the auction's own rounding. One NEW in a billion of the supply.
-    uint256 private constant NEW_CRUMBS = StocksPreset.INITIAL_SUPPLY / 1e9;
-
-    enum ShareOrder {
-        BeforeExit,
-        AfterExit,
-        AfterClaim
-    }
 
     function setUp() public {
         _deployRobinhood();
@@ -102,16 +90,9 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         _rollToMigration(l);
         _migrateAndAssertGraduation(l, amount);
 
-        (uint256 filled, uint256 share) = _settle(l, bidId, ShareOrder.AfterClaim);
-        IRobinhoodLaunchpadBase.Launch memory record = _record(l);
-        assertEq(filled + share, UERC20(l.newToken).balanceOf(bidder), "the bidder holds what it was paid");
-        assertApproxEqAbs(
-            filled + share + record.lpNewUsed,
-            StocksPreset.INITIAL_SUPPLY,
-            NEW_CRUMBS,
-            "the bidder and the pool hold the whole supply, up to crumbs"
-        );
-        assertApproxEqAbs(filled + share, StocksPreset.AUCTION_INVENTORY, NEW_CRUMBS, "the whole sale allocation");
+        uint256 filled = _settle(l, bidId);
+        assertEq(filled, UERC20(l.newToken).balanceOf(bidder), "the bidder holds what it was paid");
+        _assertWholeAllocationSold(l, filled);
     }
 
     // -------------------------------------------------------------------------
@@ -120,10 +101,9 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
     /// @dev Three bids exercise every way a bid ends: `early` at 1.2 times the floor is outbid when
     ///      `anchor` arrives, `anchor` sets the final clearing price and is partly filled at it, and
-    ///      `late` is priced above it and filled in every block. Each is settled at the auction and
-    ///      paid its share, in each order relative to its own settlement, and nothing is left over but
-    ///      crumbs.
-    function test_several_bidders_each_way_a_bid_ends_share_out_both_orderings() public {
+    ///      `late` is priced above it and filled in every block. Each exits and claims at the auction,
+    ///      and between them they receive the whole sale allocation but for crumbs.
+    function test_several_bidders_each_way_a_bid_ends_receive_the_whole_sale_allocation_both_orderings() public {
         _severalBiddersCase(STOCK_LOW);
         _severalBiddersCase(STOCK_HIGH);
     }
@@ -146,125 +126,47 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
         Checkpoint memory finalCheckpoint = l.auction.checkpoints(l.auction.endBlock());
         assertEq(finalCheckpoint.clearingPrice, anchorPrice, "the anchor bid sets the final price");
-        (uint64 earlyLast, uint64 earlyOutbid) = _hints(l.auction, earlyBid);
+        (, uint64 earlyOutbid) = _hints(l.auction, earlyBid);
         assertNotEq(earlyOutbid, 0, "the early bid was outbid");
         (, uint64 anchorOutbid) = _hints(l.auction, anchorBid);
         assertEq(anchorOutbid, 0, "the anchor bid was never outbid");
 
-        // A wrong hint pair is refused, exactly as the auction refuses it.
-        vm.expectRevert(BidFillLib.InvalidOutbidBlockCheckpointHint.selector);
-        stocks.claimUnsoldShare(l.launchId, earlyBid, earlyLast, earlyOutbid + 1);
-        vm.expectRevert(BidFillLib.InvalidLastFullyFilledCheckpointHint.selector);
-        stocks.claimUnsoldShare(l.launchId, earlyBid, earlyOutbid, earlyOutbid);
-        vm.expectRevert(BidFillLib.BidNotAtFinalClearingPrice.selector);
-        stocks.claimUnsoldShare(l.launchId, earlyBid, earlyLast, 0);
-
-        (uint256 earlyFilled, uint256 earlyShare) = _settle(l, earlyBid, ShareOrder.BeforeExit);
-        (uint256 anchorFilled, uint256 anchorShare) = _settle(l, anchorBid, ShareOrder.AfterExit);
-        (uint256 lateFilled, uint256 lateShare) = _settle(l, lateBid, ShareOrder.AfterClaim);
+        uint256 earlyFilled = _settle(l, earlyBid);
+        uint256 anchorFilled = _settle(l, anchorBid);
+        uint256 lateFilled = _settle(l, lateBid);
         assertGt(earlyFilled, 0, "the early bid bought before it was outbid");
         assertGt(anchorFilled, lateFilled, "the anchor bid bought the most");
-
-        IRobinhoodLaunchpadBase.Launch memory record = _record(l);
-        uint256 filled = earlyFilled + anchorFilled + lateFilled;
-        uint256 shared = earlyShare + anchorShare + lateShare;
-        assertLe(filled, record.newSold, "the bids never won more than the auction kept");
-        assertLe(shared, record.newShared, "the shares never add up to more than was held");
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), record.newShared - shared, "only crumbs remain");
-        assertApproxEqAbs(
-            filled + shared + record.lpNewUsed, StocksPreset.INITIAL_SUPPLY, NEW_CRUMBS, "the whole supply is assigned"
-        );
+        _assertWholeAllocationSold(l, earlyFilled + anchorFilled + lateFilled);
     }
 
     // -------------------------------------------------------------------------
-    // the share-out
+    // leftover NEW
     // -------------------------------------------------------------------------
-
-    function test_share_is_paid_once_to_the_owner_whoever_calls() public {
-        Launched memory l = _launchStock(STOCK_LOW);
-        uint256 bidId = _bidToMigration(l, 50e18);
-        stocks.migrate(l.launchId);
-        (address owner, uint256 quoted, bool claimed) = stocks.unsoldShareOf(l.launchId, bidId, 0, 0);
-        assertEq(owner, bidder);
-        assertFalse(claimed);
-
-        uint256 before = UERC20(l.newToken).balanceOf(bidder);
-        vm.prank(outsider);
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-        assertEq(UERC20(l.newToken).balanceOf(bidder) - before, quoted, "the owner is paid");
-        assertEq(UERC20(l.newToken).balanceOf(outsider), 0, "the caller is paid nothing");
-        (,, claimed) = stocks.unsoldShareOf(l.launchId, bidId, 0, 0);
-        assertTrue(claimed);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(RobinhoodLaunchpadBase.UnsoldShareAlreadyClaimed.selector, l.launchId, bidId)
-        );
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(RobinhoodLaunchpadBase.UnsoldShareAlreadyClaimed.selector, l.launchId, bidId)
-        );
-        vm.prank(bidder);
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-    }
 
     /// @dev The auction pays bids from the claim block, before migration can run, so NEW can already
-    ///      be sent to the launchpad when it graduates. What the auction sold is measured from its own
-    ///      sweep, so NEW sent beforehand joins the share-out and never inflates a share.
-    function test_new_sent_to_the_launchpad_before_migration_joins_the_share_out() public {
+    ///      be sent to the launchpad when it graduates. Graduation retires every unit of the launch's
+    ///      NEW it still holds, so NEW sent beforehand is retired with the crumbs.
+    function test_new_sent_to_the_launchpad_before_migration_is_retired() public {
         Launched memory l = _launchStock(STOCK_LOW);
         _rollToStart(l);
         uint256 bidId = _bidDirect(l, bidder, 50e18, _bidPrice(GRADUATING_TICKS));
         vm.roll(l.auction.claimBlock());
         uint256 claimed = _claimNewTo(l, bidId, address(stocks));
+        assertGe(claimed, StocksPreset.AUCTION_INVENTORY - _newCrumbs(l), "the bid bought the sale allocation");
         _rollToMigration(l);
         stocks.migrate(l.launchId);
 
         IRobinhoodLaunchpadBase.Launch memory record = _record(l);
-        assertEq(record.newSold, claimed + UERC20(l.newToken).balanceOf(address(l.auction)), "what the auction kept");
-        assertEq(record.newShared, UERC20(l.newToken).balanceOf(address(stocks)), "held for the share-out");
-        assertGe(record.newShared, claimed, "the NEW sent here is shared");
-
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
+        assertEq(uint8(record.lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Graduated));
+        assertGe(record.retiredNew, claimed, "the NEW sent here is retired");
+        assertLe(record.retiredNew - claimed, _newCrumbs(l), "on top of crumbs");
+        assertEq(UERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "at the dead address");
+        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
         assertEq(
-            UERC20(l.newToken).balanceOf(bidder),
-            FullMath.mulDiv(record.newShared, claimed, record.newSold),
-            "the sole bidder takes its pro rata share"
+            UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.retiredNew,
+            StocksPreset.INITIAL_SUPPLY,
+            "the supply reconciles"
         );
-        assertLe(UERC20(l.newToken).balanceOf(bidder), record.newShared, "never more than was held");
-    }
-
-    function test_share_is_refused_until_graduation_and_for_a_failed_launch() public {
-        Launched memory l = _launchStock(STOCK_LOW);
-        _rollToStart(l);
-        uint256 bidId = _bidDirect(l, bidder, REQUIRED_RAISE - 1, _bidPrice(1));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodLaunchpadBase.LaunchNotGraduated.selector, IRobinhoodLaunchpadBase.Lifecycle.Active
-            )
-        );
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-
-        _rollToMigration(l);
-        stocks.migrate(l.launchId);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodLaunchpadBase.LaunchNotGraduated.selector, IRobinhoodLaunchpadBase.Lifecycle.Failed
-            )
-        );
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodLaunchpadBase.LaunchNotGraduated.selector, IRobinhoodLaunchpadBase.Lifecycle.None
-            )
-        );
-        stocks.claimUnsoldShare(42, bidId, 0, 0);
-    }
-
-    function test_share_is_refused_for_a_bid_the_auction_never_took() public {
-        Launched memory l = _launchStock(STOCK_LOW);
-        uint256 bidId = _graduateStock(l);
-        vm.expectRevert(abi.encodeWithSelector(IBidStorage.BidIdDoesNotExist.selector, bidId + 1));
-        stocks.claimUnsoldShare(l.launchId, bidId + 1, 0, 0);
     }
 
     // -------------------------------------------------------------------------
@@ -292,10 +194,11 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     function testFuzz_minimum_plus_one_unit_graduates_in_any_block(uint32 lateBy) public {
         Launched memory l = _launchStock(STOCK_LOW);
         vm.roll(l.auction.startBlock() + bound(lateBy, 0, RobinhoodPreset.AUCTION_DURATION_BLOCKS - 1));
-        _bidDirect(l, bidder, REQUIRED_RAISE + 1, _bidPrice(GRADUATING_TICKS));
+        uint256 bidId = _bidDirect(l, bidder, REQUIRED_RAISE + 1, _bidPrice(GRADUATING_TICKS));
         _rollToMigration(l);
         stocks.migrate(l.launchId);
         assertEq(uint8(_record(l).lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Graduated));
+        _assertWholeAllocationSold(l, _settle(l, bidId));
     }
 
     function test_minimum_bid_after_the_first_block_is_counted_one_unit_short_and_fails() public {
@@ -316,7 +219,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     /// @dev Every Robinhood stock has 18 decimals and the fixture uses them throughout; admission reads
     ///      the decimals rather than assuming them, so an eight-decimal STOCK must obey the same rules:
     ///      at a floor of 1e-8 of it per NEW, a minimum of five whole units.
-    function test_eight_decimal_stock_graduates_and_shares_out() public {
+    function test_eight_decimal_stock_graduates_and_sells_the_whole_sale_allocation() public {
         MockERC20 stock8 = new MockERC20("Eight", "EIGHT", 8);
         FixtureUsdgStockRoute route = new FixtureUsdgStockRoute(address(stock8), USDG_ADDRESS, USDG_PER_SHARE);
         vm.prank(safe);
@@ -340,8 +243,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertEq(uint8(_record(short).lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Failed), "one unit short");
         _migrateAndAssertGraduation(l, required * 3);
 
-        (uint256 filled, uint256 share) = _settle(l, bidId, ShareOrder.AfterExit);
-        assertApproxEqAbs(filled + share, StocksPreset.AUCTION_INVENTORY, NEW_CRUMBS, "the whole sale allocation");
+        _assertWholeAllocationSold(l, _settle(l, bidId));
     }
 
     /// @dev `_bidDirect` for a launch at its own floor, which is the bid's tick hint.
@@ -368,6 +270,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         uint256 pmStockBefore = MockERC20(l.currency).balanceOf(address(positionManager));
         uint256 pmNewBefore = UERC20(l.newToken).balanceOf(address(positionManager));
         uint256 ccaNewBefore = UERC20(l.newToken).balanceOf(address(cca));
+        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.MIGRATION_RESERVE, "only the reserve");
         uint256 nextTokenId = positionManager.nextTokenId();
         bytes32 poolId = _poolId(l, address(stocksHook));
 
@@ -390,7 +293,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertEq(sqrtPriceX96, expectedSqrtPrice, "pool at raise / sale allocation");
         assertGt(IPoolManager(address(poolManager)).getLiquidity(PoolId.wrap(poolId)), 0, "live liquidity");
 
-        _assertLockedPosition(record, nextTokenId);
+        _assertLockedPosition(record, nextTokenId, _newCrumbs(l));
         assertEq(positionManager.nextTokenId(), nextTokenId + 1, "exactly one position minted");
         assertEq(
             MockERC20(l.currency).balanceOf(address(positionManager)), pmStockBefore, "PositionManager STOCK unchanged"
@@ -411,17 +314,18 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         );
 
         // NEW: the auction keeps what it sold for its bids, the pool takes the reserve, and the
-        // launchpad holds the rest for the share-out. Nothing is retired and the three reconcile.
-        uint256 swept = ccaNewBefore - UERC20(l.newToken).balanceOf(address(cca));
-        assertEq(record.newSold, StocksPreset.AUCTION_INVENTORY - swept, "newSold is what the auction kept");
-        assertGe(record.newSold, lbp.tokensSold, "the auction keeps the claimable NEW");
-        assertEq(record.newShared, UERC20(l.newToken).balanceOf(address(stocks)), "held for the share-out");
+        // launchpad retires the rest: the auction's unsold rounding and the reserve the position did
+        // not pair. The three reconcile exactly and the launchpad keeps nothing.
+        uint256 ccaNewAfter = UERC20(l.newToken).balanceOf(address(cca));
+        uint256 swept = ccaNewBefore - ccaNewAfter;
+        assertGe(ccaNewAfter, lbp.tokensSold, "the auction keeps the claimable NEW");
+        assertEq(record.retiredNew, swept + StocksPreset.MIGRATION_RESERVE - record.lpNewUsed, "what was left over");
         assertEq(
-            record.newSold + record.newShared + record.lpNewUsed, StocksPreset.INITIAL_SUPPLY, "the supply reconciles"
+            ccaNewAfter + record.lpNewUsed + record.retiredNew, StocksPreset.INITIAL_SUPPLY, "the supply reconciles"
         );
-        assertLe(record.newShared, NEW_CRUMBS, "the auction sold the allocation but for crumbs");
-        assertEq(record.retiredNew, 0, "nothing is retired");
-        assertEq(UERC20(l.newToken).balanceOf(DEAD), 0, "nothing is sent to the dead address");
+        assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
+        assertEq(UERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "at the dead address");
+        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
 
         // The hook knows the pool, and the launch has its own fresh splitter.
         RobinhoodFeeHookV1.PoolRecord memory pool = stocksHook.pool(poolId);
@@ -440,7 +344,10 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
     /// @dev The one locked position: full range, in the official pool, owned by and registered in the
     ///      locker.
-    function _assertLockedPosition(IRobinhoodLaunchpadBase.Launch memory record, uint256 nextTokenId) private view {
+    function _assertLockedPosition(IRobinhoodLaunchpadBase.Launch memory record, uint256 nextTokenId, uint256 crumbs)
+        private
+        view
+    {
         assertEq(record.lpTokenId, nextTokenId, "the position is this graduation's mint");
         assertEq(IERC721(address(positionManager)).ownerOf(record.lpTokenId), address(locker), "owned by the locker");
         assertEq(locker.splitterOf(record.lpTokenId), record.splitter, "registered with the launch's splitter");
@@ -449,61 +356,47 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertEq(info.tickLower(), TickMath.minUsableTick(StocksPreset.POOL_TICK_SPACING));
         assertEq(info.tickUpper(), TickMath.maxUsableTick(StocksPreset.POOL_TICK_SPACING));
         assertGt(positionManager.getPositionLiquidity(record.lpTokenId), 0);
-        assertApproxEqAbs(record.lpNewUsed, StocksPreset.MIGRATION_RESERVE, NEW_CRUMBS, "the whole reserve is paired");
+        assertApproxEqAbs(record.lpNewUsed, StocksPreset.MIGRATION_RESERVE, crumbs, "the whole reserve is paired");
     }
 
-    /// @dev Settle one bid at the auction and take its share, the share at the chosen point. Returns the
-    ///      NEW the auction paid it and its share.
-    function _settle(Launched memory l, uint256 bidId, ShareOrder order)
-        private
-        returns (uint256 filled, uint256 share)
-    {
+    /// @dev Exit one bid at the auction and claim its NEW. Returns the NEW the auction paid it.
+    function _settle(Launched memory l, uint256 bidId) private returns (uint256 filled) {
         Bid memory bid = l.auction.bids(bidId);
-        (uint64 lastFullyFilled, uint64 outbid) = _hints(l.auction, bidId);
         uint256 startBalance = UERC20(l.newToken).balanceOf(bid.owner);
-        uint256 finalPrice = l.auction.checkpoints(l.auction.endBlock()).clearingPrice;
-
-        (, uint256 quoted,) = stocks.unsoldShareOf(l.launchId, bidId, lastFullyFilled, outbid);
-        if (order == ShareOrder.BeforeExit) _claimShare(l, bidId, lastFullyFilled, outbid, 0, quoted, true);
-
-        if (bid.maxPrice > finalPrice) {
+        if (bid.maxPrice > l.auction.checkpoints(l.auction.endBlock()).clearingPrice) {
             l.auction.exitBid(bidId);
         } else {
+            (uint64 lastFullyFilled, uint64 outbid) = _hints(l.auction, bidId);
             l.auction.exitPartiallyFilledBid(bidId, lastFullyFilled, outbid);
         }
         filled = l.auction.bids(bidId).tokensFilled;
-        (, uint256 afterExit,) = stocks.unsoldShareOf(l.launchId, bidId, lastFullyFilled, outbid);
-        assertEq(afterExit, quoted, "the share does not change when the bid exits");
-        if (order == ShareOrder.BeforeExit) {
-            assertEq(quoted, FullMath.mulDiv(_record(l).newShared, filled, _record(l).newSold), "pro rata");
-        }
-        if (order == ShareOrder.AfterExit) _claimShare(l, bidId, lastFullyFilled, outbid, filled, quoted, false);
-
         l.auction.claimTokens(bidId);
-        assertEq(l.auction.bids(bidId).tokensFilled, 0, "the auction zeroed its record of the fill");
-        if (order == ShareOrder.AfterClaim) _claimShare(l, bidId, lastFullyFilled, outbid, filled, quoted, false);
-
-        share = quoted;
-        assertEq(UERC20(l.newToken).balanceOf(bid.owner) - startBalance, filled + share, "paid fill and share");
+        assertEq(UERC20(l.newToken).balanceOf(bid.owner) - startBalance, filled, "paid what the bid won");
     }
 
-    function _claimShare(
-        Launched memory l,
-        uint256 bidId,
-        uint64 lastFullyFilled,
-        uint64 outbid,
-        uint256 filled,
-        uint256 quoted,
-        bool fillUnknown
-    ) private {
-        address owner = l.auction.bids(bidId).owner;
-        vm.expectEmit(true, true, true, !fillUnknown, address(stocks));
-        emit IRobinhoodLaunchpadBase.UnsoldShareClaimed(l.launchId, bidId, owner, filled, quoted);
-        vm.prank(outsider);
-        stocks.claimUnsoldShare(l.launchId, bidId, lastFullyFilled, outbid);
-        if (!fillUnknown) {
-            assertEq(quoted, FullMath.mulDiv(_record(l).newShared, filled, _record(l).newSold), "pro rata");
-        }
+    /// @dev Once every bid has exited and claimed: the bids received the whole sale allocation but for
+    ///      crumbs, and the auction, the pool, the dead address and the bids hold the whole supply.
+    function _assertWholeAllocationSold(Launched memory l, uint256 received) private view {
+        IRobinhoodLaunchpadBase.Launch memory record = _record(l);
+        assertLe(received, StocksPreset.AUCTION_INVENTORY, "never more than the sale allocation");
+        assertGe(received, StocksPreset.AUCTION_INVENTORY - _newCrumbs(l), "the whole sale allocation, but for crumbs");
+        assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
+        assertEq(
+            received + UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.retiredNew,
+            StocksPreset.INITIAL_SUPPLY,
+            "the supply reconciles"
+        );
+    }
+
+    /// @dev The crumbs a graduation may leave, in NEW base units: both how far short of the sale
+    ///      allocation the bids' claims may fall and how much NEW graduation may retire. Both come from
+    ///      prices kept to one Q96 unit and never below the floor: the auction's clearing price sets how
+    ///      much NEW the bids' STOCK buys, leaving the unsold rounding, and the pool price sets how much
+    ///      of the reserve the position pairs. So the supply divided by the floor price in Q96 bounds
+    ///      them together: about 1.26e6 base units at the fixture's floor, where the largest observed is about
+    ///      2.7e5.
+    function _newCrumbs(Launched memory l) private view returns (uint256) {
+        return StocksPreset.INITIAL_SUPPLY / l.auction.floorPrice();
     }
 
     /// @dev The hints `exitPartiallyFilledBid` takes, found by walking the auction's checkpoints: the
@@ -534,7 +427,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         stocks.migrate(l.launchId);
         IRobinhoodLaunchpadBase.Launch memory record = _record(l);
         bytes32 topic = keccak256(
-            "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256,uint256)"
+            "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256)"
         );
         bool found;
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -551,17 +444,15 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
                     uint128 lpNewUsed,
                     uint256 stockRaised,
                     uint256 stockDust,
-                    uint256 newSold,
-                    uint256 newShared
-                ) = abi.decode(logs[i].data, (uint160, uint256, uint128, uint128, uint256, uint256, uint256, uint256));
+                    uint256 newRetired
+                ) = abi.decode(logs[i].data, (uint160, uint256, uint128, uint128, uint256, uint256, uint256));
                 assertEq(sqrtPriceX96, record.finalSqrtPriceX96);
                 assertEq(lpTokenId, record.lpTokenId);
                 assertEq(lpStockUsed, record.lpCurrencyUsed);
                 assertEq(lpNewUsed, record.lpNewUsed);
                 assertEq(stockRaised, l.auction.lbpInitializationParams().currencyRaised);
                 assertEq(uint256(lpStockUsed) + stockDust, stockRaised);
-                assertEq(newSold, record.newSold);
-                assertEq(newShared, record.newShared);
+                assertEq(newRetired, record.retiredNew);
             }
         }
         assertTrue(found, "StockLaunchGraduated emitted");
@@ -593,8 +484,6 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertEq(UERC20(l.newToken).balanceOf(address(l.auction)), 0);
         assertEq(record.poolId, bytes32(0), "no pool");
         assertEq(record.lpTokenId, 0, "no position");
-        assertEq(record.newSold, 0);
-        assertEq(record.newShared, 0);
 
         // Bidder STOCK never moved through this component; the CCA refunds it in full.
         assertEq(stockLow.balanceOf(address(stocks)), 0);
@@ -637,16 +526,12 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
     function test_launchpad_never_exposes_a_token_or_stock_withdrawal() public {
         // The launchpad's whole external surface is the interface; there is no transfer, sweep, rescue
-        // or approve of NEW or STOCK. The NEW it holds after graduation leaves only through the
-        // share-out, to the bids' owners.
+        // or approve of NEW or STOCK. Graduation leaves it holding neither.
         Launched memory l = _launchStock(STOCK_LOW);
         assertEq(UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.MIGRATION_RESERVE);
-        uint256 bidId = _bidToMigration(l, 1_000e18);
+        _bidToMigration(l, 1_000e18);
         stocks.migrate(l.launchId);
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), _record(l).newShared);
+        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0);
         assertEq(stockLow.balanceOf(address(stocks)), 0);
-        (, uint256 share,) = stocks.unsoldShareOf(l.launchId, bidId, 0, 0);
-        stocks.claimUnsoldShare(l.launchId, bidId, 0, 0);
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), _record(l).newShared - share);
     }
 }

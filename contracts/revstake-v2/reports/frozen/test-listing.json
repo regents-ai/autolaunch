@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 204,
+  "total": 201,
   "tests": {
     "test/escrow/ConditionalVestingEscrowV2.t.sol": {
       "ConditionalVestingEscrowV2Test": [
@@ -112,6 +112,21 @@
         "test_FAIL_008_RepeatedFailureResolutionMovesNoValue"
       ]
     },
+    "test/integration/AutolaunchFullSale.t.sol": {
+      "AutolaunchFullSaleTest": [
+        "testFuzz_MIN_002_MinimumPlusOneUnitGraduatesInAnyBlock",
+        "testFuzz_SALE_004_SoleBidderBuysTheWholeSaleAllocation",
+        "test_MIN_001_FloorMinimumMetExactlyGraduatesAndOneUnitBelowFails",
+        "test_MIN_003_MinimumBidAfterTheFirstBlockIsCountedOneUnitShortAndFails",
+        "test_MIN_004_LauncherMinimumAboveTheFloorMinimumIsTheRequiredRaise",
+        "test_SALE_001_SoleBidderAtTheStartBuysTheWholeSaleAllocationBothOrderings",
+        "test_SALE_002_SoleBidderInTheLastEligibleBlockBuysTheWholeSaleAllocation",
+        "test_SALE_003_SoleBidderPartlyFilledAtItsLimitBuysTheWholeSaleAllocation",
+        "test_SALE_005_SeveralBiddersEachWayABidEndsBuyTheWholeSaleAllocationBothOrderings",
+        "test_SALE_006_HighLauncherMinimumGraduatesAndSellsTheWholeSaleAllocation",
+        "test_SALE_007_SubjectSentToTheStrategyBeforeMigrationGoesToTheEscrow"
+      ]
+    },
     "test/integration/AutolaunchGraduation.t.sol": {
       "AutolaunchGraduationTest": [
         "test_MIG_001_CheckpointAndProofComeFirst",
@@ -121,7 +136,7 @@
         "test_MIG_005_InitializesThePoolAtTheRaiseOverTheSaleAllocation",
         "test_MIG_006_MintsOneFullRangePositionToThePermanentLocker",
         "test_MIG_007_UnusedRegentGoesToTheImmutableTreasury",
-        "test_MIG_008_UnpairedReserveJoinsTheShareOutNotEscrow",
+        "test_MIG_008_LeftoverSubjectGoesToTheEscrow",
         "test_MIG_009_UnsoldSubjectIsSweptToTheStrategy",
         "test_MIG_010_DeploysTheCanonicalZeroReferralReceiver",
         "test_MIG_011_ActivatesVestingFromTheGraduationTimestamp",
@@ -136,23 +151,6 @@
       "AutolaunchPauseScopeTest": [
         "test_FAC_019_PauseNeverBlocksExistingLifecycleOperations",
         "test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause"
-      ]
-    },
-    "test/integration/AutolaunchShareOut.t.sol": {
-      "AutolaunchShareOutTest": [
-        "testFuzz_MIN_002_MinimumPlusOneUnitGraduatesInAnyBlock",
-        "testFuzz_SHR_004_SoleBidderReceivesTheWholeSaleAllocation",
-        "test_MIN_001_FloorMinimumMetExactlyGraduatesAndOneUnitBelowFails",
-        "test_MIN_003_MinimumBidAfterTheFirstBlockIsCountedOneUnitShortAndFails",
-        "test_MIN_004_LauncherMinimumAboveTheFloorMinimumIsTheRequiredRaise",
-        "test_SHR_001_SoleBidderAtTheStartReceivesTheWholeSaleAllocationBothOrderings",
-        "test_SHR_002_SoleBidderInTheLastEligibleBlockReceivesTheWholeSaleAllocation",
-        "test_SHR_003_SoleBidderPartlyFilledAtItsLimitReceivesTheWholeSaleAllocation",
-        "test_SHR_005_SeveralBiddersEachWayABidEndsShareOutBothOrderings",
-        "test_SHR_006_ShareIsPaidOnceToTheOwnerWhoeverCalls",
-        "test_SHR_007_SubjectSentToTheStrategyBeforeMigrationJoinsTheShareOut",
-        "test_SHR_008_ShareIsRefusedUntilGraduationAndForAFailedLaunch",
-        "test_SHR_009_ShareIsRefusedForABidTheAuctionNeverTook"
       ]
     },
     "test/integration/AutolaunchTerminalCustody.t.sol": {
@@ -277,7 +275,6 @@
         "test_STR_013_UnexpectedTokenBehaviourRollsInitializationBack",
         "test_STR_015_ActualLpConsumptionIsRecorded",
         "test_STR_015_FinalizationProvesGraduationBeforeCommitting",
-        "test_STR_015_GiftedSubjectJoinsTheShareOut",
         "test_STR_015_GraduationExecutesTheCompleteTerminalOrder",
         "test_STR_015_MigrationBeforeEligibilityIsRejected",
         "test_STR_015_UnrelatedStrategyRegentIsPreserved",

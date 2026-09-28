@@ -88,7 +88,7 @@ STOCK_LABEL_RE = re.compile(r"^(stock|route)_([a-z0-9]+)$")
 LAUNCH_FIELDS = (
     "launcher", "newToken", "currency", "auction", "startBlock", "endBlock", "claimBlock", "migrationBlock",
     "requiredRaise", "floorPriceQ96", "lifecycle", "poolId", "finalSqrtPriceX96", "splitter", "lpTokenId", "lpCurrencyUsed",
-    "lpNewUsed", "newSold", "newShared", "retiredNew",
+    "lpNewUsed", "retiredNew",
 )
 LIFECYCLES = ("None", "Active", "Graduated", "Failed")
 ARB_SYS = "0x0000000000000000000000000000000000000064"

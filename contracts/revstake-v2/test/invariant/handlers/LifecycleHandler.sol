@@ -5,8 +5,6 @@ import {ConditionalVestingEscrowV2} from "../../../src/escrow/ConditionalVesting
 import {RegentsAutolaunchFactoryV2} from "../../../src/factory/RegentsAutolaunchFactoryV2.sol";
 import {RegentLBPStrategyV2} from "../../../src/strategy/RegentLBPStrategyV2.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
-import {Bid} from "continuous-clearing-auction/libraries/BidLib.sol";
-import {Checkpoint} from "continuous-clearing-auction/libraries/CheckpointLib.sol";
 import {CommonBase} from "forge-std/Base.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
@@ -14,8 +12,7 @@ import {Permit2Double} from "../../strategy/doubles/Permit2Double.sol";
 import {StagedERC20} from "../../strategy/doubles/StagedERC20.sol";
 
 /// @notice Drives three simultaneous launches through every reachable ordering of bidding, block
-///         movement, terminal migration, share-out claims, vesting release, late retirement, and
-///         external gifts.
+///         movement, terminal migration, vesting release, late retirement, and external gifts.
 /// @dev Two disciplines make this evidence rather than a script.
 ///
 ///      The timeline is monotone in both clocks. `rollForward` advances the block height and the
@@ -73,16 +70,12 @@ contract LifecycleHandler is CommonBase, StdUtils {
     /// @notice The unsold SUBJECT a graduation swept out of the auction, measured as the auction's
     ///         own outflow across the migration.
     mapping(uint256 launchIndex => uint256 amount) public graduationUnsoldSwept;
-    /// @notice The gifted SUBJECT a graduation absorbed into the share-out.
+    /// @notice The gifted SUBJECT a graduation absorbed and sent to the launch's escrow.
     mapping(uint256 launchIndex => uint256 amount) public graduationGiftsAbsorbed;
+    /// @notice The exact SUBJECT a graduation moved from the strategy to that launch's own escrow.
+    mapping(uint256 launchIndex => uint256 amount) public graduationSentToEscrow;
     /// @notice The exact SUBJECT a retirement moved from the strategy to that launch's own escrow.
     mapping(uint256 launchIndex => uint256 amount) public retirementSentToEscrow;
-    /// @notice The share-out SUBJECT paid to each launch's bids so far.
-    mapping(uint256 launchIndex => uint256 amount) public sharesPaid;
-
-    /// @notice Every bid this handler placed, per launch.
-    mapping(uint256 launchIndex => uint256[] ids) internal _bidIds;
-
     uint256 public calls;
 
     /// @notice Branch reachability counters, so a dead action is visible rather than silent.
@@ -92,7 +85,6 @@ contract LifecycleHandler is CommonBase, StdUtils {
     uint256 public subjectGifts;
     uint256 public graduations;
     uint256 public retirements;
-    uint256 public shareClaims;
 
     constructor(
         RegentsAutolaunchFactoryV2 factory_,
@@ -156,7 +148,7 @@ contract LifecycleHandler is CommonBase, StdUtils {
         vm.startPrank(bidder);
         regent.approve(PERMIT2, type(uint256).max);
         Permit2Double(PERMIT2).approve(address(regent), address(auction), type(uint160).max, type(uint48).max);
-        _bidIds[index].push(auction.submitBid(priceQ96, bidAmount, bidder, ""));
+        auction.submitBid(priceQ96, bidAmount, bidder, "");
         vm.stopPrank();
     }
 
@@ -175,6 +167,7 @@ contract LifecycleHandler is CommonBase, StdUtils {
         UERC20 subject = UERC20(subjects[index]);
         uint256 strategyBefore = subject.balanceOf(address(strategy));
         uint256 auctionBefore = subject.balanceOf(auctions[index]);
+        uint256 escrowBefore = subject.balanceOf(escrows[index]);
 
         strategy.migrate(auctions[index]);
 
@@ -186,9 +179,10 @@ contract LifecycleHandler is CommonBase, StdUtils {
             graduationLpSubjectUsed[index] = strategy.distribution(auctions[index]).lpSubjectUsed;
             graduationUnsoldSwept[index] = swept;
             graduationGiftsAbsorbed[index] = strategySubjectGifts[index];
+            graduationSentToEscrow[index] = subject.balanceOf(escrows[index]) - escrowBefore;
             graduations += 1;
 
-            // Graduation holds every unit of this launch's SUBJECT the strategy has for the share-out,
+            // Graduation sends every unit of this launch's SUBJECT the strategy holds to the escrow,
             // gifted units included, so a gift made before it is no longer a separate balance.
             strategySubjectGifts[index] = 0;
         } else {
@@ -197,43 +191,6 @@ contract LifecycleHandler is CommonBase, StdUtils {
             // whole supply and retires it inside the same call, so it ends below where it started.
             retirementSentToEscrow[index] = strategyBefore + swept - subject.balanceOf(address(strategy));
             retirements += 1;
-        }
-    }
-
-    /// @dev Anyone may pay a bid its share of a graduated launch's share-out, once, with the
-    ///      checkpoint hints read off the auction's own checkpoint list.
-    function claimShare(uint256 launchSeed, uint256 bidSeed) external {
-        calls += 1;
-        uint256 index = _index(launchSeed);
-        address auction = auctions[index];
-        if (strategy.distribution(auction).lifecycle != RegentLBPStrategyV2.Lifecycle.Graduated) return;
-        uint256 count = _bidIds[index].length;
-        if (count == 0) return;
-
-        uint256 bidId = _bidIds[index][bound(bidSeed, 0, count - 1)];
-        (uint64 lastFullyFilled, uint64 outbid) = _hints(IContinuousClearingAuction(auction), bidId);
-        (, uint256 share, bool claimed) = strategy.unsoldShareOf(auction, bidId, lastFullyFilled, outbid);
-        if (claimed) return;
-
-        strategy.claimUnsoldShare(auction, bidId, lastFullyFilled, outbid);
-        sharesPaid[index] += share;
-        shareClaims += 1;
-    }
-
-    /// @dev The last checkpoint priced below the bid and the first priced above it, or zero when the
-    ///      auction never rose above the bid.
-    function _hints(IContinuousClearingAuction auction, uint256 bidId)
-        private
-        view
-        returns (uint64 lastFullyFilled, uint64 outbid)
-    {
-        Bid memory placed = auction.bids(bidId);
-        uint64 blockNumber = placed.startBlock;
-        while (blockNumber != type(uint64).max) {
-            Checkpoint memory checkpoint = auction.checkpoints(blockNumber);
-            if (checkpoint.clearingPrice < placed.maxPrice) lastFullyFilled = blockNumber;
-            if (checkpoint.clearingPrice > placed.maxPrice && outbid == 0) outbid = blockNumber;
-            blockNumber = checkpoint.next;
         }
     }
 

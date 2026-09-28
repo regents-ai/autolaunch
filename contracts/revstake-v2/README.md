@@ -5,13 +5,15 @@ A Revstake launch creates an agent token, **SUBJECT**, with a fixed supply of 10
 pool reserve, and holds 65% in the launch's escrow to vest to its treasury. A launch that reaches
 its required raise graduates:
 
-- every bidder receives what the auction sold them plus a pro-rata share of what it did not, so the
-  bids together receive the whole 20% sale allocation, up to rounding crumbs;
+- the auction itself sells the whole 20% sale allocation to the bidders, up to rounding crumbs:
+  it carries any supply a block did not sell into later blocks and never lowers its price;
 - the official SUBJECT/REGENT Uniswap v4 pool opens at the raise divided by the sale allocation,
   with one full-range position locked forever that pairs as much of the 15% reserve and of a
-  three-quarter share of the raise as it can (any reserve it cannot pair joins the bidders' share);
-- the rest of the raise, at least a quarter, goes to the treasury, and the 65% starts vesting to
-  the treasury over 365 days.
+  three-quarter share of the raise as it can;
+- the rest of the raise, at least a quarter, goes to the treasury;
+- every SUBJECT left over (the auction's rounding crumbs, any reserve the position could not pair
+  and anything sent to the strategy) goes to the escrow, and the 65% plus that leftover starts
+  vesting to the treasury over 365 days.
 
 A launch that misses its required raise fails: every bidder is refunded by the auction and the
 whole supply is retired to the dead address.
@@ -42,7 +44,7 @@ a version 2 deployment creates new instances bound to the new factory and strate
 | Pool price | raise ÷ sale allocation |
 | Pool position | full range from the reserve and a three-quarter budget of the raise, as much as it can pair, locked in `RevstakeLPLocker`; the treasury receives the rest of the raise |
 | Pool fee | 0.30% LP fee, tick spacing 60, plus the `RegentFeeHook` lanes |
-| Share-out | `claimUnsoldShare`: `subjectShared × tokensFilled / subjectSold`, paid once per bid to the bid's owner, whoever calls. `subjectShared` is all SUBJECT the strategy holds after graduation: unsold inventory, unpaired reserve and any SUBJECT sent to it |
+| Leftover SUBJECT | everything the strategy holds after graduation (the auction's rounding crumbs, unpaired reserve and any SUBJECT sent to it) goes to the escrow and vests to the treasury with the 65% |
 
 `migrate` is permissionless; the Regent bot sends it after the migration block.
 
@@ -58,9 +60,8 @@ block. Front ends should ask for the minimum plus one unit.
 | Path | Owns |
 | --- | --- |
 | `src/factory/RegentsAutolaunchFactoryV2.sol` | Launch creation: token, escrow clone, auction through the strategy; payment receivers; the Governance and REGENT Safe's new-launch pause. |
-| `src/strategy/RegentLBPStrategyV2.sol` | Auction parameters, required raise, migration, graduation into the pool, retirement, and the bids' share-out. |
-| `src/libraries/BidFillLib.sol` | Recomputes a bid's filled tokens exactly as the auction's own exit functions do, from the same checkpoint hints. |
-| `src/escrow/ConditionalVestingEscrowV2.sol` | Holds the 65%, vests it after graduation, retires the whole supply after failure. |
+| `src/strategy/RegentLBPStrategyV2.sol` | Auction parameters, required raise, migration, graduation into the pool, and retirement. |
+| `src/escrow/ConditionalVestingEscrowV2.sol` | Holds the 65%, vests it and the graduation leftover to the treasury, retires the whole supply after failure. |
 | `src/hook/RegentFeeHook.sol` | The official-pool fee hook. |
 | `src/revenue/` | `SubjectSplitterV1`, `PaymentReceiverV1`, `RevstakeLPLocker`. |
 | `src/bindings/BaseBindings.sol` | The frozen Base addresses. |

@@ -238,34 +238,6 @@
     },
     {
       "type": "function",
-      "name": "claimUnsoldShare",
-      "inputs": [
-        {
-          "name": "auction",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "lastFullyFilledCheckpointBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "outbidBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
       "name": "distribution",
       "inputs": [
         {
@@ -332,16 +304,6 @@
             },
             {
               "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "subjectSold",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "subjectShared",
               "type": "uint256",
               "internalType": "uint256"
             },
@@ -625,50 +587,6 @@
       "stateMutability": "view"
     },
     {
-      "type": "function",
-      "name": "unsoldShareOf",
-      "inputs": [
-        {
-          "name": "auction",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "lastFullyFilledCheckpointBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "outbidBlock",
-          "type": "uint64",
-          "internalType": "uint64"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "owner",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "share",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "claimed",
-          "type": "bool",
-          "internalType": "bool"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
       "type": "event",
       "name": "DistributionCreated",
       "inputs": [
@@ -857,50 +775,7 @@
           "internalType": "uint256"
         },
         {
-          "name": "subjectSold",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "subjectShared",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "UnsoldShareClaimed",
-      "inputs": [
-        {
-          "name": "auction",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "owner",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "tokensFilled",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "share",
+          "name": "subjectToEscrow",
           "type": "uint256",
           "indexed": false,
           "internalType": "uint256"
@@ -939,11 +814,6 @@
           "internalType": "address"
         }
       ]
-    },
-    {
-      "type": "error",
-      "name": "BidNotAtFinalClearingPrice",
-      "inputs": []
     },
     {
       "type": "error",
@@ -1082,28 +952,7 @@
     },
     {
       "type": "error",
-      "name": "InvalidLastFullyFilledCheckpointHint",
-      "inputs": []
-    },
-    {
-      "type": "error",
-      "name": "InvalidOutbidBlockCheckpointHint",
-      "inputs": []
-    },
-    {
-      "type": "error",
       "name": "LaunchNotActive",
-      "inputs": [
-        {
-          "name": "found",
-          "type": "uint8",
-          "internalType": "enum RegentLBPStrategyV2.Lifecycle"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "LaunchNotGraduated",
       "inputs": [
         {
           "name": "found",
@@ -1302,22 +1151,6 @@
     },
     {
       "type": "error",
-      "name": "UnsoldShareAlreadyClaimed",
-      "inputs": [
-        {
-          "name": "auction",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "bidId",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "ZeroAddress",
       "inputs": []
     }
@@ -1338,7 +1171,6 @@
     "auctionOfSubject(address)": "bad6a39e",
     "bidTickSpacingFor(uint256)": "9e82ecfc",
     "bindHook(address)": "10202c54",
-    "claimUnsoldShare(address,uint256,uint64,uint64)": "c8971e78",
     "distribution(address)": "c2db09c1",
     "escrowCloneCodehash()": "0e0651f3",
     "escrowImplementation()": "4ca8ff5a",
@@ -1351,7 +1183,6 @@
     "poolKeyOf(address)": "8652edf9",
     "receiverImplementation()": "112e335c",
     "requiredRegentRaisedFor(uint256,uint128)": "711d8db3",
-    "splitterImplementation()": "e63db9b2",
-    "unsoldShareOf(address,uint256,uint64,uint64)": "38c21b31"
+    "splitterImplementation()": "e63db9b2"
   }
 }

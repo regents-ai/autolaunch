@@ -39,8 +39,7 @@ interface IRobinhoodStocksLaunchpadV2 is IRobinhoodLaunchpadBase, IRobinhoodStoc
         uint128 lpNewUsed,
         uint256 stockRaised,
         uint256 stockDust,
-        uint256 newSold,
-        uint256 newShared
+        uint256 newRetired
     );
     event StockAdmitted(address indexed stock, uint8 decimals, address indexed route);
     event StockRevoked(address indexed stock);
