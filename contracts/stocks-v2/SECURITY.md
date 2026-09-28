@@ -28,7 +28,7 @@ ten stocks admitted through `AerodromeStockRouteV2` routes, which carry no execu
   Staked principal and owed revenue are never counted as new revenue; only tokens outside the three
   recognized assets can be swept, and only to the Safe.
 - No function anywhere can move LP principal, the reserve, or bidder funds: the launchpad has no
-  transfer, sweep, rescue or approve surface for NEW or STOCK; both position NFTs are minted to the
+  transfer, sweep, rescue or approve surface for NEW or STOCK; the one position NFT is minted to the
   `MemestockLPLocker`, which has no transfer, approve or burn surface, only ever decreases liquidity
   by exactly zero, and sends what it collects to the splitter registered once for that position;
   bidder STOCK sits only in the CCA and leaves only through the CCA's own `exitBid`/
