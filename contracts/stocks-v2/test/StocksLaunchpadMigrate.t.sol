@@ -201,6 +201,32 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         launchpad.claimUnsoldShare(l.launchId, bidId, 0, 0);
     }
 
+    /// @dev The auction pays bids from the claim block, before migration can run, so NEW can already
+    ///      be sent to the launchpad when it graduates. What the auction sold is measured from its own
+    ///      sweep, so NEW sent beforehand joins the share-out and never inflates a share.
+    function test_new_sent_to_the_launchpad_before_migration_joins_the_share_out() public {
+        Launched memory l = _launch(STOCK_LOW);
+        _rollToStart(l);
+        uint256 bidId = _bidDirect(l, bidder, 50e8, _bidPrice(GRADUATING_TICKS));
+        vm.roll(l.auction.claimBlock());
+        uint256 claimed = _claimNewTo(l, bidId, address(launchpad));
+        _rollToMigration(l);
+        launchpad.migrate(l.launchId);
+
+        IStocksLaunchpadV2.Launch memory record = _record(l);
+        assertEq(record.newSold, claimed + UERC20(l.newToken).balanceOf(address(l.auction)), "what the auction kept");
+        assertEq(record.newShared, UERC20(l.newToken).balanceOf(address(launchpad)), "held for the share-out");
+        assertGe(record.newShared, claimed, "the NEW sent here is shared");
+
+        launchpad.claimUnsoldShare(l.launchId, bidId, 0, 0);
+        assertEq(
+            UERC20(l.newToken).balanceOf(bidder),
+            FullMath.mulDiv(record.newShared, claimed, record.newSold),
+            "the sole bidder takes its pro rata share"
+        );
+        assertLe(UERC20(l.newToken).balanceOf(bidder), record.newShared, "never more than was held");
+    }
+
     function test_share_is_refused_until_graduation_and_for_a_failed_launch() public {
         Launched memory l = _launch(STOCK_LOW);
         _rollToStart(l);

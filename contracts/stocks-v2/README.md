@@ -98,8 +98,9 @@ supply (`StocksLaunchpadMigrateTest`).
 `claimUnsoldShare` cannot read the fill the auction stores for a bid, because anyone may call the
 auction's `claimTokens` for any bid and that zeroes it. `BidFillLib` recomputes the fill from the
 auction's permanent records with the pinned accounting its exits use, validating the same hints as
-`exitPartiallyFilledBid`; the denominator is `newSold`, what the auction kept for its bids' claims, so
-the shares never add up to more than `newShared`.
+`exitPartiallyFilledBid`; the denominator is `newSold`, what the auction kept for its bids' claims,
+measured from the auction's own sweep so NEW a bidder sends to the launchpad before migration only adds
+to `newShared`, and the shares never add up to more than `newShared`.
 
 Every bidder pays the clearing price of the blocks it bought in, and with the share-out counted the
 average over the whole sale allocation is the raise divided by the sale allocation. The pool opens at

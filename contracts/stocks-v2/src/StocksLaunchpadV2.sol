@@ -531,11 +531,12 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         uint256 raised = stock.balanceOf(address(this)) - stockBefore;
         if (raised != lbp.currencyRaised) revert CurrencyRaisedMismatch(lbp.currencyRaised, raised);
 
-        // NEW is this launch's own token, so everything of it here is the reserve plus what the
-        // auction did not sell, and the rest of the sale allocation stays in the auction for its bids.
+        // What the sweep delivers is what the auction did not sell; the rest of the sale allocation
+        // stays in the auction for its bids. Measured as a delta, because a bidder may already hold
+        // claimed NEW and send some here before migration.
+        uint256 newBefore = newToken.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
-        uint256 newSold =
-            StocksPreset.AUCTION_INVENTORY + StocksPreset.MIGRATION_RESERVE - newToken.balanceOf(address(this));
+        uint256 newSold = StocksPreset.AUCTION_INVENTORY - (newToken.balanceOf(address(this)) - newBefore);
 
         // The pool opens at the raise divided by the whole sale allocation (STOCK per NEW, Q96).
         bool stockIsCurrency0 = Currency.unwrap(key.currency0) == stock;
@@ -566,8 +567,8 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             if (remaining != 0) revert AllowanceNotConsumed(hook, remaining);
         }
 
-        // Every unit of this launch's NEW still here — the unsold inventory and the reserve the position
-        // did not pair — is held for the bids (`claimUnsoldShare`).
+        // Every unit of this launch's NEW still here — the unsold inventory, the reserve the position
+        // did not pair and anything sent here — is held for the bids (`claimUnsoldShare`).
         uint256 newShared = newToken.balanceOf(address(this));
 
         record.poolId = poolId;

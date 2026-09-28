@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 115,
+  "total": 116,
   "tests": {
     "test/AerodromeStockRoute.t.sol": {
       "AerodromeStockRouteTest": [
@@ -129,6 +129,7 @@
         "test_migrate_guards",
         "test_minimum_bid_after_the_first_block_is_counted_one_unit_short_and_fails",
         "test_minimum_met_exactly_graduates_and_one_unit_below_fails",
+        "test_new_sent_to_the_launchpad_before_migration_joins_the_share_out",
         "test_no_principal_path_exists_for_the_locked_position",
         "test_nobody_can_initialize_the_official_pool_before_migration",
         "test_several_bidders_each_way_a_bid_ends_share_out_both_orderings",
