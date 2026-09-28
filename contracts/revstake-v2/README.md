@@ -8,10 +8,10 @@ its required raise graduates:
 - every bidder receives what the auction sold them plus a pro-rata share of what it did not, so the
   bids together receive the whole 20% sale allocation, up to rounding crumbs;
 - the official SUBJECT/REGENT Uniswap v4 pool opens at the raise divided by the sale allocation,
-  with the whole 15% reserve and three quarters of the raise in one full-range position locked
-  forever;
-- the other quarter of the raise goes to the treasury, and the 65% starts vesting to the treasury
-  over 365 days.
+  with one full-range position locked forever that pairs as much of the 15% reserve and of a
+  three-quarter share of the raise as it can (any reserve it cannot pair joins the bidders' share);
+- the rest of the raise, at least a quarter, goes to the treasury, and the 65% starts vesting to
+  the treasury over 365 days.
 
 A launch that misses its required raise fails: every bidder is refunded by the auction and the
 whole supply is retired to the dead address.
@@ -40,9 +40,9 @@ a version 2 deployment creates new instances bound to the new factory and strate
 | Auction | opens 300 blocks after creation, runs 86,401 blocks on the thirteen-step v1 schedule |
 | Claim / migration | 64 / 128 blocks after the auction ends |
 | Pool price | raise ÷ sale allocation |
-| Pool position | whole reserve + three quarters of the raise, full range, locked in `RevstakeLPLocker` |
+| Pool position | full range from the reserve and a three-quarter budget of the raise, as much as it can pair, locked in `RevstakeLPLocker`; the treasury receives the rest of the raise |
 | Pool fee | 0.30% LP fee, tick spacing 60, plus the `RegentFeeHook` lanes |
-| Share-out | `claimUnsoldShare`: `subjectShared × tokensFilled / subjectSold`, paid once per bid to the bid's owner, whoever calls |
+| Share-out | `claimUnsoldShare`: `subjectShared × tokensFilled / subjectSold`, paid once per bid to the bid's owner, whoever calls. `subjectShared` is all SUBJECT the strategy holds after graduation: unsold inventory, unpaired reserve and any SUBJECT sent to it |
 
 `migrate` is permissionless; the Regent bot sends it after the migration block.
 

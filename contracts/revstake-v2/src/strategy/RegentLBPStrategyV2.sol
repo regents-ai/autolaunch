@@ -333,7 +333,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     ///      `_requireAdmissibleTreasury` is the system's only launch-time treasury admission, and it
     ///      runs here — after the escrow is authenticated, so the treasury being judged is the one
     ///      the escrow really bound, and before the auction exists, so a refusal costs nothing. It
-    ///      names six shared-system destinations and nothing else.
+    ///      names seven shared-system destinations and nothing else.
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
     function initializeDistribution(DistributionParams calldata params)
         external

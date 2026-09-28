@@ -21,16 +21,21 @@ These come from the pinned Continuous Clearing Auction library (`ConstantsLib`, 
 
 ## What every v2 launch does
 
+- **Floor grid.** The floor must be a whole number of bid ticks: `floorPriceQ96` divisible by
+  100, the bid tick being `floorPriceQ96 / 100`. A site rounds a chosen floor down to that grid.
 - **Minimum raise.** The whole sale allocation at the floor price, rounded up:
   `ceil(sale allocation × floorPriceQ96 / 2^96)`. A Revstake creator may set a higher minimum;
   Memestake has none. The minimum is never zero, so an auction nobody bid in never graduates.
 - **Bidders receive the whole sale allocation.** After graduation each bid claims what the auction
-  sold it plus a share of what the auction did not sell and of the reserve the pool did not pair:
+  sold it plus a share of everything of the launch's token left with the launch contract: what the
+  auction did not sell, the reserve the pool position did not pair, and any of the token someone
+  sent to that contract before graduation:
   `shared × tokens the bid won / tokens the auction sold`. It is a claim anyone can send for a
   bid; the tokens always go to the bid's owner, once. Nothing is burned.
 - **Pool price.** The raise divided by the whole sale allocation.
 - **Failure.** Below the minimum the auction fails, every bidder is refunded by the auction, and
-  the unsold supply is retired as in v1.
+  the launch's whole supply is retired to the dead address, as in v1 (for Revstake that includes
+  the 65% held for vesting).
 - **Rounding at the minimum.** The pinned auction counts a bid placed after its first block up to
   one base unit short, so a site should ask for the minimum plus one base unit.
 - **Graduation is sent by our bot** after the migration block; anyone may send it.
@@ -47,11 +52,11 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Auction share | 10% | 20% (20,000,000,000) |
 | Pool reserve | 5% | 15% (15,000,000,000) |
 | Vesting to the treasury | 85% | 65% (65,000,000,000), over 365 days |
-| Floor price | fixed 0.001 REGENT | creator picks; site default 0.000001 REGENT |
+| Floor price | fixed 0.001 REGENT | creator picks; site default 0.000001 REGENT, rounded down to the grid (`floorPriceQ96` 79,228,162,514,264,337,593,500), a minimum raise of just under 20,000 REGENT |
 | Bid tick | floor ÷ 100 | same rule |
 | Minimum raise | creator's | the larger of the floor minimum and the creator's minimum |
-| Raise into the pool | whole raise | three quarters; the other quarter to the treasury |
-| Pool price | the final clearing price | raise ÷ 20B, whole reserve in one full-range position |
+| Raise into the pool | whole raise | up to three quarters: the full-range position takes what it can pair from a three-quarter budget; the treasury receives the rest of the raise (at least a quarter) |
+| Pool price | the final clearing price | raise ÷ 20B, reserve in one full-range position (any reserve it cannot pair joins the bidders' share) |
 | Auction length | 86,401 blocks, 13-step schedule | same |
 
 Unchanged from v1: start delay 300 blocks; claim delay 64; migration delay 128; pool fee 0.30%;

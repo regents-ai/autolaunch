@@ -30,7 +30,7 @@ been run for version 2.
 | No share before graduation, after failure, for an unknown auction or an unknown bid | `test_SHR_008`, `test_SHR_009` |
 | The required raise is the floor minimum or the launcher's higher minimum, reachable on the grid | `test_STR_013_RequiredRaiseIsTheFloorMinimumOrTheLauncherMinimum`, `test_FAC_023_*`, `test_MIN_001` … `test_MIN_004` |
 | A zero-bid or under-raised auction fails and retires the whole supply; bidders are refunded | `test_FAIL_001` … `test_FAIL_008` |
-| The pool opens at raise ÷ sale allocation with the whole reserve and three quarters of the raise; the rest reaches the treasury | `test_MIG_005`, `test_MIG_007`, `test_MIG_008` |
+| The pool opens at raise ÷ sale allocation; the position takes the reserve and about three quarters of the raise (within one part in a million), and the rest of the raise reaches the treasury | `test_MIG_005`, `test_MIG_007`, `test_MIG_008` |
 | Every external boundary of launch, migration and graduation rolls back completely | `test_FAC_021_*`, `test_STR_004_*`, `AutolaunchTerminalRollback` |
 | Supply is conserved across every lifecycle; the share-out is never overpaid | `AutolaunchLifecycleInvariants` (`INV-006`, `INV-010`) |
 
