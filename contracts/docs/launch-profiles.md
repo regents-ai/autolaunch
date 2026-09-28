@@ -85,8 +85,9 @@ pool tick spacing 60; 2% splitter skim.
 
 ## Memestake (Robinhood Chain)
 
-Source: `robinhood-v2/src/RobinhoodPreset.sol`. The same terms as Memestake on Base, in USDG,
-with Robinhood's block counts: start delay 6,000; auction 864,000; claim delay 1,280; migration
+Source: `robinhood-v2/src/RobinhoodPreset.sol`. The same terms as Memestake on Base, priced in the
+stock itself (a bidder may pay in USDG, which is bought into the stock on the way in), with
+Robinhood's block counts: start delay 6,000; auction 864,000; claim delay 1,280; migration
 delay 2,560. The 1% lane is the protocol lane, sold for USDG into the Robinhood protocol inbox. Stock
 the pool position cannot pair goes to the protocol lane.
 
