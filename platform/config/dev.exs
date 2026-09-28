@@ -1,6 +1,9 @@
 import Config
 config :ash, policies: [show_policy_breakdowns?: true]
 
+# Several sites run side by side locally, each on the port named by PORT.
+port = String.to_integer(System.get_env("PORT", "4050"))
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
@@ -10,11 +13,12 @@ config :ash, policies: [show_policy_breakdowns?: true]
 config :autolaunch, AutolaunchWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  url: [host: "localhost", port: 4050],
-  http: [ip: {127, 0, 0, 1}, port: 4050],
-  check_origin: ["http://localhost:4050", "http://127.0.0.1:4050"],
+  url: [host: "localhost", port: port],
+  http: [ip: {127, 0, 0, 1}, port: port],
+  check_origin: ["http://localhost:#{port}", "http://127.0.0.1:#{port}"],
   code_reloader: true,
-  debug_errors: true,
+  # scripts/readiness.sh sets this to off, so error pages answer as they do in a release.
+  debug_errors: System.get_env("AUTOLAUNCH_DEBUG_ERRORS", "on") == "on",
   secret_key_base: "rsjuscXIckaYbEgnoyWVDsdVcA6yZHvSJbQDJf8WMBSfHYdEP+7ySHJFc7dQeEmH",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:autolaunch, ~w(--sourcemap=inline --watch)]},

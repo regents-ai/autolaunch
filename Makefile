@@ -1,6 +1,7 @@
-.PHONY: help check check-platform check-required-fixes
+.PHONY: help check check-platform check-required-fixes readiness
 help:
 	@echo "Run make check for every gate, or check-platform or check-required-fixes for one."
+	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
 check: check-platform check-required-fixes
 check-platform:
 	cd platform && mix precommit && npm run typecheck && npm test
@@ -12,3 +13,7 @@ check-required-fixes:
 	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/platform/scripts/check_required_fixes.exs?ref=$$rev" > _build/check_required_fixes.exs \
 	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/security/required-fixes.json?ref=$$rev" > _build/required-fixes.json \
 	&& elixir _build/check_required_fixes.exs "ash-template $$rev" < _build/required-fixes.json
+# Starts the local server on a free port, checks what the agent-readiness scorer
+# looks for, then stops the server.
+readiness:
+	scripts/readiness.sh
