@@ -1,8 +1,8 @@
 # Launch profiles: v1 today and v2
 
-**Status (27 September 2026): decided for all three launch types. Every value is fixed; the
-only value a creator picks is the floor price, and a Revstake creator may also set a higher
-minimum raise. The v2 contracts are `contracts/revstake-v2`, `contracts/stocks-v2` and
+**Status (28 September 2026): decided for all three launch types. Every value is fixed. The
+contracts take a floor price and, for Revstake, an optional higher minimum raise, but the site
+offers neither: it sends the fixed floors below and no creator minimum. The v2 contracts are `contracts/revstake-v2`, `contracts/stocks-v2` and
 `contracts/robinhood-v2`, none deployed.**
 
 Every timing value is counted in **blocks**. Base makes a block every 2 seconds and Robinhood
@@ -24,8 +24,8 @@ These come from the pinned Continuous Clearing Auction library (`ConstantsLib`, 
 - **Floor grid.** The floor must be a whole number of bid ticks: `floorPriceQ96` divisible by
   100, the bid tick being `floorPriceQ96 / 100`. A site rounds a chosen floor down to that grid.
 - **Minimum raise.** The whole sale allocation at the floor price, rounded up:
-  `ceil(sale allocation × floorPriceQ96 / 2^96)`. A Revstake creator may set a higher minimum;
-  Memestake has none. The minimum is never zero, so an auction nobody bid in never graduates.
+  `ceil(sale allocation × floorPriceQ96 / 2^96)`. The Revstake contracts accept a higher
+  minimum from a direct caller; the site sends none, and Memestake has none. The minimum is never zero, so an auction nobody bid in never graduates.
 - **Bidders receive the whole sale allocation.** The pinned auction carries unsold supply forward
   and never lowers its price, so an auction that reaches the minimum below sells its whole sale
   allocation; bidders claim it from the auction as in v1. The pool price below pairs the reserve
@@ -52,9 +52,9 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Auction share | 10% | 20% (20,000,000,000) |
 | Pool reserve | 5% | 15% (15,000,000,000) |
 | Vesting to the treasury | 85% | 65% (65,000,000,000), over 365 days |
-| Floor price | fixed 0.001 REGENT | creator picks; site default 0.000001 REGENT, rounded down to the grid (`floorPriceQ96` 79,228,162,514,264,337,593,500), a minimum raise of just under 20,000 REGENT |
+| Floor price | fixed 0.001 REGENT | the site always sends 0.000001 REGENT, rounded down to the grid (`floorPriceQ96` 79,228,162,514,264,337,593,500), a minimum raise of just under 20,000 REGENT |
 | Bid tick | floor ÷ 100 | same rule |
-| Minimum raise | creator's | the larger of the floor minimum and the creator's minimum |
+| Minimum raise | creator's | the floor minimum (the site sets no creator minimum) |
 | Raise into the pool | whole raise | up to three quarters: the full-range position takes what it can pair from a three-quarter budget; the treasury receives the rest of the raise (at least a quarter) |
 | Pool price | the final clearing price | raise ÷ 20B, reserve in one full-range position (any reserve it cannot pair goes to the escrow) |
 | Auction length | 86,401 blocks, 13-step schedule | same |
@@ -73,7 +73,7 @@ Source: `stocks-v2/src/StocksPreset.sol`.
 | Total supply | 1,000,000,000 | same |
 | Auction share | 80% | 50% |
 | Pool reserve | 20% | 50% |
-| Floor price | creator picks | same |
+| Floor price | creator picks | the site always sends the lowest floor the auction accepts: `floorPriceQ96` 4,294,967,300 (the auction's minimum, 2^32 + 1, rounded up to the grid), a minimum raise of 0.27105055 STOCK at 8 decimals |
 | Minimum raise | creator's | the floor minimum only |
 | Raise into the pool | whole raise | whole raise |
 | Pool price | the final clearing price | raise ÷ 500M, one full-range position, locked |
@@ -88,7 +88,8 @@ pool tick spacing 60; 2% splitter skim.
 Source: `robinhood-v2/src/RobinhoodPreset.sol`. The same terms as Memestake on Base, priced in the
 stock itself (a bidder may pay in USDG, which is bought into the stock on the way in), with
 Robinhood's block counts: start delay 6,000; auction 864,000; claim delay 1,280; migration
-delay 2,560. The 1% lane is the protocol lane, sold for USDG into the Robinhood protocol inbox. Stock
+delay 2,560. The site sends the same lowest floor as on Base; with the stock's 18 decimals the
+minimum raise is 0.000000000027105055 STOCK. The 1% lane is the protocol lane, sold for USDG into the Robinhood protocol inbox. Stock
 the pool position cannot pair goes to the protocol lane.
 
 ## Founder decisions, 27 September 2026
@@ -117,3 +118,8 @@ contract carries ("no more of the variable ranges").
    in the launch's token.
 3. Regent's Memestake share is not sold inside the trade. It waits in the hook and is sold for USDC
    into REGENT staking on Base, or for USDG into the protocol inbox on Robinhood, in a separate step.
+4. Creators set no floor price and no minimum raise on the site. Memestake (Base and Robinhood)
+   uses the lowest floor the auction accepts, so its minimum raise is the smallest the math allows.
+   Revstake keeps the 0.000001 REGENT floor and its minimum of just under 20,000 REGENT.
+5. Revstake's REGENT fee stays a plain transfer into REGENT staking's reward pool, and Memestake
+   stakers keep 98% of their lane however much is staked.
