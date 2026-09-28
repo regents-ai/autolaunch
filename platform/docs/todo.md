@@ -39,3 +39,20 @@ settings must agree: the card requires the subject to be on Base (`@chain_id 845
 settings (`Client.chain(config)` in `prepare/5`). A deployment whose settings name another network
 would build a Base-only review for that network. Make the review's network the subject's Base
 network, or check the two match, as part of switching the card on.
+
+## Before the wallet-steps release (A02)
+
+Noted 28 September 2026 from the ash-template chief's review.
+
+- **Saved launch reviews keep three states.** This branch keeps `prepared`, `chain_verified` and
+  `cancelled`. The migration `20260928031105_launch_operations_three_states` turns any `expired`
+  or `invalidated` row into `cancelled`, keeping its old state as the reason when it had none; no
+  row is deleted. It was run on a local copy seeded with both old states and every row read back
+  in an allowed state. Before release, count production's rows by state (read-only, with the
+  founder's go) and confirm no other state exists.
+- **Four wallet-press tables have no resource.** `wallet_attempts`, `bid_operations`,
+  `bid_settlement_operations` and `subject_wallet_operations` are no longer written. The drop
+  migration waits on founder decision 8: (a) export them to an archive file, then drop them
+  (recommended), or (b) keep them unused. Under (a), `mix ash.codegen` generates the drop after the
+  export; under (b), nothing changes. `mix ash.codegen --dry-run` shows these four drops as the
+  only pending schema change.
