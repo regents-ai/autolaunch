@@ -251,6 +251,7 @@
       "input_schema": {
         "type": "object",
         "properties": {},
+        "required": [],
         "additionalProperties": false
       },
       "annotations": {
@@ -271,6 +272,7 @@
       "input_schema": {
         "type": "object",
         "properties": {},
+        "required": [],
         "additionalProperties": false
       },
       "annotations": {
@@ -303,6 +305,7 @@
             "description": "A linked Ethereum address, or null to clear the profile selection."
           }
         },
+        "required": [],
         "additionalProperties": false,
         "minProperties": 1
       },
