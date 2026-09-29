@@ -68,6 +68,11 @@ defmodule Autolaunch.LabLaunchChainClient do
 
   @impl true
   def verify(envelope, step, hash) do
+    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
+         do: {:ok, Map.delete(result, :receipt)}
+  end
+
+  def verify_with_evidence(envelope, step, hash) do
     with true <-
            Autolaunch.Chain.Envelope.valid_for_confirmation?(envelope,
              resource: "autolaunch_launch",
@@ -77,8 +82,9 @@ defmodule Autolaunch.LabLaunchChainClient do
            Lab.binding_matches?(envelope["metadata"]["lab"], [:factory, :strategy, :hook, :regent]),
          {:ok, config} <- Lab.current(),
          current <- current_step(envelope, step),
-         {:ok, outcome} <- LabRpc.canonical_outcome(config, envelope, current, hash) do
-      settled(outcome, envelope, step, config)
+         {:ok, evidence} <- LabRpc.canonical_outcome_evidence(config, envelope, current, hash),
+         {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
+      {:ok, Map.put(result, :receipt, evidence.receipt)}
     else
       false -> {:error, :lab_config_changed}
       {:error, reason} -> {:error, reason}

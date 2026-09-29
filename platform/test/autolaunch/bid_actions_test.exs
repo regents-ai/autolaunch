@@ -319,6 +319,81 @@ defmodule Autolaunch.BidActionsTest do
     assert quote.status_band == "active"
   end
 
+  test "exact maximum is floored to the pinned zero-based grid without decimal rounding", ctx do
+    spacing = 792_281_625_142_643_375_935_439
+
+    install(
+      tick_spacing_q96: spacing,
+      floor_price_q96: spacing,
+      clearing_price_q96: spacing,
+      prev_tick_price_q96: spacing
+    )
+
+    for {requested, expected} <- [
+          {"0.004", 316_912_650_057_057_350_374_175_600},
+          {"0.002", 158_456_325_028_528_675_187_087_800}
+        ] do
+      assert {:ok, %{operation: op}} =
+               Autolaunch.prepare_bid(ctx.auction.id, ctx.wallet, "1", requested, ctx.opts)
+
+      args = op.envelope["arguments"]
+      assert args["requested_max_price"] == requested
+      assert args["max_price_q96"] == Integer.to_string(expected)
+      assert rem(expected, spacing) == 0
+      assert Decimal.compare(Decimal.new(args["max_price"]), Decimal.new(requested)) == :lt
+
+      assert op.envelope["data"] ==
+               Autolaunch.Chain.AuctionAbi.encode_submit_bid(
+                 expected,
+                 Integer.pow(10, 18),
+                 ctx.wallet,
+                 spacing
+               )
+    end
+
+    assert {:error, error} =
+             Autolaunch.prepare_bid(ctx.auction.id, ctx.wallet, "1", "0.000001", ctx.opts)
+
+    assert refusal(error) == :price_below_admissible_tick
+  end
+
+  test "tick boundaries, clearing floor, cap and huge precision use exact integer bounds" do
+    limits = %{
+      tick_spacing_q96: 10,
+      floor_price_q96: 10,
+      clearing_price_q96: 20,
+      max_bid_price_q96: 95
+    }
+
+    for {requested, expected} <- [
+          {29, :refused},
+          {30, 30},
+          {31, 30},
+          {89, 80},
+          {90, 90},
+          {100, 90}
+        ] do
+      if expected == :refused,
+        do:
+          assert(
+            {:error, :price_below_admissible_tick} == Autolaunch.BidPrice.align(requested, limits)
+          ),
+        else: assert({:ok, expected} == Autolaunch.BidPrice.align(requested, limits))
+    end
+
+    assert {:error, _} = Autolaunch.BidPrice.align(Integer.pow(2, 256), limits)
+    assert {:error, _} = Autolaunch.BidPrice.align(40, %{limits | tick_spacing_q96: 0})
+    assert {:error, _} = Autolaunch.BidActions.price_q96(String.duplicate("9", 100))
+    exact = Autolaunch.BidPrice.decimal(30)
+    assert {:ok, 30} = Autolaunch.BidActions.price_q96(exact)
+
+    assert {:ok, 29} =
+             Autolaunch.BidActions.price_q96(
+               Decimal.new(1, 30 * Integer.pow(5, 96) - 1, -96)
+               |> Decimal.to_string(:normal)
+             )
+  end
+
   defp tiny_price, do: "0." <> String.duplicate("0", 79) <> "1"
 
   defp verified_treasury(%{auction: auction}) do

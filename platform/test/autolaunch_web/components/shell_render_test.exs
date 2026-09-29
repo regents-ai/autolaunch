@@ -39,16 +39,27 @@ defmodule AutolaunchWeb.Components.ShellRenderTest do
     refute Rail.active?("/tokens", "/portfolio")
   end
 
-  test "the top bar search form posts a query to home" do
+  test "the top bar search form posts a query to home and keeps the applied one" do
     html =
       render_component(&TopBar.top_bar/1,
-        account_control: AccessContext.account_control(AccessContext.anonymous())
+        account_control: AccessContext.account_control(AccessContext.anonymous()),
+        search_query: ~s(bix "quoted" <tag>)
       )
 
     assert html =~ ~s(action="/")
     assert html =~ ~s(method="get")
     assert html =~ ~s(name="q")
+    assert html =~ ~s(value="bix &quot;quoted&quot; &lt;tag&gt;")
     assert html =~ "Search for coins and users..."
+  end
+
+  test "the header search field shows the query that filtered the page", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/?q=%20BixBench%20")
+
+    assert has_element?(view, ~s(#shell-search-q[value="BixBench"]))
+
+    {:ok, other, _html} = live(conn, "/tokens")
+    assert has_element?(other, ~s(#shell-search-q[value=""]))
   end
 
   test "signed-out account control carries the auth_lazy sign-in contract" do

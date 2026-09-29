@@ -46,6 +46,28 @@ defmodule AutolaunchWeb.SharedProfileControllerTest do
     assert json_response(updated, 200)["profile"]["display_name"] == "Shared name"
   end
 
+  test "profile verifies a rotated proof pair with the same trusted key set", %{key: key} do
+    rotated = JOSE.JWK.generate_key({:ec, "P-256"})
+    {_, public} = rotated |> JOSE.JWK.to_public() |> JOSE.JWK.to_pem()
+    config = Application.get_env(:autolaunch, :privy)
+
+    Application.put_env(
+      :autolaunch,
+      :privy,
+      Keyword.put(config, :verification_keys, [config[:verification_key], public])
+    )
+
+    original = pair(key, "rotated-profile")
+    replacement = pair(rotated, "rotated-profile")
+    proof = %{original | identity: replacement.identity}
+    assert api(:post, "/api/v1/profile/sync", proof).status == 200
+    assert api(:get, "/api/v1/profile", proof).status == 200
+
+    substituted = %{original | identity: pair(rotated, "not-the-owner").identity}
+    assert api(:get, "/api/v1/profile", substituted).status == 401
+    assert api(:get, "/api/v1/profile", proof).status == 200
+  end
+
   defp api(method, path, pair, body \\ nil) do
     build_conn()
     |> put_req_header("authorization", "Bearer #{pair.access}")

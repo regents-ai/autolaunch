@@ -110,6 +110,14 @@ machine: every writer and every working tree gives it its own value, an undersco
 a short id, so that the runs use separate databases. `MIX_TEST_PARTITION=_regent_uiq_2` gives
 the database `autolaunch_regent_uiq_2_test`.
 
+## Local Base-fork lab
+
+The site can run against an isolated Anvil fork of Base (chain 31337) that carries a locally
+deployed copy of the contract graph, so the create, launch, auction and bid flow can be tried
+with test assets and no mainnet value. The controller, the environment the site needs, the
+run commands, how to switch on real Privy sign-in for the lab site, and the restart and
+recovery rules are in [docs/local-base-lab.md](docs/local-base-lab.md).
+
 ## Protected paths
 
 These paths carry the boundary between the site and money. A change to any of them is a
@@ -143,11 +151,16 @@ dependencies for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
 `fly.staging.toml` (`autolaunch-staging`).
 
-Run the assembler through the prepared worktree runner so package paths and exact
-revisions come from the selected dependency manifest:
+Run the assembler from `platform/` with package paths set to the selected
+checkouts and each corresponding revision set to that checkout's exact commit.
+Use clean dependency checkouts when preparing a release:
+
+- `REGENT_PRIVY_PATH` and `REGENT_PRIVY_REVISION`: `elixir-utils/privy` and its repository commit.
+- `REGENT_IDENTITY_PATH` and `REGENT_IDENTITY_REVISION`: `regents/identity` and its repository commit.
+- `REGENT_UI_PATH` and `REGENT_UI_REVISION`: `design-system/regent_ui` and its repository commit.
 
 ```sh
-regentctl worktree-run autolaunch <ticket> -- bash scripts/build-release-context.sh /absolute/new-context arm64
+bash scripts/build-release-context.sh /absolute/new-context arm64
 docker build --platform linux/arm64 -f /absolute/new-context/Dockerfile -t autolaunch-candidate /absolute/new-context
 ```
 

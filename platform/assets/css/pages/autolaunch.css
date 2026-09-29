@@ -165,9 +165,14 @@
   transform: translateY(-2px);
 }
 
+/* Grid items default to min-width:auto, so one unbreakable figure would set the
+   card's intrinsic width and, through the square media box, its height too.
+   Every box in the card shrinks to the card instead, and long text wraps. */
 .launchpad-card__link {
   display: grid;
+  grid-template-rows: auto 1fr;
   height: 100%;
+  min-width: 0;
   color: inherit;
   text-decoration: none;
 }
@@ -176,6 +181,9 @@
   position: relative;
   display: grid;
   place-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   aspect-ratio: 1;
   overflow: hidden;
   background:
@@ -184,6 +192,7 @@
 }
 
 .launchpad-card__media img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -212,6 +221,7 @@
   display: grid;
   align-content: start;
   gap: 0.7rem;
+  min-width: 0;
   padding: 0.95rem;
 }
 
@@ -220,16 +230,27 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .launchpad-card__title h3,
 .launchpad-card__body p {
   margin: 0;
+  min-width: 0;
 }
 
 .launchpad-card__title h3 {
+  flex: 1 1 auto;
   overflow: hidden;
   font-size: 1.05rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launchpad-card__title > span {
+  flex: 0 1 auto;
+  max-width: 45%;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -239,6 +260,7 @@
   font-family: var(--font-family-mono, ui-monospace, monospace);
   font-size: 0.92rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .launchpad-card__meta {
@@ -692,6 +714,42 @@
   padding: 0.55rem 0.75rem;
   border-inline-start: 3px solid var(--color-accent-secondary);
   background: color-mix(in oklch, var(--color-accent-secondary) 9%, transparent);
+}
+
+/* The unshortened figure behind a card price: every digit, wrapped, never
+   wider than the page. */
+.autolaunch-exact-value {
+  margin: 0;
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.regent-token-links__note,
+.regent-scope {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.regent-token-links__note {
+  flex-basis: 100%;
+}
+
+.launchpad-create__sign-in {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  max-width: 34rem;
+}
+
+.launchpad-create__sign-in h1 {
+  margin: 0;
+}
+
+.launchpad-create__sign-in > p:not(.autolaunch-kicker) {
+  margin: 0;
+  color: var(--color-fg-muted);
 }
 
 .autolaunch-actions {

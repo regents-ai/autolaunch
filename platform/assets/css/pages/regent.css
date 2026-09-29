@@ -46,7 +46,7 @@
 
 .regent-facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--space-4);
   margin: 0;
 }
@@ -55,6 +55,11 @@
   color: var(--color-fg-muted);
 }
 
+/* A full token address is one unbreakable word. The value column shrinks to
+   the page and the address wraps inside it, complete, so a phone never scrolls
+   sideways for it. */
 .regent-facts dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

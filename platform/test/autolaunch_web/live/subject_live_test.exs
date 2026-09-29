@@ -82,6 +82,8 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     subject = TestSupport.project_subject(subject_id: "subject:settlement:failure")
     now = DateTime.utc_now()
 
+    # Seed a historical chain-outcome fixture directly; this rendering test must
+    # not run the wallet-action preparation or transaction-observation workflow.
     Autolaunch.Repo.insert_all("subject_actions", [
       %{
         id: Ecto.UUID.dump!(Ecto.UUID.generate()),

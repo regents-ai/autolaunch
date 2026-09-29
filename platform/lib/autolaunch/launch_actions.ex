@@ -198,7 +198,11 @@ defmodule Autolaunch.LaunchActions do
   """
   @spec start_new(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def start_new(action_id, opts),
-    do: write(action_id, opts, transition(:close_submission_unknown, @unresolved))
+    do:
+      write(action_id, opts, fn _account, operation ->
+        action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
+        LaunchOperations.update(operation, action, %{reason: @unresolved})
+      end)
 
   @doc """
   The account's open launch, recovered under its current lease.
@@ -237,6 +241,7 @@ defmodule Autolaunch.LaunchActions do
       :launch_transaction_hash,
       :terminal_at
     ])
+    |> Autolaunch.WalletAttempts.decorate(operation, :launch)
   end
 
   @doc "The reviewed sequence, in order, as the progress list renders it."
@@ -531,6 +536,15 @@ defmodule Autolaunch.LaunchActions do
     do: Enum.any?([factory, strategy, hook | @frozen_refused_treasuries], &same?(treasury, &1))
 
   defp excessive, do: unavailable(:required_raise_unreachable)
+
+  def press_evidence(operation) do
+    with {:ok, fresh} <- snapshot(operation.signer),
+         {:ok, treasury} <- revalidate_treasury(operation),
+         true <- valid_envelope?(operation),
+         :ok <- still_reviewed(operation, fresh, treasury),
+         do: :ok,
+         else: (_ -> unavailable(:launch_step_moved))
+  end
 
   # Operations
 

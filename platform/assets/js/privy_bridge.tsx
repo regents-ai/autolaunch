@@ -83,6 +83,7 @@ function refusal(response: Response): Error {
 }
 
 type SignInRequestOptions = {
+  isAvailable?: () => boolean
   authenticated: () => boolean
   completeLogin: () => Promise<void>
   providerLogout: () => Promise<void>
@@ -95,6 +96,7 @@ type SignInRequestOptions = {
 // completes before anything may be sent again, so the pair the server just
 // refused can never be offered a second time and a later refusal simply stops.
 export function createSignInRequest({
+  isAvailable = () => true,
   authenticated,
   completeLogin,
   providerLogout,
@@ -105,6 +107,7 @@ export function createSignInRequest({
   let recovering = false
 
   const openLoginOnce = () => {
+    if (!isAvailable()) return
     if (loginOpen.current) return
     loginOpen.current = true
     openLogin()
@@ -113,12 +116,13 @@ export function createSignInRequest({
   return {
     recovering: () => recovering,
     async signIn() {
+      if (!isAvailable()) throw new Error("Privy provider is unavailable")
       if (!authenticated()) return openLoginOnce()
 
       try {
         await completeLogin()
       } catch (refused) {
-        if (!(refused instanceof StaleProviderSessionError) || !recoveryAvailable.current) {
+        if (!isAvailable() || !(refused instanceof StaleProviderSessionError) || !recoveryAvailable.current) {
           throw refused
         }
 
@@ -272,6 +276,7 @@ export async function createLocalSession(
   tokens: PrivyTokenPair,
   fetcher: typeof fetch = fetch,
   sessionMutations: SessionMutationCoordinator = browserSessionMutations,
+  mayEstablish: () => boolean = () => true,
 ): Promise<{
   sessionChanged: boolean
   identityError?: "already-connected"
@@ -283,7 +288,7 @@ export async function createLocalSession(
   // available.
   return sessionMutations.establish((signal, commit) =>
     acrossCookieRotation(renewed =>
-      recoverOnce(() => establishLocalSession(tokens, fetcher, signal, commit, renewed)),
+      recoverOnce(() => establishLocalSession(tokens, fetcher, signal, commit, renewed, mayEstablish)),
     ),
   )
 }
@@ -294,9 +299,14 @@ async function establishLocalSession(
   signal: AbortSignal,
   commit: () => void,
   renewed: () => void,
+  mayEstablish: () => boolean,
 ): Promise<{sessionChanged: boolean; identityError?: "already-connected"}> {
+  // Revalidate after the coordinator queue and on every recovery attempt. A
+  // disposed provider owns no new request, even if its outer promise raced out.
+  if (!mayEstablish()) throw new Error("Session establishment is no longer current.")
   const csrf = await csrfToken(fetcher, signal, renewed)
   if (signal.aborted) throw signal.reason
+  if (!mayEstablish()) throw new Error("Session establishment is no longer current.")
   // From here the response may renew the cookie, so it is never abandoned: an
   // abandoned renewal would leave this tab holding a retired token.
   commit()
@@ -383,6 +393,7 @@ const showsSignOutControl = () =>
 
 type PrivySessionCompletionOptions = {
   acquireTokens: () => Promise<PrivyTokenPair>
+  currentSubject?: () => string | null
   fetcher?: typeof fetch
   localSessionNeeded: () => boolean
   reload: () => void
@@ -393,28 +404,52 @@ type PrivySessionCompletionOptions = {
 // complete, current pair and sends nothing when it cannot get one.
 export function createPrivySessionCompletion({
   acquireTokens,
+  currentSubject = () => null,
   fetcher = fetch,
   localSessionNeeded,
   reload,
-}: PrivySessionCompletionOptions): () => Promise<void> {
+}: PrivySessionCompletionOptions): (mayComplete?: () => boolean) => Promise<void> {
   let inFlight: Promise<void> | null = null
+  let inFlightSubject: string | null = null
+  let adopted: {subject: string | null} | null = null
+  let finished = false
 
-  return () => {
-    if (!localSessionNeeded()) return Promise.resolve()
-    if (inFlight) return inFlight
+  const complete = (mayComplete = () => true): Promise<void> => {
+    const subject = currentSubject()
+    const mayEstablish = () => localSessionNeeded() && mayComplete() && currentSubject() === subject
+    if (finished || !mayEstablish()) return Promise.resolve()
+    if (inFlight) {
+      // A different committed identity must wait for cookie adoption, then ask
+      // the server with its own proofs rather than inherit the old success.
+      // Recheck after settlement even for the same subject: readiness can
+      // return between the deferred reload check and this promise's cleanup.
+      const resume = () => currentSubject() === subject ? complete(mayComplete) : Promise.resolve()
+      return inFlight.then(resume, inFlightSubject === subject ? undefined : resume)
+    }
 
     const attempt = (async () => {
-      await createLocalSession(await acquireTokens(), fetcher)
-      reload()
+      // A successful POST has already changed cookies and adopted CSRF. If its
+      // reload was deferred by readiness, resume only the document transition.
+      if (!adopted || adopted.subject !== subject) {
+        // A replacement can rotate or drop the cookie even when it is refused.
+        adopted = null
+        await createLocalSession(await acquireTokens(), fetcher, browserSessionMutations, mayEstablish)
+        adopted = {subject}
+      }
+      if (mayEstablish()) {
+        finished = true
+        reload()
+      }
     })()
 
     inFlight = attempt
-    void attempt.catch(() => {
-      if (inFlight === attempt) inFlight = null
-    })
+    inFlightSubject = subject
+    const settled = () => { if (inFlight === attempt) inFlight = null }
+    void attempt.then(settled, settled)
 
     return attempt
   }
+  return complete
 }
 
 export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
@@ -425,8 +460,10 @@ export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
 }
 
 type PrivyLoginCallbackOptions = {
+  isAvailable?: () => boolean
   allowAutomatic?: boolean
   completeLogin: () => Promise<void>
+  completeAutomaticLogin?: () => Promise<void>
   loginOpen: {current: boolean}
   showFailure: () => void
 }
@@ -440,21 +477,25 @@ type PrivyLoginCallbackOptions = {
 // settled — says so rather than rejecting into nothing. Both outcomes close
 // the modal, so both release the guard for the next click.
 export function createPrivyLoginCallbacks({
+  isAvailable = () => true,
   allowAutomatic = true,
   completeLogin,
+  completeAutomaticLogin = completeLogin,
   loginOpen,
   showFailure,
 }: PrivyLoginCallbackOptions): PrivyEvents["login"] {
   return {
     onComplete: () => {
+      if (!isAvailable()) return
       const opened = loginOpen.current
       loginOpen.current = false
       if (!opened && !allowAutomatic) return
-      void completeLogin().catch(() => {
-        if (opened) showFailure()
+      void (opened ? completeLogin() : completeAutomaticLogin()).catch(() => {
+        if (opened && isAvailable()) showFailure()
       })
     },
     onError: () => {
+      if (!isAvailable()) return
       const opened = loginOpen.current
       loginOpen.current = false
       if (opened) showFailure()
@@ -464,6 +505,7 @@ export function createPrivyLoginCallbacks({
 
 type AccountBridgeProps = {
   mode: "ordinary" | "sign-out-only" | "profile-only"
+  isAvailable: () => boolean
   providerState?: PrivyBridgeProviderState
   publishRequestHandler: (
     requestHandler: PrivyBridgeHandle["request"],
@@ -488,7 +530,7 @@ export type PrivyBridgeProviderState = {
   connectActiveWallet?: ReturnType<typeof useActiveWallet>["connect"]
 }
 
-function AccountBridge({mode, providerState, publishRequestHandler}: AccountBridgeProps) {
+function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}: AccountBridgeProps) {
   const privy = usePrivy()
   const providerWallets = useWallets()
   const providerActiveWallet = useActiveWallet()
@@ -512,25 +554,34 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const completeExplicitLogin = React.useMemo(
     () =>
       createPrivySessionCompletion({
-        acquireTokens: () => acquireTokensRef.current(),
+        currentSubject: () => provider.current.subject,
+        acquireTokens: async () => {
+          const pair = await acquireTokensRef.current()
+          if (!isAvailable()) throw new Error("Privy provider is unavailable")
+          return pair
+        },
         localSessionNeeded: () =>
+          isAvailable() && provider.current.ready &&
           (!signOutOnly || signOutOnlyState.current === "terminal") &&
           document.querySelector("#account-control [data-account-target='sign-in']") !== null,
-        reload: () => window.location.reload(),
+        reload: () => { if (isAvailable()) window.location.reload() },
       }),
-    [signOutOnly],
+    [signOutOnly, isAvailable],
   )
   const loginOpen = React.useRef(false)
   const recoveryAvailable = React.useRef(true)
   const loginCallbacks = React.useMemo(
     () =>
       createPrivyLoginCallbacks({
+        isAvailable,
         completeLogin: completeExplicitLogin,
+        // Bootstrap callbacks are passive even though the SDK calls them login.
+        completeAutomaticLogin: () => completeAutomaticLogin(),
         allowAutomatic: mode !== "profile-only",
         loginOpen,
         showFailure: () => showAccountAuthFailure("sign-in"),
       }),
-    [completeExplicitLogin, mode],
+    [completeExplicitLogin, mode, isAvailable],
   )
   const {login} = useLogin(loginCallbacks)
   // The published handler outlives every render, so the click it answers reads
@@ -538,7 +589,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   // discarded — which is why this is written after the commit and before the
   // effect that publishes the handler.
   const subject = providerState?.userId ?? privy.user?.id ?? null
-  const provider = React.useRef({authenticated, login, logout, ready, subject})
+  // Until the first commit, even a ready SDK render is only a candidate state.
+  const provider = React.useRef({authenticated, login, logout, ready: false, subject})
   const profileGeneration = React.useRef(0)
   React.useEffect(() => {
     const changed = provider.current.authenticated !== authenticated || provider.current.subject !== subject
@@ -551,6 +603,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const signInRequest = React.useMemo(
     () =>
       createSignInRequest({
+        isAvailable,
         authenticated: () => provider.current.authenticated,
         completeLogin: completeExplicitLogin,
         providerLogout: () => provider.current.logout(),
@@ -558,13 +611,15 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
         loginOpen,
         recoveryAvailable,
       }),
-    [completeExplicitLogin],
+    [completeExplicitLogin, isAvailable],
   )
   // Adoption only ever asks the server, and it stands aside entirely while an
   // explicit recovery still holds the pair the server refused.
   const completeAutomaticLogin = React.useCallback(
-    () =>
-      signOutOnly || mode === "profile-only" || signInRequest.recovering() ? Promise.resolve() : completeExplicitLogin(),
+    () => completeExplicitLogin(() =>
+      provider.current.ready && provider.current.authenticated &&
+      !signOutOnly && mode !== "profile-only" && !signInRequest.recovering(),
+    ),
     [completeExplicitLogin, signInRequest, signOutOnly, mode],
   )
   const tokenCallbacks = React.useMemo(
@@ -581,11 +636,15 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       }),
     [getAccessToken, providerState?.getIdentityToken],
   )
-  acquireTokensRef.current = acquireTokens
+  // Keep the proof source aligned with the committed subject used to scope
+  // completion; a discarded render cannot lend another identity's callbacks.
+  React.useEffect(() => { acquireTokensRef.current = acquireTokens }, [acquireTokens])
   const profileFor = React.useCallback((expectedSubject?: string) => createProfileClient({
     async acquireProof({signal}) {
+      if (!isAvailable()) throw new Error("Privy provider is unavailable")
       while (!provider.current.ready || (expectedSubject && provider.current.subject !== expectedSubject)) {
         signal.throwIfAborted()
+        if (!isAvailable()) throw new Error("Privy provider is unavailable")
         await new Promise(resolve => setTimeout(resolve, 25))
       }
       const state = provider.current
@@ -594,9 +653,9 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       const generation = profileGeneration.current
       const tokens = await acquireTokensRef.current()
       return {...tokens, subject: state.subject, isCurrent: () =>
-        provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
+        isAvailable() && provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
     },
-  }), [signOutOnly])
+  }), [signOutOnly, isAvailable])
   const profileHandler = React.useMemo(() => profileFor(), [profileFor])
   const profileIntent = React.useCallback(() => {
     const appId = providerState?.appId ?? document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content ?? ""
@@ -606,20 +665,26 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   }, [providerState?.appId])
   const profileLinkNonce = React.useRef<string | null>(null)
   const notifyProfileLink = React.useCallback((ok: boolean) => {
+    if (!isAvailable()) return
     window.dispatchEvent(new CustomEvent("regent:profile-link", {detail: {ok}}))
-  }, [])
+  }, [isAvailable])
   const notifyIdentityState = React.useCallback((error: string | null) => {
+    if (!isAvailable()) return
     window.dispatchEvent(
       new CustomEvent("autolaunch:identity-state", {detail: {error}}),
     )
-  }, [])
+  }, [isAvailable])
   const refreshIdentitySession = React.useCallback(async () => {
-    const result = await createLocalSession(await acquireTokens())
-    notifyIdentityState(result.identityError ?? null)
-  }, [acquireTokens, notifyIdentityState])
+    if (!isAvailable()) return
+    const pair = await acquireTokens()
+    if (!isAvailable()) return
+    const result = await createLocalSession(pair, fetch, browserSessionMutations, isAvailable)
+    if (isAvailable()) notifyIdentityState(result.identityError ?? null)
+  }, [acquireTokens, notifyIdentityState, isAvailable])
   const linkCallbacks = React.useMemo(
     () => ({
       onSuccess: (payload: Parameters<NonNullable<PrivyEvents["linkAccount"]["onSuccess"]>>[0]) => {
+        if (!isAvailable()) return
         const expected = profileIntent().claim(payload)
         if (expected) {
           void profileFor(expected)("sync").then(result => notifyProfileLink(result.ok))
@@ -627,12 +692,13 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
         void refreshIdentitySession().catch(() => notifyIdentityState("failed"))
       },
       onError: () => {
+        if (!isAvailable()) return
         profileIntent().cancel(profileLinkNonce.current)
         notifyProfileLink(false)
         notifyIdentityState("failed")
       },
     }),
-    [notifyIdentityState, refreshIdentitySession, profileIntent, profileFor, notifyProfileLink],
+    [notifyIdentityState, refreshIdentitySession, profileIntent, profileFor, notifyProfileLink, isAvailable],
   )
   const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
@@ -643,22 +709,23 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       createProviderSessionReconciler({
         clearSession: () => browserSessionMutations.signOut(clearLocalSession),
         providerAuthenticated: () => authenticated,
-        reload: () => reloadDocumentOnce(document, () => window.location.reload()),
-        signedIn: showsSignOutControl,
+        reload: () => { if (isAvailable()) reloadDocumentOnce(document, () => window.location.reload()) },
+        signedIn: () => isAvailable() && showsSignOutControl(),
       }),
-    [authenticated],
+    [authenticated, isAvailable],
   )
 
   React.useEffect(() => {
     if (signOutOnly || !ready || !authenticated) return
 
     void completeAutomaticLogin().catch(() => undefined)
-  }, [authenticated, completeAutomaticLogin, ready, signOutOnly])
+  }, [authenticated, completeAutomaticLogin, ready, signOutOnly, subject])
 
   // The active selection is published alongside the connected set and depends on
   // it, so a selection change with an unchanged wallets array still runs this and
   // still announces `autolaunch:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
+    if (!isAvailable()) return
     const generation = ++walletSyncGeneration.current
     const selected = eligibleActiveWallet(activeWallet, wallets)?.address.toLowerCase() ?? null
 
@@ -672,7 +739,7 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     }
 
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
-      if (walletSyncGeneration.current !== generation) return
+      if (!isAvailable() || walletSyncGeneration.current !== generation) return
       replaceConnectedEthereumWallets([])
       replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
@@ -692,14 +759,14 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
           ] as const,
       ),
     )
-    if (walletSyncGeneration.current !== generation) return
+    if (!isAvailable() || walletSyncGeneration.current !== generation) return
 
     const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
     const active = entries.find(([address]) => address === selected)
     replaceConnectedEthereumWallets(entries)
     replaceActiveEthereumWallet(active ? {address: active[0], provider: active[1]} : null)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
-  }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady])
+  }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady, isAvailable])
 
   React.useEffect(() => {
     if (signOutOnly) return
@@ -797,6 +864,43 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   return null
 }
 
+type ProviderFailureBoundaryProps = {
+  children: React.ReactNode
+  onFailure: (error: unknown) => void
+}
+
+// A provider that cannot start, such as one given an app id it rejects, throws
+// while React renders it. Without a boundary that throw unmounts the tree and
+// the startup promise below never settles, so a Sign in press or a profile
+// load waits on nothing. The boundary reports the failure once and renders
+// nothing in the provider's place.
+export class ProviderFailureBoundary extends React.Component<
+  ProviderFailureBoundaryProps,
+  {failed: boolean}
+> {
+  state = {failed: false}
+
+  static getDerivedStateFromError() {
+    return {failed: true}
+  }
+
+  componentDidCatch(error: unknown) {
+    this.props.onFailure(error)
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children
+  }
+}
+
+// How long a provider may take to report ready before this startup gives up.
+// A provider that cannot reach its service, or is refused by it, may neither
+// throw nor become ready; a Sign in press or a profile load must not wait on
+// that forever. The window only bounds this startup: the rejected provider is
+// unmounted, nothing about the local session changes, and the lazy loader
+// starts a fresh provider on the next request.
+export const providerReadyWindowMs = 15_000
+
 export function startPrivyBridge(
   {mode = "ordinary"}: PrivyBridgeStartupOptions = {},
   providerState?: PrivyBridgeProviderState,
@@ -809,24 +913,60 @@ export function startPrivyBridge(
   host.hidden = true
   document.body.append(host)
 
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
     let currentProfileHandler: ProfileAction | null = null
-    let resolved = false
+    let settled = false
+    let unavailable = false
+    let rejectWork!: (error: Error) => void
+    const failure = new Promise<never>((_resolve, fail) => { rejectWork = fail })
+    void failure.catch(() => undefined)
+    const isAvailable = () => !unavailable
+    const root = createRoot(host)
+    const readyWindow = setTimeout(
+      () => failed("Privy provider did not become ready"),
+      providerReadyWindowMs,
+    )
+    const failed = (reason: string) => {
+      if (unavailable) return
+      unavailable = true
+      clearTimeout(readyWindow)
+      currentRequestHandler = null
+      currentIdentityHandler = null
+      currentProfileHandler = null
+      currentFinishSignOutOnly = null
+      replaceConnectedEthereumWallets([])
+      replaceActiveEthereumWallet(null)
+      window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
+      // React forbids unmounting from inside the render that just failed, so
+      // the tree is torn down properly on a later turn.
+      setTimeout(() => {
+        try { root.unmount() } finally { host.remove() }
+      }, 0)
+      const error = new Error(reason)
+      rejectWork(error)
+      if (!settled) {
+        settled = true
+        reject(error)
+      }
+    }
     const handle: PrivyBridgeHandle = {
+      isAvailable,
       profile(...args) {
-        return currentProfileHandler ? currentProfileHandler(...args) : Promise.reject(new Error("Profile is unavailable"))
+        return currentProfileHandler
+          ? Promise.race([currentProfileHandler(...args), failure])
+          : Promise.reject(new Error("Profile is unavailable"))
       },
       request(request) {
         return currentRequestHandler
-          ? currentRequestHandler(request)
+          ? Promise.race([currentRequestHandler(request), failure])
           : Promise.reject(new Error("Privy bridge is not ready"))
       },
       identity(request) {
         return currentIdentityHandler
-          ? currentIdentityHandler(request)
+          ? Promise.race([currentIdentityHandler(request), failure])
           : Promise.reject(new Error("Privy bridge is not ready"))
       },
       finishSignOutOnly() {
@@ -840,23 +980,28 @@ export function startPrivyBridge(
       ready,
       profileHandler,
     ) => {
+      if (unavailable) return
       currentProfileHandler = profileHandler
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
       currentFinishSignOutOnly = finishSignOutOnly
-      if (!ready || resolved) return
-      resolved = true
+      if (!ready || settled) return
+      settled = true
+      clearTimeout(readyWindow)
       resolve(handle)
     }
 
-    createRoot(host).render(
-      <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
-        <AccountBridge
-          mode={mode}
-          providerState={providerState}
-          publishRequestHandler={publishRequestHandler}
-        />
-      </PrivyProvider>,
+    root.render(
+      <ProviderFailureBoundary onFailure={() => failed("Privy provider is unavailable")}>
+        <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
+          <AccountBridge
+            mode={mode}
+            isAvailable={isAvailable}
+            providerState={providerState}
+            publishRequestHandler={publishRequestHandler}
+          />
+        </PrivyProvider>
+      </ProviderFailureBoundary>,
     )
   })
 }

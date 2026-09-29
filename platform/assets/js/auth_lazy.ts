@@ -11,6 +11,7 @@ export type IdentityRequest = {
 }
 
 export type PrivyBridgeHandle = {
+  isAvailable?: () => boolean
   profile?: ProfileAction
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
@@ -565,6 +566,13 @@ export function createLazyAuthLoader(
     promise: Promise<void>
   } | null = null
 
+  const discardUnavailableHandle = () => {
+    if (handle?.isAvailable?.() === false) {
+      handle = null
+      delivering = null
+    }
+  }
+
   const sameRequest = (
     first: AccountRequest | IdentityRequest,
     second: AccountRequest | IdentityRequest,
@@ -602,7 +610,7 @@ export function createLazyAuthLoader(
   }
 
   const prepare = (profileOnly = false): Promise<void> => {
-    const attempt = importer()
+    const attempt = withinWindow(importer(), 15_000, "Privy bridge import timed out")
       .then(module => {
         if (typeof module.startPrivyBridge !== "function") {
           throw new Error("Privy bridge module is invalid")
@@ -632,6 +640,7 @@ export function createLazyAuthLoader(
 
   return {
     request(request: AccountRequest): Promise<void> {
+      discardUnavailableHandle()
       if (state === "handoff-preterminal" && request !== "sign-out") {
         return Promise.reject(new Error("Provider sign out is still in progress."))
       }
@@ -653,6 +662,7 @@ export function createLazyAuthLoader(
       return preparing ?? prepare()
     },
     identity(request: IdentityRequest): Promise<void> {
+      discardUnavailableHandle()
       if (state === "handoff-preterminal") {
         return Promise.reject(new Error("Provider sign out is still in progress."))
       }
@@ -668,6 +678,7 @@ export function createLazyAuthLoader(
       return preparing ?? prepare()
     },
     async profile(...args: Parameters<ProfileAction>): ReturnType<ProfileAction> {
+      discardUnavailableHandle()
       if (state === "handoff-preterminal") {
         return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
       }

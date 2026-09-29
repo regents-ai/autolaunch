@@ -8,8 +8,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   does not hold shows no balances and can neither review nor send.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
-  server's own read of that exact hash, and a claimed step is never offered a
-  second send.
+  server's own read of that exact hash. Each distinct press is independent;
+  recovery reports prior outcomes and never sends again automatically.
   """
 
   use AutolaunchWeb, :live_component
@@ -85,6 +85,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
+  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
+    if socket.assigns.session_lease == lease,
+      do: {:ok, AutolaunchWeb.WalletPressComponent.completed(socket, result)},
+      else: {:ok, socket}
+  end
+
   def update(assigns, socket) do
     {:ok,
      socket
@@ -96,6 +102,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
      |> assign_new(:amount, fn -> "" end)
      |> assign_new(:note, fn -> "" end)
      |> assign_new(:notice, fn -> nil end)
+     |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
      |> assign(assets: @assets, action_list: @actions)}
   end
@@ -307,6 +314,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-subject-wallet-send={@operation.action_id}
+            data-wallet-step={@operation.step}
             data-subject-wallet-signer={@operation.signer}
           >
             Confirm in wallet
@@ -351,12 +359,51 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </button>
         </section>
       </div>
+      <AutolaunchWeb.WalletPressComponent.history history={@wallet_press_history} target={@myself} />
     </section>
     """
   end
 
   # The wallet Privy has selected, whenever it changes.
   @impl true
+  def handle_event("wallet_press_dispatch", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.dispatch(
+         socket,
+         :subject,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_report", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.report(
+         socket,
+         :subject,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_verify", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.verify(
+         socket,
+         :subject,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_restore", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.restore(socket, :subject, params, opts(socket))}
+
   def handle_event("subject_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -403,15 +450,16 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # The bound row goes on screen before Base is asked anything, so a read that
   # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event(
-        "subject_wallet_submitted",
-        %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
-        socket
-      ) do
-    case wallet_step(step) do
-      nil -> {:noreply, socket}
-      step -> submitted(socket, action_id, step, hash)
-    end
+  def handle_event("subject_wallet_submitted", params, socket) do
+    {:noreply,
+     AutolaunchWeb.WalletPressComponent.legacy_report(
+       socket,
+       :subject,
+       params,
+       opts(socket),
+       __MODULE__,
+       "autolaunch-subject-wallet:hash-durable"
+     )}
   end
 
   def handle_event("check_subject_wallet_step", %{"action-id" => action_id}, socket),
@@ -505,25 +553,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     """
   end
 
-  defp submitted(socket, action_id, step, hash) do
-    subject_id = socket.assigns.subject.subject_id
-
-    case Autolaunch.bind_subject_wallet_hash(subject_id, action_id, step, hash, opts(socket)) do
-      {:ok, %{operation: bound}} = result ->
-        socket = settled(result, socket)
-
-        socket =
-          subject_id
-          |> Autolaunch.verify_subject_wallet_step(action_id, opts(socket))
-          |> settled(socket)
-
-        {:noreply, acknowledged(socket, bound, step)}
-
-      refused ->
-        {:noreply, settled(refused, socket)}
-    end
-  end
-
   # The closed sets this card maps a browser value through. Nothing here builds
   # an atom from what the browser sent: a value outside the set has no meaning
   # and is answered with nothing rather than with an error.
@@ -535,10 +564,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp action_kind("sweep"), do: :sweep
   defp action_kind("set_note"), do: :set_note
   defp action_kind(_unknown), do: nil
-
-  defp wallet_step("approval"), do: :approval
-  defp wallet_step("action"), do: :action
-  defp wallet_step(_unknown), do: nil
 
   defp asset_key(id), do: Enum.find_value(@assets, &(&1.id == id && &1.key))
 
@@ -565,20 +590,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # The one acknowledgement the browser waits for before it drops its own copy of
   # a reported hash: this exact hash is durable on this exact step.
-  defp acknowledged(socket, operation, step),
-    do:
-      push_event(socket, "autolaunch-subject-wallet:hash-durable", %{
-        action_id: operation.action_id,
-        step: Atom.to_string(step),
-        transaction_hash: SubjectWalletActions.step_hash(operation, step)
-      })
-
   # The whole reviewed sequence, so the browser can check that what it is asked to
   # send really belongs to the operation it is holding.
   defp published(%{assigns: %{operation: nil}} = socket), do: cleared(socket)
 
   defp published(%{assigns: %{operation: operation}} = socket) do
     push_event(socket, "autolaunch-subject-wallet:operation", %{
+      component_id: socket.assigns.id,
       action_id: operation.action_id,
       subject_id: operation.subject_id,
       signer: operation.signer,

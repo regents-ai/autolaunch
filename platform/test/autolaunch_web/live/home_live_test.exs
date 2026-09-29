@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.HomeLiveTest do
   use AutolaunchWeb.ConnCase, async: false
 
+  alias Autolaunch.Repo
   alias Autolaunch.TestSupport
   alias AutolaunchWeb.Components.TokenLinks
 
@@ -50,6 +51,70 @@ defmodule AutolaunchWeb.HomeLiveTest do
 
     refute miss_html =~ "BixBench launch"
     assert miss_html =~ "No matching auctions or tokens."
+  end
+
+  test "switching a populated auction listing to Tokens renders the token kind", %{conn: conn} do
+    TestSupport.project_auction(title: "BixBench launch", state: :active)
+
+    {:ok, view, _html} = live(conn, "/?q=BixBench")
+    assert render_async(view) =~ "BixBench launch"
+
+    render_patch(view, "/?q=BixBench&view=tokens")
+    html = render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(nav[aria-label="Market filters"] a[aria-current="true"]),
+             "Tokens"
+           )
+
+    refute html =~ "BixBench launch"
+    assert html =~ "No matching auctions or tokens."
+
+    render_patch(view, "/?q=BixBench")
+    assert render_async(view) =~ "BixBench launch"
+  end
+
+  @tag :capture_log
+  test "a failed listing read is an error with Retry, not an empty market", %{conn: conn} do
+    TestSupport.project_auction(title: "Recovering launch", state: :active)
+
+    # The sandbox savepoints each statement, so renaming the table inside the test
+    # transaction is a real failed read that the test can undo.
+    Repo.query!("ALTER TABLE auctions RENAME TO auctions_unavailable")
+    {:ok, view, _html} = live(conn, "/")
+    html = render_async(view, 5_000)
+
+    assert has_element?(view, "#home-market [role=alert]", "Listings are unavailable right now.")
+    refute html =~ "No auctions yet."
+    refute html =~ "Postgrex"
+
+    Repo.query!("ALTER TABLE auctions_unavailable RENAME TO auctions")
+    render_click(element(view, "#home-market button", "Retry"))
+    html = render_async(view, 5_000)
+
+    assert html =~ "Recovering launch"
+    refute html =~ "Listings are unavailable right now."
+  end
+
+  test "an exact clearing price is shortened on the card with the exact figure kept", %{
+    conn: conn
+  } do
+    exact =
+      "0.0009999999999999999999999993646703595967223962047236950068107574907116941176354885101318359375"
+
+    TestSupport.project_auction(
+      title: "Priced launch",
+      state: :active,
+      current_clearing_price: exact
+    )
+
+    {:ok, view, _html} = live(conn, "/")
+    html = render_async(view)
+
+    assert html =~ ~s(<span aria-hidden="true" title="#{exact})
+    assert html =~ ">0.0009999"
+    assert html =~ ~s(<span class="visually-hidden">#{exact})
   end
 
   test "a graduated token card states when no price is recorded", %{conn: conn} do

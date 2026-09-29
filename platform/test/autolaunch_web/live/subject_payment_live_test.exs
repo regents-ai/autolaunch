@@ -287,7 +287,7 @@ defmodule AutolaunchWeb.SubjectPaymentLiveTest do
       ChainClient.put(%{outcomes: %{action: %{outcome: :confirmed}}})
 
       html =
-        render_hook(element(view, @card), "subject_wallet_submitted", %{
+        settled_report(view, %{
           "action_id" => action_id,
           "step" => "action",
           "transaction_hash" => @action_hash
@@ -311,7 +311,7 @@ defmodule AutolaunchWeb.SubjectPaymentLiveTest do
       ChainClient.put(%{outcomes: %{approval: %{outcome: :confirmed}}})
 
       html =
-        render_hook(element(view, @card), "subject_wallet_submitted", %{
+        settled_report(view, %{
           "action_id" => action_id,
           "step" => "approval",
           "transaction_hash" => @approval_hash
@@ -378,7 +378,7 @@ defmodule AutolaunchWeb.SubjectPaymentLiveTest do
       assert action_id(reopened) == action_id
     end
 
-    test "a verified revert is terminal and never offers another send", %{
+    test "a verified revert stays on its press without retiring the review", %{
       conn: conn,
       account: account,
       subject: subject
@@ -391,14 +391,14 @@ defmodule AutolaunchWeb.SubjectPaymentLiveTest do
       ChainClient.put(%{outcomes: %{action: %{outcome: :reverted}}})
 
       html =
-        render_hook(element(view, @card), "subject_wallet_submitted", %{
+        settled_report(view, %{
           "action_id" => action_id,
           "step" => "action",
           "transaction_hash" => @action_hash
         })
 
-      assert text(html) =~ "This transaction reverted on Base. Nothing moved."
-      refute has_element?(view, "#{@card} [data-subject-wallet-send]")
+      assert text(html) =~ "action: reverted"
+      assert has_element?(view, "#{@card} [data-subject-wallet-send]")
     end
 
     test "a browser-reported failure never claims more than it knows", %{
@@ -508,7 +508,7 @@ defmodule AutolaunchWeb.SubjectPaymentLiveTest do
       html = confirmed(view, :claim, %{"asset" => "usdc"}, %{outcome: :reverted})
 
       assert html =~ "12 USDC"
-      assert text(html) =~ "This transaction reverted on Base. Nothing moved."
+      assert text(html) =~ "action: reverted"
     end
   end
 
@@ -746,11 +746,18 @@ defmodule AutolaunchWeb.SubjectPaymentLiveTest do
     render_hook(element(view, @card), "sign_subject_wallet_step", %{"action-id" => action_id})
     ChainClient.put(%{outcomes: %{action: outcome}})
 
-    render_hook(element(view, @card), "subject_wallet_submitted", %{
+    settled_report(view, %{
       "action_id" => action_id,
       "step" => "action",
       "transaction_hash" => unique_hash()
     })
+  end
+
+  defp settled_report(view, params) do
+    render_hook(element(view, @card), "subject_wallet_submitted", params)
+    # Durable acknowledgement intentionally precedes the independent receipt task.
+    assert_push_event(view, "wallet-press:updated", %{})
+    render(view)
   end
 
   # Every bound hash is unique across every operation, so a test that settles

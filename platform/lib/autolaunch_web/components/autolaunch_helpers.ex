@@ -195,6 +195,37 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     """
   end
 
+  attr :surface, :string, required: true
+
+  # A local-fork site has no treasury evidence to show: the fixture the lab
+  # runs on is not a chain observation, so the page says so instead.
+  def lab_treasury_unavailable(assigns) do
+    ~H"""
+    <aside id={"treasury-security-#{@surface}"} class="treasury-security" role="status">
+      <h3>Treasury security</h3>
+      <p class="treasury-security--warning">
+        Treasury verification is not available on the local Base fork. Custody is unverified here.
+      </p>
+    </aside>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :summary, :string, required: true
+  attr :amount, :string, default: nil
+  attr :unit, :string, default: nil
+
+  # The stored figure, unshortened, for anyone who needs every digit.
+  def exact_price(assigns) do
+    ~H"""
+    <Regent.Primitives.disclosure :if={present?(@amount)} id={@id} summary={@summary}>
+      <p class="autolaunch-exact-value">{@amount}{if present?(@unit), do: " #{@unit}"}</p>
+    </Regent.Primitives.disclosure>
+    """
+  end
+
+  defp present?(value), do: is_binary(value) and String.trim(value) != ""
+
   attr :copy, :string, required: true
 
   def empty_state(assigns) do

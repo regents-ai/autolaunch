@@ -3,6 +3,8 @@ defmodule Autolaunch.LabMarketFeed do
 
   use GenServer
 
+  alias __MODULE__.{Projector, Reader}
+
   @topic "autolaunch:lab_market"
   @capacity 256
   @initial_delay 1_000
@@ -589,7 +591,7 @@ defmodule Autolaunch.LabMarketFeed do
            auction_id: auction.id,
            auction_address: String.downcase(address),
            state: market_state(auction.state, lifecycle, graduated?, block.number, start_block),
-           current_clearing_price: Rpc.format_units(clearing_price, 18),
+           current_clearing_price: Lab.format_price(clearing_price),
            block_number: block.number,
            block_hash: block.hash,
            start_block: start_block,

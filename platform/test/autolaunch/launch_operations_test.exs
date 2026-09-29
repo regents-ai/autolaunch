@@ -30,20 +30,47 @@ defmodule Autolaunch.LaunchOperationsTest do
   end
 
   describe "ONE_WINNER_PER_DISPATCH: the database decides every race" do
-    test "two sockets claiming one dispatch produce exactly one winner", context do
+    test "two distinct authorized presses both dispatch while the first is pending", context do
       {:ok, operation} = review(context)
 
-      results = race(fn -> claim(context, operation) end, 2)
+      results =
+        race(
+          fn ->
+            Autolaunch.dispatch_wallet_press(
+              :launch,
+              operation.action_id,
+              operation.step,
+              Ecto.UUID.generate(),
+              Fixture.wallet(),
+              context[:opts]
+            )
+          end,
+          2
+        )
 
-      assert Enum.count(results, &match?({:ok, %{operation: %{state: :dispatched}}}, &1)) == 1
-      assert Enum.count(results, &match?({:error, _refused}, &1)) == 1
+      assert Enum.all?(results, &match?({:ok, %{dispatch?: true}}, &1))
+      ids = Enum.map(results, fn {:ok, result} -> result.attempt.id end)
+      assert length(Enum.uniq(ids)) == 2
     end
 
-    test "a claimed step is never offered a second dispatch", context do
+    test "duplicate delivery of one press is report-only, a distinct press dispatches", context do
       {:ok, operation} = review(context)
+      id = Ecto.UUID.generate()
 
-      assert {:ok, %{operation: %{state: :dispatched}}} = claim(context, operation)
-      assert {:error, _refused} = claim(context, operation)
+      press = fn id ->
+        Autolaunch.dispatch_wallet_press(
+          :launch,
+          operation.action_id,
+          operation.step,
+          id,
+          Fixture.wallet(),
+          context[:opts]
+        )
+      end
+
+      assert {:ok, %{dispatch?: true}} = press.(id)
+      assert {:ok, %{dispatch?: false}} = press.(id)
+      assert {:ok, %{dispatch?: true}} = press.(Ecto.UUID.generate())
     end
 
     test "a bound hash never becomes resendable, whichever call lands first", context do
@@ -186,6 +213,72 @@ defmodule Autolaunch.LaunchOperationsTest do
       # The other account's own lease answers about the other account alone.
       assert {:ok, %{operation: nil}} = Autolaunch.open_launch_operation(other[:opts])
     end
+  end
+
+  test "late sibling approval cannot settle a newer step or overwrite an independent action",
+       context do
+    {:ok, op} = review(context)
+
+    press = fn step ->
+      {:ok, %{attempt: attempt}} =
+        Autolaunch.dispatch_wallet_press(
+          :launch,
+          op.action_id,
+          step,
+          Ecto.UUID.generate(),
+          Fixture.wallet(),
+          context[:opts]
+        )
+
+      attempt
+    end
+
+    report = fn attempt, hash ->
+      assert {:ok, _} =
+               Autolaunch.report_wallet_press(
+                 :launch,
+                 op.action_id,
+                 attempt.id,
+                 %{"transaction_hash" => hash},
+                 context[:opts]
+               )
+    end
+
+    check = fn attempt ->
+      Autolaunch.verify_wallet_press(:launch, op.action_id, attempt.id, context[:opts])
+    end
+
+    a = press.(:approval)
+    b = press.(:approval)
+    report.(a, @approval_hash)
+    report.(b, "0x" <> String.duplicate("b2", 32))
+    ChainClient.put(%{outcomes: %{approval: %{outcome: :confirmed}}})
+    assert {:ok, %{operation: %{step: step}}} = check.(a)
+    assert step == :launch
+
+    ChainClient.put(%{
+      snapshot: %{ChainClient.state().snapshot | allowance: ChainClient.state().snapshot.fee}
+    })
+
+    c = press.(step)
+    d = press.(step)
+    report.(c, "0x" <> String.duplicate("c3", 32))
+    report.(d, "0x" <> String.duplicate("d4", 32))
+    ChainClient.put(%{outcomes: %{approval: %{outcome: :reverted}}})
+    assert {:ok, %{attempt: %{state: :reverted}, operation: %{step: ^step}}} = check.(b)
+    result = %{"auction" => "0x7777777777777777777777777777777777777777", "staked" => "10"}
+    ChainClient.put(%{outcomes: %{step => %{outcome: :confirmed, result: result}}})
+    assert {:ok, %{attempt: %{state: :confirmed}, operation: %{terminal_at: closed}}} = check.(c)
+    assert closed
+    ChainClient.put(%{outcomes: %{step => %{outcome: :reverted}}})
+    assert {:ok, %{attempt: %{state: :reverted}, operation: %{terminal_at: ^closed}}} = check.(d)
+
+    assert {:ok, %{operation: %{attempts: attempts}}} =
+             Autolaunch.wallet_presses(:launch, op.action_id, context[:opts])
+
+    assert Enum.count(attempts, &(&1.state == :confirmed)) == 2
+    assert Enum.count(attempts, &(&1.state == :reverted)) == 2
+    refute ChainClient.state().read_in_transaction?
   end
 
   # Helpers

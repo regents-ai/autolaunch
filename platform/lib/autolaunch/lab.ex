@@ -4,6 +4,8 @@ defmodule Autolaunch.Lab do
   alias Autolaunch.Chain.Address
 
   @chain_id 31_337
+  # 1 / 2^96 = 5^96 / 10^96, so a Q96 price is an exact 96-place decimal.
+  @five_pow_96 Integer.pow(5, 96)
   @address_keys ~w(
     cca_factory
     escrow_implementation
@@ -122,6 +124,18 @@ defmodule Autolaunch.Lab do
       {:error, _reason} -> false
     end
   end
+
+  @doc "The exact decimal a Q96 fixed-point price names: `q96 / 2^96`, with no rounding."
+  def price_decimal(q96) when is_integer(q96) and q96 >= 0, do: plain(q96 * @five_pow_96, -96)
+
+  # Drops trailing zeros by hand: `Decimal.normalize/1` would round the
+  # coefficient to the context precision, and a Q96 price has more digits.
+  defp plain(0, _exp), do: Decimal.new(0)
+  defp plain(coef, exp) when rem(coef, 10) == 0, do: plain(div(coef, 10), exp + 1)
+  defp plain(coef, exp), do: Decimal.new(1, coef, exp)
+
+  @doc "`price_decimal/1` as the plain decimal string the site stores and shows."
+  def format_price(q96), do: q96 |> price_decimal() |> Decimal.to_string(:normal)
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))

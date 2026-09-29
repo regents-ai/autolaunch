@@ -1,8 +1,13 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import React from "react"
+import type {PrivyEvents} from "@privy-io/react-auth"
 
 const productionRootRender = vi.hoisted(() => vi.fn())
+const productionRootUnmount = vi.hoisted(() => vi.fn())
 const productionPrivyHooks = vi.hoisted(() => ({
+  tokenCallbacks: {} as PrivyEvents["accessToken"],
+  loginCallbacks: {} as PrivyEvents["login"],
+  linkCallbacks: {} as PrivyEvents["linkAccount"],
   login: vi.fn(),
   linkTwitter: vi.fn(),
   linkGithub: vi.fn(),
@@ -13,7 +18,7 @@ const productionPrivyHooks = vi.hoisted(() => ({
 }))
 
 vi.mock("react-dom/client", () => ({
-  createRoot: () => ({render: productionRootRender}),
+  createRoot: () => ({render: productionRootRender, unmount: productionRootUnmount}),
 }))
 
 vi.mock("@privy-io/react-auth", () => ({
@@ -24,25 +29,36 @@ vi.mock("@privy-io/react-auth", () => ({
     wallet: undefined,
     connect: productionPrivyHooks.connectActiveWallet,
   }),
-  useToken: () => ({getAccessToken: vi.fn(async () => null)}),
+  useToken: (callbacks: PrivyEvents["accessToken"]) => {
+    productionPrivyHooks.tokenCallbacks = callbacks
+    return {getAccessToken: vi.fn(async () => null)}
+  },
   getIdentityToken: vi.fn(async () => null),
-  useLogin: () => ({login: productionPrivyHooks.login}),
-  useLinkAccount: () => ({
-    linkTwitter: productionPrivyHooks.linkTwitter,
-    linkGithub: productionPrivyHooks.linkGithub,
-    linkFarcaster: productionPrivyHooks.linkFarcaster,
-  }),
+  useLogin: (callbacks: PrivyEvents["login"]) => {
+    productionPrivyHooks.loginCallbacks = callbacks
+    return {login: productionPrivyHooks.login}
+  },
+  useLinkAccount: (callbacks: PrivyEvents["linkAccount"]) => {
+    productionPrivyHooks.linkCallbacks = callbacks
+    return {
+      linkTwitter: productionPrivyHooks.linkTwitter,
+      linkGithub: productionPrivyHooks.linkGithub,
+      linkFarcaster: productionPrivyHooks.linkFarcaster,
+    }
+  },
   useUnlinkOAuth: () => ({unlink: productionPrivyHooks.unlinkOAuth}),
   useUnlinkFarcaster: () => ({unlink: productionPrivyHooks.unlinkFarcaster}),
 }))
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
 import * as bridge from "../js/privy_bridge"
 import {
+  browserSessionMutations,
   clearLocalSession,
   createLazyAuthLoader,
   createSessionMutationCoordinator,
@@ -114,13 +130,15 @@ function installAccountBridgeRenderer() {
     }
   }) as typeof React.useEffect)
 
-  return (element: React.ReactElement) => {
+  return (element: React.ReactElement, commit = true) => {
     cursor = 0
     pendingEffects = []
     ;(element.type as (props: unknown) => unknown)(element.props)
     const effects = pendingEffects
     pendingEffects = []
-    effects.forEach(effect => effect())
+    const commitEffects = () => effects.forEach(effect => effect())
+    if (commit) commitEffects()
+    return commitEffects
   }
 }
 
@@ -170,11 +188,13 @@ function stubSessionRequests(): Array<{url: string; method: string}> {
   return requests
 }
 
+// The root render is the failure boundary around the provider around the
+// account bridge; the bridge is the function component the harness runs.
 function renderedAccountBridge(): React.ReactElement {
-  const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
-    children: React.ReactElement
+  const boundaryElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+    children: React.ReactElement<{children: React.ReactElement}>
   }>
-  return providerElement.props.children
+  return boundaryElement.props.children.props.children
 }
 
 function ethereumWallet(address: string) {
@@ -210,6 +230,607 @@ function heldPromise() {
   let resolve!: () => void
   return {promise: new Promise<void>(settle => (resolve = settle)), resolve}
 }
+
+// Run the actual AccountBridge and capture the callbacks passed to the SDK.
+// HTTP is held at real coordinator/CSRF boundaries, never replaced by a fake
+// completion handler. Every schedule drains that coordinator before finishing.
+function callbackScenario({
+  marker = "sign-in",
+  authenticated = true,
+  ready = true,
+  mode = "profile-only",
+  commit = true,
+}: {
+  marker?: "sign-in" | "sign-out"
+  authenticated?: boolean
+  ready?: boolean
+  mode?: "ordinary" | "profile-only"
+  commit?: boolean
+} = {}) {
+  vi.useFakeTimers()
+  const {reload, dispatched} = stubBrowserGlobals(marker)
+  const status = {textContent: "current status", hidden: true}
+  const csrf = {content: "old-csrf"}
+  const remove = vi.fn()
+  const querySelector = document.querySelector.bind(document)
+  vi.stubGlobal("document", {
+    body: {append: vi.fn()},
+    createElement: () => ({hidden: false, remove}),
+    querySelector: (selector: string) => selector === "#account-auth-status" ? status
+      : selector === "meta[name='csrf-token']" ? csrf : querySelector(selector),
+  })
+  productionRootRender.mockReset()
+  productionRootUnmount.mockReset()
+  productionPrivyHooks.login = vi.fn()
+  const render = installAccountBridgeRenderer()
+  const state: bridge.PrivyBridgeProviderState = {
+    appId: "public-test-app", authenticated, ready, walletsReady: false, wallets: [],
+    getAccessToken: vi.fn(async () => verifiedPair.accessToken),
+    getIdentityToken: vi.fn(async () => verifiedPair.identityToken),
+    logout: vi.fn(async () => undefined),
+  }
+  const startup = bridge.startPrivyBridge({mode}, state)
+  void startup.catch(() => undefined)
+  const element = renderedAccountBridge()
+  const commitInitialRender = render(element, commit)
+  return {
+    state, startup, status, csrf, reload, dispatched, remove, commitInitialRender,
+    render: (commit = true) => render(element, commit),
+    fail: () => productionRootRender.mock.calls[0][0].props.onFailure(new Error("provider crashed")),
+    grant: () => productionPrivyHooks.tokenCallbacks.onAccessTokenGranted?.({} as never),
+    complete: () => productionPrivyHooks.loginCallbacks.onComplete?.({} as never),
+  }
+}
+
+describe("production callback lifetime", () => {
+  it("AUTH-LIFETIME-001: disposed work leaves the coordinator queue without starting CSRF", async () => {
+    const heldQueue = heldPromise()
+    const blocker = browserSessionMutations.establish(() => heldQueue.promise)
+    const requests = stubSessionRequests()
+    const scenario = callbackScenario()
+    const handle = await scenario.startup
+    const request = handle.request("sign-in")
+    const rejected = expect(request).rejects.toThrow("unavailable")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.state.getAccessToken).toHaveBeenCalledOnce()
+    expect(requests).toEqual([])
+    scenario.fail()
+    await rejected
+    heldQueue.resolve()
+    await blocker
+    await browserSessionMutations.establish(async () => undefined)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(requests).toEqual([])
+    expect(scenario.reload).not.toHaveBeenCalled()
+  })
+
+  it("AUTH-LIFETIME-001: disposal during recovery logout suppresses its later login", async () => {
+    const heldLogout = heldPromise()
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => input === "/auth/csrf"
+      ? new Response(JSON.stringify({csrf_token: "csrf"}))
+      : new Response("{}", {status: 401, headers: {"x-autolaunch-provider-relogin": "allowed"}})))
+    const scenario = callbackScenario()
+    scenario.state.logout = vi.fn(() => heldLogout.promise)
+    scenario.render()
+    const handle = await scenario.startup
+    const request = handle.request("sign-in")
+    const rejected = expect(request).rejects.toThrow("unavailable")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.state.logout).toHaveBeenCalledOnce()
+    scenario.fail()
+    await rejected
+    heldLogout.resolve()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(productionPrivyHooks.login).not.toHaveBeenCalled()
+    expect(scenario.status).toEqual({textContent: "current status", hidden: true})
+  })
+
+  it("AUTH-LIFETIME-001: explicit login completion cannot report a late POST failure after disposal", async () => {
+    const heldPost = heldPromise()
+    const requests: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      if (input === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "csrf"}))
+      await heldPost.promise
+      return new Response("{}", {status: 500})
+    }))
+    const scenario = callbackScenario({authenticated: false})
+    const handle = await scenario.startup
+    await handle.request("sign-in")
+    const savedComplete = productionPrivyHooks.loginCallbacks.onComplete
+    savedComplete?.({} as never)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf", "/auth/privy/session"])
+    scenario.fail()
+    await vi.advanceTimersByTimeAsync(1)
+    heldPost.resolve()
+    await browserSessionMutations.establish(async () => undefined)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.status).toEqual({textContent: "current status", hidden: true})
+    expect(scenario.reload).not.toHaveBeenCalled()
+    savedComplete?.({} as never)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf", "/auth/privy/session"])
+  })
+
+  it("AUTH-LIFETIME-001: a link refresh held at CSRF cannot POST or notify after disposal", async () => {
+    const heldCsrf = heldPromise()
+    const requests: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      if (input === "/auth/csrf") {
+        await heldCsrf.promise
+        return new Response(JSON.stringify({csrf_token: "adopted"}))
+      }
+      return new Response("{}", {status: 500})
+    }))
+    const scenario = callbackScenario({marker: "sign-out"})
+    await scenario.startup
+    productionPrivyHooks.linkCallbacks.onSuccess?.({} as never)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf"])
+    scenario.fail()
+    await vi.advanceTimersByTimeAsync(1)
+    heldCsrf.resolve()
+    await browserSessionMutations.establish(async () => undefined)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf"])
+    expect(scenario.dispatched).not.toContain("autolaunch:identity-state")
+    expect(scenario.dispatched).not.toContain("regent:profile-link")
+  })
+
+  it.each(["success", "recoverable-401", "reset-409"] as const)(
+    "AUTH-LIFETIME-001: a late committed %s response cannot start recovery or UI work",
+    async outcome => {
+      const heldPost = heldPromise()
+      const requests: string[] = []
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+        requests.push(String(input))
+        if (input === "/auth/csrf") {
+          return new Response(JSON.stringify({csrf_token: requests.length === 1 ? "before" : "adopted"}))
+        }
+        await heldPost.promise
+        if (outcome === "recoverable-401") {
+          return new Response("{}", {status: 401, headers: {"x-autolaunch-provider-relogin": "allowed"}})
+        }
+        if (outcome === "reset-409") {
+          return new Response(JSON.stringify({error: "session_reset_required"}), {status: 409})
+        }
+        return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+      }))
+      const scenario = callbackScenario()
+      const handle = await scenario.startup
+      const request = handle.request("sign-in")
+      const rejected = expect(request).rejects.toThrow("unavailable")
+      await vi.advanceTimersByTimeAsync(0)
+      expect(requests).toEqual(["/auth/csrf", "/auth/privy/session"])
+      scenario.fail()
+      await rejected
+      await vi.advanceTimersByTimeAsync(1)
+      expect(productionRootUnmount).toHaveBeenCalledOnce()
+      heldPost.resolve()
+      await browserSessionMutations.establish(async () => undefined)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(requests).toEqual(outcome === "success"
+        ? ["/auth/csrf", "/auth/privy/session", "/auth/csrf"]
+        : ["/auth/csrf", "/auth/privy/session"])
+      if (outcome === "success") expect(scenario.csrf.content).toBe("adopted")
+      expect(scenario.state.logout).not.toHaveBeenCalled()
+      expect(productionPrivyHooks.login).not.toHaveBeenCalled()
+      expect(scenario.reload).not.toHaveBeenCalled()
+      expect(scenario.status).toEqual({textContent: "current status", hidden: true})
+    },
+  )
+
+  it("AUTH-LIFETIME-001: a saved login error cannot overwrite UI after disposal", async () => {
+    const scenario = callbackScenario({authenticated: false})
+    const handle = await scenario.startup
+    await handle.request("sign-in")
+    expect(productionPrivyHooks.login).toHaveBeenCalledOnce()
+    const onError = productionPrivyHooks.loginCallbacks.onError
+    scenario.fail()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(productionRootUnmount).toHaveBeenCalledOnce()
+    onError?.("exited_auth_flow" as never)
+    expect(scenario.status).toEqual({textContent: "current status", hidden: true})
+  })
+
+  it("AUTH-LIFETIME-001: disposal during CSRF adoption prevents a new session POST", async () => {
+    const heldCsrf = heldPromise()
+    const requests: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      if (input === "/auth/csrf") {
+        await heldCsrf.promise
+        return new Response(JSON.stringify({csrf_token: "adopted-csrf"}))
+      }
+      return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario()
+    const handle = await scenario.startup
+    const request = handle.request("sign-in")
+    const rejected = expect(request).rejects.toThrow("unavailable")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf"])
+    scenario.fail()
+    await rejected
+    await vi.advanceTimersByTimeAsync(1)
+    expect(productionRootUnmount).toHaveBeenCalledOnce()
+    heldCsrf.resolve()
+    await browserSessionMutations.establish(async () => undefined)
+    expect(scenario.csrf.content).toBe("adopted-csrf")
+    expect(requests).toEqual(["/auth/csrf"])
+    expect(scenario.reload).not.toHaveBeenCalled()
+  })
+})
+
+describe("production callback readiness", () => {
+  it("AUTH-READINESS-002: initial render alone does not authorize passive completion", async () => {
+    const requests = stubSessionRequests()
+    const scenario = callbackScenario({mode: "ordinary", commit: false})
+    scenario.grant()
+    scenario.complete()
+    await vi.advanceTimersByTimeAsync(0)
+    await browserSessionMutations.establish(async () => undefined)
+    expect(requests).toEqual([])
+    scenario.commitInitialRender()
+    await scenario.startup
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.reload).toHaveBeenCalledOnce()
+  })
+
+  it("AUTH-READINESS-002: callbacks use committed readiness and share one completion once ready", async () => {
+    const requests = stubSessionRequests()
+    const scenario = callbackScenario({ready: false, mode: "ordinary"})
+    const savedGrant = productionPrivyHooks.tokenCallbacks.onAccessTokenGranted
+    const savedComplete = productionPrivyHooks.loginCallbacks.onComplete
+    scenario.state.ready = true
+    const commit = scenario.render(false)
+    savedGrant?.({} as never)
+    savedComplete?.({} as never)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual([])
+    commit()
+    await scenario.startup
+    savedGrant?.({} as never)
+    savedComplete?.({} as never)
+    await vi.advanceTimersByTimeAsync(0)
+    await browserSessionMutations.establish(async () => undefined)
+    expect(requests).toEqual([
+      {url: "/auth/csrf", method: "GET"},
+      {url: "/auth/privy/session", method: "POST"},
+      {url: "/auth/csrf", method: "GET"},
+    ])
+    expect(scenario.reload).toHaveBeenCalledOnce()
+    expect(scenario.state.logout).not.toHaveBeenCalled()
+    expect(productionPrivyHooks.login).not.toHaveBeenCalled()
+  })
+
+  it.each(["ordinary", "profile-only"] as const)("AUTH-READINESS-003: %s resumes adopted success once without another POST", async mode => {
+    const heldPost = heldPromise()
+    const requests: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      if (input === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "adopted"}))
+      await heldPost.promise
+      return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario({mode})
+    const handle = await scenario.startup
+    const completion = mode === "ordinary" ? scenario.grant() : handle.request("sign-in")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf", "/auth/privy/session"])
+    scenario.state.ready = false
+    scenario.render()
+    heldPost.resolve()
+    await completion
+    await browserSessionMutations.establish(async () => undefined)
+    expect(requests).toEqual(["/auth/csrf", "/auth/privy/session", "/auth/csrf"])
+    expect(scenario.csrf.content).toBe("adopted")
+    expect(scenario.reload).not.toHaveBeenCalled()
+    await handle.request("sign-in")
+    expect(scenario.reload).not.toHaveBeenCalled()
+
+    scenario.state.ready = true
+    scenario.render()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.reload).toHaveBeenCalledTimes(mode === "ordinary" ? 1 : 0)
+    await handle.request("sign-in")
+    scenario.grant()
+    scenario.complete()
+    await handle.request("sign-in")
+    await browserSessionMutations.establish(async () => undefined)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.reload).toHaveBeenCalledOnce()
+    expect(requests).toEqual(["/auth/csrf", "/auth/privy/session", "/auth/csrf"])
+    expect(scenario.state.getAccessToken).toHaveBeenCalledOnce()
+    expect(scenario.state.logout).not.toHaveBeenCalled()
+    expect(productionPrivyHooks.login).not.toHaveBeenCalled()
+  })
+
+  it.each(["pending", "adopted"] as const)("AUTH-READINESS-003: a changed subject cannot reuse %s success", async phase => {
+    const firstPost = heldPromise()
+    const nextPost = heldPromise()
+    const bearers: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "adopted"}))
+      bearers.push((init?.headers as Record<string, string>).authorization)
+      await (bearers.length === 1 ? firstPost.promise : nextPost.promise)
+      return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario({mode: "ordinary", ready: false})
+    scenario.state.userId = "did:privy:first"
+    scenario.state.getAccessToken = vi.fn(async () => "first-proof")
+    scenario.state.ready = true
+    scenario.render()
+    const handle = await scenario.startup
+    const granted = scenario.grant()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(bearers).toEqual(["Bearer first-proof"])
+    scenario.state.ready = false
+    scenario.render()
+    if (phase === "adopted") {
+      firstPost.resolve()
+      await granted
+      await browserSessionMutations.establish(async () => undefined)
+    }
+    scenario.state.userId = "did:privy:next"
+    scenario.state.getAccessToken = vi.fn(async () => "next-proof")
+    scenario.state.getIdentityToken = vi.fn(async () => "next-identity")
+    scenario.state.ready = true
+    scenario.render()
+    firstPost.resolve()
+    await granted
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scenario.csrf.content).toBe("adopted")
+    expect(scenario.reload).not.toHaveBeenCalled()
+    expect(bearers).toEqual(["Bearer first-proof", "Bearer next-proof"])
+    nextPost.resolve()
+    await browserSessionMutations.establish(async () => undefined)
+    await handle.request("sign-in")
+    expect(scenario.reload).toHaveBeenCalledOnce()
+    expect(bearers).toEqual(["Bearer first-proof", "Bearer next-proof"])
+  })
+
+  it("AUTH-READINESS-003: a refused replacement cannot revive an older adopted identity", async () => {
+    const heldPost = heldPromise()
+    const bearers: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "adopted"}))
+      bearers.push((init?.headers as Record<string, string>).authorization)
+      await heldPost.promise
+      return bearers.length === 2 ? new Response("{}", {status: 401})
+        : new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario()
+    scenario.state.userId = "did:privy:first"
+    scenario.state.getAccessToken = vi.fn(async () => "first-proof")
+    scenario.render()
+    const handle = await scenario.startup
+    const request = handle.request("sign-in")
+    await vi.advanceTimersByTimeAsync(0)
+    scenario.state.ready = false
+    scenario.render()
+    heldPost.resolve()
+    await request
+    expect(scenario.reload).not.toHaveBeenCalled()
+    scenario.state.ready = true
+    scenario.state.userId = "did:privy:next"
+    scenario.state.getAccessToken = vi.fn(async () => "next-proof")
+    scenario.render()
+    await expect(handle.request("sign-in")).rejects.toThrow("Sign in could not be completed")
+    expect(scenario.reload).not.toHaveBeenCalled()
+    scenario.state.userId = "did:privy:first"
+    scenario.state.getAccessToken = vi.fn(async () => "fresh-first-proof")
+    scenario.render()
+    await handle.request("sign-in")
+    expect(bearers).toEqual(["Bearer first-proof", "Bearer next-proof", "Bearer fresh-first-proof"])
+    expect(scenario.reload).toHaveBeenCalledOnce()
+  })
+
+  it("AUTH-READINESS-003: an uncommitted subject render cannot replace the admitted proof source", async () => {
+    const bearers: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "adopted"}))
+      bearers.push((init?.headers as Record<string, string>).authorization)
+      return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario()
+    const handle = await scenario.startup
+    scenario.state.userId = "did:privy:first"
+    scenario.state.getAccessToken = vi.fn(async () => "first-proof")
+    scenario.render()
+    scenario.state.userId = "did:privy:uncommitted"
+    const uncommittedSource = vi.fn(async () => "uncommitted-proof")
+    scenario.state.getAccessToken = uncommittedSource
+    scenario.render(false)
+    await handle.request("sign-in")
+    expect(bearers).toEqual(["Bearer first-proof"])
+    expect(uncommittedSource).not.toHaveBeenCalled()
+    expect(scenario.reload).toHaveBeenCalledOnce()
+  })
+
+  it("AUTH-READINESS-003: disposal discards the pending document transition, not CSRF adoption", async () => {
+    const heldPost = heldPromise()
+    const requests: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      if (input === "/auth/csrf") return new Response(JSON.stringify({csrf_token: "adopted"}))
+      await heldPost.promise
+      return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario({mode: "ordinary"})
+    const handle = await scenario.startup
+    const granted = scenario.grant()
+    await vi.advanceTimersByTimeAsync(0)
+    scenario.state.ready = false
+    scenario.render()
+    heldPost.resolve()
+    await granted
+    await browserSessionMutations.establish(async () => undefined)
+    scenario.state.ready = true
+    const staleCommit = scenario.render(false)
+    scenario.fail()
+    staleCommit()
+    scenario.grant()
+    scenario.complete()
+    await expect(handle.request("sign-in")).rejects.toThrow("not ready")
+    await vi.advanceTimersByTimeAsync(1)
+    await browserSessionMutations.establish(async () => undefined)
+    expect(scenario.csrf.content).toBe("adopted")
+    expect(scenario.reload).not.toHaveBeenCalled()
+    expect(requests).toEqual(["/auth/csrf", "/auth/privy/session", "/auth/csrf"])
+    expect(scenario.status).toEqual({textContent: "current status", hidden: true})
+    expect(scenario.state.logout).not.toHaveBeenCalled()
+    expect(productionPrivyHooks.login).not.toHaveBeenCalled()
+  })
+
+  it.each((["sign-in", "sign-out"] as const).flatMap(marker =>
+    [false, true].flatMap(authenticated => (["grant", "complete"] as const).map(callback =>
+      ({marker, authenticated, callback}))),
+  ))("AUTH-READINESS-002: pre-ready $callback preserves $marker (authenticated=$authenticated)", async ({marker, authenticated, callback}) => {
+    const requests = stubSessionRequests()
+    const scenario = callbackScenario({marker, authenticated, ready: false, mode: "ordinary"})
+    scenario[callback]()
+    await vi.advanceTimersByTimeAsync(0)
+    await browserSessionMutations.establish(async () => undefined)
+    expect(requests).toEqual([])
+    expect(scenario.state.getAccessToken).not.toHaveBeenCalled()
+    expect(scenario.state.logout).not.toHaveBeenCalled()
+    expect(scenario.reload).not.toHaveBeenCalled()
+    expect(scenario.status).toEqual({textContent: "current status", hidden: true})
+    scenario.fail()
+    await vi.advanceTimersByTimeAsync(1)
+  })
+
+  it.each(["grant", "complete"] as const)("AUTH-READINESS-002: ready but unauthenticated passive %s is not explicit login", async callback => {
+    const requests = stubSessionRequests()
+    const scenario = callbackScenario({authenticated: false, mode: "ordinary"})
+    await scenario.startup
+    scenario[callback]()
+    await vi.advanceTimersByTimeAsync(0)
+    await browserSessionMutations.establish(async () => undefined)
+    expect(requests).toEqual([])
+    expect(scenario.reload).not.toHaveBeenCalled()
+    expect(productionPrivyHooks.login).not.toHaveBeenCalled()
+  })
+
+  it.each(["ready", "authenticated"] as const)("AUTH-READINESS-002: loss of %s while CSRF is pending prevents passive commit", async field => {
+    const heldCsrf = heldPromise()
+    const requests: string[] = []
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requests.push(String(input))
+      if (input === "/auth/csrf") {
+        await heldCsrf.promise
+        return new Response(JSON.stringify({csrf_token: "adopted-csrf"}))
+      }
+      return new Response("{}", {headers: {"x-autolaunch-session-changed": "true"}})
+    }))
+    const scenario = callbackScenario({mode: "ordinary"})
+    await scenario.startup
+    const granted = scenario.grant()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(requests).toEqual(["/auth/csrf"])
+    scenario.state[field] = false
+    scenario.render()
+    heldCsrf.resolve()
+    await granted
+    await browserSessionMutations.establish(async () => undefined)
+    expect(requests).toEqual(["/auth/csrf"])
+    expect(scenario.csrf.content).toBe("adopted-csrf")
+    expect(scenario.state.logout).not.toHaveBeenCalled()
+    expect(scenario.reload).not.toHaveBeenCalled()
+  })
+})
+
+describe("provider lifetime", () => {
+  it("releases a stalled module import without mounting its late result", async () => {
+    vi.useFakeTimers()
+    let finishImport!: (module: {startPrivyBridge: () => Promise<{request: () => Promise<void>}>}) => void
+    const lateStart = vi.fn(async () => ({request: vi.fn(async () => undefined)}))
+    const recovered = vi.fn(async () => undefined)
+    const importer = vi.fn()
+      .mockImplementationOnce(() => new Promise(resolve => { finishImport = resolve }))
+      .mockResolvedValue({startPrivyBridge: async () => ({request: recovered})})
+    const loader = createLazyAuthLoader(importer)
+    const first = loader.request("sign-in")
+    const refused = expect(first).rejects.toThrow("import")
+    await vi.advanceTimersByTimeAsync(15_001)
+    await refused
+    await loader.request("sign-in")
+    finishImport({startPrivyBridge: lateStart})
+    await vi.advanceTimersByTimeAsync(0)
+    expect(lateStart).not.toHaveBeenCalled()
+    expect(recovered).toHaveBeenCalledTimes(1)
+  })
+
+  function setupProvider() {
+    stubBrowserGlobals("sign-out")
+    const remove = vi.fn()
+    vi.stubGlobal("document", {
+      body: {append: vi.fn()},
+      createElement: () => ({hidden: false, remove}),
+      querySelector: () => null,
+    })
+    productionRootRender.mockReset()
+    productionRootUnmount.mockReset()
+    const providerState: bridge.PrivyBridgeProviderState = {
+      appId: "public-test-app", authenticated: false, ready: false,
+      walletsReady: false, wallets: [], getAccessToken: async () => null,
+      logout: vi.fn(async () => undefined),
+    }
+    return {providerState, remove}
+  }
+
+  it("bounds never-ready startup and unmounts without changing a session", async () => {
+    vi.useFakeTimers()
+    const {providerState, remove} = setupProvider()
+    const fetcher = vi.fn()
+    vi.stubGlobal("fetch", fetcher)
+    const startup = bridge.startPrivyBridge({}, providerState)
+    const refused = expect(startup).rejects.toThrow("did not become ready")
+    await vi.advanceTimersByTimeAsync(bridge.providerReadyWindowMs + 1)
+    await refused
+    expect(productionRootUnmount).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledTimes(1)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("invalidates an already-ready provider, rejects pending work and remounts on retry", async () => {
+    vi.useFakeTimers()
+    const {providerState, remove} = setupProvider()
+    const importer = vi.fn(async () => ({
+      startPrivyBridge: () => bridge.startPrivyBridge({}, providerState),
+    }))
+    const loader = createLazyAuthLoader(importer)
+    const first = loader.request("sign-in")
+    const refused = expect(first).rejects.toThrow("unavailable")
+    await vi.advanceTimersByTimeAsync(0)
+    const boundary = productionRootRender.mock.calls[0][0]
+    const publish = boundary.props.children.props.children.props.publishRequestHandler
+    const pending = vi.fn(() => new Promise<void>(() => undefined))
+    publish(pending, pending, () => undefined, true, pending)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(pending).toHaveBeenCalledTimes(1)
+    boundary.props.onFailure(new Error("provider crashed"))
+    await refused
+    await vi.advanceTimersByTimeAsync(1)
+    expect(productionRootUnmount).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledTimes(1)
+
+    const retry = loader.request("sign-in")
+    await vi.advanceTimersByTimeAsync(0)
+    expect(importer).toHaveBeenCalledTimes(2)
+    const newBoundary = productionRootRender.mock.calls[1][0]
+    const recovered = vi.fn(async () => undefined)
+    newBoundary.props.children.props.children.props.publishRequestHandler(
+      recovered, recovered, () => undefined, true, recovered,
+    )
+    await retry
+    expect(recovered).toHaveBeenCalledTimes(1)
+    expect(pending).toHaveBeenCalledTimes(1)
+  })
+})
 
 // One sign in driven through the real seams. `pairs` is the sequence of
 // provider sessions and only a provider logout reaches the next one, so a

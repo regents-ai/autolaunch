@@ -7,6 +7,26 @@ defmodule AutolaunchWeb.Layouts do
   import AutolaunchWeb.Components.TopBar
 
   embed_templates("layouts/*")
+
+  @doc "The one line every page of a local Base-fork site carries."
+  def lab_notice(assigns) do
+    assigns = assign(assigns, :sign_in, sign_in_state())
+
+    ~H"""
+    <p :if={Autolaunch.Lab.enabled?()} class="autolaunch-lab-warning" role="status">
+      Local Base fork · test assets · no mainnet value · launches and bids only · {@sign_in}
+    </p>
+    """
+  end
+
+  # Only the production verifier admits a real Privy sign-in; the fixture
+  # verifier has no interactive login at all.
+  defp sign_in_state do
+    if Application.get_env(:autolaunch, :privy_verifier, Autolaunch.Privy) == Autolaunch.Privy,
+      do: "sign in with Privy",
+      else: "sign-in unavailable"
+  end
+
   @doc "Product and source discovery without loading a browser integration."
   def product_links(assigns) do
     ~H"""

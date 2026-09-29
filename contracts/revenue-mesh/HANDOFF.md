@@ -7,7 +7,7 @@ I want to discuss and possibly work on: completing Autolaunch RevenueMesh v1 fro
 - Find the Regent workspace and the `autolaunch-revenue-mesh` repository from the current directory, a parent directory, or the usual workspace.
 - Read the local `AGENTS.md` instructions and start with the Regent workflow skill. This project routes money and touches contracts, chains, wallets, deployment, and custody boundaries, so implementation tickets are Tier 1 unless the chief of staff explicitly classifies a narrower non-protected slice otherwise.
 - Locate the founder-supplied specification titled **“Autolaunch RevenueMesh v1 — Technical Specification.”** Treat this handoff as orientation, not a replacement for that source.
-- Inspect the current repository, tests, documentation, recent commits, Beads state through the chief-of-staff boundary, and the current `autolaunch-contracts` release candidate before proposing changes.
+- Inspect the current repository, tests, documentation, recent commits, the current founder assignment, and the current `autolaunch-contracts` release candidate before proposing changes.
 - Re-check all time-sensitive chain, token, contract-address, fee, API, and production-status facts against current official documentation. Do not treat a copied address in this handoff as live-chain proof.
 - Independently decide whether each remaining task is still needed, correctly ordered, and scoped. Call out stale assumptions, hidden economic choices, design contradictions, and anything that should stop the work.
 - Do not push, deploy, publish payment addresses, sign, use wallets, access production data, read secrets, fund gas, send canaries, burn or mint USDC, or move value unless the founder gives separate explicit authority for that exact consequential action.
@@ -447,7 +447,7 @@ For each code ticket, use the smallest complete evidence appropriate to its Tier
 - deployability measurement for every changed deployable contract;
 - Slither or the relevant static analysis;
 - one independent adversarial review of the frozen candidate; and
-- `regentctl verify` after integration metadata is complete.
+- Run the owning component checks on the integrated result.
 
 Live-chain evidence, deployment rehearsal, canaries, and signing are not ordinary test steps; they require explicit founder authority.
 
