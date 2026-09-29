@@ -1,0 +1,28 @@
+{
+  "name": "autolaunch-launch-film",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "studio": "remotion studio src/index.tsx",
+    "typecheck": "tsc --noEmit",
+    "audio": "node scripts/generate-audio.mjs",
+    "render": "node scripts/render.mjs",
+    "review": "node scripts/render.mjs --stills",
+    "verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.521",
+    "@remotion/cli": "4.0.521",
+    "@remotion/renderer": "4.0.521",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "remotion": "4.0.521"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.9",
+    "typescript": "5.9.3"
+  }
+}
