@@ -30,10 +30,16 @@ defmodule AutolaunchWeb.Components.Rail do
             </summary>
             <div class="shell-create-options">
               <Regent.Primitives.button
+                :if={Autolaunch.Prelaunch.read_only?()}
                 disabled
                 variant="secondary"
                 title="Available after contract deployment"
               >Agent Revshare</Regent.Primitives.button>
+              <.link
+                :if={!Autolaunch.Prelaunch.read_only?()}
+                href="/create"
+                class="rg-button rg-button--secondary"
+              >Agent Revshare</.link>
               <Regent.Primitives.button
                 disabled
                 variant="secondary"

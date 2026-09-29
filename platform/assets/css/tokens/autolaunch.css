@@ -4,3 +4,12 @@
   --glass-text-accent: var(--color-link);
   --glass-secondary-text: var(--color-link);
 }
+
+/* Regents' shared corner-to-outline motion, paired with Autolaunch surfaces.
+   Keep the animation in Regent UI rather than duplicating its paint rules. */
+:root[data-brand="autolaunch"] .rg-button:where(:not(.rg-button--secondary):not(.rg-button--quiet)) {
+  --rg-p-accent: var(--rg-p-surface);
+  --rg-p-on-accent: var(--rg-p-text);
+  --rg-shimmer-color: var(--color-accent);
+  --rg-button-border-color: var(--color-accent);
+}

@@ -15,7 +15,7 @@ Own autolaunch.sh and its product contracts in this monorepo.
   dependencies; verify it from its own directory. `contracts/README.md` is the map.
 - `plugins/` holds no implementation yet; its README points at the CLI and WebMCP
   contract a plugin would wrap. Do not imply a published plugin.
-- Follow Control's `regent-workflow` and one integrating owner. Verify the changed
+- Follow the workspace's `regent-workflow` and one integrating owner. Verify the changed
   component and necessary cross-component paths, preserving unrelated working edits.
 - Contract gates, signing, wallet actions and release approvals keep their existing
   boundaries. Every wallet-button press reaches the wallet. Never read `.env`,
