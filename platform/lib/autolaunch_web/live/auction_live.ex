@@ -55,14 +55,8 @@ defmodule AutolaunchWeb.AuctionLive do
       class="autolaunch-page"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">
-          <%= if @local_lab? do %>
-            Local Base fork · test assets · no mainnet value
-          <% else %>
-            Autolaunch · Auction
-          <% end %>
-        </p>
-        <h1>{record_label(:auction, @page_record)}</h1>
+        <p class="autolaunch-kicker">Autolaunch · Auction</p>
+        <Regent.Structure.section_bar><h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1></Regent.Structure.section_bar>
         <p>{record_summary(:auction, @page_record) || record_fallback(:auction)}</p>
       </header>
       <.autolaunch_market_card
@@ -72,11 +66,18 @@ defmodule AutolaunchWeb.AuctionLive do
         linked={false}
         class="launchpad-card--detail"
       />
+      <.exact_price
+        id="auction-exact-price"
+        summary="Exact clearing price"
+        amount={@page_record.current_clearing_price}
+        unit={@page_record.quote_token_symbol}
+      />
       <.treasury_security
         :if={!@local_lab?}
         report={report(@page_record)}
         surface="auction-detail"
       />
+      <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
       <dl :if={@local_lab? && @market_snapshot} class="autolaunch-live-market">
         <div>
           <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>
@@ -109,7 +110,7 @@ defmodule AutolaunchWeb.AuctionLive do
       id="autolaunch-auction-detail"
       class="autolaunch-page autolaunch-empty"
     >
-      <h1>Auction not found</h1>
+      <Regent.Structure.section_bar><h1 class="rg-section-bar__label">Auction not found</h1></Regent.Structure.section_bar>
       <p>No public auction exists at {@record_id}.</p>
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
@@ -120,7 +121,7 @@ defmodule AutolaunchWeb.AuctionLive do
       class="autolaunch-page autolaunch-empty"
       role="alert"
     >
-      <h1>Auction unavailable</h1>
+      <Regent.Structure.section_bar><h1 class="rg-section-bar__label">Auction unavailable</h1></Regent.Structure.section_bar>
       <p>This auction could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
       <.link navigate="/auctions">Return to Auctions</.link>

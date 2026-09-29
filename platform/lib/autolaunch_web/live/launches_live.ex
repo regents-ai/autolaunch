@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.LaunchesLive do
     <section id="autolaunch-launches" class="autolaunch-page">
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Autolaunch</p>
-        <h1>Launches</h1>
+        <Regent.Structure.section_bar><h1 class="rg-section-bar__label">Launches</h1></Regent.Structure.section_bar>
         <p>Follow public launch progress from preparation through completion.</p>
       </header>
       <.empty_state

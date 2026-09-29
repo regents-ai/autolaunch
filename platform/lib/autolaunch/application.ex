@@ -48,7 +48,6 @@ defmodule Autolaunch.Application do
   defp autolaunch_lab_market_feed_child do
     with true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
          true <- Application.get_env(:autolaunch, :autolaunch_lab_enabled, false),
-         true <- Application.get_env(:autolaunch, :autolaunch_lab_acceptance_verified, false),
          {:ok, _config} <- Autolaunch.Lab.current() do
       Autolaunch.LabMarketFeed
     else

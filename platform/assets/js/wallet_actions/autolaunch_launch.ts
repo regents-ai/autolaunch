@@ -104,6 +104,7 @@ export async function sendLaunchStep(
   const clients = clientFactory(selected.provider)
 
   if ((await clients.chainId()) !== base.id) {
+    sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
     await clients.switchToBase()
   }
 

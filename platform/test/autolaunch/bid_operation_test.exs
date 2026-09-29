@@ -185,8 +185,16 @@ defmodule Autolaunch.BidOperationTest do
 
     assert refusal(error) == :submitted_hash_conflict
 
-    # A claimed and submitted step is never offered a second dispatch.
-    assert {:error, _claimed} = Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+    # A new press on those reviewed bytes is independent of the legacy hash.
+    assert {:ok, %{dispatch?: true, attempt: %{state: :dispatched}}} =
+             Autolaunch.dispatch_wallet_press(
+               :bid,
+               operation.action_id,
+               operation.step,
+               Ecto.UUID.generate(),
+               operation.signer,
+               opts
+             )
   end
 
   test "A_LOST_CALLBACK_REPLAYS: a delayed hash binds to its own step and never a later one", %{
@@ -415,6 +423,35 @@ defmodule Autolaunch.BidOperationTest do
   describe "second-connection barriers" do
     setup :clear_committed_bids
 
+    test "two SQL connections both persist distinct pending presses under the same lease" do
+      {lease, operation} = unboxed(&committed_review/0)
+
+      dispatch = fn ->
+        Autolaunch.dispatch_wallet_press(
+          :bid,
+          operation.action_id,
+          operation.step,
+          Ecto.UUID.generate(),
+          wallet(),
+          barrier_opts(lease)
+        )
+      end
+
+      writer = holding(dispatch)
+      sibling = contending(dispatch)
+      assert_blocked_by(sibling, writer)
+      assert {:ok, %{dispatch?: true, attempt: a}} = release(writer)
+      assert {:ok, %{dispatch?: true, attempt: b}} = settled(sibling)
+      assert a.id != b.id
+
+      assert {:ok, %{operation: %{attempts: attempts}}} =
+               unboxed(fn ->
+                 Autolaunch.wallet_presses(:bid, operation.action_id, barrier_opts(lease))
+               end)
+
+      assert Enum.sort(Enum.map(attempts, & &1.id)) == Enum.sort([a.id, b.id])
+    end
+
     test "BARRIER_AND_RESTART_PROOF: a logout that commits first leaves the bid write refused" do
       {lease, operation} = unboxed(&committed_review/0)
       claim = fn -> Autolaunch.claim_bid_dispatch(operation.action_id, barrier_opts(lease)) end
@@ -502,6 +539,14 @@ defmodule Autolaunch.BidOperationTest do
         )
 
       Repo.delete_all(
+        from(attempt in Autolaunch.WalletAttempt,
+          join: operation in BidOperation,
+          on: operation.id == attempt.bid_operation_id,
+          where: operation.human_account_id in ^account_ids
+        )
+      )
+
+      Repo.delete_all(
         from(row in BidOperation,
           where: row.human_account_id in ^account_ids
         )
@@ -579,10 +624,10 @@ defmodule Autolaunch.BidOperationTest do
   end
 
   defp blocking_pids(backend) do
-    unboxed(fn ->
-      %{rows: [[blockers]]} = Repo.query!("SELECT pg_blocking_pids($1)", [backend])
-      blockers
-    end)
+    # Observe through the case's existing sandbox connection. The writer and
+    # logout each own a real independent connection; a fourth is unnecessary.
+    %{rows: [[blockers]]} = Repo.query!("SELECT pg_blocking_pids($1)", [backend])
+    blockers
   end
 
   defp backend_pid do

@@ -3,8 +3,13 @@ defmodule AutolaunchWeb.SharedProfileHTML do
 
   def show(assigns) do
     ~H"""
-    <main class="autolaunch-profile-page" style="max-width: 42rem; margin: 2rem auto; padding: 1rem;">
-      <Regent.Profile.panel />
+    <main class="autolaunch-profile-page" >
+      <Regent.Structure.section_bar class="rg-support-band">
+        <p class="rg-section-bar__label">Your account</p>
+      </Regent.Structure.section_bar>
+      <Regent.Structure.panel class="rg-support-panel">
+        <Regent.Profile.panel />
+      </Regent.Structure.panel>
     </main>
     """
   end

@@ -16,8 +16,37 @@ defmodule AutolaunchWeb.CreateLiveTest do
     "required_regent_raised" => "1000.5"
   }
 
-  test "Create sends an anonymous visitor home", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/"}}} = live(conn, "/create")
+  test "Create tells an anonymous visitor to sign in and keeps them on the page", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/create")
+
+    assert has_element?(view, "#autolaunch-create-sign-in h1", "Sign in to launch an auction")
+
+    assert has_element?(
+             view,
+             "#autolaunch-create-sign-in [data-account-target=sign-in]",
+             "Sign in"
+           )
+
+    refute html =~ "launch-token-details"
+  end
+
+  test "anonymous draft events neither crash nor create or modify drafts", %{conn: conn} do
+    snapshot = fn ->
+      Autolaunch.Repo.query!("SELECT to_jsonb(d) FROM launch_drafts d ORDER BY id").rows
+    end
+
+    before = snapshot.()
+    {:ok, view, _html} = live(conn, "/create")
+
+    for event <- ["autosave_launch_token_details", "autosave_launch_treasury"],
+        payload <- [%{"name" => "not mine"}, nil, "invalid", []] do
+      render_change(view, event, %{"launch_draft" => payload})
+      assert has_element?(view, "#autolaunch-create-sign-in")
+    end
+
+    render_click(view, "fetch_image_url", %{"url" => %{}})
+    assert has_element?(view, "#autolaunch-create-sign-in")
+    assert snapshot.() == before
   end
 
   test "a signed-in Human sees one continuous launch form", %{conn: conn} do
@@ -90,7 +119,8 @@ defmodule AutolaunchWeb.CreateLiveTest do
              "I am still typing"
            )
 
-    assert {:error, {:redirect, %{to: "/"}}} = live(conn, "/create")
+    {:ok, anonymous, _html} = live(conn, "/create")
+    refute has_element?(anonymous, ~s(#launch-token-details-name[value="Open Research"]))
 
     other = draft_account!("autolaunch-autosave-other")
 

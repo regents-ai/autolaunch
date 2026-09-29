@@ -216,6 +216,18 @@ defmodule Autolaunch.Chain.RpcTest do
 
       assert Rpc.canonical_outcome(@hash, @signer, @target, @data, safe) == expected,
              "#{name} was classified wrongly"
+
+      case expected do
+        {:ok, outcome} ->
+          assert {:ok, evidence} =
+                   Rpc.canonical_outcome_evidence(@hash, @signer, @target, @data, safe, [])
+
+          assert evidence.outcome == outcome
+          assert evidence.receipt == if(outcome == :pending, do: nil, else: receipt)
+
+        _ ->
+          :ok
+      end
     end
   end
 

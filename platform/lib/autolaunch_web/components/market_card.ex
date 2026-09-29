@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   use Phoenix.Component
 
   alias Autolaunch.Token
+  alias AutolaunchWeb.TokenDisplay
 
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
   attr :record, :map, required: true
@@ -41,23 +42,26 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp card_contents(assigns) do
     ~H"""
-    <div class="launchpad-card__media">
-      <img :if={present?(@view.image)} src={@view.image} alt={"#{@view.name} token"} />
-      <span :if={!present?(@view.image)} aria-hidden="true">R</span>
-      <small>{@view.status}</small>
-    </div>
-    <div class="launchpad-card__body">
-      <div class="launchpad-card__title">
-        <h3>{@view.name}</h3>
-        <span :if={present?(@view.symbol)}>${@view.symbol}</span>
-      </div>
-      <p class="launchpad-card__metric">{present(@view.metric, "No price yet")}</p>
-      <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
-        <span :if={present?(@view.creator)}>{@view.creator}</span>
-        <span :if={present?(@view.age)}>{@view.age}</span>
-      </p>
-      <p class="launchpad-card__summary">{@view.description}</p>
-    </div>
+    <Regent.Structure.capability_card
+      title={@view.name}
+      description={@view.description}
+      index={Enum.join(Enum.filter([@view.status, present(@view.symbol, nil)], & &1), " · ")}
+      image_src={present(@view.image, nil)}
+      image_alt={"#{@view.name} token"}
+      class="launchpad-card__feature"
+    >
+      <:media><span class="launchpad-card__placeholder" aria-hidden="true">R</span></:media>
+      <:actions>
+        <p class="launchpad-card__metric">
+          <span class="autolaunch-micro">{@view.metric_label}</span>
+          <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} />
+        </p>
+        <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
+          <span :if={present?(@view.creator)}>{@view.creator}</span>
+          <span :if={present?(@view.age)}>{@view.age}</span>
+        </p>
+      </:actions>
+    </Regent.Structure.capability_card>
     """
   end
 
@@ -86,7 +90,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: values["image"],
       status: "Preview",
       metric_label: "Raise target",
-      metric: suffix(values["required_regent_raised"], " REGENT"),
+      metric: metric(values["required_regent_raised"], "REGENT"),
       address: nil,
       path: nil,
       creator: creator_name(connections),
@@ -103,7 +107,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: auction.image,
       status: auction.state |> to_string() |> String.capitalize(),
       metric_label: "Clearing price",
-      metric: auction.current_clearing_price,
+      metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
       address: auction.auction_address,
       path: "/auctions/#{auction.id}",
       creator: creator_name(connections),
@@ -122,7 +126,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: presentation.image,
       status: "Graduated",
       metric_label: "Price",
-      metric: present(token.price_quote, "No price yet"),
+      metric: metric(token.price_quote, nil),
       address: presentation.auction_address,
       path: "/tokens/#{token.id}",
       creator: creator_name(connections),
@@ -130,6 +134,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
       connections: connection_list(connections)
     }
   end
+
+  # The stored figure travels untouched; only its on-screen form is shortened.
+  defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
   defp connection_list(connections) when is_map(connections) do
     [:profile, :company]
@@ -170,7 +177,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
   defp present(value, fallback), do: if(present?(value), do: value, else: fallback)
-  defp suffix(value, suffix), do: if(present?(value), do: value <> suffix, else: nil)
 
   defp role_label(:profile), do: "Creator"
   defp role_label(:company), do: "Company"

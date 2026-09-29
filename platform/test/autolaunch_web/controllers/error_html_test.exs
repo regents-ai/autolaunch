@@ -5,10 +5,17 @@ defmodule AutolaunchWeb.ErrorHTMLTest do
   import Phoenix.Template, only: [render_to_string: 4]
 
   test "renders 404.html" do
-    assert render_to_string(AutolaunchWeb.ErrorHTML, "404", "html", []) == "Not Found"
+    html = render_to_string(AutolaunchWeb.ErrorHTML, "404", "html", [])
+    assert html =~ "Not Found"
+    assert html =~ ~s(data-brand="autolaunch")
+    assert html =~ "rg-frame"
+    assert html =~ "rg-button__label"
   end
 
   test "renders 500.html" do
-    assert render_to_string(AutolaunchWeb.ErrorHTML, "500", "html", []) == "Internal Server Error"
+    html = render_to_string(AutolaunchWeb.ErrorHTML, "500", "html", [])
+    assert html =~ "Internal Server Error"
+    assert html =~ ~s(href="/")
+    assert html =~ "rg-frame"
   end
 end

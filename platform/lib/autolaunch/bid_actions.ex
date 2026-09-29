@@ -149,6 +149,7 @@ defmodule Autolaunch.BidActions do
          {:ok, amount} <- refusable(atomic_amount(arguments.amount)),
          {:ok, max_price_q96} <- refusable(price_q96(arguments.max_price)),
          {:ok, snapshot} <- snapshot(address, signer, max_price_q96),
+         {:ok, max_price_q96} <- refusable(Autolaunch.BidPrice.align(max_price_q96, snapshot)),
          :ok <- bound_currency(snapshot),
          :ok <- bounded_predecessor(snapshot, max_price_q96),
          :ok <- affordable(snapshot, amount),
@@ -160,7 +161,8 @@ defmodule Autolaunch.BidActions do
              amount,
              max_price_q96,
              snapshot,
-             treasury_report
+             treasury_report,
+             arguments.max_price
            ),
          {:ok, operation} <- open(lease, envelope, signer, step) do
       {:ok, %{operation: view(operation)}}
@@ -254,7 +256,12 @@ defmodule Autolaunch.BidActions do
       write(
         context,
         input.arguments.action_id,
-        transition(:close_submission_unknown, %{reason: @unresolved})
+        fn _account, op ->
+          # New presses do not mutate the review's prepared state. Withdrawing
+          # that review cancels future admission, never its issued attempts.
+          action = if op.state == :prepared, do: :cancel, else: :close_submission_unknown
+          update(op, action, %{reason: @unresolved})
+        end
       )
 
   @doc "The account's open operation, recovered without a lease and writing nothing."
@@ -280,6 +287,7 @@ defmodule Autolaunch.BidActions do
       :terminal_at
       | Map.values(@hash_attributes)
     ])
+    |> Autolaunch.WalletAttempts.decorate(operation, :bid)
   end
 
   @doc "The reviewed sequence, in order, as the progress list renders it."
@@ -293,7 +301,16 @@ defmodule Autolaunch.BidActions do
 
   # Reviews and operations
 
-  defp review(auction, address, signer, amount, max_price_q96, snapshot, treasury_report) do
+  defp review(
+         auction,
+         address,
+         signer,
+         amount,
+         max_price_q96,
+         snapshot,
+         treasury_report,
+         requested_price
+       ) do
     granted = DateTime.add(Envelope.current_time(), @permit2_seconds, :second)
 
     {data, envelope_options} = bid_data(max_price_q96, amount, signer, snapshot)
@@ -318,7 +335,12 @@ defmodule Autolaunch.BidActions do
                 "auction_id" => auction.id,
                 "amount" => units(amount),
                 "amount_atomic" => Integer.to_string(amount),
-                "max_price" => Decimal.to_string(price_decimal(max_price_q96), :normal),
+                "max_price" => Autolaunch.BidPrice.decimal(max_price_q96),
+                "requested_max_price" => requested_price,
+                "tick_spacing_q96" => Integer.to_string(snapshot.tick_spacing_q96),
+                "floor_price_q96" => Integer.to_string(snapshot.floor_price_q96),
+                "clearing_price_q96" => Integer.to_string(snapshot.clearing_price_q96),
+                "max_bid_price_q96" => Integer.to_string(snapshot.max_bid_price_q96),
                 "max_price_q96" => Integer.to_string(max_price_q96),
                 "prev_tick_price_q96" => Integer.to_string(snapshot.prev_tick_price_q96),
                 "predecessor_source" => snapshot.predecessor_source,
@@ -479,6 +501,16 @@ defmodule Autolaunch.BidActions do
 
   defp released({:ok, _cancelled}), do: :ok
   defp released(error), do: error
+
+  # Read-only dispatch evidence, called before the authority/account/review locks.
+  def press_evidence(operation) do
+    with {:ok, :current} <- dispatch_lab_status(operation),
+         {:ok, fresh} <- revalidate_treasury(operation),
+         true <- treasury_still_reviewed?(operation, fresh),
+         true <- valid_envelope?(operation),
+         do: :ok,
+         else: (_ -> unavailable(:treasury_security_changed))
+  end
 
   # Transitions
 
@@ -937,23 +969,21 @@ defmodule Autolaunch.BidActions do
 
   @doc "The exact Q96 price a decimal maximum price names."
   @spec price_q96(term()) :: {:ok, pos_integer()} | {:error, atom()}
-  def price_q96(value) do
-    with {:ok, decimal} <- positive_decimal(value) do
-      [whole, fraction] =
-        decimal |> Decimal.to_string(:normal) |> Kernel.<>(".") |> String.split(".", parts: 2)
+  def price_q96(value) when is_binary(value) do
+    value = String.trim(value)
 
-      fraction = String.trim_trailing(fraction, ".")
-      scaled = String.to_integer(whole <> fraction) * @q96
-      denominator = Integer.pow(10, String.length(fraction))
-      quotient = div(scaled, denominator)
-      rounded = if rem(scaled, denominator) * 2 >= denominator, do: quotient + 1, else: quotient
-
-      if rounded in 1..@uint256_max, do: {:ok, rounded}, else: {:error, :invalid_price}
+    with true <- byte_size(value) <= 100 and String.match?(value, ~r/^\d+(?:\.\d+)?\z/),
+         [whole | fraction] <- String.split(value, "."),
+         fraction <- List.first(fraction) || "",
+         numerator when numerator > 0 <- String.to_integer(whole <> fraction) do
+      quotient = div(numerator * @q96, Integer.pow(10, byte_size(fraction)))
+      if quotient in 1..@uint256_max, do: {:ok, quotient}, else: {:error, :invalid_price}
+    else
+      _ -> {:error, :invalid_decimal}
     end
   end
 
-  defp price_decimal(q96),
-    do: q96 |> Decimal.new() |> Decimal.div(Decimal.new(@q96)) |> Decimal.normalize()
+  def price_q96(_), do: {:error, :invalid_decimal}
 
   defp positive_decimal(value) when is_binary(value) do
     value = String.trim(value)

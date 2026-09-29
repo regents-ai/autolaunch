@@ -1,157 +1,25 @@
-.home-page {
-  position: relative;
-  display: grid;
-  gap: var(--space-5);
-}
-
-.home-crown {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 0;
-  width: min(42vw, 28rem);
-  height: 100%;
-  min-height: 12rem;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.home-crown[data-optics-ready="true"] {
-  opacity: 1;
-}
-
-.home-crown__canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.home-explore,
-.home-market {
-  position: relative;
-  z-index: 1;
-}
-
-.home-explore {
-  position: relative;
-  display: grid;
-  justify-items: start;
-  gap: var(--space-4);
-  padding-inline-end: min(42vw, 28rem);
-  min-height: 12rem;
-}
-
-.home-explore__kicker {
-  margin: 0;
-  color: var(--color-accent);
-  font-family: var(--font-family-mono, ui-monospace, monospace);
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.home-explore h1 {
-  margin: 0;
-  color: var(--color-fg);
-  font-family: var(--font-family-title, "Iowan Old Style", Palatino, Georgia, serif);
-  font-size: clamp(2.4rem, 6vw, 4.4rem);
-  font-weight: 400;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-}
-
-.home-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.home-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.25rem;
-  padding: 0.35rem 0.85rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--color-surface) 72%, transparent);
-  color: var(--color-fg);
-  font-family: var(--font-family-mono, ui-monospace, monospace);
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  text-decoration: none;
-}
-
-.home-chip[aria-current="true"],
-.home-chip--create {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-fg-on-accent);
-  font-weight: var(--font-weight-semibold);
-}
-
-.home-market {
-  min-width: 0;
-}
-
-.home-market__empty {
-  min-height: 8rem;
-  margin: 0;
-  padding: 2.5rem 1rem;
-  color: var(--color-fg-muted);
-  text-align: center;
-}
-
-.home-coin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(12.5rem, 100%), 1fr));
-  gap: 0.85rem;
-  min-width: 0;
-}
-
-.home-coin-grid .launchpad-card {
-  border-radius: 0.85rem;
-  background: color-mix(in oklab, var(--color-surface) 82%, transparent);
-}
-
-.home-coin-grid .launchpad-card__socials {
-  padding: 0 0.75rem 0.75rem;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .home-chip:hover {
-    background: color-mix(in oklab, var(--color-fg) 8%, var(--color-surface));
-  }
-
-  .home-chip[aria-current="true"]:hover,
-  .home-chip--create:hover {
-    background: var(--color-accent-hover);
-    color: var(--color-fg-on-accent);
-  }
-}
-
-@media (max-width: 48rem) {
-  .home-explore {
-    padding-inline-end: 0;
-    min-height: 0;
-  }
-}
-
-@media (max-width: 40rem) {
-  .home-coin-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 25rem) {
-  .home-coin-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-crown {
-    transition: none;
-  }
-}
+/* The market stays first. Existing optics are confined to a labeled figure. */
+.home-page { display: grid; gap: var(--space-4); }
+.home-explore { border-bottom: 1px solid var(--rg-page-rule); }
+.home-explore .rg-hero__copy { padding-inline-start: 0; }
+.home-explore .rg-section-bar { border: 0; margin-block: var(--space-3); }
+.home-explore h1 { margin: 0; font-size: clamp(2.5rem,4.8vw,4.5rem); line-height: 1.03; letter-spacing: -.045em; }
+.home-explore__kicker { margin: 0; font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--color-fg-muted); }
+.home-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block: var(--space-4); }
+.home-chip { display: inline-flex; align-items: center; min-height: 2.75rem; padding: var(--space-1) var(--space-2); border: 1px solid var(--hairline-strong); color: inherit; text-decoration: none; }
+.home-chip[aria-current="true"] { border-bottom: 3px solid currentColor; font-weight: 600; text-decoration: underline; }
+.home-figure { width: 100%; padding: 0; }
+.home-crown { position: relative; width: 100%; aspect-ratio: 1; pointer-events: none; opacity: 0; }
+.home-crown[data-optics-ready="true"] { opacity: 1; }
+.home-crown__canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+.home-market { min-width: 0; }
+.home-market__empty { margin: 0; padding: var(--rg-panel-padding); border-block: 1px solid var(--hairline); color: var(--color-fg-muted); }
+.home-market__error p { margin-top: 0; }
+.home-coin-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; min-width: 0; }
+.home-coin-grid > div { display: grid; grid-row: span 5; grid-template-rows: subgrid; min-width: 0; }
+.home-capabilities { display: grid; gap: var(--space-3); }
+.home-capabilities .rg-feature .rg-technical-figure__art { background: var(--support-figure-surface); color: var(--support-figure-ink); }
+.home-capabilities .rg-feature__caption { --rg-panel-fill: var(--support-panel-surface); --rg-panel-ink: var(--support-panel-ink); }
+@media (max-width: 74.99rem) { .home-coin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 47.99rem) { .home-explore .rg-hero__copy { padding: var(--rg-panel-padding) 0; } .home-explore .rg-hero__figure { padding-inline: 0; } }
+@media (max-width: 35rem) { .home-coin-grid { grid-template-columns: minmax(0,1fr); } }

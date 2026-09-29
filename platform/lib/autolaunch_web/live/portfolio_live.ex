@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     <section id="autolaunch-holdings" class="autolaunch-page autolaunch-compact-detail">
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Autolaunch · Portfolio</p>
-        <h1>Your portfolio</h1>
+        <Regent.Structure.section_bar><h1 class="rg-section-bar__label">Your portfolio</h1></Regent.Structure.section_bar>
         <p>Bids and tokens from your verified wallets.</p>
         <Regent.Primitives.button
           :if={@account_control.kind != :sign_in}
@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         </dl>
 
         <section id="autolaunch-bid-positions" aria-labelledby="autolaunch-bid-positions-title">
-          <h2 id="autolaunch-bid-positions-title">Bid positions</h2>
+          <Regent.Structure.section_bar><h2 class="rg-section-bar__label" id="autolaunch-bid-positions-title">Bid positions</h2></Regent.Structure.section_bar>
           <p :if={@positions == []} class="autolaunch-empty">
             Bids from your verified wallets will appear here.
             <.link navigate="/auctions">Explore auctions</.link>
@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           id="autolaunch-held-tokens"
           aria-labelledby="autolaunch-held-tokens-title"
         >
-          <h2 id="autolaunch-held-tokens-title">Held launch tokens</h2>
+          <Regent.Structure.section_bar><h2 class="rg-section-bar__label" id="autolaunch-held-tokens-title">Held launch tokens</h2></Regent.Structure.section_bar>
           <ol :if={@claimed_token_positions != []} class="autolaunch-record-list">
             <li :for={position <- @claimed_token_positions}>
               <% presentation = position_token_presentation(position) %>

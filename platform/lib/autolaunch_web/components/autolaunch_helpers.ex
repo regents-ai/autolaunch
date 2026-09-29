@@ -70,7 +70,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     <section id={"autolaunch-#{@kind}"} class="autolaunch-page">
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Browse the market</p>
-        <h1>{@title}</h1>
+        <Regent.Structure.section_bar><h1 class="rg-section-bar__label">{@title}</h1></Regent.Structure.section_bar>
         <p>{@copy}</p>
         <.regent_market_links :if={@kind == :auctions} />
       </header>
@@ -79,9 +79,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         class="autolaunch-empty autolaunch-market-empty"
       >
         <p :if={!@cursor} class="autolaunch-kicker">Be first</p>
-        <h2>{if @cursor, do: "No more records on this page", else: @empty_title}</h2>
+        <Regent.Structure.section_bar><h2 class="rg-section-bar__label">{if @cursor, do: "No more records on this page", else: @empty_title}</h2></Regent.Structure.section_bar>
         <p :if={!@cursor}>{@empty_copy}</p>
-        <.link :if={!@cursor} href={@empty_path}>{@empty_action} <span aria-hidden="true">→</span></.link>
+        <.link :if={!@cursor} href={@empty_path} class="rg-button rg-button--primary"><span class="rg-button__label">{@empty_action} <span aria-hidden="true">→</span></span></.link>
       </section>
       <p :if={@records.loading} role="status">Loading…</p>
       <Regent.Primitives.notice :if={@records.failed} role="alert">
@@ -194,6 +194,37 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     </aside>
     """
   end
+
+  attr :surface, :string, required: true
+
+  # A local-fork site has no treasury evidence to show: the fixture the lab
+  # runs on is not a chain observation, so the page says so instead.
+  def lab_treasury_unavailable(assigns) do
+    ~H"""
+    <aside id={"treasury-security-#{@surface}"} class="treasury-security" role="status">
+      <h3>Treasury security</h3>
+      <p class="treasury-security--warning">
+        Treasury verification is not available on the local Base fork. Custody is unverified here.
+      </p>
+    </aside>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :summary, :string, required: true
+  attr :amount, :string, default: nil
+  attr :unit, :string, default: nil
+
+  # The stored figure, unshortened, for anyone who needs every digit.
+  def exact_price(assigns) do
+    ~H"""
+    <Regent.Primitives.disclosure :if={present?(@amount)} id={@id} summary={@summary}>
+      <p class="autolaunch-exact-value">{@amount}{if present?(@unit), do: " #{@unit}"}</p>
+    </Regent.Primitives.disclosure>
+    """
+  end
+
+  defp present?(value), do: is_binary(value) and String.trim(value) != ""
 
   attr :copy, :string, required: true
 

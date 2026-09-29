@@ -21,6 +21,10 @@ for (const theme of [DARK, LIGHT]) {
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme.scheme)
       await expect(page.locator("html")).toHaveCSS("background-color", theme.background)
       await expect(page.locator("body")).toHaveCSS("color", theme.text)
+      await expect(page.locator("body")).toHaveCSS("font-family", /Geist Mono/)
+      await expect(page.locator(".home-explore h1")).toHaveCSS("font-family", /Geist Pixel Square/)
+      await expect(page.locator(".home-explore h1")).toHaveCSS("font-weight", "400")
+      await expect(page.locator(".home-create .rg-button__label")).toHaveText("Create")
     })
   })
 }

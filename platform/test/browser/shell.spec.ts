@@ -86,9 +86,9 @@ for (const scheme of [DARK, LIGHT]) {
 test("records desktop and phone frames in both schemes", async ({page}) => {
   const frames = [
     {scheme: DARK, width: 1440, height: 900, path: "/tmp/u5-dark-1440.png"},
-    {scheme: DARK, width: 390, height: 844, path: "/tmp/u5-dark-390.png"},
+    {scheme: DARK, width: 320, height: 844, path: "/tmp/u5-dark-320.png"},
     {scheme: LIGHT, width: 1440, height: 900, path: "/tmp/u5-light-1440.png"},
-    {scheme: LIGHT, width: 390, height: 844, path: "/tmp/u5-light-390.png"},
+    {scheme: LIGHT, width: 320, height: 844, path: "/tmp/u5-light-320.png"},
   ]
 
   for (const frame of frames) {
@@ -96,6 +96,10 @@ test("records desktop and phone frames in both schemes", async ({page}) => {
     await page.setViewportSize({width: frame.width, height: frame.height})
     await page.goto("/")
     await expect(page.locator("html")).toHaveAttribute("data-theme", frame.scheme)
+    await expect(page.locator(".shell.rg-frame")).toBeVisible()
+    await expect(page.locator(".shell-body.rg-sheet-row")).toBeVisible()
+    await expect(page.locator(".home-explore h1")).toHaveCSS("font-weight", "400")
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({path: frame.path, fullPage: true})
   }
 })

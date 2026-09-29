@@ -31,7 +31,7 @@ defmodule Autolaunch.Privy do
 
   The access token authenticates the subject and session and the identity
   token carries the signed linked accounts. Each is verified independently
-  against the same public key, so ordinary signed-token expiry is the whole
+  against the same configured public key set, so ordinary signed-token expiry is the whole
   freshness authority and no evidence is accepted for a subject the access
   token did not itself authenticate. Only the access token must name a
   session: Privy's identity token carries no `sid` claim of its own, and one
@@ -116,16 +116,17 @@ defmodule Autolaunch.Privy do
 
   defp privy_config, do: Application.get_env(:autolaunch, :privy, [])
 
+  # `verification_keys` is the bounded set runtime configuration derives from
+  # the PEM blocks it was given; an empty or malformed set is no configuration.
   defp verification_options do
     config = privy_config()
 
-    case {config[:app_id], config[:verification_key]} do
-      {app_id, key} when is_binary(app_id) and app_id != "" and is_binary(key) and key != "" ->
-        clock = config[:clock] || fn -> System.system_time(:second) end
-        {:ok, [app_id: app_id, verification_key: key, now: clock.()]}
-
-      _ ->
-        {:error, {:configuration, :missing_privy_config}}
+    with app_id when is_binary(app_id) and app_id != "" <- config[:app_id],
+         {:ok, keys} <- RegentPrivy.verification_keys(config) do
+      clock = config[:clock] || fn -> System.system_time(:second) end
+      {:ok, [app_id: app_id, verification_keys: keys, now: clock.()]}
+    else
+      _ -> {:error, {:configuration, :missing_privy_config}}
     end
   end
 

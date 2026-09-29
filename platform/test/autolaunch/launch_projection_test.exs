@@ -74,6 +74,63 @@ defmodule Autolaunch.LaunchProjectionTest do
     assert Enum.count(listed, &(&1.id == id)) == 1
   end
 
+  test "independent confirmed launch attempts count and project once per canonical auction" do
+    account = account!("attempt-results")
+    log = fixture_log()
+    op = seed_operation!(account, log.transaction_hash)
+    second_hash = "0x" <> String.duplicate("dd", 32)
+
+    for {hash, auction} <- [
+          {log.transaction_hash, @auction},
+          {second_hash, @other_auction},
+          {second_hash, @other_auction}
+        ] do
+      Ash.Seed.seed!(Autolaunch.WalletAttempt, %{
+        launch_operation_id: op.id,
+        step: :launch,
+        envelope: op.envelope,
+        state: :confirmed,
+        transaction_hash: hash,
+        result: %{"auction" => auction}
+      })
+    end
+
+    # Legacy parent + first attempt and a duplicate transaction on two presses
+    # are observations of the same effects, not four launch-limit reservations.
+    assert Autolaunch.auctions_prepared_by(account.id) == 2
+    inject_factory!()
+    assert :ok = LaunchProjection.project_logs([log, log])
+    attrs = fixture_attrs()
+
+    second = %{
+      log
+      | transaction_hash: second_hash,
+        topics:
+          Enum.map(
+            attrs["topics"],
+            &String.replace(
+              &1,
+              String.slice(@auction, 2..-1//1),
+              String.slice(@other_auction, 2..-1//1)
+            )
+          ),
+        data:
+          String.replace(
+            attrs["data"],
+            String.slice(@auction, 2..-1//1),
+            String.slice(@other_auction, 2..-1//1)
+          )
+    }
+
+    assert :ok = LaunchProjection.project_logs([second, second])
+
+    assert {:ok, auction} =
+             Autolaunch.get_public_auction(LabProjection.auction_id(@other_auction))
+
+    assert auction.creator_human_account_id == account.id
+    assert Autolaunch.auctions_prepared_by(account.id) == 2
+  end
+
   test "a log whose event auction disagrees with the operation writes nothing" do
     account = account!("mismatch")
     seed_operation!(account, fixture_log().transaction_hash, %{"auction" => @other_auction})

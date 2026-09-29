@@ -1,7 +1,7 @@
 import {createWalletClient, custom, getAddress, type Address, type Hash, type Hex} from "viem"
 import {base} from "viem/chains"
 
-import type {EthereumProvider} from "./connected_wallet"
+import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
 export type SubjectStepName = "approval" | "action"
 
@@ -81,12 +81,25 @@ export function sendableStep(
 export async function sendSubjectStep(
   operation: SubjectWalletOperation,
   step: SubjectStep,
-  provider: EthereumProvider,
+  source: EthereumProvider | (() => SelectedWallet | null),
   onSendStarted: () => void,
-  clients: SubjectWalletClients = clientsFor(provider),
+  suppliedClients?: SubjectWalletClients,
 ): Promise<Hash> {
+  const selected = typeof source === "function" ? source() : null
+  const provider = typeof source === "function" ? selected?.provider : source
+  if (!provider) throw new Error("Wallet unavailable")
+  const unchanged = () => {
+    if (typeof source !== "function") return
+    const current = source()
+    if (!current || current.provider !== provider || getAddress(current.address) !== getAddress(operation.signer)) {
+      throw new Error("The selected wallet changed")
+    }
+  }
+  unchanged()
+  const clients = suppliedClients ?? clientsFor(provider)
   let chainId = await clients.chainId()
   if (chainId !== base.id) {
+    unchanged()
     await clients.switchToBase()
     chainId = await clients.chainId()
   }
@@ -99,6 +112,9 @@ export async function sendSubjectStep(
     throw new Error("Use the wallet this action was reviewed for.")
   }
 
+  unchanged()
+  if ((await clients.chainId()) !== base.id) throw new Error("Switch to Base before continuing.")
+  unchanged()
   onSendStarted()
   return clients.send({account, to: getAddress(step.to), data: step.data, value: 0n})
 }

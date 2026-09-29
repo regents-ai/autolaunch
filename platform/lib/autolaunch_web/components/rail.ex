@@ -18,16 +18,19 @@ defmodule AutolaunchWeb.Components.Rail do
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
+      <a class="shell-wordmark" href="/">Autolaunch</a>
       <ul class="shell-rail__list">
         <li :for={item <- @items} class={item_class(item)}>
           <.link
             href={item.path}
-            class="shell-rail__link"
+            class={["shell-rail__link", item.id == :create && "rg-button rg-button--primary"]}
             aria-current={if active?(@current_path, item.path), do: "page"}
             aria-label={item.label}
           >
-            <.icon name={item.icon} />
-            <span class="shell-rail__label">{item.label}</span>
+            <span class={["shell-rail__content", item.id == :create && "rg-button__label"]}>
+              <.icon name={item.icon} />
+              <span class="shell-rail__label">{item.label}</span>
+            </span>
           </.link>
         </li>
       </ul>

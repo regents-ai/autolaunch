@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.SubjectsLive do
     <section id="autolaunch-subjects" class="autolaunch-page">
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Autolaunch</p>
-        <h1>Subjects</h1>
+        <Regent.Structure.section_bar><h1 class="rg-section-bar__label">Subjects</h1></Regent.Structure.section_bar>
         <p>Browse the people and projects that share launch revenue.</p>
       </header>
       <.empty_state

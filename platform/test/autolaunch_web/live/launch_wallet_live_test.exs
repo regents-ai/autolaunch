@@ -305,12 +305,14 @@ defmodule AutolaunchWeb.LaunchWalletLiveTest do
 
       ChainClient.put(%{outcomes: %{launch: %{outcome: :confirmed, result: %{}}}})
 
-      html =
-        render_hook(element(view, card(context)), "launch_submitted", %{
-          "action_id" => operation.action_id,
-          "step" => "launch",
-          "transaction_hash" => @launch_hash
-        })
+      render_hook(element(view, card(context)), "launch_submitted", %{
+        "action_id" => operation.action_id,
+        "step" => "launch",
+        "transaction_hash" => @launch_hash
+      })
+
+      assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
+      html = render(view)
 
       assert html =~
                "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
@@ -417,6 +419,45 @@ defmodule AutolaunchWeb.LaunchWalletLiveTest do
     end
   end
 
+  for outcome <- [:pending, :submitted] do
+    test "withdrawing launch-only review preserves #{outcome} press uncertainty", context do
+      ChainClient.put(Fixture.fixture(allowance: @fee))
+      view = reviewed(context)
+      operation = open!(context)
+      assert operation.step == :launch
+      press = Ecto.UUID.generate()
+      render_hook(element(view, card(context)), "wallet_press_dispatch", %{
+        action_id: operation.action_id, press_id: press, step: "launch", signer: @wallet})
+      assert_receive {_ref, {:push_event, "wallet-press:send", _}}, 5_000
+      if unquote(outcome) == :submitted do
+        render_hook(element(view, card(context)), "wallet_press_report", %{
+          action_id: operation.action_id, press_id: press, step: "launch", transaction_hash: @launch_hash})
+        assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
+      end
+      html = view |> element("#{card(context)} [phx-click=start_new_launch]") |> render_click()
+      refute html =~ "Nothing was sent"
+      assert html =~ "Previously issued wallet presses may still complete"
+      assert has_element?(view, "[data-wallet-press='#{press}']")
+      refute has_element?(view, "#{card(context)} [data-launch-wallet-send]")
+    end
+  end
+
+  test "a populated launch review cannot render outside its owning authority", context do
+    reviewed(context)
+    operation = open!(context)
+    socket = %Phoenix.LiveView.Socket{assigns: %{__changed__: %{}, myself: %Phoenix.LiveComponent.CID{cid: 1}}}
+    {:ok, initialized} = AutolaunchWeb.LaunchWalletComponent.update(%{
+      id: "scope-check", draft: context.draft, authenticated: true,
+      current_human_id: context.account.id, session_lease: current_lease(context.account.id),
+      operation: operation, wallet: @wallet}, socket)
+    private = Map.merge(initialized.assigns, %{authenticated: false, current_human_id: nil,
+      session_lease: nil, wallet: nil})
+    html = AutolaunchWeb.LaunchWalletComponent.render(private)
+      |> Phoenix.HTML.Safe.to_iodata() |> IO.iodata_to_binary()
+    refute html =~ "launch-wallet-review"
+    refute html =~ "data-launch-wallet-send"
+  end
+
   # Helpers
 
   defp card(context), do: "#autolaunch-launch-wallet-#{context[:draft].id}"
@@ -459,6 +500,8 @@ defmodule AutolaunchWeb.LaunchWalletLiveTest do
       "step" => "approval",
       "transaction_hash" => @approval_hash
     })
+
+    assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
 
     view
   end

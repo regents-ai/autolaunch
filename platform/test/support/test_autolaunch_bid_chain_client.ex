@@ -42,6 +42,10 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
       fixture ->
         {:ok,
          %{
+           tick_spacing_q96: fixture.tick_spacing_q96,
+           floor_price_q96: fixture.floor_price_q96,
+           clearing_price_q96: fixture.clearing_price_q96,
+           max_bid_price_q96: fixture.max_bid_price_q96,
            currency: fixture.currency,
            regent_balance: fixture.regent_balance,
            token_allowance: fixture.token_allowance,
@@ -146,6 +150,10 @@ defmodule Autolaunch.BidFixture do
   @doc "The scripted chain a review is derived from, with any part replaced."
   def fixture(overrides \\ []) do
     %{
+      tick_spacing_q96: 1,
+      floor_price_q96: 1,
+      clearing_price_q96: 0,
+      max_bid_price_q96: Integer.pow(2, 256) - 1,
       currency: regent(),
       regent_balance: 100 * Integer.pow(10, 18),
       token_allowance: 0,
