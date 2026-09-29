@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v62, 29 September 2026 (067a3c4)
+- The site monitor now notices if the site stops reading new launches, bids or trades.
+- Shared Regent libraries updated, including how ENS names are read.
+
 ## v61, 28 September 2026 (abb4c66)
 - New Terms page, with the Autolaunch and blockchain-risk sections from the Regents Labs
   terms. The footer links it, and the privacy page points to it.
