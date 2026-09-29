@@ -24,8 +24,9 @@ snapshot `contracts/stocks-v2` exports (`../stocks-v2/lib`, pinned by
 
 ## Status
 
-Not deployed. Version 2 changes only the sale and graduation terms (founder decisions of
-27 September 2026). The hook, splitter, payment receiver and locker are the version 1 sources;
+Not deployed. The Base packet is prepared and rehearsed, awaiting the founder's approval of its
+digest; see `deployments/base-mainnet/README.md`. Version 2 changes only the sale and graduation
+terms (founder decisions of 27 September 2026). The hook, splitter, payment receiver and locker are the version 1 sources;
 a version 2 deployment creates new instances bound to the new factory and strategy.
 
 ## Terms

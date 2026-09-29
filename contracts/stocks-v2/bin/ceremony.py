@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""The deployment ceremony tool for a Memestake contracts package (Base `contracts/stocks-v2`,
-Robinhood `contracts/robinhood-v2`), run from the package directory.
+"""The deployment ceremony tool for an Autolaunch v2 contracts package (Base Revstake
+`contracts/revstake-v2`, Base Memestake `contracts/stocks-v2`, Robinhood Memestake
+`contracts/robinhood-v2`), run from the package directory.
 
 The package's production script (`script/Deploy*.s.sol`) consumes ceremony values and creates the
 graph; it has no filesystem permission and writes nothing. This tool is the other half: it turns the
@@ -27,17 +28,18 @@ Modes:
   rehearse    Re-observes the committed external state and compares it exactly, proves the deployer
               nonce still equals the committed one, and simulates the ceremony against the live
               chain with no signer and no broadcast. Robinhood simulates the exact deployment
-              scripts. Base simulates the exact creation transactions in sequence on the node
-              itself (`eth_simulateV1`), because Base's stock tokens carry a one-byte `0xef` code
-              that only a Base node executes, and writes those transactions to
+              scripts. The Base packages simulate the exact creation transactions in sequence on
+              the node itself (`eth_simulateV1`), because Base's stock tokens carry a one-byte
+              `0xef` code that only a Base node executes, and write those transactions to
               reports/generated/deployment/ for the founder to send.
   record      Verifies the founder's confirmed transaction hashes against the committed packet
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoint the founder passes, to reports/generated/deployment/. On both
-              chains every stock's route is read from the launchpad's admission over that
-              endpoint; on Robinhood the route's pool and feed are read from the route.
+              ABIs and the endpoints the founder passes, to reports/generated/deployment/. For
+              Memestake on both chains every stock's route is read from the launchpad's admission
+              over that endpoint; on Robinhood the route's pool and feed are read from the route.
+              For Revstake the log ledger's start block is the factory's creation block.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`, `REGENT_ROBINHOOD_RPC_URL`),
 matching the `[rpc_endpoints]` aliases in `foundry.toml`, except that site-config reads through
@@ -361,9 +363,11 @@ def source_identity(frozen: Frozen, shared: str | None) -> dict:
 
 
 class Package:
-    """What differs between the two Memestake ceremonies, stated once per package."""
+    """What differs between the three ceremonies, stated once per package."""
 
     CREATIONS: tuple[str, ...]
+    # The founder-sent creation whose constructor makes the internal creations.
+    constructor_creator: str
     component: str
     network: str
     chain: Chain
@@ -410,7 +414,76 @@ class Package:
         raise NotImplementedError
 
     def rehearse(self, packet: dict) -> None:
-        raise NotImplementedError
+        """Simulates the exact creation transactions, in order and at their nonces, on the chain's
+        own node (`eth_simulateV1`), then the wiring readbacks against the simulated state, and
+        writes the transactions out. The Base packages rehearse this way: forge cannot run the
+        Base Memestake ceremony, whose route constructors read stock tokens carrying a one-byte
+        `0xef` code only a Base node executes, and Revstake shares the one path. Robinhood
+        simulates its exact scripts instead."""
+        selection = packet["selection"]
+        artifacts = frozen_artifacts(self.frozen)
+        transactions = []
+        for entry in self.topology(selection)[0]["creation_order"]:
+            contract = entry["contract"]
+            record = self.frozen.contract(contract)
+            creation = bytes.fromhex(freeze.code_object(artifacts[contract], "bytecode"))
+            if freeze.keccak256(creation) != record["creation_keccak256"].lower():
+                raise CeremonyError(f"the build's {contract} creation code is not the frozen one")
+            types = ",".join(parameter.split()[0] for parameter in record["constructor"])
+            names = [parameter.split()[1] for parameter in record["constructor"]]
+            arguments = run(["cast", "abi-encode", f"constructor({types})",
+                             *(str(entry["constructor_arguments"][name]) for name in names)]).strip()
+            transactions.append({"index": entry["index"], "nonce": entry["deployer_nonce"], "contract": contract,
+                                 "address": entry["address"], "data": "0x" + creation.hex() + arguments.removeprefix("0x")})
+
+        fee = hex(2 * int(self.chain.cast("base-fee", "latest")))
+        creations = [{"from": selection["deployer"], "nonce": hex(t["nonce"]), "data": t["data"], "gas": hex(SIMULATION_GAS),
+                      "maxFeePerGas": fee, "maxPriorityFeePerGas": "0x0"} for t in transactions]
+        plan = self.readback_plan(selection)
+        readbacks = [{"to": to, "data": freeze.keccak256(signature.partition(")")[0].encode() + b")")[:10],
+                      "maxFeePerGas": "0x0", "maxPriorityFeePerGas": "0x0"} for _, to, signature, _ in plan]
+        blocks = self.chain.rpc("eth_simulateV1", [{
+            "blockStateCalls": [{"calls": creations}, {"blockOverrides": {"baseFeePerGas": "0x0"}, "calls": readbacks}],
+            "validation": True,
+        }, "latest"])
+
+        problems: list[str] = []
+        for transaction, call in zip(transactions, blocks[0]["calls"]):
+            label = f"transaction {transaction['index']} ({transaction['contract']}, nonce {transaction['nonce']})"
+            if quantity(call["status"]) != 1:
+                problems.append(f"{label} reverted: {call.get('error') or call['returnData']}")
+                continue
+            transaction["gas_used"] = quantity(call["gasUsed"])
+            runtime = bytes.fromhex(call["returnData"].removeprefix("0x"))
+            verification, matches = compare_runtime(self.frozen.contract(transaction["contract"]),
+                                                    artifacts[transaction["contract"]], {}, runtime)
+            if not matches:
+                problems.append(f"{label}: the created code does not match ({verification})")
+        for (key, _, signature, wanted), call in zip(plan, blocks[1]["calls"]):
+            word = call["returnData"].removeprefix("0x")
+            if quantity(call["status"]) != 1 or len(word) != 64:
+                problems.append(f"readback {key} did not answer one word")
+                continue
+            found = int(word, 16) == 1 if signature.endswith("(bool)") else checksum(word[24:])
+            if found != wanted:
+                problems.append(f"readback {key}: expected {wanted}, found {found}")
+        if problems:
+            raise CeremonyError("the simulated ceremony does not match the packet:\n  " + "\n  ".join(problems))
+
+        document = {
+            "artifact": f"regents-autolaunch-{self.network}-rehearsed-transactions",
+            "packet_digest": packet["digest"]["value"],
+            "chain_id": self.chain.chain_id,
+            "deployer": selection["deployer"],
+            "simulated_after_block": quantity(blocks[0]["number"]) - 1,
+            "gas_used_total": sum(t["gas_used"] for t in transactions),
+            "transactions": transactions,
+        }
+        candidate = write_candidate(REHEARSED_TRANSACTIONS_NAME, document)
+        print(f"{len(transactions)} creations simulated in order on {self.chain.alias} after block "
+              f"{document['simulated_after_block']}, every created code matches the frozen build and all "
+              f"{len(plan)} readbacks match; {document['gas_used_total']} gas; nothing was broadcast")
+        print(f"the exact transactions are written to {candidate}")
 
     # --- record and site-config --------------------------------------------------------------
 
@@ -422,8 +495,18 @@ class Package:
         """(chain, contract, predicted address, created_by) per creation inside a constructor."""
         raise NotImplementedError
 
-    def readbacks(self, selection: dict, problems: list[str]) -> dict:
+    def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
+        """(key, contract, view, expected value) for every wiring fact of the deployed graph."""
         raise NotImplementedError
+
+    def readbacks(self, selection: dict, problems: list[str]) -> dict:
+        found = {}
+        for key, to, signature, wanted in self.readback_plan(selection):
+            read = self.chain.call_bool if signature.endswith("(bool)") else self.chain.call_address
+            found[key] = read(to, signature)
+            if found[key] != wanted:
+                problems.append(f"readback {key}: expected {wanted}, found {found[key]}")
+        return found
 
     def link_addresses(self, selection: dict) -> dict[str, str]:
         return {}
@@ -468,7 +551,169 @@ def route_venue(chain: Chain, route: str, usdg: str) -> tuple[str, str]:
     return chain.call_address(route, "pool()(address)"), chain.call_address(route, "feed()(address)")
 
 
+class Revstake(Package):
+    """Base Revstake: five founder-sent creations. The factory's constructor creates the strategy,
+    whose own constructor creates the LP locker, and then the hook at its mined salt."""
+
+    constructor_creator = "RegentsAutolaunchFactoryV2"
+    component = "contracts/revstake-v2"
+    network = "base-mainnet"
+    chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
+    shared_component = None
+    PREDICTED = ("uerc20_factory", "escrow_implementation", "splitter_implementation", "receiver_implementation",
+                 "factory", "strategy", "lp_locker", "hook")
+    # (contract, predicted key) per founder-sent transaction, in nonce order.
+    TRANSACTIONS = (("UERC20Factory", "uerc20_factory"), ("ConditionalVestingEscrowV2", "escrow_implementation"),
+                    ("SubjectSplitterV1", "splitter_implementation"), ("PaymentReceiverV1", "receiver_implementation"),
+                    ("RegentsAutolaunchFactoryV2", "factory"))
+    CREATIONS = (*(name for name, _ in TRANSACTIONS), "RegentLBPStrategyV2", "RevstakeLPLocker", "RegentFeeHook")
+    BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
+                "GOVERNANCE_AND_REGENT_SAFE")
+    # The website drives the one Permit2 the Base Memestake build pins; Revstake binds none of its own.
+    PERMIT2_IDENTITY = Path("../stocks-v2") / FROZEN_IDENTITY
+
+    def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
+        pass
+
+    def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
+        return {}
+
+    def selection_environment(self, selection: dict, salt: str | None) -> dict:
+        env = {self.deployer_env: selection["deployer"], self.starting_nonce_env: str(selection["starting_nonce"])}
+        if salt:
+            env[self.hook_salt_env] = salt
+        return env
+
+    def selection_from_logs(self, inputs: dict, logs: dict[str, str]) -> dict:
+        mined_salt_bits(logs["hook_salt"])
+        return {
+            "deployer": checksum(logs["deployer"]),
+            "starting_nonce": int(logs["starting_nonce"]),
+            "hook_salt": logs["hook_salt"],
+            "predicted_addresses": {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED},
+        }
+
+    def predicted_names(self) -> list[str]:
+        return list(self.PREDICTED)
+
+    def observe(self, selection: dict) -> dict:
+        chain = self.chain
+        block = chain.block_number()
+        bindings = {}
+        for constant in self.BINDINGS:
+            address = self.frozen.binding(constant)
+            bindings[constant.lower()] = {"address": address, "codehash": chain.codehash(address)}
+            if bindings[constant.lower()]["codehash"] == freeze.keccak256(b""):
+                raise CeremonyError(f"binding {constant} at {address} has no code on Base")
+        safe = self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE")
+        staking = self.frozen.binding("LIVE_STAKING")
+        return {
+            "observed_at_block": block,
+            "bindings": bindings,
+            "governance_and_regent_safe": chain.safe_surface(safe),
+            "live_staking": {
+                "owner": chain.call_address(staking, "owner()(address)"),
+                "paused": chain.call_bool(staking, "paused()(bool)"),
+            },
+        }
+
+    def topology(self, selection: dict) -> list[dict]:
+        p = selection["predicted_addresses"]
+        nonce = selection["starting_nonce"]
+        order = [
+            {"index": i, "contract": name, "mechanism": "transaction", "created_by": "deployer",
+             "deployer_nonce": nonce + i, "address": p[key], "constructor_arguments": {}}
+            for i, (name, key) in enumerate(self.TRANSACTIONS)
+        ]
+        order[-1]["constructor_arguments"] = {
+            "uerc20Factory_": p["uerc20_factory"],
+            "escrowImplementation_": p["escrow_implementation"],
+            "splitterImplementation_": p["splitter_implementation"],
+            "receiverImplementation_": p["receiver_implementation"],
+            "hookSalt": selection["hook_salt"],
+        }
+        internal = [
+            {"contract": "RegentLBPStrategyV2", "mechanism": "CREATE", "created_by": "RegentsAutolaunchFactoryV2 constructor",
+             "creator_nonce": 1, "address": p["strategy"],
+             "constructor_arguments": {"factory_": p["factory"], "escrowImplementation_": p["escrow_implementation"],
+                                       "splitterImplementation_": p["splitter_implementation"],
+                                       "receiverImplementation_": p["receiver_implementation"]}},
+            {"contract": "RevstakeLPLocker", "mechanism": "CREATE", "created_by": "RegentLBPStrategyV2 constructor",
+             "creator_nonce": 1, "address": p["lp_locker"], "constructor_arguments": {"strategy_": p["strategy"]}},
+            {"contract": "RegentFeeHook", "mechanism": "CREATE2", "created_by": "RegentsAutolaunchFactoryV2 constructor",
+             "salt": selection["hook_salt"], "address": p["hook"],
+             "constructor_arguments": {"manager_": self.frozen.binding("POOL_MANAGER"), "strategy_": p["strategy"]}},
+        ]
+        return [{"chain_id": self.chain.chain_id, "creation_order": order, "internal_creations": internal}]
+
+    def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
+        p = selection["predicted_addresses"]
+        return [(self.chain, name, p[key]) for name, key in self.TRANSACTIONS]
+
+    def internal_plan(self, selection: dict) -> list[tuple[Chain, str, str, str]]:
+        p = selection["predicted_addresses"]
+        return [
+            (self.chain, "RegentLBPStrategyV2", p["strategy"], "RegentsAutolaunchFactoryV2 constructor"),
+            (self.chain, "RevstakeLPLocker", p["lp_locker"], "RegentLBPStrategyV2 constructor"),
+            (self.chain, "RegentFeeHook", p["hook"], "RegentsAutolaunchFactoryV2 constructor"),
+        ]
+
+    def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
+        p = selection["predicted_addresses"]
+        factory, strategy = p["factory"], p["strategy"]
+        return [
+            ("factory.uerc20Factory", factory, "uerc20Factory()(address)", p["uerc20_factory"]),
+            ("factory.strategy", factory, "strategy()(address)", strategy),
+            ("factory.hook", factory, "hook()(address)", p["hook"]),
+            ("factory.launchesPaused", factory, "launchesPaused()(bool)", True),
+            ("strategy.factory", strategy, "factory()(address)", factory),
+            ("strategy.escrowImplementation", strategy, "escrowImplementation()(address)", p["escrow_implementation"]),
+            ("strategy.splitterImplementation", strategy, "splitterImplementation()(address)", p["splitter_implementation"]),
+            ("strategy.receiverImplementation", strategy, "receiverImplementation()(address)", p["receiver_implementation"]),
+            ("strategy.lpLocker", strategy, "lpLocker()(address)", p["lp_locker"]),
+            ("strategy.hook", strategy, "hook()(address)", p["hook"]),
+            ("lpLocker.strategy", p["lp_locker"], "strategy()(address)", strategy),
+            ("hook.strategy", p["hook"], "strategy()(address)", strategy),
+        ]
+
+    def abi_artifacts(self) -> dict[str, tuple[str, str]]:
+        return {
+            "auction": ("out", "../stocks-v2/lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol:ContinuousClearingAuction"),
+            "escrow": ("out", "src/escrow/ConditionalVestingEscrowV2.sol:ConditionalVestingEscrowV2"),
+            "factory": ("out", "src/factory/RegentsAutolaunchFactoryV2.sol:RegentsAutolaunchFactoryV2"),
+            "hook": ("out", "src/hook/RegentFeeHook.sol:RegentFeeHook"),
+            "lp_locker": ("out", "src/revenue/RevstakeLPLocker.sol:RevstakeLPLocker"),
+            "permit2": ("out", "../stocks-v2/lib/permit2/src/interfaces/IAllowanceTransfer.sol:IAllowanceTransfer"),
+            "receiver": ("out", "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1"),
+            "splitter": ("out", "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1"),
+            "strategy": ("out", "src/strategy/RegentLBPStrategyV2.sol:RegentLBPStrategyV2"),
+            "token": ("out", "../stocks-v2/lib/uerc20-factory/src/tokens/UERC20.sol:UERC20"),
+        }
+
+    def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
+        created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
+        addresses = {
+            **created,
+            "regent": self.frozen.binding("REGENT"),
+            "cca_factory": self.frozen.binding("CCA_FACTORY"),
+            "pool_manager": self.frozen.binding("POOL_MANAGER"),
+            "position_manager": self.frozen.binding("POSITION_MANAGER"),
+            "governance_safe": self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE"),
+            "permit2": self.frozen.binding("PERMIT2", self.PERMIT2_IDENTITY),
+        }
+        factory_block = next(t["block_number"] for t in manifest["transactions"] if t["contract"] == self.constructor_creator)
+        return {
+            "chain_id": self.chain.chain_id,
+            "rpc_url": args.rpc_url,
+            "public_rpc_url": args.public_rpc_url,
+            "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
+            "abis": abis,
+            "start_blocks": {"factory": factory_block},
+        }
+
+
 class Stocks(Package):
+    constructor_creator = "StocksLaunchpadV2"
     component = "contracts/stocks-v2"
     network = "base-mainnet"
     chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
@@ -601,76 +846,6 @@ class Stocks(Package):
         ]
         return [{"chain_id": self.chain.chain_id, "creation_order": order, "internal_creations": internal}]
 
-    def rehearse(self, packet: dict) -> None:
-        """Simulates the exact creation transactions, in order and at their nonces, on a Base node,
-        then the wiring readbacks against the simulated state, and writes the transactions out.
-        Forge cannot run this ceremony: every route constructor reads its stock token, whose
-        one-byte `0xef` code only a Base node executes."""
-        selection = packet["selection"]
-        artifacts = frozen_artifacts(self.frozen)
-        transactions = []
-        for entry in self.topology(selection)[0]["creation_order"]:
-            contract = entry["contract"]
-            record = self.frozen.contract(contract)
-            creation = bytes.fromhex(freeze.code_object(artifacts[contract], "bytecode"))
-            if freeze.keccak256(creation) != record["creation_keccak256"].lower():
-                raise CeremonyError(f"the build's {contract} creation code is not the frozen one")
-            types = ",".join(parameter.split()[0] for parameter in record["constructor"])
-            names = [parameter.split()[1] for parameter in record["constructor"]]
-            arguments = run(["cast", "abi-encode", f"constructor({types})",
-                             *(str(entry["constructor_arguments"][name]) for name in names)]).strip()
-            transactions.append({"index": entry["index"], "nonce": entry["deployer_nonce"], "contract": contract,
-                                 "address": entry["address"], "data": "0x" + creation.hex() + arguments.removeprefix("0x")})
-
-        fee = hex(2 * int(self.chain.cast("base-fee", "latest")))
-        creations = [{"from": selection["deployer"], "nonce": hex(t["nonce"]), "data": t["data"], "gas": hex(SIMULATION_GAS),
-                      "maxFeePerGas": fee, "maxPriorityFeePerGas": "0x0"} for t in transactions]
-        plan = self.readback_plan(selection)
-        readbacks = [{"to": to, "data": freeze.keccak256(signature.partition(")")[0].encode() + b")")[:10],
-                      "maxFeePerGas": "0x0", "maxPriorityFeePerGas": "0x0"} for _, to, signature, _ in plan]
-        blocks = self.chain.rpc("eth_simulateV1", [{
-            "blockStateCalls": [{"calls": creations}, {"blockOverrides": {"baseFeePerGas": "0x0"}, "calls": readbacks}],
-            "validation": True,
-        }, "latest"])
-
-        problems: list[str] = []
-        for transaction, call in zip(transactions, blocks[0]["calls"]):
-            label = f"transaction {transaction['index']} ({transaction['contract']}, nonce {transaction['nonce']})"
-            if quantity(call["status"]) != 1:
-                problems.append(f"{label} reverted: {call.get('error') or call['returnData']}")
-                continue
-            transaction["gas_used"] = quantity(call["gasUsed"])
-            runtime = bytes.fromhex(call["returnData"].removeprefix("0x"))
-            verification, matches = compare_runtime(self.frozen.contract(transaction["contract"]),
-                                                    artifacts[transaction["contract"]], {}, runtime)
-            if not matches:
-                problems.append(f"{label}: the created code does not match ({verification})")
-        for (key, _, signature, wanted), call in zip(plan, blocks[1]["calls"]):
-            word = call["returnData"].removeprefix("0x")
-            if quantity(call["status"]) != 1 or len(word) != 64:
-                problems.append(f"readback {key} did not answer one word")
-                continue
-            found = int(word, 16) == 1 if signature.endswith("(bool)") else checksum(word[24:])
-            if found != wanted:
-                problems.append(f"readback {key}: expected {wanted}, found {found}")
-        if problems:
-            raise CeremonyError("the simulated ceremony does not match the packet:\n  " + "\n  ".join(problems))
-
-        document = {
-            "artifact": f"regents-autolaunch-{self.network}-rehearsed-transactions",
-            "packet_digest": packet["digest"]["value"],
-            "chain_id": self.chain.chain_id,
-            "deployer": selection["deployer"],
-            "simulated_after_block": quantity(blocks[0]["number"]) - 1,
-            "gas_used_total": sum(t["gas_used"] for t in transactions),
-            "transactions": transactions,
-        }
-        candidate = write_candidate(REHEARSED_TRANSACTIONS_NAME, document)
-        print(f"{len(transactions)} creations simulated in order on {self.chain.alias} after block "
-              f"{document['simulated_after_block']}, every created code matches the frozen build and all "
-              f"{len(plan)} readbacks match; {document['gas_used_total']} gas; nothing was broadcast")
-        print(f"the exact transactions are written to {candidate}")
-
     def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
         predicted = selection["predicted_addresses"]
         plan = [(self.chain, "StocksLaunchpadV2", predicted["launchpad"]), (self.chain, "StockBidAdapterV1", predicted["bid_adapter"])]
@@ -686,7 +861,6 @@ class Stocks(Package):
         ]
 
     def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
-        """(key, contract, view, expected value) for every wiring fact of the deployed graph."""
         predicted = selection["predicted_addresses"]
         launchpad = predicted["launchpad"]
         plan = [
@@ -700,15 +874,6 @@ class Stocks(Package):
             admission = selection["admissions"][i]
             plan += [(f"route[{i}].{view}", route, f"{view}()(address)", admission[view]) for view in ("stock", "pool", "feed")]
         return plan
-
-    def readbacks(self, selection: dict, problems: list[str]) -> dict:
-        found = {}
-        for key, to, signature, wanted in self.readback_plan(selection):
-            read = self.chain.call_bool if signature.endswith("(bool)") else self.chain.call_address
-            found[key] = read(to, signature)
-            if found[key] != wanted:
-                problems.append(f"readback {key}: expected {wanted}, found {found[key]}")
-        return found
 
     def abi_artifacts(self) -> dict[str, tuple[str, str]]:
         return {
@@ -725,7 +890,7 @@ class Stocks(Package):
 
     def add_site_config_arguments(self, parser: argparse.ArgumentParser) -> None:
         super().add_site_config_arguments(parser)
-        parser.add_argument("--agent-factory", required=True, help="the deployed Base Revstake factory, from contracts/v1/deployments/base-mainnet/deployed-manifest.json")
+        parser.add_argument("--agent-factory", required=True, help="the deployed Base Revstake factory, from contracts/revstake-v2/deployments/base-mainnet/deployed-manifest.json")
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
         created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
@@ -768,6 +933,7 @@ class Stocks(Package):
 
 
 class Robinhood(Package):
+    constructor_creator = "RobinhoodStocksLaunchpadV2"
     component = "contracts/robinhood-v2"
     network = "robinhood-mainnet"
     chain = Chain("robinhood", "REGENT_ROBINHOOD_RPC_URL", 4663)
@@ -1155,7 +1321,7 @@ class Robinhood(Package):
         }
 
 
-PACKAGES = {Stocks.component: Stocks, Robinhood.component: Robinhood}
+PACKAGES = {Revstake.component: Revstake, Stocks.component: Stocks, Robinhood.component: Robinhood}
 
 
 # =============================================================================
@@ -1432,7 +1598,7 @@ def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
                              "nonce": quantity(transaction["nonce"]), "contract": contract, "address": predicted})
         contracts.append(verify_code(chain, frozen, artifacts, links, contract, predicted, block, "deployer", problems))
     for chain, contract, predicted, created_by in package.internal_plan(selection):
-        creator_index = next(i for i, (c, name, _) in enumerate(plan) if name.endswith("LaunchpadV2") and c is chain)
+        creator_index = next(i for i, (c, name, _) in enumerate(plan) if name == package.constructor_creator and c is chain)
         block = transactions[creator_index]["block_number"]
         contracts.append(verify_code(chain, frozen, artifacts, links, contract, predicted, block, created_by, problems))
     readbacks = package.readbacks(selection, problems)
@@ -1469,7 +1635,10 @@ CONTRACT_KEYS = {
     "UERC20Factory": "uerc20_factory", "RobinhoodProtocolRevenueInboxV1": "inbox", "RobinhoodPositionsLib": "positions_lib",
     "RobinhoodFeeHookFactory": "hook_factory", "RobinhoodStocksLaunchpadV2": "launchpad", "RobinhoodStockBidAdapterV1": "bid_adapter",
     "RobinhoodFeeHookV1": "hook", "RobinhoodMemestockSplitterV1": "splitter_implementation", "RobinhoodBaseRevenueReceiverV1": "base_receiver",
-    "UniswapV3StockRouteV1": "route",
+    "UniswapV3StockRouteV1": "route", "ConditionalVestingEscrowV2": "escrow_implementation",
+    "SubjectSplitterV1": "splitter_implementation", "PaymentReceiverV1": "receiver_implementation",
+    "RegentsAutolaunchFactoryV2": "factory", "RegentLBPStrategyV2": "strategy", "RevstakeLPLocker": "lp_locker",
+    "RegentFeeHook": "hook",
 }
 
 

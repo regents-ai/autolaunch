@@ -1,0 +1,117 @@
+# Base mainnet
+
+**Prepared, not approved, nothing sent.** `mainnet-no-go-packet.json` was prepared on
+29 September 2026 against live Base at block 51936156 for deployer
+`0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 28 (founder decision 1a, 29 September 2026)
+and rehearsed on a Base node after block 51936163. Its digest is
+`0x78e5e04928efd068eec73d58aa11cb605fcf755d0c140c8b00ea483b596f79a2`. Nothing may be sent until the
+founder names that digest.
+
+Two files live in this directory, and keeping them apart is the point.
+
+- `mainnet-no-go-packet.json` is a **proposal**: the selection (deployer, starting nonce, mined
+  hook salt, the eight predicted addresses), the observed external state and the creation
+  topology. `render` re-derives it offline and compares it byte for byte.
+- `deployed-manifest.json` is a **record**, empty until `record` fills it from confirmed Base
+  receipts. No simulated fact reaches it.
+
+The tool is the shared one in `contracts/stocks-v2/bin/ceremony.py`, run from this package
+directory (`python3 ../stocks-v2/bin/ceremony.py <mode>`). It refuses to run beside any signing,
+keystore, sender or hardware-wallet variable, or beside a dotenv file.
+
+## The whole ceremony
+
+Five plain zero-value contract creations from the deployer, in nonce order. The factory's
+constructor then creates the strategy (factory nonce 1), whose constructor creates the LP locker
+(strategy nonce 1), and the fee hook (`CREATE2` over the pinned salt
+`0x…1989`, address bits `0x2044`).
+
+| Nonce | Contract | Predicted address | Gas used in rehearsal |
+| --- | --- | --- | --- |
+| 28 | UERC20Factory | `0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08` | 2,793,709 |
+| 29 | ConditionalVestingEscrowV2 | `0x8F511153393429468C3861E7cC5341Abb3310871` | 831,431 |
+| 30 | SubjectSplitterV1 | `0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942` | 1,438,247 |
+| 31 | PaymentReceiverV1 | `0xb58f2AF6A588414C6ad44280143db9aE7927d5fc` | 900,720 |
+| 32 | RegentsAutolaunchFactoryV2 | `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` | 8,099,110 |
+| (factory) | RegentLBPStrategyV2 | `0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9` | |
+| (strategy) | RevstakeLPLocker | `0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120` | |
+| (factory) | RegentFeeHook | `0x57681398fB72027E719F3E558a0E188dd0c96044` | |
+
+14,063,217 gas in all. The factory is born paused. The Governance and Regent Safe is its only
+authority; the deployer holds none after the last creation.
+
+The Base Memestake launchpad binds the token factory created at nonce 28 (founder decision 2a), so
+Memestake is prepared only after this ceremony lands. On 29 September 2026 all five creations and
+then Memestake's twelve (v1's ten Base stocks, nonces 33 to 44) were simulated back to back on a
+Base node after block 51936147: every creation landed at its predicted address and all 47 wiring
+readbacks matched, 30,158,802 gas in all.
+
+## Before the first send
+
+Run the rehearsal again just before sending. It proves the deployer is still at nonce 28, that
+every committed external fact still holds, and writes the exact transactions to
+`reports/generated/deployment/rehearsed-transactions.json`:
+
+```bash
+REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py rehearse
+```
+
+## Sending by hand
+
+Send each creation from the deployer with a signer of your own, confirm its receipt (status,
+sender, nonce, created address) and only then send the next. If any creation lands elsewhere, the
+packet is terminal and is prepared again, never resumed. The signer flags are yours and are never
+written down here. Every flag comes before `--create`.
+
+```bash
+cast send --rpc-url base <your signer flags> --nonce 28 --gas-limit 3400000 --create $(jq -r '.transactions[0].data' reports/generated/deployment/rehearsed-transactions.json)
+```
+
+```bash
+cast send --rpc-url base <your signer flags> --nonce 29 --gas-limit 1000000 --create $(jq -r '.transactions[1].data' reports/generated/deployment/rehearsed-transactions.json)
+```
+
+```bash
+cast send --rpc-url base <your signer flags> --nonce 30 --gas-limit 1750000 --create $(jq -r '.transactions[2].data' reports/generated/deployment/rehearsed-transactions.json)
+```
+
+```bash
+cast send --rpc-url base <your signer flags> --nonce 31 --gas-limit 1100000 --create $(jq -r '.transactions[3].data' reports/generated/deployment/rehearsed-transactions.json)
+```
+
+```bash
+cast send --rpc-url base <your signer flags> --nonce 32 --gas-limit 9800000 --create $(jq -r '.transactions[4].data' reports/generated/deployment/rehearsed-transactions.json)
+```
+
+`base` is the `[rpc_endpoints]` alias in `foundry.toml`, resolved from `REGENT_BASE_RPC_URL`.
+
+After the last receipt, the public reads that prove the graph:
+
+```bash
+cast call 0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E "strategy()(address)" --rpc-url base
+```
+
+```bash
+cast call 0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E "hook()(address)" --rpc-url base
+```
+
+```bash
+cast call 0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E "launchesPaused()(bool)" --rpc-url base
+```
+
+## Recording
+
+Put the five transaction hashes, in nonce order, in a file `{"transactions": ["0x…", …]}` and run:
+
+```bash
+REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0x78e5e04928efd068eec73d58aa11cb605fcf755d0c140c8b00ea483b596f79a2
+```
+
+It checks every receipt against the packet, proves all eight contracts' code against the frozen
+build and reads back the twelve wiring facts, then writes the deployed-manifest candidate to
+`reports/generated/deployment/` for a human to install here.
+
+## Opening
+
+Deploying and opening are separate acts. After the website's version 2 switch is ready, the Safe
+sends `unpauseLaunches()` to the factory, at the same moment as the Base Memestake launchpad opens.

@@ -1,0 +1,12 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
+  "version": 1,
+  "status": "not deployed",
+  "populated_by": "confirmed receipts, and nothing else",
+  "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, rendered from an offline or read-only run. Nothing simulated may be written here. Every field is populated once, by `bin/ceremony.py record` from confirmed receipts, after the founder has named the approved packet digest and sent the ceremony by hand; a human installs the candidate it writes.",
+  "approved_packet_digest": null,
+  "selection": null,
+  "transactions": [],
+  "contracts": [],
+  "readbacks": null
+}
