@@ -14,7 +14,9 @@ defmodule AutolaunchWeb.Telemetry do
       the last indexed block, for `indexer` (`:ledger`, `:auction_activity`
       or `:token_trades`) on `chain_id`. The ledger compares its cursor with
       the safe head at the start of each pass, the other two their new cursor
-      with the latest head after each committed pass.
+      with the latest head after each committed pass. Each event also counts
+      one pass, so a reader that stops shows as passes that stop rising while
+      its lag keeps its last value.
     * `[:autolaunch, :jobs, :oldest_unfinished]` — `age_ms` of the oldest
       available, running or retrying background job in each running `queue`,
       0 when there is none, every ten seconds while background jobs run. A
@@ -76,6 +78,11 @@ defmodule AutolaunchWeb.Telemetry do
         measurement: :blocks,
         tags: [:indexer, :chain_id],
         description: "Blocks between the chain head and the indexer's last indexed block"
+      ),
+      counter("health.indexer.passes.total",
+        event_name: [:autolaunch, :indexer, :lag],
+        tags: [:indexer, :chain_id],
+        description: "Chain reader passes"
       ),
       last_value("health.job.oldest_age.seconds",
         event_name: [:autolaunch, :jobs, :oldest_unfinished],
