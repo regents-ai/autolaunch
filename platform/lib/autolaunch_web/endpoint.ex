@@ -19,6 +19,11 @@ defmodule AutolaunchWeb.Endpoint do
     from: :autolaunch,
     gzip: not code_reloading?,
     only: AutolaunchWeb.static_paths(),
+    only_matching:
+      for(path <- AutolaunchWeb.static_paths(),
+        Path.extname(path) != "",
+        do: Path.rootname(path) <> "-"
+      ),
     raise_on_missing_only: code_reloading?
 
   # Code reloading can be explicitly enabled under the
