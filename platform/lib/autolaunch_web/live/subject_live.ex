@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.SubjectLive do
   def render(assigns) do
     assigns =
       assign(assigns,
+        local_lab?: Lab.enabled?(),
         page_record: page_record(assigns.page),
         page_status: page_status(assigns.page, :error),
         tokens: page_list(assigns.page, :tokens),
@@ -36,7 +37,12 @@ defmodule AutolaunchWeb.SubjectLive do
         <p>{display_text(@page_record.subject_kind)} · Chain {@page_record.chain_id}</p>
       </header>
 
-      <.treasury_security report={report(@page_record)} surface="subject-detail" />
+      <.treasury_security
+        :if={!@local_lab?}
+        report={report(@page_record)}
+        surface="subject-detail"
+      />
+      <.lab_treasury_unavailable :if={@local_lab?} surface="subject-detail" />
 
       <section aria-labelledby="subject-revenue-title">
         <h2 id="subject-revenue-title">Revenue</h2>
@@ -65,7 +71,7 @@ defmodule AutolaunchWeb.SubjectLive do
       </section>
 
       <.live_component
-        :if={@page_record.chain_id != Lab.chain_id()}
+        :if={!@local_lab? && @page_record.chain_id != Lab.chain_id()}
         module={AutolaunchWeb.SubjectWalletComponent}
         id="autolaunch-subject-wallet"
         subject={@page_record}
@@ -73,6 +79,18 @@ defmodule AutolaunchWeb.SubjectLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
+      <section
+        :if={@local_lab?}
+        id="autolaunch-subject-wallet-unavailable"
+        class="autolaunch-empty"
+        role="status"
+      >
+        <h2>Staking and payments</h2>
+        <p>
+          Not available on the local Base fork. Only launches and bids run against the fork, so
+          this subject's wallet actions stay off rather than reaching Base mainnet.
+        </p>
+      </section>
 
       <section id="subject-related-tokens" aria-labelledby="subject-related-tokens-title">
         <h2 id="subject-related-tokens-title">Related tokens</h2>

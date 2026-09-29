@@ -1,6 +1,7 @@
 defmodule Autolaunch.LaunchProjection do
   @moduledoc false
 
+  require Ash.Query
   alias Autolaunch
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.{Abi, Address, LaunchAbi}
@@ -75,8 +76,24 @@ defmodule Autolaunch.LaunchProjection do
   end
 
   defp matching_operation(transaction_hash) when is_binary(transaction_hash) do
-    Autolaunch.chain_verified_launch_operation_by_hash(transaction_hash, actor: @actor)
-    |> accepted_operation()
+    hash = String.downcase(transaction_hash)
+
+    with {:ok, attempts} <-
+           Autolaunch.WalletAttempt
+           |> Ash.Query.filter(
+             transaction_hash == ^hash and step == :launch and state == :confirmed
+           )
+           |> Ash.Query.load(:launch_operation)
+           |> Ash.read(actor: @actor) do
+      case attempts do
+        [attempt | _] ->
+          accepted_operation({:ok, %{attempt.launch_operation | result: attempt.result}})
+
+        [] ->
+          Autolaunch.chain_verified_launch_operation_by_hash(hash, actor: @actor)
+          |> accepted_operation()
+      end
+    end
   end
 
   defp accepted_operation({:ok, %{envelope: envelope} = operation}) do

@@ -34,13 +34,7 @@ defmodule AutolaunchWeb.TokenLive do
       class="autolaunch-page"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">
-          <%= if @local_lab? do %>
-            Local Base fork · test assets · no mainnet value
-          <% else %>
-            Autolaunch · Token
-          <% end %>
-        </p>
+        <p class="autolaunch-kicker">Autolaunch · Token</p>
         <h1>{record_label(:token, @page_record)}</h1>
         <p>{record_summary(:token, @page_record) || record_fallback(:token)}</p>
       </header>
@@ -51,11 +45,13 @@ defmodule AutolaunchWeb.TokenLive do
         linked={false}
         class="launchpad-card--detail"
       />
+      <.exact_price id="token-exact-price" summary="Exact price" amount={@page_record.price_quote} />
       <.treasury_security
         :if={!@local_lab?}
         report={report(@page_record)}
         surface="token-detail"
       />
+      <.lab_treasury_unavailable :if={@local_lab?} surface="token-detail" />
     </article>
 
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>

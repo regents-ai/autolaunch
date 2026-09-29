@@ -11,10 +11,13 @@ defmodule AutolaunchWeb.CreateLive do
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
 
+  # A signed-out visitor stays on this route: the page explains the sign-in
+  # requirement, and a completed sign-in reloads the same document, so the
+  # visitor returns to Create without any redirect parameter to validate.
   def mount(_params, _session, socket) do
     case human_actor(socket) do
       nil ->
-        {:ok, redirect(socket, to: "/")}
+        {:ok, assign(socket, status: :sign_in_required)}
 
       actor ->
         socket =
@@ -75,6 +78,24 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_async(:fetch_image_url, {:exit, _reason}, socket) do
     {:noreply, assign(socket, draft_notice: image_notice(:fetch_failed))}
+  end
+
+  def render(%{status: :sign_in_required} = assigns) do
+    ~H"""
+    <main class="launchpad-create">
+      <section id="autolaunch-create-sign-in" class="autolaunch-empty launchpad-create__sign-in">
+        <p class="autolaunch-kicker">Autolaunch · Create</p>
+        <h1>Sign in to launch an auction</h1>
+        <p>
+          A launch starts as a private draft saved to your account, so Create needs you signed
+          in. Once you are, you come straight back here.
+        </p>
+        <button type="button" class="account-control__sign-in" data-account-target="sign-in">
+          Sign in
+        </button>
+      </section>
+    </main>
+    """
   end
 
   def render(assigns) do

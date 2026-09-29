@@ -797,6 +797,43 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   return null
 }
 
+type ProviderFailureBoundaryProps = {
+  children: React.ReactNode
+  onFailure: (error: unknown) => void
+}
+
+// A provider that cannot start, such as one given an app id it rejects, throws
+// while React renders it. Without a boundary that throw unmounts the tree and
+// the startup promise below never settles, so a Sign in press or a profile
+// load waits on nothing. The boundary reports the failure once and renders
+// nothing in the provider's place.
+export class ProviderFailureBoundary extends React.Component<
+  ProviderFailureBoundaryProps,
+  {failed: boolean}
+> {
+  state = {failed: false}
+
+  static getDerivedStateFromError() {
+    return {failed: true}
+  }
+
+  componentDidCatch(error: unknown) {
+    this.props.onFailure(error)
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children
+  }
+}
+
+// How long a provider may take to report ready before this startup gives up.
+// A provider that cannot reach its service, or is refused by it, may neither
+// throw nor become ready; a Sign in press or a profile load must not wait on
+// that forever. The window only bounds this startup: the rejected provider is
+// unmounted, nothing about the local session changes, and the lazy loader
+// starts a fresh provider on the next request.
+export const providerReadyWindowMs = 15_000
+
 export function startPrivyBridge(
   {mode = "ordinary"}: PrivyBridgeStartupOptions = {},
   providerState?: PrivyBridgeProviderState,
@@ -809,12 +846,29 @@ export function startPrivyBridge(
   host.hidden = true
   document.body.append(host)
 
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
     let currentProfileHandler: ProfileAction | null = null
-    let resolved = false
+    let settled = false
+    const root = createRoot(host)
+    const readyWindow = setTimeout(
+      () => failed("Privy provider did not become ready"),
+      providerReadyWindowMs,
+    )
+    const failed = (reason: string) => {
+      if (settled) return
+      settled = true
+      clearTimeout(readyWindow)
+      // React forbids unmounting from inside the render that just failed, so
+      // the tree is torn down properly on a later turn.
+      setTimeout(() => {
+        root.unmount()
+        host.remove()
+      }, 0)
+      reject(new Error(reason))
+    }
     const handle: PrivyBridgeHandle = {
       profile(...args) {
         return currentProfileHandler ? currentProfileHandler(...args) : Promise.reject(new Error("Profile is unavailable"))
@@ -844,19 +898,22 @@ export function startPrivyBridge(
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
       currentFinishSignOutOnly = finishSignOutOnly
-      if (!ready || resolved) return
-      resolved = true
+      if (!ready || settled) return
+      settled = true
+      clearTimeout(readyWindow)
       resolve(handle)
     }
 
-    createRoot(host).render(
-      <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
-        <AccountBridge
-          mode={mode}
-          providerState={providerState}
-          publishRequestHandler={publishRequestHandler}
-        />
-      </PrivyProvider>,
+    root.render(
+      <ProviderFailureBoundary onFailure={() => failed("Privy provider is unavailable")}>
+        <PrivyProvider appId={appId} config={{loginMethods: ["wallet"]}}>
+          <AccountBridge
+            mode={mode}
+            providerState={providerState}
+            publishRequestHandler={publishRequestHandler}
+          />
+        </PrivyProvider>
+      </ProviderFailureBoundary>,
     )
   })
 }

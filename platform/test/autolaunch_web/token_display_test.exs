@@ -48,4 +48,54 @@ defmodule AutolaunchWeb.TokenDisplayTest do
   test "AN_UNREAD_AMOUNT_RENDERS_THE_DASH" do
     assert amount(%{amount: nil, unit: "REGENT"}) |> String.trim() == "—"
   end
+
+  defp price(assigns), do: render_component(&TokenDisplay.price/1, assigns)
+
+  # A price with four or fewer significant digits is already readable and is
+  # rendered once, as itself.
+  test "SHORT_PRICES_ARE_RENDERED_EXACTLY_ONCE" do
+    for {value, unit, expected} <- [
+          {"0.001", "REGENT", "0.001 REGENT"},
+          {"1250", "REGENT", "1250 REGENT"},
+          {"0", "REGENT", "0 REGENT"},
+          {"0.5", nil, "0.5"}
+        ] do
+      assert price(%{amount: value, unit: unit}) |> String.trim() == expected
+    end
+  end
+
+  # An exact Q96 price keeps every one of its digits in the page while the
+  # screen shows four significant ones, truncated so a price a hair under a
+  # boundary never reads as the boundary.
+  test "LONG_PRICES_ARE_TRUNCATED_TO_FOUR_SIGNIFICANT_DIGITS_WITH_THE_EXACT_FIGURE_KEPT" do
+    exact =
+      "0.0009999999999999999999999993646703595967223962047236950068107574907116941176354885101318359375"
+
+    html = price(%{amount: exact, unit: "REGENT"})
+
+    assert html =~ ~s(<span aria-hidden="true" title="#{exact} REGENT">0.0009999 REGENT</span>)
+    assert html =~ ~s(<span class="visually-hidden">#{exact} REGENT</span>)
+
+    for {value, expected} <- [
+          {"123456.789", "123400"},
+          {"0.00012345", "0.0001234"},
+          {"99999", "99990"},
+          {"-0.00012345", "-0.0001234"}
+        ] do
+      assert price(%{amount: value, unit: "REGENT"}) =~ ">#{expected} REGENT</span>"
+    end
+  end
+
+  # Only presentation is shortened: an amount that is not a plain decimal, and
+  # a missing one, are shown as they are.
+  test "A_PRICE_THAT_IS_NOT_A_PLAIN_DECIMAL_OR_IS_MISSING_IS_SHOWN_AS_WRITTEN" do
+    for written <- ["about 0.001", "NaN", "Infinity", "-Infinity", "1e5", "1.5E-3", "01.5", ".5", "1."] do
+      assert price(%{amount: written, unit: "REGENT"}) |> String.trim() == "#{written} REGENT"
+    end
+
+    assert price(%{amount: nil, unit: "REGENT"}) |> String.trim() == "No price yet"
+
+    assert price(%{amount: "", unit: nil, fallback: "Raise target pending"}) |> String.trim() ==
+             "Raise target pending"
+  end
 end

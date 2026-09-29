@@ -305,12 +305,14 @@ defmodule AutolaunchWeb.LaunchWalletLiveTest do
 
       ChainClient.put(%{outcomes: %{launch: %{outcome: :confirmed, result: %{}}}})
 
-      html =
-        render_hook(element(view, card(context)), "launch_submitted", %{
-          "action_id" => operation.action_id,
-          "step" => "launch",
-          "transaction_hash" => @launch_hash
-        })
+      render_hook(element(view, card(context)), "launch_submitted", %{
+        "action_id" => operation.action_id,
+        "step" => "launch",
+        "transaction_hash" => @launch_hash
+      })
+
+      assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
+      html = render(view)
 
       assert html =~
                "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
@@ -459,6 +461,8 @@ defmodule AutolaunchWeb.LaunchWalletLiveTest do
       "step" => "approval",
       "transaction_hash" => @approval_hash
     })
+
+    assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
 
     view
   end

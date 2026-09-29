@@ -1,5 +1,5 @@
 defmodule Autolaunch.LabTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Autolaunch.{Lab, LabAbi}
 
@@ -122,6 +122,152 @@ defmodule Autolaunch.LabTest do
            )
 
     assert byte_size(data) == 10 + 6 * 64
+  end
+
+  describe "price formatting" do
+    test "a Q96 price is converted exactly, never through eighteen decimals" do
+      floor = 79_228_162_514_264_337_593_543_900
+
+      assert Decimal.equal?(Lab.price_decimal(Integer.pow(2, 96)), Decimal.new(1))
+      assert Lab.format_price(Integer.pow(2, 95)) == "0.5"
+      assert Lab.format_price(0) == "0"
+      assert String.starts_with?(Lab.format_price(floor), "0.000999999999999999999999999")
+
+      assert Lab.format_price(floor) ==
+               "0.0009999999999999999999999993646703595967223962047236950068107574907116941176354885101318359375"
+    end
+  end
+
+  defmodule BidSnapshotClient do
+    def post(_url, opts) do
+      request = opts[:json]
+      send(self(), {:snapshot_rpc, request.method, request.params})
+
+      result =
+        case {request.method, request.params} do
+          {"eth_chainId", _} ->
+            "0x7a69"
+
+          {"eth_getBlockByNumber", ["latest", false]} ->
+            %{"number" => "0x20", "hash" => "0x" <> String.duplicate("ab", 32)}
+
+          {"eth_getCode", _} ->
+            "0x01"
+
+          {"eth_call", [%{data: data}, _]} ->
+            answer(data)
+        end
+
+      {:ok, %{status: 200, body: %{"result" => result}}}
+    end
+
+    defp answer(data) do
+      selector = String.slice(data, 0, 10)
+
+      names = [
+        "currency()",
+        "balanceOf(address)",
+        "allowance(address,address)",
+        "allowance(address,address,address)",
+        "tickSpacing()",
+        "floorPrice()",
+        "checkpoint()",
+        "MAX_BID_PRICE()",
+        "ticks(uint256)"
+      ]
+
+      name = Enum.find(names, &(Autolaunch.LabAbi.selector(&1) == selector))
+
+      words =
+        case name do
+          "currency()" ->
+            [String.to_integer(String.duplicate("1", 40), 16)]
+
+          "balanceOf(address)" ->
+            [1000]
+
+          "allowance(address,address)" ->
+            [1000]
+
+          "allowance(address,address,address)" ->
+            [1000, 1000, 0]
+
+          "tickSpacing()" ->
+            [10]
+
+          "floorPrice()" ->
+            [10]
+
+          "checkpoint()" ->
+            [20, 0, 0, 0, 0, 0]
+
+          "MAX_BID_PRICE()" ->
+            [95]
+
+          "ticks(uint256)" ->
+            current = data |> String.slice(10, 64) |> String.to_integer(16)
+
+            [
+              Map.fetch!(
+                %{10 => 30, 30 => 60, 60 => 80, 80 => 90, 90 => Integer.pow(2, 256) - 1},
+                current
+              ),
+              0
+            ]
+        end
+
+      "0x" <> Enum.map_join(words, &Autolaunch.BaseRpcStub.hex_word/1)
+    end
+  end
+
+  test "snapshot uses aligned price for predecessor and pins every limit and read to one block",
+       %{path: path} do
+    config = [
+      autolaunch_lab_enabled: true,
+      autolaunch_lab_config_path: path,
+      autolaunch_lab_run_id: "bid-snapshot-fixture",
+      autolaunch_lab_http_client: BidSnapshotClient
+    ]
+
+    previous = Enum.map(config, fn {key, _} -> {key, Application.get_env(:autolaunch, key)} end)
+    Enum.each(config, fn {key, value} -> Application.put_env(:autolaunch, key, value) end)
+    on_exit(fn -> Enum.each(previous, fn {key, value} -> restore(key, value) end) end)
+
+    assert {:ok, snapshot} =
+             Autolaunch.LabBidChainClient.snapshot(%{
+               auction: "0x2222222222222222222222222222222222222222",
+               signer: "0x1111111111111111111111111111111111111111",
+               max_price_q96: 88
+             })
+
+    assert snapshot.prev_tick_price_q96 == 60
+    assert {:ok, 80} = Autolaunch.BidPrice.align(88, snapshot)
+    calls = snapshot_calls([])
+
+    assert Enum.uniq(Enum.map(calls, &elem(&1, 1))) == [
+             %{blockHash: snapshot.block.hash, requireCanonical: true}
+           ]
+
+    tick_selector = LabAbi.selector("ticks(uint256)")
+
+    ticks =
+      for {data, _} <- calls,
+          String.starts_with?(data, tick_selector),
+          do: data |> String.slice(10, 64) |> String.to_integer(16)
+
+    assert ticks == [10, 30, 60]
+  end
+
+  defp snapshot_calls(calls) do
+    receive do
+      {:snapshot_rpc, "eth_call", [%{data: data}, block]} ->
+        snapshot_calls(calls ++ [{data, block}])
+
+      {:snapshot_rpc, _, _} ->
+        snapshot_calls(calls)
+    after
+      0 -> calls
+    end
   end
 
   defp valid_config do

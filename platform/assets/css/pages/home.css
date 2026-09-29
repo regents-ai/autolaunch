@@ -131,10 +131,28 @@
   }
 }
 
+.home-market__error {
+  max-width: 34rem;
+}
+
+.home-market__error p {
+  margin: 0 0 0.75rem;
+}
+
+/* Below the desktop layout the crown leaves its corner and takes its own row
+   above the title, so it can never sit over the heading, chips or links. */
 @media (max-width: 48rem) {
   .home-explore {
     padding-inline-end: 0;
     min-height: 0;
+  }
+
+  .home-crown {
+    position: static;
+    width: min(100%, 18rem);
+    height: clamp(6rem, 28vw, 8rem);
+    min-height: 0;
+    justify-self: end;
   }
 }
 

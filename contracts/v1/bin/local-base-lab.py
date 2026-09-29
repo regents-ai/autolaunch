@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 BASE_CHAIN_ID = 8_453
+# Base's public endpoint refuses the urllib default agent; a named one is admitted.
+USER_AGENT = "autolaunch-local-base-lab/1"
 LOCAL_CHAIN_ID = 31_337
 AUCTION_BLOCKS = 86_401
 COUNTDOWN_BLOCKS = 30
@@ -242,7 +244,9 @@ class RpcClient:
             }
         ).encode()
         request = urllib.request.Request(
-            self.url, data=payload, headers={"Content-Type": "application/json"}
+            self.url,
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
         )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:

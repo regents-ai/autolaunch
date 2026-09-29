@@ -143,7 +143,8 @@ defmodule Autolaunch.Bid do
 
     attribute :max_price, :string do
       public? true
-      constraints max_length: 100, trim?: true
+      # Exact uint256 Q96 rendering: 49 integer + 1 dot + 96 fractional digits.
+      constraints max_length: 146, trim?: true
     end
 
     attribute :current_clearing_price, :string do

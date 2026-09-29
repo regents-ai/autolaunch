@@ -55,13 +55,7 @@ defmodule AutolaunchWeb.AuctionLive do
       class="autolaunch-page"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">
-          <%= if @local_lab? do %>
-            Local Base fork · test assets · no mainnet value
-          <% else %>
-            Autolaunch · Auction
-          <% end %>
-        </p>
+        <p class="autolaunch-kicker">Autolaunch · Auction</p>
         <h1>{record_label(:auction, @page_record)}</h1>
         <p>{record_summary(:auction, @page_record) || record_fallback(:auction)}</p>
       </header>
@@ -72,11 +66,18 @@ defmodule AutolaunchWeb.AuctionLive do
         linked={false}
         class="launchpad-card--detail"
       />
+      <.exact_price
+        id="auction-exact-price"
+        summary="Exact clearing price"
+        amount={@page_record.current_clearing_price}
+        unit={@page_record.quote_token_symbol}
+      />
       <.treasury_security
         :if={!@local_lab?}
         report={report(@page_record)}
         surface="auction-detail"
       />
+      <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
       <dl :if={@local_lab? && @market_snapshot} class="autolaunch-live-market">
         <div>
           <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>

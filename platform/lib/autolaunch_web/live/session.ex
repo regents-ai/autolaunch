@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.Live.Session do
 
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.SessionAuthority
+  alias AutolaunchWeb.Components.TopBar
 
   @public_root "/"
 
@@ -40,8 +41,12 @@ defmodule AutolaunchWeb.Live.Session do
     {:cont,
      socket
      |> assign_shell_control(session)
-     |> attach_hook(:current_path, :handle_params, fn _params, uri, socket ->
-       {:cont, Phoenix.Component.assign(socket, :current_path, path_of(uri))}
+     |> attach_hook(:shell_location, :handle_params, fn params, uri, socket ->
+       {:cont,
+        Phoenix.Component.assign(socket,
+          current_path: path_of(uri),
+          search_query: TopBar.normalize_query(params["q"])
+        )}
      end)}
   end
 
@@ -149,6 +154,7 @@ defmodule AutolaunchWeb.Live.Session do
 
     Phoenix.Component.assign(socket,
       current_path: "/",
+      search_query: "",
       account_control: AccessContext.account_control(access_context)
     )
   end

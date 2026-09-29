@@ -4,29 +4,23 @@ defmodule AutolaunchWeb.HomeLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [
-      connections_for: 2,
-      creator_connections_for: 1,
-      empty_market_copy: 2,
-      grouped_connections: 1
-    ]
+    only: [connections_for: 2, creator_connections_for: 1, empty_market_copy: 2]
 
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
+  import AutolaunchWeb.Components.TopBar, only: [normalize_query: 1]
 
   def mount(_params, _session, socket), do: {:ok, socket}
 
   def handle_params(params, _uri, socket) do
-    query = normalize_query(params["q"])
-    market_view = market_view(params)
-
     {:noreply,
      socket
-     |> assign(:search_query, query)
-     |> assign(:market_view, market_view)
-     |> assign(:listing_kind, listing_kind(market_view))
-     |> assign_async([:listings, :creators], fn -> load_listings(query, market_view) end)}
+     |> assign(:search_query, normalize_query(params["q"]))
+     |> assign(:market_view, market_view(params))
+     |> load_market()}
   end
+
+  def handle_event("retry", _params, socket), do: {:noreply, load_market(socket)}
 
   def render(assigns) do
     ~H"""
@@ -79,15 +73,22 @@ defmodule AutolaunchWeb.HomeLive do
       </header>
 
       <section id="home-market" class="home-market" aria-labelledby="home-explore-title">
-        <p :if={@listings.ok? && @listings.result == []} class="home-market__empty">
+        <p :if={@market.loading && !@market.ok?} class="home-market__empty" role="status">
+          Loading…
+        </p>
+        <Regent.Primitives.notice :if={@market.failed} tone="error" class="home-market__error">
+          <p>Listings are unavailable right now.</p>
+          <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
+        </Regent.Primitives.notice>
+        <p :if={listed?(@market) && @market.result.records == []} class="home-market__empty">
           {empty_copy(@search_query, @market_view)}
         </p>
-        <div :if={@listings.ok? && @listings.result != []} class="home-coin-grid">
+        <div :if={listed?(@market) && @market.result.records != []} class="home-coin-grid">
           <.autolaunch_market_card
-            :for={record <- @listings.result}
-            kind={@listing_kind}
+            :for={record <- @market.result.records}
+            kind={@market.result.kind}
             record={record}
-            creator_connections={connections_for(record, grouped_connections(@creators))}
+            creator_connections={connections_for(record, @market.result.creators)}
           />
         </div>
       </section>
@@ -95,9 +96,33 @@ defmodule AutolaunchWeb.HomeLive do
     """
   end
 
+  # A failed read never shows the rows of the filter it replaced.
+  defp listed?(market), do: market.ok? and is_nil(market.failed)
+
+  # The kind travels with the rows it describes, so a filter change never
+  # renders the previous filter's rows as the new kind while the read is out.
+  defp load_market(socket) do
+    query = socket.assigns.search_query
+    market_view = socket.assigns.market_view
+
+    assign_async(socket, :market, fn -> load_listings(query, market_view) end)
+  end
+
   defp load_listings(query, market_view) do
-    records = read_list(fn -> list_records(query, market_view) end)
-    {:ok, %{listings: records, creators: creator_connections_for(records)}}
+    case list_records(query, market_view) do
+      {:ok, records} ->
+        {:ok,
+         %{
+           market: %{
+             kind: listing_kind(market_view),
+             records: records,
+             creators: creator_connections_for(records)
+           }
+         }}
+
+      {:error, _reason} ->
+        {:error, :unavailable}
+    end
   end
 
   defp list_records(query, :tokens), do: Autolaunch.list_graduated_launchpad_tokens(query)
@@ -111,27 +136,10 @@ defmodule AutolaunchWeb.HomeLive do
   defp empty_copy(query, :tokens), do: empty_market_copy(query, "No tokens yet.")
   defp empty_copy(query, _view), do: empty_market_copy(query, "No auctions yet.")
 
-  defp read_list(reader) do
-    case reader.() do
-      {:ok, records} -> records
-      {:error, _reason} -> []
-    end
-  end
-
   defp market_view(%{"view" => "tokens"}), do: :tokens
   defp market_view(%{"view" => "new"}), do: :new
   defp market_view(%{"auctions" => "new"}), do: :new
   defp market_view(_params), do: :active
-
-  defp normalize_query(query) when is_binary(query) do
-    query
-    |> String.trim()
-    |> String.graphemes()
-    |> Enum.take(80)
-    |> Enum.join()
-  end
-
-  defp normalize_query(_query), do: ""
 
   defp home_path(query, view) do
     params =

@@ -46,6 +46,116 @@ defmodule AutolaunchWeb.BidLiveTest do
     }
   end
 
+  test "late A report is visible without replacing reviewed B", %{conn: conn, auction: auction} do
+    view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: a})
+    press = Ecto.UUID.generate()
+
+    render_hook(element(view, @panel), "wallet_press_dispatch", %{
+      action_id: a,
+      press_id: press,
+      step: "token_approval",
+      signer: @wallet
+    })
+
+    assert_receive {_ref, {:push_event, "wallet-press:send", _}}, 5_000
+    view |> element("#{@panel} button", "Start a new bid") |> render_click()
+    view |> element("#{@panel} button", "Place another bid") |> render_click()
+    view |> form("#autolaunch-bid-form", %{amount: "11", max_price: "4"}) |> render_change()
+    view |> form("#autolaunch-bid-form") |> render_submit()
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: b, terminal: false})
+    refute a == b
+
+    render_hook(element(view, @panel), "wallet_press_report", %{
+      action_id: a,
+      press_id: press,
+      step: "token_approval",
+      transaction_hash: @approval_hash
+    })
+
+    assert_push_event(view, "wallet-press:durable", %{"press_id" => ^press})
+    assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
+    assert has_element?(view, "[data-bid-send='#{b}']")
+    assert has_element?(view, "[data-wallet-press='#{press}']", @approval_hash)
+    render_hook(element(view, @panel), "wallet_press_restore", %{action_id: a})
+    assert has_element?(view, "[data-bid-send='#{b}']")
+  end
+
+  test "out-of-order task deliveries merge row versions and cannot cross a replaced lease" do
+    now = DateTime.utc_now()
+    earlier = DateTime.add(now, -1, :second)
+
+    row = %{
+      id: Ecto.UUID.generate(),
+      step: :bid,
+      state: :dispatched,
+      transaction_hash: nil,
+      result: %{},
+      evidence: %{},
+      inserted_at: earlier,
+      updated_at: earlier
+    }
+
+    sibling = %{row | id: Ecto.UUID.generate()}
+
+    old = %{
+      action_id: "A",
+      step: :bid,
+      state: :dispatched,
+      terminal_at: nil,
+      revision: earlier,
+      attempts: [row]
+    }
+
+    current = %{
+      old
+      | state: :confirmed,
+        terminal_at: now,
+        revision: now,
+        attempts: [
+          %{row | state: :confirmed, transaction_hash: @bid_hash, updated_at: now},
+          sibling
+        ]
+    }
+
+    lease = %{lineage: "fixture-A", account_id: 1}
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{
+        __changed__: %{},
+        id: "autolaunch-bid",
+        session_lease: lease,
+        operation: current,
+        wallet_press_history: %{"A" => current}
+      }
+    }
+
+    result = %{operation: old}
+
+    assert {:ok, updated} =
+             AutolaunchWeb.BidComponent.update(
+               %{wallet_press_lease: lease, wallet_press_result: {:verify, {:ok, result}}},
+               socket
+             )
+
+    assert updated.assigns.operation.state == :confirmed
+    assert Enum.count(updated.assigns.operation.attempts) == 2
+
+    assert Enum.find(updated.assigns.operation.attempts, &(&1.id == row.id)).transaction_hash ==
+             @bid_hash
+
+    replacement = %{
+      socket
+      | assigns: %{socket.assigns | session_lease: %{lineage: "fixture-B", account_id: 2}}
+    }
+
+    assert {:ok, ^replacement} =
+             AutolaunchWeb.BidComponent.update(
+               %{wallet_press_lease: lease, wallet_press_result: {:verify, {:ok, result}}},
+               replacement
+             )
+  end
+
   test "SIMPLE_PRODUCT_FORM: the compact form reviews an amount, a maximum price and an estimate",
        %{conn: conn, auction: auction} do
     view = mount_bidder(conn, auction)
@@ -139,28 +249,53 @@ defmodule AutolaunchWeb.BidLiveTest do
     assert has_element?(view, "#regent-chart", "View REGENT Chart")
   end
 
-  test "ONE_SENDABLE_STEP: the browser is handed only the step the server just claimed", %{
+  test "each distinct press reaches dispatch even while a sibling receipt read waits", %{
     conn: conn,
     auction: auction
   } do
     view = reviewed(conn, auction)
+    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id})
+    a = Ecto.UUID.generate()
+    b = Ecto.UUID.generate()
 
-    assert_push_event(view, "autolaunch-bid:operation", %{action_id: action_id, steps: steps})
-    assert Enum.map(steps, & &1["step"]) == ~w(token_approval permit2_approval bid)
+    dispatch = fn id ->
+      render_hook(element(view, @panel), "wallet_press_dispatch", %{
+        action_id: action_id,
+        step: "token_approval",
+        press_id: id,
+        signer: @wallet
+      })
+    end
 
-    claim(view, action_id)
+    dispatch.(a)
+    assert_receive {_ref, {:push_event, "wallet-press:send", %{"press_id" => ^a}}}, 5_000
+    owner = self()
 
-    assert_push_event(view, "autolaunch-bid:send", %{
-      action_id: ^action_id,
-      step: "token_approval"
+    Chain.put(%{
+      raced: fn ->
+        send(owner, {:reading_receipt, self()})
+
+        receive do
+          :release -> :ok
+        end
+      end
     })
 
-    assert render(view) =~ "In your wallet"
+    render_hook(element(view, @panel), "wallet_press_report", %{
+      action_id: action_id,
+      press_id: a,
+      step: "token_approval",
+      transaction_hash: @approval_hash
+    })
 
-    # The step is already claimed, so a repeated confirmation cannot become a
-    # second wallet request from whatever this socket happens to be holding.
-    claim(view, action_id)
-    refute_push_event(view, "autolaunch-bid:send", %{})
+    assert_push_event(view, "wallet-press:durable", %{"press_id" => ^a})
+    assert_receive {:reading_receipt, reader}, 5_000
+    dispatch.(b)
+    assert_receive {_ref, {:push_event, "wallet-press:send", %{"press_id" => ^b}}}, 5_000
+    send(reader, :release)
+    assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
+    assert has_element?(view, "[data-wallet-press='#{a}']")
+    assert has_element?(view, "[data-wallet-press='#{b}']")
   end
 
   test "THE_SERVER_DECIDES_TRUTH: a reported hash is verified here and never by the browser", %{
@@ -336,5 +471,8 @@ defmodule AutolaunchWeb.BidLiveTest do
       "step" => step,
       "transaction_hash" => hash
     })
+
+    assert_receive {_ref, {:push_event, "wallet-press:updated", _}}, 5_000
+    render(view)
   end
 end

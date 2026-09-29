@@ -48,7 +48,7 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.32"},
+      {:ash, "~> 3.33.0"},
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3"},
       {:ash_postgres, "~> 2.13"},

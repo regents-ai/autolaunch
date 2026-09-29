@@ -32,6 +32,8 @@ defmodule AutolaunchWeb.BidComponent do
     amount_above_balance: "That is more REGENT than this wallet holds.",
     invalid_amount: "Enter a REGENT amount with up to eighteen decimal places.",
     invalid_price: "Enter a maximum price above zero.",
+    price_below_admissible_tick:
+      "Your maximum does not reach an allowed tick above the auction clearing price.",
     invalid_decimal: "Enter a maximum price above zero.",
     submitted_hash_conflict: "This step already has a transaction.",
     submitted_step_mismatch: "That transaction is not the step this bid is waiting for."
@@ -44,6 +46,12 @@ defmodule AutolaunchWeb.BidComponent do
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
+  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
+    if socket.assigns.session_lease == lease,
+      do: {:ok, AutolaunchWeb.WalletPressComponent.completed(socket, result)},
+      else: {:ok, socket}
+  end
+
   def update(assigns, socket) do
     {:ok,
      socket
@@ -54,6 +62,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:max_price, fn -> "" end)
      |> assign_new(:estimate, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
+     |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)}
   end
 
@@ -133,7 +142,12 @@ defmodule AutolaunchWeb.BidComponent do
               <dt>Amount</dt><dd>{argument(@operation, "amount")} REGENT</dd>
             </div>
             <div>
-              <dt>Maximum price</dt><dd>{argument(@operation, "max_price")}</dd>
+              <dt>Effective tick price</dt><dd>{argument(@operation, "max_price")}</dd>
+            </div>
+            <div>
+              <dt>Requested maximum</dt><dd>
+                {argument(@operation, "requested_max_price") || argument(@operation, "max_price")}
+              </dd>
             </div>
             <div>
               <dt>Network</dt><dd>{network_name(@operation)}</dd>
@@ -163,6 +177,7 @@ defmodule AutolaunchWeb.BidComponent do
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-bid-send={@operation.action_id}
+            data-wallet-step={@operation.step}
             data-bid-signer={@operation.signer}
           >
             Confirm in wallet
@@ -207,12 +222,31 @@ defmodule AutolaunchWeb.BidComponent do
           </button>
         </section>
       </div>
+      <AutolaunchWeb.WalletPressComponent.history history={@wallet_press_history} target={@myself} />
     </section>
     """
   end
 
   # The wallet Privy has selected, whenever it changes.
   @impl true
+  def handle_event("wallet_press_dispatch", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.dispatch(socket, :bid, params, opts(socket), __MODULE__)}
+
+  def handle_event("wallet_press_report", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.report(socket, :bid, params, opts(socket), __MODULE__)}
+
+  def handle_event("wallet_press_verify", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.verify(socket, :bid, params, opts(socket), __MODULE__)}
+
+  def handle_event("wallet_press_restore", params, socket),
+    do: {:noreply, AutolaunchWeb.WalletPressComponent.restore(socket, :bid, params, opts(socket))}
+
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -243,20 +277,16 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The bound row goes on screen before Base is asked anything, so a read that
   # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event(
-        "bid_submitted",
-        %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
-        socket
-      ) do
-    case Autolaunch.bind_bid_hash(action_id, step, hash, opts(socket)) do
-      {:ok, %{operation: bound}} = result ->
-        socket = settled(result, socket)
-        socket = action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)
-        {:noreply, acknowledged(socket, bound, step)}
-
-      refused ->
-        {:noreply, settled(refused, socket)}
-    end
+  def handle_event("bid_submitted", params, socket) do
+    {:noreply,
+     AutolaunchWeb.WalletPressComponent.legacy_report(
+       socket,
+       :bid,
+       params,
+       opts(socket),
+       __MODULE__,
+       "autolaunch-bid:hash-durable"
+     )}
   end
 
   def handle_event("check_bid_step", %{"action-id" => action_id}, socket),
@@ -352,20 +382,13 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The one acknowledgement the browser waits for before it drops its own copy
   # of a reported hash: this exact hash is durable on this exact step.
-  defp acknowledged(socket, operation, step),
-    do:
-      push_event(socket, "autolaunch-bid:hash-durable", %{
-        action_id: operation.action_id,
-        step: step,
-        transaction_hash: BidActions.step_hash(operation, step)
-      })
-
   # The whole reviewed sequence, so the browser can check that what it is asked
   # to send really belongs to the operation it is holding.
   defp published(%{assigns: %{operation: nil}} = socket), do: cleared(socket)
 
   defp published(%{assigns: %{operation: operation}} = socket) do
     push_event(socket, "autolaunch-bid:operation", %{
+      component_id: socket.assigns.id,
       action_id: operation.action_id,
       signer: operation.signer,
       chain_id: operation.envelope["chain_id"],

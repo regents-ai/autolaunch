@@ -2,6 +2,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import React from "react"
 
 const productionRootRender = vi.hoisted(() => vi.fn())
+const productionRootUnmount = vi.hoisted(() => vi.fn())
 const productionPrivyHooks = vi.hoisted(() => ({
   login: vi.fn(),
   linkTwitter: vi.fn(),
@@ -13,7 +14,7 @@ const productionPrivyHooks = vi.hoisted(() => ({
 }))
 
 vi.mock("react-dom/client", () => ({
-  createRoot: () => ({render: productionRootRender}),
+  createRoot: () => ({render: productionRootRender, unmount: productionRootUnmount}),
 }))
 
 vi.mock("@privy-io/react-auth", () => ({
@@ -170,11 +171,13 @@ function stubSessionRequests(): Array<{url: string; method: string}> {
   return requests
 }
 
+// The root render is the failure boundary around the provider around the
+// account bridge; the bridge is the function component the harness runs.
 function renderedAccountBridge(): React.ReactElement {
-  const providerElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
-    children: React.ReactElement
+  const boundaryElement = productionRootRender.mock.calls[0]?.[0] as React.ReactElement<{
+    children: React.ReactElement<{children: React.ReactElement}>
   }>
-  return providerElement.props.children
+  return boundaryElement.props.children.props.children
 }
 
 function ethereumWallet(address: string) {

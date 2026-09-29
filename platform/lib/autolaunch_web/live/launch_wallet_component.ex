@@ -62,12 +62,19 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
+  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
+    if socket.assigns.session_lease == lease,
+      do: {:ok, AutolaunchWeb.WalletPressComponent.completed(socket, result)},
+      else: {:ok, socket}
+  end
+
   def update(assigns, socket) do
     {:ok,
      socket
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
+     |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
      |> assign(:local_lab?, Lab.enabled?())
      |> assign(:treasury_report, current_report(assigns.draft))
@@ -245,6 +252,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-launch-wallet-send={@operation.action_id}
+            data-wallet-step={@operation.step}
             data-launch-wallet-signer={@operation.signer}
           >
             Confirm in wallet
@@ -289,12 +297,51 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           </button>
         </div>
       </section>
+      <AutolaunchWeb.WalletPressComponent.history history={@wallet_press_history} target={@myself} />
     </section>
     """
   end
 
   # The wallet Privy has selected, whenever it changes.
   @impl true
+  def handle_event("wallet_press_dispatch", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.dispatch(
+         socket,
+         :launch,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_report", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.report(
+         socket,
+         :launch,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_verify", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.verify(
+         socket,
+         :launch,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_restore", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.restore(socket, :launch, params, opts(socket))}
+
   def handle_event("launch_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -324,15 +371,16 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   # The bound row goes on screen before Base is asked anything, so a read that
   # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event(
-        "launch_submitted",
-        %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
-        socket
-      ) do
-    case wallet_step(step) do
-      nil -> {:noreply, socket}
-      step -> submitted(socket, action_id, step, hash)
-    end
+  def handle_event("launch_submitted", params, socket) do
+    {:noreply,
+     AutolaunchWeb.WalletPressComponent.legacy_report(
+       socket,
+       :launch,
+       params,
+       opts(socket),
+       __MODULE__,
+       "autolaunch-launch:hash-durable"
+     )}
   end
 
   def handle_event("check_launch_step", %{"action-id" => action_id}, socket),
@@ -406,29 +454,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     """
   end
 
-  defp submitted(socket, action_id, step, hash) do
-    case Autolaunch.bind_launch_hash(action_id, step, hash, opts(socket)) do
-      {:ok, %{operation: bound}} = result ->
-        socket = settled(result, socket)
-
-        socket =
-          action_id
-          |> Autolaunch.verify_launch_step(opts(socket))
-          |> settled(socket)
-
-        {:noreply, acknowledged(socket, bound, step)}
-
-      refused ->
-        {:noreply, settled(refused, socket)}
-    end
-  end
-
   # The closed set this card maps a browser value through. Nothing here builds an
   # atom from what the browser sent.
-  defp wallet_step("approval"), do: :approval
-  defp wallet_step("launch"), do: :launch
-  defp wallet_step(_unknown), do: nil
-
   # One open launch per account, so a row belonging to another draft is named as
   # that rather than shown on this card.
   defp settled({:ok, %{operation: %{launch_draft_id: draft_id} = operation}}, socket) do
@@ -462,14 +489,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   # The one acknowledgement the browser waits for before it drops its own copy of
   # a reported hash: this exact hash is durable on this exact step.
-  defp acknowledged(socket, operation, step),
-    do:
-      addressed(socket, "autolaunch-launch:hash-durable", %{
-        action_id: operation.action_id,
-        step: Atom.to_string(step),
-        transaction_hash: LaunchActions.step_hash(operation, step)
-      })
-
   # The whole reviewed sequence, so the browser can check that what it is asked to
   # send really belongs to the operation it is holding.
   defp published(%{assigns: %{operation: operation}} = socket) do
@@ -498,7 +517,14 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   # saved drafts has one card each. Naming the card the event belongs to is what
   # keeps a dispatch from opening every other card's wallet as well.
   defp addressed(socket, event, payload),
-    do: push_event(socket, event, Map.put(payload, :card, socket.assigns.id))
+    do:
+      push_event(
+        socket,
+        event,
+        payload
+        |> Map.put(:card, socket.assigns.id)
+        |> Map.put(:component_id, socket.assigns.id)
+      )
 
   # No Ethereum wallet selected — disconnected, unlinked, or Solana in front of
   # the customer. That is the ordinary empty state, not a refusal.

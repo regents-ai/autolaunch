@@ -183,7 +183,8 @@ defmodule Autolaunch.Auction do
       accept @projection_accept
       change set_attribute(:id, arg(:projection_id))
       upsert? true
-      upsert_fields @projection_upsert
+      # LaunchCreated initializes an auction; it is not a lifecycle readback.
+      upsert_fields []
     end
 
     update :set_bid_terms do

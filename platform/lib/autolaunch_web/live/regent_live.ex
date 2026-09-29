@@ -3,12 +3,15 @@ defmodule AutolaunchWeb.RegentLive do
 
   use AutolaunchWeb, :live_view
 
+  alias Autolaunch.Lab
   alias Autolaunch.RegentFacts
   alias AutolaunchWeb.TokenDisplay
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign_async(socket, :facts, fn ->
+     socket
+     |> assign(:local_lab?, Lab.enabled?())
+     |> assign_async(:facts, fn ->
        case RegentFacts.read() do
          {:ok, facts} -> {:ok, %{facts: facts}}
          {:error, reason} -> {:error, reason}
@@ -16,10 +19,17 @@ defmodule AutolaunchWeb.RegentLive do
      end)}
   end
 
+  # Every figure and link here is public Base mainnet. A local-fork site says
+  # so, because the fork carries its own test REGENT that none of this reaches.
   def render(assigns) do
     ~H"""
     <main class="regent-page">
       <h1>REGENT</h1>
+
+      <p :if={@local_lab?} id="regent-scope" class="regent-scope" role="note">
+        Public Base mainnet data and links. The test REGENT on this local fork is separate and is
+        not bought, staked or redeemed here.
+      </p>
 
       <div :if={@facts.loading} id="regent-loading" class="regent-status">
         Reading the token.
@@ -47,7 +57,9 @@ defmodule AutolaunchWeb.RegentLive do
           <TokenDisplay.amount amount={@facts.result.total_staked} unit={@facts.result.symbol} />
         </dd>
       </dl>
-      <p :if={@facts.ok?} id="regent-block">Read at block {@facts.result.block_number}</p>
+      <p :if={@facts.ok?} id="regent-block">
+        Read at {if @local_lab?, do: "Base mainnet block", else: "block"} {@facts.result.block_number}
+      </p>
 
       <p :if={@facts.failed} id="regent-unavailable" class="regent-status">
         REGENT facts are unavailable right now.
@@ -55,7 +67,7 @@ defmodule AutolaunchWeb.RegentLive do
 
       <p>Every Autolaunch auction is quoted in REGENT.</p>
 
-      <nav class="regent-links">
+      <nav class="regent-links" aria-describedby={if @local_lab?, do: "regent-scope"}>
         <a
           id="regent-buy"
           href={AutolaunchWeb.Components.TokenLinks.buy()}

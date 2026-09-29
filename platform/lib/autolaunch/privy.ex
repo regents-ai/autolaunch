@@ -26,6 +26,8 @@ defmodule Autolaunch.Privy do
     :invalid_token
   ]
 
+  @key_refusals [:invalid_verification_key, :token_verification_failed]
+
   @doc """
   Exchanges a Privy token pair for the signed identity evidence it proves.
 
@@ -47,19 +49,28 @@ defmodule Autolaunch.Privy do
   """
   def verify_session_pair(%{access: access, identity: identity})
       when is_binary(access) and is_binary(identity) do
-    with {:ok, opts} <- verification_options(),
-         {:ok, authenticated} <- verify(access, opts, :access_verification),
-         {:ok, evidence} <- verify(identity, opts, :identity_verification) do
+    with {:ok, keys, opts} <- verification_options(),
+         {:ok, authenticated} <- verify(access, keys, opts, :access_verification),
+         {:ok, evidence} <- verify(identity, keys, opts, :identity_verification) do
       bind(authenticated, evidence)
     end
   end
 
-  defp verify(token, opts, stage) do
-    case verifier().verify_token(token, opts) do
-      {:ok, verified} -> with_session_id(verified, stage)
-      {:error, reason} when reason in @verification_reasons -> {:error, {stage, reason}}
-      _unreviewed -> {:error, {stage, :unknown_verification_failure}}
-    end
+  # The trusted key set is the configured public keys, in order. Each token is
+  # tried against them independently, so a pair issued across a key rotation
+  # still binds. Only the two refusals that say "this key did not sign it"
+  # move on to the next key; every other refusal was reached under a key that
+  # did verify the signature, so it stands as the verdict. Nothing is fetched
+  # and no key is chosen from anything the token itself says.
+  defp verify(token, keys, opts, stage) do
+    Enum.reduce_while(keys, {:error, {stage, :invalid_verification_key}}, fn key, _last ->
+      case verifier().verify_token(token, Keyword.put(opts, :verification_key, key)) do
+        {:ok, verified} -> {:halt, with_session_id(verified, stage)}
+        {:error, reason} when reason in @key_refusals -> {:cont, {:error, {stage, reason}}}
+        {:error, reason} when reason in @verification_reasons -> {:halt, {:error, {stage, reason}}}
+        _unreviewed -> {:halt, {:error, {stage, :unknown_verification_failure}}}
+      end
+    end)
   end
 
   # The mismatches are named before the roles, so whatever reaches the role
@@ -116,16 +127,18 @@ defmodule Autolaunch.Privy do
 
   defp privy_config, do: Application.get_env(:autolaunch, :privy, [])
 
+  # `verification_keys` is the bounded set runtime configuration derives from
+  # the PEM blocks it was given; an empty or malformed set is no configuration.
   defp verification_options do
     config = privy_config()
 
-    case {config[:app_id], config[:verification_key]} do
-      {app_id, key} when is_binary(app_id) and app_id != "" and is_binary(key) and key != "" ->
-        clock = config[:clock] || fn -> System.system_time(:second) end
-        {:ok, [app_id: app_id, verification_key: key, now: clock.()]}
-
-      _ ->
-        {:error, {:configuration, :missing_privy_config}}
+    with app_id when is_binary(app_id) and app_id != "" <- config[:app_id],
+         [_ | _] = keys <- config[:verification_keys],
+         true <- Enum.all?(keys, &(is_binary(&1) and &1 != "")) do
+      clock = config[:clock] || fn -> System.system_time(:second) end
+      {:ok, keys, [app_id: app_id, now: clock.()]}
+    else
+      _ -> {:error, {:configuration, :missing_privy_config}}
     end
   end
 

@@ -14,6 +14,7 @@ defmodule AutolaunchWeb.SharedProfileController do
     |> render(:show,
       page_title: "Profile",
       current_path: "/profile",
+      search_query: "",
       account_control: Autolaunch.AccessContext.account_control(access)
     )
   end

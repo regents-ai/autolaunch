@@ -50,7 +50,7 @@ defmodule Autolaunch.LabProjection do
       bid_id = bid_identity(envelope["to"], result["onchain_bid_id"])
 
       transact(fn ->
-        create(Bid, :project_lab, %{
+        initialize(Bid, %{
           bid_id: bid_id,
           auction_id: arguments["auction_id"],
           owner_address: envelope["expected_signer"],
@@ -266,6 +266,18 @@ defmodule Autolaunch.LabProjection do
     |> Ash.read_one(domain: @domain, actor: @actor)
   end
 
+  # Receipt effects are insert-only under the existing canonical SQL identities:
+  # local auction address, local subject address, launch id, and auction/bid id.
+  # Adopting existing rows also covers effects written before WalletAttempt existed.
+  # Never replay initial values over lifecycle readbacks (including timestamps).
+  # ON CONFLICT arbitrates concurrent initializers; the surrounding transaction
+  # commits the entire launch and its attempt outcome together.
+  defp initialize(resource, attributes) do
+    resource
+    |> Ash.Changeset.for_create(:project_lab, attributes, domain: @domain, actor: @actor)
+    |> Ash.create(domain: @domain, actor: @actor, upsert_fields: [])
+  end
+
   defp create(resource, action, attributes) do
     resource
     |> Ash.Changeset.for_create(action, attributes, domain: @domain, actor: @actor)
@@ -291,9 +303,8 @@ defmodule Autolaunch.LabProjection do
          human_account_id
        ) do
     with {:ok, auction} <-
-           create(
+           initialize(
              Auction,
-             :project_lab,
              auction_attrs(arguments, %{
                projection_id: auction_id,
                creator_human_account_id: human_account_id,
@@ -304,7 +315,7 @@ defmodule Autolaunch.LabProjection do
              })
            ),
          {:ok, _subject} <-
-           create(Subject, :project_lab, %{
+           initialize(Subject, %{
              subject_id: subject_id,
              subject_kind: "regent",
              chain_id: @chain_id,
@@ -315,7 +326,7 @@ defmodule Autolaunch.LabProjection do
              creator_address: envelope["expected_signer"]
            }),
          {:ok, _launch} <-
-           create(LaunchJob, :project_lab, %{
+           initialize(LaunchJob, %{
              job_id: launch_identity(result["launch_id"]),
              status: "active",
              step: "auction",

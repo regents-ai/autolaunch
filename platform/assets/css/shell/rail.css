@@ -1,12 +1,17 @@
+/* The rail is as tall as its own items, never taller than the viewport, and
+   sticks to the top: its Create action is on screen whenever the rail is,
+   however long the page beside it grows and whatever sits above the shell. A
+   viewport shorter than the items scrolls the rail rather than losing them. */
 .shell-rail {
   position: sticky;
   top: 0;
   z-index: 3;
   display: flex;
-  align-self: stretch;
+  align-self: start;
   width: 8.5rem;
-  min-height: 100dvh;
+  max-height: 100dvh;
   padding: var(--space-4) var(--space-2);
+  overflow-y: auto;
   background: color-mix(in oklab, var(--color-surface) 88%, transparent);
   border-inline-end: 1px solid var(--color-border);
 }
@@ -39,7 +44,7 @@
 }
 
 .shell-rail__item--create {
-  margin-block-start: auto;
+  margin-block-start: var(--space-3);
 }
 
 .shell-rail__item--create .shell-rail__link {
@@ -103,8 +108,10 @@
     bottom: 0;
     top: auto;
     z-index: 4;
+    align-self: stretch;
     width: 100%;
-    min-height: 0;
+    max-height: none;
+    overflow: visible;
     padding: var(--space-1) var(--space-2);
     padding-bottom: calc(var(--space-1) + env(safe-area-inset-bottom));
     border-inline-end: 0;

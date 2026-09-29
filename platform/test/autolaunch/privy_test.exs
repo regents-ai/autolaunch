@@ -130,7 +130,7 @@ defmodule Autolaunch.PrivyTest do
   setup do
     old_privy = Application.get_env(:autolaunch, :privy)
     old_verifier = Application.get_env(:autolaunch, :regent_privy_module)
-    Application.put_env(:autolaunch, :privy, app_id: "app", verification_key: "key")
+    Application.put_env(:autolaunch, :privy, app_id: "app", verification_keys: ["key"])
     Application.put_env(:autolaunch, :regent_privy_module, SharedVerifierStub)
 
     on_exit(fn ->
@@ -227,6 +227,108 @@ defmodule Autolaunch.PrivyTest do
     Application.delete_env(:autolaunch, :privy)
 
     assert pair("access", "identity") == {:error, {:configuration, :missing_privy_config}}
+
+    Application.put_env(:autolaunch, :privy, app_id: "app", verification_keys: [])
+    assert pair("access", "identity") == {:error, {:configuration, :missing_privy_config}}
+  end
+
+  # The shared verifier itself, with disposable key pairs generated here: the
+  # trusted set is the configured public keys and nothing else.
+  describe "TRUSTED_KEY_SET through the shared verifier" do
+    setup do
+      Application.delete_env(:autolaunch, :regent_privy_module)
+      [current, previous, untrusted] = for _ <- 1..3, do: JOSE.JWK.generate_key({:ec, "P-256"})
+      now = System.system_time(:second)
+
+      Application.put_env(:autolaunch, :privy,
+        app_id: "app",
+        verification_keys: [public_pem(current), public_pem(previous)],
+        clock: fn -> now end
+      )
+
+      %{current: current, previous: previous, untrusted: untrusted, now: now}
+    end
+
+    test "a pair signed across a key rotation binds", %{
+      current: current,
+      previous: previous,
+      now: now
+    } do
+      assert {:ok, %Autolaunch.VerifiedPrivyIdentity{privy_user_id: "did:privy:rotated"}} =
+               pair(access_token(previous, now), identity_token(current, now))
+
+      assert {:ok, %Autolaunch.VerifiedPrivyIdentity{session_id: "session"}} =
+               pair(access_token(current, now), identity_token(previous, now))
+    end
+
+    test "a key outside the configured set signs nothing", %{
+      current: current,
+      untrusted: untrusted,
+      now: now
+    } do
+      assert pair(access_token(untrusted, now), identity_token(current, now)) ==
+               {:error, {:access_verification, :token_verification_failed}}
+
+      assert pair(access_token(current, now), identity_token(untrusted, now)) ==
+               {:error, {:identity_verification, :token_verification_failed}}
+    end
+
+    test "a claim refusal under a trusted key is final, never retried past", %{
+      current: current,
+      previous: previous,
+      now: now
+    } do
+      assert pair(access_token(previous, now, "aud" => "other-app"), identity_token(current, now)) ==
+               {:error, {:access_verification, :invalid_audience}}
+
+      assert pair(access_token(previous, now, "exp" => now - 1), identity_token(current, now)) ==
+               {:error, {:access_verification, :token_expired}}
+    end
+
+    test "a single configured key is the set of one", %{current: current, previous: previous, now: now} do
+      Application.put_env(:autolaunch, :privy,
+        app_id: "app",
+        verification_keys: [public_pem(current)],
+        clock: fn -> now end
+      )
+
+      assert {:ok, _identity} = pair(access_token(current, now), identity_token(current, now))
+
+      assert pair(access_token(previous, now), identity_token(current, now)) ==
+               {:error, {:access_verification, :token_verification_failed}}
+    end
+  end
+
+  defp public_pem(key) do
+    {_kty, pem} = key |> JOSE.JWK.to_public() |> JOSE.JWK.to_pem()
+    pem
+  end
+
+  defp access_token(key, now, overrides \\ %{}) do
+    sign(key, %{"sub" => "did:privy:rotated", "sid" => "session", "aud" => "app"}, now, overrides)
+  end
+
+  defp identity_token(key, now, overrides \\ %{}) do
+    sign(
+      key,
+      %{
+        "sub" => "did:privy:rotated",
+        "aud" => "app",
+        "linked_accounts" => Jason.encode!([%{"type" => "wallet", "address" => @wallet}])
+      },
+      now,
+      overrides
+    )
+  end
+
+  defp sign(key, claims, now, overrides) do
+    claims =
+      claims
+      |> Map.merge(%{"iss" => "privy.io", "iat" => now, "exp" => now + 300})
+      |> Map.merge(overrides)
+
+    {_alg, token} = key |> JOSE.JWT.sign(%{"alg" => "ES256"}, claims) |> JOSE.JWS.compact()
+    token
   end
 
   defp pair(access, identity),
