@@ -1,0 +1,6 @@
+{
+  "forge-std": {"source": "contracts/v1/lib/forge-std", "revision": "3b20d60d14b343ee4f908cb8079495c07f5e8981"},
+  "v4-core": {"source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery/lib/v4-core", "revision": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc"},
+  "v4-periphery": {"source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery", "revision": "ad04c9f24a170accf5ea1b2836bbafd514537ca6"},
+  "solmate": {"source": "contracts/v1/lib/liquidity-launcher/lib/v4-periphery/lib/v4-core/lib/solmate", "revision": "4b47a19038b798b4a33d9749d25e570443520647"}
+}

@@ -72,6 +72,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
+  attr :image_notice, :map, default: nil
   attr :launch_image_upload, :map, default: nil
   attr :x_connections, :list, default: []
   attr :x_oauth_enabled, :boolean, default: false
@@ -150,7 +151,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             <div class="autolaunch-draft-field autolaunch-draft-field--wide launchpad-upload">
               <label for="launch-image-upload">Token image</label>
               <p class="autolaunch-draft-hint">
-                PNG, JPEG, or WebP · maximum 2 MB · one permanent image per account.
+                PNG, JPEG, or WebP · maximum 2 MB · replace with a file or image link.
                 <strong>Recommended: 400 × 400 px</strong>
               </p>
               <div class="launchpad-upload__control">
@@ -192,11 +193,25 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 id="launch-image-url-input"
                 name="url"
                 autocomplete="off"
+                aria-describedby="launch-image-notice"
                 placeholder="https://"
               />
-              <Regent.Primitives.button type="submit">Use this link</Regent.Primitives.button>
+              <Regent.Primitives.button type="submit" phx-disable-with="Fetching…">Use this link</Regent.Primitives.button>
             </div>
           </form>
+
+          <p
+            id="launch-image-notice"
+            role="status"
+            aria-live="polite"
+            class={
+              if @image_notice && @image_notice.tone == :error,
+                do: "autolaunch-draft-error",
+                else: "autolaunch-draft-hint"
+            }
+          >
+            {if @image_notice, do: @image_notice.message}
+          </p>
 
           <.x_connections
             id="autolaunch-create-x-connections"

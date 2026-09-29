@@ -48,6 +48,12 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   def handle_event(event, params, socket) when event in @autosave_events do
+    socket =
+      if event == "autosave_launch_token_details" and
+           socket.assigns.uploads.launch_image.entries != [],
+         do: cancel_image_fetch(socket),
+         else: socket
+
     handle_draft_event(event, params["launch_draft"] || %{}, socket)
   end
 
@@ -57,15 +63,26 @@ defmodule AutolaunchWeb.CreateLive do
 
     with %Human{} = actor <- actor,
          {:ok, draft} <- current_or_new_draft(actor) do
+      request_id = make_ref()
+      socket = cancel_image_fetch(socket)
+
+      socket =
+        Enum.reduce(socket.assigns.uploads.launch_image.entries, socket, fn entry, acc ->
+          cancel_upload(acc, :launch_image, entry.ref)
+        end)
+
       {:noreply,
        socket
-       |> assign(draft_notice: %{tone: :success, message: "Looking up that image."})
-       |> start_async(:fetch_image_url, fn ->
-         LaunchDraftImageStorage.store_fetched(draft, url, actor)
+       |> assign(
+         image_request: request_id,
+         image_notice: %{tone: :info, message: "Fetching image…"}
+       )
+       |> start_async({:fetch_image_url, request_id}, fn ->
+         with {:ok, image} <- LaunchDraftImageStorage.fetch(url), do: {:ok, {draft, image}}
        end)}
     else
       _error ->
-        {:noreply, assign(socket, draft_notice: image_notice(:fetch_failed))}
+        {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
     end
   end
 
@@ -73,16 +90,12 @@ defmodule AutolaunchWeb.CreateLive do
     {:noreply, assign(socket, x_connections: load_x_connections(account(socket)))}
   end
 
-  def handle_async(:fetch_image_url, {:ok, {:ok, stored}}, socket) do
-    {:noreply, assign_saved_image(socket, stored, human_actor(socket))}
-  end
-
-  def handle_async(:fetch_image_url, {:ok, {:error, reason}}, socket) do
-    {:noreply, assign(socket, draft_notice: image_notice(reason))}
-  end
-
-  def handle_async(:fetch_image_url, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, draft_notice: image_notice(:fetch_failed))}
+  def handle_async({:fetch_image_url, request_id}, result, socket) do
+    if socket.assigns.image_request == request_id do
+      finish_image_fetch(result, assign(socket, image_request: nil))
+    else
+      {:noreply, socket}
+    end
   end
 
   def render(%{status: :sign_in_required} = assigns) do
@@ -157,6 +170,8 @@ defmodule AutolaunchWeb.CreateLive do
     do: Autolaunch.autosave_launch_treasury(draft, values, actor: actor)
 
   defp handle_launch_image_progress(:launch_image, entry, socket) do
+    socket = cancel_image_fetch(socket)
+
     if entry.done?,
       do: finish_launch_image(entry, socket),
       else: {:noreply, socket}
@@ -180,13 +195,13 @@ defmodule AutolaunchWeb.CreateLive do
            ) do
       {:noreply, assign_saved_image(socket, stored, actor)}
     else
-      {:error, :image_limit_reached} ->
-        {:noreply, assign(socket, draft_notice: image_notice(:image_limit_reached))}
+      {:error, :image_changed} ->
+        {:noreply, assign(socket, image_notice: image_notice(:image_changed))}
 
       _error ->
         {:noreply,
          assign(socket,
-           draft_notice: %{
+           image_notice: %{
              tone: :error,
              message: "That file is not a complete PNG, JPEG, or WebP image under 2 MB."
            }
@@ -202,9 +217,41 @@ defmodule AutolaunchWeb.CreateLive do
         Templates.draft_values(stored.draft)
         |> Map.put("image", LaunchDraftImageStorage.public_url(stored.image)),
       draft_errors: %{},
-      draft_notice: %{tone: :success, message: "Image saved to your account."}
+      image_notice: %{
+        tone: :success,
+        message: "Image saved. You can replace it with a file or image link."
+      }
     )
   end
+
+  defp cancel_image_fetch(%{assigns: %{image_request: nil}} = socket), do: socket
+
+  defp cancel_image_fetch(socket) do
+    socket
+    |> cancel_async({:fetch_image_url, socket.assigns.image_request})
+    |> assign(image_request: nil, image_notice: nil)
+  end
+
+  defp finish_image_fetch({:ok, {:ok, {draft, image}}}, socket) do
+    actor = human_actor(socket)
+
+    case LaunchDraftImageStorage.store_and_attach(
+           draft,
+           image.bytes,
+           image.content_type,
+           image.original_filename,
+           actor
+         ) do
+      {:ok, stored} -> {:noreply, assign_saved_image(socket, stored, actor)}
+      {:error, reason} -> {:noreply, assign(socket, image_notice: image_notice(reason))}
+    end
+  end
+
+  defp finish_image_fetch({:ok, {:error, reason}}, socket),
+    do: {:noreply, assign(socket, image_notice: image_notice(reason))}
+
+  defp finish_image_fetch(_failure, socket),
+    do: {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
 
   defp load_create(socket, actor) do
     case current_or_new_draft(actor) do
@@ -227,6 +274,8 @@ defmodule AutolaunchWeb.CreateLive do
       draft_values: Templates.blank_draft_fields(),
       draft_errors: %{},
       draft_notice: nil,
+      image_notice: nil,
+      image_request: nil,
       x_connections: [],
       x_oauth_enabled: XOAuth.enabled?(),
       auction_limit_reached: auction_limit_reached?(actor),
@@ -314,8 +363,12 @@ defmodule AutolaunchWeb.CreateLive do
   defp image_notice(:nxdomain),
     do: %{tone: :error, message: "We could not find that site. Check the link and try again."}
 
-  defp image_notice(:image_limit_reached),
-    do: %{tone: :error, message: "This launch already has its image."}
+  defp image_notice(:image_changed),
+    do: %{
+      tone: :error,
+      message:
+        "The saved image changed while this image was loading. Your newer image was kept; try again to replace it."
+    }
 
   defp image_notice(_reason),
     do: %{tone: :error, message: "We could not load that image. Try another link."}

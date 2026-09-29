@@ -9,7 +9,7 @@ defmodule Autolaunch.LaunchDraft.Changes.AttachOwnedImage do
     image_id = Ash.Changeset.get_argument(changeset, :launch_draft_image_id)
     draft_id = changeset.data.id
 
-    case Autolaunch.get_my_launch_draft_image(draft_id, actor: actor) do
+    case Autolaunch.get_my_launch_draft_image_by_id(draft_id, image_id, actor: actor) do
       {:ok, %{id: ^image_id, human_account_id: ^owner_id, launch_draft_id: ^draft_id} = image} ->
         url = AutolaunchWeb.Endpoint.url() <> "/images/#{image.id}/#{image.digest}"
 
