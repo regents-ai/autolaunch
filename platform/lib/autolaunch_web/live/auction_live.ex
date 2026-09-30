@@ -235,7 +235,7 @@ defmodule AutolaunchWeb.AuctionLive do
               </Regent.Primitives.button>
             </p>
             <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
-              You placed no bids on this auction from your verified wallets.
+              You placed no bids on this auction from the wallet you signed in with.
             </p>
             <.live_component
               :for={position <- @my_positions}
@@ -503,12 +503,13 @@ defmodule AutolaunchWeb.AuctionLive do
     end)
   end
 
-  # The signed-in bidder's own positions on this auction, for settlement once
+  # The signed-in wallet's own positions on this auction, for settlement once
   # bidding has ended.
   defp assign_positions(socket) do
     with actor when not is_nil(actor) <- human_actor(socket.assigns.access_context),
          {:ok, uuid} <- Ash.Type.UUID.cast_input(socket.assigns.record_id, []),
-         {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor) do
+         wallet = signed_in_wallet(socket.assigns.access_context),
+         {:ok, positions} <- Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
       assign(socket, :my_positions, Enum.filter(positions, &(&1.auction_id == uuid)))
     else
       _none -> assign(socket, :my_positions, [])
