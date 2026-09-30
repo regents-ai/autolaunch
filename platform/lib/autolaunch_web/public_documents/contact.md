@@ -16,7 +16,7 @@ Email [privacy@regents.sh](mailto:privacy@regents.sh) with the subject **Privacy
 
 ## Legal questions
 
-Email [legal@regents.sh](mailto:legal@regents.sh) about the terms or other legal matters.
+Email [legal@regents.sh](mailto:legal@regents.sh) about the [Terms of Use]({{origin}}/terms) or other legal matters.
 
 Never send a private key or recovery phrase. We will never ask for one, and we do not need it to look into a problem.
 

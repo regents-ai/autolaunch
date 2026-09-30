@@ -169,7 +169,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Memestake <span class="fact-table__note">Base</span></th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
-              <td data-label="First 1%">Swapped to USDC for REGENT stakers</td>
+              <td data-label="First 1%">Swapped to USDC and paid into REGENT staking</td>
               <td data-label="Second 1%">Added to the token's staking rewards</td>
             </tr>
             <tr>
@@ -178,7 +178,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
               </th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
               <td data-label="First 1%">
-                Swapped to USDG for REGENT stakers, held on Robinhood Chain until the transfer to Base is set up
+                Swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up
               </td>
               <td data-label="Second 1%">Added to the token's staking rewards</td>
             </tr>
@@ -224,9 +224,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
       <section class="fact-page__section" aria-labelledby="how-it-works-regent">
         <h2 id="how-it-works-regent">REGENT</h2>
         <p>
-          Revstake auctions are priced in REGENT, and REGENT stakers receive Regent's share of every
-          Autolaunch token's trading fees and staking rewards.
-          <.link navigate={~p"/regent"}>About REGENT</.link>
+          Revstake auctions are priced in REGENT, and part of what Autolaunch earns is paid into
+          REGENT staking. <.link navigate={~p"/regent"}>About REGENT</.link>
         </p>
       </section>
 

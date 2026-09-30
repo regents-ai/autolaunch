@@ -41,10 +41,11 @@ defmodule AutolaunchWeb.Layouts do
     <footer class="regent-footer">
       <AutolaunchWeb.Components.RegentLinks.social_links />
       <nav class="regent-footer__links" aria-label="About Autolaunch">
-        <a href="/developers">Developers</a>
+        <a href="/docs">Docs</a>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>
         <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
       </nav>
       <p>© 2026 Regents Labs</p>
     </footer>

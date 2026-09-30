@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.ErrorHTML do
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="color-scheme" content={@theme} />
+        <meta name="color-scheme" content={@theme || "dark light"} />
         <title>{@message} · Autolaunch</title>
         <link rel="icon" href={~p"/favicon.svg"} />
         <link rel="stylesheet" href={~p"/assets/js/app.css"} />

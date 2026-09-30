@@ -11,15 +11,19 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias AutolaunchWeb.Paths
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home developers about contact privacy llms)
+  @names ~w(home docs about contact privacy terms llms)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
+  # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
+  [_about, facts] = String.split(@sources["about"], "\n## Key facts\n")
+  @key_facts "## Key facts\n" <> String.trim_trailing(hd(String.split(facts, "\n## ", parts: 2)))
   @paths %{
     "/" => "home",
-    "/developers" => "developers",
+    "/docs" => "docs",
     "/about" => "about",
     "/contact" => "contact",
-    "/privacy" => "privacy"
+    "/privacy" => "privacy",
+    "/terms" => "terms"
   }
 
   @contract_path Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
@@ -30,7 +34,8 @@ defmodule AutolaunchWeb.PublicDocuments do
   # imports the same file.
   @tool_manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
   @external_resource @tool_manifest_path
-  @tools @tool_manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+  @manifest @tool_manifest_path |> File.read!() |> Jason.decode!()
+  @tools Map.fetch!(@manifest, "tools")
   @needs %{
     "none" => "Nothing",
     "session" => "The person's sign-in",
@@ -45,6 +50,13 @@ defmodule AutolaunchWeb.PublicDocuments do
   @description "Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
 
   @site_name "Autolaunch"
+
+  # Where security reports go, as the contact page publishes it.
+  @security_contact "mailto:security@regents.sh"
+
+  # The documents and the site's fixed pages change only with a release, so the
+  # release time is when each last changed.
+  @released_at DateTime.utc_now() |> DateTime.truncate(:second)
 
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
@@ -81,18 +93,19 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/convert" =>
       {"REGENT's share of fees",
        "REGENT's share of trading fees waiting in each graduated Memestake launch."},
-    "/developers" =>
+    "/docs" =>
       {"Developer guide",
        "Read Autolaunch auctions, tokens, bid estimates and treasury reports over HTTP or WebMCP, without an account or API key."},
     "/about" =>
       {"About",
-       "What Autolaunch is for, how Revstake and Memestake launches work, and who runs it."},
+       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts and common questions."},
     "/contact" =>
       {"Contact",
        "How to reach the people behind Autolaunch about launches, security reports, privacy requests and legal questions."},
     "/privacy" =>
       {"Privacy",
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
+    "/terms" => {"Terms of Use", "The terms that apply when you use Autolaunch."},
     "/blog" => {"Blog", "Latest updates from Autolaunch."},
     :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
   }
@@ -107,6 +120,9 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   @doc "The agent guide served at `/llms.txt`."
   def agent_guide, do: markdown("llms")
+
+  @doc "The browser tool manifest served at `/capabilities`: every tool the pages register."
+  def capabilities, do: @manifest
 
   @doc "Whether the page at `path` also answers as Markdown."
   def markdown?(path), do: Map.has_key?(@paths, path)
@@ -151,7 +167,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   def recovery_links do
     [
       {"Home", url("/")},
-      {"Developer guide", url("/developers")},
+      {"Developer guide", url("/docs")},
       {"OpenAPI description", url("/openapi.json")},
       {"Agent guide", url("/llms.txt")},
       {"Sitemap", url("/sitemap.xml")}
@@ -162,21 +178,20 @@ defmodule AutolaunchWeb.PublicDocuments do
   def openapi do
     @contract
     |> Map.put("servers", [%{"url" => url("")}])
-    |> Map.put("externalDocs", %{"url" => url("/developers"), "description" => "Developer guide"})
+    |> Map.put("externalDocs", %{
+      "url" => url("/docs"),
+      "description" =>
+        "Developer guide: errors, rate limits, and the versioning and deprecation policy"
+    })
+    |> put_in(["info", "termsOfService"], url("/terms"))
   end
 
   @doc """
   Every public page with the time it last changed: the fixed pages, then each
-  listed auction and token, newest first. The fixed pages have no recorded
-  change time, so they carry none.
+  listed auction and token, newest first. A fixed page last changed with the
+  release; the auction and token lists also change when a listed record does.
   """
   def sitemap do
-    fixed =
-      Enum.map(
-        ~w(/ /auctions /tokens /how-it-works /regent /developers /about /contact /privacy /blog),
-        &{url(&1), nil}
-      )
-
     auctions =
       Enum.map(Autolaunch.sitemap_auctions!(actor: nil), &{Paths.auction_url(&1), &1.updated_at})
 
@@ -186,9 +201,19 @@ defmodule AutolaunchWeb.PublicDocuments do
         &{Paths.token_url(&1.auction), &1.updated_at}
       )
 
+    fixed =
+      Enum.map(
+        ~w(/ /auctions /tokens /how-it-works /regent /docs /about /contact /privacy /terms /blog),
+        fn
+          "/auctions" = path -> {url(path), latest(auctions)}
+          "/tokens" = path -> {url(path), latest(tokens)}
+          path -> {url(path), @released_at}
+        end
+      )
+
     entries =
       Enum.map_join(fixed ++ auctions ++ tokens, "\n", fn {location, changed} ->
-        "  <url><loc>#{escape(location)}</loc>#{lastmod(changed)}</url>"
+        "  <url><loc>#{escape(location)}</loc><lastmod>#{DateTime.to_iso8601(changed)}</lastmod></url>"
       end)
 
     """
@@ -197,6 +222,30 @@ defmodule AutolaunchWeb.PublicDocuments do
     #{entries}
     </urlset>
     """
+  end
+
+  @doc "The RFC 9116 security contact file; it expires a year after the release."
+  def security_txt do
+    """
+    Contact: #{@security_contact}
+    Expires: #{@released_at |> DateTime.shift(year: 1) |> DateTime.to_iso8601()}
+    Preferred-Languages: en
+    Canonical: #{url("/.well-known/security.txt")}
+    Policy: #{url("/contact")}
+    """
+  end
+
+  @doc "The RFC 9727 API catalog: a linkset naming the API, its description and its documentation."
+  def api_catalog do
+    %{
+      "linkset" => [
+        %{
+          "anchor" => url("/api/v1"),
+          "service-desc" => [%{"href" => url("/openapi.json"), "type" => "application/json"}],
+          "service-doc" => [%{"href" => url("/docs"), "type" => "text/html"}]
+        }
+      ]
+    }
   end
 
   @doc "Who Autolaunch is, for a reader that speaks schema.org."
@@ -214,6 +263,14 @@ defmodule AutolaunchWeb.PublicDocuments do
           "operatingSystem" => "Web",
           "image" => url("/images/og-image.png"),
           "sameAs" => ["https://github.com/regents-ai/autolaunch"],
+          "publisher" => %{"@id" => "https://regents.sh/#organization"}
+        },
+        %{
+          "@type" => "WebSite",
+          "@id" => url("/#website"),
+          "name" => "Autolaunch",
+          "url" => url("/"),
+          "description" => @description,
           "publisher" => %{"@id" => "https://regents.sh/#organization"}
         },
         %{
@@ -249,12 +306,14 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp markdown(name) do
     @sources[name]
+    |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{tools}}", @tool_table)
     |> String.replace("{{origin}}", url(""))
   end
 
-  defp lastmod(nil), do: ""
-  defp lastmod(%DateTime{} = at), do: "<lastmod>#{DateTime.to_iso8601(at)}</lastmod>"
+  # A list page last changed with the release or with its newest listed record.
+  defp latest(entries),
+    do: Enum.max([@released_at | Enum.map(entries, &elem(&1, 1))], DateTime)
 
   defp escape(text),
     do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()

@@ -50,6 +50,13 @@ defmodule AutolaunchWeb.Router do
     get "/llms.txt", PublicPagesController, :agent_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/openapi.json", PublicPagesController, :openapi
+    get "/robots.txt", PublicPagesController, :robots
+    get "/capabilities", PublicPagesController, :capabilities
+    get "/.well-known/security.txt", PublicPagesController, :security
+    get "/.well-known/api-catalog", PublicPagesController, :api_catalog
+
+    # The developer guide's earlier address; links to it were shared.
+    get "/developers", PublicPagesController, :developers
   end
 
   scope "/api/v1" do
@@ -84,10 +91,11 @@ defmodule AutolaunchWeb.Router do
       live "/", HomeLive, :home
     end
 
-    get "/developers", PublicPagesController, :show
+    get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
     get "/contact", PublicPagesController, :show
     get "/privacy", PublicPagesController, :show
+    get "/terms", PublicPagesController, :show
 
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show

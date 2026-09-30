@@ -8,6 +8,9 @@ import Config
 config :autolaunch, AutolaunchWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
+# Every request reaches production through Fly's proxy, which sets Fly-Client-IP.
+config :autolaunch, :behind_fly_proxy, true
+
 # Do not print debug messages in production
 config :logger, level: :info
 

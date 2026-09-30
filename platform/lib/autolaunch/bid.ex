@@ -23,6 +23,14 @@ defmodule Autolaunch.Bid do
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
+    # The bids of the one wallet the session signed in with. The policies below
+    # still admit only the account's verified wallets.
+    read :mine_by_wallet do
+      argument :wallet_address, :string, allow_nil?: false
+      filter expr(string_downcase(owner_address) == ^arg(:wallet_address))
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
     read :owned_by_bid_id do
       get? true
       argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
@@ -123,11 +131,11 @@ defmodule Autolaunch.Bid do
   end
 
   policies do
-    policy action([:mine, :owned_by_bid_id]) do
+    policy action([:mine, :mine_by_wallet, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:mine, :owned_by_bid_id]) do
+    policy action([:mine, :mine_by_wallet, :owned_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 

@@ -251,6 +251,7 @@
       "input_schema": {
         "type": "object",
         "properties": {},
+        "required": [],
         "additionalProperties": false
       },
       "annotations": {
@@ -271,6 +272,7 @@
       "input_schema": {
         "type": "object",
         "properties": {},
+        "required": [],
         "additionalProperties": false
       },
       "annotations": {
@@ -303,6 +305,7 @@
             "description": "A linked Ethereum address, or null to clear the profile selection."
           }
         },
+        "required": [],
         "additionalProperties": false,
         "minProperties": 1
       },
@@ -320,7 +323,7 @@
     {
       "name": "autolaunch_my_positions",
       "title": "Your bids and tokens",
-      "description": "The signed-in person's own bids on Base and Robinhood auctions and the launched tokens their wallets hold, stake or can claim from staking. Reads only. Each bid gives its auction, amount, most per token, where it stands, what it can do now (withdraw, claim, early return or nothing yet), its page, and `bid`, the id autolaunch_settle_bid takes. Each token gives what is held, staked and claimable, and its page. Amounts are decimal strings; held and staked are cut to four decimal places and claimable to twelve significant digits, never rounded up. Signed out, it answers authentication_required.",
+      "description": "The bids the signed-in wallet placed on Base and Robinhood auctions and the launched tokens it holds, stakes or can claim from staking. Only the wallet the person signed in with is read, not the account's other wallets. Reads only. Each bid gives its auction, amount, most per token, where it stands, what it can do now (withdraw, claim, early return or nothing yet), its page, and `bid`, the id autolaunch_settle_bid takes. Each token gives what is held, staked and claimable, and its page. Amounts are decimal strings; held and staked are cut to four decimal places and claimable to twelve significant digits, never rounded up. Signed out, it answers authentication_required.",
       "input_schema": {
         "type": "object",
         "properties": {},

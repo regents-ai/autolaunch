@@ -1,16 +1,17 @@
 defmodule AutolaunchWeb.MyPositionsController do
   @moduledoc """
-  The signed-in person's own bids and launched tokens, for the page tool that
-  reads them (`autolaunch_my_positions`). The session names the account, and
-  only the wallets it has verified are read, as on /portfolio. Everything is
-  read now, from the site's records and the chain; a read that fails refuses
-  the whole answer rather than leave part of it out.
+  The signed-in wallet's own bids and launched tokens, for the page tool that
+  reads them (`autolaunch_my_positions`). The verified session names the
+  account and the one wallet it signed in with, and only that wallet is read.
+  Everything is read now, from the site's records and the chain; a read that
+  fails refuses the whole answer rather than leave part of it out.
   """
 
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, TokenHoldings}
+  alias RegentChain.Address
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias AutolaunchWeb.{ApiError, BidSettlementComponent, Paths, PublicDocuments}
 
@@ -27,11 +28,12 @@ defmodule AutolaunchWeb.MyPositionsController do
 
   def show(%{assigns: %{current_human_account: account}} = conn, _params) do
     actor = %Human{human_account_id: account.id}
+    {:ok, wallet} = Address.normalize(account.wallet_address)
 
     reads = [
-      fn -> Autolaunch.list_my_bid_positions(actor: actor) end,
-      fn -> RobinhoodPositions.read(actor) end,
-      fn -> TokenHoldings.read(actor) end
+      fn -> Autolaunch.list_wallet_bid_positions(wallet, actor: actor) end,
+      fn -> RobinhoodPositions.read_wallet(wallet) end,
+      fn -> TokenHoldings.read_wallet(actor, wallet) end
     ]
 
     results =

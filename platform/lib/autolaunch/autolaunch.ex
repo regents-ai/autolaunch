@@ -302,7 +302,7 @@ defmodule Autolaunch do
     end
 
     resource Autolaunch.Bid do
-      define :list_my_bid_positions, action: :mine
+      define :list_wallet_bid_positions, action: :mine_by_wallet, args: [:wallet_address]
       define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
 
       define :import_bid_position,

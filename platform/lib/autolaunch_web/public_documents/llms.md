@@ -10,7 +10,10 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 - [How Autolaunch works](https://autolaunch.sh/how-it-works): supply, trading fees and staking rewards for every Autolaunch token.
 - [REGENT](https://autolaunch.sh/regent): the Regents Labs token, with live staking figures.
 - [Source](https://github.com/regents-ai/autolaunch)
-- [Developer guide](https://autolaunch.sh/developers): the public API, WebMCP tools and what needs a wallet.
+- [Developer guide](https://autolaunch.sh/docs): the public API, errors, versioning, WebMCP tools and what needs a wallet.
+- [Tool manifest](https://autolaunch.sh/capabilities): every WebMCP tool the pages register, as JSON.
+
+{{key_facts}}
 
 ## When to use Autolaunch
 
@@ -73,8 +76,8 @@ The Uniswap hook fee on revstake tokens benefits the creator's revstaking contra
 | Launch | Fee paid in | First 1% | Second 1% |
 | --- | --- | --- | --- |
 | Revstake (Base) | REGENT or the Revstake token, depending on the trade | Sent to Regent | Added to the token's staking rewards |
-| Memestake (Base) | The paired stock, buying or selling | Swapped to USDC for REGENT stakers | Added to the token's staking rewards |
-| Memestake (Robinhood Chain) | The paired stock, buying or selling | Swapped to USDG for REGENT stakers, held on Robinhood Chain until the transfer to Base is set up | Added to the token's staking rewards |
+| Memestake (Base) | The paired stock, buying or selling | Swapped to USDC and paid into REGENT staking | Added to the token's staking rewards |
+| Memestake (Robinhood Chain) | The paired stock, buying or selling | Swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up | Added to the token's staking rewards |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 
@@ -104,7 +107,7 @@ $REGENT is the value token for all Regents Labs products. The company does not v
 
 Why stake:
 
-- USDC revenue: stakers share the USDC paid into staking. Each staker's cut is their share of all REGENT.
+- USDC revenue: stakers are paid from the USDC sent to staking by their share of all 100 billion REGENT: staking 1% of all REGENT earns 1% of that USDC. The part for REGENT that is not staked goes to the Regent treasury.
 - REGENT emissions: paid in REGENT while the reward supply lasts. The rate can change.
 - You stay in control: stake, unstake, claim or compound from your own wallet. Every step needs your signature.
 
@@ -132,7 +135,7 @@ Regents Labs is an agentic product lab with Autolaunch, techtree.sh, patchbay.he
 
 ### In the browser (WebMCP)
 
-Browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft) get these tools on autolaunch.sh, each on the pages its row names. The reads change nothing: they make the same reads as the API, and `autolaunch_my_positions` reads the signed-in person's own bids and tokens. The wallet tools press the same button the page shows: the person's wallet opens and asks them to confirm, and nothing is sent without that. A call answers whether it was sent, with the transaction, or why not. The `profile_` tools work only for the signed-in person's own shared profile and never move money. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
+Browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft) get these tools on autolaunch.sh, each on the pages its row names. The reads change nothing: they make the same reads as the API, and `autolaunch_my_positions` reads the signed-in wallet's own bids and tokens. The wallet tools press the same button the page shows: the person's wallet opens and asks them to confirm, and nothing is sent without that. A call answers whether it was sent, with the transaction, or why not. The `profile_` tools work only for the signed-in person's own shared profile and never move money. The [tool manifest](https://autolaunch.sh/capabilities) lists them as JSON. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
 
 {{tools}}
 
@@ -145,13 +148,13 @@ The same reads, as JSON, with amounts as exact decimal strings:
 - `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`
 - `GET https://autolaunch.sh/api/v1/tokens`
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
-- `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in person's own bids and tokens; it needs their sign-in in the same browser.
+- `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.
 
 The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.
 
 Every auction names its page (`url`), when bidding is expected to close (`estimated_end_at`), the tokens it sells (`token_allocation`), everything bid so far (`bid_volume`, and `bid_volume_usd` in dollars), what it must raise to launch (`minimum_raise`), what it has raised (`currency_raised`) and how much of the minimum that is (`percent_met`, a whole percent capped at 100). `record_updated_at` is when the site last wrote its record of the auction, not when it last read the chain. A figure the site has not recorded is null, and `unavailable` says why: `not_recorded_yet`, `chain_unreadable` (Robinhood could not be read) or `no_usd_price`.
 
-Schema: https://autolaunch.sh/openapi.json. Every error keeps its HTTP status and answers `{"error": {"code", "message", "hint"}}`; the hint says what to do next. A bid estimate answers 400 `invalid_request` (the body is not exactly `amount` and `max_price`), 404 `not_found` (no auction this site created has that id), 422 `invalid_amount` or `invalid_max_price` (not a plain decimal string greater than zero) or 500 `internal_error`; only the 500 is worth retrying.
+Schema: https://autolaunch.sh/openapi.json. Every error keeps its HTTP status and answers `{"error": {"code", "message", "hint"}}`; the hint says what to do next. A bid estimate answers 400 `invalid_request` (the body is not exactly `amount` and `max_price`), 404 `not_found` (no auction this site created has that id), 422 `invalid_amount` or `invalid_max_price` (not a plain decimal string greater than zero) or 500 `internal_error`; only the 500 is worth retrying. Each client address has 120 requests per 60 seconds across `/api`; past that the answer is 429 `too_many_requests` with `Retry-After` in seconds.
 
 ### Command line (coming soon)
 

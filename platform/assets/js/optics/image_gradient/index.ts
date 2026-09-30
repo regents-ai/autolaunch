@@ -69,13 +69,17 @@ export async function paint(root: HTMLElement): Promise<Painter> {
 
   // onResize also reports the current size at once, which asks for the first draw.
   const stopResize = canvasSurface.onResize(schedule)
+  // The colours change with the chosen theme, or with the device's while none is chosen.
   const themeObserver = new MutationObserver(retheme)
   themeObserver.observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]})
+  const deviceTheme = window.matchMedia("(prefers-color-scheme: light)")
+  deviceTheme.addEventListener("change", retheme)
 
   return {
     dispose() {
       cancelAnimationFrame(pending)
       themeObserver.disconnect()
+      deviceTheme.removeEventListener("change", retheme)
       stopResize()
       canvasSurface.dispose()
       gpu.dispose()

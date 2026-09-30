@@ -101,6 +101,10 @@ config :autolaunch, :autolaunch_indexer_chains, []
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
+# The API and health check budgets key on the direct peer. Production turns on
+# Fly's client header.
+config :autolaunch, :behind_fly_proxy, false
+
 config :autolaunch, :session_options,
   store: :cookie,
   key: "_autolaunch_key",

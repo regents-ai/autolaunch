@@ -116,6 +116,10 @@
 #home-explore .home-coin__met span { display: block; height: 100%; max-width: 100%; border-radius: 2px; background: linear-gradient(to left, #3ee04c, rgb(255 255 255 / .92) 10px); box-shadow: 0 0 5px rgb(255 255 255 / .55); }
 :root[data-theme="light"] #home-explore .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
 :root[data-theme="light"] #home-explore .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) #home-explore .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
+  :root:not([data-theme]) #home-explore .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
+}
 #home-explore .home-coin__time { grid-row: 2; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
 #home-explore .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
 #home-explore .home-coin__time--base { --time-color: #2970ff; }

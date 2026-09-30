@@ -23,6 +23,6 @@ Every public list and record can be read without an account, as JSON:
 - `GET {{origin}}/api/v1/auctions`
 - `GET {{origin}}/api/v1/tokens`
 
-Start with the [developer guide]({{origin}}/developers), the [OpenAPI description]({{origin}}/openapi.json) or the [agent guide]({{origin}}/llms.txt). Bidding, launching and staking happen on the website with the person's own wallet; every step asks the wallet holder to sign.
+Start with the [developer guide]({{origin}}/docs), the [OpenAPI description]({{origin}}/openapi.json) or the [agent guide]({{origin}}/llms.txt). Bidding, launching and staking happen on the website with the person's own wallet; every step asks the wallet holder to sign.
 
-[About]({{origin}}/about) · [Contact]({{origin}}/contact) · [Privacy]({{origin}}/privacy) · [Sitemap]({{origin}}/sitemap.xml)
+[About]({{origin}}/about) · [Contact]({{origin}}/contact) · [Privacy]({{origin}}/privacy) · [Terms of Use]({{origin}}/terms) · [Sitemap]({{origin}}/sitemap.xml)
