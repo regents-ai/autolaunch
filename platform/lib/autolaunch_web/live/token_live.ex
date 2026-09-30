@@ -10,6 +10,7 @@ defmodule AutolaunchWeb.TokenLive do
   import AutolaunchWeb.Components.PriceChart
   import AutolaunchWeb.Components.StakeSummary
   import AutolaunchWeb.Components.TokenHeading
+  import AutolaunchWeb.Components.TokenNext
 
   alias Autolaunch.Lab
   alias Autolaunch.{Pool, PoolFees}
@@ -71,6 +72,147 @@ defmodule AutolaunchWeb.TokenLive do
         creator_connections: page_connections(assigns.page)
       )
 
+    page(assigns)
+  end
+
+  # The new page, in preview at /next/tokens/…: one reward followed from the
+  # trade to the claim beside the staking card, then the market, the locked
+  # liquidity and the launch's details.
+  defp page(%{design: :next} = assigns) do
+    ~H"""
+    <article
+      :if={@page_status == :ready && @page_record}
+      id="autolaunch-token-detail"
+      class="autolaunch-page token-page token-next"
+    >
+      <header class="autolaunch-heading">
+        <.link navigate="/tokens" class="market-back">← Tokens</.link>
+        <.token_heading
+          name={@presentation.name}
+          symbol={@presentation.symbol}
+          currency={SwapComponent.entry_symbol(@page_record.auction)}
+          chain_id={@page_record.auction.chain_id}
+          pool={if(@pool.ok?, do: @pool.result)}
+        />
+        <p class="token-next-preview">
+          This is the new token page.
+          <.link navigate={Paths.token(@page_record.auction)}>Open the current page</.link>
+        </p>
+      </header>
+      <.detail_card kind={:token} record={@page_record} />
+      <div class="token-next-layout">
+        <div class="token-next-layout__main">
+          <.reward_trace
+            :if={@pool.ok?}
+            id="token-reward-trace"
+            pool={@pool.result}
+            supply={@page_record.auction.token_supply}
+          />
+        </div>
+        <section id="stake" class="token-stake token-next-layout__side" aria-label="Staking">
+          <.stake_summary
+            :if={@pool.ok?}
+            id="token-staked"
+            pool={@pool.result}
+            supply={@page_record.auction.token_supply}
+            label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestake"}
+            fees={@fee_totals.result}
+            rate={@usd_rate.result}
+          />
+          <.live_component
+            :if={@pool.ok?}
+            module={AutolaunchWeb.StakeComponent}
+            id={"token-stake-#{@page_record.id}"}
+            launch={%{chain: :base, auction: @page_record.auction}}
+            pool={@pool.result}
+            initial_amount={@stake_amount}
+            share_url={Paths.token_url(@page_record.auction)}
+            share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+            design={:next}
+            supply={@page_record.auction.token_supply}
+          />
+        </section>
+      </div>
+      <.price_chart
+        :if={@pool.ok?}
+        id="token-price-chart"
+        label="Price since the pool opened"
+        history={@pool.result.prices}
+        unit={@pool.result.currency.symbol}
+        color={@presentation.image_color}
+      />
+      <.exact_price
+        id="token-exact-price"
+        summary="Price to 18 decimals"
+        amount={@page_record.price_quote}
+        unit={SwapComponent.entry_symbol(@page_record.auction)}
+      />
+      <.live_component
+        module={AutolaunchWeb.SwapComponent}
+        id={"token-trade-#{@page_record.id}"}
+        agent_tools
+        launch={%{chain: :base, auction: @page_record.auction}}
+        symbol={@presentation.symbol}
+        image={@presentation.image}
+        currency={SwapComponent.entry_symbol(@page_record.auction)}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
+      <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
+        <.link navigate={Paths.next_auction(@page_record.auction)}>
+          Open the auction this token graduated from
+        </.link>
+      </p>
+      <.liquidity :if={@pool.ok?} id="token-liquidity" pool={@pool.result} />
+      <.launch_trust
+        auction={@page_record.auction}
+        connections={@creator_connections}
+        pool={if(@pool.ok?, do: @pool.result)}
+        design={:next}
+      />
+      <.pool_facts pool={@pool} />
+      <.live_component
+        :if={
+          @pool.ok? && @pool.result.kind == :agent && !@local_lab? &&
+            !Autolaunch.Prelaunch.read_only?()
+        }
+        module={AutolaunchWeb.SubjectWalletComponent}
+        id={"token-payment-#{@page_record.id}"}
+        subject_id={Autolaunch.LabProjection.subject_identity(@pool.result.token.address)}
+        symbol={@presentation.symbol}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
+      <.live_component
+        :if={@pool.ok? && @pool.result.kind == :stocks}
+        module={AutolaunchWeb.ConvertComponent}
+        id={"token-convert-#{@page_record.id}"}
+        launch={%{chain: :base, auction: @page_record.auction}}
+        pool={@pool.result}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
+      <.treasury_security
+        :if={@page_record.auction.kind == :agent && !@local_lab?}
+        report={report(@page_record)}
+        surface="token-detail"
+      />
+      <.lab_treasury_unavailable
+        :if={@page_record.auction.kind == :agent && @local_lab?}
+        surface="token-detail"
+      />
+    </article>
+    <.states page_status={@page_status} record_id={@record_id} />
+    """
+  end
+
+  defp page(assigns) do
     ~H"""
     <article
       :if={@page_status == :ready && @page_record}
@@ -184,6 +326,15 @@ defmodule AutolaunchWeb.TokenLive do
       />
     </article>
 
+    <.states page_status={@page_status} record_id={@record_id} />
+    """
+  end
+
+  attr :page_status, :atom, required: true
+  attr :record_id, :string, required: true
+
+  defp states(assigns) do
+    ~H"""
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
 
     <section

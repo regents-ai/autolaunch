@@ -123,6 +123,7 @@ defmodule AutolaunchWeb.Router do
       live "/next/auctions/:symbol/:tail", MarketPageLive, :auction_next
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
+      live "/next/tokens/:symbol/:tail", MarketPageLive, :token_next
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/profile", ProfileLive, :profile

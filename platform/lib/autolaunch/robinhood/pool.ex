@@ -282,9 +282,11 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  # The hook's two lanes for this pool, read from its own storage right now,
-  # every fee it charged the pool's trades, the wallet the Safe named to
-  # convert Regent's lane, and the splitter the staker lane and the locker's
+  # The hook's two lanes for this pool, read from its own storage right now
+  # with what each has settled so far (Regent's lane as the stock it swapped
+  # and the USDG it sent to the protocol inbox on Robinhood Chain), every fee
+  # it charged the pool's trades, the wallet the Safe named to convert
+  # Regent's lane, and the splitter the staker lane and the locker's
   # LP fees flow to. Like the price history, the hook's logs are read from the
   # chain's start.
   defp fees(config, launch, stock, block, opts) do
@@ -299,7 +301,7 @@ defmodule Autolaunch.Robinhood.Pool do
              2,
              opts
            ),
-         {:ok, [_stock_converted, _usdg_deposited, stock_to_stakers]} <-
+         {:ok, [stock_converted, usdg_deposited, stock_to_stakers]} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
@@ -317,7 +319,9 @@ defmodule Autolaunch.Robinhood.Pool do
          regent: %{
            accrued: Rpc.format_units(protocol_accrued, stock.decimals),
            accrued_atomic: protocol_accrued,
-           converter: converter
+           converter: converter,
+           settled_currency: Rpc.format_units(stock_converted, stock.decimals),
+           settled_usdg: Rpc.format_units(usdg_deposited, @usdg_decimals)
          },
          stakers: %{
            accrued: Rpc.format_units(staker_accrued, stock.decimals),

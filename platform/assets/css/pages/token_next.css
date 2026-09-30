@@ -1,0 +1,98 @@
+/* The new token page (/next/tokens/…): one reward followed from the trade to
+   the claim beside the staking card, the wallet's rewards by asset, what
+   staking more would change, and the locked liquidity. */
+
+.token-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
+.token-next-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: start; min-width: 0; }
+.token-next-layout__main { display: grid; gap: var(--space-4); min-width: 0; }
+.token-next-layout > .token-stake { margin-top: 0; min-width: 0; }
+@media (min-width: 64rem) {
+  .token-next-layout { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+}
+
+.token-next-card { display: grid; gap: 14px; min-width: 0; padding: 18px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--color-surface); }
+.token-next-card__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.token-next-card__head h2 { margin: 0; font-size: 1.25rem; }
+.token-next-card__head h3 { margin: 0; font-size: 1rem; }
+.token-next-tag { flex: none; padding: 2px 10px; border: 1px solid var(--hairline-strong); border-radius: 999px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
+.token-next-lead { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+.token-next-source { margin: 0; color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
+.token-next-muted { color: var(--color-fg-muted); }
+.token-next-link { color: var(--color-fg); font-weight: 600; text-decoration: underline; }
+.token-next-link:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.token-next-figure { margin: 0; font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* The steps, numbered and joined by a line down the left. */
+.token-next-steps { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.token-next-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; min-width: 0; }
+.token-next-step__mark { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--hairline-strong); border-radius: 50%; font-size: .8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.token-next-step--claim .token-next-step__mark { border-color: var(--color-success); background: var(--color-success); color: var(--color-bg); }
+.token-next-step__body { display: grid; gap: 6px; min-width: 0; }
+.token-next-step__body h3 { margin: 0; font-size: 1rem; }
+.token-next-step__body p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.token-next-step__body p.token-next-source { font-size: .75rem; }
+.token-next-step__body p.token-next-figure { font-size: 1.125rem; }
+
+/* Money that leaves the staker path, or joins it from the pool. */
+.token-next-branch { display: grid; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px dashed var(--hairline-strong); border-radius: 12px; }
+.token-next-branch h3 { margin: 0; font-size: .9375rem; }
+.token-next-branch p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.token-next-branch p.token-next-source { font-size: .75rem; }
+
+/* Label and value rows. */
+.token-next-rows { display: grid; gap: 8px; margin: 0; font-size: .8125rem; }
+.token-next-rows > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; min-width: 0; }
+.token-next-rows dt { color: var(--color-fg-muted); }
+.token-next-rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) {
+  .token-next-rows > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .token-next-rows dd { text-align: left; }
+}
+
+/* A split shown as one bar and its legend. */
+.token-next-split { display: grid; gap: 8px; min-width: 0; }
+.token-next-split__lead { margin: 0; font-size: .875rem; }
+.token-next-bar { display: flex; height: 10px; border-radius: 999px; background: var(--hairline); overflow: hidden; }
+.token-next-bar__part { display: block; height: 100%; }
+.token-next-bar__part--regent { background: var(--brand-accent); }
+.token-next-bar__part--stakers { background: var(--color-success); }
+.token-next-bar__part--treasury { background: var(--hairline-strong); }
+.token-next-bar__part--full_range { background: var(--color-success); }
+.token-next-bar__part--stock_only { background: var(--brand-accent); }
+.token-next-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: .75rem; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.token-next-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.token-next-legend li::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--hairline-strong); }
+.token-next-legend strong { color: var(--color-fg); }
+.token-next-legend .token-next-legend__regent::before, .token-next-legend .token-next-legend__stock_only::before { background: var(--brand-accent); }
+.token-next-legend .token-next-legend__stakers::before, .token-next-legend .token-next-legend__full_range::before { background: var(--color-success); }
+
+/* Inside the staking card: rewards by asset, then the staked tokens. */
+.token-next-stake { display: grid; gap: 12px; min-width: 0; }
+.token-next-basket, .token-next-principal { display: grid; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 12px; }
+.token-next-basket h3, .token-next-principal h3 { margin: 0; font-size: .9375rem; }
+.token-next-basket__rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.token-next-basket__rows > li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; min-width: 0; padding-bottom: 8px; border-bottom: 1px solid var(--hairline); }
+.token-next-basket__rows > li:last-child { padding-bottom: 0; border-bottom: 0; }
+.token-next-basket__asset { display: grid; gap: 2px; min-width: 0; }
+.token-next-basket__asset small { color: var(--color-fg-muted); font-size: .75rem; }
+.token-next-basket__amount { font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-next-basket__amount.token-next-muted { font-size: .8125rem; font-weight: 400; }
+
+/* What staking the typed amount would change. */
+.token-next-impact { display: grid; gap: 10px; min-width: 0; margin-top: 12px; padding: 12px 14px; border: 1px dashed var(--hairline-strong); border-radius: 12px; }
+.token-next-impact__body { display: grid; gap: 8px; min-width: 0; }
+.token-next-impact__figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.token-next-impact__figures > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
+.token-next-impact__figures dt { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }
+.token-next-impact__figures dd { margin: 0; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .token-next-impact__figures { grid-template-columns: minmax(0, 1fr); } }
+
+/* The locked positions. */
+.token-next-positions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.token-next-position { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 12px; }
+.token-next-position > p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.token-next-position__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.token-next-position__head h3 { margin: 0; font-size: 1rem; }
+.token-next-position__head span { font-size: .75rem; }
+.token-next-position .token-next-rows > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.token-next-position .token-next-rows dd { text-align: left; }
