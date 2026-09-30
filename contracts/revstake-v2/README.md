@@ -8,9 +8,10 @@ its required raise graduates:
 - the auction itself sells the whole 20% sale allocation to the bidders, up to rounding crumbs:
   it carries any supply a block did not sell into later blocks and never lowers its price;
 - the official SUBJECT/REGENT Uniswap v4 pool opens at the raise divided by the sale allocation,
-  with one full-range position locked forever that pairs as much of the 15% reserve and of a
-  three-quarter share of the raise as it can;
-- the rest of the raise, at least a quarter, goes to the treasury;
+  with one full-range position locked forever that pairs the 15% reserve with about three
+  quarters of the raise (the pool maths lands on three quarters to within a few billionths of a
+  REGENT at any reachable raise);
+- the rest of the raise, about a quarter, goes to the treasury;
 - every SUBJECT left over (the auction's rounding crumbs, any reserve the position could not pair
   and anything sent to the strategy) goes to the escrow, and the 65% plus that leftover starts
   vesting to the treasury over 365 days.
@@ -43,7 +44,7 @@ a version 2 deployment creates new instances bound to the new factory and strate
 | Auction | opens 300 blocks after creation, runs 86,401 blocks on the thirteen-step v1 schedule |
 | Claim / migration | 64 / 128 blocks after the auction ends |
 | Pool price | raise ÷ sale allocation |
-| Pool position | full range from the reserve and a three-quarter budget of the raise, as much as it can pair, locked in `RevstakeLPLocker`; the treasury receives the rest of the raise |
+| Pool position | full range from the reserve and about three quarters of the raise, locked in `RevstakeLPLocker`; the treasury receives the rest of the raise |
 | Pool fee | 0.30% LP fee, tick spacing 60, plus the `RegentFeeHook` lanes |
 | Leftover SUBJECT | everything the strategy holds after graduation (the auction's rounding crumbs, unpaired reserve and any SUBJECT sent to it) goes to the escrow and vests to the treasury with the 65% |
 
@@ -84,5 +85,6 @@ against `docs/security/slither-dispositions.md`. The body is shared with the Mem
 `../stocks-v2/bin/memestake-gate.sh`.
 
 `FOUNDRY_PROFILE=deployment forge test` rehearses the deployment script. This package carries no
-Base fork suite and no ceremony tooling; those remain in `contracts/v1` and are a separately
-authorized step before any deployment.
+Base fork suite; the 28 September 2026 practice run on a copy of Base is described in
+`SECURITY.md`. The signing kit uses the shared ceremony tool `../stocks-v2/bin/ceremony.py`; see
+`deployments/base-mainnet/README.md`.

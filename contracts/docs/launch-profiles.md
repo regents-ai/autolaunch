@@ -55,7 +55,7 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Floor price | fixed 0.001 REGENT | the site always sends 0.000001 REGENT, rounded down to the grid (`floorPriceQ96` 79,228,162,514,264,337,593,500), a minimum raise of just under 20,000 REGENT |
 | Bid tick | floor ÷ 100 | same rule |
 | Minimum raise | creator's | the floor minimum (the site sets no creator minimum) |
-| Raise into the pool | whole raise | up to three quarters: the full-range position takes what it can pair from a three-quarter budget; the treasury receives the rest of the raise (at least a quarter) |
+| Raise into the pool | whole raise | about three quarters: pairing the 15B reserve at raise ÷ 20B takes three quarters of the raise, to within a few billionths of a REGENT at any reachable raise; the treasury receives the rest (about a quarter) |
 | Pool price | the final clearing price | raise ÷ 20B, reserve in one full-range position (any reserve it cannot pair goes to the escrow) |
 | Auction length | 86,401 blocks, 13-step schedule | same |
 | Swap hook fee | 1% Regent lane and 1% staker lane | 2%: a 1% Regent lane (to REGENT staking when the fee is in REGENT, to the Regent Safe when it is in the launch's token) and a 1% staker lane through the splitter |
@@ -113,7 +113,10 @@ contract carries ("no more of the variable ranges").
 
 1. Memestake swap fees: 0.3% to the launch's creator, 3% to stakers, 1% to Regent, plus the 0.3%
    Uniswap LP fee. The creator's share is paid in the stock itself and anyone can send it.
-2. Revstake swap fees: 1% to stakers and 1% to Regent, plus the 0.3% Uniswap LP fee. Regent's 1%
+2. Revstake swap fees: a 1% staker lane and 1% to Regent, plus the 0.3% Uniswap LP fee. The
+   staker lane goes to the launch's splitter, which skims 2% for Regent and pays stakers the share
+   of the rest that matches the share of all 100 billion tokens they have staked; the launch's
+   treasury receives the remainder. Regent's 1%
    goes to the REGENT staking contract when the fee is in REGENT and to the Regent Safe when it is
    in the launch's token.
 3. Regent's Memestake share is not sold inside the trade. It waits in the hook and is sold for USDC

@@ -1,7 +1,13 @@
 # Autolaunch Revstake version 2: security posture
 
-Status: unit-proven against the hermetic suite, not deployed, not audited. No Base fork suite has
-been run for version 2.
+Status: unit-proven against the hermetic suite, not deployed, not audited. This package carries
+no Base fork suite. On 28 September 2026 a practice run on a copy of Base, using source identical
+to this package, exercised it against the real Permit2, CCA factory, PoolManager and
+PositionManager: bids early, mid-auction and late, the exact minimum and the minimum plus one unit,
+a launcher minimum, refusals before the claim and migration blocks, graduation, bidder claims,
+vesting at half and full term, a failed auction with refunds and retirement of the whole supply,
+swaps both ways (exact input and exact output), pool fee collection through the locker, staking,
+and the fee rounding floor. Staker claims and unstaking were covered by the hermetic suite only.
 
 ## Design rules
 
@@ -43,4 +49,5 @@ been run for version 2.
   measured. Crumbs never reach a bidder or stay in the strategy: they go to the escrow and vest to
   the treasury.
 - **Permit2.** The real Permit2 cannot be built under this package's compiler, so hermetic bids use
-  a double of its allowance-transfer slice; real Permit2 behaviour is proved only on a Base fork.
+  a double of its allowance-transfer slice; real Permit2 bids were exercised in the 28 September
+  practice run on a copy of Base.
