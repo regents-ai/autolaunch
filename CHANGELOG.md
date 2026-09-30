@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v63, 30 September 2026 (68a060b)
+- New About page: the team behind Autolaunch, how it works and key facts come first, and
+  the key facts also appear in llms.txt.
+- The automated GitHub checks are switched off; the same checks run before every release.
+
 ## v62, 29 September 2026 (067a3c4)
 - The site monitor now notices if the site stops reading new launches, bids or trades.
 - Shared Regent libraries updated, including how ENS names are read.
