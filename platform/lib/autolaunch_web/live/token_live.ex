@@ -174,7 +174,7 @@ defmodule AutolaunchWeb.TokenLive do
         pool={if(@pool.ok?, do: @pool.result)}
         design={:next}
       />
-      <.pool_facts pool={@pool} />
+      <.pool_facts pool={@pool} design={:next} />
       <.live_component
         :if={
           @pool.ok? && @pool.result.kind == :agent && !@local_lab? &&

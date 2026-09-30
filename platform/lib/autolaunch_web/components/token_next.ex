@@ -219,7 +219,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
           </div>
           <ul class="token-next-legend">
             <li :for={part <- @split.parts} class={"token-next-legend__#{part.key}"}>
-              {part.label} <strong>{percent(part.share)}</strong>
+              {part.label} <strong>{split_percent(part.share)}</strong>
             </li>
           </ul>
           <p class="token-next-source">{@split.source}</p>
@@ -586,7 +586,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
         </div>
         <ul class="token-next-legend">
           <li :for={share <- @shares} class={"token-next-legend__#{share.key}"}>
-            {share.label} <strong>{percent(share.share)}</strong>
+            {share.label} <strong>{split_percent(share.share)}</strong>
           </li>
         </ul>
       </div>
@@ -823,6 +823,17 @@ defmodule AutolaunchWeb.Components.TokenNext do
   end
 
   defp bps_percent(bps), do: percent(fraction(bps, @bps))
+
+  # A bar part's percent to two decimal places, so a split's parts read to the
+  # same precision and add up to 100%.
+  defp split_percent(fraction) do
+    fraction
+    |> Decimal.mult(100)
+    |> Decimal.round(2)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+    |> Kernel.<>("%")
+  end
 
   # A bar segment's width, at least a sliver so a small part stays visible.
   defp width(share) do

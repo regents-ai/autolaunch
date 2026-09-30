@@ -444,6 +444,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
     fraction
     |> Decimal.mult(100)
     |> Decimal.round(2)
+    |> Decimal.normalize()
     |> Decimal.to_string(:normal)
     |> Kernel.<>("%")
   end
