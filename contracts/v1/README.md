@@ -36,11 +36,8 @@ described in this file.
 > Nothing in this component signs, broadcasts, or moves value.
 
 > [!IMPORTANT]
-> Evidence here is local by construction. The repository's `.github/workflows/test.yml` runs the
-> same required `bin/gate.sh` from this directory, materializing the pinned toolchain over the
-> network first so the gate itself stays offline. Until a hosted run has been observed and
-> reviewed, a local `bin/gate.sh` is the whole evidence, and no CI-green claim is made anywhere
-> in this repository.
+> Evidence here is local by construction. A local `bin/gate.sh` is the whole evidence; the
+> repository runs no hosted checks, and no CI-green claim is made anywhere in this repository.
 
 ## The three gates
 
