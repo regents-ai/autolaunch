@@ -32,6 +32,9 @@ Modes:
               the node itself (`eth_simulateV1`), because Base's stock tokens carry a one-byte
               `0xef` code that only a Base node executes, and write those transactions to
               reports/generated/deployment/ for the founder to send.
+  preflight   Run right before sending creation N (counting from 0): proves the installed packet is
+              the committed one, that the deployer's confirmed and pending nonces both equal that
+              creation's nonce, and that its predicted address holds no code yet. Sends nothing.
   record      Verifies the founder's confirmed transaction hashes against the committed packet
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
@@ -1565,6 +1568,26 @@ def mode_rehearse(package: Package, frozen: Frozen, args: argparse.Namespace) ->
     return 0
 
 
+def mode_preflight(package: Package, frozen: Frozen, args: argparse.Namespace) -> int:
+    packet, selection, committed = require_selection(package)
+    compare_bytes(render_packet(package, frozen, selection, committed), packet, "preflight")
+    plan = package.transaction_plan(selection)
+    if not 0 <= args.index < len(plan):
+        raise CeremonyError(f"there is no creation {args.index}; this packet has creations 0 to {len(plan) - 1}")
+    chain, contract, predicted = plan[args.index]
+    chain.probe()
+    expected = selection["starting_nonce"] + args.index if chain is package.chain else selection["base_receiver"]["starting_nonce"]
+    nonce = chain.nonce(selection["deployer"])
+    if nonce != expected:
+        raise CeremonyError(f"the deployer's confirmed and pending nonces are both {nonce} on {chain.alias}, but creation "
+                            f"{args.index} ({contract}) is sent at nonce {expected}; do not send it")
+    if chain.code(predicted):
+        raise CeremonyError(f"{predicted} already holds code on {chain.alias}; creation {args.index} ({contract}) is not sent again")
+    print(f"PREFLIGHT PASS: send creation {args.index} ({contract}) at nonce {expected} on {chain.alias}; "
+          f"it creates {predicted}; confirmed and pending nonces are both {nonce}")
+    return 0
+
+
 def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> int:
     packet, selection, _ = require_selection(package)
     if args.approved_digest != packet["digest"]["value"]:
@@ -1735,6 +1758,8 @@ def main() -> int:
     prepare.add_argument("--deployer", required=True, help="the founder-selected deployer; its live nonce becomes the starting nonce")
     package.add_prepare_arguments(prepare)
     modes.add_parser("rehearse")
+    preflight = modes.add_parser("preflight")
+    preflight.add_argument("index", type=int, help="the creation about to be sent, counting from 0 in nonce order")
     record = modes.add_parser("record")
     record.add_argument("--receipts", required=True, help="a JSON file {\"transactions\": [hash, ...]} in ceremony order")
     record.add_argument("--approved-digest", required=True, help="the packet digest the founder approved")
@@ -1747,6 +1772,7 @@ def main() -> int:
         "render": mode_render,
         "prepare": mode_prepare,
         "rehearse": mode_rehearse,
+        "preflight": mode_preflight,
         "record": mode_record,
         "site-config": mode_site_config,
     }[args.mode](package, frozen, args)

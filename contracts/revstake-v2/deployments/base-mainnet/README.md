@@ -64,6 +64,15 @@ sender, nonce, created address) and only then send the next. If any creation lan
 packet is terminal and is prepared again, never resumed. The signer flags are yours and are never
 written down here. Every flag comes before `--create`.
 
+Right before each send, run the preflight for that creation (0 before nonce 28, 1 before nonce 29,
+and so on up to 4). It must print `PREFLIGHT PASS`: the deployer's confirmed and pending nonces both
+equal that creation's nonce and its address holds no code yet. If it stops, do not send; never move
+the remaining creations to other nonces.
+
+```bash
+REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py preflight 0
+```
+
 ```bash
 cast send --rpc-url base <your signer flags> --nonce 28 --gas-limit 3400000 --create $(jq -r '.transactions[0].data' reports/generated/deployment/rehearsed-transactions.json)
 ```
