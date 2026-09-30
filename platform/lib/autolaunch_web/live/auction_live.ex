@@ -79,7 +79,9 @@ defmodule AutolaunchWeb.AuctionLive do
               {:ok, receipt} <- BidReceipt.base(auction, bid_id) do
            {:ok, %{checked_bid: receipt}}
          end
-       end, reset: true)}
+       end,
+       reset: true
+     )}
   end
 
   # Either feed may have moved; the combined reading decides whether the page
@@ -249,6 +251,7 @@ defmodule AutolaunchWeb.AuctionLive do
             lab={@local_lab?}
             draft_marker
           />
+          <.how_to_bid id="auction-how-to-bid" />
         </aside>
         <div class="auction-layout__rest">
           <.ladder

@@ -138,3 +138,9 @@
 .auction-next-table caption { padding-bottom: 6px; color: var(--color-fg-muted); font-size: .75rem; text-align: left; }
 .auction-next-table th, .auction-next-table td { padding: 6px 8px; border-bottom: 1px solid var(--hairline); text-align: left; overflow-wrap: anywhere; }
 .auction-next-table th { color: var(--color-fg-muted); font-weight: 600; }
+
+/* How bidding works, beside the bid form. */
+.auction-next-howto { margin-top: 16px; }
+.auction-next-howto__list { display: grid; gap: 6px; margin: 0; padding-left: 1.1rem; font-size: .875rem; line-height: 1.5; }
+.auction-next-howto__advice { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+.auction-next-howto__advice strong { color: var(--color-fg); }

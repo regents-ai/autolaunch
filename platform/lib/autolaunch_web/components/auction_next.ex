@@ -22,6 +22,8 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   """
   use Phoenix.Component
 
+  import AutolaunchWeb.Components.InfoTip
+
   alias Autolaunch.{AuctionSnapshot, BidActions, LaunchChain}
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.TokenDisplay
@@ -166,7 +168,14 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     ~H"""
     <dl class="auction-next-figures">
       <div class="auction-next-figure">
-        <dt>Price now · per 1M {@token_symbol}</dt>
+        <dt>
+          <.info_tip
+            id="auction-next-price-tip"
+            text="The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply."
+          >
+            Price now · per 1M {@token_symbol}
+          </.info_tip>
+        </dt>
         <dd>
           <strong>
             <TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} />
@@ -212,6 +221,36 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       "#{grouped(finish - clock)} blocks from now: in #{LaunchChain.time_estimate(chain, finish - clock)}, estimated from block times."
 
   attr :id, :string, required: true
+
+  @doc "How to bid in a continuous clearing auction, beside the bid form."
+  def how_to_bid(assigns) do
+    ~H"""
+    <section id={@id} class="auction-next-card auction-next-howto" aria-labelledby={"#{@id}-title"}>
+      <header class="auction-next-card__head">
+        <h2 id={"#{@id}-title"}>How bidding works</h2>
+      </header>
+      <ul class="auction-next-howto__list">
+        <li>You set a total budget and the max price you would pay for a token.</li>
+        <li>Your budget is spread across all remaining blocks and spent over time, like a TWAP.</li>
+        <li>
+          Each block where the price is below your max price, part of your budget buys tokens.
+          Once the price passes your max price, the rest stops buying.
+        </li>
+      </ul>
+      <p class="auction-next-howto__advice">
+        <strong>Bid early with your real max budget and your real max price.</strong>
+        Your max price means you never buy a single token above what you are willing to pay, and
+        waiting only gets you a worse average price. Everyone buys at the same rates, with no
+        advantage for advanced users or MEV bots.
+      </p>
+      <.link navigate="/how-it-works#how-it-works-auction" class="auction-next-link">
+        How the auction works
+      </.link>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
   attr :snapshot, :map, required: true
   attr :points, :list, required: true, doc: "the auction's recorded prices, oldest first"
   attr :draft, :string, default: nil, doc: "the maximum price per token being drafted"
@@ -239,6 +278,11 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         The solid line is each price the auction recorded. The dashed line is the maximum
         you are drafting. The bars underneath are how much of the supply the auction releases
         at each stage of its schedule.
+      </p>
+      <p class="auction-next-lead">
+        The auction starts at a floor price and goes up over time. Bids are spread across all
+        remaining blocks and executed over time, like a TWAP, so the line only steps up when
+        there is enough demand to buy out the rest of the auction at a higher price.
       </p>
       <div class="auction-next-film__plot">
         <span class="auction-next-film__axis auction-next-film__axis--top">
@@ -301,7 +345,14 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           ></span>
         </div>
       </div>
-      <p class="auction-next-film__band-label">Supply released per block, by schedule stage</p>
+      <p class="auction-next-film__band-label">
+        <.info_tip
+          id={"#{@id}-band-tip"}
+          text="Every CCA bid is split across all blocks for the remaining auction, in step with how much of the supply each block releases."
+        >
+          Supply released per block, by schedule stage
+        </.info_tip>
+      </p>
       <svg
         class="auction-next-film__band"
         viewBox="0 0 600 48"
@@ -582,6 +633,11 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         more would have to be bid before the price reaches that row. It is a picture of now,
         not a forecast.
       </p>
+      <p class="auction-next-lead">
+        The price stays at the floor until there is enough demand to buy out the entire auction
+        at the floor or higher. At that point every bid above the floor pushes the clearing
+        price up, again spread across all remaining blocks. Simple supply and demand.
+      </p>
       <div :if={@snapshot.price_to_beat} class="auction-next-ladder__beat">
         <span>
           To start buying now, bid at least
@@ -780,7 +836,14 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             <dd><TokenDisplay.price amount={@receipt.used} unit={@symbol} /></dd>
           </div>
           <div>
-            <dt>Unspent</dt>
+            <dt>
+              <.info_tip
+                id={"#{@id}-unspent-tip"}
+                text="Each block where the clearing price is lower than your max price, you receive tokens for a portion of your budget. If your max price is exceeded, the rest of your budget stops buying."
+              >
+                Unspent
+              </.info_tip>
+            </dt>
             <dd>
               <TokenDisplay.price amount={@receipt.unspent} unit={@symbol} />
               <small>Not automatically withdrawable</small>
@@ -880,8 +943,8 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         <h2 id={"#{@id}-title"}>Check a bid</h2>
       </header>
       <p class="auction-next-lead">
-        A bid is money with a price limit, not a fixed number of tokens. Enter a bid's number
-        to see how much of it the auction has used and what is left.
+        A bid is a total budget with a max price, not a fixed number of tokens. Enter a bid's
+        number to see how much of it the auction has used and what is left.
       </p>
       <form id={"#{@id}-form"} class="auction-next-check" phx-submit="check_bid">
         <label for={"#{@id}-number"}>Bid number</label>

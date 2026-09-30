@@ -30,6 +30,17 @@ First steps for an agent:
 
 Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, including when an agent starts them with the page tools.
 
+## How the auction works
+
+Every Autolaunch token is sold in a continuous clearing auction (CCA). CCA is the ideal auction model for quality projects and teams to bootstrap liquidity, with healthy market behavior and true price discovery.
+
+- Buyers specify their total budget and max price they would pay for a token.
+- Orders are spread across all remaining blocks and executed over time (like a TWAP).
+- The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply.
+- Each block where the clearing price is lower than your max price, you will receive tokens for a portion of your budget. If your max price is exceeded, the remainder of your TWAP is cancelled.
+
+The game theory: bid early with your real max budget and your real max price. Your max price ensures you will not buy a single token above what you are willing to pay, and orders TWAP over the remaining duration, so waiting only gets you a worse average price. With a well parameterized auction there are no timing games, sniping, bundling or sandwiching, everyone buys at the same rates, and advanced users and MEV bots have no advantage. Even if you bid $10b FDV on the first day, you would not have overpaid, and instead executed at a DCA price between floor and clearing. After a successful auction, a large portion of the proceeds and a reserve of tokens seed a Uniswap v4 pool.
+
 ## Revstake: a new AiFi primitive
 
 Raise early funds through a CCA (continuous clearing auction). It tokenizes a stablecoin generating service or agent. Tokenholders stake it to acquire their slice of stablecoin earnings.

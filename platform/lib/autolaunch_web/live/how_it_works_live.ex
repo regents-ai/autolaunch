@@ -35,8 +35,71 @@ defmodule AutolaunchWeb.HowItWorksLive do
             Copy to Agent
           </Regent.Primitives.copy_button>
         </div>
-        <p>Supply, trading fees and staking rewards for every Autolaunch token.</p>
+        <p>The auction, supply, trading fees and staking rewards for every Autolaunch token.</p>
       </header>
+
+      <section class="fact-page__section" aria-labelledby="how-it-works-auction">
+        <h2 id="how-it-works-auction">How the auction works</h2>
+        <p>
+          Every Autolaunch token is sold in a continuous clearing auction (CCA). CCA is the ideal
+          auction model for quality projects and teams to bootstrap liquidity, with healthy market
+          behavior and true price discovery.
+        </p>
+        <h3 class="fact-page__subhead">A simple mental model</h3>
+        <ul class="fact-page__list">
+          <li>Buyers specify their total budget and max price they would pay for a token.</li>
+          <li>
+            Orders are spread across all remaining blocks and executed over time (like a TWAP).
+          </li>
+          <li>
+            The auction starts at a floor price and goes up over time, with each block clearing at
+            the highest price where demand exceeds supply.
+          </li>
+          <li>
+            Each block where the clearing price is lower than your max price, you will receive
+            tokens for a portion of your budget. If your max price is exceeded, the remainder of
+            your TWAP is cancelled.
+          </li>
+        </ul>
+        <h3 class="fact-page__subhead">Why the price moves</h3>
+        <ul class="fact-page__list">
+          <li>Every CCA bid is split across all blocks for the remaining auction.</li>
+          <li>
+            So the price stays at the floor until there is enough demand to buy out the entire
+            auction at the floor or higher.
+          </li>
+          <li>
+            At that point every bid above the floor pushes the clearing price up, again spread
+            across all remaining blocks. There is enough demand to buy out the rest of the auction
+            at this higher price.
+          </li>
+          <li>So: simple supply and demand.</li>
+        </ul>
+        <h3 class="fact-page__subhead">What is the game theory?</h3>
+        <ul class="fact-page__list">
+          <li>Bid early with your real max budget and your real max price.</li>
+          <li>
+            Your max price ensures you will not buy a single token above what you are willing to
+            pay, and orders TWAP over the remaining duration, so waiting only gets you a worse
+            average price.
+          </li>
+          <li>
+            With a well parameterized auction (not too fast), there are no crazy timing games,
+            sniping, bundling, sandwiching, etc.
+          </li>
+          <li>Everyone has equal access to buying at the same rates.</li>
+          <li>No advantages for advanced users or MEV bots.</li>
+          <li>Just real price discovery.</li>
+        </ul>
+        <p>
+          Even if you bid $10b FDV on the first day, you would not have overpaid, and instead
+          executed at a DCA price between floor and clearing.
+        </p>
+        <p>
+          After a successful auction, a large portion of the auction proceeds and reserve of tokens
+          is used to seed a Uniswap v4 pool.
+        </p>
+      </section>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-revstake">
         <h2 id="how-it-works-revstake">

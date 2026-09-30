@@ -71,7 +71,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
               {:ok, receipt} <- BidReceipt.robinhood(address, launch.quote_token_decimals, bid_id) do
            {:ok, %{checked_bid: receipt}}
          end
-       end, reset: true)}
+       end,
+       reset: true
+     )}
   end
 
   # The feed read Robinhood again: the stored auction, its reading and its
@@ -190,6 +192,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             session_lease={@session_lease}
             draft_marker
           />
+          <.how_to_bid id="robinhood-auction-how-to-bid" />
         </aside>
         <div class="auction-layout__rest">
           <.ladder
