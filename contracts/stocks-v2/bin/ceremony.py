@@ -248,7 +248,14 @@ class Chain:
         print(f"{self.alias}: a read-only endpoint is injected under {self.env_name}; chain id {self.chain_id} confirmed")
 
     def nonce(self, account: str) -> int:
-        return int(self.cast("nonce", account))
+        """The account's next nonce, read at the latest block and with the pending pool; a transaction
+        still waiting means the next free nonce is not settled yet, so the two reads must agree."""
+        confirmed = int(self.rpc("eth_getTransactionCount", [account, "latest"]), 16)
+        pending = int(self.rpc("eth_getTransactionCount", [account, "pending"]), 16)
+        if pending != confirmed:
+            raise CeremonyError(f"{account} has a transaction waiting on {self.alias}: confirmed nonce {confirmed}, "
+                                f"pending nonce {pending}; let it land or replace it before any ceremony step")
+        return confirmed
 
     def block_number(self) -> int:
         return int(self.cast("block-number"))

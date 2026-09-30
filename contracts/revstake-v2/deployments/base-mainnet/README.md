@@ -48,8 +48,9 @@ readbacks matched, 30,158,802 gas in all.
 
 ## Before the first send
 
-Run the rehearsal again just before sending. It proves the deployer is still at nonce 28, that
-every committed external fact still holds, and writes the exact transactions to
+Run the rehearsal again just before sending. It proves the deployer is still at nonce 28 with no
+transaction of its own waiting (the latest and pending reads must both be 28), that every committed
+external fact still holds, and writes the exact transactions to
 `reports/generated/deployment/rehearsed-transactions.json`:
 
 ```bash
