@@ -11,16 +11,18 @@
 .regent-footer__links { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
 .regent-footer__links a { color: inherit; }
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
-/* Create, Buy $REGENT, Follow on X, the crown and GitHub sit together beside Sign in. */
+/* Create, Buy $REGENT, Follow on X, the crown, GitHub and the theme switch sit together beside Sign in. */
 #home-top .regent-header-links { margin-left: auto; }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
-.regent-header-links svg, .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
+.regent-social-links svg { width: 1.25rem; height: 1.25rem; }
+.regent-header-links svg { width: 1.5rem; height: 1.5rem; }
 /* Header buttons, both Create buttons and Copy to Agent match the regents.sh App button: a
    charcoal plate with corner marks that close into a full outline on hover. Follow on X draws
    its marks in a softer orange. */
 .rg-button:is(.regent-header-cta, .create-button, .account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
 .rg-button.regent-header-cta--soft { --rg-button-border-color: color-mix(in srgb, var(--palette-tangerine-tango) 45%, transparent); }
 :root[data-theme="dark"] .rg-button.regent-header-cta--soft::after { --rg-button-cut-ink: var(--rg-button-border-color); }
+@media not all and (prefers-color-scheme: light) { :root:not([data-theme]) .rg-button.regent-header-cta--soft::after { --rg-button-cut-ink: var(--rg-button-border-color); } }
 .regent-header-cta .rg-button__label { display: inline-flex; align-items: center; gap: 8px; }
 .regent-header-links .regent-header-cta svg { flex: none; width: 1rem; height: 1rem; }
 .regent-token-menu { position: relative; z-index: 10; }
@@ -47,6 +49,11 @@
 .regent-header-links .regent-token-menu__link svg { width: 1rem; height: 1rem; }
 @media (max-width: 42rem) { .rg-button.regent-header-cta, .regent-header-links > .regent-social-links { display: none; } .rg-button.regent-token-menu__link--phone { display: flex; } }
 @media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
+/* The shared prism control draws its own box and hover; the row only places it. Its prism
+   sits .5rem inside its press target and each icon sits centred in its link box, so this
+   margin leaves the same space before the prism as between the icons themselves. */
+.regent-header-links .theme-control { margin-inline-start: -.25rem; }
+@media (pointer: coarse) { .regent-header-links .theme-control { margin-inline-start: .125rem; } }
 .autolaunch-profile-page { display: grid; gap: var(--space-4); }
 .autolaunch-settings { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; }
 .autolaunch-settings dt { color: var(--color-fg-muted); }
