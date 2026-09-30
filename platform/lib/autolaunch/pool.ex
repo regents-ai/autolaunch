@@ -31,7 +31,6 @@ defmodule Autolaunch.Pool do
   @regent_decimals 18
   @usdc_decimals 6
   @lane_bps 100
-  @distribution_words 18
   @pools_slot 6
   @liquidity_offset 3
   @quote_fraction_digits 18
@@ -244,7 +243,7 @@ defmodule Autolaunch.Pool do
              :strategy,
              "distribution(address)",
              [auction.auction_address],
-             @distribution_words,
+             LabAbi.distribution_words(),
              block,
              opts
            ),
@@ -389,23 +388,25 @@ defmodule Autolaunch.Pool do
   # The pool id is read first: until the strategy migrates the launch, the
   # splitter and receiver words are still zero and decode as no address.
   defp agent_distribution(words) do
-    with pool_id when pool_id != 0 <- Enum.at(words, 16),
-         {:ok, subject} <- Abi.word_address(Enum.at(words, 11)),
-         {:ok, escrow} <- Abi.word_address(Enum.at(words, 12)),
-         {:ok, splitter} <- Abi.word_address(Enum.at(words, 14)),
-         {:ok, receiver} <- Abi.word_address(Enum.at(words, 15)) do
+    distribution = LabAbi.distribution(words)
+
+    with pool_id when pool_id != 0 <- distribution.pool_id,
+         {:ok, subject} <- Abi.word_address(distribution.subject),
+         {:ok, escrow} <- Abi.word_address(distribution.escrow),
+         {:ok, splitter} <- Abi.word_address(distribution.splitter),
+         {:ok, receiver} <- Abi.word_address(distribution.receiver) do
       {:ok,
        %{
-         migration_block: Enum.at(words, 4),
-         lp_regent_used: Enum.at(words, 7),
-         lp_subject_used: Enum.at(words, 8),
-         final_sqrt_price_x96: Enum.at(words, 9),
+         migration_block: distribution.migration_block,
+         lp_regent_used: distribution.lp_regent_used,
+         lp_subject_used: distribution.lp_subject_used,
+         final_sqrt_price_x96: distribution.final_sqrt_price_x96,
          subject: subject,
          escrow: escrow,
          splitter: splitter,
          receiver: receiver,
          pool_id: bytes32(pool_id),
-         lp_token_id: Enum.at(words, 17)
+         lp_token_id: distribution.lp_token_id
        }}
     else
       0 -> {:error, :not_graduated}
@@ -414,7 +415,8 @@ defmodule Autolaunch.Pool do
   end
 
   # Every `SwapFeeSettled` this pool emitted since graduation, summed per fee
-  # token. Each lane is the same amount, so one total per token names both.
+  # token. The Regent and staker lanes are the same rate, so the staker lane's
+  # total per token names both.
   # The splitter's lane lands in it on the trade itself; the locked position's
   # own pool fees wait in the position until collected, and the position
   # carries what a collection would deposit now.
@@ -438,7 +440,7 @@ defmodule Autolaunch.Pool do
         |> Enum.filter(&(topic_at(&1, 0) == topic))
         |> Enum.map(fn log ->
           {:ok, fee_token} = log |> topic_at(3) |> word() |> Abi.word_address()
-          [_fee_base, lane, _exact_input] = data_words(log)
+          [_fee_base, _regent_lane, lane, _exact_input] = data_words(log)
           {String.downcase(fee_token), lane, quantity(log["blockNumber"])}
         end)
 

@@ -203,7 +203,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         "website" => "https://example.test/open",
         "image" => nil,
         "regent" => Abi.regent_address(),
-        "required_regent_raised_atomic" => "1000",
+        "terms" => %{"required_regent_raised" => "19999999999999999999989"},
         "factory" => factory,
         "treasury" => LaunchFixture.treasury(),
         "hook" => LaunchFixture.hook()
@@ -248,7 +248,8 @@ defmodule Autolaunch.LaunchDiscoveryTest do
                   address_word(@auction),
                   address_word(@escrow),
                   address_word(LaunchFixture.treasury()),
-                  word(1_000),
+                  word(79_228_162_514_264_337_593_500),
+                  word(19_999_999_999_999_999_999_989),
                   word(30_001_800),
                   word(30_088_201)
                 ],

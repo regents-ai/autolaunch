@@ -72,15 +72,17 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
              pad.strategy_abi,
              "distribution(address)",
              [auction],
-             18,
+             LabAbi.distribution_words(),
              block,
              pad
            ) do
+      distribution = LabAbi.distribution(distribution)
+
       {:ok,
        %{
          auction: auction,
-         migration_block: Enum.at(distribution, 4),
-         state: Map.fetch!(@states, Enum.at(distribution, 0))
+         migration_block: distribution.migration_block,
+         state: Map.fetch!(@states, distribution.lifecycle)
        }}
     end
   end

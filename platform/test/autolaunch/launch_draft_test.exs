@@ -19,8 +19,7 @@ defmodule Autolaunch.LaunchDraftTest do
                  "name" => "Partial",
                  "symbol" => "",
                  "description" => "Still writing",
-                 "website" => "not a complete URL yet",
-                 "required_regent_raised" => "1."
+                 "website" => "not a complete URL yet"
                },
                actor: actor
              )

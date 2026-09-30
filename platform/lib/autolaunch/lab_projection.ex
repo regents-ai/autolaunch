@@ -45,7 +45,7 @@ defmodule Autolaunch.LabProjection do
         state: :created,
         auction_address: result["auction"],
         quote_token_address: facts["regent"],
-        required_currency_raised: facts["required_regent_raised_atomic"],
+        required_currency_raised: facts["terms"]["required_regent_raised"],
         treasury_address: result["treasury"],
         treasury_security_report_id: facts["treasury_security"]["report_id"]
       })

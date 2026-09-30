@@ -82,7 +82,9 @@ defmodule Autolaunch.MarketFeedTest do
           LabAbi.selector("token()") => [0x61],
           LabAbi.selector("totalSupply()") => [100 * 10 ** 18],
           # Lifecycle 1 (Active) and no pool yet.
-          LabAbi.selector("distribution(address)") => [1 | List.duplicate(0, 17)],
+          LabAbi.selector("distribution(address)") => [
+            1 | List.duplicate(0, LabAbi.distribution_words() - 1)
+          ],
           # The Memestake launchpad: every auction's record at `lifecycle`
           # (word 11). It is asked nothing else.
           LabAbi.selector("launchIdOfAuction(address)") => [1],

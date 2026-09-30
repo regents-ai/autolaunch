@@ -517,7 +517,7 @@ defmodule Autolaunch.LabMarketFeed do
     alias Autolaunch.Auction.MarketState
     alias Autolaunch.AuctionTerms
     alias Autolaunch.Chain.Rpc
-    alias Autolaunch.{Lab, LabRpc, MarketWatch}
+    alias Autolaunch.{Lab, LabAbi, LabRpc, MarketWatch}
 
     def head do
       with {:ok, config, block, opts} <- LabRpc.current([:strategy]) do
@@ -604,13 +604,13 @@ defmodule Autolaunch.LabMarketFeed do
                :strategy,
                "distribution(address)",
                [address],
-               18,
+               LabAbi.distribution_words(),
                block,
                opts
              ),
            {:ok, price_quote} <-
              Autolaunch.Pool.agent_price_quote(config, distribution, block, opts) do
-        lifecycle = Enum.at(distribution, 0)
+        %{lifecycle: lifecycle, pool_id: pool_id} = LabAbi.distribution(distribution)
         market = %{end_block: end_block, claim_block: claim_block}
 
         with {:ok, positions} <- positions(config, auction, market, block, opts) do
@@ -630,7 +630,7 @@ defmodule Autolaunch.LabMarketFeed do
              remaining_supply: Rpc.format_units(remaining_supply, 18),
              terms: terms,
              minimum_reached: minimum_reached,
-             pool_id: pool_id(Enum.at(distribution, 16)),
+             pool_id: pool_id(pool_id),
              positions: positions
            }}
         end

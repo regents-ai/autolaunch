@@ -11,8 +11,7 @@ defmodule Autolaunch.LaunchDraft do
     :name,
     :symbol,
     :description,
-    :website,
-    :required_regent_raised
+    :website
   ]
 
   @treasury_fields [
@@ -28,17 +27,13 @@ defmodule Autolaunch.LaunchDraft do
   @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)
-  @amount ~r/\A[0-9]+(\.[0-9]{1,18})?\z/
-  # The contracts need a minimum above zero, so a launch without one asks for
-  # the smallest amount this site offers, the same default as memestock launches.
-  @site_minimum_raise "0.00001"
 
   @doc "Whether the persisted token metadata stage is ready for launch review."
   def token_details_complete?(draft) do
     Enum.all?(@metadata_limits, fn {field, limit} ->
       value = Map.get(draft, field)
       is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
-    end) and image_complete?(draft) and valid_raise?(Map.get(draft, :required_regent_raised))
+    end) and image_complete?(draft)
   end
 
   @doc "Whether the persisted treasury stage is ready for launch review."
@@ -73,19 +68,6 @@ defmodule Autolaunch.LaunchDraft do
   end
 
   def image_complete?(_draft), do: false
-
-  @doc "The minimum REGENT raise a launch writes on chain: the creator's, or this site's smallest."
-  def onchain_required_raise(%{required_regent_raised: raise}) when raise in [nil, ""],
-    do: @site_minimum_raise
-
-  def onchain_required_raise(%{required_regent_raised: raise}), do: raise
-
-  defp valid_raise?(value) when value in [nil, ""], do: true
-
-  defp valid_raise?(value) when is_binary(value),
-    do: Regex.match?(@amount, value) and Regex.match?(~r/[1-9]/, value)
-
-  defp valid_raise?(_value), do: false
 
   postgres do
     table "launch_drafts"
@@ -227,8 +209,6 @@ defmodule Autolaunch.LaunchDraft do
       default :safe
       constraints one_of: [:safe, :eoa, :contract]
     end
-
-    attribute :required_regent_raised, :string, public?: true
 
     attribute :eoa_acknowledgement, :string do
       public? true

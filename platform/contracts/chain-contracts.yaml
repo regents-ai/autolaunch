@@ -155,77 +155,55 @@ contracts:
           keccak256: "0x780092a64f1f9280792aad406597d051e610e1a9ee0a57033187faf21a79a21f"
         action_ids:
           - approve_exact
-      - contract_id: regents_autolaunch_factory_v1
-        contract_name: RegentsAutolaunchFactoryV1
+      - contract_id: regents_autolaunch_factory_v2
+        contract_name: RegentsAutolaunchFactoryV2
         target: c5_admitted_factory_address
-        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
-        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
-        source_keccak256: "0x0c09b28c782252ed8a99d68c027f7125c52c64410d6e4a03d018ff022c245c9a"
-        abi_path: abi/regents-autolaunch-factory-v1.json
-        abi_sha256: 1cd2fce9c969dea3f043d6478505ce4c6e1b8657208e1eed3bc3290a4999d1f4
-        runtime_keccak256: "0x38787efb5e28dc9d53e3e19a51ef7f83d02033e98e3414029df0f0841c06ff20"
-        factory_bound_splitter_runtime_keccak256: "0x4ba470d4c443ae5889f5e1f9095e07ed228853604762554437003ed115c56105"
+        source_commit: 5030fb4f326054db1283884d6475f2fc64e7289c
+        abi_path: abi/regents-autolaunch-factory-v2.json
+        abi_sha256: c7e874ee82d87eb376b7f658bec1d3b9b4faef4aa8b64c6c82b54704424cc537
         artifact_provenance: >-
-          The consumer ABI is derived from out/RegentsAutolaunchFactoryV1.sol/RegentsAutolaunchFactoryV1.json,
-          a Foundry build output that the upstream repository's .gitignore excludes from version
-          control. It is source authority but it is not a tracked file, so the durable fingerprint
-          pinned here is source_keccak256: the compiler's own metadata Keccak-256 of
-          src/factory/RegentsAutolaunchFactoryV1.sol at source_commit, which any rebuild of that
-          commit reproduces. runtime_keccak256 is the frozen-artifact runtime hash the pinned
-          release manifest records for that same commit, and
-          factory_bound_splitter_runtime_keccak256 is the SubjectSplitterV1 implementation hash
-          line 86-87 of that source admits by exact code hash.
-        implementation_provenance: >-
-          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
-          src/factory/RegentsAutolaunchFactoryV1.sol declares the eight-field LaunchParams at lines
-          97-106 and the one customer call at lines 228-256, and the reads this lane reviews
-          against at lines 121, 130, 133, 136 and 304-306.
+          The consumer ABI is the subset of contracts/revstake-v2/abi/RegentsAutolaunchFactoryV2.json
+          this site calls and decodes, from contracts/revstake-v2/src/factory/RegentsAutolaunchFactoryV2.sol
+          at source_commit.
         interface_note: >-
-          launch takes one dynamic tuple and nothing else: no recovery admin, start block, floor
-          price, hook, pool setting, salt, supply, allocation or schedule. Lines 239-243 require
-          every metadata field to be nonempty within its exact byte cap, line 235 refuses a stale
-          fee, and lines 320-321 require the launcher's factory allowance to equal that fee
-          exactly. There is no recovery authority anywhere in the graph: recovery is permissionless
-          to the fixed launch treasury. setLaunchFee, pauseLaunches, unpauseLaunches and
-          createPaymentReceiver are deliberately not derived.
+          launch takes one tuple: name, symbol, description, website, image, treasury,
+          floorPriceQ96 and minimumRegentRaised. The site always sends the fixed floor of
+          0.000001 REGENT per token and a minimum of zero, so the strategy's required raise is the
+          whole sale at that floor. There is no launch fee and no REGENT allowance.
+          pauseLaunches and unpauseLaunches are deliberately not derived.
         confirmation_event_signatures:
-          - LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)
-          - LaunchFeeCollected(uint256,address,address,uint256)
+          - LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64)
         action_ids:
           - launch
-      - contract_id: regent_lbp_strategy_v1
-        contract_name: RegentLBPStrategy
+      - contract_id: regent_lbp_strategy_v2
+        contract_name: RegentLBPStrategyV2
         target: reviewed_factory_bound_strategy_address
-        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
-        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
-        source_keccak256: "0x214e642ba5105763d7952909552f501800adb7e3887b67024afb797fa02ede01"
-        abi_path: abi/regent-lbp-strategy-v1.json
-        abi_sha256: 29205b15c3cd9f010a9b4b946463d281a4a059c6327c3eff73286784b537ea68
-        runtime_keccak256: "0x5ee28f1c96259ac3cb8134873cca3f24a07fa151bcc8818064a66480f2d59fb6"
+        source_commit: 5030fb4f326054db1283884d6475f2fc64e7289c
+        abi_path: abi/regent-lbp-strategy-v2.json
+        abi_sha256: 8ab3451157a4f95b0bd18e37f84de7b0cf532fcf36c0ff73bfd81a7a7692ffd5
         artifact_provenance: >-
-          The consumer ABI is derived from out/RegentLBPStrategy.sol/RegentLBPStrategy.json, a
-          Foundry build output that the upstream repository's .gitignore excludes from version
-          control. It is source authority but it is not a tracked file, so the durable fingerprint
-          pinned here is source_keccak256: the compiler's own metadata Keccak-256 of
-          src/strategy/RegentLBPStrategy.sol at source_commit, which any rebuild of that commit
-          reproduces. runtime_keccak256 is the frozen-artifact runtime hash the pinned release
-          manifest records for that same commit.
-        implementation_provenance: >-
-          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
-          src/strategy/RegentLBPStrategy.sol declares factory() at line 174, the one authentic
-          hook() at line 189, and the twelve founder-frozen launch terms at lines 63, 66, 69, 75,
-          78, 81, 84, 87, 90, 109, 112 and 132.
+          The consumer ABI is the subset of contracts/revstake-v2/abi/RegentLBPStrategyV2.json this
+          site reads, from contracts/revstake-v2/src/strategy/RegentLBPStrategyV2.sol at
+          source_commit.
         interface_note: >-
-          Every term here is read for display only; none is an input a launcher chooses. Line 321
-          refuses a required raise of zero or above MAX_REACHABLE_RAISE, and POOL_TICK_SPACING is a
-          signed int24 returned sign-extended into a full word. Lines 673-679 are the system's only
-          launch-time treasury admission: they refuse exactly the factory, this strategy, hook(),
-          PoolManager, PositionManager and live staking. No strategy call is prepared: this lane
-          never reaches bindHook, initializeDistribution or migrate.
+          Every term here is read for display only. bidTickSpacingFor and requiredRegentRaisedFor
+          are pure and are read at the site's fixed floor. lpLocker() is created by the strategy's
+          constructor and must equal the configured locker. _requireAdmissibleTreasury refuses
+          exactly seven launch treasuries: the factory, this strategy, hook(), lpLocker(),
+          PoolManager, PositionManager and live staking. No strategy call is prepared.
         reads:
           - id: hook
             signature: hook()
             selector: "0x7f5a7c7b"
+          - id: lp_locker
+            signature: lpLocker()
+            selector: "0x03fc2013"
+          - id: bid_tick_spacing_for
+            signature: bidTickSpacingFor(uint256)
+            selector: "0x9e82ecfc"
+          - id: required_regent_raised_for
+            signature: requiredRegentRaisedFor(uint256,uint128)
+            selector: "0x711d8db3"
         refused_launch_treasuries:
           - id: pool_manager
             address: "0x498581fF718922c3f8e6A244956aF099B2652b2b"
@@ -234,11 +212,10 @@ contracts:
           - id: live_staking
             address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
         refused_launch_treasury_provenance: >-
-          The other three of the exact six are read at the reviewed block: factory and strategy
-          from the launch snapshot, hook from the strategy read above. These three are frozen
-          constants, declared at src/bindings/BaseBindings.sol lines 19, 20 and 21 at
-          source_commit, whose Keccak-256 is
-          0xcb7a62955cecd898f981c394eecffc16d55aae76bfbc09b2a452528a20d9e9c4.
+          The other four of the seven are read at the reviewed block: factory and strategy from
+          the launch snapshot, hook() and lpLocker() from the strategy reads above. These three
+          are frozen constants in contracts/revstake-v2/src/bindings/BaseBindings.sol at
+          source_commit.
         action_ids: []
       - contract_id: regent_revenue_staking
         address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"

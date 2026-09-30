@@ -5,52 +5,67 @@ defmodule Autolaunch.LabAbi do
 
   alias RegentChain.Address
 
-  @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"
+  @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,bool)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
   @claimed "Claimed(address,address,uint256)"
+
+  # The strategy's per-launch record, `distribution(address)`, field by field.
+  @distribution_fields [
+    :lifecycle,
+    :start_block,
+    :end_block,
+    :claim_block,
+    :migration_block,
+    :required_regent_raised,
+    :reserve,
+    :lp_regent_used,
+    :lp_subject_used,
+    :final_sqrt_price_x96,
+    :floor_price_q96,
+    :launch_id,
+    :subject,
+    :escrow,
+    :treasury,
+    :splitter,
+    :receiver,
+    :pool_id,
+    :lp_token_id
+  ]
 
   @required %{
     "factory" => [
       f:
-        {"launch((string,string,string,string,string,address,uint128))", "nonpayable",
+        {"launch((string,string,string,string,string,address,uint256,uint128))", "nonpayable",
          ["uint256", "address", "address", "address"]},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"strategy()", "view", ["address"]},
       f: {"launches(uint256)", "view", ["(address,address,address,address,address)"]},
       f: {"launchIdOfSubject(address)", "view", ["uint256"]},
       e:
-        {"LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)",
-         [true, true, true, false, false, false, false, false, false]}
+        {"LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64)",
+         [true, true, true, false, false, false, false, false, false, false]}
     ],
     "strategy" => [
       f: {"factory()", "view", ["address"]},
       f: {"hook()", "view", ["address"]},
+      f: {"lpLocker()", "view", ["address"]},
       f: {"START_DELAY_BLOCKS()", "view", ["uint64"]},
       f: {"AUCTION_DURATION_BLOCKS()", "view", ["uint64"]},
       f: {"CLAIM_DELAY_BLOCKS()", "view", ["uint64"]},
       f: {"MIGRATION_DELAY_BLOCKS()", "view", ["uint64"]},
-      f: {"FLOOR_PRICE_Q96()", "view", ["uint256"]},
-      f: {"BID_TICK_Q96()", "view", ["uint256"]},
       f: {"AUCTION_ALLOCATION()", "view", ["uint128"]},
       f: {"RESERVE_ALLOCATION()", "view", ["uint128"]},
       f: {"PENDING_ALLOCATION()", "view", ["uint256"]},
       f: {"POOL_FEE()", "view", ["uint24"]},
       f: {"POOL_TICK_SPACING()", "view", ["int24"]},
-      f: {"MAX_REACHABLE_RAISE()", "view", ["uint128"]},
-      f: {"auctionOfSubject(address)", "view", ["address"]},
+      f: {"bidTickSpacingFor(uint256)", "pure", ["uint256"]},
+      f: {"requiredRegentRaisedFor(uint256,uint128)", "pure", ["uint128"]},
       f:
         {"distribution(address)", "view",
          [
-           "(uint8,uint64,uint64,uint64,uint64,uint128,uint128,uint128,uint128,uint160,uint256,address,address,address,address,address,bytes32,uint256)"
+           "(uint8,uint64,uint64,uint64,uint64,uint128,uint128,uint128,uint128,uint160,uint256,uint256,address,address,address,address,address,bytes32,uint256)"
          ]},
-      f: {"migrate(address)", "nonpayable", []},
-      e:
-        {"DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128)",
-         [true, true, true, false, false, false, false, false, false]},
-      e:
-        {"LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128)",
-         [true, true, true, false, false, false, false, false, false]},
-      e: {"LaunchRetired(address,address,uint128)", [true, true, false]}
+      f: {"migrate(address)", "nonpayable", []}
     ],
     "auction" => [
       f: {"submitBid(uint256,uint128,address,uint256,bytes)", "payable", ["uint256"]},
@@ -80,7 +95,7 @@ defmodule Autolaunch.LabAbi do
     ],
     # The pool page reads the frozen fee hook's settled swap fees for a pool.
     "hook" => [
-      e: {@swap_fee_settled, [true, true, true, false, false, false]}
+      e: {@swap_fee_settled, [true, true, true, false, false, false, false]}
     ],
     # The token page simulates and drives the locked position's fee collection
     # on the strategy's LP locker, and reads what a collection deposited.
@@ -127,6 +142,13 @@ defmodule Autolaunch.LabAbi do
 
   @doc false
   def requirements, do: @required
+
+  @doc "How many words `distribution(address)` answers with."
+  def distribution_words, do: length(@distribution_fields)
+
+  @doc "The words of one `distribution(address)` answer, by field."
+  def distribution(words) when length(words) == length(@distribution_fields),
+    do: @distribution_fields |> Enum.zip(words) |> Map.new()
 
   def swap_fee_settled_signature, do: @swap_fee_settled
   def fees_deposited_signature, do: @fees_deposited

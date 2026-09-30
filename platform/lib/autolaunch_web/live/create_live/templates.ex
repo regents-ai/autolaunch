@@ -4,7 +4,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
-  import AutolaunchWeb.Components.InfoTip
   import AutolaunchWeb.Components.MarketCard
 
   alias AutolaunchWeb.UsdValue
@@ -23,20 +22,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       label: "Website",
       kind: :text,
       hint: "A link readers can open."
-    },
-    %{
-      key: :required_regent_raised,
-      param: "required_regent_raised",
-      label: "Minimum REGENT Raised to Launch",
-      kind: :text,
-      hint: nil,
-      optional: true,
-      tip:
-        "Setting a minimum can give backers confidence you will have the necessary funds to achieve your goal. It can be better to miss raising $20k and try again, than to raise $1000"
     }
   ]
-
-  @raise_currency "REGENT"
 
   @treasury_field %{
     key: :treasury,
@@ -107,7 +94,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:treasury_complete?, draft && LaunchDraft.treasury_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
       |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
-      |> assign(:raise_currency, @raise_currency)
 
     ~H"""
     <section id="autolaunch-create">
@@ -174,7 +160,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 hint={field.hint}
                 value={@draft_values[field.param]}
                 error={@draft_errors[field.param]}
-                usd_rate={if field.key == :required_regent_raised, do: @regent_usd_rate, else: :none}
                 autosave
               />
             </div>
@@ -217,6 +202,56 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               autosave
             />
           </form>
+
+          <section
+            id="launch-terms"
+            class="launchpad-form-section rg-panel rg-panel--surface"
+            aria-labelledby="launch-terms-title"
+          >
+            <header>
+              <div>
+                <p class="autolaunch-kicker">The same for every launch</p>
+                <Regent.Structure.section_bar>
+                  <h2 class="rg-section-bar__label" id="launch-terms-title">Launch terms</h2>
+                </Regent.Structure.section_bar>
+              </div>
+            </header>
+            <table class="stocks-terms-table">
+              <tbody>
+                <tr>
+                  <th scope="row">Total supply</th>
+                  <td>100 billion tokens</td>
+                </tr>
+                <tr>
+                  <th scope="row">Sold in the auction</th>
+                  <td>20% (20 billion tokens)</td>
+                </tr>
+                <tr>
+                  <th scope="row">Opening price</th>
+                  <td>0.000001 REGENT per token</td>
+                </tr>
+                <tr>
+                  <th scope="row">Minimum raise</th>
+                  <td>
+                    About 20,000 REGENT <UsdValue.usd amount="20000" rate={@regent_usd_rate} />.
+                    If bids fall short, bidders get their REGENT back.
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Trading pool</th>
+                  <td>15% of the tokens, paired with about three quarters of the raise</td>
+                </tr>
+                <tr>
+                  <th scope="row">Your treasury</th>
+                  <td>About a quarter of the raise at once, and 65% of the tokens over a year</td>
+                </tr>
+                <tr>
+                  <th scope="row">Trading fees</th>
+                  <td>1% to stakers and 1% to Regent, plus the 0.30% pool fee</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
 
           <section
             id="launch-transactions"
@@ -288,7 +323,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           </div>
           <.autolaunch_market_card
             kind={:draft}
-            record={Map.put(@draft_values, "preview_metric_unit", @raise_currency)}
+            record={@draft_values}
             creator_connections={@draft_x_connections}
             preview
           />
@@ -468,7 +503,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :value, :string, default: nil
   attr :error, :string, default: nil
   attr :autosave, :boolean, default: false
-  attr :usd_rate, :any, default: :none, doc: "shows the typed amount in dollars at this rate"
 
   def draft_field(assigns) do
     id = "#{assigns.form_id}-#{assigns.field.param}"
@@ -482,10 +516,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       @field.kind == :long_text && "autolaunch-draft-field--wide"
     ]}>
       <div class="autolaunch-draft-field__head">
-        <.info_tip :if={@field[:tip]} id={"#{@id}-tip"} text={@field.tip}>
-          <.field_label id={@id} field={@field} />
-        </.info_tip>
-        <.field_label :if={!@field[:tip]} id={@id} field={@field} />
+        <.field_label id={@id} field={@field} />
       </div>
       <div class="autolaunch-draft-field__body">
         <textarea
@@ -508,14 +539,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           phx-debounce={@autosave && "400"}
         />
         <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
-        <p
-          :if={@usd_rate not in [:none, :test_network]}
-          id={"#{@id}-usd"}
-          class="autolaunch-draft-hint"
-          aria-live="polite"
-        >
-          <UsdValue.usd amount={@value} rate={@usd_rate} />
-        </p>
         <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
       </div>
     </div>

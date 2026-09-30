@@ -88,23 +88,24 @@ defmodule Autolaunch.LaunchFixture do
   @strategy "0x8888888888888888888888888888888888888888"
   @treasury "0x5555555555555555555555555555555555555555"
   @hook "0x6666666666666666666666666666666666666666"
+  @lp_locker "0x9191919191919191919191919191919191919191"
 
   @unit Integer.pow(10, 18)
 
   # The founder-frozen launch terms, transcribed from the integrated strategy.
   @terms %{
-    start_delay_blocks: 1_800,
+    start_delay_blocks: 300,
     auction_duration_blocks: 86_401,
     claim_delay_blocks: 64,
     migration_delay_blocks: 128,
-    floor_price_q96: 79_228_162_514_264_337_593_543_900,
-    bid_tick_q96: 792_281_625_142_643_375_935_439,
-    auction_allocation: 10_000_000_000 * @unit,
-    reserve_allocation: 5_000_000_000 * @unit,
-    pending_allocation: 85_000_000_000 * @unit,
+    floor_price_q96: 79_228_162_514_264_337_593_500,
+    bid_tick_q96: 792_281_625_142_643_375_935,
+    required_regent_raised: 19_999_999_999_999_999_999_989,
+    auction_allocation: 20_000_000_000 * @unit,
+    reserve_allocation: 15_000_000_000 * @unit,
+    pending_allocation: 65_000_000_000 * @unit,
     pool_fee: 3_000,
-    pool_tick_spacing: 60,
-    max_reachable_raise: 658_201_822_928_399_999_999_999_581_824_872_526
+    pool_tick_spacing: 60
   }
 
   @draft %{
@@ -112,8 +113,7 @@ defmodule Autolaunch.LaunchFixture do
     "symbol" => "OPEN",
     "description" => "A launch profile awaiting review.",
     "website" => "https://example.test/open",
-    "treasury" => @treasury,
-    "required_regent_raised" => "1000.5"
+    "treasury" => @treasury
   }
 
   def wallet, do: @wallet
@@ -183,6 +183,7 @@ defmodule Autolaunch.LaunchFixture do
       strategy_factory: Map.get(overrides, :strategy_factory, @factory),
       paused: Map.get(overrides, :paused, false),
       hook: Map.get(overrides, :hook, @hook),
+      lp_locker: Map.get(overrides, :lp_locker, @lp_locker),
       terms: Map.merge(@terms, Map.get(overrides, :terms, %{})),
       block: Map.get(overrides, :block, %{number: 30_000_000, hash: block_hash()}),
       regent: Map.get(overrides, :regent, Abi.regent_address())

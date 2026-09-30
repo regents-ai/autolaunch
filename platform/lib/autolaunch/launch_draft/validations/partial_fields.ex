@@ -11,7 +11,6 @@ defmodule Autolaunch.LaunchDraft.Validations.PartialFields do
     website: 256,
     image: 256,
     treasury: 42,
-    required_regent_raised: 128,
     eoa_acknowledgement: 512
   }
 

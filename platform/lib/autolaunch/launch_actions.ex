@@ -32,10 +32,10 @@ defmodule Autolaunch.LaunchActions do
   # also be nonempty, which is what a historical draft can fail.
   @metadata [name: 64, symbol: 16, description: 512, website: 256]
 
-  # Three of the exact six treasuries the strategy refuses are frozen constants
-  # rather than reads: autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
-  # src/bindings/BaseBindings.sol lines 19-21, refused together with the factory,
-  # the strategy and its hook at src/strategy/RegentLBPStrategy.sol lines 673-679.
+  # Three of the exact seven treasuries the strategy refuses are frozen
+  # constants rather than reads (contracts/revstake-v2 src/bindings/BaseBindings.sol),
+  # refused together with the factory, the strategy, its hook and its LP locker
+  # (src/strategy/RegentLBPStrategyV2.sol, `_requireAdmissibleTreasury`).
   @frozen_refused_treasuries [
     "0x498581fF718922c3f8e6A244956aF099B2652b2b",
     "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
@@ -43,6 +43,8 @@ defmodule Autolaunch.LaunchActions do
   ]
 
   @withdrawn "review withdrawn"
+
+  @regent_unit Integer.pow(10, 18)
 
   # A Base read that may answer differently later never settles anything.
   @transient [
@@ -136,7 +138,7 @@ defmodule Autolaunch.LaunchActions do
     }
   end
 
-  @doc "The founder-frozen terms, in the order a review presents their exact values."
+  @doc "The launch terms, in the order a review presents their exact values."
   @spec terms() :: [String.t()]
   def terms, do: Enum.map(LaunchAbi.terms(), &Atom.to_string/1)
 
@@ -161,7 +163,7 @@ defmodule Autolaunch.LaunchActions do
   defp launch_data(config, fields) do
     LabAbi.encode(
       Lab.abi!(config, :factory),
-      "launch((string,string,string,string,string,address,uint128))",
+      "launch((string,string,string,string,string,address,uint256,uint128))",
       [
         [
           fields.name,
@@ -170,7 +172,8 @@ defmodule Autolaunch.LaunchActions do
           fields.website,
           fields.image,
           fields.treasury,
-          fields.required_regent_raised
+          LaunchAbi.floor_price_q96(),
+          0
         ]
       ]
     )
@@ -186,8 +189,7 @@ defmodule Autolaunch.LaunchActions do
       "image" => fields.image,
       "treasury" => fields.treasury,
       "treasury_security" => treasury_binding(treasury_report),
-      "required_regent_raised" => LaunchDraft.onchain_required_raise(draft),
-      "required_regent_raised_atomic" => Integer.to_string(fields.required_regent_raised),
+      "required_regent_raised" => whole_regent(snapshot.terms.required_regent_raised),
       "regent" => snapshot.regent,
       "factory" => snapshot.factory,
       "strategy" => snapshot.strategy,
@@ -198,6 +200,11 @@ defmodule Autolaunch.LaunchActions do
       "risk" => risk_copy()
     }
   end
+
+  # The required raise in whole REGENT, rounded up: the strategy asks for the
+  # whole sale allocation at the floor, which lands a hair under a round number.
+  defp whole_regent(atomic),
+    do: atomic |> Kernel.+(@regent_unit - 1) |> div(@regent_unit) |> Integer.to_string()
 
   defp risk_copy do
     if Lab.test_chain?(),
@@ -220,14 +227,13 @@ defmodule Autolaunch.LaunchActions do
   end
 
   # Everything the factory itself requires of a saved draft. A row written before
-  # the nonempty rule, or one carrying an amount this factory cannot hold, is
-  # refused here rather than reverting in the customer's wallet.
+  # the nonempty rule is refused here rather than reverting in the customer's
+  # wallet.
   defp launchable(draft, actor) do
     with :ok <- metadata(draft),
          {:ok, image} <- launch_image(draft, actor),
          true <- LaunchDraft.treasury_complete?(draft),
-         {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid),
-         {:ok, atomic} <- atomic_raise(LaunchDraft.onchain_required_raise(draft)) do
+         {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid) do
       {:ok,
        %{
          name: draft.name,
@@ -235,8 +241,7 @@ defmodule Autolaunch.LaunchActions do
          description: draft.description,
          website: draft.website,
          image: image,
-         treasury: treasury,
-         required_regent_raised: atomic
+         treasury: treasury
        }}
     else
       false -> unavailable(:launch_treasury_invalid)
@@ -270,13 +275,6 @@ defmodule Autolaunch.LaunchActions do
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
 
-  defp atomic_raise(value) do
-    case LaunchAbi.atomic_raise(value) do
-      {:ok, atomic} -> {:ok, atomic}
-      :error -> unavailable(:launch_raise_invalid)
-    end
-  end
-
   defp address(value, reason) do
     case Address.normalize(value) do
       {:ok, address} -> {:ok, address}
@@ -303,9 +301,12 @@ defmodule Autolaunch.LaunchActions do
   # is refused before any of it is believed.
   defp complete(snapshot) do
     with %{factory: factory, strategy: strategy, strategy_factory: bound, hook: hook} <- snapshot,
-         %{paused: paused, terms: terms, block: block} <- snapshot,
+         %{lp_locker: lp_locker, paused: paused, terms: terms, block: block} <- snapshot,
          true <-
-           Enum.all?([factory, strategy, bound, hook], &match?({:ok, _}, Address.normalize(&1))),
+           Enum.all?(
+             [factory, strategy, bound, hook, lp_locker],
+             &match?({:ok, _}, Address.normalize(&1))
+           ),
          true <- is_boolean(paused),
          true <- match?(%{number: number, hash: _} when is_integer(number), block),
          true <- Enum.sort(Map.keys(terms)) == Enum.sort(LaunchAbi.terms()),
@@ -328,15 +329,6 @@ defmodule Autolaunch.LaunchActions do
       refused_treasury?(fields.treasury, snapshot) ->
         unavailable(:launch_treasury_refused)
 
-      # Two separate ceilings: the reviewed strategy's own reachable maximum,
-      # which is a chain-supplied value, and the structural limit of the
-      # `uint128` field the tuple carries it in.
-      fields.required_regent_raised > snapshot.terms.max_reachable_raise ->
-        excessive()
-
-      fields.required_regent_raised > LaunchAbi.uint128_max() ->
-        excessive()
-
       not same?(snapshot.strategy_factory, snapshot.factory) ->
         unavailable(:strategy_not_bound)
 
@@ -345,13 +337,17 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  # The exact six the strategy refuses as a launch treasury: the factory, the
-  # strategy and the hook it is bound to, all read at the reviewed block, plus the
-  # three frozen Base bindings.
-  defp refused_treasury?(treasury, %{factory: factory, strategy: strategy, hook: hook}),
-    do: Enum.any?([factory, strategy, hook | @frozen_refused_treasuries], &same?(treasury, &1))
+  # The exact seven the strategy refuses as a launch treasury: the factory, the
+  # strategy and the hook and LP locker it is bound to, all read at the reviewed
+  # block, plus the three frozen Base bindings.
+  defp refused_treasury?(treasury, snapshot) do
+    %{factory: factory, strategy: strategy, hook: hook, lp_locker: lp_locker} = snapshot
 
-  defp excessive, do: unavailable(:required_raise_unreachable)
+    Enum.any?(
+      [factory, strategy, hook, lp_locker | @frozen_refused_treasuries],
+      &same?(treasury, &1)
+    )
+  end
 
   # Saved reviews
 

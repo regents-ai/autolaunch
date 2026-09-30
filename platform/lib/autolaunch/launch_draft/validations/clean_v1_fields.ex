@@ -8,12 +8,11 @@ defmodule Autolaunch.LaunchDraft.Validations.CleanV1Fields do
   @byte_limits [name: 64, symbol: 16, description: 512, website: 256, image: 256]
   @metadata Keyword.keys(@byte_limits)
   @addresses [:treasury]
-  @fields @metadata ++ @addresses ++ [:required_regent_raised]
+  @fields @metadata ++ @addresses
   @required @metadata ++ @addresses
 
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)
-  @amount ~r/\A[0-9]+(\.[0-9]{1,18})?\z/
 
   @impl true
   def validate(changeset, _opts, _context) do
@@ -44,26 +43,6 @@ defmodule Autolaunch.LaunchDraft.Validations.CleanV1Fields do
 
       String.downcase(value) == @zero_address ->
         [error(field, "cannot be the all-zero address")]
-
-      true ->
-        []
-    end
-  end
-
-  defp field_errors(:required_regent_raised, ""), do: []
-
-  defp field_errors(:required_regent_raised, value) do
-    cond do
-      not Regex.match?(@amount, value) ->
-        [
-          error(
-            :required_regent_raised,
-            "must be a plain REGENT amount with at most 18 decimal places"
-          )
-        ]
-
-      not Regex.match?(~r/[1-9]/, value) ->
-        [error(:required_regent_raised, "must be greater than zero")]
 
       true ->
         []

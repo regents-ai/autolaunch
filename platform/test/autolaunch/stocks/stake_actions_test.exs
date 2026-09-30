@@ -84,6 +84,7 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
       5 * 10 ** 18,
       7 * 10 ** 18,
       @q96,
+      79_228_162_514_264_337_593_500,
       0,
       word(@subject),
       word(@escrow),

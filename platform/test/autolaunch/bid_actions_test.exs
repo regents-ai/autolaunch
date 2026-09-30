@@ -67,7 +67,7 @@ defmodule Autolaunch.BidActionsTest do
                    "facts" => %{
                      "name" => "Base launch",
                      "symbol" => "BASE",
-                     "required_regent_raised_atomic" => "1000",
+                     "terms" => %{"required_regent_raised" => "19999999999999999999989"},
                      "regent" => regent(),
                      "factory" => @other,
                      "treasury_security" => %{"report_id" => report.id, "address" => treasury}
