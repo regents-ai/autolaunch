@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v64, 30 September 2026 (1ba5740)
+- The REGENT page explains staking the way the contract pays it: by share of all 100 billion
+  REGENT, with the unstaked share going to Regent's treasury.
+- Portfolio and auction pages show only the wallet you signed in with.
+- New theme button in the header, as on the other Regent sites. Until you choose a theme, the
+  site follows your device's light or dark setting.
+
 ## v63, 30 September 2026 (68a060b)
 - New About page: the team behind Autolaunch, how it works and key facts come first, and
   the key facts also appear in llms.txt.
