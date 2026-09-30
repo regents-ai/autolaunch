@@ -1,0 +1,77 @@
+/* The new REGENT page (/next/regent): where the USDC went, the last seven days
+   by source, how the next deposit splits, Memestake's two chains and REGENT
+   emissions, each in its own card. */
+
+.regent-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
+.regent-next-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
+@media (min-width: 64rem) {
+  .regent-next-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .regent-next-layout > :is(#regent-next-allocation, #regent-next-sources, #regent-next-memestake, #regent-next-yours) { grid-column: 1 / -1; }
+}
+
+.regent-next-card { display: grid; gap: 12px; min-width: 0; padding: 18px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--color-surface); }
+.regent-next-card > p { margin: 0; font-size: .9375rem; line-height: 1.55; }
+.regent-next-card__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.regent-next-card__head h2 { margin: 0; font-size: 1.25rem; }
+.regent-next-tag { flex: none; padding: 2px 10px; border: 1px solid var(--hairline-strong); border-radius: 999px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
+.regent-next-card > .regent-next-lead { color: var(--color-fg-muted); font-size: .875rem; }
+.regent-next-card > .regent-next-source { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
+.regent-next-muted, .regent-next-card > .regent-next-muted { color: var(--color-fg-muted); }
+.regent-next-link { justify-self: start; color: var(--color-fg); font-weight: 600; text-decoration: underline; }
+.regent-next-link:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* The three lifetime figures. */
+.regent-next-figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.regent-next-figures > div { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 12px; }
+.regent-next-figures dt { color: var(--color-fg-muted); font-size: .8125rem; }
+.regent-next-figures dd { margin: 0; font-family: var(--font-family-title); font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.regent-next-figures .regent-next-figures__stakers { color: var(--color-success); }
+.regent-next-figures small { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }
+@media (max-width: 48rem) { .regent-next-figures { grid-template-columns: minmax(0, 1fr); } }
+
+/* A split shown as one bar and its legend. */
+.regent-next-split { display: grid; gap: 8px; min-width: 0; }
+.regent-next-bar { display: flex; height: 10px; border-radius: 999px; background: var(--hairline); overflow: hidden; }
+.regent-next-bar__part { display: block; height: 100%; }
+.regent-next-bar__part--stakers { background: var(--color-success); }
+.regent-next-bar__part--treasury { background: var(--hairline-strong); }
+.regent-next-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.regent-next-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.regent-next-legend li::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--hairline-strong); }
+.regent-next-legend .regent-next-legend__stakers::before { background: var(--color-success); }
+.regent-next-legend strong { color: var(--color-fg); }
+
+/* Deposits by source. */
+.regent-next-table { width: 100%; border-collapse: collapse; font-size: .875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.regent-next-table :is(th, td) { padding: 10px 16px 10px 0; border-bottom: 1px solid var(--hairline); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.regent-next-table :is(th, td):last-child { padding-right: 0; }
+.regent-next-table thead th { color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; border-bottom-color: var(--hairline-strong); }
+.regent-next-table tbody th { font-weight: 600; }
+.regent-next-table tbody th small { display: block; color: var(--color-fg-muted); font-size: .75rem; font-weight: 400; }
+.regent-next-table tfoot :is(th, td) { font-weight: 600; border-bottom: 0; }
+.regent-next-table .regent-next-table__amount { text-align: right; white-space: nowrap; }
+@media (max-width: 42rem) {
+  .regent-next-table thead { display: none; }
+  .regent-next-table, .regent-next-table tbody, .regent-next-table tfoot, .regent-next-table tr { display: block; }
+  .regent-next-table tr { padding: 10px 0; border-bottom: 1px solid var(--hairline); }
+  .regent-next-table :is(th, td) { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; border-bottom: 0; }
+  .regent-next-table tbody th { display: block; padding-bottom: 6px; }
+  .regent-next-table td::before { content: attr(data-label); color: var(--color-fg-muted); font-weight: 400; }
+  .regent-next-table .regent-next-table__amount { text-align: right; white-space: normal; }
+}
+
+/* Memestake's two chains, side by side. */
+.regent-next-lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 12px; }
+.regent-next-lane { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px dashed var(--hairline-strong); border-radius: 12px; }
+.regent-next-lane h3 { margin: 0; font-size: 1rem; }
+.regent-next-stages { display: grid; gap: 10px; margin: 0; padding-left: 1.25rem; font-size: .875rem; line-height: 1.5; }
+.regent-next-stages li { min-width: 0; padding-left: 2px; }
+.regent-next-stages li::marker { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.regent-next-stages :is(strong, span) { display: block; overflow-wrap: anywhere; }
+.regent-next-stages span + span { margin-top: 2px; }
+
+/* Label and value rows. */
+.regent-next-rows { display: grid; gap: 8px; margin: 0; font-size: .875rem; }
+.regent-next-rows > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; }
+.regent-next-rows dt { color: var(--color-fg-muted); }
+.regent-next-rows dd { margin: 0; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

@@ -128,6 +128,7 @@ defmodule AutolaunchWeb.Router do
       live "/portfolio", PortfolioLive, :portfolio
       live "/profile", ProfileLive, :profile
       live "/regent", RegentLive, :regent
+      live "/next/regent", RegentLive, :regent_next
       live "/convert", ConvertLive, :index
     end
   end
