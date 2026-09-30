@@ -10,13 +10,14 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.AuctionHistory
   import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
   import AutolaunchWeb.Components.RaiseProgress
+  import AutolaunchWeb.Components.AuctionNext
 
-  alias Autolaunch.AuctionBook
+  alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt, Pool}
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
-  alias AutolaunchWeb.{LiveListings, Paths, UsdValue}
+  alias AutolaunchWeb.{LiveListings, Paths, SignedInWallet, UsdValue}
 
   def mount(_params, _session, socket),
     do:
@@ -24,7 +25,13 @@ defmodule AutolaunchWeb.AuctionLive do
        socket
        |> assign_market()
        |> LiveListings.subscribe()
-       |> assign(my_positions: [])}
+       |> assign(
+         my_positions: [],
+         draft_price: nil,
+         scrub_at: nil,
+         checked_bid: nil,
+         check_number: ""
+       )}
 
   # The identifier is read here so a patch to another auction reloads the page
   # instead of keeping the previous record on screen.
@@ -35,6 +42,7 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign_positions()
      |> load_page(reset: true)
      |> load_book(reset: true)
+     |> load_next(reset: true)
      |> load_history(reset: true)
      |> load_usd_rate()}
   end
@@ -43,6 +51,36 @@ defmodule AutolaunchWeb.AuctionLive do
 
   def handle_event("retry_history", _params, socket),
     do: {:noreply, load_history(socket, reset: false)}
+
+  def handle_event("retry_snapshot", _params, socket),
+    do: {:noreply, load_next(socket, reset: false)}
+
+  # The new page's replay of the recorded prices, and its bid lookup.
+  def handle_event("scrub", %{"checkpoint" => at}, socket) do
+    case Integer.parse(at) do
+      {at, ""} when at >= 0 -> {:noreply, assign(socket, :scrub_at, at)}
+      _unreadable -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("scrub_now", _params, socket), do: {:noreply, assign(socket, :scrub_at, nil)}
+
+  def handle_event("check_bid", %{"bid" => number}, socket) do
+    id = socket.assigns.record_id
+
+    {:noreply,
+     socket
+     |> assign(:check_number, number)
+     |> assign_async(
+       :checked_bid,
+       fn ->
+         with {:ok, bid_id} <- bid_number(number),
+              {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(id),
+              {:ok, receipt} <- BidReceipt.base(auction, bid_id) do
+           {:ok, %{checked_bid: receipt}}
+         end
+       end, reset: true)}
+  end
 
   # Either feed may have moved; the combined reading decides whether the page
   # has anything new to show.
@@ -56,6 +94,7 @@ defmodule AutolaunchWeb.AuctionLive do
        |> assign_positions()
        |> load_page(reset: false)
        |> load_book(reset: false)
+       |> load_next(reset: false)
        |> load_history(reset: false)}
     else
       {:noreply, socket}
@@ -83,6 +122,10 @@ defmodule AutolaunchWeb.AuctionLive do
   # A settlement card verified a step, so the bidder's stored positions changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, assign_positions(socket)}
+
+  # The bid form's maximum, marked on the new page's chart and ladder.
+  def handle_info({:bid_draft_price, price}, socket),
+    do: {:noreply, assign(socket, :draft_price, price)}
 
   def handle_info({:stake_claimed_tokens, path}, socket),
     do: {:noreply, push_navigate(socket, to: path)}
@@ -121,6 +164,159 @@ defmodule AutolaunchWeb.AuctionLive do
         if(bidding_open?(assigns.bidding_ended?), do: outbid(assigns.my_positions, assigns.book))
       )
 
+    page(assigns)
+  end
+
+  # The new page, in preview at /next/auctions/…: the stage and facts first,
+  # the recorded prices over the schedule, the price ladder and the bid
+  # receipts, around the same bid panel.
+  defp page(%{design: :next} = assigns) do
+    ~H"""
+    <article
+      :if={@page_status == :ready && @page_record}
+      id="autolaunch-auction-detail"
+      class="autolaunch-page auction-page auction-next"
+    >
+      <header class="autolaunch-heading">
+        <.link navigate="/auctions" class="market-back">← Auctions</.link>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
+        </Regent.Structure.section_bar>
+        <p class="auction-next-preview">
+          This is the new auction page.
+          <.link navigate={Paths.auction(@page_record)}>Open the current page</.link>
+        </p>
+      </header>
+      <.outbid_banner
+        :if={@outbid}
+        bid_form="autolaunch-bid"
+        return_to={if @page_record.minimum_reached, do: "autolaunch-position-#{@outbid.id}"}
+      />
+      <section class="auction-next-overview" aria-label="Where this auction is">
+        <p :if={!@snapshot.ok? && @snapshot.loading} class="auction-next-note" role="status">
+          Reading the auction from the chain…
+        </p>
+        <p :if={@snapshot.failed} class="auction-next-note" role="status">
+          {if @snapshot.ok?,
+            do: "The auction could not be read again just now, so this is the last reading.",
+            else: "The auction could not be read from the chain just now."}
+          <button type="button" class="auction-next-link" phx-click="retry_snapshot">
+            Try again
+          </button>
+        </p>
+        <.stage_rail :if={@snapshot.ok?} stage={@snapshot.result.stage.stage} />
+        <.figures
+          :if={@snapshot.ok?}
+          snapshot={@snapshot.result}
+          minimum={minimum(@page_record)}
+          raised={@snapshot.result.raised}
+          symbol={@page_record.quote_token_symbol}
+          token_symbol={@page_record.token_symbol}
+          chain={:base}
+          test_chain={@local_lab?}
+        />
+        <.facts
+          :if={@snapshot.ok?}
+          stage={@snapshot.result.stage}
+          claim_block={@snapshot.result.blocks.claim}
+          block={@snapshot.result.block.number}
+        />
+      </section>
+      <div class="auction-layout">
+        <section class="auction-layout__chart" aria-label="Price and schedule">
+          <.history_note history={@history} />
+          <.filmstrip
+            :if={@snapshot.ok? && @history.ok?}
+            id="auction-film"
+            snapshot={@snapshot.result}
+            points={@history.result.points}
+            draft={@draft_price}
+            at={@scrub_at}
+            symbol={@page_record.quote_token_symbol}
+            token_symbol={@page_record.token_symbol}
+          />
+        </section>
+        <aside class="auction-layout__bid" aria-label="Bid on this auction">
+          <.bid_aside
+            page_record={@page_record}
+            book={@book}
+            ended={@bidding_ended?}
+            my_positions={@my_positions}
+            market_snapshot={@market_snapshot}
+            account_control={@account_control}
+            access_context={@access_context}
+            session_lease={@session_lease}
+            lab={@local_lab?}
+            draft_marker
+          />
+        </aside>
+        <div class="auction-layout__rest">
+          <.ladder
+            :if={bidding_open?(@bidding_ended?) && @snapshot.ok?}
+            id="auction-ladder"
+            snapshot={@snapshot.result}
+            draft={@draft_price}
+            symbol={@page_record.quote_token_symbol}
+            token_symbol={@page_record.token_symbol}
+            bid_form="autolaunch-bid"
+          />
+          <section
+            :if={@snapshot.ok? && @my_receipts.ok? && @my_receipts.result != []}
+            id="auction-my-receipts"
+            class="auction-next-card"
+            aria-labelledby="auction-my-receipts-title"
+          >
+            <header class="auction-next-card__head">
+              <h2 id="auction-my-receipts-title">Your bids, as the auction holds them</h2>
+            </header>
+            <.receipt
+              :for={receipt <- @my_receipts.result}
+              id={"auction-receipt-#{receipt.id}"}
+              receipt={receipt}
+              wallet={@wallet}
+              symbol={@page_record.quote_token_symbol}
+              token_symbol={@page_record.token_symbol}
+              claim_block={@snapshot.result.blocks.claim}
+            />
+          </section>
+          <.check_bid
+            :if={@snapshot.ok?}
+            id="auction-check-bid"
+            checked={@checked_bid}
+            number={@check_number}
+            wallet={@wallet}
+            symbol={@page_record.quote_token_symbol}
+            token_symbol={@page_record.token_symbol}
+            claim_block={@snapshot.result.blocks.claim}
+          />
+          <.auction_activity
+            :if={@market_snapshot && @history.ok?}
+            id="auction-activity"
+            bids={@history.result.bids}
+            symbol={@page_record.quote_token_symbol}
+            block={@market_snapshot.block_number}
+            start_block={@market_snapshot.start_block}
+            end_block={@market_snapshot.end_block}
+            chain={:base}
+            test_chain={@local_lab?}
+          />
+          <.about
+            page_record={@page_record}
+            graduated_token={@graduated_token}
+            ended={@bidding_ended?}
+            usd_rate={@usd_rate}
+            creator_connections={@creator_connections}
+            lab={@local_lab?}
+          />
+        </div>
+      </div>
+      <.details page_record={@page_record} usd_rate={@usd_rate} market_snapshot={@market_snapshot} />
+    </article>
+    <.page_states page_status={@page_status} record_id={@record_id} />
+    """
+  end
+
+  defp page(assigns) do
     ~H"""
     <article
       :if={@page_status == :ready && @page_record}
@@ -177,84 +373,16 @@ defmodule AutolaunchWeb.AuctionLive do
           />
         </section>
         <aside class="auction-layout__bid" aria-label="Bid on this auction">
-          <section
-            :if={Autolaunch.Prelaunch.read_only?()}
-            class="prelaunch-actions"
-            aria-label="Bidding unavailable"
-          >
-            <h2>Place a bid</h2>
-            <p>Bidding opens soon.</p>
-            <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
-          </section>
-          <.live_component
-            :if={!Autolaunch.Prelaunch.read_only?() && !@bidding_ended?}
-            module={AutolaunchWeb.BidComponent}
-            id="autolaunch-bid"
-            agent_tools
-            auction={@page_record}
+          <.bid_aside
+            page_record={@page_record}
             book={@book}
-            authenticated={@account_control.kind == :signed_in}
-            current_human_id={current_human_id(@access_context)}
+            ended={@bidding_ended?}
+            my_positions={@my_positions}
+            market_snapshot={@market_snapshot}
+            account_control={@account_control}
+            access_context={@access_context}
             session_lease={@session_lease}
-          />
-          <section
-            :if={bidding_open?(@bidding_ended?) && @book.ok? && @my_positions != []}
-            id="autolaunch-my-bids"
-            class="bid-panel"
-            aria-label="Your bids"
-          >
-            <h3>Your bids on this auction</h3>
-            <ul role="list" class="bid-positions">
-              <li :for={position <- @my_positions}>
-                <.live_component
-                  module={AutolaunchWeb.OutbidComponent}
-                  id={"autolaunch-position-#{position.id}"}
-                  position={position}
-                  book={@book}
-                  authenticated={@account_control.kind == :signed_in}
-                  current_human_id={current_human_id(@access_context)}
-                  session_lease={@session_lease}
-                />
-              </li>
-            </ul>
-          </section>
-          <section
-            :if={!Autolaunch.Prelaunch.read_only?() && @bidding_ended?}
-            id="autolaunch-settlement"
-            class="bid-panel"
-            aria-label="Bidding has ended"
-          >
-            <AutolaunchWeb.Components.BidForm.title
-              id="autolaunch-settlement"
-              title="Bidding has ended"
-            />
-            <p class="bid-ended">{ended_copy(@page_record)}</p>
-            <p :if={@account_control.kind != :signed_in} class="bid-empty">
-              <Regent.Primitives.button type="button" data-account-target="sign-in">
-                Sign in to see your bids
-              </Regent.Primitives.button>
-            </p>
-            <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
-              You placed no bids on this auction from your verified wallets.
-            </p>
-            <.live_component
-              :for={position <- @my_positions}
-              module={AutolaunchWeb.BidSettlementComponent}
-              id={"autolaunch-settlement-#{position.id}"}
-              position={position}
-              market={@market_snapshot}
-              authenticated={@account_control.kind == :signed_in}
-              current_human_id={current_human_id(@access_context)}
-              session_lease={@session_lease}
-            />
-          </section>
-          <div :if={@local_lab?} id="autolaunch-lab-position"></div>
-          <.live_component
-            :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
-            module={AutolaunchWeb.TestFundsComponent}
-            id="autolaunch-test-funds"
-            current_human_id={current_human_id(@access_context)}
-            session_lease={@session_lease}
+            lab={@local_lab?}
           />
         </aside>
         <div class="auction-layout__rest">
@@ -279,125 +407,261 @@ defmodule AutolaunchWeb.AuctionLive do
             chain={:base}
             test_chain={@local_lab?}
           />
-          <section class="auction-info" aria-labelledby="auction-info-title">
-            <h2 id="auction-info-title" class="auction-info__title">About this token</h2>
-            <.detail_card
-              kind={:auction}
-              record={@page_record}
-              trade_path={@graduated_token && Paths.token(@page_record)}
-              status={settling_status(@page_record, @bidding_ended?)}
-            >
-              <:price_note>
-                <UsdValue.usd
-                  amount={@page_record.current_clearing_price}
-                  rate={@usd_rate}
-                  per="per token"
-                />
-              </:price_note>
-            </.detail_card>
-            <.launch_trust
-              auction={@page_record}
-              connections={@creator_connections}
-              token_path={@graduated_token && Paths.token(@page_record) <> "#pool"}
-            />
-            <p
-              :if={@page_record.state == :graduated && @graduated_token}
-              id="auction-pool-link"
-              class="autolaunch-live-market"
-            >
-              This auction graduated into its pool.
-              <.link navigate={Paths.token(@page_record) <> "#pool"}>View the pool and its trading fees</.link>
-            </p>
-            <.treasury_security
-              :if={@page_record.kind == :agent && !@local_lab?}
-              report={report(@page_record)}
-              surface="auction-detail"
-            />
-            <.lab_treasury_unavailable
-              :if={@page_record.kind == :agent && @local_lab?}
-              surface="auction-detail"
-            />
-          </section>
+          <.about
+            page_record={@page_record}
+            graduated_token={@graduated_token}
+            ended={@bidding_ended?}
+            usd_rate={@usd_rate}
+            creator_connections={@creator_connections}
+            lab={@local_lab?}
+          />
         </div>
       </div>
-      <.details_window id="auction-details">
-        <.exact_price
-          id="auction-exact-price"
-          summary="Exact clearing price"
-          amount={@page_record.current_clearing_price}
-          unit={@page_record.quote_token_symbol}
-        />
-        <dl class="autolaunch-live-market" aria-label="Auction terms">
-          <div>
-            <dt>Minimum to graduate</dt>
-            <dd>
-              <AutolaunchWeb.TokenDisplay.price
-                amount={minimum(@page_record)}
-                unit={@page_record.quote_token_symbol}
-              />
-              <UsdValue.usd amount={minimum(@page_record)} rate={@usd_rate} />
-            </dd>
-          </div>
-          <div>
-            <dt>Bids are paid in</dt>
-            <dd>
-              <span class="ticker">{@page_record.quote_token_symbol}</span>
-              <span :if={@page_record.quote_token_decimals}>
-                · {@page_record.quote_token_decimals} decimal places
-              </span>
-            </dd>
-          </div>
-          <div :if={@page_record.quote_token_address}>
-            <dt>Currency address</dt>
-            <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
-          </div>
-        </dl>
-        <dl :if={@market_snapshot} class="autolaunch-live-market" aria-label="Latest reading">
-          <div>
-            <dt>Read at block</dt><dd>{@market_snapshot.block_number}</dd>
-          </div>
-          <div>
-            <dt>{raised_label(@page_record)}</dt><dd>
-              <AutolaunchWeb.TokenDisplay.price
-                amount={@market_snapshot.currency_raised}
-                fallback="—"
-              />
-              <UsdValue.usd amount={@market_snapshot.currency_raised} rate={@usd_rate} />
-            </dd>
-          </div>
-          <div>
-            <dt>Tokens remaining</dt><dd>
-              <AutolaunchWeb.TokenDisplay.price
-                amount={@market_snapshot.remaining_supply}
-                fallback="—"
-              />
-            </dd>
-          </div>
-          <div>
-            <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
-          </div>
-        </dl>
-        <Regent.Primitives.disclosure
-          :if={@market_snapshot}
-          id="auction-exact-market-amounts"
-          summary="Exact market amounts"
-        >
-          <dl class="autolaunch-live-market">
-            <div>
-              <dt>{raised_label(@page_record)}</dt><dd class="autolaunch-exact-value">
-                {@market_snapshot.currency_raised}
-              </dd>
-            </div>
-            <div>
-              <dt>Tokens remaining</dt><dd class="autolaunch-exact-value">
-                {@market_snapshot.remaining_supply}
-              </dd>
-            </div>
-          </dl>
-        </Regent.Primitives.disclosure>
-      </.details_window>
+      <.details page_record={@page_record} usd_rate={@usd_rate} market_snapshot={@market_snapshot} />
     </article>
 
+    <.page_states page_status={@page_status} record_id={@record_id} />
+    """
+  end
+
+  attr :page_record, :map, required: true
+  attr :book, Phoenix.LiveView.AsyncResult, required: true
+  attr :ended, :boolean, required: true
+  attr :my_positions, :list, required: true
+  attr :market_snapshot, :map, default: nil
+  attr :account_control, :map, required: true
+  attr :access_context, :map, required: true
+  attr :session_lease, :map, default: nil
+  attr :lab, :boolean, required: true
+  attr :draft_marker, :boolean, default: false
+
+  # The bid form, the bidder's open bids, or their settlement once bidding ends.
+  defp bid_aside(assigns) do
+    ~H"""
+    <section
+      :if={Autolaunch.Prelaunch.read_only?()}
+      class="prelaunch-actions"
+      aria-label="Bidding unavailable"
+    >
+      <h2>Place a bid</h2>
+      <p>Bidding opens soon.</p>
+      <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
+    </section>
+    <.live_component
+      :if={!Autolaunch.Prelaunch.read_only?() && !@ended}
+      module={AutolaunchWeb.BidComponent}
+      id="autolaunch-bid"
+      agent_tools
+      draft_marker={@draft_marker}
+      auction={@page_record}
+      book={@book}
+      authenticated={@account_control.kind == :signed_in}
+      current_human_id={current_human_id(@access_context)}
+      session_lease={@session_lease}
+    />
+    <section
+      :if={bidding_open?(@ended) && @book.ok? && @my_positions != []}
+      id="autolaunch-my-bids"
+      class="bid-panel"
+      aria-label="Your bids"
+    >
+      <h3>Your bids on this auction</h3>
+      <ul role="list" class="bid-positions">
+        <li :for={position <- @my_positions}>
+          <.live_component
+            module={AutolaunchWeb.OutbidComponent}
+            id={"autolaunch-position-#{position.id}"}
+            position={position}
+            book={@book}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+        </li>
+      </ul>
+    </section>
+    <section
+      :if={!Autolaunch.Prelaunch.read_only?() && @ended}
+      id="autolaunch-settlement"
+      class="bid-panel"
+      aria-label="Bidding has ended"
+    >
+      <AutolaunchWeb.Components.BidForm.title
+        id="autolaunch-settlement"
+        title="Bidding has ended"
+      />
+      <p class="bid-ended">{ended_copy(@page_record)}</p>
+      <p :if={@account_control.kind != :signed_in} class="bid-empty">
+        <Regent.Primitives.button type="button" data-account-target="sign-in">
+          Sign in to see your bids
+        </Regent.Primitives.button>
+      </p>
+      <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
+        You placed no bids on this auction from your verified wallets.
+      </p>
+      <.live_component
+        :for={position <- @my_positions}
+        module={AutolaunchWeb.BidSettlementComponent}
+        id={"autolaunch-settlement-#{position.id}"}
+        position={position}
+        market={@market_snapshot}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
+    </section>
+    <div :if={@lab} id="autolaunch-lab-position"></div>
+    <.live_component
+      :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
+      module={AutolaunchWeb.TestFundsComponent}
+      id="autolaunch-test-funds"
+      current_human_id={current_human_id(@access_context)}
+      session_lease={@session_lease}
+    />
+    """
+  end
+
+  attr :page_record, :map, required: true
+  attr :graduated_token, :map, default: nil
+  attr :ended, :boolean, required: true
+  attr :usd_rate, :any, required: true
+  attr :creator_connections, :any, required: true
+  attr :lab, :boolean, required: true
+
+  defp about(assigns) do
+    ~H"""
+    <section class="auction-info" aria-labelledby="auction-info-title">
+      <h2 id="auction-info-title" class="auction-info__title">About this token</h2>
+      <.detail_card
+        kind={:auction}
+        record={@page_record}
+        trade_path={@graduated_token && Paths.token(@page_record)}
+        status={settling_status(@page_record, @ended)}
+      >
+        <:price_note>
+          <UsdValue.usd
+            amount={@page_record.current_clearing_price}
+            rate={@usd_rate}
+            per="per token"
+          />
+        </:price_note>
+      </.detail_card>
+      <.launch_trust
+        auction={@page_record}
+        connections={@creator_connections}
+        token_path={@graduated_token && Paths.token(@page_record) <> "#pool"}
+      />
+      <p
+        :if={@page_record.state == :graduated && @graduated_token}
+        id="auction-pool-link"
+        class="autolaunch-live-market"
+      >
+        This auction graduated into its pool.
+        <.link navigate={Paths.token(@page_record) <> "#pool"}>View the pool and its trading fees</.link>
+      </p>
+      <.treasury_security
+        :if={@page_record.kind == :agent && !@lab}
+        report={report(@page_record)}
+        surface="auction-detail"
+      />
+      <.lab_treasury_unavailable
+        :if={@page_record.kind == :agent && @lab}
+        surface="auction-detail"
+      />
+    </section>
+    """
+  end
+
+  attr :page_record, :map, required: true
+  attr :usd_rate, :any, required: true
+  attr :market_snapshot, :map, default: nil
+
+  defp details(assigns) do
+    ~H"""
+    <.details_window id="auction-details">
+      <.exact_price
+        id="auction-exact-price"
+        summary="Exact clearing price"
+        amount={@page_record.current_clearing_price}
+        unit={@page_record.quote_token_symbol}
+      />
+      <dl class="autolaunch-live-market" aria-label="Auction terms">
+        <div>
+          <dt>Minimum to graduate</dt>
+          <dd>
+            <AutolaunchWeb.TokenDisplay.price
+              amount={minimum(@page_record)}
+              unit={@page_record.quote_token_symbol}
+            />
+            <UsdValue.usd amount={minimum(@page_record)} rate={@usd_rate} />
+          </dd>
+        </div>
+        <div>
+          <dt>Bids are paid in</dt>
+          <dd>
+            <span class="ticker">{@page_record.quote_token_symbol}</span>
+            <span :if={@page_record.quote_token_decimals}>
+              · {@page_record.quote_token_decimals} decimal places
+            </span>
+          </dd>
+        </div>
+        <div :if={@page_record.quote_token_address}>
+          <dt>Currency address</dt>
+          <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
+        </div>
+      </dl>
+      <dl :if={@market_snapshot} class="autolaunch-live-market" aria-label="Latest reading">
+        <div>
+          <dt>Read at block</dt><dd>{@market_snapshot.block_number}</dd>
+        </div>
+        <div>
+          <dt>{raised_label(@page_record)}</dt><dd>
+            <AutolaunchWeb.TokenDisplay.price
+              amount={@market_snapshot.currency_raised}
+              fallback="—"
+            />
+            <UsdValue.usd amount={@market_snapshot.currency_raised} rate={@usd_rate} />
+          </dd>
+        </div>
+        <div>
+          <dt>Tokens remaining</dt><dd>
+            <AutolaunchWeb.TokenDisplay.price
+              amount={@market_snapshot.remaining_supply}
+              fallback="—"
+            />
+          </dd>
+        </div>
+        <div>
+          <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
+        </div>
+      </dl>
+      <Regent.Primitives.disclosure
+        :if={@market_snapshot}
+        id="auction-exact-market-amounts"
+        summary="Exact market amounts"
+      >
+        <dl class="autolaunch-live-market">
+          <div>
+            <dt>{raised_label(@page_record)}</dt><dd class="autolaunch-exact-value">
+              {@market_snapshot.currency_raised}
+            </dd>
+          </div>
+          <div>
+            <dt>Tokens remaining</dt><dd class="autolaunch-exact-value">
+              {@market_snapshot.remaining_supply}
+            </dd>
+          </div>
+        </dl>
+      </Regent.Primitives.disclosure>
+    </.details_window>
+    """
+  end
+
+  attr :page_status, :atom, required: true
+  attr :record_id, :string, required: true
+
+  defp page_states(assigns) do
+    ~H"""
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
 
     <section
@@ -426,6 +690,69 @@ defmodule AutolaunchWeb.AuctionLive do
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
     """
+  end
+
+  # The new page's chain reading: the auction's snapshot with its stage, the
+  # signed-in wallet, and that bidder's bids as the auction holds them. The
+  # current page reads none of it.
+  defp load_next(%{assigns: %{design: :next}} = socket, reset: reset) do
+    id = socket.assigns.record_id
+
+    socket
+    |> assign(
+      :wallet,
+      SignedInWallet.address(%{
+        session_lease: socket.assigns.session_lease,
+        current_human_id: current_human_id(socket.assigns.access_context)
+      })
+    )
+    |> assign_async(:snapshot, fn -> snapshot(id) end, reset: reset)
+    |> load_receipts()
+  end
+
+  defp load_next(socket, _opts), do: socket
+
+  defp snapshot(id) do
+    with {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(id),
+         {:ok, snapshot} <- AuctionSnapshot.base(auction) do
+      required = String.to_integer(auction.required_currency_raised)
+      stage = AuctionStage.read(auction.state, snapshot, required, Pool.read(auction))
+      raised = Rpc.format_units(snapshot.blocks.raised, auction.quote_token_decimals)
+      {:ok, %{snapshot: Map.merge(snapshot, %{stage: stage, raised: raised})}}
+    else
+      {:ok, nil} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp load_receipts(socket) do
+    id = socket.assigns.record_id
+    bids = socket.assigns.my_positions |> Enum.map(& &1.onchain_bid_id) |> Enum.reject(&is_nil/1)
+
+    assign_async(socket, :my_receipts, fn ->
+      with {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(id),
+           {:ok, receipts} <- receipts(auction, bids) do
+        {:ok, %{my_receipts: receipts}}
+      end
+    end)
+  end
+
+  defp receipts(auction, bids) do
+    Enum.reduce_while(bids, {:ok, []}, fn bid, {:ok, found} ->
+      with {:ok, bid_id} <- bid_number(bid),
+           {:ok, receipt} <- BidReceipt.base(auction, bid_id) do
+        {:cont, {:ok, found ++ [receipt]}}
+      else
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp bid_number(number) do
+    case Integer.parse(String.trim(number)) do
+      {bid_id, ""} when bid_id >= 0 -> {:ok, bid_id}
+      _unreadable -> {:error, :invalid_bid_number}
+    end
   end
 
   defp load_page(socket, reset: reset) do

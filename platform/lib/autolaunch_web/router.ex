@@ -116,6 +116,8 @@ defmodule AutolaunchWeb.Router do
       live "/create/revstake", CreateLive, :create
       live "/auctions", AuctionsLive, :index
       live "/auctions/:symbol/:tail", MarketPageLive, :auction
+      # The new auction page, beside the current one until it replaces it.
+      live "/next/auctions/:symbol/:tail", MarketPageLive, :auction_next
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
       live "/how-it-works", HowItWorksLive, :show

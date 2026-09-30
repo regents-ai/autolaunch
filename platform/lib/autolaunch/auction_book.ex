@@ -131,7 +131,12 @@ defmodule Autolaunch.AuctionBook do
 
   defp plain(typed), do: Decimal.new(String.trim(typed), max_digits: :infinity)
 
-  defp read(address, decimals, from_block, block, opts) do
+  @doc """
+  The book of the auction at `address`, read at `block` with its bid logs from
+  `from_block`: the reading `base/1` and `robinhood/1` return, for a caller
+  that reads more of the same auction at the same block.
+  """
+  def read(address, decimals, from_block, block, opts) do
     with {:ok, floor} <- uint(address, "floorPrice()", block, opts),
          {:ok, spacing} <- uint(address, "tickSpacing()", block, opts),
          {:ok, cap} <- uint(address, "MAX_BID_PRICE()", block, opts),
@@ -250,12 +255,13 @@ defmodule Autolaunch.AuctionBook do
     end
   end
 
-  defp base_opts(%{kind: :agent}) do
+  @doc "The read options for a Base auction's chain, by the launch kind that says which deployment it is on."
+  def base_opts(%{kind: :agent}) do
     with {:ok, config} <- Lab.current(),
          do: {:ok, LabRpc.opts(config, "autolaunch auction book")}
   end
 
-  defp base_opts(%{kind: :stocks}) do
+  def base_opts(%{kind: :stocks}) do
     with {:ok, config} <- StocksLab.current(),
          do: {:ok, StocksLab.rpc_opts(config, "autolaunch auction book")}
   end

@@ -11,6 +11,8 @@ defmodule AutolaunchWeb.BidComponent do
 
   With `agent_tools`, the panel also answers the page tool that bids
   (`AutolaunchWeb.AgentPress`): the call is pressed exactly as the button would be.
+  With `draft_marker`, the page hears `{:bid_draft_price, price}` whenever the
+  form's maximum price changes, so it can mark it on the auction's chart.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash, read again every few seconds until the
@@ -100,6 +102,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign(assigns)
      |> assign_new(:heading, fn -> "Place a bid" end)
      |> assign_new(:agent_tools, fn -> false end)
+     |> assign_new(:draft_marker, fn -> false end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:browser_wallets, fn -> [] end)
      |> assign_new(:balance, fn -> nil end)
@@ -291,7 +294,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   def handle_event("bid_form_changed", params, socket) do
     form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
-    {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
+    {:noreply, socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()}
   end
 
   # A press made while the form on screen differs from the review the browser
@@ -337,7 +340,7 @@ defmodule AutolaunchWeb.BidComponent do
   # The price to beat, entered from the auction's price panel as the limit.
   def handle_event("use_price", %{"price" => price}, socket) do
     form = BidForm.at_price(socket.assigns.form, price)
-    {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
+    {:noreply, socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()}
   end
 
   def handle_event("clear_bid", _params, socket),
@@ -711,6 +714,15 @@ defmodule AutolaunchWeb.BidComponent do
   end
 
   defp bid_key(_assigns), do: nil
+
+  # A page that asked marks the maximum being drafted on its price chart and
+  # ladder, so it hears each maximum the form now reads, or nil.
+  defp drafted(%{assigns: %{draft_marker: true}} = socket) do
+    send(self(), {:bid_draft_price, max_price(socket.assigns)})
+    socket
+  end
+
+  defp drafted(socket), do: socket
 
   defp max_price(%{form: form, auction: auction} = assigns) do
     {_unit, factor} =
