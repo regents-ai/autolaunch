@@ -233,8 +233,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 <tr>
                   <th scope="row">Minimum raise</th>
                   <td>
-                    About 20,000 REGENT <UsdValue.usd amount="20000" rate={@regent_usd_rate} />.
-                    If bids fall short, bidders get their REGENT back.
+                    About 20,000 REGENT <UsdValue.usd amount="20000" rate={@regent_usd_rate} />
+                    <br />If bids fall short, bidders get their REGENT back.
                   </td>
                 </tr>
                 <tr>
