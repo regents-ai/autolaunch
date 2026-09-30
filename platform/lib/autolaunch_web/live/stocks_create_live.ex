@@ -33,6 +33,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
       socket
       |> assign(AutolaunchWeb.PublicDocuments.page("/create"))
       |> assign(
+        design: if(socket.assigns.live_action == :create_next, do: :next, else: :current),
         launch_chain: :base,
         linked_token: params["token"],
         draft: nil,

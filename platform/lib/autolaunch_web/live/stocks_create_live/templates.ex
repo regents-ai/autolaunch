@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.CreateNext
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.LaunchKindChoice
@@ -29,12 +30,17 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def draft_values(draft),
     do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
 
+  attr :design, :atom, default: :current
+
   @doc "The choice between the two launches, then the page title."
   def header(assigns) do
     ~H"""
-    <.launch_kind_choice current={:memestake} />
+    <.launch_kind_choice current={:memestake} design={@design} />
     <header class="memestock__header">
       <h1>Create a Memestake token</h1>
+      <p :if={@design == :next} class="create-next-preview">
+        This is the new create page. <.link navigate={~p"/create"}>Open the current page</.link>
+      </p>
     </header>
     """
   end
@@ -52,6 +58,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
   attr :status, :atom, default: :ready
+  attr :design, :atom, default: :current
 
   def create(assigns) do
     draft = assigns.draft
@@ -75,7 +82,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
     ~H"""
     <main class="memestock">
-      <.header />
+      <.header design={@design} />
       <p :if={@status == :error} class="autolaunch-empty">
         Your draft could not be loaded. Refresh and try again.
       </p>
@@ -316,7 +323,13 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           </fieldset>
         </section>
 
-        <aside class="memestock__summary rg-panel rg-panel--surface" aria-label="Your token">
+        <aside
+          class={[
+            "memestock__summary rg-panel rg-panel--surface",
+            @design == :next && "memestock__summary--next"
+          ]}
+          aria-label="Your token"
+        >
           <p class="autolaunch-kicker">Your token</p>
           <div class="memestock-token">
             <img
@@ -331,7 +344,25 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <span>${present(@draft_values["symbol"], "TICKER")}</span>
             </div>
           </div>
-          <dl class="memestock-terms">
+          <.launch_plan
+            :if={@design == :next}
+            id="memestock-plan"
+            kind={:memestake}
+            chain={@launch_chain}
+            ticker={ticker(@draft_values["symbol"])}
+            currency={@stock && @stock.symbol}
+            floor={@draft_values["floor_price"]}
+            raise={@draft_values["required_raise"]}
+            schedule={@schedule}
+            chosen={[
+              {"Chain", LaunchChain.label(@launch_chain)},
+              {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")},
+              {"Required raise", "#{present(@draft_values["required_raise"], "—")} #{unit(@stock)}"},
+              {"Starting price",
+               "#{present(@draft_values["floor_price"], "—")} #{unit(@stock)} per token"}
+            ]}
+          />
+          <dl :if={@design != :next} class="memestock-terms">
             <div>
               <dt>Chain</dt>
               <dd>{LaunchChain.label(@launch_chain)}</dd>

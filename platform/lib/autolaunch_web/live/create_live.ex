@@ -37,6 +37,10 @@ defmodule AutolaunchWeb.CreateLive do
     socket =
       socket
       |> assign(AutolaunchWeb.PublicDocuments.page("/create/revstake"))
+      |> assign(
+        :design,
+        if(socket.assigns.live_action == :create_next, do: :next, else: :current)
+      )
       |> assign_auction_stats()
       |> assign_defaults(actor)
       |> UsdValue.assign_rate(:regent_usd_rate, :base, fn ->
@@ -107,12 +111,16 @@ defmodule AutolaunchWeb.CreateLive do
   def render(assigns) do
     ~H"""
     <div class="autolaunch-page launchpad-create">
-      <.launch_kind_choice current={:revstake} />
+      <.launch_kind_choice current={:revstake} design={@design} />
       <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
       <header class="launchpad-create__header">
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">Create a Revstake token</h1>
         </Regent.Structure.section_bar>
+        <p :if={@design == :next} class="create-next-preview">
+          This is the new create page.
+          <.link navigate={~p"/create/revstake"}>Open the current page</.link>
+        </p>
         <p>
           Raise early funds through an auction. It tokenizes a stablecoin generating service or
           agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders
