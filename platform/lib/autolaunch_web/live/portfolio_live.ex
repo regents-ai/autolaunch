@@ -1,12 +1,13 @@
 defmodule AutolaunchWeb.PortfolioLive do
   @moduledoc """
-  The signed-in account's bids and tokens, in the auctions list's format.
+  The signed-in wallet's bids and tokens, in the auctions list's format. Only
+  the wallet the session signed in with is read, never the account's others.
 
   Each bid is a list row: its token, what it put in, its maximum price, where
   it stands and its auction's time. Under it sit its buttons: the auction's
   page (the token's once it has launched), withdrawing or claiming when the
   auction allows it, and bidding more while bidding is open. Each token the
-  wallets hold or stake is a row with its page, Buy, Sell and Stake. Every
+  wallet holds or stakes is a row with its page, Buy, Sell and Stake. Every
   wallet step happens in the same components the auction and token pages use,
   opened here in a dialog, or for a Base bid's early return, under its row.
 
@@ -25,7 +26,8 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [human_actor: 1, current_human_id: 1]
+  import AutolaunchWeb.Components.AutolaunchHelpers,
+    only: [human_actor: 1, current_human_id: 1, signed_in_wallet: 1]
 
   import AutolaunchWeb.Components.MarketCard,
     only: [
@@ -194,7 +196,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         </Regent.Primitives.button>
       </header>
       <p class="memestock__hint portfolio__lede">
-        Bids and tokens from your verified wallets.<span
+        Bids and tokens from the wallet you signed in with.<span
           :if={@account_control.kind != :sign_in}
           role="status"
         >
@@ -212,7 +214,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         class="rg-panel rg-panel--surface memestock__sign-in portfolio__sign-in"
       >
         <h2>Connect to your portfolio</h2>
-        <p class="memestock__hint">Sign in to see bids and tokens from your verified wallets.</p>
+        <p class="memestock__hint">Sign in to see the bids and tokens of your wallet.</p>
         <Regent.Primitives.button
           type="button"
           class="account-control__sign-in"
@@ -275,7 +277,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           class="market-list__scroll market-list__empty"
         >
           <h2>No open bids</h2>
-          <p>Bids from your verified wallets will appear here.</p>
+          <p>Bids from the wallet you signed in with will appear here.</p>
           <.link navigate="/auctions" class="rg-button rg-button--secondary">Explore auctions</.link>
         </div>
 
@@ -354,7 +356,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           class="market-list__scroll market-list__empty"
         >
           <h2>No tokens yet</h2>
-          <p>Tokens held or staked by your verified wallets will appear here.</p>
+          <p>Tokens held or staked by the wallet you signed in with will appear here.</p>
           <.link navigate="/tokens" class="rg-button rg-button--secondary">Explore tokens</.link>
         </div>
       </section>
@@ -867,9 +869,10 @@ defmodule AutolaunchWeb.PortfolioLive do
     )
   end
 
-  # The signed-in account's bids and tokens, while its session holds. A
-  # session that has lapsed since the page opened shows nothing of it and
-  # opens the page again as the session now stands.
+  # The signed-in wallet's bids and tokens, while its session holds; the
+  # account's other wallets are not read. A session that has lapsed since the
+  # page opened shows nothing of it and opens the page again as the session
+  # now stands.
   defp read_holdings(socket) do
     actor = human_actor(socket.assigns.access_context)
 
@@ -881,7 +884,8 @@ defmodule AutolaunchWeb.PortfolioLive do
         socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
 
       true ->
-        socket |> read_bids(actor) |> read_chain(actor)
+        wallet = signed_in_wallet(socket.assigns.access_context)
+        socket |> read_bids(actor, wallet) |> read_chain(actor, wallet)
     end
   end
 
@@ -890,8 +894,8 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp leased?(_assigns), do: false
 
-  defp read_bids(socket, actor) do
-    case Autolaunch.list_my_bid_positions(actor: actor) do
+  defp read_bids(socket, actor, wallet) do
+    case Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
       {:ok, positions} -> socket |> read_ok(:bids, positions) |> read_books(positions)
       {:error, reason} -> read_failed(socket, :bids, reason)
     end
@@ -921,7 +925,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   # Wallet balances and Robinhood bids come from the chain, so they arrive
   # after the page; the first paint shows them as on their way.
-  defp read_chain(socket, actor) do
+  defp read_chain(socket, actor, wallet) do
     socket =
       socket
       |> assign(:token_holdings, AsyncResult.loading(socket.assigns.token_holdings))
@@ -930,8 +934,8 @@ defmodule AutolaunchWeb.PortfolioLive do
     if connected?(socket),
       do:
         socket
-        |> start_async(:token_holdings, fn -> TokenHoldings.read(actor) end)
-        |> start_async(:robinhood_positions, fn -> RobinhoodPositions.read(actor) end),
+        |> start_async(:token_holdings, fn -> TokenHoldings.read_wallet(actor, wallet) end)
+        |> start_async(:robinhood_positions, fn -> RobinhoodPositions.read_wallet(wallet) end),
       else: socket
   end
 

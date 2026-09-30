@@ -18,7 +18,7 @@ three kinds:
 
 - **Reads on every page.** `assets/js/public_tools.ts` registers the `site`
   `autolaunch_` tools, adding only each tool's request. Five are public reads; the
-  sixth, `autolaunch_my_positions`, reads the signed-in person's own bids and tokens.
+  sixth, `autolaunch_my_positions`, reads the signed-in wallet's own bids and tokens.
 - **Profile tools.** The three `profile_` entries describe the shared profile
   tools, which register through the shared identity package
   (`assets/js/shared_profile.ts`) and need the person's sign-in.
@@ -81,8 +81,8 @@ page lifetime can then cancel the read.
 
 `autolaunch_my_positions` calls `GET /api/v1/me/positions` with the site's own
 session cookie (`credentials: same-origin`), so it reads only the person signed in
-on this site in this browser, and only the wallets that sign-in has verified, as on
-`/portfolio`. Signed out it answers 401 `authentication_required` with a hint to
+on this site in this browser, and only the one wallet they signed in with, as the
+verified session names it; the account's other wallets are not read. Signed out it answers 401 `authentication_required` with a hint to
 sign in. It reads the site's records and the chain at call time; when any of those
 reads fails, the whole answer is a 503 `chain_unavailable`, never a partial list.
 

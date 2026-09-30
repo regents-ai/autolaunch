@@ -14,6 +14,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   @names ~w(home docs about contact privacy terms llms)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
+  # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
+  [_about, facts] = String.split(@sources["about"], "\n## Key facts\n")
+  @key_facts "## Key facts\n" <> String.trim_trailing(hd(String.split(facts, "\n## ", parts: 2)))
   @paths %{
     "/" => "home",
     "/docs" => "docs",
@@ -95,7 +98,7 @@ defmodule AutolaunchWeb.PublicDocuments do
        "Read Autolaunch auctions, tokens, bid estimates and treasury reports over HTTP or WebMCP, without an account or API key."},
     "/about" =>
       {"About",
-       "What Autolaunch is for, how Revstake and Memestake launches work, and who runs it."},
+       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts and common questions."},
     "/contact" =>
       {"Contact",
        "How to reach the people behind Autolaunch about launches, security reports, privacy requests and legal questions."},
@@ -303,6 +306,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp markdown(name) do
     @sources[name]
+    |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{tools}}", @tool_table)
     |> String.replace("{{origin}}", url(""))
   end

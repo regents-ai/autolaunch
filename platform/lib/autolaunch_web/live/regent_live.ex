@@ -274,8 +274,9 @@ defmodule AutolaunchWeb.RegentLive do
           <div>
             <dt>USDC revenue</dt>
             <dd>
-              Stakers share the USDC paid into staking. Each staker's cut is their share of all
-              REGENT.
+              Stakers are paid from the USDC sent to staking by their share of all 100 billion
+              REGENT: staking 1% of all REGENT earns 1% of that USDC. The part for REGENT that is
+              not staked goes to the Regent treasury.
             </dd>
           </div>
           <div>

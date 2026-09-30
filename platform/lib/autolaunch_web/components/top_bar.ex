@@ -8,7 +8,6 @@ defmodule AutolaunchWeb.Components.TopBar do
   attr :search_query, :string, default: ""
 
   attr :home?, :boolean, default: false
-  attr :theme, :string, required: true
   attr :market_options, :map, default: %{}
 
   def top_bar(assigns) do
@@ -77,25 +76,23 @@ defmodule AutolaunchWeb.Components.TopBar do
             class="rg-button create-button"
           >+ Create</.link>
         </:lead>
+        <:trail><.theme_toggle /></:trail>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
-        <.theme_toggle theme={@theme} />
         <.account_control account_control={@account_control} />
       </div>
     </header>
     """
   end
 
-  attr :theme, :string, required: true
-
-  # The browser owns the switch: it writes the theme cookie the server reads on
-  # the next render and restates the theme here on load and after every live
-  # navigation, so LiveView leaves it alone. The server renders the theme it
-  # served, so the switch reads correctly before any script runs.
+  # The switch names the theme showing by itself, from the page's theme or the
+  # device's setting, so the server passes no theme. The browser owns the press:
+  # it writes the theme cookie the server reads on the next render and restyles
+  # the page, so LiveView leaves the switch alone.
   defp theme_toggle(assigns) do
     ~H"""
     <div id="theme-control" class="theme-control" phx-update="ignore">
-      <Regent.ThemeToggle.button id="theme-control-button" theme={@theme} data-theme-toggle />
+      <Regent.ThemeToggle.button id="theme-control-button" data-theme-toggle />
     </div>
     """
   end

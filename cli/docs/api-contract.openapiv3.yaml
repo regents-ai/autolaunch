@@ -369,12 +369,12 @@ paths:
     get:
       operationId: listMyPositions
       summary: List your bids and tokens
-      description: The signed-in person's own bids on Base and Robinhood auctions and the launched tokens their verified wallets hold, stake or can claim from staking, read now from the site's records and the chain. Needs the site's sign-in in the same browser; the page tool autolaunch_my_positions calls it.
+      description: The bids the signed-in wallet placed on Base and Robinhood auctions and the launched tokens it holds, stakes or can claim from staking, read now from the site's records and the chain. Only the wallet the person signed in with is read, not the account's other wallets. Needs the site's sign-in in the same browser; the page tool autolaunch_my_positions calls it.
       security:
         - SiteSession: []
       responses:
         "200":
-          description: Every bid and token of the person's verified wallets
+          description: Every bid and token of the signed-in wallet
           headers:
             RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
             RateLimit: {$ref: "#/components/headers/RateLimit"}

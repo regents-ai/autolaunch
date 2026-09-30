@@ -1,12 +1,12 @@
 defmodule Autolaunch.Robinhood.Positions do
   @moduledoc """
-  The bids an account's verified wallets hold on Robinhood memestock auctions,
-  read from the chain each time they are asked.
+  The bids the signed-in wallet holds on Robinhood memestock auctions, read
+  from the chain each time they are asked.
 
   Nothing about these bids is stored: the launchpad names every auction, each
   auction's own `BidSubmitted` logs name the wallet's bids, and `bids(bidId)`
   says where each bid stands now. Everything is read at one latest block, and
-  only the wallets the signed-in account has verified are ever read. Each
+  only the wallet the session signed in with is read. Each
   position carries the site's listing of its auction when there is one, and
   once that auction has launched, its listed token: only listed auctions and
   tokens have a page here.
@@ -22,8 +22,7 @@ defmodule Autolaunch.Robinhood.Positions do
   event distinguishes a claimed bid from one returned with nothing filled.
   """
 
-  alias Autolaunch.Actors.Human
-  alias Autolaunch.{AuctionBook, LabAbi, TokenHoldings}
+  alias Autolaunch.{AuctionBook, LabAbi}
   alias Autolaunch.Chain.{Abi, Address, CcaSettlement, Rpc}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
@@ -60,13 +59,12 @@ defmodule Autolaunch.Robinhood.Positions do
         }
 
   @doc """
-  Every Robinhood bid the actor's verified wallets hold, newest auction first.
-  An account with no verified wallet reads nothing.
+  Every Robinhood bid the signed-in wallet holds, newest auction first. The
+  caller reads the wallet from the verified session.
   """
-  @spec read(Human.t()) :: {:ok, [position()]} | {:error, :unavailable}
-  def read(%Human{} = actor) do
-    with {:ok, wallets} <- TokenHoldings.verified_wallets(actor),
-         {:ok, positions} <- positions(wallets),
+  @spec read_wallet(String.t()) :: {:ok, [position()]} | {:error, :unavailable}
+  def read_wallet(wallet) when is_binary(wallet) do
+    with {:ok, positions} <- positions(wallet),
          {:ok, listings} <- listings(positions) do
       {:ok, Enum.map(positions, &Map.merge(&1, Map.fetch!(listings, &1.auction)))}
     else
@@ -74,10 +72,8 @@ defmodule Autolaunch.Robinhood.Positions do
     end
   end
 
-  defp positions([]), do: {:ok, []}
-
-  defp positions(wallets) do
-    if Lab.configured?(), do: read_positions(wallets), else: {:ok, []}
+  defp positions(wallet) do
+    if Lab.configured?(), do: read_positions(wallet), else: {:ok, []}
   end
 
   # The site's listing of each auction the positions are in and its launched
@@ -101,24 +97,22 @@ defmodule Autolaunch.Robinhood.Positions do
 
   defp listed_token(_listing), do: {:ok, nil}
 
-  defp read_positions(wallets) do
+  defp read_positions(wallet) do
     with {:ok, config} <- Lab.current(),
          opts = Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
          {:ok, clock} <- BlockClock.read(block, opts),
          {:ok, auctions} <- Auctions.at(config, block, opts) do
       venue = %{abi: Lab.abi!(config, :auction), block: block, clock: clock, opts: opts}
-      pinned_positions(auctions, wallets, venue)
+      pinned_positions(auctions, wallet, venue)
     end
   end
 
   # Log ranges use block numbers; refuse a history that moved since the state
   # reads pinned its hash.
-  defp pinned_positions(auctions, wallets, venue) do
+  defp pinned_positions(auctions, wallet, venue) do
     with {:ok, positions} <-
-           collect(auctions, fn auction ->
-             collect(wallets, &wallet_positions(auction, &1, venue))
-           end),
+           collect(auctions, &wallet_positions(&1, wallet, venue)),
          {:ok, %{"hash" => hash}} <-
            Rpc.request(
              "eth_getBlockByNumber",
