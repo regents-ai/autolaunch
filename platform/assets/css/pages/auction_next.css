@@ -28,22 +28,19 @@
   .auction-next-rail__step:not(:last-child)::after { content: none; }
 }
 
-/* The three headline figures, each in its own card. */
+/* The three headline figures, each in its own card: the figure large, then its
+   status and small print. */
 .auction-next-figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .auction-next-figure { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
 .auction-next-figure dt { color: var(--color-fg-muted); font-size: .8125rem; }
 .auction-next-figure dd { display: grid; gap: 4px; margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.auction-next-figure dd strong { font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
-.auction-next-figure dd span { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
+.auction-next-figure__value { color: var(--color-fg); font-size: 2rem; font-weight: 700; line-height: 1.15; }
+.auction-next-figure__value .figure__unit { color: var(--color-fg); font-size: 1.25rem; font-weight: 600; }
+.auction-next-figure__status { color: var(--color-fg-muted); font-size: .9375rem; font-weight: 600; }
+.auction-next-figure__status[data-on="true"] { color: var(--color-success); }
+.auction-next-figure__block { font-size: 1rem; font-weight: 600; }
+.auction-next-figure__note { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
 @media (max-width: 48rem) { .auction-next-figures { grid-template-columns: minmax(0, 1fr); } }
-
-/* The separate facts, as chips with their answer in words. */
-.auction-next-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.auction-next-fact { display: grid; gap: 2px; min-width: 0; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 10px; font-size: .8125rem; }
-.auction-next-fact__label { color: var(--color-fg-muted); font-size: .75rem; }
-.auction-next-fact strong { font-weight: 600; }
-.auction-next-fact[data-on="true"] { border-color: color-mix(in srgb, var(--color-success) 45%, var(--hairline)); }
-.auction-next-fact[data-on="true"] strong { color: var(--color-success); }
 
 /* Cards in the main column. */
 .auction-next-card { display: grid; gap: 14px; min-width: 0; padding: 18px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--color-surface); }
@@ -51,6 +48,10 @@
 .auction-next-card__head h2 { margin: 0; font-size: 1.25rem; }
 
 /* The recorded prices over the bidding window. */
+.auction-next-film__head { display: grid; gap: 2px; }
+.auction-next-film__head h2 { margin: 0; font-size: 1.25rem; }
+.auction-next-film__subtitle { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.auction-next-film__tips { display: grid; gap: 6px; margin: 0; padding-inline-start: 1.1rem; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 .auction-next-film__plot { position: relative; padding: 18px 0 0; }
 .auction-next-film__plot svg { display: block; width: 100%; height: 240px; border-bottom: 1px solid var(--hairline); border-left: 1px solid var(--hairline); }
 .auction-next-film__axis { position: absolute; left: 6px; font-size: .6875rem; font-variant-numeric: tabular-nums; color: var(--color-fg-muted); white-space: nowrap; }

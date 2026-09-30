@@ -215,13 +215,6 @@ defmodule AutolaunchWeb.AuctionLive do
           symbol={@page_record.quote_token_symbol}
           token_symbol={@page_record.token_symbol}
           chain={:base}
-          test_chain={@local_lab?}
-        />
-        <.facts
-          :if={@snapshot.ok?}
-          stage={@snapshot.result.stage}
-          claim_block={@snapshot.result.blocks.claim}
-          block={@snapshot.result.block.number}
         />
       </section>
       <div class="auction-layout">
@@ -310,6 +303,7 @@ defmodule AutolaunchWeb.AuctionLive do
             usd_rate={@usd_rate}
             creator_connections={@creator_connections}
             lab={@local_lab?}
+            design={:next}
           />
         </div>
       </div>
@@ -530,6 +524,7 @@ defmodule AutolaunchWeb.AuctionLive do
   attr :usd_rate, :any, required: true
   attr :creator_connections, :any, required: true
   attr :lab, :boolean, required: true
+  attr :design, :atom, default: :current
 
   defp about(assigns) do
     ~H"""
@@ -550,6 +545,7 @@ defmodule AutolaunchWeb.AuctionLive do
         </:price_note>
       </.detail_card>
       <.launch_trust
+        design={@design}
         auction={@page_record}
         connections={@creator_connections}
         token_path={@graduated_token && Paths.token(@page_record) <> "#pool"}

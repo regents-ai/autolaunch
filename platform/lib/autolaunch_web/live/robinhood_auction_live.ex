@@ -159,13 +159,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           symbol={@launch.quote_token_symbol}
           token_symbol={@launch.token_symbol}
           chain={:robinhood}
-          test_chain={Lab.test_chain?()}
-        />
-        <.facts
-          :if={@snapshot.ok?}
-          stage={@snapshot.result.stage}
-          claim_block={@snapshot.result.blocks.claim}
-          block={@snapshot.result.block.number}
         />
       </section>
       <div class="auction-layout">
@@ -225,7 +218,12 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             chain={:robinhood}
             test_chain={Lab.test_chain?()}
           />
-          <.about launch={@launch} usd_rate={@usd_rate} creator_connections={@creator_connections} />
+          <.about
+            launch={@launch}
+            usd_rate={@usd_rate}
+            creator_connections={@creator_connections}
+            design={:next}
+          />
         </div>
       </div>
       <.details launch={@launch} usd_rate={@usd_rate} reading={@reading} />
@@ -371,6 +369,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   attr :launch, :map, required: true
   attr :usd_rate, :any, required: true
   attr :creator_connections, :any, required: true
+  attr :design, :atom, default: :current
 
   defp about(assigns) do
     ~H"""
@@ -389,6 +388,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         </:price_note>
       </.detail_card>
       <.launch_trust
+        design={@design}
         auction={@launch}
         connections={@creator_connections.result}
         token_path={@launch.state == :graduated && Paths.token(@launch)}

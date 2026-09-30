@@ -5,9 +5,8 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   auction's recorded prices:
 
     * `stage_rail/1` - where the auction is, from creation to its pool;
-    * `facts/1` - the separate facts a bidder acts on (minimum, claims,
-      whole-bid returns, locked liquidity);
-    * `figures/1` - the price now, the minimum and the end of bidding;
+    * `figures/1` - the price now, the amount raised against the minimum, and
+      a live countdown to the end of bidding;
     * `filmstrip/1` - the recorded prices over the bidding window with the
       release schedule under them, a replay of each recorded price, and the
       drafted maximum;
@@ -96,75 +95,22 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   defp status_words(:failed), do: ", the auction ended here"
   defp status_words(:next), do: ", still to come"
 
-  attr :stage, :map, required: true, doc: "`Autolaunch.AuctionStage.read/4`"
-  attr :claim_block, :integer, required: true
-  attr :block, :integer, required: true, doc: "the block the facts were read at"
-
-  @doc "The facts a bidder acts on, each on its own and each with its answer in words."
-  def facts(assigns) do
-    ~H"""
-    <ul class="auction-next-facts" role="list" aria-label="What is true of this auction now">
-      <.fact
-        label="Minimum"
-        on={@stage.facts.minimum_reached}
-        yes="Reached"
-        no={if @stage.stage in [:created, :open], do: "Not reached yet", else: "Not reached"}
-      />
-      <.fact
-        label="Claims"
-        on={@stage.facts.claims_open}
-        yes="Open"
-        no={claims_closed(@stage.stage, @claim_block)}
-      />
-      <.fact
-        label="Whole bids returned"
-        on={@stage.facts.refunds_open}
-        yes="Yes: the minimum was missed"
-        no="Only if the minimum is missed"
-      />
-      <.fact
-        label="Pool liquidity"
-        on={@stage.facts.liquidity_locked}
-        yes="Locked for good"
-        no={
-          if is_nil(@stage.facts.liquidity_locked),
-            do: "Shown once the pool opens",
-            else: "Not locked"
-        }
-      />
-    </ul>
-    <p class="auction-next-source">Read from the chain at block {grouped(@block)}.</p>
-    """
-  end
-
-  attr :label, :string, required: true
-  attr :on, :any, required: true
-  attr :yes, :string, required: true
-  attr :no, :string, required: true
-
-  defp fact(assigns) do
-    ~H"""
-    <li class="auction-next-fact" data-on={to_string(@on == true)}>
-      <span class="auction-next-fact__label">{@label}</span>
-      <strong>{if @on == true, do: @yes, else: @no}</strong>
-    </li>
-    """
-  end
-
-  defp claims_closed(:pool_ready, claim_block), do: "From block #{grouped(claim_block)}"
-  defp claims_closed(:failed, _claim_block), do: "None: the minimum was missed"
-  defp claims_closed(_stage, _claim_block), do: "Once the pool is ready"
-
   attr :snapshot, :map, required: true
   attr :minimum, :string, required: true, doc: "the minimum in whole currency"
   attr :raised, :string, required: true, doc: "the currency raised in whole currency"
   attr :symbol, :string, required: true
   attr :token_symbol, :string, required: true
   attr :chain, :atom, required: true
-  attr :test_chain, :boolean, required: true
 
-  @doc "The price now per million tokens, the minimum, and when bidding ends."
+  @doc """
+  The price now per million tokens, the amount raised against the minimum, and
+  a live countdown to the end of bidding. The countdown runs to a time worked
+  out from the blocks left and the chain's block time, so it is an estimate;
+  the end block it counts to is shown under it.
+  """
   def figures(assigns) do
+    assigns = assign(assigns, :ends_at, ends_at(assigns.snapshot, assigns.chain))
+
     ~H"""
     <dl class="auction-next-figures">
       <div class="auction-next-figure">
@@ -177,10 +123,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           </.info_tip>
         </dt>
         <dd>
-          <strong>
+          <strong class="auction-next-figure__value">
             <TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} />
           </strong>
-          <span>
+          <span class="auction-next-figure__note">
             Exact: <TokenDisplay.price amount={@snapshot.clearing} unit={@symbol} /> per token.
             Read from the chain at block {grouped(@snapshot.block.number)}.
           </span>
@@ -189,36 +135,100 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       <div class="auction-next-figure">
         <dt>Minimum to graduate</dt>
         <dd>
-          <strong>{if @snapshot.stage.facts.minimum_reached, do: "Reached", else: "Not yet"}</strong>
-          <span>
-            <TokenDisplay.price amount={@raised} unit={@symbol} /> raised of
-            <TokenDisplay.price amount={@minimum} unit={@symbol} />.
+          <strong class="auction-next-figure__value">
+            <TokenDisplay.price amount={@raised} unit={@symbol} />
+          </strong>
+          <span
+            class="auction-next-figure__status"
+            data-on={to_string(@snapshot.stage.facts.minimum_reached == true)}
+          >
+            {if @snapshot.stage.facts.minimum_reached, do: "Passed", else: "Not yet"}
+          </span>
+          <span class="auction-next-figure__note">
+            Raised of the <TokenDisplay.price amount={@minimum} unit={@symbol} /> minimum.
             Reaching it does not end bidding.
           </span>
         </dd>
       </div>
       <div class="auction-next-figure">
-        <dt>
-          {if @snapshot.clock < @snapshot.blocks.end, do: "Bidding ends", else: "Bidding ended"}
-        </dt>
+        <dt>{if @ends_at, do: "Bidding ends", else: "Bidding ended"}</dt>
         <dd>
-          <strong>Block {grouped(@snapshot.blocks.end)}</strong>
-          <span>{ending(@snapshot, @chain, @test_chain)}</span>
+          <strong
+            :if={@ends_at}
+            id="auction-next-countdown"
+            class="auction-next-figure__value"
+            phx-hook=".Countdown"
+            phx-update="ignore"
+            data-ends-at={@ends_at}
+          >
+            {countdown(@ends_at - System.os_time(:millisecond))}
+          </strong>
+          <strong :if={!@ends_at} class="auction-next-figure__value">Ended</strong>
+          <span class="auction-next-figure__block">Block {grouped(@snapshot.blocks.end)}</span>
+          <span class="auction-next-figure__note">{ending(@snapshot)}</span>
         </dd>
       </div>
     </dl>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".Countdown">
+      // Counts down to the end time the server worked out, in days, hours and
+      // minutes, written the same way as the server's first render.
+      const pad = (value) => String(value).padStart(2, "0")
+
+      const words = (left) => {
+        if (left <= 0) return "Ending now"
+        const minutes = Math.floor(left / 60000)
+        if (minutes < 1) return "Under 1m"
+        const days = Math.floor(minutes / 1440)
+        const hours = Math.floor((minutes % 1440) / 60)
+        const rest = minutes % 60
+        if (days > 0) return `${days}d ${pad(hours)}h ${pad(rest)}m`
+        if (hours > 0) return `${hours}h ${pad(rest)}m`
+        return `${rest}m`
+      }
+
+      export default {
+        mounted() {
+          this.tick()
+          this.timer = setInterval(() => this.tick(), 1000)
+        },
+        destroyed() {
+          clearInterval(this.timer)
+        },
+        tick() {
+          const text = words(Number(this.el.dataset.endsAt) - Date.now())
+          if (this.el.textContent !== text) this.el.textContent = text
+        }
+      }
+    </script>
     """
   end
 
-  defp ending(%{clock: clock, blocks: %{end: finish}}, _chain, _test) when clock >= finish,
+  defp ends_at(%{clock: clock, blocks: %{end: finish}}, _chain) when clock >= finish, do: nil
+
+  defp ends_at(%{clock: clock, blocks: %{end: finish}}, chain),
+    do: System.os_time(:millisecond) + round(LaunchChain.seconds(chain, finish - clock) * 1000)
+
+  defp countdown(left) when left <= 0, do: "Ending now"
+
+  defp countdown(left) do
+    minutes = div(left, 60_000)
+    {days, hours, rest} = {div(minutes, 1440), div(rem(minutes, 1440), 60), rem(minutes, 60)}
+
+    cond do
+      minutes < 1 -> "Under 1m"
+      days > 0 -> "#{days}d #{pad(hours)}h #{pad(rest)}m"
+      hours > 0 -> "#{hours}h #{pad(rest)}m"
+      true -> "#{rest}m"
+    end
+  end
+
+  defp pad(value), do: value |> Integer.to_string() |> String.pad_leading(2, "0")
+
+  defp ending(%{clock: clock, blocks: %{end: finish}}) when clock >= finish,
     do: "The auction's clock is at block #{grouped(clock)}."
 
-  defp ending(%{clock: clock, blocks: %{end: finish}}, _chain, true),
-    do: "#{grouped(finish - clock)} blocks from now, on the auction's clock."
-
-  defp ending(%{clock: clock, blocks: %{end: finish}}, chain, false),
-    do:
-      "#{grouped(finish - clock)} blocks from now: in #{LaunchChain.time_estimate(chain, finish - clock)}, estimated from block times."
+  defp ending(%{clock: clock, blocks: %{end: finish}}),
+    do: "#{grouped(finish - clock)} blocks away. The time is estimated from block times."
 
   attr :id, :string, required: true
 
@@ -270,20 +280,29 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
     ~H"""
     <section id={@id} class="auction-next-card auction-next-film" aria-labelledby={"#{@id}-title"}>
-      <header class="auction-next-card__head">
-        <h2 id={"#{@id}-title"}>The auction so far</h2>
-        <span class="auction-next-tag">Price per 1M {@token_symbol}</span>
+      <header class="auction-next-film__head">
+        <h2 id={"#{@id}-title"}>Token Bid Price</h2>
+        <p class="auction-next-film__subtitle">Price per 1M {@token_symbol}</p>
       </header>
-      <p class="auction-next-lead">
-        The solid line is each price the auction recorded. The dashed line is the maximum
-        you are drafting. The bars underneath are how much of the supply the auction releases
-        at each stage of its schedule.
-      </p>
-      <p class="auction-next-lead">
-        The auction starts at a floor price and goes up over time. Bids are spread across all
-        remaining blocks and executed over time, like a TWAP, so the line only steps up when
-        there is enough demand to buy out the rest of the auction at a higher price.
-      </p>
+      <p class="auction-next-lead">The solid line is the price each block recorded.</p>
+      <ul class="auction-next-film__tips">
+        <li>
+          The line only steps up when there is enough demand to buy the rest of the auction at a
+          higher price. While it stays flat, every bid is still buying at that price.
+        </li>
+        <li>
+          Type a max price in the bid form to see it here as a dashed line. Each block the price
+          stays below it, part of your budget buys tokens; once the price passes it, the rest of
+          your budget stops buying.
+        </li>
+        <li>
+          Your budget is spread over the blocks left, so bidding earlier buys over more blocks.
+          Waiting only gets you a worse average price.
+        </li>
+        <li>
+          The bars underneath show how much of the supply each stage of the schedule releases.
+        </li>
+      </ul>
       <div class="auction-next-film__plot">
         <span class="auction-next-film__axis auction-next-film__axis--top">
           <TokenDisplay.price amount={per_million(@film.top)} unit={@symbol} />
