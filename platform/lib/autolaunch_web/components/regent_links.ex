@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
   alias AutolaunchWeb.Components.TokenLinks
 
   slot :lead, doc: "what comes first in the row, before Buy $REGENT"
+  slot :trail, doc: "what comes last in the row, after the GitHub icon"
 
   def header_links(assigns) do
     assigns = assign(assigns, :local_lab?, Autolaunch.Lab.test_chain?())
@@ -73,6 +74,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
       <nav class="regent-social-links" aria-label="Regents on GitHub">
         <.github_link />
       </nav>
+      {render_slot(@trail)}
     </div>
     """
   end

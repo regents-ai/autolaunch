@@ -1,6 +1,7 @@
 /* Figures on the portfolio, the token and auction pages and in every dialog: the number reads bold in the page's ink, its ticker in the brand's orange, a dollar value quiet beside it. Light pages take a deeper orange for contrast. */
 :root { --ticker-ink: var(--brand-accent); }
 :root[data-theme="light"] { --ticker-ink: #c2410c; }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) { --ticker-ink: #c2410c; } }
 
 :where(.portfolio, .token-page, .auction-page, dialog) .figure { font-variant-numeric: tabular-nums; }
 :where(.portfolio, .token-page, .auction-page, dialog) .figure__value { color: var(--color-fg); font-weight: 600; }

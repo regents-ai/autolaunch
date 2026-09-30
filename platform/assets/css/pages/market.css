@@ -101,6 +101,7 @@
 .launch-trust__checked { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px solid color-mix(in srgb, #3ee04c 60%, var(--hairline)); border-radius: 4px; font-size: .6875rem; line-height: 1.5; white-space: nowrap; }
 .launch-trust__checked > span { color: #3ee04c; }
 :root[data-theme="light"] .launch-trust__checked > span { color: #1f9e2c; }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) .launch-trust__checked > span { color: #1f9e2c; } }
 .launch-trust__muted { color: var(--color-fg-muted); }
 .launch-trust__rows a + .launch-trust__muted { margin-left: 8px; }
 .launch-trust__block > .launch-trust__note { color: var(--color-fg-muted); }
