@@ -65,8 +65,21 @@ defmodule Autolaunch.Robinhood.Positions do
   """
   @spec read(Human.t()) :: {:ok, [position()]} | {:error, :unavailable}
   def read(%Human{} = actor) do
-    with {:ok, wallets} <- TokenHoldings.verified_wallets(actor),
-         {:ok, positions} <- positions(wallets),
+    case TokenHoldings.verified_wallets(actor) do
+      {:ok, wallets} -> read_wallets(wallets)
+      _error -> {:error, :unavailable}
+    end
+  end
+
+  @doc """
+  The same for one wallet alone, the one the session signed in with, which the
+  caller reads from the verified session.
+  """
+  @spec read_wallet(String.t()) :: {:ok, [position()]} | {:error, :unavailable}
+  def read_wallet(wallet) when is_binary(wallet), do: read_wallets([wallet])
+
+  defp read_wallets(wallets) do
+    with {:ok, positions} <- positions(wallets),
          {:ok, listings} <- listings(positions) do
       {:ok, Enum.map(positions, &Map.merge(&1, Map.fetch!(listings, &1.auction)))}
     else

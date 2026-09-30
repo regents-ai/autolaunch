@@ -47,7 +47,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
         label: "REGENT stakers' fee",
         rate: percent(schedule.regent_lane_bps),
         charged_on: :stock,
-        receiver: "REGENT stakers"
+        receiver: "REGENT staking"
       },
       %{
         key: :stakers,

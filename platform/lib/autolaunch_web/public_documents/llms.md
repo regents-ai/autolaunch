@@ -74,8 +74,8 @@ The Uniswap hook fee on revstake tokens benefits the creator's revstaking contra
 | Launch | Fee paid in | First 1% | Second 1% |
 | --- | --- | --- | --- |
 | Revstake (Base) | REGENT or the Revstake token, depending on the trade | Sent to Regent | Added to the token's staking rewards |
-| Memestake (Base) | The paired stock, buying or selling | Swapped to USDC for REGENT stakers | Added to the token's staking rewards |
-| Memestake (Robinhood Chain) | The paired stock, buying or selling | Swapped to USDG for REGENT stakers, held on Robinhood Chain until the transfer to Base is set up | Added to the token's staking rewards |
+| Memestake (Base) | The paired stock, buying or selling | Swapped to USDC and paid into REGENT staking | Added to the token's staking rewards |
+| Memestake (Robinhood Chain) | The paired stock, buying or selling | Swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up | Added to the token's staking rewards |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 
@@ -105,7 +105,7 @@ $REGENT is the value token for all Regents Labs products. The company does not v
 
 Why stake:
 
-- USDC revenue: stakers share the USDC paid into staking. Each staker's cut is their share of all REGENT.
+- USDC revenue: stakers are paid from the USDC sent to staking by their share of all 100 billion REGENT: staking 1% of all REGENT earns 1% of that USDC. The part for REGENT that is not staked goes to the Regent treasury.
 - REGENT emissions: paid in REGENT while the reward supply lasts. The rate can change.
 - You stay in control: stake, unstake, claim or compound from your own wallet. Every step needs your signature.
 
@@ -133,7 +133,7 @@ Regents Labs is an agentic product lab with Autolaunch, techtree.sh, patchbay.he
 
 ### In the browser (WebMCP)
 
-Browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft) get these tools on autolaunch.sh, each on the pages its row names. The reads change nothing: they make the same reads as the API, and `autolaunch_my_positions` reads the signed-in person's own bids and tokens. The wallet tools press the same button the page shows: the person's wallet opens and asks them to confirm, and nothing is sent without that. A call answers whether it was sent, with the transaction, or why not. The `profile_` tools work only for the signed-in person's own shared profile and never move money. The [tool manifest](https://autolaunch.sh/capabilities) lists them as JSON. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
+Browsers that support WebMCP (`document.modelContext`, the 4 September 2026 Web Machine Learning Community Group draft) get these tools on autolaunch.sh, each on the pages its row names. The reads change nothing: they make the same reads as the API, and `autolaunch_my_positions` reads the signed-in wallet's own bids and tokens. The wallet tools press the same button the page shows: the person's wallet opens and asks them to confirm, and nothing is sent without that. A call answers whether it was sent, with the transaction, or why not. The `profile_` tools work only for the signed-in person's own shared profile and never move money. The [tool manifest](https://autolaunch.sh/capabilities) lists them as JSON. [Full tool contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
 
 {{tools}}
 
@@ -146,7 +146,7 @@ The same reads, as JSON, with amounts as exact decimal strings:
 - `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`
 - `GET https://autolaunch.sh/api/v1/tokens`
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
-- `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in person's own bids and tokens; it needs their sign-in in the same browser.
+- `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.
 
 The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.
 

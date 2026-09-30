@@ -46,8 +46,22 @@ defmodule Autolaunch.TokenHoldings do
   """
   @spec read(Human.t()) :: {:ok, [holding()]} | {:error, :unavailable}
   def read(%Human{} = actor) do
-    with {:ok, wallets} <- verified_wallets(actor),
-         {:ok, tokens} <- Autolaunch.list_tokens(actor: actor),
+    case verified_wallets(actor) do
+      {:ok, wallets} -> holdings(actor, wallets)
+      _error -> {:error, :unavailable}
+    end
+  end
+
+  @doc """
+  The same for one wallet alone, the one the session signed in with, which the
+  caller reads from the verified session.
+  """
+  @spec read_wallet(Human.t(), String.t()) :: {:ok, [holding()]} | {:error, :unavailable}
+  def read_wallet(%Human{} = actor, wallet) when is_binary(wallet),
+    do: holdings(actor, [wallet])
+
+  defp holdings(actor, wallets) do
+    with {:ok, tokens} <- Autolaunch.list_tokens(actor: actor),
          {:ok, base} <- base_holdings(tokens, wallets),
          {:ok, robinhood} <- robinhood_holdings(wallets) do
       {:ok, base ++ robinhood}
