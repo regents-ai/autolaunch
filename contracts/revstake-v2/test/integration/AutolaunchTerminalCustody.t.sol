@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.26;
+
+import {BaseBindings} from "../../src/bindings/BaseBindings.sol";
+import {RegentLBPStrategyV2} from "../../src/strategy/RegentLBPStrategyV2.sol";
+import {AutolaunchFixture} from "./AutolaunchFixture.sol";
+
+/// @notice `MIG-022`: what a real graduation does with the shared PositionManager's existing
+///         inventory.
+/// @dev The strategy funds the PositionManager with exactly the two amounts its own position
+///      consumes, so REGENT and SUBJECT already sitting at that shared contract are byte-for-byte
+///      untouched by this launch's graduation.
+contract AutolaunchTerminalCustodyTest is AutolaunchFixture {
+    function setUp() public {
+        _deployAutolaunch();
+    }
+
+    // -------------------------------------------------------------------------
+    // MIG-022 — exact PositionManager funding
+    // -------------------------------------------------------------------------
+
+    /// @notice `MIG-022`, `C6-I8`: a real graduation transfers the PositionManager exactly the two
+    ///         amounts its own position consumes, so REGENT and SUBJECT already held there are
+    ///         untouched to the unit.
+    /// @dev The pinned planner closes every plan by settling `CONTRACT_BALANCE` of each pool
+    ///      currency, which would settle the shared PositionManager's *whole* balance and hand the
+    ///      resulting credit back to the strategy as if it were this launch's unspent budget — from
+    ///      there it would leave through this launch's own destinations. The strategy replaces those
+    ///      two settlement amounts with the exact amounts it transfers in, and this proves it.
+    ///
+    ///      Both pre-seeds arrive through real production paths and no cheatcode writes a balance: a
+    ///      REGENT holder sends REGENT to the shared PositionManager, and the auction's own bidder
+    ///      claims SUBJECT at `claimBlock` — which precedes the migration block — and sends some of it
+    ///      there. The launch then graduates normally, with its LP consumption, its residue routing
+    ///      and its recorded artifacts all still exact.
+    function test_MIG_022_GraduationLeavesForeignPositionManagerBalancesUntouched() public {
+        Launched memory launched = _defaultLaunch();
+        _rollToStart(launched);
+        uint256 bidId = _bid(launched, bidder, 3 * FLOOR_RAISE, _bidPrice(500));
+
+        uint256 seededRegent = 1_000e18;
+        address stranger = makeAddr("position-manager-stranger");
+        regent.mint(stranger, seededRegent);
+        vm.prank(stranger);
+        regent.transfer(BaseBindings.POSITION_MANAGER, seededRegent);
+
+        // The bidder's own claimed SUBJECT, sent from the bidder's own account. The pinned CCA
+        // refuses `claimTokens` for a bid that has not been exited, so a claim is always the bid
+        // owner's own two calls, and `claimBlock` precedes the migration block.
+        vm.roll(uint256(launched.auction.claimBlock()));
+        vm.prank(bidder);
+        launched.auction.exitBid(bidId);
+        vm.prank(bidder);
+        launched.auction.claimTokens(bidId);
+        uint256 seededSubject = launched.subject.balanceOf(bidder);
+        assertGt(seededSubject, 0, "the bidder claimed no SUBJECT to pre-seed the PositionManager with");
+        vm.prank(bidder);
+        launched.subject.transfer(BaseBindings.POSITION_MANAGER, seededSubject);
+
+        uint256 regentBefore = regent.balanceOf(BaseBindings.POSITION_MANAGER);
+        uint256 subjectBefore = launched.subject.balanceOf(BaseBindings.POSITION_MANAGER);
+        assertEq(regentBefore, seededRegent, "the PositionManager holds no foreign REGENT");
+        assertEq(subjectBefore, seededSubject, "the PositionManager holds no foreign SUBJECT");
+
+        uint256 treasuryRegentBefore = regent.balanceOf(treasury);
+        uint256 auctionRegentBefore = regent.balanceOf(address(launched.auction));
+        uint256 auctionSubjectBefore = launched.subject.balanceOf(address(launched.auction));
+
+        _rollToMigration(launched);
+        strategy.migrate(address(launched.auction));
+
+        // The whole claim: not "roughly preserved", exactly preserved, in both pool assets.
+        assertEq(
+            regent.balanceOf(BaseBindings.POSITION_MANAGER),
+            regentBefore,
+            "graduation settled REGENT this launch never funded"
+        );
+        assertEq(
+            launched.subject.balanceOf(BaseBindings.POSITION_MANAGER),
+            subjectBefore,
+            "graduation settled SUBJECT this launch never funded"
+        );
+
+        // And the foreign inventory reached neither of this launch's two value destinations: the
+        // treasury received exactly the unused raise and the escrow exactly the unpaired reserve plus
+        // the auction's unsold remainder.
+        RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
+        uint256 swept = auctionRegentBefore - regent.balanceOf(address(launched.auction));
+        assertGt(swept, d.lpRegentUsed, "the position consumed the whole raise, so there is no residue to check");
+        assertEq(
+            regent.balanceOf(treasury) - treasuryRegentBefore,
+            swept - d.lpRegentUsed,
+            "the treasury received more than this launch's own unused raise"
+        );
+        uint256 unsoldSwept = auctionSubjectBefore - launched.subject.balanceOf(address(launched.auction));
+        assertEq(
+            launched.subject.balanceOf(address(launched.escrow)),
+            PENDING_ALLOCATION + RESERVE_ALLOCATION - d.lpSubjectUsed + unsoldSwept,
+            "the escrow received other than this launch's own unpaired reserve and unsold remainder"
+        );
+
+        // The graduation itself is entirely normal.
+        assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategyV2.Lifecycle.Graduated), "the launch did not graduate");
+        assertEq(positionManager.nextTokenId(), d.lpTokenId + 1, "exactly one position was not minted");
+        assertGt(d.lpRegentUsed, 0, "the position consumed no REGENT");
+        assertGt(d.lpSubjectUsed, 0, "the position consumed no SUBJECT");
+        assertEq(regent.balanceOf(address(strategy)), 0, "the strategy kept REGENT after graduation");
+        assertEq(launched.subject.balanceOf(address(strategy)), 0, "the strategy kept SUBJECT after graduation");
+    }
+}

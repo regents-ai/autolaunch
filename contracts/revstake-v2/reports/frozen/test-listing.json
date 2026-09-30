@@ -1,0 +1,307 @@
+{
+  "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
+  "total": 201,
+  "tests": {
+    "test/escrow/ConditionalVestingEscrowV2.t.sol": {
+      "ConditionalVestingEscrowV2Test": [
+        "test_ESC_001_InitializationIsAtomicAndHappensExactlyOnce",
+        "test_ESC_002_ResolutionHappensExactlyOnceAndIsExclusive",
+        "test_ESC_004_FailureRetiresTheDeliveredAuctionAllocation",
+        "test_ESC_005_FailureProvesFullSupplyBeforeRetiring",
+        "test_ESC_006_LateFailedSubjectIsRetiredWithoutReopening",
+        "test_ESC_007_GraduationActivatesThreeSixtyFiveDayVesting",
+        "test_ESC_008_EscrowHoldsNoCustodyAuthorityOutsideResolution",
+        "test_ESC_009_PendingCustodyIsExactlySixtyFivePercent",
+        "test_ESC_010_PendingCustodyCannotBeReleasedBeforeResolution",
+        "test_ESC_011_OnlyTheStrategyResolvesALaunch",
+        "test_ESC_012_VestingReleasesLinearlyOverThreeSixtyFiveDays",
+        "test_ESC_013_VestingBeneficiaryIsTheFixedImmutableTreasury"
+      ]
+    },
+    "test/factory/AutolaunchFactoryConstruction.t.sol": {
+      "AutolaunchFactoryConstructionTest": [
+        "test_DEP_060_CloneImplementationAndCloneRuntimeHashesMatchTheFrozenArtifacts",
+        "test_DEP_060_ConstructorRejectsAnyUnexpectedRuntimeCodeHash",
+        "test_DEP_060_Uerc20FactoryRuntimeIdentityIsTheAdmittedOne",
+        "test_HOK_003_FA07_I3_FactoryBindsHookToStrategyAndPoolManager",
+        "test_HOK_003_FA07_I3_FactoryHookAddressCarriesExactPermissionBits",
+        "test_STR_001_FactoryConstructionBindsStrategyToFactoryAndHook"
+      ]
+    },
+    "test/factory/AutolaunchFactoryGovernance.t.sol": {
+      "AutolaunchFactoryGovernanceTest": [
+        "test_FAC_007_AFreshFactoryIsBornPausedUntilGovernanceOpensIt",
+        "test_FAC_007_OnlyGovernancePausesNewLaunches",
+        "test_FAC_027_LaunchMovesNoRegentAndLeavesNoAllowance"
+      ]
+    },
+    "test/factory/AutolaunchFactoryLaunch.t.sol": {
+      "AutolaunchFactoryLaunchTest": [
+        "test_FAC_001_LaunchUsesSequentialIdentity",
+        "test_FAC_002_SaltDerivesOnlyFromLaunchId",
+        "test_FAC_003_DuplicateNamesAndSymbolsAreAllowed",
+        "test_FAC_004_SupplySplitsExactlyTwentyFifteenSixtyFive",
+        "test_FAC_011_AuctionStartIsAlwaysBlockNumberPlus300",
+        "test_FAC_012_NoUserSuppliedStartHookPoolSafeIdentityOrSalt",
+        "test_FAC_013_MetadataIsNonemptyAndByteBounded",
+        "test_FAC_014_MetadataBoundaryInputsBehaveExactly",
+        "test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated",
+        "test_FAC_015_TreasuryIsImmutable",
+        "test_FAC_017_LauncherProvenanceGivesNoAuthority",
+        "test_FAC_020_CompleteLaunchProducesTokenAuctionAndEscrow",
+        "test_FAC_022_SimultaneousLaunchesShareOneStrategyAndHookAndStayIsolated",
+        "test_FAC_023_RequiredRaiseIsTheFloorMinimumOrTheLauncherMinimum",
+        "test_STR_017_DistributionIsExactlyTwentyFifteenSixtyFive",
+        "test_TOK_001_TotalSupplyIsExactlyOneHundredBillion",
+        "test_TOK_002_DecimalsAreEighteen",
+        "test_TOK_003_AutolaunchFactoryIsTheOnlyRecordedCreator",
+        "test_TOK_004_LaunchMetadataIsImmutableAndEqualsItsLaunchParameters",
+        "test_TOK_005_NoPublicMintOwnerTaxBlacklistUpgradeOrAdministrativeBurn"
+      ]
+    },
+    "test/factory/AutolaunchFactoryReceivers.t.sol": {
+      "AutolaunchFactoryReceiversTest": [
+        "test_FAC_024_CanonicalRegistrationRejectsUnauthorizedAndMismatchedState",
+        "test_FAC_024_CreatePaymentReceiverIsPermissionlessAndCustomOnly",
+        "test_RCV_001_CustomReceiverCreationIsPermissionless"
+      ]
+    },
+    "test/factory/AutolaunchFactoryRollback.t.sol": {
+      "AutolaunchFactoryRollbackTest": [
+        "test_FAC_021_AnyLaunchStageFailureRollsBackCompletely",
+        "test_FAC_028_RefusedTreasuryRollsTheWholeLaunchBack"
+      ]
+    },
+    "test/gas/HookCallbackGas.t.sol": {
+      "HookCallbackGasTest": [
+        "test_GAS_007_HookCallbackAndRouterSettlementGasAreMeasured"
+      ]
+    },
+    "test/hook/FA07OperatingPath.t.sol": {
+      "FA07OperatingPathTest": [
+        "test_HOK_007_FA07_I7_OfficialPathChargesRealizedRegentOutputInKind",
+        "test_HOK_007_FA07_I7_OfficialPathChargesRealizedSubjectOutputInKind"
+      ]
+    },
+    "test/hook/RegentFeeHook.t.sol": {
+      "RegentFeeHookTest": [
+        "test_HOK_001_FA07_I1_AllTradeFormsAndOrderingsUseRealizedUnspecifiedCurrency",
+        "test_HOK_001_FA07_I1_PriceLimitedPartialAndZeroFillsRemainValid",
+        "test_HOK_001_FA07_I1_RawInt128MinimumUnspecifiedComponentsAreExact",
+        "test_HOK_002_FA07_I2_BothAssetsRouteInKindWithExactCleanLanes",
+        "test_HOK_002_FA07_I2_RoundingBoundariesAreMeasuredFromExecution",
+        "test_HOK_003_FA07_I3_ImmutableBindingsAndExactRegistrationAuthority",
+        "test_HOK_003_FA07_I3_PermissionsAndInheritedBeforeSwapBoundaryAreExact",
+        "test_HOK_004_FA07_I4_ExactOutputReserveExhaustionRollsBack",
+        "test_HOK_004_FA07_I4_ForeignAndReentrantCallbacksGainNoAuthority",
+        "test_HOK_004_FA07_I4_SplitterFailuresRollbackBothFeeAssets",
+        "test_HOK_005_FA07_I5_EventUsesRouterContextWithoutAuthority",
+        "test_HOK_005_FA07_I5_PostHookWalletLimitsAreExact",
+        "test_HOK_006_FA07_I6_ObsoletePreSwapControlPlaneIsAbsent"
+      ]
+    },
+    "test/integration/AutolaunchFailure.t.sol": {
+      "AutolaunchFailureTest": [
+        "test_FAIL_001_UnmetRaiseResolvesAsFailed",
+        "test_FAIL_002_ZeroBidsResolveAsFailed",
+        "test_FAIL_003_PartialBidsBelowTheRaiseResolveAsFailed",
+        "test_FAIL_004_RetirementProvesFullInventoryFirst",
+        "test_FAIL_005_DeadAddressDeltaEqualsTheRetiredSupply",
+        "test_FAIL_006_BidderRefundsSurviveRetirement",
+        "test_FAIL_007_FailureCommitsNoDownstreamInfrastructure",
+        "test_FAIL_008_RepeatedFailureResolutionMovesNoValue"
+      ]
+    },
+    "test/integration/AutolaunchFullSale.t.sol": {
+      "AutolaunchFullSaleTest": [
+        "testFuzz_MIN_002_MinimumPlusOneUnitGraduatesInAnyBlock",
+        "testFuzz_SALE_004_SoleBidderBuysTheWholeSaleAllocation",
+        "test_MIN_001_FloorMinimumMetExactlyGraduatesAndOneUnitBelowFails",
+        "test_MIN_003_MinimumBidAfterTheFirstBlockIsCountedOneUnitShortAndFails",
+        "test_MIN_004_LauncherMinimumAboveTheFloorMinimumIsTheRequiredRaise",
+        "test_SALE_001_SoleBidderAtTheStartBuysTheWholeSaleAllocationBothOrderings",
+        "test_SALE_002_SoleBidderInTheLastEligibleBlockBuysTheWholeSaleAllocation",
+        "test_SALE_003_SoleBidderPartlyFilledAtItsLimitBuysTheWholeSaleAllocation",
+        "test_SALE_005_SeveralBiddersEachWayABidEndsBuyTheWholeSaleAllocationBothOrderings",
+        "test_SALE_006_HighLauncherMinimumGraduatesAndSellsTheWholeSaleAllocation",
+        "test_SALE_007_SubjectSentToTheStrategyBeforeMigrationGoesToTheEscrow"
+      ]
+    },
+    "test/integration/AutolaunchGraduation.t.sol": {
+      "AutolaunchGraduationTest": [
+        "test_MIG_001_CheckpointAndProofComeFirst",
+        "test_MIG_002_DerivesFinalPricePoolKeyAndPoolId",
+        "test_MIG_003_DeploysTheSplitterClone",
+        "test_MIG_004_RegistersThePoolIdOnceInTheHook",
+        "test_MIG_005_InitializesThePoolAtTheRaiseOverTheSaleAllocation",
+        "test_MIG_006_MintsOneFullRangePositionToThePermanentLocker",
+        "test_MIG_007_UnusedRegentGoesToTheImmutableTreasury",
+        "test_MIG_008_LeftoverSubjectGoesToTheEscrow",
+        "test_MIG_009_UnsoldSubjectIsSweptToTheStrategy",
+        "test_MIG_010_DeploysTheCanonicalZeroReferralReceiver",
+        "test_MIG_011_ActivatesVestingFromTheGraduationTimestamp",
+        "test_MIG_012_RecordsGraduationAtomically",
+        "test_MIG_013_GraduationStepsExecuteInTheFixedOrder",
+        "test_MIG_014_OfficialPoolIsStaticThirtyBipsTickSpacingSixty",
+        "test_MIG_015_ThirdPartyPositionsDoNotAffectTheManagedPosition",
+        "test_MIG_016_TokenUseAndResiduesMatchExactly"
+      ]
+    },
+    "test/integration/AutolaunchPauseScope.t.sol": {
+      "AutolaunchPauseScopeTest": [
+        "test_FAC_019_PauseNeverBlocksExistingLifecycleOperations",
+        "test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause"
+      ]
+    },
+    "test/integration/AutolaunchTerminalCustody.t.sol": {
+      "AutolaunchTerminalCustodyTest": [
+        "test_MIG_022_GraduationLeavesForeignPositionManagerBalancesUntouched"
+      ]
+    },
+    "test/integration/AutolaunchTerminalRollback.t.sol": {
+      "AutolaunchTerminalRollbackTest": [
+        "test_MIG_017_FailureAtEveryExternalCallRollsBack",
+        "test_MIG_018_RepeatedGraduationRevertsAndMovesNoValue",
+        "test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRollback"
+      ]
+    },
+    "test/integration/AutolaunchTreasuryCollision.t.sol": {
+      "AutolaunchTreasuryCollisionTest": [
+        "test_STR_019_NextCloneTreasuryStallsMigrationUntilAnInterveningGraduationMovesTheNonce"
+      ]
+    },
+    "test/invariant/AutolaunchLifecycleInvariants.t.sol": {
+      "AutolaunchLifecycleInvariantsTest": [
+        "invariant_INV_001_SubjectSupplyIsConserved",
+        "invariant_INV_006_IsolatedReserveIsConserved",
+        "invariant_INV_007_LifecycleStatesAreExclusiveAndTerminal",
+        "invariant_INV_009_ReservesAreNeverUsedAcrossLaunches",
+        "invariant_INV_010_NoUnexplainedFactoryStrategyOrHookBalances",
+        "test_INV_009_HandlerReleaseAndGiftBranchesAreReachable"
+      ]
+    },
+    "test/invariant/HookInvariants.t.sol": {
+      "HookInvariantsTest": [
+        "invariant_INV_004_FA07_I4_HookNeverRetainsAttributableFeeAssets"
+      ]
+    },
+    "test/invariant/ReceiverInvariants.t.sol": {
+      "ReceiverInvariantsTest": [
+        "invariant_INV_008_ReceiverAccountingIsConserved"
+      ]
+    },
+    "test/invariant/SplitterInvariants.t.sol": {
+      "SplitterInvariantsTest": [
+        "invariant_INV_002_SplitterRemainsSolvent",
+        "invariant_INV_003_StakedPrincipalIsNeverSpent",
+        "invariant_INV_005_RemainderIsNeverLostOrDoublePaid"
+      ]
+    },
+    "test/revenue/PaymentReceiverV1.t.sol": {
+      "PaymentReceiverV1Test": [
+        "test_RCV_002_ReferralShareIsImmutable",
+        "test_RCV_003_ReferralBoundaryValuesBehaveExactly",
+        "test_RCV_004_ReferralRunsBeforeSplitterProcessing",
+        "test_RCV_005_CanonicalReceiverHasZeroReferralAndTreasuryNote",
+        "test_RCV_006_NoteDefaultsToTheReceiverAddressAndIsEmitted",
+        "test_RCV_007_PayAndSweepShareTheSameAtomicRoute",
+        "test_RCV_008_OrdinaryEthTransfersRevert",
+        "test_RCV_009_RecoveryIsPermissionlessWholeBalanceToTheTreasury",
+        "test_RCV_010_RecoveryCanNeverReachSupportedTokens",
+        "test_RCV_011_MaliciousTokenFailsOnlyItsOwnRecoveryCall",
+        "test_RCV_012_PayAndSweepValidateSupportedTokens",
+        "test_RCV_013_BeneficiaryAndSplitterBindingsAreImmutable",
+        "test_RCV_014_ReferralPaymentIsExactlyFlooredToTheImmutableBeneficiary",
+        "test_RCV_015_PaySweepAndRecoveryReentrancyCannotChangeAccounting",
+        "test_RCV_016_NoteEditorIsFixedAtInitialization"
+      ]
+    },
+    "test/revenue/SubjectSplitterV1.t.sol": {
+      "SubjectSplitterV1Test": [
+        "testFuzz_SPL_012_PaidPlusClaimableNeverExceedsRecognizedRevenue",
+        "testFuzz_SPL_012_RecognizedRevenueRemainsSolvent",
+        "testFuzz_SPL_013_StakeSnapshotsPayExactlyWhatWasEarned",
+        "test_SPL_001_RecognizedAssetsAreExactlyUsdcRegentAndSubject",
+        "test_SPL_002_EveryRecognizedInflowIsSkimmedExactlyOnce",
+        "test_SPL_003_UsdcSkimApprovesDepositsVerifiesAndClearsAllowance",
+        "test_SPL_004_RegentAndSubjectSkimsGoToTheRegentSafe",
+        "test_SPL_005_NetSplitsByFixedSupplyCoverage",
+        "test_SPL_006_UncoveredNetGoesImmediatelyToTheImmutableTreasury",
+        "test_SPL_007_PerTokenRemainderIsProtectedAndCarriedForward",
+        "test_SPL_008_PrincipalClaimsAndRemainderAreExcludedFromSurplus",
+        "test_SPL_009_EveryValueExitWaitsForTheBlockAfterTheStake",
+        "test_SPL_009_StakeAndAccrualTakeEffectImmediately",
+        "test_SPL_011_BareTransfersBecomeRevenueOnlyThroughRecognition",
+        "test_SPL_013_StakeChangesNeverOverCreditOrStrandWholeUnits",
+        "test_SPL_014_CallerOnlyFunctionsActOnlyForTheCaller",
+        "test_SPL_015_ClaimAllSettlesExactlyTheThreeRecognizedTokens",
+        "test_SPL_016_SkimRoundingIsExactAtTheInflowBoundaryInputs",
+        "test_SPL_017_RecoveryIsPermissionlessWholeBalanceToTheTreasury",
+        "test_SPL_018_RecoveryCanNeverReachProtectedSplitterAssets",
+        "test_SPL_019_OrdinaryEthTransfersRevert",
+        "test_SPL_020_DepositRecognizedRevenueRecognizesExactlyOnce",
+        "test_SPL_021_ReentrancyCannotChangeSplitterAccounting",
+        "test_SPL_022_RecoveryTokenReentrancyCannotReachProtectedSplitterAssets",
+        "test_SPL_023_InitializationBindsOnlyTheCompleteSubjectSupply"
+      ]
+    },
+    "test/strategy/RegentLBPStrategy.t.sol": {
+      "RegentLBPStrategyTest": [
+        "test_ESC_003_FailedLaunchCreatesNoGraduatedArtifacts",
+        "test_ESC_003_FailureSendsTheAuctionAllocationAndReserveToEscrow",
+        "test_ESC_003_ZeroBidFailureRetiresTheCompleteSupply",
+        "test_STR_001_BindHookRejectsCodelessOrMismatchedHooks",
+        "test_STR_001_FactoryAndHookBindingIsIrreversible",
+        "test_STR_001_FactoryBindsWhileStillConstructing",
+        "test_STR_001_ImmutableBindingsAreFixedAtConstruction",
+        "test_STR_002_InitializationIsImpossibleBeforeHookBinding",
+        "test_STR_002_OnlyTheBoundFactoryInitializesDistributions",
+        "test_STR_003_MigrateIsPermissionless",
+        "test_STR_005_AuctionDurationIs86401Blocks",
+        "test_STR_006_ClaimDelayIs64Blocks",
+        "test_STR_007_MigrationEligibilityIsEndPlus128Blocks",
+        "test_STR_008_ScheduleIsTheFrozen104ByteThirteenStepSchedule",
+        "test_STR_009_AuctionOpensAtTheLaunchFloor",
+        "test_STR_010_BidTickIsOneHundredthOfTheFloor",
+        "test_STR_011_AuctionProtocolFeeIsZero",
+        "test_STR_011_NonZeroProtocolFeeControllerIsRejected",
+        "test_STR_012_ReserveIsIsolatedPerAuction",
+        "test_STR_012_SimultaneousLaunchesCannotShareAReserve",
+        "test_STR_013_AdmittedMaximumRaiseIsReachedByRealOnGridBidding",
+        "test_STR_013_CanonicalInitializationAdmitsOnlyTheFrozenParameterSet",
+        "test_STR_013_InauthenticEscrowIsRejected",
+        "test_STR_013_RequiredRaiseIsTheFloorMinimumOrTheLauncherMinimum",
+        "test_STR_013_StartIsAlwaysCurrentBlockPlus300",
+        "test_STR_013_UnexpectedTokenBehaviourRollsInitializationBack",
+        "test_STR_015_ActualLpConsumptionIsRecorded",
+        "test_STR_015_FinalizationProvesGraduationBeforeCommitting",
+        "test_STR_015_GraduationExecutesTheCompleteTerminalOrder",
+        "test_STR_015_MigrationBeforeEligibilityIsRejected",
+        "test_STR_015_UnrelatedStrategyRegentIsPreserved",
+        "test_STR_016_UnknownAuctionIsRejected",
+        "test_STR_018_FinalizationIsOneShot",
+        "test_STR_018_RepeatedFailureMigrationIsRejected",
+        "test_STR_019_AdmissibleTreasuryClassesAreAccepted",
+        "test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists"
+      ]
+    },
+    "test/strategy/RegentLBPStrategyPricing.t.sol": {
+      "RegentLBPStrategyPricingTest": [
+        "testFuzz_STR_014_EveryReachableFinalPriceConvertsInsideTheTickRange",
+        "testFuzz_STR_014_GraduatedDistributionNeverPlansZeroLiquidity",
+        "test_STR_014_BothCurrencyOrderingsPreservePriceRelationships",
+        "test_STR_014_ReachablePriceBoundariesConvertInBothOrderings"
+      ]
+    },
+    "test/strategy/RegentLBPStrategyRollback.t.sol": {
+      "RegentLBPStrategyRollbackTest": [
+        "test_STR_004_CheckpointExhaustionIsResolvedUpstreamNotByRetryState",
+        "test_STR_004_NoRetryRecoveryOrAlternatePoolSurfaceExists",
+        "test_STR_004_ReentrantDependencyCannotEnterASecondMutation",
+        "test_STR_004_RollbackIsCompleteAfterEveryExternalStage",
+        "test_STR_004_RollbackIsCompleteAtEveryNamedExternalBoundary",
+        "test_STR_004_TechnicalFailureIsAnOrdinaryRevertWithNoRetryState"
+      ]
+    }
+  }
+}

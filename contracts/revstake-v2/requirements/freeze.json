@@ -1,0 +1,82 @@
+{
+  "note": "What contracts/stocks-v2/bin/freeze.py freezes for the Base Revstake v2 package. Names only: every byte, selector, topic, size and digest is derived from the compiler artifacts and the dependency snapshot, never written here.",
+  "component": "contracts/revstake-v2",
+  "chain": {
+    "name": "base-mainnet",
+    "id": 8453
+  },
+  "frozen_identity": "requirements/frozen-identity.json",
+  "owned_source_prefixes": [
+    "src/"
+  ],
+  "production_contracts": {
+    "ConditionalVestingEscrowV2": {
+      "role": "The per-launch escrow implementation: holds the launch's 65% vesting allocation, vests it and the SUBJECT left over at graduation to the treasury, and retires the whole supply to the dead address when a launch fails. Each launch receives a Solady minimal-proxy clone of it.",
+      "deployed_by": "deployment script (CREATE from the deployer), second in the deployment order; cloned per launch by the factory"
+    },
+    "SubjectSplitterV1": {
+      "role": "The per-launch revenue splitter implementation every graduated launch's fees and payments land in; each graduated launch receives a Solady minimal-proxy clone of it.",
+      "deployed_by": "deployment script (CREATE from the deployer), third in the deployment order; cloned per graduation by the strategy"
+    },
+    "PaymentReceiverV1": {
+      "role": "The per-launch payment receiver implementation that forwards payments into the launch's splitter; cloned per receiver by the factory.",
+      "deployed_by": "deployment script (CREATE from the deployer), fourth in the deployment order; cloned by the factory"
+    },
+    "RegentsAutolaunchFactoryV2": {
+      "role": "The Revstake launch factory: creates the token, its escrow and its CCA auction for every launch, selling 20% with a 15% pool reserve and 65% vesting, at the launch's floor price and required raise.",
+      "deployed_by": "deployment script (CREATE from the deployer), fifth in the deployment order"
+    },
+    "RegentLBPStrategyV2": {
+      "role": "The shared migration strategy: graduates a launch that met its required raise into the official v4 pool at the raise divided by the sale allocation, pairs the whole reserve with three quarters of the raise, sends the rest to the treasury, and sends every SUBJECT left over to the launch's escrow to vest with the 65%; retires a failed launch.",
+      "deployed_by": "RegentsAutolaunchFactoryV2 constructor (CREATE, factory nonce 1)"
+    },
+    "RevstakeLPLocker": {
+      "role": "Holds every graduated launch's full-range v4 position forever and routes its collected fees to the launch's splitter.",
+      "deployed_by": "RegentLBPStrategyV2 constructor (CREATE, strategy nonce 1)"
+    },
+    "RegentFeeHook": {
+      "role": "The v4 fee hook every official Revstake pool is initialized with.",
+      "deployed_by": "RegentsAutolaunchFactoryV2 constructor (CREATE2 with the mined hook salt)"
+    }
+  },
+  "clone_targets": [
+    "ConditionalVestingEscrowV2",
+    "SubjectSplitterV1",
+    "PaymentReceiverV1"
+  ],
+  "clone_library_source": "../stocks-v2/lib/solady/src/utils/LibClone.sol",
+  "hook": {
+    "contract": "RegentFeeHook",
+    "create2_deployer": "RegentsAutolaunchFactoryV2",
+    "flags_source": "script/DeployRevstakeV2.s.sol",
+    "flags": [
+      "BEFORE_INITIALIZE",
+      "AFTER_SWAP",
+      "AFTER_SWAP_RETURNS_DELTA"
+    ]
+  },
+  "dependency_contracts": {
+    "ContinuousClearingAuctionFactory": {
+      "source": "../stocks-v2/lib/continuous-clearing-auction/src/ContinuousClearingAuctionFactory.sol",
+      "role": "The pinned CCA factory build; the strategy binds the live Base deployment at BaseBindings.CCA_FACTORY.",
+      "deployed_by": "Uniswap (live on Base)",
+      "deployment_status": "live_base_binding"
+    },
+    "ContinuousClearingAuction": {
+      "source": "../stocks-v2/lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol",
+      "role": "The pinned per-launch auction build the live factory creates for every launch.",
+      "deployed_by": "the live CCA factory, one per launch",
+      "deployment_status": "created_per_launch"
+    },
+    "UERC20Factory": {
+      "source": "../stocks-v2/lib/uerc20-factory/src/factories/UERC20Factory.sol",
+      "role": "The pinned token factory build; the deployment script creates it first and the factory takes it as a constructor argument.",
+      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order",
+      "deployment_status": "deployment_pending"
+    }
+  },
+  "dependencies": {
+    "lock": "../stocks-v2/dependencies.json",
+    "root": "../stocks-v2/lib"
+  }
+}

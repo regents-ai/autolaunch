@@ -1,0 +1,310 @@
+{
+  "contract": "StockBidAdapterV1",
+  "source": "src/StockBidAdapterV1.sol",
+  "compiler": "0.8.26+commit.8a97fa7a",
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "launchpad_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "bidWithUsdc",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "usdcAmount",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "minStockOut",
+          "type": "uint128",
+          "internalType": "uint128"
+        },
+        {
+          "name": "maxPriceQ96",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "prevTickPriceQ96",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "deadline",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "bidId",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "stockCommitted",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "launchpad",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "permit2",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "usdc",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "StockBidPlaced",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "owner",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "bidId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "usdcSpent",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "stockCommitted",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "maxPriceQ96",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "AllowanceNotConsumedExactly",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "AllowanceNotRestored",
+      "inputs": [
+        {
+          "name": "spender",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "remaining",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "Expired",
+      "inputs": [
+        {
+          "name": "deadline",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "currentTimestamp",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InexactTransfer",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InsufficientAllowance",
+      "inputs": [
+        {
+          "name": "required",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InsufficientStockOut",
+      "inputs": [
+        {
+          "name": "minimum",
+          "type": "uint128",
+          "internalType": "uint128"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NoCode",
+      "inputs": [
+        {
+          "name": "account",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NoRoute",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "Permit2AllowanceNotRestored",
+      "inputs": [
+        {
+          "name": "remaining",
+          "type": "uint160",
+          "internalType": "uint160"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "Reentrancy",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "UnknownAuction",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "ZeroAddress",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ZeroAmount",
+      "inputs": []
+    }
+  ],
+  "method_identifiers": {
+    "bidWithUsdc(address,uint256,uint128,uint256,uint256,uint256)": "a70b37bf",
+    "launchpad()": "02669b52",
+    "permit2()": "12261ee7",
+    "usdc()": "3e413bee"
+  }
+}

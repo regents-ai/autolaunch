@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.26;
+
+/// @title StocksPreset
+/// @notice Every fixed launch term of Autolaunch Stocks, in one place, with its provenance.
+/// @dev A value marked `Founder decision 2026-09-09` began as a single bounded proposal from
+///      `contracts/stocks-v2/README.md` and was accepted by the founder on 9 September 2026; nothing else
+///      in the component restates it. Values with a brief or pinned-dependency provenance are exact.
+library StocksPreset {
+    // -------------------------------------------------------------------------
+    // NEW token and allocation
+    // -------------------------------------------------------------------------
+
+    // Founder decision 2026-09-09
+    uint8 internal constant NEW_DECIMALS = 18;
+
+    /// @notice `S0`. Even; below the CCA `MAX_TOTAL_SUPPLY` (1 << 100).
+    // Founder decision 2026-09-09
+    uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
+
+    /// @notice Half of `S0` is the sale allocation. A launch that graduates has sold all of it to its
+    ///         bidders through the auction, but for rounding.
+    // Founder decision 2026-09-27
+    // forge-lint: disable-next-line(unsafe-typecast)
+    uint128 internal constant AUCTION_INVENTORY = uint128(INITIAL_SUPPLY / 2);
+
+    /// @notice The other half of `S0` is the migration reserve, paired whole in the official pool.
+    // Founder decision 2026-09-27
+    // forge-lint: disable-next-line(unsafe-typecast)
+    uint128 internal constant MIGRATION_RESERVE = uint128(INITIAL_SUPPLY / 2);
+
+    // -------------------------------------------------------------------------
+    // auction schedule
+    // -------------------------------------------------------------------------
+
+    /// @notice Brief P03 "approximately 24 hours" at Base's 2-second blocks.
+    // Founder decision 2026-09-09 (the block count; the ~24 h intent is the brief's)
+    uint64 internal constant AUCTION_DURATION_BLOCKS = 43_200;
+
+    /// @notice Founder decision (21 September 2026): every auction opens exactly ten minutes after its
+    ///         creation block, 300 blocks at Base's 2-second cadence. The launcher does not choose it.
+    uint64 internal constant START_LEAD_BLOCKS = 300;
+
+    /// @notice Same pinned CCA convention as Agent.
+    uint64 internal constant CLAIM_DELAY_BLOCKS = 64;
+    uint64 internal constant MIGRATION_DELAY_BLOCKS = 128;
+
+    /// @notice Thirteen packed `uint24 mps | uint40 blockDelta` steps summing to
+    ///         `AUCTION_DURATION_BLOCKS` blocks and exactly `ConstantsLib.MPS = 1e7`.
+    /// @dev Derived from the Agent schedule's shape: twelve scheduled steps of shortening windows at
+    ///      rising per-block rates, each releasing about 5.8% of the inventory (5,445 blocks at 108 mps
+    ///      down to 3,022 blocks at 194 mps), and a thirteenth single terminal block carrying the
+    ///      remaining 2,988,024 mps. `StocksPreset.t.sol` proves both sums against this exact vector
+    ///      and the pinned `StepStorage` accepts it.
+    bytes internal constant AUCTION_STEPS = hex"00006c0000001545" hex"00008800000010a2" hex"0000960000000f3e"
+        hex"00009e0000000e66" hex"0000a60000000dce" hex"0000aa0000000d5a" hex"0000b00000000cfc" hex"0000b40000000cad"
+        hex"0000b80000000c6a" hex"0000bc0000000c2f" hex"0000be0000000bfc" hex"0000c20000000bce" hex"2d97f80000000001";
+
+    uint256 internal constant AUCTION_STEP_COUNT = 13;
+
+    /// @notice Bid tick spacing is `floorPriceQ96 / BID_TICK_DIVISOR`; the floor must divide exactly.
+    uint256 internal constant BID_TICK_DIVISOR = 100;
+
+    // -------------------------------------------------------------------------
+    // official pool
+    // -------------------------------------------------------------------------
+
+    // Founder decision 2026-09-09
+    uint24 internal constant POOL_FEE = 3000;
+    // Founder decision 2026-09-09
+    int24 internal constant POOL_TICK_SPACING = 60;
+
+    /// @notice The hook's lanes, in basis points of a swap's gross STOCK amount: 0.3% to the launch's
+    ///         creator, 1% to REGENT stakers (converted to USDC outside swaps) and 3% to the launch's
+    ///         memestock stakers. The hook takes their sum, 4.3%, floored once; the creator and REGENT
+    ///         lanes are each floored and the staker lane is the rest.
+    // Founder decision 2026-09-28
+    uint256 internal constant BPS_DENOMINATOR = 10_000;
+    uint16 internal constant CREATOR_LANE_BPS = 30;
+    uint16 internal constant REGENT_LANE_BPS = 100;
+    uint16 internal constant STAKER_LANE_BPS = 300;
+
+    // -------------------------------------------------------------------------
+    // metadata caps (same shape as the Agent factory; bytes, inclusive, each nonempty)
+    // -------------------------------------------------------------------------
+
+    uint256 internal constant MAX_NAME_BYTES = 64;
+    uint256 internal constant MAX_SYMBOL_BYTES = 16;
+    uint256 internal constant MAX_DESCRIPTION_BYTES = 512;
+    uint256 internal constant MAX_WEBSITE_BYTES = 256;
+    uint256 internal constant MAX_IMAGE_BYTES = 256;
+
+    // -------------------------------------------------------------------------
+    // terminal custody (mechanisms are labelled, not chosen, here)
+    // -------------------------------------------------------------------------
+
+    /// @notice Brief §1.2 recommendation: after a failed minimum the reserve and the swept inventory
+    ///         are transferred to the dead address ("retired"); supply is not reduced because UERC20
+    ///         has no burn. Bidders refund through the CCA.
+    // Founder decision 2026-09-09 (failed-minimum retirement)
+    bool internal constant RETIRE_FAILED_INVENTORY = true;
+
+    /// @notice Graduation locks one full-range position in the fee-only `MemestockLPLocker`, opened at
+    ///         the raise divided by the whole sale allocation and funded by the whole reserve and the
+    ///         whole raise. Only the rounding remainder below one unit of liquidity is left over: its
+    ///         STOCK accrues to the REGENT lane of the pool's hook, its NEW is retired.
+    // Founder decision 2026-09-09 (the destination of the STOCK rounding remainder)
+    bool internal constant LP_STOCK_DUST_TO_REGENT_BUCKET = true;
+
+    /// @notice Every unit of a graduated launch's NEW still held by the launchpad after the position is
+    ///         minted (the auction's unsold rounding, the reserve the pool could not pair and anything
+    ///         sent to the launchpad) is retired to the dead address, as a failed launch's is.
+    // Founder decision 2026-09-27
+    bool internal constant RETIRE_LEFTOVER_NEW_ON_GRADUATION = true;
+}
