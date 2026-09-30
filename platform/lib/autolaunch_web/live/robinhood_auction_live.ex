@@ -185,7 +185,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             session_lease={@session_lease}
             draft_marker
           />
-          <.how_to_bid id="robinhood-auction-how-to-bid" />
+          <.how_to_bid
+            :if={@snapshot.ok? && @snapshot.result.stage.stage in [:created, :open]}
+            id="robinhood-auction-how-to-bid"
+          />
         </aside>
         <div class="auction-layout__rest">
           <.ladder

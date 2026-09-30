@@ -117,9 +117,15 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         <dt>
           <.info_tip
             id="auction-next-price-tip"
-            text="The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply."
+            text={
+              if @ends_at,
+                do:
+                  "The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply.",
+                else:
+                  "The price the last block of bidding cleared at. Every winning bid pays this price for its tokens."
+            }
           >
-            Price now · per 1M {@token_symbol}
+            {if @ends_at, do: "Price now", else: "Final price"} · per 1M {@token_symbol}
           </.info_tip>
         </dt>
         <dd>
@@ -142,11 +148,11 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             class="auction-next-figure__status"
             data-on={to_string(@snapshot.stage.facts.minimum_reached == true)}
           >
-            {if @snapshot.stage.facts.minimum_reached, do: "Passed", else: "Not yet"}
+            {minimum_word(@snapshot.stage.facts.minimum_reached, @ends_at)}
           </span>
           <span class="auction-next-figure__note">
-            Raised of the <TokenDisplay.price amount={@minimum} unit={@symbol} /> minimum.
-            Reaching it does not end bidding.
+            Raised of the <TokenDisplay.price amount={@minimum} unit={@symbol} />
+            minimum. {if @ends_at, do: "Reaching it does not end bidding."}
           </span>
         </dd>
       </div>
@@ -202,6 +208,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     </script>
     """
   end
+
+  defp minimum_word(true, _ends_at), do: "Passed"
+  defp minimum_word(_reached, nil), do: "Not reached"
+  defp minimum_word(_reached, _ends_at), do: "Not yet"
 
   defp ends_at(%{clock: clock, blocks: %{end: finish}}, _chain) when clock >= finish, do: nil
 
@@ -276,7 +286,11 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   `scrub_now` to the page.
   """
   def filmstrip(assigns) do
-    assigns = assign(assigns, :film, film(assigns))
+    assigns =
+      assign(assigns,
+        film: film(assigns),
+        ended: assigns.snapshot.clock >= assigns.snapshot.blocks.end
+      )
 
     ~H"""
     <section id={@id} class="auction-next-card auction-next-film" aria-labelledby={"#{@id}-title"}>
@@ -290,12 +304,12 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           The line only steps up when there is enough demand to buy the rest of the auction at a
           higher price. While it stays flat, every bid is still buying at that price.
         </li>
-        <li>
+        <li :if={!@ended}>
           Type a max price in the bid form to see it here as a dashed line. Each block the price
           stays below it, part of your budget buys tokens; once the price passes it, the rest of
           your budget stops buying.
         </li>
-        <li>
+        <li :if={!@ended}>
           Your budget is spread over the blocks left, so bidding earlier buys over more blocks.
           Waiting only gets you a worse average price.
         </li>
@@ -392,16 +406,19 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       </p>
       <div class="auction-next-film__ends">
         <span>Opened · block {grouped(@snapshot.blocks.start)}</span>
-        <span>Ends · block {grouped(@snapshot.blocks.end)}</span>
+        <span>{if @ended, do: "Ended", else: "Ends"} · block {grouped(@snapshot.blocks.end)}</span>
       </div>
       <ul class="auction-next-legend" role="list">
         <li class="auction-next-legend__price">Recorded price</li>
         <li :if={@film.draft_y} class="auction-next-legend__draft">Your draft maximum</li>
-        <li :if={!@film.draft_y} class="auction-next-legend__draft auction-next-legend--off">
+        <li
+          :if={!@film.draft_y && !@ended}
+          class="auction-next-legend__draft auction-next-legend--off"
+        >
           Your draft maximum (type one in the bid form)
         </li>
         <li class="auction-next-legend__released">Released so far</li>
-        <li class="auction-next-legend__upcoming">Still to release</li>
+        <li :if={!@ended} class="auction-next-legend__upcoming">Still to release</li>
       </ul>
 
       <form

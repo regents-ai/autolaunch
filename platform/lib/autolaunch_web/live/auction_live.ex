@@ -244,7 +244,7 @@ defmodule AutolaunchWeb.AuctionLive do
             lab={@local_lab?}
             draft_marker
           />
-          <.how_to_bid id="auction-how-to-bid" />
+          <.how_to_bid :if={!@bidding_ended?} id="auction-how-to-bid" />
         </aside>
         <div class="auction-layout__rest">
           <.ladder
