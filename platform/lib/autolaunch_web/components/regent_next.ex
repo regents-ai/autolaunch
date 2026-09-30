@@ -438,13 +438,13 @@ defmodule AutolaunchWeb.Components.RegentNext do
     "#{Amounts.grouped(cents)} USDC"
   end
 
-  # A fraction as a percent to four significant digits, never rounded up.
+  # A fraction as a percent to two decimal places, so a split's two parts
+  # read to the same precision and add up to 100%.
   defp percent(fraction) do
     fraction
     |> Decimal.mult(100)
+    |> Decimal.round(2)
     |> Decimal.to_string(:normal)
-    |> TokenDisplay.short(:down)
-    |> TokenDisplay.zeros()
     |> Kernel.<>("%")
   end
 
