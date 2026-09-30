@@ -13,6 +13,8 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 - [Developer guide](https://autolaunch.sh/docs): the public API, errors, versioning, WebMCP tools and what needs a wallet.
 - [Tool manifest](https://autolaunch.sh/capabilities): every WebMCP tool the pages register, as JSON.
 
+{{key_facts}}
+
 ## When to use Autolaunch
 
 Use Autolaunch when you want to:
