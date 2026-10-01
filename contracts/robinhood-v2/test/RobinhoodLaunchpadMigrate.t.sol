@@ -167,7 +167,9 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertLe(record.retiredNew - claimed, _newCrumbs(l), "on top of crumbs");
         assertEq(UERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "at the dead address");
         assertEq(
-            UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING, "the launchpad keeps only the vesting"
+            UERC20(l.newToken).balanceOf(address(stocks)),
+            StocksPreset.CREATOR_VESTING,
+            "the launchpad keeps only the vesting"
         );
         assertEq(
             UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.newOnlyUsed + record.retiredNew
@@ -283,9 +285,8 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
             lbp.initialPriceX96,
             "the raise never buys more than the sale allocation at the final price"
         );
-        uint160 expectedSqrtPrice = TokenPricing.convertToSqrtPriceX96(
-            TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0)
-        );
+        uint160 expectedSqrtPrice =
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0));
         assertEq(record.finalSqrtPriceX96, expectedSqrtPrice);
         (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(poolId));
         assertEq(sqrtPriceX96, expectedSqrtPrice, "pool at the final clearing price");
@@ -327,7 +328,9 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
         assertEq(UERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "at the dead address");
         assertEq(
-            UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING, "the launchpad keeps only the vesting"
+            UERC20(l.newToken).balanceOf(address(stocks)),
+            StocksPreset.CREATOR_VESTING,
+            "the launchpad keeps only the vesting"
         );
 
         // The hook knows the pool, and the launch has its own fresh splitter.

@@ -189,7 +189,9 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
 
         (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(record.poolId));
         assertEq(sqrtPriceX96, record.finalSqrtPriceX96);
-        assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING, "only the vesting stays");
+        assertEq(
+            MockERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING, "only the vesting stays"
+        );
         assertEq(MockERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "the leftover NEW is retired");
         assertEq(stockHigh.balanceOf(address(stocks)), 0);
         (uint256 creatorLane, uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);

@@ -558,8 +558,9 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         uint128 currencyBudget,
         uint128 reserve
     ) private returns (LockedLiquidity memory locked) {
-        Position memory fullRange =
-            RobinhoodPositionsLib.fullRange(sqrtPriceX96, currencyIsCurrency0, currencyBudget, reserve, locker);
+        Position memory fullRange = RobinhoodPositionsLib.fullRange(
+            sqrtPriceX96, currencyIsCurrency0, currencyBudget, reserve, locker
+        );
         (locked.currencyUsed, locked.newUsed) = _currencyAndNew(currencyIsCurrency0, fullRange);
 
         Position[] memory newOnly =

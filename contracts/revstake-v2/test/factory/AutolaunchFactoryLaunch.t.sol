@@ -679,9 +679,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         // admitted implementation, so the strategy refuses it outright.
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategyV2.NotAuthenticEscrow.selector, impostor));
         vm.prank(address(factory));
-        strategy.initializeDistribution(
-            RegentLBPStrategyV2.DistributionParams({launchId: 99, escrow: impostor})
-        );
+        strategy.initializeDistribution(RegentLBPStrategyV2.DistributionParams({launchId: 99, escrow: impostor}));
     }
 
     /// @notice `TOK-004`: the token's metadata is exactly what the launch asked for and stays that
@@ -777,8 +775,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         uint64 endBlock
     ) private {
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        bytes32 topic =
-            keccak256("LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)");
+        bytes32 topic = keccak256("LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)");
         bool seen;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != address(factory) || logs[i].topics[0] != topic) continue;

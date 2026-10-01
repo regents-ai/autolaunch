@@ -374,14 +374,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         auctionOfSubject[subject] = auction;
 
         emit DistributionCreated(
-            params.launchId,
-            auction,
-            subject,
-            params.escrow,
-            treasury,
-            startBlock,
-            endBlock,
-            RESERVE_ALLOCATION
+            params.launchId, auction, subject, params.escrow, treasury, startBlock, endBlock, RESERVE_ALLOCATION
         );
 
         uint256 held = subject.balanceOf(address(this));
@@ -506,9 +499,8 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         // The pool opens at the auction's final clearing price (REGENT per SUBJECT, Q96), the price the
         // last bids cleared at.
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == regent;
-        uint160 sqrtPriceX96 = TokenPricing.convertToSqrtPriceX96(
-            TokenPricing.convertToPriceX192(lbp.initialPriceX96, regentIsCurrency0)
-        );
+        uint160 sqrtPriceX96 =
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, regentIsCurrency0));
         // slither-disable-next-line unused-return
         IPoolManager(BaseBindings.POOL_MANAGER).initialize(key, sqrtPriceX96);
 

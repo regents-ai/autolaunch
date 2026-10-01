@@ -227,9 +227,8 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
             lbp.initialPriceX96,
             "the raise never exceeds the sale allocation at the final clearing price"
         );
-        uint160 expected = TokenPricing.convertToSqrtPriceX96(
-            TokenPricing.convertToPriceX192(lbp.initialPriceX96, regentIsCurrency0)
-        );
+        uint160 expected =
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, regentIsCurrency0));
         (uint160 slotPrice,,,) = IPoolManager(BaseBindings.POOL_MANAGER).getSlot0(_poolId(l));
         assertEq(slotPrice, expected, "the pool did not open at the final clearing price");
 
@@ -273,7 +272,8 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
         assertLe(received, AUCTION_ALLOCATION, "the bidders received more than the sale allocation");
         assertLe(AUCTION_ALLOCATION - received, SALE_CRUMBS, "the bidders did not buy the whole sale allocation");
         assertLe(
-            toEscrow, RESERVE_ALLOCATION - d.lpSubjectUsed + SALE_CRUMBS,
+            toEscrow,
+            RESERVE_ALLOCATION - d.lpSubjectUsed + SALE_CRUMBS,
             "graduation sent more than the unpaired reserve and crumbs to the escrow"
         );
         assertEq(

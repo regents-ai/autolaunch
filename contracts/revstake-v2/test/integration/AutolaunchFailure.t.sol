@@ -72,7 +72,9 @@ contract AutolaunchFailureTest is AutolaunchFixture {
 
         strategy.migrate(address(launched.auction));
 
-        assertEq(uint256(launched.auction.currencyRaised()), 900_000_000, "the partial raise is not the sum of the bids");
+        assertEq(
+            uint256(launched.auction.currencyRaised()), 900_000_000, "the partial raise is not the sum of the bids"
+        );
         assertEq(
             uint8(_distribution(launched).lifecycle),
             uint8(RegentLBPStrategyV2.Lifecycle.Failed),

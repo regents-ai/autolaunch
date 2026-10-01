@@ -389,14 +389,7 @@ contract RegentsAutolaunchFactoryV2 {
         _requireRecorded(3, uint256(uint160(params.treasury)), uint256(uint160(recorded.treasury)));
 
         emit LaunchCreated(
-            launchId,
-            msg.sender,
-            subject,
-            auction,
-            escrow,
-            params.treasury,
-            recorded.startBlock,
-            recorded.endBlock
+            launchId, msg.sender, subject, auction, escrow, params.treasury, recorded.startBlock, recorded.endBlock
         );
     }
 

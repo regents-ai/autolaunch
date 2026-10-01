@@ -295,9 +295,8 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
             lbp.initialPriceX96,
             "the raise never buys more than the sale allocation at the final price"
         );
-        uint160 expectedSqrtPrice = TokenPricing.convertToSqrtPriceX96(
-            TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0)
-        );
+        uint160 expectedSqrtPrice =
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0));
         assertEq(record.finalSqrtPriceX96, expectedSqrtPrice);
         assertEq(_sqrtPrice(l), expectedSqrtPrice, "pool at the final clearing price");
         assertGt(IPoolManager(address(poolManager)).getLiquidity(PoolId.wrap(poolId)), 0, "live liquidity");

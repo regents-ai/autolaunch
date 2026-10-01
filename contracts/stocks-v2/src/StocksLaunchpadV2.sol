@@ -505,9 +505,8 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
 
         // The pool opens at the auction's final clearing price (STOCK per NEW, Q96).
         bool stockIsCurrency0 = Currency.unwrap(key.currency0) == stock;
-        uint160 sqrtPriceX96 = TokenPricing.convertToSqrtPriceX96(
-            TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0)
-        );
+        uint160 sqrtPriceX96 =
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0));
         // slither-disable-next-line unused-return
         IPoolManager(StocksBindings.POOL_MANAGER).initialize(key, sqrtPriceX96);
 

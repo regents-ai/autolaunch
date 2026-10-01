@@ -24,11 +24,10 @@ contract LaunchFactoryDouble {
         RegentLBPStrategyV2(strategy_).bindHook(hook_);
     }
 
-    function launch(
-        address subject,
-        address treasury,
-        uint256 launchId
-    ) external returns (address escrow, address auction) {
+    function launch(address subject, address treasury, uint256 launchId)
+        external
+        returns (address escrow, address auction)
+    {
         escrow = _fundedEscrow(subject, treasury);
         auction = _initialize(subject, escrow, launchId);
     }
@@ -39,11 +38,7 @@ contract LaunchFactoryDouble {
     }
 
     /// @notice Initialize against an escrow this factory already funded.
-    function initialize(
-        address subject,
-        address escrow,
-        uint256 launchId
-    ) external returns (address auction) {
+    function initialize(address subject, address escrow, uint256 launchId) external returns (address auction) {
         auction = _initialize(subject, escrow, launchId);
     }
 
@@ -58,11 +53,7 @@ contract LaunchFactoryDouble {
         ConditionalVestingEscrowV2(escrow).initialize(subject, treasury, address(strategy));
     }
 
-    function _initialize(
-        address subject,
-        address escrow,
-        uint256 launchId
-    ) private returns (address auction) {
+    function _initialize(address subject, address escrow, uint256 launchId) private returns (address auction) {
         _approve(subject, address(strategy), strategy.DISTRIBUTION_PULL());
         auction = strategy.initializeDistribution(
             RegentLBPStrategyV2.DistributionParams({launchId: launchId, escrow: escrow})
