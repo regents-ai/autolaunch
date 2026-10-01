@@ -242,6 +242,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         if (record.lifecycle != Lifecycle.Graduated) revert LaunchNotGraduated(record.lifecycle);
 
         amount = _creatorVested(record) - record.creatorReleased;
+        // slither-disable-next-line incorrect-equality
         if (amount == 0) return 0;
 
         record.creatorReleased += SafeCastLib.toUint128(amount);
