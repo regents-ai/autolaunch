@@ -138,3 +138,8 @@ Pausing stops new launches only. Existing auctions, claims, refunds, staking and
 version 1 are untouched. Both version 1 launchers were open (`launchesPaused()` false) on
 30 September 2026. Robinhood's version 1 launchpad is closed by its own Safe transaction on
 Robinhood Chain; see `contracts/robinhood-v2/README.md`.
+
+AGI (version 1 Memestake launch 3, auction `0xd4cecfbf6d1e4afb46b054d1b7a284f450551140`) ended
+without being migrated. Read on Base on 1 October 2026: `nextBidId()` 0, `currencyRaised()` 0,
+`totalCleared()` 0, no `BidSubmitted` event. Nobody bid, so it stays ended and unmigrated
+(founder decision 18: migrate only if it had bids). Pausing the launchpad does not change it.
