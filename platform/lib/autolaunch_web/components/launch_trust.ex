@@ -278,15 +278,14 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     do: %{
       name: "Revstake",
       about: "stakers share the revenue the project sends through its contract",
-      reserve: "Up to 5 billion tokens (5%)",
+      reserve: "15 billion tokens (15%)",
       unused: "went to the treasury",
       rows: [
-        {"Sold in the auction", "Up to 10 billion (10%)",
-         "winning bidders claim what they bought"},
-        {"Reserved for liquidity", "Up to 5 billion (5%)",
-         "paired with REGENT in a permanently locked position"},
-        {"Treasury", "85 billion (85%)",
-         "released over 365 days, with any unsold auction tokens and unused reserve"}
+        {"Sold in the auction", "20 billion (20%)", "winning bidders claim what they bought"},
+        {"Reserved for liquidity", "15 billion (15%)",
+         "paired with about three quarters of the REGENT raised in a permanently locked position"},
+        {"Treasury", "65 billion (65%)",
+         "released over 365 days with any leftover tokens; the treasury also receives about a quarter of the raise"}
       ]
     }
 

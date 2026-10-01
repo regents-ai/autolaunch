@@ -98,6 +98,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     do: div(@auction_inventory * @floor_price_q96 + @q96 - 1, @q96)
 
   @doc """
+  The minimum the site shows: the required raise plus one base unit, because
+  the auction may count a bid placed after its first block one unit short.
+  """
+  def minimum_raise, do: required_stock_raised() + 1
+
+  @doc """
   Reviews one saved draft for `address`, one of the account's own wallets: one
   snapshot, one saved review. The result carries the review's chain, its one
   step and the facts the page shows.
@@ -212,8 +218,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
         "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
         "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
-        "required_stock_raised_units" =>
-          Rpc.format_units(executable.required_stock_raised, executable.stock_decimals),
+        "minimum_raise_units" => Rpc.format_units(minimum_raise(), executable.stock_decimals),
         "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
         "floor_price_executable" =>
           Amounts.format_cca_price(

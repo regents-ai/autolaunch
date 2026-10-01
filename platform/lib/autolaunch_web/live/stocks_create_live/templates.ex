@@ -457,7 +457,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp minimum_raise(nil), do: "Choose a stock"
 
   defp minimum_raise(stock) do
-    {:ok, amount} = Amounts.format_units(LaunchActions.required_stock_raised(), stock.decimals)
+    {:ok, amount} = Amounts.format_units(LaunchActions.minimum_raise(), stock.decimals)
     "#{amount} #{stock.symbol}"
   end
 

@@ -258,7 +258,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       ["Launch fee", "None"],
       [
         "Minimum raise",
-        "#{Amounts.grouped(Rpc.format_units(executable.required_stock_raised, executable.stock_decimals))} #{fields.stock_symbol}"
+        "#{Amounts.grouped(Rpc.format_units(LaunchActions.minimum_raise(), executable.stock_decimals))} #{fields.stock_symbol}"
       ],
       ["Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"],
       ["Auction length", schedule_copy(@auction_duration_blocks)],

@@ -41,15 +41,15 @@ Two main differences from other launchpads:
 1. The point of buying a revstake token is to stake it in the Autolaunch staking contract, which is easy to do through the site.
 2. No early snipers here. If you are in the auction, you are early. Most of the tokens in an auction go at the end of it, and since your bid amount is split up by block, there is never a disadvantage to bidding your true value bid in full, as early as possible. More on CCA mechanics from Hayden Adams, reflecting on Aztec's launch: https://x.com/haydenzadams/status/1997358255442440584
 
-Revstake token auctions have a 48 hour duration and are priced in REGENT, with 10% of tokens for the auction, 5% locked in the Uni v4 pool, and 85% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain 80-90% of equity.
+Revstake token auctions have a 48 hour duration and are priced in REGENT, with 20% of tokens for the auction, 15% locked in the Uni v4 pool, and 65% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain most of the equity.
 
 Revstake supply: 100 billion tokens.
 
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
-| Auction | Up to 10 billion (10%) | Winning bidders claim what they bought. |
-| Liquidity reserve | Up to 5 billion (5%) | Paired with REGENT in a permanently locked trading position. |
-| Treasury | 85 billion (85%) | Released to the launch's treasury over 365 days, with any unsold auction tokens and unused reserve. |
+| Auction | 20 billion (20%) | Winning bidders claim what they bought. |
+| Liquidity reserve | 15 billion (15%) | Paired with about three quarters of the REGENT raised in a permanently locked trading position. The pool opens at the auction's average price. |
+| Treasury | 65 billion (65%) | Released to the launch's treasury over 365 days, with any leftover tokens. The treasury also receives about a quarter of the REGENT raised when the auction succeeds. |
 
 If the auction doesn't reach its minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
 

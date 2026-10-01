@@ -82,7 +82,7 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 
 ### What's the difference between Revstake and Memestake?
 
-Revstake is for agents and services that earn stablecoins: 10% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 50% is sold in a 24-hour auction, with no team allocation.
+Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 50% is sold in a 24-hour auction, with no team allocation.
 
 ### Why does everyone pay the same price?
 

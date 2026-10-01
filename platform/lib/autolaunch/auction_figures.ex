@@ -7,10 +7,18 @@ defmodule Autolaunch.AuctionFigures do
 
   alias Autolaunch.Chain.Rpc
 
-  @doc "What the auction must raise to launch, in whole quote-token units."
+  @doc """
+  What the auction must raise to launch, in whole quote-token units: the
+  required raise plus one base unit, because the auction may count a bid placed
+  after its first block one base unit short.
+  """
   @spec minimum(map()) :: Decimal.t()
-  def minimum(%{required_currency_raised: required, quote_token_decimals: decimals}),
-    do: required |> String.to_integer() |> Rpc.format_units(decimals) |> Decimal.new()
+  def minimum(auction), do: auction |> minimum_units() |> Decimal.new()
+
+  @doc "`minimum/1` as the plain decimal string the chain's units give."
+  @spec minimum_units(map()) :: String.t()
+  def minimum_units(%{required_currency_raised: required, quote_token_decimals: decimals}),
+    do: required |> String.to_integer() |> Kernel.+(1) |> Rpc.format_units(decimals)
 
   @doc """
   How much of the minimum is raised, as a whole percent rounded down; a minimum
@@ -34,10 +42,10 @@ defmodule Autolaunch.AuctionFigures do
 
   @doc """
   The tokens the auction sells, fixed by its launch type: a Revstake auction
-  sells 10 billion of its 100 billion tokens, a Memestake auction 800 million
+  sells 20 billion of its 100 billion tokens, a Memestake auction 500 million
   of its 1 billion, on either chain.
   """
   @spec token_allocation(map()) :: Decimal.t()
-  def token_allocation(%{kind: :agent}), do: Decimal.new(10_000_000_000)
-  def token_allocation(%{kind: :stocks}), do: Decimal.new(800_000_000)
+  def token_allocation(%{kind: :agent}), do: Decimal.new(20_000_000_000)
+  def token_allocation(%{kind: :stocks}), do: Decimal.new(500_000_000)
 end

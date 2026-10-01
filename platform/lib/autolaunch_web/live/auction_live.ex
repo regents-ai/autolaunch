@@ -11,8 +11,7 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
   import AutolaunchWeb.Components.RaiseProgress
 
-  alias Autolaunch.AuctionBook
-  alias Autolaunch.Chain.Rpc
+  alias Autolaunch.{AuctionBook, AuctionFigures}
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
@@ -594,8 +593,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
 
-  defp minimum(%{required_currency_raised: required, quote_token_decimals: decimals}),
-    do: required |> String.to_integer() |> Rpc.format_units(decimals)
+  defp minimum(record), do: AuctionFigures.minimum_units(record)
 
   defp page_token(%{ok?: true, result: %{token: token}}), do: token
   defp page_token(_page), do: nil

@@ -98,7 +98,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             <div>
               <dt>Minimum raise</dt>
               <dd>
-                {Amounts.grouped(@prepared.facts["required_stock_raised_units"])} {@prepared.facts[
+                {Amounts.grouped(@prepared.facts["minimum_raise_units"])} {@prepared.facts[
                   "stock_symbol"
                 ]}. If bids fall short, each bidder takes back their whole bid.
               </dd>

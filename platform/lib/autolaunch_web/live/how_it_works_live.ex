@@ -5,11 +5,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
   alias Autolaunch.Stocks.FeeSchedule
   alias AutolaunchWeb.ShareCard
 
-  # Every figure here is a fixed contract rule: RegentLBPStrategy and
-  # ConditionalVestingEscrowV1 (Revstake supply), StocksPreset and
-  # StocksLaunchpadV1 (Memestake supply), RegentFeeHook, StocksFeeHookV1 and
-  # RobinhoodFeeHookV1 (fees), SubjectSplitterV1 and MemestockSplitterCore
-  # (staking rewards).
+  # Every figure here is a fixed contract rule: RegentLBPStrategyV2 and
+  # ConditionalVestingEscrowV2 (Revstake supply), StocksPreset (Memestake
+  # supply), RegentFeeHook and the Memestake fee hooks (fees), SubjectSplitterV1
+  # and MemestockSplitterCore (staking rewards).
   def mount(_params, _session, socket),
     do:
       {:ok,
@@ -43,10 +42,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Revstake supply <span class="fact-page__total">100 billion</span>
         </h2>
         <p>
-          Revstake token auctions have a 48 hour duration, with 10% of tokens for the auction, 5%
-          locked in the trading pool, and 85% vesting to the launch's treasury over one year. This small amount
+          Revstake token auctions have a 48 hour duration, with 20% of tokens for the auction, 15%
+          locked in the trading pool, and 65% vesting to the launch's treasury over one year. This small amount
           of float is because launching a revstake is close in concept to a company doing a preseed
-          round. Best practice is for the founders to retain 80-90% of equity.
+          round. Best practice is for the founders to retain most of the equity.
         </p>
         <table class="fact-table">
           <thead>
@@ -60,27 +59,28 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Auction</th>
               <td data-label="Amount" class="fact-table__amount">
-                Up to <strong>10 billion (10%)</strong>
+                <strong>20 billion (20%)</strong>
               </td>
               <td data-label="After a successful auction">Winning bidders claim what they bought.</td>
             </tr>
             <tr>
               <th scope="row">Liquidity reserve</th>
               <td data-label="Amount" class="fact-table__amount">
-                Up to <strong>5 billion (5%)</strong>
+                <strong>15 billion (15%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Paired with REGENT in a permanently locked trading position.
+                Paired with about three quarters of the REGENT raised in a permanently locked
+                trading position. The pool opens at the auction's average price.
               </td>
             </tr>
             <tr>
               <th scope="row">Treasury</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>85 billion (85%)</strong>
+                <strong>65 billion (65%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Released to the launch's treasury over <strong>365 days</strong>, with any unsold
-                auction tokens and unused reserve.
+                Released to the launch's treasury over <strong>365 days</strong>, with any leftover
+                tokens. The treasury also receives about a quarter of the REGENT raised.
               </td>
             </tr>
           </tbody>
