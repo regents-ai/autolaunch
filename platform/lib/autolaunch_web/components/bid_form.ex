@@ -5,9 +5,11 @@ defmodule AutolaunchWeb.Components.BidForm do
   bid keeps buying) and what the bid can expect to receive.
 
   The max FDV comes from one of three places, named by `basis`: a stop on the
-  slider, each a multiple of the price to beat now ("stop"); a total value
-  typed into the box ("fdv"); or a price per token entered from elsewhere on
-  the page, such as "Use this price" ("price"). The browser sends the slider
+  slider, each a fixed FDV from 10 thousand to 100 million ("stop"); a total
+  value typed into the box ("fdv"); or a price per token entered from elsewhere
+  on the page, such as "Use this price" ("price"). The slider offers only the
+  stops above the price to beat now, and needs the token supply and the FDV
+  currency's rate; without them the box is the way to set the max FDV. The browser sends the slider
   and the box beside what they last showed, so the one that differs is the one
   the bidder moved.
 
@@ -27,10 +29,11 @@ defmodule AutolaunchWeb.Components.BidForm do
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
 
-  # Each slider stop is the price to beat now times one of these.
-  @stops Enum.map(~w(1 1.1 1.25 1.5 2 2.5 3 4 5 7.5 10), &Decimal.new/1)
-  # The price to beat now plus a quarter, so a small rise does not stop the bid.
-  @default_stop 2
+  # Each slider stop is a fixed FDV, in the currency the max FDV is shown in.
+  @stops Enum.map(
+           ~w(10000 25000 50000 100000 250000 500000 1000000 2500000 5000000 10000000 25000000 50000000 100000000),
+           &Decimal.new/1
+         )
   @last_stop length(@stops) - 1
   @bases ~w(stop fdv price)
   @dollars ~w(USDC USDG)
@@ -38,9 +41,12 @@ defmodule AutolaunchWeb.Components.BidForm do
   @price_digits 12
   @one Decimal.new(1)
 
-  @doc "An empty form, its max FDV on the slider at the price to beat plus a quarter."
+  @doc """
+  An empty form, its max FDV on the slider's first stop above the price to
+  beat: `stop` is nil until the bidder picks one.
+  """
   def blank,
-    do: %{amount: "", pay_with: nil, basis: "stop", stop: @default_stop, fdv: "", price: ""}
+    do: %{amount: "", pay_with: nil, basis: "stop", stop: nil, fdv: "", price: ""}
 
   @doc "The form with its max FDV set by a price per token entered from elsewhere on the page."
   def at_price(form, price), do: %{form | basis: "price", price: price}
@@ -103,11 +109,15 @@ defmodule AutolaunchWeb.Components.BidForm do
   def max_price(
         %{basis: "stop", stop: stop},
         %AsyncResult{ok?: true, result: %{price_to_beat: beat}},
-        _supply,
-        _factor
+        %Decimal{} = supply,
+        %Decimal{} = factor
       )
-      when is_binary(beat),
-      do: beat |> decimal() |> Decimal.mult(Enum.at(@stops, stop)) |> plain()
+      when is_binary(beat) do
+    case stop || first_stop(beat, supply, factor) do
+      nil -> nil
+      stop -> stop_price(stop, supply, factor)
+    end
+  end
 
   def max_price(%{basis: "price", price: price}, _book, _supply, _factor) do
     if positive?(price), do: price
@@ -189,8 +199,8 @@ defmodule AutolaunchWeb.Components.BidForm do
     max_price = max_price(form, book, supply, factor)
     ready = book.ok? && book.result
     beat = ready && ready.price_to_beat
-    labels = stop_prices(beat, factor, fdv_unit)
-    stop = shown_stop(form, max_price, beat)
+    first = beat && first_stop(beat, supply, factor)
+    stop = first && max(shown_stop(form, max_price, supply, factor) || first, first)
     budget_rate = budget_rate(assigns.amount_unit, rate)
 
     assigns =
@@ -199,11 +209,12 @@ defmodule AutolaunchWeb.Components.BidForm do
         fdv_unit: fdv_unit,
         ready: ready,
         beat: beat,
+        first_stop: first,
         stop: stop,
         last_stop: @last_stop,
-        at: stop / @last_stop,
-        labels: labels,
-        stop_fdvs: stop_fdvs(beat, supply, factor),
+        at: first && (stop - first) / max(@last_stop - first, 1),
+        labels: stop_prices(supply, fdv_unit),
+        stop_fdvs: Enum.map(@stops, &figure/1),
         price_label: max_price && factor && price_text(times(max_price, factor), fdv_unit),
         fdv: shown_fdv(form, max_price, supply, factor),
         fdv_in_price_unit: max_price && supply && times(max_price, supply),
@@ -303,18 +314,18 @@ defmodule AutolaunchWeb.Components.BidForm do
           <UsdValue.usd :if={@fdv_unit == @price_unit} amount={@fdv_in_price_unit} rate={@rate} />
         </p>
 
-        <div :if={@beat} class="bid-slider" style={"--at: #{@at}"}>
+        <div :if={@first_stop} class="bid-slider" style={"--at: #{@at}"}>
           <output class="bid-slider__tip" for={"#{@id}-stop"}>
             {@price_label && "Price: #{@price_label}"}
           </output>
           <span class="bid-slider__dots" aria-hidden="true">
-            <i :for={_stop <- 0..@last_stop}></i>
+            <i :for={_stop <- @first_stop..@last_stop}></i>
           </span>
           <input
             id={"#{@id}-stop"}
             type="range"
             name="stop"
-            min="0"
+            min={@first_stop}
             max={@last_stop}
             step="1"
             value={@stop}
@@ -356,7 +367,8 @@ defmodule AutolaunchWeb.Components.BidForm do
             const tip = slider.parentElement.querySelector(".bid-slider__tip")
             const fdv = this.el.elements.namedItem("fdv")
 
-            slider.parentElement.style.setProperty("--at", String(stop / Number(slider.max)))
+            const span = Number(slider.max) - Number(slider.min) || 1
+            slider.parentElement.style.setProperty("--at", String((stop - Number(slider.min)) / span))
             if (tip && labels[stop]) tip.textContent = labels[stop]
             if (fdv instanceof HTMLInputElement && fdvs[stop] !== undefined) fdv.value = fdvs[stop]
           })
@@ -424,15 +436,33 @@ defmodule AutolaunchWeb.Components.BidForm do
   defp budget_rate(_unit, rate), do: rate
 
   # The stop on show: the one chosen, or the highest at or under a limit set
-  # another way.
-  defp shown_stop(%{basis: "stop", stop: stop}, _max_price, _beat), do: stop
+  # another way; nil leaves the slider on its first stop.
+  defp shown_stop(%{basis: "stop", stop: stop}, _max_price, _supply, _factor), do: stop
 
-  defp shown_stop(_form, max_price, beat) when is_binary(max_price) and is_binary(beat) do
-    ratio = Decimal.div(decimal(max_price), decimal(beat))
-    max(Enum.count(@stops, &(not Decimal.gt?(&1, ratio))) - 1, 0)
+  defp shown_stop(_form, max_price, %Decimal{} = supply, %Decimal{} = factor)
+       when is_binary(max_price) do
+    fdv = max_price |> times(supply) |> times(factor)
+    Enum.count(@stops, &(not Decimal.gt?(&1, fdv))) - 1
   end
 
-  defp shown_stop(form, _max_price, _beat), do: form.stop
+  defp shown_stop(_form, _max_price, _supply, _factor), do: nil
+
+  # The first stop whose price per token reaches the price to beat, or nil when
+  # none does or the supply or rate is unknown.
+  defp first_stop(beat, %Decimal{} = supply, %Decimal{} = factor) when is_binary(beat) do
+    if Decimal.gt?(supply, 0) and Decimal.gt?(factor, 0) do
+      fdv = beat |> times(supply) |> times(factor)
+      Enum.find_index(@stops, &(not Decimal.lt?(&1, fdv)))
+    end
+  end
+
+  defp first_stop(_beat, _supply, _factor), do: nil
+
+  defp stop_price(stop, supply, factor) do
+    Decimal.Context.with(%Decimal.Context{precision: @price_digits}, fn ->
+      @stops |> Enum.at(stop) |> Decimal.div(Decimal.mult(supply, factor)) |> plain()
+    end)
+  end
 
   defp shown_fdv(%{basis: "fdv", fdv: fdv}, _max_price, _supply, _factor), do: fdv
 
@@ -442,15 +472,11 @@ defmodule AutolaunchWeb.Components.BidForm do
 
   defp shown_fdv(_form, _max_price, _supply, _factor), do: ""
 
-  defp stop_prices(beat, %Decimal{} = factor, unit) when is_binary(beat),
-    do: Enum.map(@stops, &(beat |> times(&1) |> times(factor) |> price_text(unit)))
+  # Each stop's price per token, in the currency the max FDV is shown in.
+  defp stop_prices(%Decimal{} = supply, unit),
+    do: Enum.map(@stops, &(&1 |> Decimal.div(supply) |> price_text(unit)))
 
-  defp stop_prices(_beat, _factor, _unit), do: []
-
-  defp stop_fdvs(beat, %Decimal{} = supply, %Decimal{} = factor) when is_binary(beat),
-    do: Enum.map(@stops, &(beat |> times(&1) |> times(supply) |> times(factor) |> figure()))
-
-  defp stop_fdvs(_beat, _supply, _factor), do: []
+  defp stop_prices(_supply, _unit), do: []
 
   defp price_text(value, unit) do
     short = value |> plain() |> TokenDisplay.short()

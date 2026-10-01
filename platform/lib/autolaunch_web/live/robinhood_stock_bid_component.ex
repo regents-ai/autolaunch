@@ -706,9 +706,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         "basis" => assigns.form.basis,
         "price" => assigns.form.price,
         "fdv" => text(inputs["fdv"]),
-        "fdv_shown" => shown["fdv"],
-        "stop" => Integer.to_string(assigns.form.stop),
-        "stop_shown" => Integer.to_string(assigns.form.stop)
+        "fdv_shown" => shown["fdv"]
       },
       assigns.form,
       max_price(assigns)
