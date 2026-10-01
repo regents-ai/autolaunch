@@ -51,6 +51,8 @@ Revstake supply: 100 billion tokens.
 | Liquidity reserve | Up to 5 billion (5%) | Paired with REGENT in a permanently locked trading position. |
 | Treasury | 85 billion (85%) | Released to the launch's treasury over 365 days, with any unsold auction tokens and unused reserve. |
 
+If the auction doesn't reach its minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
+
 The launcher of the revstake token is making an implicit promise to pass all future revenue through the revstake contract, where stakers receive a pro rata slice. You buy the token, stake it, and then always receive a portion of the USDC made by the agent or service.
 
 Yes, there is a trust assumption here: a person or agent can launch a revstake token and then stop putting revenue through the contract (exit scam), go out of business, or only put a portion of revenue through the contract.
@@ -68,6 +70,8 @@ Memestake supply: 1 billion tokens.
 | Auction | Up to 800 million (80%) | Winning bidders claim what they bought. Unsold tokens are burned. |
 | Liquidity reserve | Up to 200 million (20%) | Paired with the stock raised in a permanently locked trading position. Any unused reserve is burned. |
 | Creator, team or treasury | 0 | No token allocation. |
+
+If the auction doesn't reach its minimum, every bidder takes back their full bid and all 1 billion tokens are burned.
 
 ## Trading fees
 

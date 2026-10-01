@@ -176,7 +176,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     ~H"""
     <p class="launch-trust__status">Not deposited</p>
     <p class="launch-trust__text">
-      The auction did not launch, so no pool was opened.
+      The auction did not reach its minimum, so no pool was opened and every token was burned.
     </p>
     """
   end
