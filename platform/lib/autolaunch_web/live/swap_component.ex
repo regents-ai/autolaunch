@@ -135,8 +135,7 @@ defmodule AutolaunchWeb.SwapComponent do
   defp reviewed_for_signer(%{assigns: %{review: nil}} = socket, _signer), do: socket
   defp reviewed_for_signer(socket, _signer), do: closed(socket)
 
-  defp launch_key(%{chain: :base, auction: %{id: id}}), do: id
-  defp launch_key(%{chain: :robinhood, auction: address}), do: address
+  defp launch_key(%{auction: %{id: id}}), do: id
 
   @impl true
   def render(assigns) do
@@ -629,8 +628,8 @@ defmodule AutolaunchWeb.SwapComponent do
     end
   end
 
-  defp purchased_stake_path(%{chain: :robinhood, auction: address}, result) do
-    case Autolaunch.get_robinhood_auction(address) do
+  defp purchased_stake_path(%{chain: :robinhood, auction: auction}, result) do
+    case Autolaunch.get_robinhood_auction(auction.auction_address) do
       {:ok, %{token_address: token} = auction} when is_binary(token) ->
         stake_path(auction, result)
 

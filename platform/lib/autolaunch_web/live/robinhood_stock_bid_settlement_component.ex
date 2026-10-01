@@ -57,6 +57,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
     robinhood_unavailable: "Robinhood auctions are not open on this site.",
     invalid_auction: "This is not an auction address.",
+    auction_not_found: "This auction was not made by a Memestake launchpad.",
     stock_not_listed: "This auction's stock is not one this site lists.",
     auction_not_started: "Bidding has not started on this auction.",
     auction_not_ended: "This bid stays in the auction until bidding ends.",

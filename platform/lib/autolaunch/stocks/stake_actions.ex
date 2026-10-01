@@ -35,24 +35,19 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   @kinds [:stake, :unstake, :claim, :settle, :collect, :convert]
   # Where a launch lives, by its chain and kind: its deployment and that
-  # deployment's event signatures, the locker and the actions the staking
-  # contract offers. A memestock venue also names its launchpad
-  # and stock route, the hook call that converts REGENT's lane and the event
-  # that records it.
+  # deployment's event signatures and the actions the staking contract offers.
+  # A memestock venue also names its stock route, the hook call that converts
+  # REGENT's lane and the event that records it; its launchpad, hook and
+  # locker are those of the launch's own contracts version.
   @venues %{
     {:base, :agent} => %{
       lab: Lab,
       abi: LabAbi,
-      hook: :hook,
-      locker: :lp_locker,
       kinds: [:stake, :unstake, :claim, :collect]
     },
     {:base, :stocks} => %{
       lab: StocksLab,
       abi: StocksLabAbi,
-      hook: :hook,
-      locker: :locker,
-      launchpad: :launchpad,
       route: :route,
       convert: "settleRegentLane(bytes32,uint256,uint256)",
       converted: "RegentLaneSettled(bytes32,uint256,uint256)",
@@ -61,9 +56,6 @@ defmodule Autolaunch.Stocks.StakeActions do
     {:robinhood, :stocks} => %{
       lab: RobinhoodLab,
       abi: RobinhoodLabAbi,
-      hook: :stocks_hook,
-      locker: :stocks_locker,
-      launchpad: :stocks_launchpad,
       route: :stock_route,
       convert: "settleProtocolLane(bytes32,uint256,uint256)",
       converted: "ProtocolLaneSettled(bytes32,uint256,uint256)",
@@ -125,7 +117,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   of the signed-in account's wallets, with the facts the page shows beside
   them and what the page needs to read each step's result. The launch is
   `%{chain: :base, auction: auction_record}` or
-  `%{chain: :robinhood, auction: auction_address}`. `:stake` and `:unstake`
+  `%{chain: :robinhood, auction: auction_record}`. `:stake` and `:unstake`
   take the token amount typed and `:convert` the stock amount, with `floor:
   true` to refuse less than 95% of the Chainlink price and `false` for no
   minimum; the other three take nothing.
@@ -138,10 +130,12 @@ defmodule Autolaunch.Stocks.StakeActions do
          true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          :ok <- converter(kind, pool, signer),
          {:ok, config} <- lab(venue(pool)),
+         {:ok, contracts} <- contracts(pool, venue(pool), config),
          {:ok, wallet} <- position(pool, signer),
          {:ok, amount} <- amount(kind, Map.get(request, :amount), wallet),
-         {:ok, amount} <- conversion(kind, amount, Map.get(request, :floor), pool, config),
-         do: {:ok, build(kind, pool, config, wallet, amount)}
+         {:ok, amount} <-
+           conversion(kind, amount, Map.get(request, :floor), pool, config, contracts),
+         do: {:ok, build(kind, pool, config, contracts, wallet, amount)}
   end
 
   def prepare(_request, _address, _opts), do: unavailable(:unknown_action)
@@ -212,19 +206,21 @@ defmodule Autolaunch.Stocks.StakeActions do
   # worth at the Chainlink price right now; without it there is no minimum and
   # Chainlink is not asked. The hook reads the stock's route from the launchpad
   # when it sells, so the quote comes from that same route.
-  defp conversion(:convert, value, floor, pool, config) when is_boolean(floor) do
+  defp conversion(:convert, value, floor, pool, config, contracts) when is_boolean(floor) do
     venue = venue(pool)
     rpc = venue.lab.rpc_opts(config)
 
     with {:ok, stock} <- parsed(value, pool.currency.decimals),
          true <- stock <= pool.fees.regent.accrued_atomic || unavailable(:amount_above_share),
-         {:ok, route} <- route(venue, config, pool, rpc) do
+         {:ok, route} <- route(contracts, pool, rpc) do
       least(floor, stock, fn -> quote(venue, config, route, pool, stock, rpc) end)
     end
   end
 
-  defp conversion(:convert, _value, _floor, _pool, _config), do: unavailable(:unknown_action)
-  defp conversion(_kind, amount, _floor, _pool, _config), do: {:ok, amount}
+  defp conversion(:convert, _value, _floor, _pool, _config, _contracts),
+    do: unavailable(:unknown_action)
+
+  defp conversion(_kind, amount, _floor, _pool, _config, _contracts), do: {:ok, amount}
 
   defp least(false, stock, _quote), do: {:ok, %{stock: stock, worth: nil, least: 0}}
 
@@ -233,13 +229,12 @@ defmodule Autolaunch.Stocks.StakeActions do
          do: {:ok, %{stock: stock, worth: worth, least: div(worth * @floor_bps, @bps)}}
   end
 
-  defp route(venue, config, pool, rpc) do
-    launchpad = venue.lab.address!(config, venue.launchpad)
-    abi = venue.lab.abi!(config, venue.launchpad)
+  defp route(contracts, pool, rpc) do
+    abi = contracts.abis["launchpad"]
     data = LabAbi.encode(abi, "stockAdmission(address)", [pool.currency.address])
 
     with {:ok, [_admitted, _kind, route]} <-
-           chain(Rpc.call_words(launchpad, data, pool.block, 3, rpc)) do
+           chain(Rpc.call_words(contracts.launchpad, data, pool.block, 3, rpc)) do
       case Abi.word_address(route) do
         {:ok, route} -> {:ok, route}
         :error -> unavailable(:no_route)
@@ -288,23 +283,43 @@ defmodule Autolaunch.Stocks.StakeActions do
     end
   end
 
-  defp locker(venue, config), do: venue.lab.address!(config, venue.locker)
+  # The hook and locker the launch's actions go to, with their ABIs: a
+  # Revstake launch's deployment, or a memestock launch's own contracts
+  # version, with its launchpad too.
+  defp contracts(%{kind: :agent} = pool, venue, config),
+    do:
+      {:ok,
+       %{
+         hook: pool.hook,
+         locker: venue.lab.address!(config, :lp_locker),
+         abis: %{
+           "hook" => venue.lab.abi!(config, :hook),
+           "locker" => venue.lab.abi!(config, :lp_locker)
+         }
+       }}
+
+  defp contracts(%{kind: :stocks, version: version}, venue, config) do
+    case venue.lab.contracts(config, version) do
+      {:ok, contracts} -> {:ok, contracts}
+      {:error, _reason} -> unavailable(:stake_unavailable)
+    end
+  end
 
   # The review
 
-  defp build(kind, pool, config, wallet, amount) do
+  defp build(kind, pool, config, contracts, wallet, amount) do
     venue = venue(pool)
 
     %{
       kind: kind,
       chain: Client.chain(config),
-      steps: reviewed_steps(kind, pool, venue, config, wallet, amount),
+      steps: reviewed_steps(kind, pool, {venue, config, contracts}, wallet, amount),
       facts: review(kind, pool, wallet, amount),
       context: %{
         venue: venue,
         splitter: pool.fees.splitter.address,
-        hook: pool.hook,
-        locker: locker(venue, config),
+        hook: contracts.hook,
+        locker: contracts.locker,
         token: pool.token.address,
         token_symbol: pool.token.symbol,
         currency: pool.currency.address,
@@ -389,14 +404,14 @@ defmodule Autolaunch.Stocks.StakeActions do
     do: "#{token} #{pool.token.symbol} · #{currency} #{pool.currency.symbol}"
 
   # The steps, one calldata each, exactly what the wallet sends.
-  defp reviewed_steps(:stake, pool, venue, config, wallet, amount) do
+  defp reviewed_steps(:stake, pool, {venue, config, _contracts}, wallet, amount) do
     splitter = pool.fees.splitter.address
 
     approval(pool.token.address, splitter, amount, wallet.allowance) ++
       [step("stake", splitter, splitter_data(venue, config, "stake(uint256)", [amount]))]
   end
 
-  defp reviewed_steps(:unstake, pool, venue, config, _wallet, amount),
+  defp reviewed_steps(:unstake, pool, {venue, config, _contracts}, _wallet, amount),
     do: [
       step(
         "unstake",
@@ -405,36 +420,34 @@ defmodule Autolaunch.Stocks.StakeActions do
       )
     ]
 
-  defp reviewed_steps(:claim, pool, venue, config, _wallet, _amount),
+  defp reviewed_steps(:claim, pool, {venue, config, _contracts}, _wallet, _amount),
     do: [
       step("claim", pool.fees.splitter.address, splitter_data(venue, config, "claimAll()", []))
     ]
 
-  defp reviewed_steps(:settle, pool, venue, config, _wallet, _amount) do
-    abi = venue.lab.abi!(config, venue.hook)
-    data = LabAbi.encode(abi, "settleStakerLane(bytes32)", [pool.pool_id])
+  defp reviewed_steps(:settle, pool, {_venue, _config, contracts}, _wallet, _amount) do
+    data = LabAbi.encode(contracts.abis["hook"], "settleStakerLane(bytes32)", [pool.pool_id])
 
-    [step("settle", pool.hook, data)]
+    [step("settle", contracts.hook, data)]
   end
 
-  defp reviewed_steps(:collect, pool, venue, config, _wallet, _amount) do
-    locker = venue.lab.address!(config, venue.locker)
-    abi = venue.lab.abi!(config, venue.locker)
-
+  defp reviewed_steps(:collect, pool, {_venue, _config, contracts}, _wallet, _amount) do
     Enum.map(pool.positions, fn position ->
       step(
         "collect_" <> Atom.to_string(position.key),
-        locker,
-        LabAbi.encode(abi, "collect(uint256)", [position.token_id])
+        contracts.locker,
+        LabAbi.encode(contracts.abis["locker"], "collect(uint256)", [position.token_id])
       )
     end)
   end
 
-  defp reviewed_steps(:convert, pool, venue, config, _wallet, %{stock: stock, least: least}) do
-    abi = venue.lab.abi!(config, venue.hook)
-    data = LabAbi.encode(abi, venue.convert, [pool.pool_id, stock, least])
+  defp reviewed_steps(:convert, pool, {venue, _config, contracts}, _wallet, %{
+         stock: stock,
+         least: least
+       }) do
+    data = LabAbi.encode(contracts.abis["hook"], venue.convert, [pool.pool_id, stock, least])
 
-    [step("convert", pool.hook, data)]
+    [step("convert", contracts.hook, data)]
   end
 
   defp approval(_token, _spender, amount, allowance) when allowance >= amount, do: []
@@ -495,7 +508,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     }
   end
 
-  defp moved(:collect_full_range, context, logs) do
+  defp moved(step, context, logs) when step in [:collect_full_range, :collect_stock_only] do
     [{_topics, [currency0, _currency1, amount0, amount1]}] =
       emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
 

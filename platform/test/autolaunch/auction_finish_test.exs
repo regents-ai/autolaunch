@@ -79,11 +79,11 @@ defmodule Autolaunch.AuctionFinishTest do
         "baseFeePerGas" => quantity(1_000_000_000)
       }
 
-    # `launches(uint256)`: twenty words, auction at 3, migration block at 8
+    # `launches(uint256)`: eighteen words, auction at 3, migration block at 8
     # and the lifecycle at 11.
     defp answer("eth_call", [%{data: "0x" <> _data}, _block]) do
       words =
-        List.duplicate(0, 20)
+        List.duplicate(0, 18)
         |> List.replace_at(8, 10)
         |> List.replace_at(11, get(:lifecycle))
 

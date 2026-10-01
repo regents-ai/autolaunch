@@ -172,7 +172,7 @@ defmodule Autolaunch.TokenTrades do
   defp swap_source(%{module: Autolaunch.Robinhood.Lab} = venue, auction, head),
     do:
       Autolaunch.Robinhood.Pool.swap_source(
-        auction.auction_address,
+        auction,
         venue.config,
         head,
         venue.opts

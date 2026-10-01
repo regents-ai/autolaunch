@@ -16,7 +16,6 @@ defmodule Autolaunch.Robinhood.Pool do
 
   alias Autolaunch.{LabAbi, PriceHistory}
   alias Autolaunch.Robinhood.Lab
-  alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Assets, FeeSchedule}
   alias RegentChain.Address
 
@@ -32,9 +31,14 @@ defmodule Autolaunch.Robinhood.Pool do
 
   @type t :: map()
 
-  @doc "The lab's staking facts for one graduated auction address, or why they cannot be read."
-  @spec read(String.t()) :: {:ok, t()} | {:error, atom()}
-  def read(auction) when is_binary(auction) do
+  @doc """
+  The lab's staking facts for one graduated auction, or why they cannot be
+  read. The auction is its stored row, or any map naming its
+  `auction_address` and `contracts_version`: a launch reads only the
+  launchpad, hook and locker of its own version.
+  """
+  @spec read(map()) :: {:ok, t()} | {:error, atom()}
+  def read(auction) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
@@ -42,8 +46,8 @@ defmodule Autolaunch.Robinhood.Pool do
   end
 
   @doc "The same facts at a block already read, on the deployment it was read with."
-  @spec read_at(String.t(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
-  def read_at(auction, config, block, opts) when is_binary(auction) do
+  @spec read_at(map(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read_at(auction, config, block, opts) do
     with {:ok, launch} <- launch_record(auction, config, block, opts),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock),
          {:ok, symbol} <-
@@ -74,9 +78,12 @@ defmodule Autolaunch.Robinhood.Pool do
          token: %{address: launch.new_token, symbol: symbol, decimals: @token_decimals},
          currency: %{address: launch.stock, symbol: stock.symbol, decimals: stock.decimals},
          token_is_currency0?: currency0?(launch.new_token, launch.stock),
-         pool_fee: FeeSchedule.pool_fee(:robinhood),
+         pool_fee: FeeSchedule.pool_fee(:robinhood, launch.contracts.version),
          tick_spacing: @tick_spacing,
-         hook: Lab.address!(config, :stocks_hook),
+         version: launch.contracts.version,
+         launchpad: launch.contracts.launchpad,
+         hook: launch.contracts.hook,
+         locker: launch.contracts.locker,
          pool_manager: Lab.address!(config, :pool_manager),
          positions: positions,
          fees: fees,
@@ -89,15 +96,15 @@ defmodule Autolaunch.Robinhood.Pool do
   end
 
   @doc """
-  What a reader of the pool's trades needs, for one graduated auction
-  address: the PoolManager, the pool id, the token, which side of the pool it
+  What a reader of the pool's trades needs, for one graduated auction (as
+  `read/1` takes it): the PoolManager, the pool id, the token, which side of the pool it
   is on and the stock it trades against. The launch's migration block is on
   the rollup clock, not the block numbers logs carry, so no opening block is
   given.
   """
-  @spec swap_source(String.t(), map(), Rpc.block(), keyword()) ::
+  @spec swap_source(map(), map(), Rpc.block(), keyword()) ::
           {:ok, map()} | {:error, atom()}
-  def swap_source(auction, config, block, opts) when is_binary(auction) do
+  def swap_source(auction, config, block, opts) do
     with {:ok, launch} <- launch_record(auction, config, block, opts),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock) do
       {:ok,
@@ -114,43 +121,70 @@ defmodule Autolaunch.Robinhood.Pool do
   end
 
   @doc """
-  Every graduated launch on the lab at one block, newest first: its id, its
-  token and its auction. Launch ids run from 1 to `nextLaunchId() - 1`.
+  Every graduated launch on each launchpad the deployment names, at one block,
+  newest first: its id, its token, its auction and the launchpad version it
+  runs on. Launch ids run from 1 to `nextLaunchId() - 1` on each launchpad.
   """
   @spec graduated(map(), map(), keyword()) ::
-          {:ok, [%{launch_id: pos_integer(), token: String.t(), auction: String.t()}]}
+          {:ok,
+           [
+             %{
+               launch_id: pos_integer(),
+               token: String.t(),
+               auction: String.t(),
+               contracts_version: :v1 | :v2
+             }
+           ]}
           | {:error, atom()}
   def graduated(config, block, opts) do
-    with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
+    config
+    |> Lab.versions()
+    |> Enum.reduce_while({:ok, []}, fn version, {:ok, found} ->
+      case graduated_on(config, version, block, opts) do
+        {:ok, launches} -> {:cont, {:ok, found ++ launches}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp graduated_on(config, version, block, opts) do
+    with {:ok, contracts} <- Lab.contracts(config, version),
+         {:ok, next_id} <- launchpad_uint(contracts, "nextLaunchId()", [], block, opts) do
       Enum.reduce_while(
         1..(next_id - 1)//1,
         {:ok, []},
-        &collect_graduated(&1, &2, config, block, opts)
+        &collect_graduated(&1, &2, contracts, block, opts)
       )
     end
   end
 
-  defp collect_graduated(launch_id, {:ok, found}, config, block, opts) do
-    case graduated_launch(config, launch_id, block, opts) do
+  defp collect_graduated(launch_id, {:ok, found}, contracts, block, opts) do
+    case graduated_launch(contracts, launch_id, block, opts) do
       {:ok, nil} -> {:cont, {:ok, found}}
       {:ok, launch} -> {:cont, {:ok, [launch | found]}}
       error -> {:halt, error}
     end
   end
 
-  defp graduated_launch(config, launch_id, block, opts) do
+  defp graduated_launch(contracts, launch_id, block, opts) do
     with {:ok, words} <-
            launchpad_words(
-             config,
+             contracts,
              "launches(uint256)",
              [launch_id],
-             RobinhoodLabAbi.launch_record_words(),
+             contracts.record_words,
              block,
              opts
            ) do
       case launch(words) do
         {:ok, launch} ->
-          {:ok, %{launch_id: launch_id, token: launch.new_token, auction: launch.auction}}
+          {:ok,
+           %{
+             launch_id: launch_id,
+             token: launch.new_token,
+             auction: launch.auction,
+             contracts_version: contracts.version
+           }}
 
         {:error, :not_graduated} ->
           {:ok, nil}
@@ -162,22 +196,35 @@ defmodule Autolaunch.Robinhood.Pool do
   end
 
   defp launch_record(auction, config, block, opts) do
-    with {:ok, auction} <- Address.normalize(auction) |> normalized(),
+    with {:ok, contracts} <- Lab.contracts(config, auction.contracts_version),
+         {:ok, address} <- Address.normalize(auction.auction_address) |> normalized(),
          {:ok, launch_id} <-
-           launchpad_uint(config, "launchIdOfAuction(address)", [auction], block, opts),
+           launchpad_uint(contracts, "launchIdOfAuction(address)", [address], block, opts),
          true <- launch_id > 0 || {:error, :unknown_auction},
          {:ok, words} <-
            launchpad_words(
-             config,
+             contracts,
              "launches(uint256)",
              [launch_id],
-             RobinhoodLabAbi.launch_record_words(),
+             contracts.record_words,
              block,
              opts
            ),
          {:ok, launch} <- launch(words),
-         do: {:ok, Map.put(launch, :launch_id, launch_id)}
+         {:ok, stock_only} <- stock_only(contracts, launch_id, block, opts) do
+      {:ok,
+       Map.merge(launch, %{launch_id: launch_id, contracts: contracts, stock_only: stock_only})}
+    end
   end
+
+  # The first launchpad keeps a second, stock-only position in `stockRecords`.
+  defp stock_only(%{version: :v1} = contracts, launch_id, block, opts) do
+    with {:ok, [token_id, used]} <-
+           launchpad_words(contracts, "stockRecords(uint256)", [launch_id], 2, block, opts),
+         do: {:ok, %{token_id: token_id, used: used}}
+  end
+
+  defp stock_only(%{version: :v2}, _launch_id, _block, _opts), do: {:ok, nil}
 
   defp normalized({:ok, address}), do: {:ok, address}
   defp normalized(:error), do: {:error, :invalid_auction}
@@ -209,35 +256,55 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  # The one position belongs to the launchpad's locker, which never releases it
-  # and forwards the fees it collects to the launch's splitter. It carries what
-  # a collection would deposit right now, simulated on the locker.
+  # Every position belongs to the launchpad's locker, which never releases
+  # them and forwards the fees it collects to the launch's splitter. Each
+  # carries what a collection would deposit right now, simulated on the locker.
   defp positions(config, launch, stock, block, opts) do
     manager = Lab.address!(config, :position_manager)
-    locker = Lab.address!(config, :stocks_locker)
+    locker = launch.contracts.locker
 
-    with {:ok, owner} <- owner_of(manager, launch.lp_token_id, block, opts) do
-      {:ok,
-       [
-         %{
-           key: :full_range,
-           label: "Full range",
-           token_id: launch.lp_token_id,
-           owner: owner,
-           locked?: Address.equal?(owner, locker),
-           token_amount: Rpc.format_units(launch.lp_new_used, @token_decimals),
-           currency_amount: Rpc.format_units(launch.lp_stock_used, stock.decimals),
-           uncollected: uncollected(config, launch, launch.lp_token_id, stock, block, opts)
-         }
-       ]}
-    end
+    full_range = %{
+      key: :full_range,
+      label: "Full range",
+      token_id: launch.lp_token_id,
+      token_amount: Rpc.format_units(launch.lp_new_used, @token_decimals),
+      currency_amount: Rpc.format_units(launch.lp_stock_used, stock.decimals)
+    }
+
+    held =
+      case launch.stock_only do
+        %{token_id: token_id, used: used} when token_id != 0 ->
+          [full_range, Autolaunch.Pool.stock_only_position(token_id, used, stock.decimals)]
+
+        _none ->
+          [full_range]
+      end
+
+    Enum.reduce_while(held, {:ok, []}, fn position, {:ok, found} ->
+      case owner_of(manager, position.token_id, block, opts) do
+        {:ok, owner} ->
+          {:cont,
+           {:ok,
+            found ++
+              [
+                Map.merge(position, %{
+                  owner: owner,
+                  locked?: Address.equal?(owner, locker),
+                  uncollected: uncollected(launch, position.token_id, stock, block, opts)
+                })
+              ]}}
+
+        error ->
+          {:halt, error}
+      end
+    end)
   end
 
   # `collect` simulated through `eth_call`: the fees a collection would deposit
   # into the splitter now, or nil when the simulation cannot answer.
-  defp uncollected(config, launch, token_id, stock, block, opts) do
-    locker = Lab.address!(config, :stocks_locker)
-    data = LabAbi.encode(Lab.abi!(config, :stocks_locker), "collect(uint256)", [token_id])
+  defp uncollected(launch, token_id, stock, block, opts) do
+    %{locker: locker, abis: %{"locker" => abi}} = launch.contracts
+    data = LabAbi.encode(abi, "collect(uint256)", [token_id])
 
     case Rpc.call_words(locker, data, block, 2, opts) do
       {:ok, [amount0, amount1]} ->
@@ -256,55 +323,42 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  # The hook's three lanes for this pool, read from its own storage right now,
-  # every fee it charged the pool's trades, the wallet the Safe named to
-  # convert Regent's lane, and the splitter the staker lane and the locker's
-  # LP fees flow to. Like the price history, the hook's logs are read from the
+  # The hook's lanes for this pool, read from its own storage right now, every
+  # fee it charged the pool's trades, the wallet the Safe named to convert
+  # Regent's lane, and the splitter the staker lane and the locker's LP fees
+  # flow to. Like the price history, the hook's logs are read from the
   # chain's start.
   defp fees(config, launch, stock, block, opts) do
-    hook = Lab.address!(config, :stocks_hook)
-    abi = Lab.abi!(config, :stocks_hook)
+    %{hook: hook, abis: %{"hook" => abi}, lanes: lanes} = contracts = launch.contracts
 
-    with {:ok, [creator_accrued, protocol_accrued, staker_accrued]} <-
+    with {:ok, accrued} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
              block,
-             3,
+             length(lanes),
              opts
            ),
-         {:ok, [stock_to_creator, _stock_converted, _usdg_deposited, stock_to_stakers]} <-
+         {:ok, settled} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
              block,
-             4,
+             length(lanes) + 1,
              opts
            ),
          {:ok, converter} <-
            Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
          {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts),
-         {:ok, accrued} <- accrued_logs(hook, launch.pool_id, block, opts) do
+         {:ok, accrued_logs} <- accrued_logs(contracts, launch.pool_id, block, opts) do
       {:ok,
-       %{
-         charged: Enum.map(accrued, &Autolaunch.Pool.charged/1),
-         creator: %{
-           accrued: Rpc.format_units(creator_accrued, stock.decimals),
-           accrued_atomic: creator_accrued,
-           settled_currency: Rpc.format_units(stock_to_creator, stock.decimals)
-         },
-         regent: %{
-           accrued: Rpc.format_units(protocol_accrued, stock.decimals),
-           accrued_atomic: protocol_accrued,
-           converter: converter
-         },
-         stakers: %{
-           accrued: Rpc.format_units(staker_accrued, stock.decimals),
-           accrued_atomic: staker_accrued,
-           settled_currency: Rpc.format_units(stock_to_stakers, stock.decimals)
-         },
+       lanes
+       |> Autolaunch.Pool.lane_figures(accrued, settled, stock.decimals, @usdg_decimals)
+       |> put_in([:regent, :converter], converter)
+       |> Map.merge(%{
+         charged: Enum.map(accrued_logs, &Autolaunch.Pool.charged/1),
          splitter: splitter
-       }}
+       })}
     end
   end
 
@@ -330,12 +384,12 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  defp accrued_logs(hook, pool_id, block, opts) do
+  defp accrued_logs(contracts, pool_id, block, opts) do
     filter = %{
-      address: hook,
+      address: contracts.hook,
       fromBlock: "0x0",
       toBlock: "0x" <> Integer.to_string(block.number, 16),
-      topics: [LabAbi.topic(RobinhoodLabAbi.hook_fee_accrued_signature()), pool_id]
+      topics: [LabAbi.topic(contracts.fee_accrued), pool_id]
     }
 
     case Rpc.request("eth_getLogs", [filter], opts) do
@@ -354,19 +408,19 @@ defmodule Autolaunch.Robinhood.Pool do
     )
   end
 
-  defp launchpad_uint(config, signature, arguments, block, opts) do
+  defp launchpad_uint(contracts, signature, arguments, block, opts) do
     Rpc.call_uint(
-      Lab.address!(config, :stocks_launchpad),
-      LabAbi.encode(Lab.abi!(config, :stocks_launchpad), signature, arguments),
+      contracts.launchpad,
+      LabAbi.encode(contracts.abis["launchpad"], signature, arguments),
       block,
       opts
     )
   end
 
-  defp launchpad_words(config, signature, arguments, count, block, opts) do
+  defp launchpad_words(contracts, signature, arguments, count, block, opts) do
     Rpc.call_words(
-      Lab.address!(config, :stocks_launchpad),
-      LabAbi.encode(Lab.abi!(config, :stocks_launchpad), signature, arguments),
+      contracts.launchpad,
+      LabAbi.encode(contracts.abis["launchpad"], signature, arguments),
       block,
       count,
       opts

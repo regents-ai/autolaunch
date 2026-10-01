@@ -5,8 +5,9 @@ defmodule Autolaunch.Robinhood.Auctions do
   public lists and the Robinhood auction and token pages read the stored rows
   the Robinhood market feed keeps (`Autolaunch.Robinhood.MarketFeed`).
 
-  At that block it reads the launchpad's launch records (ids run from 1 to
-  `nextLaunchId() - 1`), each token's own name and symbol, the metadata the
+  At that block it reads every launchpad's launch records, the current one's
+  first and then the first Memestake launchpad's (ids run from 1 to
+  `nextLaunchId() - 1` on each), each token's own name and symbol, the metadata the
   launch wrote into it (description, website and image), the stock the
   auction is denominated in, the minimum it must raise, and the auction's
   schedule, stored clearing price and currency raised. An auction's state is
@@ -21,26 +22,42 @@ defmodule Autolaunch.Robinhood.Auctions do
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
-  alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Amounts, Assets}
 
   @token_decimals 18
 
-  @doc "Every auction the launchpad records, newest first, read at the given block."
+  @doc "Every auction the launchpads record, newest first, read at the given block."
   @spec at(map(), map(), keyword()) :: {:ok, [map()]} | {:error, atom()}
   def at(config, block, opts) do
-    with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts),
-         {:ok, clock} <- BlockClock.read(block, opts) do
+    with {:ok, clock} <- BlockClock.read(block, opts) do
       Enum.reduce_while(
-        1..(next_id - 1)//1,
+        Lab.versions(config),
         {:ok, []},
-        &newest_first(config, &1, &2, block, clock, opts)
+        &each_launchpad(config, &1, &2, block, clock, opts)
       )
     end
   end
 
-  defp newest_first(config, launch_id, {:ok, found}, block, clock, opts) do
-    case auction(config, launch_id, block, clock, opts) do
+  defp each_launchpad(config, version, {:ok, found}, block, clock, opts) do
+    case launchpad_auctions(config, version, block, clock, opts) do
+      {:ok, auctions} -> {:cont, {:ok, found ++ auctions}}
+      error -> {:halt, error}
+    end
+  end
+
+  defp launchpad_auctions(config, version, block, clock, opts) do
+    with {:ok, contracts} <- Lab.contracts(config, version),
+         {:ok, next_id} <- launchpad_uint(contracts, "nextLaunchId()", [], block, opts) do
+      Enum.reduce_while(
+        1..(next_id - 1)//1,
+        {:ok, []},
+        &newest_first(config, contracts, &1, &2, block, clock, opts)
+      )
+    end
+  end
+
+  defp newest_first(config, contracts, launch_id, {:ok, found}, block, clock, opts) do
+    case auction(config, contracts, launch_id, block, clock, opts) do
       {:ok, auction} -> {:cont, {:ok, [auction | found]}}
       error -> {:halt, error}
     end
@@ -49,8 +66,8 @@ defmodule Autolaunch.Robinhood.Auctions do
   # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock,
   # …, at word 8 the stock the auction must raise to graduate, and at word 10
   # the launch lifecycle (1 active, 2 graduated, 3 failed).
-  defp auction(config, launch_id, block, clock, opts) do
-    with {:ok, words} <- launch_words(config, launch_id, block, opts),
+  defp auction(config, contracts, launch_id, block, clock, opts) do
+    with {:ok, words} <- launch_words(contracts, launch_id, block, opts),
          {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
          {:ok, token} <- Abi.word_address(Enum.at(words, 1)),
          {:ok, stock_address} <- Abi.word_address(Enum.at(words, 2)),
@@ -117,20 +134,20 @@ defmodule Autolaunch.Robinhood.Auctions do
     end
   end
 
-  defp launch_words(config, launch_id, block, opts) do
+  defp launch_words(contracts, launch_id, block, opts) do
     Rpc.call_words(
-      Lab.address!(config, :stocks_launchpad),
-      LabAbi.encode(Lab.abi!(config, :stocks_launchpad), "launches(uint256)", [launch_id]),
+      contracts.launchpad,
+      LabAbi.encode(contracts.abis["launchpad"], "launches(uint256)", [launch_id]),
       block,
-      RobinhoodLabAbi.launch_record_words(),
+      contracts.record_words,
       opts
     )
   end
 
-  defp launchpad_uint(config, signature, arguments, block, opts) do
+  defp launchpad_uint(contracts, signature, arguments, block, opts) do
     Rpc.call_uint(
-      Lab.address!(config, :stocks_launchpad),
-      LabAbi.encode(Lab.abi!(config, :stocks_launchpad), signature, arguments),
+      contracts.launchpad,
+      LabAbi.encode(contracts.abis["launchpad"], signature, arguments),
       block,
       opts
     )

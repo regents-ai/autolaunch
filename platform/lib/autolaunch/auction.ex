@@ -529,6 +529,17 @@ defmodule Autolaunch.Auction do
       constraints one_of: [:agent, :stocks]
     end
 
+    # The Memestake contracts a launch runs on. The first four Memestake
+    # launches (BITE, JollyB and AGI on Base, RDOG on Robinhood) are `:v1` and
+    # read only their original launchpad, hook and locker; every later launch
+    # is `:v2`.
+    attribute :contracts_version, :atom do
+      allow_nil? false
+      public? true
+      default :v2
+      constraints one_of: [:v1, :v2]
+    end
+
     # Where the launch came from: `:site` when this site prepared it (on Base,
     # a review this site's account carried out; on Robinhood, a review stored
     # when the site prepared it), `:chain` when it was only seen on chain.

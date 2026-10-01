@@ -165,7 +165,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
           (<strong class="fact-page__hi">1%</strong>) and REGENT stakers (<strong class="fact-page__hi">1%</strong>). Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
           to participate. The trading fee on memestake tokens benefits the memestakers
-          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
+          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
         </p>
         <table class="fact-table">
           <thead>
@@ -268,7 +268,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
   # Where each share of a Memestake trading fee goes on `chain`.
   defp memestake_fees(chain, regent_route),
     do:
-      "#{FeeSchedule.lane(chain, :stakers).rate} added to the token's staking rewards. " <>
-        "#{FeeSchedule.lane(chain, :regent).rate} #{regent_route}. " <>
-        "#{FeeSchedule.lane(chain, :creator).rate} paid to the creator."
+      "#{FeeSchedule.lane(chain, :v2, :stakers).rate} added to the token's staking rewards. " <>
+        "#{FeeSchedule.lane(chain, :v2, :regent).rate} #{regent_route}. " <>
+        "#{FeeSchedule.lane(chain, :v2, :creator).rate} paid to the creator."
 end

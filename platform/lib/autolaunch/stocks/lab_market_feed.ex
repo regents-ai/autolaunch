@@ -4,8 +4,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   fifteen seconds on mainnet.
 
   Each poll reads a bounded page of the Memestake auction rows that already
-  exist (`Autolaunch.MarketWatch`) from their own contracts and the
-  launchpad's lifecycle, and writes back only their state, minimum reached,
+  exist (`Autolaunch.MarketWatch`) from their own contracts and the lifecycle
+  of the launchpad their contracts version names, and writes back only their state, minimum reached,
   clearing price, bidders' positions and a graduated token's pool price.
   Rows are created elsewhere, by launch discovery and the creator's own
   confirmation, never here. Changes are broadcast on the shared market topic
@@ -23,7 +23,6 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
-  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @topic "autolaunch:lab_market"
   @lab_interval 1_000
@@ -178,7 +177,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     address = auction.auction_address
     decimals = auction.quote_token_decimals
 
-    with :ok <- Autolaunch.LabRpc.ensure_contract(address, block, opts),
+    with {:ok, contracts} <- Lab.contracts(config, auction.contracts_version),
+         :ok <- Autolaunch.LabRpc.ensure_contract(address, block, opts),
          {:ok, start_block} <- auction_uint(config, address, "startBlock()", block, opts),
          {:ok, end_block} <- auction_uint(config, address, "endBlock()", block, opts),
          {:ok, claim_block} <- auction_uint(config, address, "claimBlock()", block, opts),
@@ -194,13 +194,13 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              opts
            ),
          {:ok, launch_id} <-
-           launchpad_uint(config, "launchIdOfAuction(address)", [address], block, opts),
+           launchpad_uint(contracts, "launchIdOfAuction(address)", [address], block, opts),
          {:ok, record} <-
            launchpad_words(
-             config,
+             contracts,
              "launches(uint256)",
              [launch_id],
-             StocksLabAbi.launch_record_words(),
+             contracts.record_words,
              block,
              opts
            ),
@@ -296,19 +296,19 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          do: LabProjection.project_graduated_token(row)
   end
 
-  defp launchpad_uint(config, signature, arguments, block, opts) do
+  defp launchpad_uint(contracts, signature, arguments, block, opts) do
     Rpc.call_uint(
-      Lab.address!(config, :launchpad),
-      LabAbi.encode(Lab.abi!(config, :launchpad), signature, arguments),
+      contracts.launchpad,
+      LabAbi.encode(contracts.abis["launchpad"], signature, arguments),
       block,
       opts
     )
   end
 
-  defp launchpad_words(config, signature, arguments, count, block, opts) do
+  defp launchpad_words(contracts, signature, arguments, count, block, opts) do
     Rpc.call_words(
-      Lab.address!(config, :launchpad),
-      LabAbi.encode(Lab.abi!(config, :launchpad), signature, arguments),
+      contracts.launchpad,
+      LabAbi.encode(contracts.abis["launchpad"], signature, arguments),
       block,
       count,
       opts

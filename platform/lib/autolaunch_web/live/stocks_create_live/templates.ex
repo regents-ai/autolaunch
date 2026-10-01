@@ -304,7 +304,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </dd>
               <dd :if={!@stock}>Choose a stock</dd>
             </div>
-            <div :for={lane <- FeeSchedule.lanes(@launch_chain)}>
+            <div :for={lane <- FeeSchedule.lanes(@launch_chain, :v2)}>
               <dt>{lane.label}</dt>
               <dd>{lane.rate} of {FeeSchedule.charged_on(lane.charged_on)}</dd>
             </div>

@@ -20,6 +20,12 @@ defmodule Autolaunch.Stocks.LabAbi do
   @unstaked "Unstaked(address,uint256)"
   @claimed "Claimed(address,address,uint256)"
 
+  # The first Memestake launchpad (BITE, JollyB and AGI): a 20-word launch
+  # record ending in the stock-only position, and a hook with only REGENT's
+  # and the stakers' lanes.
+  @v1_launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint128)"
+  @v1_hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
+
   # Everything the site prepares against or decodes. A missing entry refuses the
   # whole configuration rather than failing later inside a review.
   @required %{
@@ -121,6 +127,51 @@ defmodule Autolaunch.Stocks.LabAbi do
     ]
   }
 
+  # What the site reads from the first launchpad, hook and locker.
+  @v1_required %{
+    "launchpad" => [
+      f: {"launches(uint256)", "view", [@v1_launch_record]},
+      f: {"launchIdOfAuction(address)", "view", ["uint256"]},
+      f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]}
+    ],
+    "hook" => [
+      f: {"accrued(bytes32)", "view", ["uint256", "uint256"]},
+      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"settleStakerLane(bytes32)", "nonpayable", ["uint256"]},
+      f: {"executor()", "view", ["address"]},
+      f: {"settleRegentLane(bytes32,uint256,uint256)", "nonpayable", []},
+      e: {@v1_hook_fee_accrued, [true, false, false, false]},
+      e: {@regent_lane_settled, [true, false, false]},
+      e: {@staker_lane_settled, [true, true, false]}
+    ],
+    "locker" => @required["locker"]
+  }
+
+  @doc """
+  The shape of one Memestake launchpad version's records and hook: the words
+  in a launch record, the hook's lanes in the order `accrued` returns them,
+  its fee event, and the event each lane's settlement emits.
+  """
+  def shape(:v2),
+    do: %{
+      record_words: @launch_record_words,
+      lanes: [:creator, :regent, :stakers],
+      fee_accrued: @hook_fee_accrued,
+      lane_settled: %{
+        creator: @creator_lane_settled,
+        regent: @regent_lane_settled,
+        stakers: @staker_lane_settled
+      }
+    }
+
+  def shape(:v1),
+    do: %{
+      record_words: 20,
+      lanes: [:regent, :stakers],
+      fee_accrued: @v1_hook_fee_accrued,
+      lane_settled: %{regent: @regent_lane_settled, stakers: @staker_lane_settled}
+    }
+
   def requirements, do: @required
   def launch_record_words, do: @launch_record_words
   def launch_signature, do: "launch(#{@launch_params})"
@@ -137,4 +188,5 @@ defmodule Autolaunch.Stocks.LabAbi do
   def unstaked_signature, do: @unstaked
   def claimed_signature, do: @claimed
   def validate(abis), do: LabAbi.validate(abis, @required)
+  def validate_v1(abis), do: LabAbi.validate(abis, @v1_required)
 end

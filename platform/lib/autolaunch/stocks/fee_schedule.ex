@@ -1,28 +1,34 @@
 defmodule Autolaunch.Stocks.FeeSchedule do
   @moduledoc """
-  The four trading fees every Memestake pool charges, on Base and on
-  Robinhood Chain: the pool fee on the token the trader pays with, and the
-  creator's, REGENT stakers' and token stakers' fees on the stock side of
-  every trade.
-  Every page that states these fees reads them here.
+  The trading fees every Memestake pool charges, on Base and on Robinhood
+  Chain: the pool fee on the token the trader pays with, and the creator's,
+  REGENT stakers' and token stakers' fees on the stock side of every trade.
+  The first four Memestake tokens (`:v1`) charge no creator's fee and 1% to
+  their stakers. Every page that states these fees reads them here.
   """
 
   # Mirrors the contracts: StocksPreset.sol (POOL_FEE, CREATOR_LANE_BPS,
   # REGENT_LANE_BPS, STAKER_LANE_BPS) on Base, and RobinhoodPreset.sol
   # (CREATOR_LANE_BPS, PROTOCOL_LANE_BPS, STAKER_LANE_BPS, with StocksPreset's
-  # POOL_FEE) on Robinhood Chain. The pool fee is in Uniswap v4's hundredths
-  # of a bip, each lane in basis points.
+  # POOL_FEE) on Robinhood Chain; the first launchpads' presets for `:v1`. The
+  # pool fee is in Uniswap v4's hundredths of a bip, each lane in basis points.
+  @v2 %{pool_fee: 3_000, lanes: [creator: 30, regent: 100, stakers: 300]}
+  @v1 %{pool_fee: 3_000, lanes: [regent: 100, stakers: 100]}
   @schedules %{
-    base: %{pool_fee: 3_000, creator_lane_bps: 30, regent_lane_bps: 100, staker_lane_bps: 300},
-    robinhood: %{
-      pool_fee: 3_000,
-      creator_lane_bps: 30,
-      regent_lane_bps: 100,
-      staker_lane_bps: 300
-    }
+    {:base, :v2} => @v2,
+    {:robinhood, :v2} => @v2,
+    {:base, :v1} => @v1,
+    {:robinhood, :v1} => @v1
+  }
+
+  @receivers %{
+    creator: {"Creator's fee", "the wallet that created the launch"},
+    regent: {"REGENT stakers' fee", "REGENT staking"},
+    stakers: {"Token stakers' fee", "the token's stakers"}
   }
 
   @type chain :: :base | :robinhood
+  @type version :: :v1 | :v2
   @type lane :: %{
           key: :pool | :creator | :regent | :stakers,
           label: String.t(),
@@ -32,62 +38,50 @@ defmodule Autolaunch.Stocks.FeeSchedule do
         }
 
   @doc "The pool's static fee as its pool key carries it: 3_000 is 0.30%."
-  @spec pool_fee(chain()) :: pos_integer()
-  def pool_fee(chain), do: Map.fetch!(@schedules, chain).pool_fee
+  @spec pool_fee(chain(), version()) :: pos_integer()
+  def pool_fee(chain, version), do: Map.fetch!(@schedules, {chain, version}).pool_fee
 
-  @doc "Each fee a Memestake trade on `chain` pays: its rate, what it is charged on and who receives it."
-  @spec lanes(chain()) :: [lane()]
-  def lanes(chain) do
-    schedule = Map.fetch!(@schedules, chain)
+  @doc """
+  Each fee a Memestake trade on `chain` pays on a launch of `version`: its
+  rate, what it is charged on and who receives it.
+  """
+  @spec lanes(chain(), version()) :: [lane()]
+  def lanes(chain, version) do
+    schedule = Map.fetch!(@schedules, {chain, version})
+
+    pool = %{
+      key: :pool,
+      label: "Pool fee",
+      rate: percent(div(schedule.pool_fee, 100)),
+      charged_on: :paid,
+      receiver:
+        "the pool's liquidity; what the locked liquidity earns goes to the token's stakers"
+    }
 
     [
-      %{
-        key: :pool,
-        label: "Pool fee",
-        rate: percent(div(schedule.pool_fee, 100)),
-        charged_on: :paid,
-        receiver:
-          "the pool's liquidity; what the locked liquidity earns goes to the token's stakers"
-      },
-      %{
-        key: :creator,
-        label: "Creator's fee",
-        rate: percent(schedule.creator_lane_bps),
-        charged_on: :stock,
-        receiver: "the wallet that created the launch"
-      },
-      %{
-        key: :regent,
-        label: "REGENT stakers' fee",
-        rate: percent(schedule.regent_lane_bps),
-        charged_on: :stock,
-        receiver: "REGENT staking"
-      },
-      %{
-        key: :stakers,
-        label: "Token stakers' fee",
-        rate: percent(schedule.staker_lane_bps),
-        charged_on: :stock,
-        receiver: "the token's stakers"
-      }
+      pool
+      | Enum.map(schedule.lanes, fn {key, bps} ->
+          {label, receiver} = Map.fetch!(@receivers, key)
+          %{key: key, label: label, rate: percent(bps), charged_on: :stock, receiver: receiver}
+        end)
     ]
   end
 
-  @doc "One of the fees a Memestake trade on `chain` pays."
-  @spec lane(chain(), :pool | :creator | :regent | :stakers) :: lane()
-  def lane(chain, key), do: Enum.find(lanes(chain), &(&1.key == key))
+  @doc "One of the fees a Memestake trade on `chain` pays on a launch of `version`."
+  @spec lane(chain(), version(), :pool | :creator | :regent | :stakers) :: lane() | nil
+  def lane(chain, version, key), do: Enum.find(lanes(chain, version), &(&1.key == key))
 
   @doc "What a fee is charged on, in words."
   @spec charged_on(:paid | :stock) :: String.t()
   def charged_on(:paid), do: "the token the trader pays with"
   def charged_on(:stock), do: "the stock side of every trade"
 
-  @doc "The fees as rows of a launch's fixed terms."
+  @doc "A new launch's fees as rows of its fixed terms."
   @spec terms(chain()) :: [{String.t(), String.t()}]
   def terms(chain),
     do:
       Enum.map(
-        lanes(chain),
+        lanes(chain, :v2),
         &{&1.label, "#{&1.rate} of #{charged_on(&1.charged_on)}, to #{&1.receiver}"}
       )
 

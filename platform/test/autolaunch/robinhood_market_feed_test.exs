@@ -51,7 +51,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       end
     end
 
-    def market(_head, auction), do: Map.fetch(chain().markets, auction)
+    def market(_head, auction), do: Map.fetch(chain().markets, auction.auction_address)
 
     def terms(_head, _auction, price),
       do: {:ok, %{floor_price: price.(7 * 2 ** 96), token_supply: Decimal.new("1000000")}}

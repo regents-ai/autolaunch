@@ -175,8 +175,8 @@ defmodule AutolaunchWeb.ConvertLive do
           name: token.name,
           symbol: token.symbol,
           href: Paths.token(token.auction),
-          launch: %{chain: :robinhood, auction: token.auction.auction_address},
-          pool: RobinhoodPool.read(token.auction.auction_address)
+          launch: %{chain: :robinhood, auction: token.auction},
+          pool: RobinhoodPool.read(token.auction)
         }
       end)
 

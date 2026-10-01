@@ -12,6 +12,10 @@ defmodule Autolaunch.Robinhood.Lab do
   event the site prepares against. Chain 31338 is the local lab, a blank Anvil
   chain with fixture stocks; `test_chain?/0` is what the lab-only features key
   off.
+
+  A deployment with launches on the first Robinhood launchpad (RDOG) names
+  that launchpad, its hook and its locker in a `v1` section with their ABIs;
+  those launches read only those contracts.
   """
 
   alias Autolaunch.{Lab, LabRpcUrl}
@@ -28,6 +32,7 @@ defmodule Autolaunch.Robinhood.Lab do
   @swap_address_keys ~w(swap_router quoter)
   @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
   @stock_keys ~w(symbol name address decimals route pool feed fixture launch_admission)
+  @contract_keys ~w(hook launchpad locker)
   @stock_decimals 18
 
   @type stock :: %{
@@ -50,7 +55,8 @@ defmodule Autolaunch.Robinhood.Lab do
           run_id: String.t(),
           addresses: %{required(String.t()) => String.t()},
           stocks: [stock()],
-          abis: %{required(String.t()) => [map()]}
+          abis: %{required(String.t()) => [map()]},
+          v1: map() | nil
         }
 
   @doc "Whether this site was given a Robinhood deployment description."
@@ -103,7 +109,8 @@ defmodule Autolaunch.Robinhood.Lab do
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, stocks} <- exact_stocks(decoded["stocks"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
-         :ok <- RobinhoodLabAbi.validate(abis) do
+         :ok <- RobinhoodLabAbi.validate(abis),
+         {:ok, v1} <- v1_section(decoded["v1"]) do
       {:ok,
        %{
          path: path,
@@ -113,7 +120,8 @@ defmodule Autolaunch.Robinhood.Lab do
          run_id: run_id,
          addresses: addresses,
          stocks: stocks,
-         abis: abis
+         abis: abis,
+         v1: v1
        }}
     else
       false -> {:error, :absolute_path_required}
@@ -146,6 +154,37 @@ defmodule Autolaunch.Robinhood.Lab do
   end
 
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
+
+  @doc """
+  The launchpad, hook and locker a launch on `version` runs on, their ABIs
+  (keyed `"launchpad"`, `"hook"` and `"locker"`) and the shape of that
+  version's hook (`Autolaunch.Robinhood.LabAbi.shape/1`).
+  """
+  def contracts(config, :v2) do
+    {:ok,
+     :v2
+     |> RobinhoodLabAbi.shape()
+     |> Map.merge(%{
+       version: :v2,
+       launchpad: address!(config, :stocks_launchpad),
+       hook: address!(config, :stocks_hook),
+       locker: address!(config, :stocks_locker),
+       abis: %{
+         "launchpad" => abi!(config, :stocks_launchpad),
+         "hook" => abi!(config, :stocks_hook),
+         "locker" => abi!(config, :stocks_locker)
+       }
+     })}
+  end
+
+  def contracts(%{v1: %{} = v1}, :v1),
+    do: {:ok, :v1 |> RobinhoodLabAbi.shape() |> Map.merge(v1) |> Map.put(:version, :v1)}
+
+  def contracts(_config, :v1), do: {:error, :v1_contracts_missing}
+
+  @doc "Every launchpad version this deployment names, the current one first."
+  def versions(%{v1: nil}), do: [:v2]
+  def versions(_config), do: [:v2, :v1]
 
   @doc "The stocks the controller read back from the chain, admitted on the Stocks launchpad."
   @spec stocks(t()) :: [stock()]
@@ -225,6 +264,28 @@ defmodule Autolaunch.Robinhood.Lab do
   end
 
   defp exact_stock(_stock), do: :error
+
+  defp v1_section(nil), do: {:ok, nil}
+
+  defp v1_section(%{"addresses" => addresses, "abis" => abis} = v1) when map_size(v1) == 2 do
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @contract_keys,
+         true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
+         true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @contract_keys,
+         true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
+         :ok <- RobinhoodLabAbi.validate_v1(abis) do
+      {:ok,
+       %{
+         launchpad: String.downcase(addresses["launchpad"]),
+         hook: String.downcase(addresses["hook"]),
+         locker: String.downcase(addresses["locker"]),
+         abis: abis
+       }}
+    else
+      _ -> {:error, :invalid_v1}
+    end
+  end
+
+  defp v1_section(_v1), do: {:error, :invalid_v1}
 
   defp exact_abis(abis) when is_map(abis) do
     with true <- Enum.sort(Map.keys(abis)) == Enum.sort(@abi_keys),

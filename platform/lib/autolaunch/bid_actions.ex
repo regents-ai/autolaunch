@@ -527,17 +527,20 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  defp launchpad_treasury(%{treasury_address: treasury_address}) do
-    with {:ok, launchpad} <- admitted_launchpad() do
+  defp launchpad_treasury(%{treasury_address: treasury_address} = auction) do
+    with {:ok, launchpad} <- admitted_launchpad(auction) do
       if Address.equal?(treasury_address, launchpad),
         do: :ok,
         else: unavailable(:treasury_security_changed)
     end
   end
 
-  defp admitted_launchpad do
-    case StocksLab.current() do
-      {:ok, config} -> normalize(StocksLab.address!(config, :launchpad))
+  # The launchpad of the auction's own contracts version.
+  defp admitted_launchpad(%{contracts_version: version}) do
+    with {:ok, config} <- StocksLab.current(),
+         {:ok, contracts} <- StocksLab.contracts(config, version) do
+      normalize(contracts.launchpad)
+    else
       {:error, _reason} -> unavailable(:bid_preparation_unavailable)
     end
   end

@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         website: MarketCard.web_link(auction.website),
         telegram: telegram_link(auction.telegram),
         contracts: contracts(auction, assigns.pool),
-        split: split(auction.kind),
+        split: split(auction),
         supply: supply(auction.token_supply),
         liquidity: liquidity_state(auction.state, assigns.pool)
       )
@@ -274,7 +274,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   end
 
   # Each launch type's fixed split, as the How Autolaunch works page states it.
-  defp split(:agent),
+  defp split(%{kind: :agent}),
     do: %{
       name: "Revstake",
       about: "stakers share the revenue the project sends through its contract",
@@ -289,7 +289,23 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       ]
     }
 
-  defp split(:stocks),
+  # The first four Memestake launches keep their original split.
+  defp split(%{kind: :stocks, contracts_version: :v1}),
+    do: %{
+      name: "Memestake",
+      about: "stakers earn the onchain stock from trading fees",
+      reserve: "Up to 200 million tokens (20%)",
+      unused: "was burned",
+      rows: [
+        {"Sold in the auction", "Up to 800 million (80%)",
+         "winning bidders claim what they bought; unsold tokens are burned"},
+        {"Reserved for liquidity", "Up to 200 million (20%)",
+         "paired with the stock raised in a permanently locked position; any unused reserve is burned"},
+        {"Creator, team or treasury", "0", "no token allocation"}
+      ]
+    }
+
+  defp split(%{kind: :stocks, contracts_version: :v2}),
     do: %{
       name: "Memestake",
       about: "stakers earn the onchain stock from trading fees",

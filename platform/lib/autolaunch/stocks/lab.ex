@@ -9,6 +9,10 @@ defmodule Autolaunch.Stocks.Lab do
   names the very Base description this site runs with, answers on the same
   chain through the same RPC doors (`Autolaunch.LabRpcUrl`), and declares
   every function and event the site prepares against.
+
+  A deployment with launches on the first Memestake launchpad (BITE, JollyB and
+  AGI on Base) names that launchpad, its hook and its locker in a `v1`
+  section with their ABIs; those launches read only those contracts.
   """
 
   alias Autolaunch.{Lab, LabRpcUrl}
@@ -25,6 +29,7 @@ defmodule Autolaunch.Stocks.Lab do
   @abi_keys ~w(launchpad hook locker splitter bid_adapter route auction erc20 permit2)
   @faucet_keys ~w(regent_holder regent_amount stock_amount_units usdc_holder usdc_amount)
   @stock_keys ~w(symbol address decimals route fixture launch_admission)
+  @contract_keys ~w(hook launchpad locker)
 
   @type stock :: %{
           symbol: String.t(),
@@ -43,7 +48,8 @@ defmodule Autolaunch.Stocks.Lab do
           addresses: %{required(String.t()) => String.t()},
           faucet: %{required(String.t()) => String.t()} | nil,
           stocks: [stock()],
-          abis: %{required(String.t()) => [map()]}
+          abis: %{required(String.t()) => [map()]},
+          v1: map() | nil
         }
 
   @doc "Whether this site was given a Base Stocks deployment description."
@@ -98,7 +104,8 @@ defmodule Autolaunch.Stocks.Lab do
          {:ok, faucet} <- faucet_section(decoded["faucet"], chain_id),
          {:ok, stocks} <- exact_stocks(decoded["stocks"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
-         :ok <- StocksLabAbi.validate(abis) do
+         :ok <- StocksLabAbi.validate(abis),
+         {:ok, v1} <- v1_section(decoded["v1"]) do
       {:ok,
        %{
          path: path,
@@ -108,7 +115,8 @@ defmodule Autolaunch.Stocks.Lab do
          addresses: addresses,
          faucet: faucet,
          stocks: stocks,
-         abis: abis
+         abis: abis,
+         v1: v1
        }}
     else
       false -> {:error, :absolute_path_required}
@@ -128,6 +136,29 @@ defmodule Autolaunch.Stocks.Lab do
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
+
+  @doc """
+  The launchpad, hook and locker a Memestake launch on `version` runs on,
+  their ABIs (keyed `"launchpad"`, `"hook"` and `"locker"`) and the shape of
+  that version's records and hook (`Autolaunch.Stocks.LabAbi.shape/1`).
+  """
+  def contracts(config, :v2) do
+    {:ok,
+     :v2
+     |> StocksLabAbi.shape()
+     |> Map.merge(%{
+       version: :v2,
+       launchpad: address!(config, :launchpad),
+       hook: address!(config, :hook),
+       locker: address!(config, :locker),
+       abis: Map.take(config.abis, @contract_keys)
+     })}
+  end
+
+  def contracts(%{v1: %{} = v1}, :v1),
+    do: {:ok, :v1 |> StocksLabAbi.shape() |> Map.merge(v1) |> Map.put(:version, :v1)}
+
+  def contracts(_config, :v1), do: {:error, :v1_contracts_missing}
 
   @doc "The Base deployment's chain id, which this description shares."
   def chain_id, do: Lab.chain_id()
@@ -234,6 +265,28 @@ defmodule Autolaunch.Stocks.Lab do
   end
 
   defp exact_stock(_stock), do: :error
+
+  defp v1_section(nil), do: {:ok, nil}
+
+  defp v1_section(%{"addresses" => addresses, "abis" => abis} = v1) when map_size(v1) == 2 do
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @contract_keys,
+         true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
+         true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @contract_keys,
+         true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
+         :ok <- StocksLabAbi.validate_v1(abis) do
+      {:ok,
+       %{
+         launchpad: String.downcase(addresses["launchpad"]),
+         hook: String.downcase(addresses["hook"]),
+         locker: String.downcase(addresses["locker"]),
+         abis: abis
+       }}
+    else
+      _ -> {:error, :invalid_v1}
+    end
+  end
+
+  defp v1_section(_v1), do: {:error, :invalid_v1}
 
   defp exact_abis(abis) when is_map(abis) do
     with true <- Enum.sort(Map.keys(abis)) == Enum.sort(@abi_keys),

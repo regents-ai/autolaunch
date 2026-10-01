@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.ConvertComponent do
   carries whichever it names now. Every other visitor sees nothing.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
-  `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
+  `%{chain: :robinhood, auction: record}`; `pool` is its current facts.
   Nothing is stored: the review lives on this page only, the browser reports a
   hash and stops, and every outcome on screen is the server's own read of it
   against the review it was sent from.

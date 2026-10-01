@@ -4,7 +4,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
   one snapshot before review.
 
   `snapshot/1` pins one block on Robinhood, reads the auction's schedule, its
-  STOCK and that STOCK's admitted decimals from the launchpad, the bid's own
+  STOCK and that STOCK's admitted decimals from the launchpad that made the
+  auction (the current one, or the first Memestake launchpad), the bid's own
   record, and asks the auction what settling would do through
   `Autolaunch.Chain.CcaSettlement`: the exit that returns unspent STOCK (a
   plain exit, or a partial exit with checkpoint hints when the bid was only
@@ -31,7 +32,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
          {:ok, claim_block} <- call_uint(venue, auction, "claimBlock()"),
          {:ok, stock} <-
            Rpc.call_address(auction, LabAbi.encode(venue.abi, "currency()", []), block, opts),
-         {:ok, decimals} <- stock_decimals(config, stock, block, opts),
+         {:ok, contracts} <- launchpad(config, auction, block, opts),
+         {:ok, decimals} <- stock_decimals(contracts, stock, block, opts),
          {:ok, bid} <- CcaSettlement.bid(venue, auction, bid_id),
          {:ok, simulated} <- CcaSettlement.simulate(venue, auction, bid, end_block) do
       {:ok,
@@ -62,13 +64,27 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
     }
   end
 
+  # The launchpad whose `launchIdOfAuction` names the auction.
+  defp launchpad(config, auction, block, opts) do
+    Enum.reduce_while(Lab.versions(config), {:error, :auction_not_found}, fn version, missing ->
+      {:ok, contracts} = Lab.contracts(config, version)
+      data = LabAbi.encode(contracts.abis["launchpad"], "launchIdOfAuction(address)", [auction])
+
+      case Rpc.call_uint(contracts.launchpad, data, block, opts) do
+        {:ok, 0} -> {:cont, missing}
+        {:ok, _launch_id} -> {:halt, {:ok, contracts}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
   # `stockAdmission(stock)`: admitted, decimals, route. A revoked stock keeps
   # the decimals it was admitted with, so a settlement still formats correctly.
-  defp stock_decimals(config, stock, block, opts) do
+  defp stock_decimals(contracts, stock, block, opts) do
     with {:ok, [_admitted, decimals, _route]} <-
            Rpc.call_words(
-             Lab.address!(config, :stocks_launchpad),
-             LabAbi.encode(Lab.abi!(config, :stocks_launchpad), "stockAdmission(address)", [stock]),
+             contracts.launchpad,
+             LabAbi.encode(contracts.abis["launchpad"], "stockAdmission(address)", [stock]),
              block,
              3,
              opts

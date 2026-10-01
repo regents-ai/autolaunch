@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.StakeComponent do
   closes itself when the chain confirms it.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
-  `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
+  `%{chain: :robinhood, auction: record}`; `pool` is its current facts.
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); the card shows that wallet's
@@ -112,8 +112,7 @@ defmodule AutolaunchWeb.StakeComponent do
     end
   end
 
-  defp launch_key(%{chain: :base, auction: %{id: id}}), do: id
-  defp launch_key(%{chain: :robinhood, auction: address}), do: address
+  defp launch_key(%{auction: %{id: id}}), do: id
 
   # The card follows the wallet that may act. A review is built for one
   # signer, so another one closes it; the figures on the card are that
@@ -683,7 +682,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp lead(%{kind: :stocks} = pool),
     do:
-      "Stakers share this launch's trading fees: #{FeeSchedule.lane(pool.chain, :stakers).rate} of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
+      "Stakers share this launch's trading fees: #{FeeSchedule.lane(pool.chain, pool.version, :stakers).rate} of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
 
   defp steps(%{review: nil}), do: []
 
@@ -711,6 +710,7 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("claim", _review), do: "Confirm claim"
   defp step_label("settle", _review), do: "Confirm settlement"
   defp step_label("collect_full_range", _review), do: "Collect the full-range fees"
+  defp step_label("collect_stock_only", _review), do: "Collect the one-sided fees"
 
   defp step_state(nil), do: :ready
 

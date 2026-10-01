@@ -237,25 +237,35 @@ defmodule AutolaunchWeb.Components.PoolSection do
   attr :facts, :map, required: true
 
   defp stocks_fees(assigns) do
+    lane = &FeeSchedule.lane(assigns.facts.chain, assigns.facts.version, &1)
+
+    # The first four Memestake tokens have no creator's share.
     assigns =
       assign(assigns,
-        creator_rate: FeeSchedule.lane(assigns.facts.chain, :creator).rate,
-        regent_rate: FeeSchedule.lane(assigns.facts.chain, :regent).rate,
-        stakers_rate: FeeSchedule.lane(assigns.facts.chain, :stakers).rate
+        creator: lane.(:creator),
+        regent_rate: lane.(:regent).rate,
+        stakers_rate: lane.(:stakers).rate
       )
 
     ~H"""
     <section id="pool-fees" aria-label="Trading fees">
       <h3>Trading fees</h3>
-      <p>
-        Every trade pays {@creator_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
+      <p :if={@creator}>
+        Every trade pays {@creator.rate} of its <span class="ticker">{@facts.currency.symbol}</span>
         side to the launch's creator, {@regent_rate} to <span class="ticker">REGENT</span>
         stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
         stakers. All three are always on. <span class="figure__value">{@facts.fees.trades}</span>
         trades have been charged since graduation.
       </p>
+      <p :if={!@creator}>
+        Every trade pays {@regent_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
+        side to <span class="ticker">REGENT</span>
+        stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
+        stakers. Both are always on. <span class="figure__value">{@facts.fees.trades}</span>
+        trades have been charged since graduation.
+      </p>
       <ol class="autolaunch-record-list pool-buckets">
-        <li>
+        <li :if={@creator}>
           <article>
             <h5>Creator's share</h5>
             <dl class="autolaunch-live-market">
@@ -345,8 +355,11 @@ defmodule AutolaunchWeb.Components.PoolSection do
         </li>
       </ol>
       <p>
-        The creator's share can be paid out by anyone, straight to the wallet that created the
-        launch. REGENT's share is converted to USDC by the operator outside trading. The stakers'
+        <span :if={@creator}>
+          The creator's share can be paid out by anyone, straight to the wallet that created the
+          launch.
+        </span>
+        REGENT's share is converted to USDC by the operator outside trading. The stakers'
         share can be settled by anyone, and the locked liquidity's own trading fees can be collected
         by anyone; both land in the staking contract for
         <span class="ticker">{@facts.token.symbol}</span>

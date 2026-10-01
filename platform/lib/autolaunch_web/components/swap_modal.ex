@@ -56,7 +56,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
   defp pool(auction) do
     if RobinhoodLab.chain?(auction.chain_id),
       do: %{
-        launch: %{chain: :robinhood, auction: auction.auction_address},
+        launch: %{chain: :robinhood, auction: auction},
         currency: auction.quote_token_symbol
       },
       else: %{

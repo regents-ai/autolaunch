@@ -139,7 +139,12 @@ defmodule Autolaunch.TokenHoldings do
   # it was launched through this site.
   defp robinhood_holding(launch, venue, wallet) do
     with {:ok, pool} <-
-           RobinhoodPool.read_at(launch.auction, venue.config, venue.block, venue.opts),
+           RobinhoodPool.read_at(
+             %{auction_address: launch.auction, contracts_version: launch.contracts_version},
+             venue.config,
+             venue.block,
+             venue.opts
+           ),
          {:ok, position} <- position(pool, wallet),
          {:ok, name} <-
            Rpc.call_string(launch.token, LabAbi.selector("name()"), venue.block, venue.opts),

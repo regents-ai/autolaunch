@@ -123,7 +123,7 @@ defmodule Autolaunch.SwapActions do
   The steps of one exact-input trade on a graduated launch's pool for
   `address`, one of the signed-in account's wallets, with the figures the page
   shows beside them and what it needs to read the swap's result. The launch is `%{chain: :base, auction: auction_row}` or
-  `%{chain: :robinhood, auction: auction_address}`, as the staking actions name
+  `%{chain: :robinhood, auction: auction_row}`, as the staking actions name
   it. `:buy` spends the pool's currency for the token; `:sell` the reverse.
   `protection` is the price protection in percent, from 1 to 10, rounded to two
   decimal places.
@@ -458,8 +458,8 @@ defmodule Autolaunch.SwapActions do
 
   # The fees already inside the quote, one line each. A Memestake pool's come
   # from its fee schedule; a Revstake pool names the pool fee it read.
-  defp fees(%{kind: :stocks, chain: chain, currency: stock}, trade) do
-    Enum.map(FeeSchedule.lanes(chain), fn
+  defp fees(%{kind: :stocks, chain: chain, version: version, currency: stock}, trade) do
+    Enum.map(FeeSchedule.lanes(chain, version), fn
       %{charged_on: :paid} = lane ->
         "#{lane.label}: #{lane.rate} of the #{trade.sell.symbol} you pay"
 

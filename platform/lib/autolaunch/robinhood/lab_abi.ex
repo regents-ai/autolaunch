@@ -21,6 +21,11 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
   @claimed "Claimed(address,address,uint256)"
   @bid_record "(uint64,uint24,uint64,uint256,address,uint256,uint256)"
+
+  # The first Robinhood launchpad (RDOG): the same launch record, the
+  # stock-only position kept in `stockRecords`, and a hook with only the
+  # protocol's and the stakers' lanes.
+  @v1_hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
   @checkpoint "(uint256,uint256,uint256,uint24,uint64,uint64)"
 
   # Everything the site prepares against or decodes. A missing entry refuses the
@@ -122,6 +127,53 @@ defmodule Autolaunch.Robinhood.LabAbi do
     ]
   }
 
+  # What the site reads from the first launchpad, hook and locker.
+  @v1_required %{
+    "launchpad" => [
+      f: {"launches(uint256)", "view", [@launch_record]},
+      f: {"launchIdOfAuction(address)", "view", ["uint256"]},
+      f: {"nextLaunchId()", "view", ["uint256"]},
+      f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
+      f: {"stockRecords(uint256)", "view", ["(uint256,uint128)"]}
+    ],
+    "hook" => [
+      f: {"accrued(bytes32)", "view", ["uint256", "uint256"]},
+      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"settleStakerLane(bytes32)", "nonpayable", ["uint256"]},
+      f: {"executor()", "view", ["address"]},
+      f: {"settleProtocolLane(bytes32,uint256,uint256)", "nonpayable", []},
+      e: {@v1_hook_fee_accrued, [true, false, false, false]},
+      e: {@protocol_lane_settled, [true, false, false]},
+      e: {@staker_lane_settled, [true, true, false]}
+    ],
+    "locker" => @required["stocks_locker"]
+  }
+
+  @doc """
+  The shape of one Robinhood launchpad version's hook: its lanes in the order
+  `accrued` returns them, its fee event, and the event each lane's settlement
+  emits. Both versions keep the same 18-word launch record.
+  """
+  def shape(:v2),
+    do: %{
+      record_words: @launch_record_words,
+      lanes: [:creator, :regent, :stakers],
+      fee_accrued: @hook_fee_accrued,
+      lane_settled: %{
+        creator: @creator_lane_settled,
+        regent: @protocol_lane_settled,
+        stakers: @staker_lane_settled
+      }
+    }
+
+  def shape(:v1),
+    do: %{
+      record_words: @launch_record_words,
+      lanes: [:regent, :stakers],
+      fee_accrued: @v1_hook_fee_accrued,
+      lane_settled: %{regent: @protocol_lane_settled, stakers: @staker_lane_settled}
+    }
+
   def launch_record_words, do: @launch_record_words
   def stocks_launch_signature, do: "launch(#{@stocks_launch_params})"
   def stock_launch_created_signature, do: @stock_launch_created
@@ -134,4 +186,5 @@ defmodule Autolaunch.Robinhood.LabAbi do
   def fees_deposited_signature, do: @fees_deposited
   def claimed_signature, do: @claimed
   def validate(abis), do: LabAbi.validate(abis, @required)
+  def validate_v1(abis), do: LabAbi.validate(abis, @v1_required)
 end
