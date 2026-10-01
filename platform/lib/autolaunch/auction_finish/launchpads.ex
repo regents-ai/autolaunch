@@ -19,7 +19,9 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   alias Autolaunch.LabRpc
   alias Autolaunch.Robinhood.BlockClock
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   # The launch lifecycle every launchpad shares: 0 is no launch.
   @states %{1 => :running, 2 => :graduated, 3 => :failed}
@@ -144,8 +146,8 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   end
 
   # {words in a launch, auction, migration block, lifecycle}
-  defp layout(:base_memestake), do: {20, 3, 8, 11}
-  defp layout(:robinhood_memestake), do: {18, 3, 7, 10}
+  defp layout(:base_memestake), do: {StocksLabAbi.launch_record_words(), 3, 8, 11}
+  defp layout(:robinhood_memestake), do: {RobinhoodLabAbi.launch_record_words(), 3, 7, 10}
 
   defp words(to, abi, signature, arguments, count, block, pad),
     do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, pad.opts)
