@@ -61,17 +61,17 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     /// @dev Fixture price: 230 USDG per whole share, 18-decimal shares (every Robinhood stock), 6-decimal USDG.
     uint256 internal constant USDG_PER_SHARE = 230_000000;
 
-    /// @dev A STOCK-per-NEW floor: 1e-8 share per NEW, in base units 1e18 * 1e-8 / 1e18 = 1e-8, times
-    ///      2^96 and rounded down to the bid grid. Comfortably above `MIN_FLOOR_PRICE`.
-    uint256 internal constant FLOOR_PRICE_Q96 = 792_281_625_142_643_375_900;
+    /// @dev Every launch's floor: the lowest the pinned auction allows, on the 100-tick grid.
+    uint256 internal constant FLOOR_PRICE_Q96 = StocksPreset.FLOOR_PRICE_Q96;
 
-    /// @dev The raise every fixture launch must reach: the whole sale allocation at the floor, rounded
-    ///      up (`requiredStockRaisedFor`). Exactly five shares, about 1,150 USDG at 230 USDG per share.
-    uint128 internal constant REQUIRED_RAISE = 5e18;
+    /// @dev The raise every launch must reach: the whole sale allocation at the floor, rounded up. A
+    ///      few dozen base units of an 18-decimal share.
+    uint128 internal constant REQUIRED_RAISE = StocksPreset.REQUIRED_STOCK_RAISED;
 
-    /// @dev The price limit of a fixture bid meant to graduate: 1,001 times the floor, so any bid of up
-    ///      to about 5,000 shares clears below it, is filled in every block and exits through `exitBid`.
-    uint256 internal constant GRADUATING_TICKS = 100_000;
+    /// @dev The price limit of a fixture bid meant to graduate: about 10^16 times the floor, so any bid of
+    ///      up to about 250,000 shares clears below it, is filled in every block and exits through
+    ///      `exitBid`.
+    uint256 internal constant GRADUATING_TICKS = 1e18;
 
     struct Launched {
         uint256 launchId;
@@ -210,8 +210,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
             symbol: "NEW",
             description: "A Robinhood launch",
             website: "https://autolaunch.sh",
-            image: "ipfs://image",
-            floorPriceQ96: FLOOR_PRICE_Q96
+            image: "ipfs://image"
         });
     }
 
@@ -239,7 +238,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     // -------------------------------------------------------------------------
 
     function _bidPrice(uint256 ticksAboveFloor) internal pure returns (uint256) {
-        return FLOOR_PRICE_Q96 + ticksAboveFloor * (FLOOR_PRICE_Q96 / StocksPreset.BID_TICK_DIVISOR);
+        return FLOOR_PRICE_Q96 + ticksAboveFloor * StocksPreset.BID_TICK_SPACING_Q96;
     }
 
     /// @dev A direct bid the way a wallet places it: mint the currency, ERC-20 approval to Permit2,

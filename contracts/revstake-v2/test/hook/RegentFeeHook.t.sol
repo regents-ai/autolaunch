@@ -573,7 +573,7 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(_currentSqrtPrice(pool), sqrtBefore, "FA07-I4 pool state rolled forward");
     }
 
-    /// @dev Both lanes are measured from the one fee base: the 2% fee floored once, the 1% Regent
+    /// @dev Both lanes are measured from the one fee base: the 3% fee floored once, the 1% Regent
     ///      lane floored on its own, and the staker lane the exact remainder. `FA07-I2`.
     function _assertExactLanes(Settlement memory settled, uint256 feeBase) private view {
         uint256 fee = feeBase * hook.HOOK_FEE_BPS() / hook.BPS_DENOMINATOR();

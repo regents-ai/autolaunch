@@ -705,8 +705,8 @@ def command_fund(args: argparse.Namespace) -> None:
 
 LAUNCH_FIELDS = (
     "launcher", "newToken", "stock", "auction", "splitter", "startBlock", "endBlock", "claimBlock",
-    "migrationBlock", "requiredStockRaised", "floorPriceQ96", "lifecycle", "poolId", "finalSqrtPriceX96",
-    "lpTokenId", "lpStockUsed", "lpNewUsed", "retiredNew",
+    "migrationBlock", "lifecycle", "poolId", "finalSqrtPriceX96", "lpTokenId", "lpStockUsed", "lpNewUsed",
+    "newOnlyTokenId", "newOnlyUsed", "vestingStartBlock", "creatorReleased", "retiredNew",
 )
 LIFECYCLES = ("None", "Active", "Graduated", "Failed")
 

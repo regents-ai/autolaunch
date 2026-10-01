@@ -192,7 +192,7 @@ contract ConditionalVestingEscrowV2Test is C1Fixture {
 
     /// @notice ESC-005: failure proves exactly 100B before retiring, and blocks anything else.
     function test_ESC_005_FailureProvesFullSupplyBeforeRetiring() public {
-        // Short inventory: the strategy's 15% never arrived.
+        // Short inventory: the strategy's 10% never arrived.
         (MockERC20 shortSubject, ConditionalVestingEscrowV2 shortEscrow) = _newLaunch();
         MockAuction shortAuction = new MockAuction(address(shortSubject), strategy);
         shortSubject.transfer(address(shortEscrow), AUCTION_ALLOCATION);
@@ -335,7 +335,7 @@ contract ConditionalVestingEscrowV2Test is C1Fixture {
 
     // ------------------------------------------------------------------ ESC-009
 
-    /// @notice ESC-009: pending custody is exactly 65% of the 100B supply, to the unit.
+    /// @notice ESC-009: pending custody is exactly 70% of the 100B supply, to the unit.
     function test_ESC_009_PendingCustodyIsExactlySixtyFivePercent() public {
         MockERC20 launchSubject = new MockERC20("Subject", "SUBJ", 18);
         launchSubject.mint(address(this), TOTAL_SUPPLY);
@@ -345,7 +345,7 @@ contract ConditionalVestingEscrowV2Test is C1Fixture {
         launchSubject.approve(address(escrow), PENDING_ALLOCATION);
         escrow.initialize(address(launchSubject), treasury, strategy);
 
-        assertEq(escrow.PENDING_ALLOCATION(), (TOTAL_SUPPLY * 65) / 100, "65% of the frozen supply");
+        assertEq(escrow.PENDING_ALLOCATION(), (TOTAL_SUPPLY * 70) / 100, "70% of the frozen supply");
         assertEq(launchSubject.balanceOf(address(escrow)), PENDING_ALLOCATION, "exact custody");
         assertEq(funderBefore - launchSubject.balanceOf(address(this)), PENDING_ALLOCATION, "exact funder delta");
         assertEq(launchSubject.allowance(address(this), address(escrow)), 0, "the allowance was consumed exactly");

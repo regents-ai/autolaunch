@@ -38,12 +38,12 @@ import {SubjectSplitterV1} from "../revenue/SubjectSplitterV1.sol";
 contract RegentFeeHook is BaseHook {
     using SafeTransferLib for address;
 
-    /// @notice The hook fee is `feeBase * HOOK_FEE_BPS / BPS_DENOMINATOR`, 2%, floored once. The Regent
+    /// @notice The hook fee is `feeBase * HOOK_FEE_BPS / BPS_DENOMINATOR`, 3%, floored once. The Regent
     ///         lane is `feeBase * REGENT_LANE_BPS / BPS_DENOMINATOR`, 1%, floored; the staker lane is the
-    ///         rest of the fee, never less than its own floored 1%. Founder decisions 2026-09-28.
+    ///         rest of the fee, never less than its own floored 2%. Founder decisions 2026-10-01.
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public constant REGENT_LANE_BPS = 100;
-    uint256 public constant STAKER_LANE_BPS = 100;
+    uint256 public constant STAKER_LANE_BPS = 200;
     uint256 public constant HOOK_FEE_BPS = REGENT_LANE_BPS + STAKER_LANE_BPS;
 
     /// @notice The only static LP fee an official pool may carry, 0.30%.
@@ -206,7 +206,7 @@ contract RegentFeeHook is BaseHook {
         if (fee == 0) return 0;
 
         // Never truncate: the returned `int128` hook delta must represent both lanes exactly. A nonzero
-        // fee always leaves a nonzero staker lane, since the Regent lane is at most half of it.
+        // fee always leaves a nonzero staker lane, since the Regent lane is at most a third of it.
         int128 hookDelta = SafeCast.toInt128(fee);
         uint256 regentLane = feeBase * REGENT_LANE_BPS / BPS_DENOMINATOR;
         uint256 stakerLane = fee - regentLane;

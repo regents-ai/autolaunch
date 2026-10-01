@@ -10,8 +10,8 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///         supported router's own sync/settle timing, measured as a genuinely controlled difference
 ///         and recorded.
 /// @dev The measurement is a difference, and the control is exact. Against the pinned core at the
-///      fixture's opening state, specified inputs 52 and 51 realize unspecified outputs 50 and 49
-///      before the fee respectively, and 50 is the smallest fee base the 2% fee charges. The test
+///      fixture's opening state, specified inputs 36 and 35 realize unspecified outputs 34 and 33
+///      before the fee respectively, and 34 is the smallest fee base the 3% fee charges. The test
 ///      reads the settlement event to prove which side of the fee floor each execution reached. The two swaps therefore run one wei apart on two pools this fixture
 ///      opens identically — same currency ordering, same fee, same tick spacing, same opening
 ///      price, same liquidity, same direction, same price limit, same router, same warmth — and
@@ -42,8 +42,8 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///      founder's 14,000,000 complete-transaction limit, which contracts/v1 proved on its fork gate;
 ///      this package carries no fork gate, so that limit is not re-proved here.
 contract HookCallbackGasTest is HookFixture {
-    int256 internal constant BOUNDARY_CHARGING = -52;
-    int256 internal constant BOUNDARY_ZERO_FEE = -51;
+    int256 internal constant BOUNDARY_CHARGING = -36;
+    int256 internal constant BOUNDARY_ZERO_FEE = -35;
 
     /// @dev A production-sized charging swap: one REGENT, whose fee is large enough that both lanes
     ///      and the splitter's own 2% skim are nonzero and every branch of the settlement runs.

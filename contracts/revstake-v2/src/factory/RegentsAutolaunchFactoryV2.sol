@@ -18,8 +18,8 @@ import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 /// @notice The one Revstake factory, version 2. It deploys and permanently binds the one shared
 ///         `RegentLBPStrategyV2` and the one correctly mined `RegentFeeHook`, and it is the only
 ///         account that may create an admitted SUBJECT, its pending escrow, and its canonical CCA
-///         auction — always together, in one transaction. A launch sells 20%, keeps 15% as the pool
-///         reserve and vests 65% to its treasury, at the launcher's own floor price.
+///         auction — always together, in one transaction. A launch sells 20% from one fixed floor
+///         price, keeps up to 10% as the pool reserve and vests 70% to its treasury.
 /// @dev Authority here is deliberately tiny. Governance — the frozen Regent Safe — may pause or
 ///      unpause new launches, and that is the complete mutable surface. Launching costs nothing:
 ///      no REGENT ever moves from the launcher to this factory or to the Regent Safe.
@@ -54,11 +54,11 @@ contract RegentsAutolaunchFactoryV2 {
     /// @notice The exact SUBJECT supply every launch creates.
     uint256 public constant TOTAL_SUPPLY = 100_000_000_000e18;
 
-    /// @notice The exact 65% the launch escrow custodies while the launch is pending.
-    uint256 public constant PENDING_ALLOCATION = 65_000_000_000e18;
+    /// @notice The exact 70% the launch escrow custodies while the launch is pending.
+    uint256 public constant PENDING_ALLOCATION = 70_000_000_000e18;
 
-    /// @notice The exact 35% the strategy pulls to fund the auction's 20% and its own 15% reserve.
-    uint256 public constant DISTRIBUTION_PULL = 35_000_000_000e18;
+    /// @notice The exact 30% the strategy pulls to fund the auction's 20% and its own 10% reserve.
+    uint256 public constant DISTRIBUTION_PULL = 30_000_000_000e18;
 
     /// @notice The only decimals an admitted SUBJECT carries.
     uint8 public constant SUBJECT_DECIMALS = 18;
@@ -79,7 +79,7 @@ contract RegentsAutolaunchFactoryV2 {
 
     /// @notice The runtime code hash the `ConditionalVestingEscrowV2` implementation must present.
     bytes32 public constant ESCROW_IMPLEMENTATION_RUNTIME_CODE_HASH =
-        0x8b46a521a2caaef63d1c01a06b828d1db1556118e8e76d8f61a4f9d0306205da;
+        0xeb0532f7a40fb683b1fd1335e26a39a8384d3f10aceb427225bb5c6db2ae137e;
 
     /// @notice The runtime code hash the `SubjectSplitterV1` implementation must present.
     bytes32 public constant SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH =
@@ -91,11 +91,8 @@ contract RegentsAutolaunchFactoryV2 {
 
     /// @notice Everything a launcher supplies, in exactly this order.
     /// @dev There is deliberately no start block, hook, pool setting, Safe, ERC-8004 identity, salt,
-    ///      supply, allocation or schedule here. Every one of those is fixed by this factory or by the
-    ///      shared strategy. `floorPriceQ96` is the auction floor (Q96 REGENT base units per SUBJECT
-    ///      base unit); its bid tick spacing is derived from it. `minimumRegentRaised` is the
-    ///      launcher's own minimum raise, zero for none; the auction requires the larger of it and the
-    ///      whole sale allocation at the floor (`RegentLBPStrategyV2.requiredRegentRaisedFor`).
+    ///      supply, allocation, floor price, minimum raise or schedule here. Every one of those is fixed
+    ///      by this factory or by the shared strategy.
     struct LaunchParams {
         string name;
         string symbol;
@@ -103,8 +100,6 @@ contract RegentsAutolaunchFactoryV2 {
         string website;
         string image;
         address treasury;
-        uint256 floorPriceQ96;
-        uint128 minimumRegentRaised;
     }
 
     /// @notice One recorded launch. Provenance and identity only; it carries no authority.
@@ -153,8 +148,6 @@ contract RegentsAutolaunchFactoryV2 {
         address auction,
         address escrow,
         address treasury,
-        uint256 floorPriceQ96,
-        uint128 requiredRegentRaised,
         uint64 startBlock,
         uint64 endBlock
     );
@@ -356,7 +349,7 @@ contract RegentsAutolaunchFactoryV2 {
         if (found != graffiti) revert SubjectGraffitiMismatch(found);
     }
 
-    /// @dev The escrow clone is its own funding caller: `initialize` pulls the exact 65% from this
+    /// @dev The escrow clone is its own funding caller: `initialize` pulls the exact 70% from this
     ///      factory inside the same call, so a bound-but-unfunded escrow cannot exist. The exact
     ///      approval is fully consumed, leaving the escrow no standing spend authority. `C4-I3`.
     function _fundEscrow(address subject, address treasury) private returns (address escrow) {
@@ -369,8 +362,8 @@ contract RegentsAutolaunchFactoryV2 {
         if (remaining != 0) revert AllowanceNotConsumed(escrow, remaining);
     }
 
-    /// @dev Hands the remaining 35% to the strategy, which creates the launch's canonical auction,
-    ///      delivers the 20% into it and keeps the 15% as this launch's isolated reserve. Afterwards
+    /// @dev Hands the remaining 30% to the strategy, which creates the launch's canonical auction,
+    ///      delivers the 20% into it and keeps the 10% as this launch's isolated reserve. Afterwards
     ///      the strategy holds no allowance and this factory holds none of the new SUBJECT, so the
     ///      whole 100 billion sits exactly where `FAC-004` says it does. The recorded identities and
     ///      the fixed schedule are read back from the strategy — the canonical owner of both — and
@@ -381,12 +374,7 @@ contract RegentsAutolaunchFactoryV2 {
     {
         subject.safeApprove(address(strategy), DISTRIBUTION_PULL);
         auction = strategy.initializeDistribution(
-            RegentLBPStrategyV2.DistributionParams({
-                launchId: launchId,
-                escrow: escrow,
-                floorPriceQ96: params.floorPriceQ96,
-                minimumRegentRaised: params.minimumRegentRaised
-            })
+            RegentLBPStrategyV2.DistributionParams({launchId: launchId, escrow: escrow})
         );
 
         uint256 remaining = IERC20Minimal(subject).allowance(address(this), address(strategy));
@@ -399,12 +387,6 @@ contract RegentsAutolaunchFactoryV2 {
         _requireRecorded(1, uint256(uint160(subject)), uint256(uint160(recorded.subject)));
         _requireRecorded(2, uint256(uint160(escrow)), uint256(uint160(recorded.escrow)));
         _requireRecorded(3, uint256(uint160(params.treasury)), uint256(uint160(recorded.treasury)));
-        _requireRecorded(
-            4,
-            strategy.requiredRegentRaisedFor(params.floorPriceQ96, params.minimumRegentRaised),
-            recorded.requiredRegentRaised
-        );
-        _requireRecorded(12, params.floorPriceQ96, recorded.floorPriceQ96);
 
         emit LaunchCreated(
             launchId,
@@ -413,8 +395,6 @@ contract RegentsAutolaunchFactoryV2 {
             auction,
             escrow,
             params.treasury,
-            params.floorPriceQ96,
-            recorded.requiredRegentRaised,
             recorded.startBlock,
             recorded.endBlock
         );

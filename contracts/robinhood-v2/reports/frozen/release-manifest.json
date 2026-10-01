@@ -61,20 +61,20 @@
     },
     "RobinhoodPositionsLib": {
       "source": "src/libraries/RobinhoodPositionsLib.sol",
-      "role": "The externally linked library RobinhoodStocksLaunchpadV2 delegates its full-range v4 position building to.",
+      "role": "The externally linked library RobinhoodStocksLaunchpadV2 delegates its full-range and NEW-only v4 position building to.",
       "deployed_by": "deployment script (CREATE from the deployer), linked into the launchpad",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 7220,
-      "runtime_keccak256": "0x3fa497f1e163628fb41f1cf986fc920ed24334b9b70b4dff29f93ab13ce01817",
-      "runtime_sha256": "99adef4c6fa677d082bdb1ceb0b4a3ff383f16b9ee48bcbd4ebcda8f040d4496",
-      "runtime_object_sha256": "fc3caa4dd716996a4df024a4294f5fc94a03ffff8c62e55d8ef21a9c14679bbc",
+      "runtime_bytes": 7746,
+      "runtime_keccak256": "0xbbc96de686f038785185eee2fc644321f335896953961f90da6831da11a30c89",
+      "runtime_sha256": "01b1586f2470f2fe2b26db4e618c0067095990b1c9c323720940332c716c5130",
+      "runtime_object_sha256": "a760eea2fb435165da2a671efc43492dfc3c08b9a7ea6af89c21988ec90af9e3",
       "runtime_immutable_references": 0,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": true,
-      "creation_bytes": 7250,
-      "creation_keccak256": "0x818a23714640846b4c727af249deaf27f1828708b915b93394d8452a7073f2e3",
-      "creation_sha256": "4671171e5969be2998d7bef168f5dbec7198e868205ea249047844df06c33ba4",
-      "creation_object_sha256": "6ae1ac05fbfed7eae2a4a8b5a1c19ae2b90a5e41cfba1bce8196aeab9e25fc04",
+      "creation_bytes": 7776,
+      "creation_keccak256": "0x05ed2f37e783b7544e762a83f0ac1f0279109964568d13a8c58a26c4b0f968de",
+      "creation_sha256": "778741d54639d0f6da6274c3ad586c73aae09ca95ef737f69d06b1bc6ac8a5bc",
+      "creation_object_sha256": "730f8b29894c07e77147ae1441ebef7637f5046c86e186e9ade1eeba50953176",
       "creation_linked_libraries": [],
       "constructor": [],
       "abi_file": "abi/RobinhoodPositionsLib.json",
@@ -111,34 +111,34 @@
     },
     "RobinhoodStocksLaunchpadV2": {
       "source": "src/RobinhoodStocksLaunchpadV2.sol",
-      "role": "The Robinhood Memestake launchpad: creates the token and the CCA auction per launch, graduates into the official v4 pool at the raise divided by the sale allocation with one full-range position locked in the locker, retires the NEW left over to the dead address, deploys its hook through the factory and its locker and splitter implementation itself.",
+      "role": "The Robinhood Memestake launchpad: creates the token and the CCA auction per launch, graduates into the official v4 pool at the final clearing price with a full-range and a NEW-only position locked in the locker, releases the 1% creator vesting to the launcher over 30 days, retires the NEW left over to the dead address, deploys its hook through the factory and its locker and splitter implementation itself.",
       "deployed_by": "deployment script (CREATE from the deployer), linked against RobinhoodPositionsLib",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 16099,
+      "runtime_bytes": 17457,
       "runtime_keccak256": null,
       "runtime_sha256": null,
-      "runtime_object_sha256": "6fb4c6fd24fdbcd8db2d28fa4fbeb4b4282b86aa8cc9d97275ec0ddb444b4dc8",
+      "runtime_object_sha256": "c3af7094ba65082a15b6a732e9f36dafdfbbd80d0cfc30731c7b42456e9c1693",
       "runtime_immutable_references": 11,
       "runtime_linked_libraries": [
         {
           "library": "RobinhoodPositionsLib",
           "source": "src/libraries/RobinhoodPositionsLib.sol",
           "offsets": [
-            14018
+            11898
           ]
         }
       ],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 28764,
+      "creation_bytes": 30122,
       "creation_keccak256": null,
       "creation_sha256": null,
-      "creation_object_sha256": "1ef016243970973eddb2bdfdf1ccb90a0260018147138a8816d6650c4d928397",
+      "creation_object_sha256": "57c219be87924d31843a40e333b68fba76d3b9c263fb300cc55c631c60a18525",
       "creation_linked_libraries": [
         {
           "library": "RobinhoodPositionsLib",
           "source": "src/libraries/RobinhoodPositionsLib.sol",
           "offsets": [
-            16463
+            14343
           ]
         }
       ],
@@ -212,7 +212,7 @@
     },
     "MemestockLPLocker": {
       "source": "../stocks-v2/src/MemestockLPLocker.sol",
-      "role": "Holds every graduated launch's full-range v4 position forever and routes collected fees to the launch's splitter; the same source as the Base package.",
+      "role": "Holds every graduated launch's v4 positions (full range and NEW only) forever and routes collected fees to the launch's splitter; the same source as the Base package.",
       "deployed_by": "RobinhoodStocksLaunchpadV2 constructor (CREATE)",
       "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 3271,
@@ -242,17 +242,17 @@
       "role": "Bids into a launch's auction with STOCK on behalf of msg.sender through the launchpad's admitted route, pulling USDG through Permit2.",
       "deployed_by": "deployment script (CREATE from the deployer)",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 3155,
-      "runtime_keccak256": "0x8074cd60c856ef252aa0d07919c54e26998787a4cbd0bbbf0ca0bfb7c35bf332",
-      "runtime_sha256": "7cdb630c1ad9d800da3e2e56b925125e3dfc19822c4ebd17fb5bdf37859dfe3f",
-      "runtime_object_sha256": "da7b927c7bd6bb59eaa7ce48df9d96f39e607c18b991178560f4629f3d794d86",
+      "runtime_bytes": 3193,
+      "runtime_keccak256": "0xf0e105b713eb1ea3d8d4ec325b952110c475a80108346ffa4081432b3be36907",
+      "runtime_sha256": "1f157dfdcaa1de96bd05b85647e8726b6d175905efd72c7e1e4c9d21609b33b1",
+      "runtime_object_sha256": "62f53cd0aa79068da0a026122a7fb6db0f8175c7a0c1cfab93444ad91da8d06a",
       "runtime_immutable_references": 3,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 3598,
-      "creation_keccak256": "0x8f723b06dde631bdf8b063b0b7f9801886d50d7213af7f427ce7cabfa5bde5dc",
-      "creation_sha256": "984918bc4ae461cf8a38c12e877bc2868b43879d846098e614d114aec68395d0",
-      "creation_object_sha256": "3b17f778a2c6c10499f304c1e3807effd64dbb53037dba58ae261251e178ac36",
+      "creation_bytes": 3636,
+      "creation_keccak256": "0x62585ef01a98d20ce403fe5e1250783091eaa38a36d53ac8b3b1d3a3ba3ca1fa",
+      "creation_sha256": "6504290827fa480b389d68b0d04796808abfe0bf53a8494f9c89827c982e8eec",
+      "creation_object_sha256": "9aa015ab888a1c3375e6233e2489339b4a4b8c68ed4b0a58bd34dac681e83ad2",
       "creation_linked_libraries": [],
       "constructor": [
         "address launchpad_",

@@ -32,11 +32,13 @@ import {RobinhoodFixture} from "./RobinhoodFixture.sol";
 
 /// @notice Graduation and failure, as the Base Stocks launchpad proves them, on the Robinhood graph. A
 ///         graduated launch has sold its whole sale allocation to its bidders through the auction but
-///         for rounding, opens the official pool at the raise divided by the sale allocation, locks the
-///         whole reserve with the whole raise in one full-range position held by the fee-only locker,
-///         credits the rounding remainder of the raise to the pool's protocol lane and retires the NEW
-///         left over. An auction that raised less than the sale allocation at the floor, including one
-///         nobody bid in, fails: the inventory is retired and bidders are refunded through the CCA alone.
+///         for rounding, opens the official pool at the final clearing price, locks the whole raise with
+///         the reserve it pairs in one full-range position and the rest of the reserve in one NEW-only
+///         position, both held by the fee-only locker, credits the rounding remainder of the raise to
+///         the pool's protocol lane, starts the creator vesting and retires the NEW left over. An auction
+///         that raised less than the sale allocation at the floor, including one nobody bid in, fails:
+///         the inventory, the reserve and the vesting are retired and bidders are refunded through the
+///         CCA alone.
 contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     using StateLibrary for IPoolManager;
     using PoolIdLibrary for PoolKey;
@@ -116,13 +118,16 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         uint256 anchorPrice = _bidPrice(1_000);
 
         _rollToStart(l);
-        uint256 earlyBid = _bidDirect(l, early, 3e18, _bidPrice(20));
+        uint128 earlyAmount = REQUIRED_RAISE * 6 / 10;
+        uint128 anchorAmount = 20 * REQUIRED_RAISE;
+        uint128 lateAmount = 2 * REQUIRED_RAISE;
+        uint256 earlyBid = _bidDirect(l, early, earlyAmount, _bidPrice(20));
         vm.roll(l.auction.startBlock() + 1_000);
-        uint256 anchorBid = _bidDirect(l, anchor, 100e18, anchorPrice);
+        uint256 anchorBid = _bidDirect(l, anchor, anchorAmount, anchorPrice);
         vm.roll(l.auction.startBlock() + 2_000);
-        uint256 lateBid = _bidDirect(l, late, 10e18, _bidPrice(GRADUATING_TICKS));
+        uint256 lateBid = _bidDirect(l, late, lateAmount, _bidPrice(GRADUATING_TICKS));
         _rollToMigration(l);
-        _migrateAndAssertGraduation(l, 113e18);
+        _migrateAndAssertGraduation(l, uint256(earlyAmount) + anchorAmount + lateAmount);
 
         Checkpoint memory finalCheckpoint = l.auction.checkpoints(l.auction.endBlock());
         assertEq(finalCheckpoint.clearingPrice, anchorPrice, "the anchor bid sets the final price");
@@ -145,7 +150,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
     /// @dev The auction pays bids from the claim block, before migration can run, so NEW can already
     ///      be sent to the launchpad when it graduates. Graduation retires every unit of the launch's
-    ///      NEW it still holds, so NEW sent beforehand is retired with the crumbs.
+    ///      NEW it still holds but the vesting, so NEW sent beforehand is retired with the crumbs.
     function test_new_sent_to_the_launchpad_before_migration_is_retired() public {
         Launched memory l = _launchStock(STOCK_LOW);
         _rollToStart(l);
@@ -161,9 +166,12 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertGe(record.retiredNew, claimed, "the NEW sent here is retired");
         assertLe(record.retiredNew - claimed, _newCrumbs(l), "on top of crumbs");
         assertEq(UERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "at the dead address");
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
         assertEq(
-            UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.retiredNew,
+            UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING, "the launchpad keeps only the vesting"
+        );
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.newOnlyUsed + record.retiredNew
+                + StocksPreset.CREATOR_VESTING,
             StocksPreset.INITIAL_SUPPLY,
             "the supply reconciles"
         );
@@ -218,7 +226,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
     /// @dev Every Robinhood stock has 18 decimals and the fixture uses them throughout; admission reads
     ///      the decimals rather than assuming them, so an eight-decimal STOCK must obey the same rules:
-    ///      at a floor of 1e-8 of it per NEW, a minimum of five whole units.
+    ///      the same floor and the same required raise in its base units.
     function test_eight_decimal_stock_graduates_and_sells_the_whole_sale_allocation() public {
         MockERC20 stock8 = new MockERC20("Eight", "EIGHT", 8);
         FixtureUsdgStockRoute route = new FixtureUsdgStockRoute(address(stock8), USDG_ADDRESS, USDG_PER_SHARE);
@@ -227,36 +235,17 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         (, uint8 decimals,) = stocks.stockAdmission(address(stock8));
         assertEq(decimals, 8);
 
-        IRobinhoodStocksLaunchpadV2.LaunchParams memory params = _stockParams(address(stock8));
-        params.core.floorPriceQ96 = 79_228_162_500;
-        uint256 required = stocks.requiredStockRaisedFor(params.core.floorPriceQ96);
-        assertEq(required, 5e8, "five whole units");
-
-        Launched memory short = _launchStockAs(launcher, params);
-        Launched memory l = _launchStockAs(launcher, params);
-        uint256 limit = params.core.floorPriceQ96 * 1_001;
+        Launched memory short = _launchStock(address(stock8));
+        Launched memory l = _launchStock(address(stock8));
         _rollToStart(l);
-        _bidAt(short, uint128(required - 1), limit, params.core.floorPriceQ96);
-        uint256 bidId = _bidAt(l, uint128(required * 3), limit, params.core.floorPriceQ96);
+        _bidDirect(short, bidder, REQUIRED_RAISE - 1, _bidPrice(GRADUATING_TICKS));
+        uint256 bidId = _bidDirect(l, bidder, REQUIRED_RAISE * 3, _bidPrice(GRADUATING_TICKS));
         _rollToMigration(l);
         stocks.migrate(short.launchId);
         assertEq(uint8(_record(short).lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Failed), "one unit short");
-        _migrateAndAssertGraduation(l, required * 3);
+        _migrateAndAssertGraduation(l, uint256(REQUIRED_RAISE) * 3);
 
         _assertWholeAllocationSold(l, _settle(l, bidId));
-    }
-
-    /// @dev `_bidDirect` for a launch at its own floor, which is the bid's tick hint.
-    function _bidAt(Launched memory l, uint128 amount, uint256 priceQ96, uint256 floorPriceQ96)
-        private
-        returns (uint256 bidId)
-    {
-        MockERC20(l.currency).mint(bidder, amount);
-        vm.startPrank(bidder);
-        MockERC20(l.currency).approve(PERMIT2, amount);
-        IAllowanceTransfer(PERMIT2).approve(l.currency, address(l.auction), uint160(amount), type(uint48).max);
-        bidId = l.auction.submitBid(priceQ96, amount, bidder, floorPriceQ96, "");
-        vm.stopPrank();
     }
 
     // -------------------------------------------------------------------------
@@ -270,7 +259,11 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         uint256 pmStockBefore = MockERC20(l.currency).balanceOf(address(positionManager));
         uint256 pmNewBefore = UERC20(l.newToken).balanceOf(address(positionManager));
         uint256 ccaNewBefore = UERC20(l.newToken).balanceOf(address(cca));
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.MIGRATION_RESERVE, "only the reserve");
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(stocks)),
+            uint256(StocksPreset.MIGRATION_RESERVE) + StocksPreset.CREATOR_VESTING,
+            "only the reserve and the vesting"
+        );
         uint256 nextTokenId = positionManager.nextTokenId();
         bytes32 poolId = _poolId(l, address(stocksHook));
 
@@ -279,22 +272,26 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         IRobinhoodLaunchpadBase.Launch memory record = _record(l);
         assertEq(uint8(record.lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Graduated));
         assertEq(record.poolId, poolId);
-        assertGe(lbp.currencyRaised, record.requiredRaise, "the minimum was met");
+        assertGe(lbp.currencyRaised, StocksPreset.REQUIRED_STOCK_RAISED, "the minimum was met");
+        assertEq(record.vestingStartBlock, stocks.currentBlock(), "the vesting starts at graduation");
+        assertEq(record.creatorReleased, 0, "nothing of the vesting is paid yet");
 
-        // The pool opens at the raise divided by the whole sale allocation, never above the auction's
-        // final clearing price.
+        // The pool opens at the auction's final clearing price.
         bool stockIsCurrency0 = l.currency < l.newToken;
-        uint256 priceX96 = FullMath.mulDiv(lbp.currencyRaised, Q96, StocksPreset.AUCTION_INVENTORY);
-        assertLe(priceX96, lbp.initialPriceX96, "at or below the final clearing price");
-        uint160 expectedSqrtPrice =
-            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, stockIsCurrency0));
+        assertLe(
+            FullMath.mulDiv(lbp.currencyRaised, Q96, StocksPreset.AUCTION_INVENTORY),
+            lbp.initialPriceX96,
+            "the raise never buys more than the sale allocation at the final price"
+        );
+        uint160 expectedSqrtPrice = TokenPricing.convertToSqrtPriceX96(
+            TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0)
+        );
         assertEq(record.finalSqrtPriceX96, expectedSqrtPrice);
         (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(poolId));
-        assertEq(sqrtPriceX96, expectedSqrtPrice, "pool at raise / sale allocation");
+        assertEq(sqrtPriceX96, expectedSqrtPrice, "pool at the final clearing price");
         assertGt(IPoolManager(address(poolManager)).getLiquidity(PoolId.wrap(poolId)), 0, "live liquidity");
 
-        _assertLockedPosition(record, nextTokenId, _newCrumbs(l));
-        assertEq(positionManager.nextTokenId(), nextTokenId + 1, "exactly one position minted");
+        _assertLockedPositions(l, record, nextTokenId, _newCrumbs(l));
         assertEq(
             MockERC20(l.currency).balanceOf(address(positionManager)), pmStockBefore, "PositionManager STOCK unchanged"
         );
@@ -314,19 +311,24 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
             "auction keeps only the bidders' refundable remainder"
         );
 
-        // NEW: the auction keeps what it sold for its bids, the pool takes the reserve, and the
-        // launchpad retires the rest: the auction's unsold rounding and the reserve the position did
-        // not pair. The three reconcile exactly and the launchpad keeps nothing.
+        // NEW: the auction keeps what it sold for its bids, the two positions take the reserve, the
+        // launchpad keeps the vesting and retires the rest: the auction's unsold rounding and the
+        // positions' rounding. They reconcile exactly.
         uint256 ccaNewAfter = UERC20(l.newToken).balanceOf(address(cca));
         uint256 swept = ccaNewBefore - ccaNewAfter;
+        uint256 newPlaced = uint256(record.lpNewUsed) + record.newOnlyUsed;
         assertGe(ccaNewAfter, lbp.tokensSold, "the auction keeps the claimable NEW");
-        assertEq(record.retiredNew, swept + StocksPreset.MIGRATION_RESERVE - record.lpNewUsed, "what was left over");
+        assertEq(record.retiredNew, swept + StocksPreset.MIGRATION_RESERVE - newPlaced, "what was left over");
         assertEq(
-            ccaNewAfter + record.lpNewUsed + record.retiredNew, StocksPreset.INITIAL_SUPPLY, "the supply reconciles"
+            ccaNewAfter + newPlaced + record.retiredNew + StocksPreset.CREATOR_VESTING,
+            StocksPreset.INITIAL_SUPPLY,
+            "the supply reconciles"
         );
         assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
         assertEq(UERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "at the dead address");
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING, "the launchpad keeps only the vesting"
+        );
 
         // The hook knows the pool, and the launch has its own fresh splitter.
         RobinhoodFeeHookV1.PoolRecord memory pool = stocksHook.pool(poolId);
@@ -343,13 +345,17 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         created.initialize(l.newToken, l.currency);
     }
 
-    /// @dev The one locked position: full range, in the official pool, owned by and registered in the
-    ///      locker.
-    function _assertLockedPosition(IRobinhoodLaunchpadBase.Launch memory record, uint256 nextTokenId, uint256 crumbs)
-        private
-        view
-    {
-        assertEq(record.lpTokenId, nextTokenId, "the position is this graduation's mint");
+    /// @dev The locked positions, both in the official pool, owned by and registered in the locker: the
+    ///      full range, and the NEW-only position wholly on NEW's side of the opening price. Together
+    ///      they take the whole reserve but for crumbs. The NEW-only position is missing only when the
+    ///      reserve the full range left was below one unit of liquidity.
+    function _assertLockedPositions(
+        Launched memory l,
+        IRobinhoodLaunchpadBase.Launch memory record,
+        uint256 nextTokenId,
+        uint256 crumbs
+    ) private view {
+        assertEq(record.lpTokenId, nextTokenId, "the full range is this graduation's first mint");
         assertEq(IERC721(address(positionManager)).ownerOf(record.lpTokenId), address(locker), "owned by the locker");
         assertEq(locker.splitterOf(record.lpTokenId), record.splitter, "registered with the launch's splitter");
         (PoolKey memory key, PositionInfo info) = positionManager.getPoolAndPositionInfo(record.lpTokenId);
@@ -357,7 +363,57 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         assertEq(info.tickLower(), TickMath.minUsableTick(StocksPreset.POOL_TICK_SPACING));
         assertEq(info.tickUpper(), TickMath.maxUsableTick(StocksPreset.POOL_TICK_SPACING));
         assertGt(positionManager.getPositionLiquidity(record.lpTokenId), 0);
-        assertApproxEqAbs(record.lpNewUsed, StocksPreset.MIGRATION_RESERVE, crumbs, "the whole reserve is paired");
+        assertApproxEqAbs(
+            uint256(record.lpNewUsed) + record.newOnlyUsed,
+            StocksPreset.MIGRATION_RESERVE,
+            crumbs,
+            "the whole reserve is placed"
+        );
+
+        if (record.newOnlyTokenId == 0) {
+            assertEq(record.newOnlyUsed, 0, "no NEW-only position, no NEW placed in one");
+            assertLe(StocksPreset.MIGRATION_RESERVE - record.lpNewUsed, crumbs, "the full range took the reserve");
+            assertEq(positionManager.nextTokenId(), nextTokenId + 1, "exactly one position minted");
+            return;
+        }
+        assertEq(record.newOnlyTokenId, nextTokenId + 1, "the NEW-only position is the second mint");
+        assertEq(positionManager.nextTokenId(), nextTokenId + 2, "exactly two positions minted");
+        assertEq(
+            IERC721(address(positionManager)).ownerOf(record.newOnlyTokenId), address(locker), "owned by the locker"
+        );
+        assertEq(locker.splitterOf(record.newOnlyTokenId), record.splitter, "registered with the launch's splitter");
+        (key, info) = positionManager.getPoolAndPositionInfo(record.newOnlyTokenId);
+        assertEq(PoolId.unwrap(key.toId()), record.poolId);
+        assertGt(positionManager.getPositionLiquidity(record.newOnlyTokenId), 0);
+        // The far bound is as far as the pinned planner's offset reaches: 887,272 ticks from the opening
+        // tick, or the usable edge when that is nearer.
+        (, int24 tick,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(record.poolId));
+        int24 spacing = StocksPreset.POOL_TICK_SPACING;
+        int256 minUsable = TickMath.minUsableTick(spacing);
+        int256 maxUsable = TickMath.maxUsableTick(spacing);
+        if (l.currency < l.newToken) {
+            // NEW is currency1: its side of the book is at and below the opening tick.
+            int256 reach = int256(tick) + TickMath.MIN_TICK;
+            assertEq(info.tickLower(), _snapDown(reach < minUsable ? minUsable : reach, spacing), "as far as reaches");
+            assertLe(info.tickUpper(), tick, "wholly below the opening price");
+        } else {
+            // NEW is currency0: its side of the book is above the opening tick.
+            int256 reach = int256(tick) + TickMath.MAX_TICK;
+            assertGt(info.tickLower(), tick, "wholly above the opening price");
+            assertEq(info.tickUpper(), _snapUp(reach > maxUsable ? maxUsable : reach, spacing), "as far as reaches");
+        }
+    }
+
+    function _snapDown(int256 t, int24 spacing) private pure returns (int24) {
+        int256 compressed = t / spacing;
+        if (t < 0 && t % spacing != 0) compressed--;
+        return int24(compressed * spacing);
+    }
+
+    function _snapUp(int256 t, int24 spacing) private pure returns (int24) {
+        int256 compressed = t / spacing;
+        if (t > 0 && t % spacing != 0) compressed++;
+        return int24(compressed * spacing);
     }
 
     /// @dev Exit one bid at the auction and claim its NEW. Returns the NEW the auction paid it.
@@ -376,14 +432,16 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     }
 
     /// @dev Once every bid has exited and claimed: the bids received the whole sale allocation but for
-    ///      crumbs, and the auction, the pool, the dead address and the bids hold the whole supply.
+    ///      crumbs, and the auction, the two positions, the dead address, the vesting and the bids hold
+    ///      the whole supply.
     function _assertWholeAllocationSold(Launched memory l, uint256 received) private view {
         IRobinhoodLaunchpadBase.Launch memory record = _record(l);
         assertLe(received, StocksPreset.AUCTION_INVENTORY, "never more than the sale allocation");
         assertGe(received, StocksPreset.AUCTION_INVENTORY - _newCrumbs(l), "the whole sale allocation, but for crumbs");
         assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
         assertEq(
-            received + UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.retiredNew,
+            received + UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.newOnlyUsed
+                + record.retiredNew + StocksPreset.CREATOR_VESTING,
             StocksPreset.INITIAL_SUPPLY,
             "the supply reconciles"
         );
@@ -393,9 +451,8 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     ///      allocation the bids' claims may fall and how much NEW graduation may retire. Both come from
     ///      prices kept to one Q96 unit and never below the floor: the auction's clearing price sets how
     ///      much NEW the bids' STOCK buys, leaving the unsold rounding, and the pool price sets how much
-    ///      of the reserve the position pairs. So the supply divided by the floor price in Q96 bounds
-    ///      them together: about 1.26e6 base units at the fixture's floor, where the largest observed is about
-    ///      2.7e5.
+    ///      of the reserve the positions take. So the supply divided by the floor price in Q96 bounds
+    ///      them together: about 2.33e17 (0.23 NEW) at the floor.
     function _newCrumbs(Launched memory l) private view returns (uint256) {
         return StocksPreset.INITIAL_SUPPLY / l.auction.floorPrice();
     }
@@ -428,7 +485,7 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
         stocks.migrate(l.launchId);
         IRobinhoodLaunchpadBase.Launch memory record = _record(l);
         bytes32 topic = keccak256(
-            "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256)"
+            "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint128,uint256,uint256,uint256)"
         );
         bool found;
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -443,14 +500,20 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
                     uint256 lpTokenId,
                     uint128 lpStockUsed,
                     uint128 lpNewUsed,
+                    uint256 newOnlyTokenId,
+                    uint128 newOnlyUsed,
                     uint256 stockRaised,
                     uint256 stockDust,
                     uint256 newRetired
-                ) = abi.decode(logs[i].data, (uint160, uint256, uint128, uint128, uint256, uint256, uint256));
+                ) = abi.decode(
+                    logs[i].data, (uint160, uint256, uint128, uint128, uint256, uint128, uint256, uint256, uint256)
+                );
                 assertEq(sqrtPriceX96, record.finalSqrtPriceX96);
                 assertEq(lpTokenId, record.lpTokenId);
                 assertEq(lpStockUsed, record.lpCurrencyUsed);
                 assertEq(lpNewUsed, record.lpNewUsed);
+                assertEq(newOnlyTokenId, record.newOnlyTokenId);
+                assertEq(newOnlyUsed, record.newOnlyUsed);
                 assertEq(stockRaised, l.auction.lbpInitializationParams().currencyRaised);
                 assertEq(uint256(lpStockUsed) + stockDust, stockRaised);
                 assertEq(newRetired, record.retiredNew);
@@ -460,10 +523,54 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     }
 
     // -------------------------------------------------------------------------
+    // the launcher's vesting
+    // -------------------------------------------------------------------------
+
+    /// @dev Linear per block (in the auction's block units) from the graduation block, whole after thirty
+    ///      days, paid only to the launcher whoever calls, never more than the 1%, and nothing before
+    ///      graduation.
+    function test_creator_vesting_releases_linearly_to_the_launcher_only() public {
+        Launched memory l = _launchStock(STOCK_LOW);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodLaunchpadBase.LaunchNotGraduated.selector, IRobinhoodLaunchpadBase.Lifecycle.Active
+            )
+        );
+        stocks.releaseCreatorVesting(l.launchId);
+
+        _graduateStock(l);
+        UERC20 token = UERC20(l.newToken);
+        uint256 start = _record(l).vestingStartBlock;
+        assertEq(stocks.creatorReleasable(l.launchId), 0, "nothing vests in the graduation block");
+        assertEq(stocks.releaseCreatorVesting(l.launchId), 0, "an early release pays nothing");
+
+        uint256 quarter = RobinhoodPreset.CREATOR_VESTING_BLOCKS / 4;
+        vm.roll(start + quarter);
+        uint256 expected = uint256(StocksPreset.CREATOR_VESTING) * quarter / RobinhoodPreset.CREATOR_VESTING_BLOCKS;
+        assertEq(stocks.creatorReleasable(l.launchId), expected, "a quarter after a quarter of the term");
+        vm.expectEmit(true, true, false, true, address(stocks));
+        emit IRobinhoodLaunchpadBase.CreatorVestingReleased(l.launchId, launcher, expected);
+        vm.prank(outsider);
+        assertEq(stocks.releaseCreatorVesting(l.launchId), expected);
+        assertEq(token.balanceOf(launcher), expected, "paid to the launcher, not the caller");
+        assertEq(token.balanceOf(outsider), 0);
+        assertEq(stocks.releaseCreatorVesting(l.launchId), 0, "a second release in the same block pays nothing");
+
+        vm.roll(start + uint256(RobinhoodPreset.CREATOR_VESTING_BLOCKS) * 3);
+        assertEq(
+            stocks.releaseCreatorVesting(l.launchId), StocksPreset.CREATOR_VESTING - expected, "the rest after the term"
+        );
+        assertEq(token.balanceOf(launcher), StocksPreset.CREATOR_VESTING, "exactly the 1%");
+        assertEq(_record(l).creatorReleased, StocksPreset.CREATOR_VESTING);
+        assertEq(token.balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
+        assertEq(stocks.releaseCreatorVesting(l.launchId), 0, "nothing more ever");
+    }
+
+    // -------------------------------------------------------------------------
     // failure
     // -------------------------------------------------------------------------
 
-    function test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca() public {
+    function test_failed_minimum_retires_inventory_reserve_and_vesting_and_refunds_through_the_cca() public {
         Launched memory l = _launchStock(STOCK_LOW);
         _rollToStart(l);
         uint128 bidAmount = REQUIRED_RAISE - 1; // one base unit below the required raise
@@ -479,12 +586,19 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
 
         IRobinhoodLaunchpadBase.Launch memory record = _record(l);
         assertEq(uint8(record.lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Failed));
-        assertEq(record.retiredNew, StocksPreset.INITIAL_SUPPLY, "inventory + reserve retired");
+        assertEq(record.retiredNew, StocksPreset.INITIAL_SUPPLY, "inventory + reserve + vesting retired");
         assertEq(UERC20(l.newToken).balanceOf(DEAD) - deadBefore, StocksPreset.INITIAL_SUPPLY);
         assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0);
         assertEq(UERC20(l.newToken).balanceOf(address(l.auction)), 0);
         assertEq(record.poolId, bytes32(0), "no pool");
         assertEq(record.lpTokenId, 0, "no position");
+        assertEq(stocks.creatorReleasable(l.launchId), 0, "nothing vests");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RobinhoodLaunchpadBase.LaunchNotGraduated.selector, IRobinhoodLaunchpadBase.Lifecycle.Failed
+            )
+        );
+        stocks.releaseCreatorVesting(l.launchId);
 
         // Bidder STOCK never moved through this component; the CCA refunds it in full.
         assertEq(stockLow.balanceOf(address(stocks)), 0);
@@ -507,32 +621,46 @@ contract RobinhoodLaunchpadMigrateTest is RobinhoodFixture {
     // guards
     // -------------------------------------------------------------------------
 
-    function test_no_principal_path_exists_for_the_locked_position() public {
+    function test_no_principal_path_exists_for_the_locked_positions() public {
+        // An early bid buys at a lower price than the later demand sets, so the raise pairs less than
+        // the whole reserve at the final price and the NEW-only position is minted.
         Launched memory l = _launchStock(STOCK_LOW);
-        _graduateStock(l);
-        uint256 tokenId = _record(l).lpTokenId;
+        _rollToStart(l);
+        _bidDirect(l, bidder, REQUIRED_RAISE, _bidPrice(GRADUATING_TICKS));
+        vm.roll(l.auction.startBlock() + 200_000);
+        _bidDirect(l, outsider, 1_000e18, _bidPrice(GRADUATING_TICKS));
+        _rollToMigration(l);
+        stocks.migrate(l.launchId);
+        uint256[2] memory tokenIds = [_record(l).lpTokenId, _record(l).newOnlyTokenId];
+        assertNotEq(tokenIds[1], 0, "the NEW-only position was minted");
         PoolKey memory key = _poolKey(l, address(stocksHook));
 
         address[3] memory callers = [address(stocks), safe, outsider];
         bytes memory actions = abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR));
         bytes[] memory params = new bytes[](2);
-        params[0] = abi.encode(tokenId, uint256(1), uint128(0), uint128(0), bytes(""));
         params[1] = abi.encode(key.currency0, key.currency1, address(this));
-        for (uint256 i; i < callers.length; ++i) {
-            vm.expectRevert();
-            vm.prank(callers[i]);
-            positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp);
+        for (uint256 t; t < tokenIds.length; ++t) {
+            params[0] = abi.encode(tokenIds[t], uint256(1), uint128(0), uint128(0), bytes(""));
+            for (uint256 i; i < callers.length; ++i) {
+                vm.expectRevert();
+                vm.prank(callers[i]);
+                positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp);
+            }
         }
     }
 
     function test_launchpad_never_exposes_a_token_or_stock_withdrawal() public {
         // The launchpad's whole external surface is the interface; there is no transfer, sweep, rescue
-        // or approve of NEW or STOCK. Graduation leaves it holding neither.
+        // or approve of NEW or STOCK, and the vesting only ever pays the launcher. Graduation leaves it
+        // holding only the vesting and no STOCK.
         Launched memory l = _launchStock(STOCK_LOW);
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.MIGRATION_RESERVE);
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(stocks)),
+            uint256(StocksPreset.MIGRATION_RESERVE) + StocksPreset.CREATOR_VESTING
+        );
         _bidToMigration(l, 1_000e18);
         stocks.migrate(l.launchId);
-        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), 0);
+        assertEq(UERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.CREATOR_VESTING);
         assertEq(stockLow.balanceOf(address(stocks)), 0);
     }
 }

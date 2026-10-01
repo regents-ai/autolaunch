@@ -4,11 +4,11 @@ pragma solidity 0.8.26;
 /// @title RobinhoodPreset
 /// @notice Every fixed Robinhood-chain launch term, in one place, with its provenance.
 /// @dev USDG is the local dollar asset of the Robinhood chain: the protocol lane's settlement and the
-///      protocol inbox are USDG. Nothing here depends on Base USDC or on REGENT. Supply split, tick
-///      grid, pool fee, basis-point denominator and metadata caps are shared with the Base Stocks component
-///      through `StocksPreset`; the block schedule is Robinhood's own, because a Robinhood block is a
-///      tenth of a second where a Base block is two seconds. There is no launch fee and no
-///      governance minimum raise: the launcher chooses the required raise in STOCK.
+///      protocol inbox are USDG. Nothing here depends on Base USDC or on REGENT. Supply split, floor,
+///      required raise, tick grid, position geometry, pool fee, basis-point denominator and metadata
+///      caps are shared with the Base Stocks component through `StocksPreset`; the block schedule is
+///      Robinhood's own, because a Robinhood block is a tenth of a second where a Base block is two
+///      seconds. There is no launch fee and no governance minimum raise.
 library RobinhoodPreset {
     /// @notice USDG base units per whole dollar. Every launchpad reads the bound token's own
     ///         `decimals()` at construction and refuses any other value, so the constants below are
@@ -30,6 +30,12 @@ library RobinhoodPreset {
     /// @notice The Base claim and migration delays (64 and 128 blocks), scaled.
     uint64 internal constant CLAIM_DELAY_BLOCKS = 1_280;
     uint64 internal constant MIGRATION_DELAY_BLOCKS = 2_560;
+
+    /// @notice The creator vesting's term: 30 days of 0.1-second blocks, counted from the graduation
+    ///         block in the auction's block units. The Base term (`StocksPreset.CREATOR_VESTING_BLOCKS`)
+    ///         scaled twentyfold.
+    // Founder decision 2026-10-01
+    uint64 internal constant CREATOR_VESTING_BLOCKS = 25_920_000;
 
     /// @notice Thirteen packed `uint24 mps | uint40 blockDelta` steps summing to
     ///         `AUCTION_DURATION_BLOCKS` blocks and exactly `ConstantsLib.MPS = 1e7`.

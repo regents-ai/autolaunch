@@ -96,7 +96,7 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
             abi.encodeWithSelector(ConditionalVestingEscrowV2.InvalidSubjectSupply.selector, TOTAL_SUPPLY - 1)
         );
 
-        // 7. the escrow's exact 65% pull, reverted and then silently short
+        // 7. the escrow's exact 70% pull, reverted and then silently short
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY).arm(1, StagedERC20.Fault.Revert);
         _assertRollsBack(
             pristine, "7 escrow pull reverted", abi.encodeWithSelector(SafeTransferLib.TransferFromFailed.selector)
@@ -110,7 +110,7 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
             )
         );
 
-        // 8. the strategy's exact 35% pull
+        // 8. the strategy's exact 30% pull
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY).arm(2, StagedERC20.Fault.ShortTransfer);
         _assertRollsBack(
             pristine,
@@ -210,7 +210,7 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
     ///         back — the SUBJECT, the escrow, the auction, the records and the events together —
     ///         and never disturbs an existing launch.
     /// @dev The refusal happens after the SUBJECT exists and after that launch's escrow has been
-    ///      cloned and funded with the exact 65%, so this is the widest rollback the launch path
+    ///      cloned and funded with the exact 70%, so this is the widest rollback the launch path
     ///      has. The seven arms are the whole refusal set: the seven shared system destinations,
     ///      each by exact address. `STR-019` owns the class enumeration at the strategy, including
     ///      the classes admission deliberately admits.
@@ -350,7 +350,7 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
     }
 
     /// @dev A SUBJECT that passes both admission readbacks and can be made to misbehave on any one
-    ///      of the launch's three token movements: the escrow's 65% pull, the strategy's 35% pull,
+    ///      of the launch's three token movements: the escrow's 70% pull, the strategy's 30% pull,
     ///      and the strategy's 20% delivery into the auction.
     function _faultySubject(uint256 launchId, uint256 supply) private returns (StagedERC20 token) {
         token = new StagedERC20();

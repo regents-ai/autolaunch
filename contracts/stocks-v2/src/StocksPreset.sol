@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+
 /// @title StocksPreset
 /// @notice Every fixed launch term of Autolaunch Stocks, in one place, with its provenance.
 /// @dev A value marked `Founder decision 2026-09-09` began as a single bounded proposal from
@@ -14,20 +16,30 @@ library StocksPreset {
     // Founder decision 2026-09-09
     uint8 internal constant NEW_DECIMALS = 18;
 
-    /// @notice `S0`. Even; below the CCA `MAX_TOTAL_SUPPLY` (1 << 100).
+    /// @notice `S0`, the sale allocation, the migration reserve and the creator vesting together.
+    ///         Below the CCA `MAX_TOTAL_SUPPLY` (1 << 100).
     // Founder decision 2026-09-09
     uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
 
-    /// @notice Half of `S0` is the sale allocation. A launch that graduates has sold all of it to its
+    /// @notice 49.5% of `S0` is the sale allocation. A launch that graduates has sold all of it to its
     ///         bidders through the auction, but for rounding.
-    // Founder decision 2026-09-27
-    // forge-lint: disable-next-line(unsafe-typecast)
-    uint128 internal constant AUCTION_INVENTORY = uint128(INITIAL_SUPPLY / 2);
+    // Founder decision 2026-10-01
+    uint128 internal constant AUCTION_INVENTORY = 495_000_000e18;
 
-    /// @notice The other half of `S0` is the migration reserve, paired whole in the official pool.
-    // Founder decision 2026-09-27
-    // forge-lint: disable-next-line(unsafe-typecast)
-    uint128 internal constant MIGRATION_RESERVE = uint128(INITIAL_SUPPLY / 2);
+    /// @notice 49.5% of `S0` is the migration reserve: the full-range position pairs what the whole
+    ///         raise matches at the final clearing price, and the rest is locked as a NEW-only position
+    ///         above the opening price.
+    // Founder decision 2026-10-01
+    uint128 internal constant MIGRATION_RESERVE = 495_000_000e18;
+
+    /// @notice 1% of `S0` vests to the launcher, linearly per block from graduation. A failed launch
+    ///         retires it with the rest of its inventory.
+    // Founder decision 2026-10-01
+    uint128 internal constant CREATOR_VESTING = 10_000_000e18;
+
+    /// @notice Thirty days at Base's 2-second blocks.
+    // Founder decision 2026-10-01
+    uint64 internal constant CREATOR_VESTING_BLOCKS = 1_296_000;
 
     // -------------------------------------------------------------------------
     // auction schedule
@@ -58,8 +70,20 @@ library StocksPreset {
 
     uint256 internal constant AUCTION_STEP_COUNT = 13;
 
-    /// @notice Bid tick spacing is `floorPriceQ96 / BID_TICK_DIVISOR`; the floor must divide exactly.
-    uint256 internal constant BID_TICK_DIVISOR = 100;
+    /// @notice Every launch's CCA floor: the pinned auction's lowest admitted floor
+    ///         (`ConstantsLib.MIN_FLOOR_PRICE`, 2^32 + 1) rounded up to the 100-tick grid. Q96 STOCK base
+    ///         units per NEW base unit.
+    // Founder decision 2026-10-01 (the lowest floor)
+    uint256 internal constant FLOOR_PRICE_Q96 = 4_294_967_300;
+
+    /// @notice A hundredth of the floor, so the floor sits on the bid-tick grid.
+    uint256 internal constant BID_TICK_SPACING_Q96 = FLOOR_PRICE_Q96 / 100;
+
+    /// @notice The STOCK every launch must raise to graduate: the whole sale allocation at the floor,
+    ///         rounded up, so an auction nobody bid in never graduates.
+    // forge-lint: disable-next-line(unsafe-typecast)
+    uint128 internal constant REQUIRED_STOCK_RAISED =
+        uint128((uint256(AUCTION_INVENTORY) * FLOOR_PRICE_Q96 + (1 << 96) - 1) >> 96);
 
     // -------------------------------------------------------------------------
     // official pool
@@ -100,16 +124,45 @@ library StocksPreset {
     // Founder decision 2026-09-09 (failed-minimum retirement)
     bool internal constant RETIRE_FAILED_INVENTORY = true;
 
-    /// @notice Graduation locks one full-range position in the fee-only `MemestockLPLocker`, opened at
-    ///         the raise divided by the whole sale allocation and funded by the whole reserve and the
-    ///         whole raise. Only the rounding remainder below one unit of liquidity is left over: its
-    ///         STOCK accrues to the REGENT lane of the pool's hook, its NEW is retired.
+    /// @notice Graduation opens the official pool at the auction's final clearing price and locks two
+    ///         positions in the fee-only `MemestockLPLocker`: a full-range position funded by the whole
+    ///         raise and the reserve it pairs there, and a NEW-only position above the opening price
+    ///         funded by the rest of the reserve. Only the rounding remainder below one unit of
+    ///         liquidity is left over: its STOCK accrues to the REGENT lane of the pool's hook, its NEW
+    ///         is retired.
     // Founder decision 2026-09-09 (the destination of the STOCK rounding remainder)
     bool internal constant LP_STOCK_DUST_TO_REGENT_BUCKET = true;
 
-    /// @notice Every unit of a graduated launch's NEW still held by the launchpad after the position is
-    ///         minted (the auction's unsold rounding, the reserve the pool could not pair and anything
-    ///         sent to the launchpad) is retired to the dead address, as a failed launch's is.
+    /// @notice Every unit of a graduated launch's NEW still held by the launchpad after both positions
+    ///         are minted, apart from the creator vesting (the auction's unsold rounding, the positions'
+    ///         rounding and anything sent to the launchpad), is retired to the dead address, as a failed
+    ///         launch's is.
     // Founder decision 2026-09-27
     bool internal constant RETIRE_LEFTOVER_NEW_ON_GRADUATION = true;
+
+    // -------------------------------------------------------------------------
+    // NEW-only position geometry (PositionPlanner offsets from the pool's initial tick)
+    // -------------------------------------------------------------------------
+
+    /// @notice The NEW-only position covers the NEW side of the book above the opening NEW price: from
+    ///         the tick-spacing boundary adjacent to the initial price out as far as the pinned planner's
+    ///         offset reaches, 887,272 ticks or the last usable tick when that is nearer. (Past that the
+    ///         price has moved by a factor of more than 10^38, so the range's liquidity is the same as an
+    ///         edge-to-edge range's to within one part in 10^19.) It therefore holds only NEW at
+    ///         initialization and is the liquidity a STOCK buyer meets as the price rises.
+    ///
+    ///         NEW is currency1: the NEW side is below the pool price (fewer NEW per STOCK is a higher
+    ///         NEW price). The pinned planner rounds an upper offset up to the spacing, so
+    ///         `-(spacing - 1)` lands exactly on the initial tick rounded down, which keeps the whole
+    ///         range at or below the initial price; the lower offset is the planner's widest, `MIN_TICK`.
+    ///
+    ///         NEW is currency0: the NEW side is above the pool price. The planner rounds a lower offset
+    ///         down, so `+spacing` lands one spacing above the initial tick rounded down, which keeps
+    ///         the whole range strictly above the initial tick; the upper offset is the planner's widest,
+    ///         `MAX_TICK`.
+    // Founder decision 2026-10-01 (a NEW-only position above the opening price; the width is v1's)
+    int24 internal constant NEW_ONLY_BELOW_LOWER_OFFSET = TickMath.MIN_TICK;
+    int24 internal constant NEW_ONLY_BELOW_UPPER_OFFSET = -(POOL_TICK_SPACING - 1);
+    int24 internal constant NEW_ONLY_ABOVE_LOWER_OFFSET = POOL_TICK_SPACING;
+    int24 internal constant NEW_ONLY_ABOVE_UPPER_OFFSET = TickMath.MAX_TICK;
 }

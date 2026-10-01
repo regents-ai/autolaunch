@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {ConstantsLib} from "continuous-clearing-auction/libraries/ConstantsLib.sol";
-import {MaxBidPriceLib} from "continuous-clearing-auction/libraries/MaxBidPriceLib.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
-import {FixedPoint96} from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
-import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
+import {IDistributorFactory} from "liquidity-launcher/src/interfaces/IDistributorFactory.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {StocksBindings} from "../src/StocksBindings.sol";
 import {StocksLaunchpadV2} from "../src/StocksLaunchpadV2.sol";
@@ -26,7 +23,7 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
     // rule 1 and rule 2
     // -------------------------------------------------------------------------
 
-    function test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve() public {
+    function test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve_and_the_vesting() public {
         Launched memory l = _launch(STOCK_LOW);
         UERC20 token = UERC20(l.newToken);
 
@@ -35,11 +32,15 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(token.creator(), address(launchpad), "launchpad is the creator");
         assertEq(token.graffiti(), bytes32(l.launchId));
         assertEq(token.balanceOf(address(l.auction)), StocksPreset.AUCTION_INVENTORY, "inventory in the auction");
-        assertEq(token.balanceOf(address(launchpad)), StocksPreset.MIGRATION_RESERVE, "only the reserve stays");
+        assertEq(
+            token.balanceOf(address(launchpad)),
+            uint256(StocksPreset.MIGRATION_RESERVE) + StocksPreset.CREATOR_VESTING,
+            "only the reserve and the vesting stay"
+        );
         assertEq(
             token.balanceOf(address(l.auction)) + token.balanceOf(address(launchpad)),
             StocksPreset.INITIAL_SUPPLY,
-            "inventory + reserve == S0"
+            "inventory + reserve + vesting == S0"
         );
         assertEq(launchpad.launchIdOfAuction(address(l.auction)), l.launchId);
         assertEq(launchpad.launchIdOfToken(l.newToken), l.launchId);
@@ -58,8 +59,8 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(cca.fundsRecipient(), address(launchpad), "fundsRecipient == launchpad");
         assertEq(address(cca.validationHook()), address(0));
         assertEq(address(ccaFactory.protocolFeeController()), address(0), "protocolFeeController == 0");
-        assertEq(cca.floorPrice(), FLOOR_PRICE_Q96);
-        assertEq(cca.tickSpacing(), FLOOR_PRICE_Q96 / StocksPreset.BID_TICK_DIVISOR);
+        assertEq(cca.floorPrice(), StocksPreset.FLOOR_PRICE_Q96, "every launch has the one floor");
+        assertEq(cca.tickSpacing(), StocksPreset.BID_TICK_SPACING_Q96);
         assertEq(cca.startBlock(), record.startBlock);
         assertEq(cca.endBlock(), record.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS);
         assertEq(cca.claimBlock(), record.endBlock + StocksPreset.CLAIM_DELAY_BLOCKS);
@@ -67,7 +68,7 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(uint8(record.lifecycle), uint8(IStocksLaunchpadV2.Lifecycle.Active));
         assertEq(record.launcher, launcher);
         assertEq(record.splitter, address(0), "the splitter is created at graduation");
-        assertEq(record.requiredStockRaised, REQUIRED_RAISE);
+        assertEq(record.vestingStartBlock, 0, "the vesting starts at graduation");
     }
 
     function test_both_pool_orderings_are_reachable() public {
@@ -143,10 +144,9 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
             address(0),
             expectedStart,
             expectedStart + StocksPreset.AUCTION_DURATION_BLOCKS,
-            FLOOR_PRICE_Q96,
-            REQUIRED_RAISE,
             StocksPreset.AUCTION_INVENTORY,
-            StocksPreset.MIGRATION_RESERVE
+            StocksPreset.MIGRATION_RESERVE,
+            StocksPreset.CREATOR_VESTING
         );
         Launched memory l = _launchAs(launcher, params);
         IStocksLaunchpadV2.Launch memory record = _record(l);
@@ -168,67 +168,6 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(_record(sameBlock).startBlock, expectedStart + 300, "the next creation block sets the next start");
     }
 
-    function test_floor_price_rules() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(StocksLaunchpadV2.FloorPriceTooLow.selector, ConstantsLib.MIN_FLOOR_PRICE - 1)
-        );
-        launchpad.bidTickSpacingFor(ConstantsLib.MIN_FLOOR_PRICE - 1);
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV2.FloorPriceNotOnGrid.selector, FLOOR_PRICE_Q96 + 1));
-        launchpad.bidTickSpacingFor(FLOOR_PRICE_Q96 + 1);
-
-        assertEq(launchpad.bidTickSpacingFor(FLOOR_PRICE_Q96), FLOOR_PRICE_Q96 / 100);
-        assertGe(launchpad.bidTickSpacingFor(4_294_967_400), ConstantsLib.MIN_TICK_SPACING);
-
-        IStocksLaunchpadV2.LaunchParams memory params = _params(STOCK_LOW);
-        params.floorPriceQ96 = FLOOR_PRICE_Q96 + 1;
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV2.FloorPriceNotOnGrid.selector, FLOOR_PRICE_Q96 + 1));
-        vm.prank(launcher);
-        launchpad.launch(params);
-    }
-
-    function testFuzz_bidTickSpacingFor_is_one_hundredth_of_an_on_grid_floor(uint256 floorHundredths) public view {
-        floorHundredths = bound(floorHundredths, ConstantsLib.MIN_FLOOR_PRICE / 100 + 1, type(uint256).max / 100);
-        uint256 floor = floorHundredths * 100;
-        assertEq(launchpad.bidTickSpacingFor(floor), floorHundredths);
-        assertGe(floorHundredths, ConstantsLib.MIN_TICK_SPACING);
-    }
-
-    function test_required_raise_is_the_sale_allocation_at_the_floor_rounded_up() public {
-        // The fixture floor: 500,000,000 NEW at about 1e-18 STOCK base units each. The floor was
-        // rounded down to the grid, so the exact product falls just short of five shares and rounds up
-        // to exactly five. The migration tests prove the auction applies it.
-        assertEq(launchpad.requiredStockRaisedFor(FLOOR_PRICE_Q96), REQUIRED_RAISE);
-        assertLt(
-            FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, FLOOR_PRICE_Q96, FixedPoint96.Q96),
-            REQUIRED_RAISE,
-            "the exact product is fractional and rounds up"
-        );
-
-        // Each launch records the raise its own floor sets; the launcher does not choose it.
-        Launched memory first = _launch(STOCK_LOW);
-        assertEq(_record(first).requiredStockRaised, REQUIRED_RAISE);
-        IStocksLaunchpadV2.LaunchParams memory params = _params(STOCK_HIGH);
-        params.floorPriceQ96 = FLOOR_PRICE_Q96 * 10;
-        Launched memory higher = _launchAs(launcher, params);
-        assertEq(_record(higher).requiredStockRaised, launchpad.requiredStockRaisedFor(FLOOR_PRICE_Q96 * 10));
-        assertEq(_record(first).requiredStockRaised, REQUIRED_RAISE, "the earlier launch is untouched");
-    }
-
-    function testFuzz_required_raise_is_never_zero_and_never_below_the_floor_value(uint256 floorHundredths)
-        public
-        view
-    {
-        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
-        floorHundredths = bound(floorHundredths, ConstantsLib.MIN_FLOOR_PRICE / 100 + 1, maxBidPrice / 100);
-        uint256 floor = floorHundredths * 100;
-        uint256 required = launchpad.requiredStockRaisedFor(floor);
-        uint256 exact = FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, floor, FixedPoint96.Q96);
-        assertGe(required, 1, "an auction nobody bid in never graduates");
-        assertGe(required, exact, "never below the sale allocation at the floor");
-        assertLe(required, exact + 1, "rounded up by at most one base unit");
-    }
-
     function test_metadata_caps() public {
         IStocksLaunchpadV2.LaunchParams memory params = _params(STOCK_LOW);
         params.name = "";
@@ -244,27 +183,23 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
     }
 
     function test_launch_is_atomic_when_the_auction_creation_fails() public {
-        // A floor at the very top of the CCA's admissible range passes every launchpad check but makes
-        // `floor + tick > MAX_BID_PRICE` inside the pinned CCA constructor, so the auction factory
-        // reverts after NEW was already created. Nothing of the launch survives: no record, no id
-        // consumed, no token index, and no NEW token code.
+        // The auction factory reverts after NEW was already created. Nothing of the launch survives:
+        // no record, no id consumed, no token index, and no NEW token code.
         IStocksLaunchpadV2.LaunchParams memory params = _params(STOCK_LOW);
-        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
-        params.floorPriceQ96 = (maxBidPrice / 100) * 100;
         uint256 nextBefore = launchpad.nextLaunchId();
         address predictedNew = uerc20Factory.getUERC20Address(
             params.name, params.symbol, StocksPreset.NEW_DECIMALS, address(launchpad), bytes32(nextBefore)
         );
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IContinuousClearingAuction.FloorPriceAndTickSpacingGreaterThanMaxBidPrice.selector,
-                params.floorPriceQ96 + params.floorPriceQ96 / 100,
-                maxBidPrice
-            )
+        vm.mockCallRevert(
+            StocksBindings.CCA_FACTORY,
+            abi.encodeWithSelector(IDistributorFactory.create.selector),
+            bytes("auction creation failed")
         );
+        vm.expectRevert(bytes("auction creation failed"));
         vm.prank(launcher);
         launchpad.launch(params);
+        vm.clearMockedCalls();
 
         assertEq(launchpad.nextLaunchId(), nextBefore);
         assertEq(launchpad.launches(nextBefore).auction, address(0));

@@ -17,7 +17,7 @@
       "deployed_by": "deployment script (CREATE from the deployer), second in the deployment order after the UERC20 factory"
     },
     "RobinhoodPositionsLib": {
-      "role": "The externally linked library RobinhoodStocksLaunchpadV2 delegates its full-range v4 position building to.",
+      "role": "The externally linked library RobinhoodStocksLaunchpadV2 delegates its full-range and NEW-only v4 position building to.",
       "deployed_by": "deployment script (CREATE from the deployer), linked into the launchpad"
     },
     "RobinhoodFeeHookFactory": {
@@ -25,7 +25,7 @@
       "deployed_by": "deployment script (CREATE from the deployer)"
     },
     "RobinhoodStocksLaunchpadV2": {
-      "role": "The Robinhood Memestake launchpad: creates the token and the CCA auction per launch, graduates into the official v4 pool at the raise divided by the sale allocation with one full-range position locked in the locker, retires the NEW left over to the dead address, deploys its hook through the factory and its locker and splitter implementation itself.",
+      "role": "The Robinhood Memestake launchpad: creates the token and the CCA auction per launch, graduates into the official v4 pool at the final clearing price with a full-range and a NEW-only position locked in the locker, releases the 1% creator vesting to the launcher over 30 days, retires the NEW left over to the dead address, deploys its hook through the factory and its locker and splitter implementation itself.",
       "deployed_by": "deployment script (CREATE from the deployer), linked against RobinhoodPositionsLib"
     },
     "RobinhoodFeeHookV1": {
@@ -37,7 +37,7 @@
       "deployed_by": "RobinhoodStocksLaunchpadV2 constructor (CREATE); cloned per launch by LibClone.clone"
     },
     "MemestockLPLocker": {
-      "role": "Holds every graduated launch's full-range v4 position forever and routes collected fees to the launch's splitter; the same source as the Base package.",
+      "role": "Holds every graduated launch's v4 positions (full range and NEW only) forever and routes collected fees to the launch's splitter; the same source as the Base package.",
       "deployed_by": "RobinhoodStocksLaunchpadV2 constructor (CREATE)"
     },
     "RobinhoodStockBidAdapterV1": {

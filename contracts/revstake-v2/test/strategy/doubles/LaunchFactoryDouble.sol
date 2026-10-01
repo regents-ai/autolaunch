@@ -8,8 +8,8 @@ import {LibClone} from "solady/utils/LibClone.sol";
 /// @notice The production caller of `RegentLBPStrategyV2`, reduced to exactly the C3 boundary.
 /// @dev C4 owns the real Autolaunch factory. This double exists so C3's tests exercise the real
 ///      caller *shape*: one contract that binds the hook from inside its own constructor — while it
-///      still has no code — then, per launch, clones the escrow, funds it with the exact 65%,
-///      approves the strategy for the exact 35%, and calls `initializeDistribution`. It holds no
+///      still has no code — then, per launch, clones the escrow, funds it with the exact 70%,
+///      approves the strategy for the exact 30%, and calls `initializeDistribution`. It holds no
 ///      authority the strategy grants it beyond being the bound factory, and it closes no `FAC-*`
 ///      or `STR-017` claim.
 contract LaunchFactoryDouble {
@@ -27,12 +27,10 @@ contract LaunchFactoryDouble {
     function launch(
         address subject,
         address treasury,
-        uint256 launchId,
-        uint256 floorPriceQ96,
-        uint128 minimumRegentRaised
+        uint256 launchId
     ) external returns (address escrow, address auction) {
         escrow = _fundedEscrow(subject, treasury);
-        auction = _initialize(subject, escrow, launchId, floorPriceQ96, minimumRegentRaised);
+        auction = _initialize(subject, escrow, launchId);
     }
 
     /// @notice Clone and fund an escrow without ever handing it to the strategy.
@@ -44,11 +42,9 @@ contract LaunchFactoryDouble {
     function initialize(
         address subject,
         address escrow,
-        uint256 launchId,
-        uint256 floorPriceQ96,
-        uint128 minimumRegentRaised
+        uint256 launchId
     ) external returns (address auction) {
-        auction = _initialize(subject, escrow, launchId, floorPriceQ96, minimumRegentRaised);
+        auction = _initialize(subject, escrow, launchId);
     }
 
     function registerCanonicalPaymentReceiver(address auction) external {
@@ -65,18 +61,11 @@ contract LaunchFactoryDouble {
     function _initialize(
         address subject,
         address escrow,
-        uint256 launchId,
-        uint256 floorPriceQ96,
-        uint128 minimumRegentRaised
+        uint256 launchId
     ) private returns (address auction) {
         _approve(subject, address(strategy), strategy.DISTRIBUTION_PULL());
         auction = strategy.initializeDistribution(
-            RegentLBPStrategyV2.DistributionParams({
-                launchId: launchId,
-                escrow: escrow,
-                floorPriceQ96: floorPriceQ96,
-                minimumRegentRaised: minimumRegentRaised
-            })
+            RegentLBPStrategyV2.DistributionParams({launchId: launchId, escrow: escrow})
         );
     }
 

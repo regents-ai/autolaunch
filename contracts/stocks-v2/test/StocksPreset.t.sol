@@ -3,21 +3,35 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {ConstantsLib} from "continuous-clearing-auction/libraries/ConstantsLib.sol";
+import {FixedPoint96} from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
+import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {StocksPreset} from "../src/StocksPreset.sol";
 
 /// @notice The preset is a set of arithmetic facts; each one is proved here against the constants.
 contract StocksPresetTest is Test {
-    function test_allocation_splits_the_initial_supply_exactly() public pure {
-        assertEq(StocksPreset.INITIAL_SUPPLY % 2, 0, "S0 divisible by two");
+    function test_allocation_and_floor_are_exact() public pure {
         assertEq(
-            uint256(StocksPreset.AUCTION_INVENTORY) + uint256(StocksPreset.MIGRATION_RESERVE),
+            uint256(StocksPreset.AUCTION_INVENTORY) + uint256(StocksPreset.MIGRATION_RESERVE)
+                + uint256(StocksPreset.CREATOR_VESTING),
             StocksPreset.INITIAL_SUPPLY,
-            "inventory + reserve == S0"
+            "inventory + reserve + vesting == S0"
         );
-        assertEq(uint256(StocksPreset.AUCTION_INVENTORY), 500_000_000e18, "50% is sold");
-        assertEq(uint256(StocksPreset.MIGRATION_RESERVE), 500_000_000e18, "50% is the pool reserve");
+        assertEq(uint256(StocksPreset.AUCTION_INVENTORY), 495_000_000e18, "49.5% is sold");
+        assertEq(uint256(StocksPreset.MIGRATION_RESERVE), 495_000_000e18, "49.5% is the pool reserve");
+        assertEq(uint256(StocksPreset.CREATOR_VESTING), 10_000_000e18, "1% vests to the launcher");
         assertLt(StocksPreset.AUCTION_INVENTORY, ConstantsLib.MAX_TOTAL_SUPPLY, "below CCA MAX_TOTAL_SUPPLY");
         assertLt(StocksPreset.INITIAL_SUPPLY, uint256(type(uint128).max), "fits the UERC20 supply width");
+
+        uint256 lowestOnGrid = (ConstantsLib.MIN_FLOOR_PRICE + 99) / 100 * 100;
+        assertEq(StocksPreset.FLOOR_PRICE_Q96, lowestOnGrid, "the floor is the lowest the CCA admits on the grid");
+        assertEq(StocksPreset.FLOOR_PRICE_Q96 % StocksPreset.BID_TICK_SPACING_Q96, 0, "the floor is on the grid");
+        assertGe(StocksPreset.BID_TICK_SPACING_Q96, ConstantsLib.MIN_TICK_SPACING, "the tick is admitted");
+        assertEq(
+            StocksPreset.REQUIRED_STOCK_RAISED,
+            FullMath.mulDivRoundingUp(StocksPreset.AUCTION_INVENTORY, StocksPreset.FLOOR_PRICE_Q96, FixedPoint96.Q96),
+            "the required raise is the sale allocation at the floor, rounded up"
+        );
+        assertEq(StocksPreset.REQUIRED_STOCK_RAISED, 26_834_004, "the required raise");
     }
 
     function test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps() public pure {
@@ -61,6 +75,7 @@ contract StocksPresetTest is Test {
         assertEq(StocksPreset.CLAIM_DELAY_BLOCKS, 64);
         assertEq(StocksPreset.MIGRATION_DELAY_BLOCKS, 128);
         assertEq(StocksPreset.START_LEAD_BLOCKS, 300, "ten minutes at 2 s blocks");
+        assertEq(StocksPreset.CREATOR_VESTING_BLOCKS, 1_296_000, "thirty days at 2 s blocks");
         assertGt(StocksPreset.MIGRATION_DELAY_BLOCKS, StocksPreset.CLAIM_DELAY_BLOCKS);
     }
 

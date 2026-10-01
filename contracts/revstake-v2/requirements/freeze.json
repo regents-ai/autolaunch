@@ -11,7 +11,7 @@
   ],
   "production_contracts": {
     "ConditionalVestingEscrowV2": {
-      "role": "The per-launch escrow implementation: holds the launch's 65% vesting allocation, vests it and the SUBJECT left over at graduation to the treasury, and retires the whole supply to the dead address when a launch fails. Each launch receives a Solady minimal-proxy clone of it.",
+      "role": "The per-launch escrow implementation: holds the launch's 70% vesting allocation, vests it and the SUBJECT left over at graduation to the treasury, and retires the whole supply to the dead address when a launch fails. Each launch receives a Solady minimal-proxy clone of it.",
       "deployed_by": "deployment script (CREATE from the deployer), second in the deployment order; cloned per launch by the factory"
     },
     "SubjectSplitterV1": {
@@ -23,11 +23,11 @@
       "deployed_by": "deployment script (CREATE from the deployer), fourth in the deployment order; cloned by the factory"
     },
     "RegentsAutolaunchFactoryV2": {
-      "role": "The Revstake launch factory: creates the token, its escrow and its CCA auction for every launch, selling 20% with a 15% pool reserve and 65% vesting, at the launch's floor price and required raise.",
+      "role": "The Revstake launch factory: creates the token, its escrow and its CCA auction for every launch, selling 20% with a 10% pool reserve and 70% vesting, at the one fixed floor price and its required raise.",
       "deployed_by": "deployment script (CREATE from the deployer), fifth in the deployment order"
     },
     "RegentLBPStrategyV2": {
-      "role": "The shared migration strategy: graduates a launch that met its required raise into the official v4 pool at the raise divided by the sale allocation, pairs the whole reserve with three quarters of the raise, sends the rest to the treasury, and sends every SUBJECT left over to the launch's escrow to vest with the 65%; retires a failed launch.",
+      "role": "The shared migration strategy: graduates a launch that met its required raise into the official v4 pool at the auction's final clearing price, pairs half the raise with at most the whole reserve, sends the rest of the raise to the treasury, and sends every SUBJECT left over to the launch's escrow to vest with the 70%; retires a failed launch.",
       "deployed_by": "RegentsAutolaunchFactoryV2 constructor (CREATE, factory nonce 1)"
     },
     "RevstakeLPLocker": {

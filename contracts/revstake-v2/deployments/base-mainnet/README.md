@@ -1,6 +1,11 @@
 # Base mainnet
 
-**Prepared, not approved, nothing sent.** `mainnet-no-go-packet.json` was prepared on
+**Superseded, nothing sent.** The 1 October 2026 terms change the escrow, factory, strategy and
+hook code, so the packet below no longer matches this source and must be prepared again (new hook
+salt, new addresses, new digest) before the founder can approve one. The record of the old packet
+follows.
+
+`mainnet-no-go-packet.json` was prepared on
 29 September 2026 against live Base at block 51936156 for deployer
 `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 28 (founder decision 1a, 29 September 2026)
 and rehearsed on a Base node after block 51936163. Its digest is

@@ -3,21 +3,23 @@ pragma solidity 0.8.26;
 
 /// @title IStocksLaunchpadV2
 /// @notice The launch, custody and migration surface of Autolaunch Stocks. One launch creates a
-///         new token (NEW), sells half of its initial supply through a pinned Continuous Clearing
-///         Auction denominated in one admitted Base stock token (STOCK) and holds the other half as
-///         the migration reserve. A graduated launch has sold its whole sale allocation to its bidders
-///         through the auction, pairs the whole reserve with the whole raise in the official NEW/STOCK
-///         Uniswap v4 pool and retires the NEW left over; a failed launch refunds bidders and retires
-///         the launch inventory.
+///         new token (NEW), sells 49.5% of its initial supply through a pinned Continuous Clearing
+///         Auction denominated in one admitted Base stock token (STOCK), holds 49.5% as the migration
+///         reserve and 1% as the launcher's vesting. A graduated launch has sold its whole sale
+///         allocation to its bidders through the auction, opens the official NEW/STOCK Uniswap v4 pool
+///         at the final clearing price, locks the whole raise with the reserve it pairs in a full-range
+///         position and the rest of the reserve in a NEW-only position above the opening price, and
+///         vests the 1% to the launcher over thirty days; a failed launch refunds bidders and retires
+///         the launch inventory, vesting included.
 /// @dev This interface is the contract between the Solidity component and the website, indexer
 ///      and CLI. Event and function shapes here are consumed off-chain; change them only together
 ///      with `platform/contracts/abi/stocks-*.json` and the platform ABI validation.
 interface IStocksLaunchpadV2 {
-    /// @notice Everything a launcher supplies. Supply, decimals, allocations, schedule (the auction
-    ///         opens `START_LEAD_BLOCKS` after the creation block), claim/migration delays, LP fee,
-    ///         hook rates and custody policy are fixed by the preset. There is no launch fee.
-    /// @dev `treasury`, creator allocation, vesting, any Agent identity and any launcher authority over
-    ///      fees are deliberately absent.
+    /// @notice Everything a launcher supplies. Supply, decimals, allocations, floor, required raise,
+    ///         schedule (the auction opens `START_LEAD_BLOCKS` after the creation block), claim/migration
+    ///         delays, creator vesting, LP fee, hook rates and custody policy are fixed by the preset.
+    ///         There is no launch fee.
+    /// @dev `treasury`, any Agent identity and any launcher authority over fees are deliberately absent.
     struct LaunchParams {
         string name;
         string symbol;
@@ -26,10 +28,6 @@ interface IStocksLaunchpadV2 {
         string image;
         /// @dev Exact admitted STOCK address on Base. Symbols are display metadata, never identity.
         address stock;
-        /// @dev Q96 STOCK base units per NEW base unit, the CCA floor. Bid tick spacing and the
-        ///      required raise are derived deterministically from it (see `bidTickSpacingFor` and
-        ///      `requiredStockRaisedFor`).
-        uint256 floorPriceQ96;
     }
 
     enum Lifecycle {
@@ -41,10 +39,14 @@ interface IStocksLaunchpadV2 {
 
     /// @notice One recorded launch. Identity and lifecycle only; the record carries no authority.
     /// @dev `splitter` is the launch's memestock splitter, created at graduation and zero before it. A
-    ///      graduated launch locks one full-range position, `lpTokenId`, funded by
-    ///      `(lpStockUsed, lpNewUsed)`. `retiredNew` is the NEW sent to the dead address at the terminal
-    ///      state: for a graduated launch the rounding left over after the position (and anything sent
-    ///      to the launchpad), for a failed launch the whole inventory and reserve.
+    ///      graduated launch locks a full-range position, `lpTokenId`, funded by
+    ///      `(lpStockUsed, lpNewUsed)`, and a NEW-only position, `newOnlyTokenId`, funded by
+    ///      `newOnlyUsed` (both zero when the reserve the full range left was below one unit of
+    ///      liquidity). The launcher's vesting runs from `vestingStartBlock`, the graduation block;
+    ///      `creatorReleased` is what has been paid out of it. `retiredNew` is the NEW sent to the dead
+    ///      address at the terminal state: for a graduated launch the rounding left over after the
+    ///      positions (and anything sent to the launchpad), for a failed launch the whole inventory,
+    ///      reserve and vesting.
     struct Launch {
         address launcher;
         address newToken;
@@ -55,14 +57,16 @@ interface IStocksLaunchpadV2 {
         uint64 endBlock;
         uint64 claimBlock;
         uint64 migrationBlock;
-        uint128 requiredStockRaised;
-        uint256 floorPriceQ96;
         Lifecycle lifecycle;
         bytes32 poolId;
         uint160 finalSqrtPriceX96;
         uint256 lpTokenId;
         uint128 lpStockUsed;
         uint128 lpNewUsed;
+        uint256 newOnlyTokenId;
+        uint128 newOnlyUsed;
+        uint64 vestingStartBlock;
+        uint128 creatorReleased;
         uint256 retiredNew;
     }
 
@@ -74,10 +78,9 @@ interface IStocksLaunchpadV2 {
         address auction,
         uint64 startBlock,
         uint64 endBlock,
-        uint256 floorPriceQ96,
-        uint128 requiredStockRaised,
         uint256 auctionInventory,
-        uint256 migrationReserve
+        uint256 migrationReserve,
+        uint256 creatorVesting
     );
 
     event StockLaunchGraduated(
@@ -88,6 +91,8 @@ interface IStocksLaunchpadV2 {
         uint256 lpTokenId,
         uint128 lpStockUsed,
         uint128 lpNewUsed,
+        uint256 newOnlyTokenId,
+        uint128 newOnlyUsed,
         uint256 stockRaised,
         uint256 stockDustToRevenue,
         uint256 unsoldNewRetired
@@ -102,6 +107,9 @@ interface IStocksLaunchpadV2 {
 
     event StockLaunchRetired(uint256 indexed launchId, address indexed auction, uint256 newRetired);
 
+    /// @notice Vested NEW paid to the launch's launcher.
+    event CreatorVestingReleased(uint256 indexed launchId, address indexed launcher, uint256 amount);
+
     event StockAdmitted(address indexed stock, uint8 decimals);
     event StockRevoked(address indexed stock);
     event LaunchesPaused();
@@ -111,17 +119,22 @@ interface IStocksLaunchpadV2 {
     // creation
     // -------------------------------------------------------------------------
 
-    /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK and the 50/50
+    /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK and the 49.5/49.5/1
     ///         allocation, atomically.
     function launch(LaunchParams calldata params) external returns (uint256 launchId, address newToken, address auction);
 
     /// @notice Drive a launch past its end to its terminal state. Anyone may call once the
     ///         migration block is reached. Graduated: create the launch's memestock splitter,
-    ///         initialize the official pool at the raise divided by the sale allocation, lock the whole
-    ///         reserve and the whole raise in the fee-only locker as one full-range position, and retire
-    ///         the NEW left over. Failed: retire the reserve and every unsold unit; bidders refund
-    ///         through the CCA.
+    ///         initialize the official pool at the final clearing price, lock the whole raise with the
+    ///         reserve it pairs as one full-range position and the rest of the reserve as one NEW-only
+    ///         position above the opening price in the fee-only locker, start the launcher's vesting
+    ///         and retire the NEW left over. Failed: retire the reserve, the vesting and every unsold
+    ///         unit; bidders refund through the CCA.
     function migrate(uint256 launchId) external;
+
+    /// @notice Pay the launcher of a graduated launch the NEW vested so far and not yet paid. Anyone
+    ///         may call; the NEW only ever goes to the recorded launcher.
+    function releaseCreatorVesting(uint256 launchId) external returns (uint256 amount);
 
     // -------------------------------------------------------------------------
     // governance (frozen Regent Safe only)
@@ -143,11 +156,8 @@ interface IStocksLaunchpadV2 {
     function launchesPaused() external view returns (bool);
     /// @notice Whether STOCK may be used for a new launch right now, and its recorded decimals.
     function stockAdmission(address stock) external view returns (bool admitted, uint8 decimals, address route);
-    /// @notice The bid tick spacing (Q96) the CCA is created with for a floor price.
-    function bidTickSpacingFor(uint256 floorPriceQ96) external pure returns (uint256);
-    /// @notice The STOCK a launch at this floor must raise to graduate: the whole sale allocation at
-    ///         the floor price, rounded up, so it is never zero.
-    function requiredStockRaisedFor(uint256 floorPriceQ96) external pure returns (uint128);
+    /// @notice The NEW the launcher of a graduated launch could be paid now.
+    function creatorReleasable(uint256 launchId) external view returns (uint256);
     function hook() external view returns (address);
     /// @notice The clone target every launch's memestock splitter is created from.
     function splitterImplementation() external view returns (address);
