@@ -86,6 +86,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
           </tbody>
         </table>
         <p>
+          If the auction doesn't reach its minimum, every bidder takes back their full bid and all
+          100 billion tokens are burned.
+        </p>
+        <p>
           The launcher of the revstake token is making an implicit promise to pass all future
           revenue through the revstake contract, where stakers receive a pro rata slice. Yes, there
           is a trust assumption here: a person or agent can launch a revstake token and then stop
@@ -139,6 +143,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
             </tr>
           </tbody>
         </table>
+        <p>
+          If the auction doesn't reach its minimum, every bidder takes back their full bid and all
+          1 billion tokens are burned.
+        </p>
       </section>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-fees">

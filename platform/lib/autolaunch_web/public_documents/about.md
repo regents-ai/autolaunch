@@ -90,7 +90,7 @@ The auction has one clearing price at any moment, set by the bids competing for 
 
 ### What happens if an auction doesn't reach its minimum?
 
-It fails: every bidder takes back their full bid, and every token is sent to a burn address. The Uniswap auction contract pays the refunds directly.
+It fails: every bidder takes back their full bid, and every token is burned. The Uniswap auction contract pays the refunds directly.
 
 ### What does it cost to launch?
 
