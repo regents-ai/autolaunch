@@ -123,5 +123,18 @@ build and reads back the twelve wiring facts, then writes the deployed-manifest 
 
 ## Opening
 
-Deploying and opening are separate acts. After the website's version 2 switch is ready, the Safe
-sends `unpauseLaunches()` to the factory, at the same moment as the Base Memestake launchpad opens.
+Deploying and opening are separate acts. After the website's version 2 switch is ready, the
+Governance Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` sends one batch on Base that opens
+version 2 and closes version 1 (founder decision 16a, 30 September 2026):
+
+| Call | Target |
+| --- | --- |
+| `unpauseLaunches()` | this package's `RegentsAutolaunchFactoryV2` |
+| `unpauseLaunches()` | the Base Memestake version 2 launchpad |
+| `pauseLaunches()` | Revstake version 1 factory `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e` |
+| `pauseLaunches()` | Memestake version 1 launchpad `0x1d36a95112835f81b1B499A808e556020C64Cac2` |
+
+Pausing stops new launches only. Existing auctions, claims, refunds, staking and fee collection on
+version 1 are untouched. Both version 1 launchers were open (`launchesPaused()` false) on
+30 September 2026. Robinhood's version 1 launchpad is closed by its own Safe transaction on
+Robinhood Chain; see `contracts/robinhood-v2/README.md`.

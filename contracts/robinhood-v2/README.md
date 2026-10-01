@@ -123,7 +123,13 @@ decimals, matching cross-bindings). None is known at build time.
 2. `RobinhoodPositionsLib` (linked), `RobinhoodFeeHookFactory(poolManager)`.
 3. `RobinhoodStocksLaunchpadV2(bindings, hookSalt)` with a salt mined against the hook factory for the predicted launchpad address (the launchpad deploys its hook, its locker and its splitter implementation itself), then `RobinhoodStockBidAdapterV1(stocksLaunchpad, permit2)`.
 4. On Base: `RobinhoodBaseRevenueReceiverV1(usdc, liveStaking, baseSafe)`; then the Safe sets the inbox's destination and adapter.
-5. The Safe admits stocks, sets the hook executor, and unpauses the launchpad.
+5. The Safe admits stocks, sets the hook executor, and unpauses the launchpad. In the same Safe
+   transaction it sends `pauseLaunches()` to the version 1 launchpad
+   `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e` on chain 4663 (founder decision 16a,
+   30 September 2026). This is the Robinhood admin Safe, at the same address as the Base
+   Governance Safe but a separate wallet on Robinhood Chain, so it is its own transaction apart from
+   the Base batch. Pausing stops new launches only; RDOG's auction, claims, staking and fees are
+   untouched. The version 1 launchpad was open on 30 September 2026.
 
 ## Decisions recorded in this package
 
