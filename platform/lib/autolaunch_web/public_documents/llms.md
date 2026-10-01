@@ -61,27 +61,29 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestake: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours, and have 80% of tokens for the auction and 20% locked in the Uni v4 pool. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours. Half the tokens are sold in the auction and the other half is locked in the Uni v4 pool with everything the auction raised. Stakers earn the onchain stock from fees.
 
 Memestake supply: 1 billion tokens.
 
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
-| Auction | Up to 800 million (80%) | Winning bidders claim what they bought. Unsold tokens are burned. |
-| Liquidity reserve | Up to 200 million (20%) | Paired with the stock raised in a permanently locked trading position. Any unused reserve is burned. |
-| Creator, team or treasury | 0 | No token allocation. |
+| Auction | 500 million (50%) | Winning bidders claim what they bought. |
+| Liquidity reserve | 500 million (50%) | Paired with all the stock raised in a permanently locked trading position. The pool opens at the auction's average price. |
+| Creator, team or treasury | 0 | No token allocation. The creator earns a share of trading fees instead. |
 
-If the auction doesn't reach its minimum, every bidder takes back their full bid and all 1 billion tokens are burned.
+Every auction opens at the lowest price it accepts. Its minimum is the whole sale at that price, a small fraction of one share. If the auction doesn't reach it, every bidder takes back their full bid and all 1 billion tokens are burned.
+
+The first four Memestake tokens (BITE, JollyB, AGI and RDOG) keep the terms they launched with: 80% sold, 20% in the pool, and a 1% fee each to REGENT stakers and the token's stakers.
 
 ## Trading fees
 
-The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (1%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (1%) and Regents Labs revstakers (1%). The Uni v4 pool also charges the standard 0.3%, and what the locked liquidity earns from it is added to the token's staking rewards.
+The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (1%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (3%), Regents Labs revstakers (1%) and the token's creator (0.3%). The Uni v4 pool also charges the standard 0.3%, and what the locked liquidity earns from it is added to the token's staking rewards.
 
-| Launch | Fee paid in | First 1% | Second 1% |
-| --- | --- | --- | --- |
-| Revstake (Base) | REGENT or the Revstake token, depending on the trade | Sent to Regent | Added to the token's staking rewards |
-| Memestake (Base) | The paired stock, buying or selling | Swapped to USDC and paid into REGENT staking | Added to the token's staking rewards |
-| Memestake (Robinhood Chain) | The paired stock, buying or selling | Swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up | Added to the token's staking rewards |
+| Launch | Fee paid in | Where it goes |
+| --- | --- | --- |
+| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent to Regent. 1% added to the token's staking rewards. |
+| Memestake (Base) | The paired stock, buying or selling | 3% added to the token's staking rewards. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
+| Memestake (Robinhood Chain) | The paired stock, buying or selling | 3% added to the token's staking rewards. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 

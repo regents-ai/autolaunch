@@ -5,9 +5,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   with it, and the paired stock is chosen again from the new chain's list.
 
   Every section autosaves partial text. Completeness is decided here in one
-  place, and a change of paired stock puts the required raise and floor price
-  back to their defaults, since amounts entered in the old stock mean nothing
-  in the new one.
+  place. The creator chooses no price or minimum: every launch opens at the
+  lowest price the auction accepts.
   """
 
   use Ash.Resource,
@@ -17,12 +16,10 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Autolaunch.LaunchChain
-  alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
+  alias Autolaunch.Stocks.{Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
   @token_fields [:name, :symbol, :description, :website, :telegram]
-  @terms_fields [:stock_address, :required_raise, :floor_price]
-  @default_required_raise "0.00001"
-  @default_floor_price "0.00000001"
+  @terms_fields [:stock_address]
 
   @metadata_limits [name: 64, symbol: 16, description: 512]
 
@@ -77,9 +74,9 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   def image_complete?(_draft), do: false
 
   @doc """
-  Whether the currency, required raise and floor price are complete and exact.
-  There is no schedule to enter: bidding opens a fixed number of blocks after
-  the launch is created.
+  Whether the paired stock is chosen. There is no schedule, price or minimum
+  to enter: bidding opens a fixed number of blocks after the launch is
+  created, at the lowest price the auction accepts.
   """
   def terms_complete?(draft), do: missing_terms(draft) == []
 
@@ -89,9 +86,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
         match?(
           {:ok, _stock},
           Assets.fetch(Map.get(draft, :stock_chain_id), Map.get(draft, :stock_address) || "")
-        ),
-      required_raise: decimal_amount?(Map.get(draft, :required_raise)),
-      floor_price: decimal_amount?(Map.get(draft, :floor_price))
+        )
     ]
     |> Enum.reject(fn {_field, complete?} -> complete? end)
     |> Enum.map(fn {field, _complete?} -> field end)
@@ -104,11 +99,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
-
-  defp decimal_amount?(value) when is_binary(value),
-    do: match?({:ok, raw} when raw > 0, Amounts.parse_units(value, 36))
-
-  defp decimal_amount?(_value), do: false
 
   postgres do
     table "stock_launch_drafts"
@@ -165,7 +155,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       accept @terms_fields
       require_atomic? false
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
-      change Autolaunch.Stocks.LaunchDraft.Changes.ResetStockAmountsOnStockChange
     end
 
     # The stock list is per chain, so a new chain starts without a paired stock.
@@ -174,7 +163,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       require_atomic? false
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
       change set_attribute(:stock_address, nil), where: [changing(:chain)]
-      change Autolaunch.Stocks.LaunchDraft.Changes.ResetStockAmountsOnStockChange
     end
 
     update :attach_image do
@@ -195,8 +183,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       change set_attribute(:image, nil)
       change set_attribute(:stock_launch_draft_image_id, nil)
       change set_attribute(:stock_address, nil)
-      change set_attribute(:required_raise, @default_required_raise)
-      change set_attribute(:floor_price, @default_floor_price)
     end
   end
 
@@ -248,8 +234,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
     attribute :stock_address, :string
     attribute :stock_chain_id, :integer, allow_nil?: false
-    attribute :required_raise, :string, default: @default_required_raise
-    attribute :floor_price, :string, default: @default_floor_price
 
     timestamps()
   end

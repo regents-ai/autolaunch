@@ -103,8 +103,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Memestake supply <span class="fact-page__total">1 billion</span>
         </h2>
         <p>
-          Memestake launches last 24 hours, and have 80% of tokens for the auction and 20% locked in
-          the trading pool. Stakers earn the onchain stock from fees.
+          Memestake launches last 24 hours. Half the tokens are sold in the auction and the other half
+          is locked in the trading pool with everything the auction raised. Stakers earn the onchain
+          stock from fees.
         </p>
         <table class="fact-table">
           <thead>
@@ -118,20 +119,20 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Auction</th>
               <td data-label="Amount" class="fact-table__amount">
-                Up to <strong>800 million (80%)</strong>
+                <strong>500 million (50%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Winning bidders claim what they bought. Unsold tokens are burned.
+                Winning bidders claim what they bought.
               </td>
             </tr>
             <tr>
               <th scope="row">Liquidity reserve</th>
               <td data-label="Amount" class="fact-table__amount">
-                Up to <strong>200 million (20%)</strong>
+                <strong>500 million (50%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Paired with the stock raised in a permanently locked trading position. Any unused
-                reserve is burned.
+                Paired with all the stock raised in a permanently locked trading position. The pool
+                opens at the auction's average price.
               </td>
             </tr>
             <tr>
@@ -139,13 +140,21 @@ defmodule AutolaunchWeb.HowItWorksLive do
               <td data-label="Amount" class="fact-table__amount">
                 <strong class="fact-page__hi">0</strong>
               </td>
-              <td data-label="After a successful auction">No token allocation.</td>
+              <td data-label="After a successful auction">
+                No token allocation. The creator earns a share of trading fees instead.
+              </td>
             </tr>
           </tbody>
         </table>
         <p>
-          If the auction doesn't reach its minimum, every bidder takes back their full bid and all
-          1 billion tokens are burned.
+          Every auction opens at the lowest price it accepts. Its minimum is the whole sale at that
+          price, a small fraction of one share. If the auction doesn't reach it, every bidder takes
+          back their full bid and all 1 billion tokens are burned.
+        </p>
+        <p>
+          The first four Memestake tokens (BITE, JollyB, AGI and RDOG) keep the terms they launched
+          with: 80% sold, 20% in the pool, and a 1% fee each to REGENT stakers and the token's
+          stakers.
         </p>
       </section>
 
@@ -156,39 +165,42 @@ defmodule AutolaunchWeb.HowItWorksLive do
           (<strong class="fact-page__hi">1%</strong>) and REGENT stakers (<strong class="fact-page__hi">1%</strong>). Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
           to participate. The trading fee on memestake tokens benefits the memestakers
-          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :stakers).rate}</strong>) and REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :regent).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
+          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
         </p>
         <table class="fact-table">
           <thead>
             <tr>
               <th scope="col">Launch</th>
               <th scope="col">Fee paid in</th>
-              <th scope="col">First 1%</th>
-              <th scope="col">Second 1%</th>
+              <th scope="col">Where it goes</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <th scope="row">Revstake <span class="fact-table__note">Base</span></th>
               <td data-label="Fee paid in">REGENT or the Revstake token, depending on the trade</td>
-              <td data-label="First 1%">Sent to Regent</td>
-              <td data-label="Second 1%">Added to the token's staking rewards</td>
+              <td data-label="Where it goes">
+                1% sent to Regent. 1% added to the token's staking rewards.
+              </td>
             </tr>
             <tr>
               <th scope="row">Memestake <span class="fact-table__note">Base</span></th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
-              <td data-label="First 1%">Swapped to USDC and paid into REGENT staking</td>
-              <td data-label="Second 1%">Added to the token's staking rewards</td>
+              <td data-label="Where it goes">
+                {memestake_fees(:base, "swapped to USDC and paid into REGENT staking")}
+              </td>
             </tr>
             <tr>
               <th scope="row">
                 Memestake <span class="fact-table__note">Robinhood Chain</span>
               </th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
-              <td data-label="First 1%">
-                Swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up
+              <td data-label="Where it goes">
+                {memestake_fees(
+                  :robinhood,
+                  "swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up"
+                )}
               </td>
-              <td data-label="Second 1%">Added to the token's staking rewards</td>
             </tr>
           </tbody>
         </table>
@@ -252,4 +264,11 @@ defmodule AutolaunchWeb.HowItWorksLive do
     </main>
     """
   end
+
+  # Where each share of a Memestake trading fee goes on `chain`.
+  defp memestake_fees(chain, regent_route),
+    do:
+      "#{FeeSchedule.lane(chain, :stakers).rate} added to the token's staking rewards. " <>
+        "#{FeeSchedule.lane(chain, :regent).rate} #{regent_route}. " <>
+        "#{FeeSchedule.lane(chain, :creator).rate} paid to the creator."
 end

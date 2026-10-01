@@ -243,27 +243,26 @@ contracts:
     deployment_status: local_lab_only
     admission: disabled
     source_note: >-
-      Autolaunch Stocks. The ABIs below are compiled from the fixed interfaces at
-      contracts/stocks/src/interfaces with solc 0.8.26 and carry no deployment. The website
-      reads the deployed local-lab ABIs from stocks-site-config.json and validates them against
-      these interface shapes; no mainnet address exists for any of them.
+      Autolaunch Stocks version 2. The ABIs below are the compiled ABIs of contracts/stocks-v2
+      (StocksLaunchpadV2, its StocksFeeHookV1 and StockBidAdapterV1). The website reads the
+      deployment's ABIs from its stocks site config and validates them against the shapes in
+      Autolaunch.Stocks.LabAbi; this entry pins no address.
     admitted_prepared_actions: []
     reviewed_action_evidence:
-      - contract_id: stocks_launchpad_v1
-        contract_name: IStocksLaunchpadV1
+      - contract_id: stocks_launchpad_v2
+        contract_name: StocksLaunchpadV2
         target: stocks_lab_launchpad_address
-        abi_path: abi/stocks-launchpad-v1.json
-        abi_sha256: a88713cebb2724b452dafdd95eb2c8b5002db031797734220b48731eb0badf08
+        abi_path: abi/stocks-launchpad-v2.json
+        abi_sha256: e9762e3192e7cd0548b85b06af37bf590333b303e698a313e3f0aebd92e41d6c
         interface_note: >-
           launch takes one LaunchParams tuple (name, symbol, description, website, image, stock,
-          startBlock uint64, floorPriceQ96 uint256, expectedLaunchFee uint256) and nothing else.
-          expectedLaunchFee must equal launchFee() and the launcher's REGENT allowance to the
-          launchpad must equal it exactly; the fee is funded into REGENT staking and never
-          refunded. No creator allocation. Graduation clones a memestake splitter per launch
-          (MemestockSplitterCreated) and locks both LP positions in the launchpad's locker.
+          floorPriceQ96) and nothing else. The site always sends the lowest floor on the bid
+          grid, 4,294,967,300; the launchpad derives the required raise as the whole sale
+          allocation at that floor (requiredStockRaisedFor). No launch fee and no creator
+          allocation. Graduation clones a memestake splitter per launch
+          (MemestockSplitterCreated) and locks one full-range position in the launchpad's locker.
         confirmation_event_signatures:
-          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)
-          - StockLaunchFeeCollected(uint256,address,address,uint256)
+          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint128,uint128)
         reads:
           - id: stock_admission
             signature: stockAdmission(address)
@@ -271,10 +270,8 @@ contracts:
             signature: launches(uint256)
           - id: launches_paused
             signature: launchesPaused()
-          - id: launch_fee
-            signature: launchFee()
-          - id: bid_tick_spacing_for
-            signature: bidTickSpacingFor(uint256)
+          - id: required_stock_raised_for
+            signature: requiredStockRaisedFor(uint256)
           - id: launch_id_of_token
             signature: launchIdOfToken(address)
           - id: locker
@@ -283,11 +280,11 @@ contracts:
             signature: splitterImplementation()
         action_ids:
           - launch
-      - contract_id: stock_bid_adapter_v1
-        contract_name: IStockBidAdapterV1
+      - contract_id: stocks_bid_adapter_v2
+        contract_name: StockBidAdapterV1
         target: stocks_lab_bid_adapter_address
-        abi_path: abi/stocks-bid-adapter-v1.json
-        abi_sha256: 913a4cf530af8f5a39183ee6800d054cd3490ebfde10e4f854e389578d71666d
+        abi_path: abi/stocks-bid-adapter-v2.json
+        abi_sha256: 24d60b5fc2d1132e983c98d0ecefaa6e5c1c69021770ab4c374b17a0abb395ad
         interface_note: >-
           bidWithUsdc(auction, usdcAmount, minStockOut, maxPriceQ96, prevTickPriceQ96, deadline)
           pulls exactly usdcAmount through a standard ERC-20 allowance to the adapter and bids as
@@ -306,15 +303,16 @@ contracts:
           - id: quote_exact_in
             signature: quoteExactIn(address,address,uint256)
         action_ids: []
-      - contract_id: stocks_fee_hook_v1
-        contract_name: IStocksFeeHookV1
+      - contract_id: stocks_fee_hook_v2
+        contract_name: StocksFeeHookV1
         target: stocks_lab_hook_address
-        abi_path: abi/stocks-fee-hook-v1.json
-        abi_sha256: 088e16110c465b21a43a2ceb2dfa443ab06994dd09f9fed4667d41b9c9830888
+        abi_path: abi/stocks-fee-hook-v2.json
+        abi_sha256: 8a0bf01a860c8c9c74a6f8415c3161492a348232f86267849e21bc7405db4ca6
         interface_note: >-
-          Two accrual lanes per pool: REGENT (settled by the executor only) and stakers
-          (settleStakerLane(poolId), callable by anyone, deposits the accrued STOCK into the
-          launch's splitter). The website reads both and prepares settleStakerLane.
+          Three accrual lanes per pool: the creator's (settleCreatorLane(poolId), callable by
+          anyone, pays the accrued STOCK to the launcher), REGENT (settled by the executor only)
+          and stakers (settleStakerLane(poolId), callable by anyone, deposits the accrued STOCK
+          into the launch's splitter). The website reads all three and prepares settleStakerLane.
         reads:
           - id: accrued
             signature: accrued(bytes32)

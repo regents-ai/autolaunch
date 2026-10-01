@@ -1,23 +1,30 @@
 defmodule Autolaunch.Stocks.FeeSchedule do
   @moduledoc """
-  The three trading fees every Memestake pool charges, on Base and on
+  The four trading fees every Memestake pool charges, on Base and on
   Robinhood Chain: the pool fee on the token the trader pays with, and the
-  REGENT stakers' and token stakers' fees on the stock side of every trade.
+  creator's, REGENT stakers' and token stakers' fees on the stock side of
+  every trade.
   Every page that states these fees reads them here.
   """
 
-  # Mirrors the contracts: StocksPreset.sol (POOL_FEE, REGENT_LANE_BPS,
-  # STAKER_LANE_BPS) on Base, and RobinhoodPreset.sol (PROTOCOL_LANE_BPS,
-  # STAKER_LANE_BPS, with StocksPreset's POOL_FEE) on Robinhood Chain. The pool
-  # fee is in Uniswap v4's hundredths of a bip, each lane in basis points.
+  # Mirrors the contracts: StocksPreset.sol (POOL_FEE, CREATOR_LANE_BPS,
+  # REGENT_LANE_BPS, STAKER_LANE_BPS) on Base, and RobinhoodPreset.sol
+  # (CREATOR_LANE_BPS, PROTOCOL_LANE_BPS, STAKER_LANE_BPS, with StocksPreset's
+  # POOL_FEE) on Robinhood Chain. The pool fee is in Uniswap v4's hundredths
+  # of a bip, each lane in basis points.
   @schedules %{
-    base: %{pool_fee: 3_000, regent_lane_bps: 100, staker_lane_bps: 100},
-    robinhood: %{pool_fee: 3_000, regent_lane_bps: 100, staker_lane_bps: 100}
+    base: %{pool_fee: 3_000, creator_lane_bps: 30, regent_lane_bps: 100, staker_lane_bps: 300},
+    robinhood: %{
+      pool_fee: 3_000,
+      creator_lane_bps: 30,
+      regent_lane_bps: 100,
+      staker_lane_bps: 300
+    }
   }
 
   @type chain :: :base | :robinhood
   @type lane :: %{
-          key: :pool | :regent | :stakers,
+          key: :pool | :creator | :regent | :stakers,
           label: String.t(),
           rate: String.t(),
           charged_on: :paid | :stock,
@@ -43,6 +50,13 @@ defmodule Autolaunch.Stocks.FeeSchedule do
           "the pool's liquidity; what the locked liquidity earns goes to the token's stakers"
       },
       %{
+        key: :creator,
+        label: "Creator's fee",
+        rate: percent(schedule.creator_lane_bps),
+        charged_on: :stock,
+        receiver: "the wallet that created the launch"
+      },
+      %{
         key: :regent,
         label: "REGENT stakers' fee",
         rate: percent(schedule.regent_lane_bps),
@@ -60,7 +74,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   end
 
   @doc "One of the fees a Memestake trade on `chain` pays."
-  @spec lane(chain(), :pool | :regent | :stakers) :: lane()
+  @spec lane(chain(), :pool | :creator | :regent | :stakers) :: lane()
   def lane(chain, key), do: Enum.find(lanes(chain), &(&1.key == key))
 
   @doc "What a fee is charged on, in words."

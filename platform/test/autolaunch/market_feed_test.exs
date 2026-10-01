@@ -91,7 +91,7 @@ defmodule Autolaunch.MarketFeedTest do
           # Its token, stock and splitter are words 1, 2 and 4.
           LabAbi.selector("launches(uint256)") =>
             [0, 0x61, 0x62, 0, 0x64] ++
-              List.duplicate(0, 6) ++ [lifecycle] ++ List.duplicate(0, 8),
+              List.duplicate(0, 6) ++ [lifecycle] ++ List.duplicate(0, 6),
           # The pool manager's slot0 before the first swap.
           LabAbi.selector("extsload(bytes32)") => [0]
         }
@@ -369,7 +369,7 @@ defmodule Autolaunch.MarketFeedTest do
           quote_token_decimals: 8,
           required_currency_raised: "1000",
           state: state,
-          treasury_address: "0x1d36a95112835f81b1b499a808e556020c64cac2"
+          treasury_address: "0x0f8955a7f09ec713bb71c30e07b512ecee69a044"
         },
         actor: %System{}
       )

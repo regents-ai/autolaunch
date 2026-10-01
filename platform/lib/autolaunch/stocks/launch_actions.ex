@@ -10,12 +10,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
   inside `SessionAuthority.transact_lease/3` against the account that callback
   locked.
 
-  The review derives the executable values from the saved draft and the chain:
-  the required raise the creator entered, in the admitted STOCK's base units,
-  and the executable floor price as the largest multiple of 100 not above the
-  entered price. Bidding opens a fixed number of blocks after the block the
-  launch is created in, so the schedule is the launchpad's own and the receipt
-  is the only source of the start and end blocks.
+  Every launch opens at the lowest price the auction accepts, and its minimum
+  raise is the whole sale at that price, as the launchpad derives it. The
+  creator chooses neither. Bidding opens a fixed number of blocks after the
+  block the launch is created in, so the schedule is the launchpad's own and
+  the receipt is the only source of the start and end blocks.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -35,15 +34,18 @@ defmodule Autolaunch.Stocks.LaunchActions do
     LaunchOperations
   }
 
-  # Preset terms the review states back, from contracts/stocks/README.md.
+  # Preset terms the review states back, from contracts/stocks-v2/src/StocksPreset.sol.
   @new_decimals 18
+  @auction_inventory 500_000_000 * Integer.pow(10, 18)
   @start_lead_blocks 300
   @auction_duration_blocks 43_200
   @claim_delay_blocks 64
   @migration_delay_blocks 128
   @tick_divisor 100
-  @min_floor_price_q96 Integer.pow(2, 32) + 1
-  @uint128_max Integer.pow(2, 128) - 1
+  # The auction's lowest floor, 2^32 + 1, rounded up to the next multiple of
+  # the tick divisor so the bid tick spacing divides it exactly.
+  @floor_price_q96 4_294_967_300
+  @q96 Integer.pow(2, 96)
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
 
@@ -57,8 +59,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 #{ticker}"},
-      {"Sold at auction", "800,000,000 #{ticker} (80%)"},
-      {"Pool reserve", "200,000,000 #{ticker} (20%)"},
+      {"Sold at auction", "500,000,000 #{ticker} (50%)"},
+      {"Pool reserve", "500,000,000 #{ticker} (50%)"},
+      {"Starting price", "The lowest the auction accepts"},
+      {"Minimum raise", "The whole sale at the starting price, a small fraction of one share"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
@@ -69,9 +73,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
     ] ++
       FeeSchedule.terms(:base) ++
       [
-        {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-        {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
-        {"If the required raise is not reached", "Every bid is refundable through the auction"}
+        {"Unsold tokens", "Burned"},
+        {"Pool liquidity",
+         "The whole raise and the whole reserve, locked forever; its trading fees go to stakers"},
+        {"If the minimum raise is not reached",
+         "Every bidder takes back their full bid and every token is burned"}
       ]
   end
 
@@ -82,6 +88,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   def start_lead_blocks, do: @start_lead_blocks
   def auction_duration_blocks, do: @auction_duration_blocks
+  def floor_price_q96, do: @floor_price_q96
+
+  @doc """
+  The stock a launch must raise to graduate: the whole sale at the floor,
+  rounded up, as the launchpad's `requiredStockRaisedFor` derives it.
+  """
+  def required_stock_raised,
+    do: div(@auction_inventory * @floor_price_q96 + @q96 - 1, @q96)
 
   @doc """
   Reviews one saved draft for `address`, one of the account's own wallets: one
@@ -155,46 +169,19 @@ defmodule Autolaunch.Stocks.LaunchActions do
   # Executable values
 
   @doc """
-  Everything the chain will execute, derived from the saved draft and the
-  admitted STOCK's decimals. Exposed so the review page and its test can state
-  exactly the same numbers.
+  Everything the chain will execute, from the preset and the admitted STOCK's
+  decimals. Exposed so the review page and its test can state exactly the
+  same numbers.
   """
-  def executable(fields, snapshot, _config) do
-    with :ok <- admitted(snapshot),
-         {:ok, floor} <- floor_price(fields.floor_price, snapshot.admission.decimals),
-         {:ok, required} <- required_raise(fields.required_raise, snapshot.admission.decimals) do
+  def executable(_fields, snapshot, _config) do
+    with :ok <- admitted(snapshot) do
       {:ok,
        %{
-         floor_price_q96: floor.executable,
-         floor_price_evidence: floor,
-         tick_spacing_q96: div(floor.executable, @tick_divisor),
-         required_stock_raised: required,
+         floor_price_q96: @floor_price_q96,
+         tick_spacing_q96: div(@floor_price_q96, @tick_divisor),
+         required_stock_raised: required_stock_raised(),
          stock_decimals: snapshot.admission.decimals
        }}
-    end
-  end
-
-  # The largest multiple of 100 not above the entered price, so the executable
-  # floor never exceeds what the creator typed, and never below the CCA minimum.
-  defp floor_price(value, decimals) do
-    with {:ok, evidence} <- Amounts.cca_price(value, decimals, @new_decimals) |> refusable(),
-         executable <-
-           evidence.candidate_price_q96 - rem(evidence.candidate_price_q96, @tick_divisor),
-         true <- executable >= @min_floor_price_q96 || unavailable(:floor_price_too_low) do
-      {:ok,
-       Map.merge(evidence, %{
-         executable: executable,
-         executable_stock_per_new: Amounts.format_cca_price(executable, decimals, @new_decimals)
-       })}
-    end
-  end
-
-  # The entered raise in the STOCK's base units, exact or refused. The
-  # launchpad refuses a raise of nothing or more than the auction can reach.
-  defp required_raise(value, decimals) do
-    case Amounts.parse_units(value, decimals) do
-      {:ok, raw} when raw > 0 and raw <= @uint128_max -> {:ok, raw}
-      _invalid -> unavailable(:required_raise_invalid)
     end
   end
 
@@ -224,16 +211,16 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "stock_decimals" => Integer.to_string(executable.stock_decimals),
         "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
         "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
-        "required_raise_entered" => draft.required_raise,
         "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
         "required_stock_raised_units" =>
           Rpc.format_units(executable.required_stock_raised, executable.stock_decimals),
-        "floor_price_entered" => draft.floor_price,
         "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
-        "floor_price_executable" => executable.floor_price_evidence.executable_stock_per_new,
-        "floor_price_adjusted" =>
-          executable.floor_price_evidence.adjustment_required or
-            executable.floor_price_evidence.candidate_price_q96 != executable.floor_price_q96,
+        "floor_price_executable" =>
+          Amounts.format_cca_price(
+            executable.floor_price_q96,
+            executable.stock_decimals,
+            @new_decimals
+          ),
         "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
         "launchpad" => snapshot.launchpad,
         "hook" => snapshot.hook,
@@ -258,8 +245,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         fields.website,
         fields.image,
         fields.stock,
-        executable.floor_price_q96,
-        executable.required_stock_raised
+        executable.floor_price_q96
       ]
     ])
   end
@@ -292,9 +278,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
            end) || unavailable(:launch_metadata_incomplete),
          {:ok, asset} <-
            Assets.fetch(draft.stock_chain_id, draft.stock_address || "") |> refusable(),
-         {:ok, stock} <- address(asset.address, :stock_invalid),
-         true <- is_binary(draft.required_raise) || unavailable(:required_raise_missing),
-         true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing) do
+         {:ok, stock} <- address(asset.address, :stock_invalid) do
       {:ok,
        %{
          name: draft.name,
@@ -304,9 +288,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
          telegram: draft.telegram,
          image: draft.image,
          stock: stock,
-         stock_symbol: asset.symbol,
-         required_raise: draft.required_raise,
-         floor_price: draft.floor_price
+         stock_symbol: asset.symbol
        }}
     else
       {:error, _reason} = error -> error

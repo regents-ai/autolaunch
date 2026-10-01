@@ -239,6 +239,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   defp stocks_fees(assigns) do
     assigns =
       assign(assigns,
+        creator_rate: FeeSchedule.lane(assigns.facts.chain, :creator).rate,
         regent_rate: FeeSchedule.lane(assigns.facts.chain, :regent).rate,
         stakers_rate: FeeSchedule.lane(assigns.facts.chain, :stakers).rate
       )
@@ -247,13 +248,38 @@ defmodule AutolaunchWeb.Components.PoolSection do
     <section id="pool-fees" aria-label="Trading fees">
       <h3>Trading fees</h3>
       <p>
-        Every trade pays {@regent_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
-        side to <span class="ticker">REGENT</span>
+        Every trade pays {@creator_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
+        side to the launch's creator, {@regent_rate} to <span class="ticker">REGENT</span>
         stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
-        stakers. Both are always on. <span class="figure__value">{@facts.fees.trades}</span>
+        stakers. All three are always on. <span class="figure__value">{@facts.fees.trades}</span>
         trades have been charged since graduation.
       </p>
       <ol class="autolaunch-record-list pool-buckets">
+        <li>
+          <article>
+            <h5>Creator's share</h5>
+            <dl class="autolaunch-live-market">
+              <div>
+                <dt>Awaiting payment</dt>
+                <dd>
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.creator.accrued}
+                    unit={@facts.currency.symbol}
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt>Paid to the creator so far</dt>
+                <dd>
+                  <TokenDisplay.tokens
+                    amount={@facts.fees.creator.settled_currency}
+                    unit={@facts.currency.symbol}
+                  />
+                </dd>
+              </div>
+            </dl>
+          </article>
+        </li>
         <li>
           <article>
             <h5>REGENT's share</h5>
@@ -319,9 +345,11 @@ defmodule AutolaunchWeb.Components.PoolSection do
         </li>
       </ol>
       <p>
-        REGENT's share is converted to USDC by the operator outside trading. The stakers' share can
-        be settled by anyone, and the locked liquidity's own trading fees can be collected by anyone;
-        both land in the staking contract for <span class="ticker">{@facts.token.symbol}</span>
+        The creator's share can be paid out by anyone, straight to the wallet that created the
+        launch. REGENT's share is converted to USDC by the operator outside trading. The stakers'
+        share can be settled by anyone, and the locked liquidity's own trading fees can be collected
+        by anyone; both land in the staking contract for
+        <span class="ticker">{@facts.token.symbol}</span>
         stakers.
       </p>
 
@@ -338,7 +366,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
                 <dd>{lane_label(settlement.lane)}</dd>
               </div>
               <div>
-                <dt>{if settlement.lane == :regent, do: "Converted", else: "Sent to stakers"}</dt>
+                <dt>{settled_label(settlement.lane)}</dt>
                 <dd>
                   <TokenDisplay.tokens
                     amount={settlement.currency}
@@ -368,8 +396,13 @@ defmodule AutolaunchWeb.Components.PoolSection do
     """
   end
 
+  defp lane_label(:creator), do: "Creator"
   defp lane_label(:regent), do: "REGENT"
   defp lane_label(:stakers), do: "Stakers"
+
+  defp settled_label(:creator), do: "Paid to the creator"
+  defp settled_label(:regent), do: "Converted"
+  defp settled_label(:stakers), do: "Sent to stakers"
 
   # A price read from the pool, without the mark an inexact one carries.
   defp plain(%{value: value}), do: String.trim_trailing(value, "…")

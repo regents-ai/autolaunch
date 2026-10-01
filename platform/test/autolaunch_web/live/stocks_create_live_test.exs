@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     {:ok, account: account}
   end
 
-  test "autosaves each section and resets the amounts when the stock changes", %{
+  test "autosaves each section and states the fixed minimum for the chosen stock", %{
     conn: conn,
     account: account
   } do
@@ -41,9 +41,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     |> render_change()
 
     view
-    |> form("#stocks-terms",
-      stock_draft: %{stock_address: @aapl, required_raise: "500", floor_price: "1.25"}
-    )
+    |> form("#stocks-terms", stock_draft: %{stock_address: @aapl})
     |> render_change()
 
     actor = %Human{human_account_id: account.id}
@@ -51,8 +49,6 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert draft.name == "Apple Pair"
     assert draft.symbol == "APLP"
     assert draft.stock_address == @aapl
-    assert draft.required_raise == "500"
-    assert draft.floor_price == "1.25"
 
     html =
       view
@@ -61,16 +57,9 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
 
     {:ok, changed} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
     assert changed.stock_address == @amzn
-    assert changed.required_raise == "0.00001"
-    assert changed.floor_price == "0.00000001"
-    refute html =~ ~s(value="1.25")
-    refute html =~ ~s(value="500")
     assert html =~ "Saved"
-
-    # With every section complete the wallet step appears.
-    view
-    |> form("#stocks-terms", stock_draft: %{required_raise: "250", floor_price: "2"})
-    |> render_change()
+    # The whole sale at the lowest starting price, in the 8-decimal stock.
+    assert html =~ "0.27105055 AMZNc"
 
     view
     |> form("#stocks-token-details",
@@ -96,7 +85,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     # The page picks the stored image up with its next save.
     html =
       view
-      |> form("#stocks-terms", stock_draft: %{floor_price: "2"})
+      |> form("#stocks-terms", stock_draft: %{stock_address: @amzn})
       |> render_change()
 
     {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(actor: actor)

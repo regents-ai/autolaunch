@@ -21,9 +21,13 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
              Autolaunch.autosave_stocks_token_details(draft, %{"name" => "Stolen"}, actor: other)
 
     assert {:error, %Ash.Error.Forbidden{}} =
-             Autolaunch.autosave_stocks_terms(draft, %{"floor_price" => "9"}, actor: other)
+             Autolaunch.autosave_stocks_terms(
+               draft,
+               %{"stock_address" => "0xb200000000000000000000c2e324d24d7eecd1fb"},
+               actor: other
+             )
 
-    assert {:ok, %{name: "Mine", floor_price: "0.00000001"}} =
+    assert {:ok, %{name: "Mine", stock_address: nil}} =
              Autolaunch.get_my_stocks_launch_draft_by_id(draft.id, actor: owner)
   end
 

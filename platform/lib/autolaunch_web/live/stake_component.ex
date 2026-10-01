@@ -711,7 +711,6 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("claim", _review), do: "Confirm claim"
   defp step_label("settle", _review), do: "Confirm settlement"
   defp step_label("collect_full_range", _review), do: "Collect the full-range fees"
-  defp step_label("collect_stock_only", _review), do: "Collect the one-sided fees"
 
   defp step_state(nil), do: :ready
 

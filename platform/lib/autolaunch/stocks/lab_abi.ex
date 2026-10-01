@@ -3,15 +3,16 @@ defmodule Autolaunch.Stocks.LabAbi do
 
   alias Autolaunch.LabAbi
 
-  @launch_params "(string,string,string,string,string,address,uint256,uint128)"
-  @launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint128)"
-  @launch_record_words 20
+  @launch_params "(string,string,string,string,string,address,uint256)"
+  @launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256)"
+  @launch_record_words 18
 
   @launch_created "StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)"
-  @launch_graduated "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint128,uint256,uint256,uint256)"
+  @launch_graduated "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256)"
   @splitter_created "MemestockSplitterCreated(uint256,address,address,address)"
   @bid_placed "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
-  @hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
+  @hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256,uint256)"
+  @creator_lane_settled "CreatorLaneSettled(bytes32,address,uint256)"
   @regent_lane_settled "RegentLaneSettled(bytes32,uint256,uint256)"
   @staker_lane_settled "StakerLaneSettled(bytes32,address,uint256)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
@@ -31,6 +32,7 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f: {"bidTickSpacingFor(uint256)", "pure", ["uint256"]},
+      f: {"requiredStockRaisedFor(uint256)", "pure", ["uint128"]},
       f: {"hook()", "view", ["address"]},
       f: {"locker()", "view", ["address"]},
       f: {"splitterImplementation()", "view", ["address"]},
@@ -38,8 +40,7 @@ defmodule Autolaunch.Stocks.LabAbi do
         {@launch_created,
          [true, true, true, false, false, false, false, false, false, false, false]},
       e:
-        {@launch_graduated,
-         [true, true, false, false, false, false, false, false, false, false, false, false]},
+        {@launch_graduated, [true, true, false, false, false, false, false, false, false, false]},
       e: {@splitter_created, [true, true, true, false]}
     ],
     "bid_adapter" => [
@@ -57,12 +58,14 @@ defmodule Autolaunch.Stocks.LabAbi do
     ],
     "hook" => [
       f: {"launchpad()", "view", ["address"]},
-      f: {"accrued(bytes32)", "view", ["uint256", "uint256"]},
-      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"accrued(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256", "uint256"]},
+      f: {"settleCreatorLane(bytes32)", "nonpayable", ["uint256"]},
       f: {"settleStakerLane(bytes32)", "nonpayable", ["uint256"]},
       f: {"executor()", "view", ["address"]},
       f: {"settleRegentLane(bytes32,uint256,uint256)", "nonpayable", []},
-      e: {@hook_fee_accrued, [true, false, false, false]},
+      e: {@hook_fee_accrued, [true, false, false, false, false]},
+      e: {@creator_lane_settled, [true, true, false]},
       e: {@regent_lane_settled, [true, false, false]},
       e: {@staker_lane_settled, [true, true, false]}
     ],
@@ -126,6 +129,7 @@ defmodule Autolaunch.Stocks.LabAbi do
   def splitter_created_signature, do: @splitter_created
   def bid_placed_signature, do: @bid_placed
   def hook_fee_accrued_signature, do: @hook_fee_accrued
+  def creator_lane_settled_signature, do: @creator_lane_settled
   def regent_lane_settled_signature, do: @regent_lane_settled
   def staker_lane_settled_signature, do: @staker_lane_settled
   def fees_deposited_signature, do: @fees_deposited

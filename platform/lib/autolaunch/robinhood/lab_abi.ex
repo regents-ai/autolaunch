@@ -4,7 +4,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
   alias Autolaunch.LabAbi
 
   @core_params "(string,string,string,string,string,uint256)"
-  @stocks_launch_params "(#{@core_params},address,uint128)"
+  @stocks_launch_params "(#{@core_params},address)"
   @launch_record "(address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,address,uint256,uint128,uint128,uint256)"
   @launch_record_words 18
 
@@ -14,7 +14,8 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @bid_submitted "BidSubmitted(uint256,address,uint256,uint128)"
   @bid_exited "BidExited(uint256,address,uint256,uint256)"
   @tokens_claimed "TokensClaimed(uint256,address,uint256)"
-  @hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
+  @hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256,uint256)"
+  @creator_lane_settled "CreatorLaneSettled(bytes32,address,uint256)"
   @protocol_lane_settled "ProtocolLaneSettled(bytes32,uint256,uint256)"
   @staker_lane_settled "StakerLaneSettled(bytes32,address,uint256)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
@@ -33,7 +34,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
-      f: {"stockRecords(uint256)", "view", ["(uint256,uint128)"]},
+      f: {"requiredStockRaisedFor(uint256)", "pure", ["uint128"]},
       f: {"hook()", "view", ["address"]},
       f: {"locker()", "view", ["address"]},
       f: {"splitterImplementation()", "view", ["address"]},
@@ -44,12 +45,14 @@ defmodule Autolaunch.Robinhood.LabAbi do
     ],
     "stocks_hook" => [
       f: {"launchpad()", "view", ["address"]},
-      f: {"accrued(bytes32)", "view", ["uint256", "uint256"]},
-      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"accrued(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256", "uint256"]},
+      f: {"settleCreatorLane(bytes32)", "nonpayable", ["uint256"]},
       f: {"settleStakerLane(bytes32)", "nonpayable", ["uint256"]},
       f: {"executor()", "view", ["address"]},
       f: {"settleProtocolLane(bytes32,uint256,uint256)", "nonpayable", []},
-      e: {@hook_fee_accrued, [true, false, false, false]},
+      e: {@hook_fee_accrued, [true, false, false, false, false]},
+      e: {@creator_lane_settled, [true, true, false]},
       e: {@protocol_lane_settled, [true, false, false]},
       e: {@staker_lane_settled, [true, true, false]}
     ],
@@ -126,6 +129,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
   def stock_bid_placed_signature, do: @stock_bid_placed
   def bid_submitted_signature, do: @bid_submitted
   def hook_fee_accrued_signature, do: @hook_fee_accrued
+  def creator_lane_settled_signature, do: @creator_lane_settled
   def staker_lane_settled_signature, do: @staker_lane_settled
   def fees_deposited_signature, do: @fees_deposited
   def claimed_signature, do: @claimed

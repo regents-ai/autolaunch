@@ -13,12 +13,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   Every call binds to one of the wallets of the account the session lease
   names, read inside the lease at call time.
 
-  The review derives the executable values from the saved Robinhood draft and
-  the chain: the required raise the creator entered, in the admitted STOCK's
-  base units, and the executable floor price as the largest multiple of 100 not
-  above the entered price. Bidding opens a fixed number of blocks after the
-  block the launch is created in, so the receipt is the only source of the
-  start and end blocks.
+  Every launch opens at the lowest price the auction accepts, and its minimum
+  raise is the whole sale at that price, the same rule as on Base
+  (`Autolaunch.Stocks.LaunchActions`). The creator chooses neither. Bidding
+  opens a fixed number of blocks after the block the launch is created in, so
+  the receipt is the only source of the start and end blocks.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -27,18 +26,25 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   alias Autolaunch.{LabAbi, LaunchChain}
   alias Autolaunch.Robinhood.{Lab, StocksLaunchChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
-  alias Autolaunch.Stocks.{Amounts, Assets, FeeSchedule, LaunchDraft, LaunchOperations}
+
+  alias Autolaunch.Stocks.{
+    Amounts,
+    Assets,
+    FeeSchedule,
+    LaunchActions,
+    LaunchDraft,
+    LaunchOperations
+  }
+
   alias RegentChain.{Address, Review}
 
-  # Preset terms the review states back, from contracts/robinhood/src/RobinhoodPreset.sol.
+  # Preset terms the review states back, from contracts/robinhood-v2/src/RobinhoodPreset.sol.
   @new_decimals 18
   @start_lead_blocks 6_000
   @auction_duration_blocks 864_000
   @claim_delay_blocks 1_280
   @migration_delay_blocks 2_560
   @tick_divisor 100
-  @min_floor_price_q96 Integer.pow(2, 32) + 1
-  @uint128_max Integer.pow(2, 128) - 1
   @lifecycles %{0 => "none", 1 => "active", 2 => "graduated", 3 => "failed"}
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
@@ -50,8 +56,10 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 #{ticker}"},
-      {"Sold at auction", "800,000,000 #{ticker} (80%)"},
-      {"Pool reserve", "200,000,000 #{ticker} (20%)"},
+      {"Sold at auction", "500,000,000 #{ticker} (50%)"},
+      {"Pool reserve", "500,000,000 #{ticker} (50%)"},
+      {"Starting price", "The lowest the auction accepts"},
+      {"Minimum raise", "The whole sale at the starting price, a small fraction of one share"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
@@ -63,9 +71,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     ] ++
       FeeSchedule.terms(:robinhood) ++
       [
-        {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-        {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
-        {"If the required raise is not reached", "Every bid is refundable through the auction"}
+        {"Unsold tokens", "Burned"},
+        {"Pool liquidity",
+         "The whole raise and the whole reserve, locked forever; its trading fees go to stakers"},
+        {"If the minimum raise is not reached",
+         "Every bidder takes back their full bid and every token is burned"}
       ]
   end
 
@@ -173,9 +183,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
            end) || unavailable(:launch_metadata_incomplete),
          {:ok, asset} <-
            Assets.fetch(draft.stock_chain_id, draft.stock_address || "") |> refusable(),
-         {:ok, stock} <- address(asset.address, :stock_invalid),
-         true <- is_binary(draft.required_raise) || unavailable(:required_raise_missing),
-         true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing) do
+         {:ok, stock} <- address(asset.address, :stock_invalid) do
       {:ok,
        %{
          name: draft.name,
@@ -185,9 +193,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          telegram: draft.telegram,
          image: draft.image,
          stock: stock,
-         stock_symbol: asset.symbol,
-         required_raise: draft.required_raise,
-         floor_price: draft.floor_price
+         stock_symbol: asset.symbol
        }}
     else
       {:error, _reason} = error -> error
@@ -196,16 +202,15 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   # Executable values
 
-  defp executable(fields, snapshot) do
-    with :ok <- admitted(snapshot),
-         {:ok, floor} <- floor_price(fields.floor_price, snapshot.admission.decimals),
-         {:ok, required} <- required_raise(fields.required_raise, snapshot.admission.decimals) do
+  defp executable(_fields, snapshot) do
+    with :ok <- admitted(snapshot) do
+      floor = LaunchActions.floor_price_q96()
+
       {:ok,
        %{
-         floor_price_q96: floor.executable,
-         floor_price_evidence: floor,
-         tick_spacing_q96: div(floor.executable, @tick_divisor),
-         required_stock_raised: required,
+         floor_price_q96: floor,
+         tick_spacing_q96: div(floor, @tick_divisor),
+         required_stock_raised: LaunchActions.required_stock_raised(),
          stock_decimals: snapshot.admission.decimals
        }}
     end
@@ -214,30 +219,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   defp admitted(%{paused: true}), do: unavailable(:launches_paused)
   defp admitted(%{admission: %{admitted: false}}), do: unavailable(:stock_not_admitted)
   defp admitted(_snapshot), do: :ok
-
-  # The largest multiple of 100 not above the entered price, so the executable
-  # floor never exceeds what the creator typed, and never below the CCA minimum.
-  defp floor_price(value, decimals) do
-    with {:ok, evidence} <- Amounts.cca_price(value, decimals, @new_decimals) |> refusable(),
-         executable <-
-           evidence.candidate_price_q96 - rem(evidence.candidate_price_q96, @tick_divisor),
-         true <- executable >= @min_floor_price_q96 || unavailable(:floor_price_too_low) do
-      {:ok,
-       Map.merge(evidence, %{
-         executable: executable,
-         executable_stock_per_new: Amounts.format_cca_price(executable, decimals, @new_decimals)
-       })}
-    end
-  end
-
-  # The entered raise in the STOCK's base units, exact or refused. The
-  # launchpad refuses a raise of nothing or more than the auction can reach.
-  defp required_raise(value, decimals) do
-    case Amounts.parse_units(value, decimals) do
-      {:ok, raw} when raw > 0 and raw <= @uint128_max -> {:ok, raw}
-      _invalid -> unavailable(:required_raise_invalid)
-    end
-  end
 
   # The review
 
@@ -276,29 +257,19 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     [
       ["Launch fee", "None"],
       [
-        "Required raise",
+        "Minimum raise",
         "#{Amounts.grouped(Rpc.format_units(executable.required_stock_raised, executable.stock_decimals))} #{fields.stock_symbol}"
       ],
       ["Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"],
       ["Auction length", schedule_copy(@auction_duration_blocks)],
-      ["Floor price", floor_copy(fields, executable)]
+      ["Starting price", starting_price(fields, executable)]
     ]
   end
 
   # The page shows a readable price; the review's facts keep the exact one.
-  defp floor_copy(fields, executable) do
-    executable_price =
-      "#{Amounts.compact_decimal(executable.floor_price_evidence.executable_stock_per_new)} #{fields.stock_symbol} per NEW"
-
-    if floor_adjusted?(executable),
-      do: "#{executable_price}, adjusted down from the #{fields.floor_price} you entered",
-      else: executable_price
-  end
-
-  defp floor_adjusted?(executable) do
-    executable.floor_price_evidence.adjustment_required or
-      executable.floor_price_evidence.candidate_price_q96 != executable.floor_price_q96
-  end
+  defp starting_price(fields, executable),
+    do:
+      "#{Amounts.compact_decimal(Amounts.format_cca_price(executable.floor_price_q96, executable.stock_decimals, @new_decimals))} #{fields.stock_symbol} per token, the lowest the auction accepts"
 
   defp launch_data(fields, executable, config) do
     LabAbi.encode(
@@ -314,8 +285,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
             fields.image,
             executable.floor_price_q96
           ],
-          fields.stock,
-          executable.required_stock_raised
+          fields.stock
         ]
       ]
     )

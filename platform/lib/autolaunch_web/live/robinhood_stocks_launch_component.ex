@@ -29,11 +29,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     launches_paused: "New launches are paused right now.",
     stock_not_admitted: "This stock is not open for launches right now. Choose another.",
     stock_invalid: "Choose a stock for this launch.",
-    floor_price_missing: "Set a floor price on the draft first.",
-    floor_price_too_low: "The floor price is too low to use. Raise it on the draft.",
-    required_raise_missing: "Set a required raise on the draft first.",
-    required_raise_invalid:
-      "The required raise must be more than zero, in an amount this stock token can represent. Check it on the draft.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     launch_draft_not_found: "This draft is no longer available.",
     launch_draft_unavailable: "This draft could not be read just now."
@@ -318,7 +313,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp lifecycle("active"), do: "Active"
   defp lifecycle("graduated"), do: "Graduated"
-  defp lifecycle("failed"), do: "Required raise not reached"
+  defp lifecycle("failed"), do: "Minimum raise not reached"
   defp lifecycle("none"), do: "Not started"
 
   defp exact_values(facts, review) do
@@ -326,8 +321,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       {"Launchpad", facts["launchpad"]},
       {"Stock route", facts["route"]},
       {"Stock decimals", facts["stock_decimals"]},
-      {"Required raise (stock base units)", facts["required_stock_raised"]},
-      {"Floor price (Q96)", facts["floor_price_q96"]},
+      {"Minimum raise (stock base units)", facts["required_stock_raised"]},
+      {"Starting price (Q96)", facts["floor_price_q96"]},
       {"Bid tick spacing (Q96)", facts["tick_spacing_q96"]},
       {"Bidding opens (blocks after creation)", facts["start_lead_blocks"]},
       {"Auction length (blocks)", facts["auction_duration_blocks"]},

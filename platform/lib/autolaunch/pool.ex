@@ -574,9 +574,7 @@ defmodule Autolaunch.Pool do
          lp_token_id: Enum.at(words, 14),
          lp_stock_used: Enum.at(words, 15),
          lp_new_used: Enum.at(words, 16),
-         retired_new: Enum.at(words, 17),
-         lp_stock_only_token_id: Enum.at(words, 18),
-         lp_stock_only_used: Enum.at(words, 19)
+         retired_new: Enum.at(words, 17)
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -584,15 +582,14 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  # Both positions belong to the launchpad's locker, which never releases them
-  # and forwards the fees it collects to the launch's splitter. Each carries
-  # what a collection would deposit right now, simulated on the locker.
+  # The one position belongs to the launchpad's locker, which never releases it
+  # and forwards the fees it collects to the launch's splitter. It carries what
+  # a collection would deposit right now, simulated on the locker.
   defp stocks_positions(config, launch, decimals, block, opts) do
     manager = StocksLab.address!(config, :position_manager)
     locker = StocksLab.address!(config, :locker)
 
-    with {:ok, owner} <- owner_of(manager, launch.lp_token_id, block, opts),
-         {:ok, one_sided} <- stock_only_position(config, launch, decimals, block, opts) do
+    with {:ok, owner} <- owner_of(manager, launch.lp_token_id, block, opts) do
       {:ok,
        [
          %{
@@ -614,45 +611,11 @@ defmodule Autolaunch.Pool do
                opts
              )
          }
-       ] ++ one_sided}
-    end
-  end
-
-  defp stock_only_position(_config, %{lp_stock_only_token_id: 0}, _decimals, _block, _opts),
-    do: {:ok, []}
-
-  defp stock_only_position(config, launch, decimals, block, opts) do
-    manager = StocksLab.address!(config, :position_manager)
-    locker = StocksLab.address!(config, :locker)
-    token_id = launch.lp_stock_only_token_id
-
-    with {:ok, owner} <- owner_of(manager, token_id, block, opts) do
-      {:ok,
-       [
-         %{
-           key: :stock_only,
-           label: "One-sided (currency only)",
-           token_id: token_id,
-           owner: owner,
-           locked?: Address.equal?(owner, locker),
-           token_amount: "0",
-           currency_amount: Rpc.format_units(launch.lp_stock_only_used, decimals),
-           uncollected:
-             uncollected(
-               locker,
-               StocksLab.abi!(config, :locker),
-               token_id,
-               currency0?(launch.new_token, launch.stock),
-               decimals,
-               block,
-               opts
-             )
-         }
        ]}
     end
   end
 
-  # The hook's two lanes for this pool, read from its own storage right now,
+  # The hook's three lanes for this pool, read from its own storage right now,
   # plus every accrual and settlement it emitted since graduation, the wallet
   # the Safe named to convert Regent's lane, and the splitter the staker lane
   # and the locker's LP fees flow to.
@@ -660,20 +623,20 @@ defmodule Autolaunch.Pool do
     hook = StocksLab.address!(config, :hook)
     abi = StocksLab.abi!(config, :hook)
 
-    with {:ok, [regent_accrued, staker_accrued]} <-
+    with {:ok, [creator_accrued, regent_accrued, staker_accrued]} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
              block,
-             2,
+             3,
              opts
            ),
-         {:ok, [stock_converted, usdc_deposited, stock_to_stakers]} <-
+         {:ok, [stock_to_creator, stock_converted, usdc_deposited, stock_to_stakers]} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
              block,
-             3,
+             4,
              opts
            ),
          {:ok, converter} <-
@@ -688,8 +651,12 @@ defmodule Autolaunch.Pool do
            ),
          {:ok, logs} <- logs(hook, launch.migration_block, block, [nil, launch.pool_id], opts) do
       accrued_topic = LabAbi.topic(StocksLabAbi.hook_fee_accrued_signature())
-      regent_topic = LabAbi.topic(StocksLabAbi.regent_lane_settled_signature())
-      staker_topic = LabAbi.topic(StocksLabAbi.staker_lane_settled_signature())
+
+      lanes = %{
+        LabAbi.topic(StocksLabAbi.creator_lane_settled_signature()) => :creator,
+        LabAbi.topic(StocksLabAbi.regent_lane_settled_signature()) => :regent,
+        LabAbi.topic(StocksLabAbi.staker_lane_settled_signature()) => :stakers
+      }
 
       accrued = Enum.filter(logs, &(topic_at(&1, 0) == accrued_topic))
 
@@ -697,6 +664,11 @@ defmodule Autolaunch.Pool do
        %{
          trades: length(accrued),
          charged: Enum.map(accrued, &charged/1),
+         creator: %{
+           accrued: Rpc.format_units(creator_accrued, decimals),
+           accrued_atomic: creator_accrued,
+           settled_currency: Rpc.format_units(stock_to_creator, decimals)
+         },
          regent: %{
            accrued: Rpc.format_units(regent_accrued, decimals),
            accrued_atomic: regent_accrued,
@@ -711,9 +683,11 @@ defmodule Autolaunch.Pool do
          },
          splitter: splitter,
          settlements:
-           logs
-           |> Enum.filter(&(topic_at(&1, 0) in [regent_topic, staker_topic]))
-           |> Enum.map(&settlement(&1, regent_topic, decimals))
+           for(
+             log <- logs,
+             {:ok, lane} <- [Map.fetch(lanes, topic_at(log, 0))],
+             do: settlement(log, lane, decimals)
+           )
        }}
     end
   end
@@ -743,35 +717,40 @@ defmodule Autolaunch.Pool do
 
   @doc """
   One trade's fee from a memestock hook's `HookFeeAccrued` log, on Base or
-  Robinhood: both lanes, in atomic units of the pool's currency.
+  Robinhood: all three lanes, in atomic units of the pool's currency.
   """
   def charged(log) do
-    [_fee_base, regent_lane, staker_lane] = data_words(log)
-    %{block: quantity(log["blockNumber"]), currency: regent_lane + staker_lane, token: 0}
+    [_fee_base, creator_lane, regent_lane, staker_lane] = data_words(log)
+
+    %{
+      block: quantity(log["blockNumber"]),
+      currency: creator_lane + regent_lane + staker_lane,
+      token: 0
+    }
   end
 
-  defp settlement(log, regent_topic, decimals) do
-    if topic_at(log, 0) == regent_topic do
-      [stock_converted, usdc_deposited] = data_words(log)
+  defp settlement(log, :regent, decimals) do
+    [stock_converted, usdc_deposited] = data_words(log)
 
-      %{
-        lane: :regent,
-        currency: Rpc.format_units(stock_converted, decimals),
-        usdc: Rpc.format_units(usdc_deposited, @usdc_decimals),
-        block: quantity(log["blockNumber"]),
-        transaction_hash: log["transactionHash"]
-      }
-    else
-      [amount] = data_words(log)
+    %{
+      lane: :regent,
+      currency: Rpc.format_units(stock_converted, decimals),
+      usdc: Rpc.format_units(usdc_deposited, @usdc_decimals),
+      block: quantity(log["blockNumber"]),
+      transaction_hash: log["transactionHash"]
+    }
+  end
 
-      %{
-        lane: :stakers,
-        currency: Rpc.format_units(amount, decimals),
-        usdc: nil,
-        block: quantity(log["blockNumber"]),
-        transaction_hash: log["transactionHash"]
-      }
-    end
+  defp settlement(log, lane, decimals) do
+    [amount] = data_words(log)
+
+    %{
+      lane: lane,
+      currency: Rpc.format_units(amount, decimals),
+      usdc: nil,
+      block: quantity(log["blockNumber"]),
+      transaction_hash: log["transactionHash"]
+    }
   end
 
   # Shared chain reads

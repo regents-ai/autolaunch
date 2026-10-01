@@ -99,7 +99,7 @@ defmodule Autolaunch.BidActionsTest do
        %{wallet: wallet, opts: opts} do
     install()
     # The launchpad the fixture Base Stocks deployment description admits.
-    launchpad = "0x1d36a95112835f81b1b499a808e556020c64cac2"
+    launchpad = "0x0f8955a7f09ec713bb71c30e07b512ecee69a044"
 
     admitted = memestake_auction!("0x5555555555555555555555555555555555555555", launchpad)
 

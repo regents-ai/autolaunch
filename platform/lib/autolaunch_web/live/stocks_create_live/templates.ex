@@ -12,14 +12,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   alias Autolaunch.Stocks.{Amounts, FeeSchedule, LaunchActions, LaunchDraft}
   alias Phoenix.LiveView.JS
 
-  @new_decimals 18
-
   @sections %{
     "autosave_stocks_token_details" => ~w(name symbol description website telegram),
-    "autosave_stocks_terms" => ~w(stock_address required_raise floor_price)
+    "autosave_stocks_terms" => ~w(stock_address)
   }
 
-  @stored_params ~w(name symbol description website telegram image stock_address required_raise floor_price)
+  @stored_params ~w(name symbol description website telegram image stock_address)
 
   def section_params(event), do: Map.fetch!(@sections, event)
   def draft_field_params, do: @stored_params
@@ -69,9 +67,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       )
       |> assign(:fixed_terms, fixed_terms(chain, ticker(assigns.draft_values["symbol"])))
       |> assign(:schedule, schedule(chain))
-
-    assigns =
-      assign(assigns, :floor_echo, floor_echo(assigns.draft_values["floor_price"], assigns.stock))
 
     ~H"""
     <main class="memestock">
@@ -213,40 +208,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   </span>
                 </p>
               </div>
-
-              <Regent.Primitives.disclosure
-                id="stocks-terms-advanced"
-                summary="Advanced"
-                class="memestock__more"
-                phx-mounted={JS.ignore_attributes(["open"])}
-              >
-                <.draft_field
-                  form_id="stocks-terms"
-                  param="required_raise"
-                  label={"Required raise in #{symbol(@stock)}"}
-                  hint="The least the auction must raise. If bids fall short, each bidder can withdraw their whole bid."
-                  values={@draft_values}
-                  errors={@draft_errors}
-                />
-                <.draft_field
-                  form_id="stocks-terms"
-                  param="floor_price"
-                  label={"Starting price in #{symbol(@stock)} per token"}
-                  hint="The price when bidding opens. Bids push it up from here."
-                  values={@draft_values}
-                  errors={@draft_errors}
-                />
-                <p
-                  :if={@floor_echo && @floor_echo.adjusted?}
-                  id="stocks-terms-floor-echo"
-                  class="memestock__hint"
-                  data-floor-executable={@floor_echo.executable}
-                >
-                  The auction starts at {Amounts.compact_decimal(@floor_echo.executable)} {symbol(
-                    @stock
-                  )} per token, the nearest price it can use below what you entered.
-                </p>
-              </Regent.Primitives.disclosure>
             </form>
 
             <div id="stocks-transactions" class="memestock__launch">
@@ -356,12 +317,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <dd>{@schedule.length}</dd>
             </div>
             <div>
-              <dt>Required raise</dt>
-              <dd>{present(@draft_values["required_raise"], "—")} {unit(@stock)}</dd>
+              <dt>Starting price</dt>
+              <dd>The lowest the auction accepts</dd>
             </div>
             <div>
-              <dt>Starting price</dt>
-              <dd>{present(@draft_values["floor_price"], "—")} {unit(@stock)}</dd>
+              <dt>Minimum raise</dt>
+              <dd id="stocks-minimum-raise">{minimum_raise(@stock)}</dd>
             </div>
             <div>
               <dt>Liquidity</dt>
@@ -492,25 +453,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     end
   end
 
-  # The executable floor is the entered price rounded down to the auction's
-  # price step, never below the auction's minimum.
-  defp floor_echo(_value, nil), do: nil
+  # The whole sale at the starting price, in the chosen stock.
+  defp minimum_raise(nil), do: "Choose a stock"
 
-  defp floor_echo(value, stock) do
-    case Amounts.cca_price(value, stock.decimals, @new_decimals) do
-      {:ok, evidence} ->
-        executable = evidence.candidate_price_q96 - rem(evidence.candidate_price_q96, 100)
-
-        if executable >= Integer.pow(2, 32) + 1 do
-          %{
-            executable: Amounts.format_cca_price(executable, stock.decimals, @new_decimals),
-            adjusted?: evidence.adjustment_required or executable != evidence.candidate_price_q96
-          }
-        end
-
-      {:error, _reason} ->
-        nil
-    end
+  defp minimum_raise(stock) do
+    {:ok, amount} = Amounts.format_units(LaunchActions.required_stock_raised(), stock.decimals)
+    "#{amount} #{stock.symbol}"
   end
 
   defp fixed_terms(:base, ticker), do: LaunchActions.terms(ticker)
@@ -540,10 +488,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp symbol(nil), do: "the stock"
   defp symbol(%{symbol: symbol}), do: symbol
 
-  # Amounts in the summary name the stock once one is chosen.
-  defp unit(nil), do: ""
-  defp unit(%{symbol: symbol}), do: symbol
-
   defp present("", placeholder), do: placeholder
   defp present(value, _placeholder), do: value
 
@@ -554,9 +498,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     website: "website",
     telegram: "a t.me Telegram link",
     image: "image",
-    stock_address: "paired stock",
-    required_raise: "required raise",
-    floor_price: "starting price"
+    stock_address: "paired stock"
   }
 
   defp missing_label(fields) do

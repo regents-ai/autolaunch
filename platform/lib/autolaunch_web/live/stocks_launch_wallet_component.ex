@@ -26,14 +26,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
     stock_not_admitted: "This stock token is not admitted for launches right now.",
-    floor_price_too_low: "The floor price is too low to be used. Raise it on the draft.",
-    floor_price_missing: "Enter a floor price on the draft.",
-    required_raise_missing: "Enter a required raise on the draft.",
-    required_raise_invalid:
-      "The required raise must be more than zero, in an amount this stock token can represent. Check it on the draft.",
-    amount_not_representable: "An amount has more decimal places than this stock token supports.",
-    invalid_decimal: "An amount on the draft is not a plain decimal number.",
-    price_out_of_range: "The floor price cannot be used. Check it on the draft.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     stock_invalid: "Choose a stock token on the draft.",
     unsupported_stock: "Choose a stock token on the draft.",
@@ -104,11 +96,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
               </dd>
             </div>
             <div>
-              <dt>Required raise</dt>
+              <dt>Minimum raise</dt>
               <dd>
                 {Amounts.grouped(@prepared.facts["required_stock_raised_units"])} {@prepared.facts[
                   "stock_symbol"
-                ]}. If bids fall short, each bidder can withdraw their whole bid.
+                ]}. If bids fall short, each bidder takes back their whole bid.
               </dd>
             </div>
             <div>
@@ -122,14 +114,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
               <dd>{LaunchActions.schedule_copy(LaunchActions.auction_duration_blocks())}</dd>
             </div>
             <div>
-              <dt>Floor price</dt>
+              <dt>Starting price</dt>
               <dd>
                 {Amounts.compact_decimal(@prepared.facts["floor_price_executable"])} {@prepared.facts[
                   "stock_symbol"
-                ]} per token
-                <span :if={@prepared.facts["floor_price_adjusted"]}>
-                  (rounded down from {@prepared.facts["floor_price_entered"]})
-                </span>
+                ]} per token, the lowest the auction accepts
               </dd>
             </div>
             <div>
@@ -258,10 +247,10 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       {"Launchpad", facts["launchpad"]},
       {"Stock token", facts["stock"]},
       {"Stock decimals", facts["stock_decimals"]},
-      {"Required raise (stock base units)", facts["required_stock_raised"]},
-      {"Floor price (every digit)",
+      {"Minimum raise (stock base units)", facts["required_stock_raised"]},
+      {"Starting price (every digit)",
        "#{facts["floor_price_executable"]} #{facts["stock_symbol"]} per token"},
-      {"Floor price (Q96)", facts["floor_price_q96"]},
+      {"Starting price (Q96)", facts["floor_price_q96"]},
       {"Bid tick spacing (Q96)", facts["tick_spacing_q96"]},
       {"Bidding opens (blocks after creation)", facts["start_lead_blocks"]},
       {"Auction length (blocks)", facts["auction_duration_blocks"]},

@@ -45,13 +45,10 @@ defmodule Autolaunch.Robinhood.Pool do
   @spec read_at(String.t(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
   def read_at(auction, config, block, opts) when is_binary(auction) do
     with {:ok, launch} <- launch_record(auction, config, block, opts),
-         {:ok, [stock_only_token_id, stock_only_used]} <-
-           launchpad_words(config, "stockRecords(uint256)", [launch.launch_id], 2, block, opts),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock),
          {:ok, symbol} <-
            Rpc.call_string(launch.new_token, LabAbi.selector("symbol()"), block, opts),
-         {:ok, positions} <-
-           positions(config, launch, stock_only_token_id, stock_only_used, stock, block, opts),
+         {:ok, positions} <- positions(config, launch, stock, block, opts),
          {:ok, fees} <- fees(config, launch, stock, block, opts),
          # The launch's migration block is on the rollup clock, not the block
          # numbers logs carry, so the pool's logs are read from the chain's start.
@@ -212,16 +209,14 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  # Both positions belong to the launchpad's locker, which never releases them
-  # and forwards the fees it collects to the launch's splitter. Each carries
-  # what a collection would deposit right now, simulated on the locker.
-  defp positions(config, launch, stock_only_token_id, stock_only_used, stock, block, opts) do
+  # The one position belongs to the launchpad's locker, which never releases it
+  # and forwards the fees it collects to the launch's splitter. It carries what
+  # a collection would deposit right now, simulated on the locker.
+  defp positions(config, launch, stock, block, opts) do
     manager = Lab.address!(config, :position_manager)
     locker = Lab.address!(config, :stocks_locker)
 
-    with {:ok, owner} <- owner_of(manager, launch.lp_token_id, block, opts),
-         {:ok, one_sided} <-
-           stock_only(config, launch, stock_only_token_id, stock_only_used, stock, block, opts) do
+    with {:ok, owner} <- owner_of(manager, launch.lp_token_id, block, opts) do
       {:ok,
        [
          %{
@@ -233,29 +228,6 @@ defmodule Autolaunch.Robinhood.Pool do
            token_amount: Rpc.format_units(launch.lp_new_used, @token_decimals),
            currency_amount: Rpc.format_units(launch.lp_stock_used, stock.decimals),
            uncollected: uncollected(config, launch, launch.lp_token_id, stock, block, opts)
-         }
-       ] ++ one_sided}
-    end
-  end
-
-  defp stock_only(_config, _launch, 0, _used, _stock, _block, _opts), do: {:ok, []}
-
-  defp stock_only(config, launch, token_id, used, stock, block, opts) do
-    manager = Lab.address!(config, :position_manager)
-    locker = Lab.address!(config, :stocks_locker)
-
-    with {:ok, owner} <- owner_of(manager, token_id, block, opts) do
-      {:ok,
-       [
-         %{
-           key: :stock_only,
-           label: "One-sided (currency only)",
-           token_id: token_id,
-           owner: owner,
-           locked?: Address.equal?(owner, locker),
-           token_amount: "0",
-           currency_amount: Rpc.format_units(used, stock.decimals),
-           uncollected: uncollected(config, launch, token_id, stock, block, opts)
          }
        ]}
     end
@@ -284,7 +256,7 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  # The hook's two lanes for this pool, read from its own storage right now,
+  # The hook's three lanes for this pool, read from its own storage right now,
   # every fee it charged the pool's trades, the wallet the Safe named to
   # convert Regent's lane, and the splitter the staker lane and the locker's
   # LP fees flow to. Like the price history, the hook's logs are read from the
@@ -293,20 +265,20 @@ defmodule Autolaunch.Robinhood.Pool do
     hook = Lab.address!(config, :stocks_hook)
     abi = Lab.abi!(config, :stocks_hook)
 
-    with {:ok, [protocol_accrued, staker_accrued]} <-
+    with {:ok, [creator_accrued, protocol_accrued, staker_accrued]} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
              block,
-             2,
+             3,
              opts
            ),
-         {:ok, [_stock_converted, _usdg_deposited, stock_to_stakers]} <-
+         {:ok, [stock_to_creator, _stock_converted, _usdg_deposited, stock_to_stakers]} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
              block,
-             3,
+             4,
              opts
            ),
          {:ok, converter} <-
@@ -316,6 +288,11 @@ defmodule Autolaunch.Robinhood.Pool do
       {:ok,
        %{
          charged: Enum.map(accrued, &Autolaunch.Pool.charged/1),
+         creator: %{
+           accrued: Rpc.format_units(creator_accrued, stock.decimals),
+           accrued_atomic: creator_accrued,
+           settled_currency: Rpc.format_units(stock_to_creator, stock.decimals)
+         },
          regent: %{
            accrued: Rpc.format_units(protocol_accrued, stock.decimals),
            accrued_atomic: protocol_accrued,

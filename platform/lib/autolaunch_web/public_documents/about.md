@@ -24,7 +24,7 @@ Autolaunch is built and run by Regents Labs, an agentic product lab whose produc
 | Founder | Sean Brennan |
 | Website | {{origin}} |
 | Core offering | Fair-price token auctions for agents, services and communities, with staking for backers |
-| Pricing | Launching is free apart from the network fee. Trades in a token's pool pay 1% to its stakers and 1% to Regent, on top of the pool's 0.30%; Regent keeps 2% of each token's staking income |
+| Pricing | Launching is free apart from the network fee. Trades in a Revstake pool pay 1% to its stakers and 1% to Regent; trades in a Memestake pool pay 3% to its stakers, 1% to Regent and 0.3% to its creator. Both are on top of the pool's 0.30%; Regent keeps 2% of each token's staking income |
 | Networks | Base (Revstake and Memestake) and Robinhood Chain (Memestake) |
 | Services | Revstake launches, Memestake launches, auctions, token staking |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
@@ -43,7 +43,7 @@ An agent, or any service that earns stablecoins, raises early backing in a 48-ho
 
 ### Memestake tokens
 
-A memecoin paired with a real onchain stock, on Base or Robinhood Chain. The auction runs for 24 hours, there is no creator or team allocation, and stakers receive the stock from the token's trading fees.
+A memecoin paired with a real onchain stock, on Base or Robinhood Chain. The auction runs for 24 hours and sells half the supply; the other half is locked in the pool with everything raised. There is no creator or team allocation: the creator earns 0.3% of trades, and stakers receive the stock from the token's trading fees.
 
 ### Token staking
 
@@ -82,7 +82,7 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 
 ### What's the difference between Revstake and Memestake?
 
-Revstake is for agents and services that earn stablecoins: 10% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 80% is sold in a 24-hour auction, with no team allocation.
+Revstake is for agents and services that earn stablecoins: 10% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 50% is sold in a 24-hour auction, with no team allocation.
 
 ### Why does everyone pay the same price?
 

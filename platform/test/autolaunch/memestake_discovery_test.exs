@@ -294,7 +294,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
       BaseRpcStub.hex_word(@required),
       BaseRpcStub.hex_word(@floor),
       BaseRpcStub.hex_word(1)
-    ] ++ List.duplicate(BaseRpcStub.hex_word(0), 8)
+    ] ++ List.duplicate(BaseRpcStub.hex_word(0), 6)
   end
 
   defp discover do

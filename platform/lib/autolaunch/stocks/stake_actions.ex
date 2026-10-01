@@ -9,7 +9,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   (the exact token allowance to the splitter when it is short, then the
   stake), unstake, claim (every reward the splitter holds for the wallet),
   settle (the hook's staker lane into the splitter, open to anyone), collect
-  (the locked positions' trading fees into the splitter, open to anyone) and
+  (the locked position's trading fees into the splitter, open to anyone) and
   convert (a memestock hook's REGENT lane sold through the stock's route into
   REGENT's revenue, only by the wallet the Safe named as the hook's executor).
   A Revstake splitter's hook lane is pulled on the trade itself, so it offers
@@ -495,8 +495,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     }
   end
 
-  defp moved(collect, context, logs)
-       when collect in [:collect_full_range, :collect_stock_only] do
+  defp moved(:collect_full_range, context, logs) do
     [{_topics, [currency0, _currency1, amount0, amount1]}] =
       emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
 

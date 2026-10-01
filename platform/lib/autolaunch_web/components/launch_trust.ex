@@ -294,14 +294,14 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     do: %{
       name: "Memestake",
       about: "stakers earn the onchain stock from trading fees",
-      reserve: "Up to 200 million tokens (20%)",
+      reserve: "500 million tokens (50%)",
       unused: "was burned",
       rows: [
-        {"Sold in the auction", "Up to 800 million (80%)",
-         "winning bidders claim what they bought; unsold tokens are burned"},
-        {"Reserved for liquidity", "Up to 200 million (20%)",
-         "paired with the stock raised in a permanently locked position; any unused reserve is burned"},
-        {"Creator, team or treasury", "0", "no token allocation"}
+        {"Sold in the auction", "500 million (50%)", "winning bidders claim what they bought"},
+        {"Reserved for liquidity", "500 million (50%)",
+         "paired with all the stock raised in a permanently locked position"},
+        {"Creator, team or treasury", "0",
+         "no token allocation; the creator earns a share of trading fees"}
       ]
     }
 
