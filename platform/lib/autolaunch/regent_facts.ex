@@ -13,6 +13,14 @@ defmodule Autolaunch.RegentFacts do
   one reading instead of each starting their own. The seven days of USDC and
   the price are read beside the rest; either one that does not answer is
   `:unavailable` and the rest of the reading stands.
+
+  The seven days of deposits are also kept as each deposit's own split, as
+  the staking contract recorded it (to stakers, to the treasury), grouped by
+  the source tag the depositor gave it: the Memestake REGENT lane on Base
+  (`autolaunch-stocks`), the Robinhood Chain lane once it reaches Base
+  (`autolaunch-robinhood`), a token splitter's 2% (the tag is the token's
+  address), another tag written as text (kept as written, such as
+  `clanker`), or a tag that is none of these, which stays unattributed.
   """
 
   use GenServer
@@ -44,6 +52,10 @@ defmodule Autolaunch.RegentFacts do
   @total_supply "0x18160ddd"
   # totalUsdcReceived()
   @total_usdc_received "0xcf51bfdd"
+  # totalUsdcCreditedToStakers()
+  @total_usdc_credited "0x98460766"
+  # revenueShareSupplyDenominator()
+  @revenue_share_denominator "0xe3961f2a"
   # emissionAprBps()
   @emission_apr_bps "0x8ba7fda0"
   # treasuryRecipient()
@@ -53,7 +65,8 @@ defmodule Autolaunch.RegentFacts do
   # allocation(address): token, amount, claimed, lockedUntil, vestedBy, admin
   @vault_allocation "0xb81b8630"
   # USDCRevenueDeposited(uint256,uint256,uint256,uint8,address,bytes32,bytes32):
-  # three indexed topics, then amountReceived first of four data words.
+  # three indexed topics, then four data words: amountReceived,
+  # stakerRewardsCredited, treasuryResidualIncrease and sourceTag.
   @usdc_deposited "0x1a150e3db61cdcdf841d24acf00159c2e184f84c02c7ec5ab3507766dae59e51"
 
   # Base makes a block about every two seconds, so seven days is 302,400 of
@@ -104,6 +117,8 @@ defmodule Autolaunch.RegentFacts do
          {:ok, total_supply} <- Rpc.call_uint(token, @total_supply, block),
          {:ok, total_staked} <- Rpc.call_uint(staking, staking_selector("total_staked"), block),
          {:ok, usdc_received} <- Rpc.call_uint(staking, @total_usdc_received, block),
+         {:ok, usdc_credited} <- Rpc.call_uint(staking, @total_usdc_credited, block),
+         {:ok, denominator} <- Rpc.call_uint(staking, @revenue_share_denominator, block),
          {:ok, apr_bps} <- Rpc.call_uint(staking, @emission_apr_bps, block),
          {:ok, treasury} <- Rpc.call_address(staking, @treasury_recipient, block),
          {:ok, treasury_held} <- balance_of(token, treasury, block),
@@ -115,6 +130,8 @@ defmodule Autolaunch.RegentFacts do
       circulating =
         max(total_supply - vault_held - treasury_held - redeemer_held - inventory, 0)
 
+      deposits_7d = deposits_7d(staking, block.number)
+
       {:ok,
        %{
          block_number: block.number,
@@ -125,7 +142,13 @@ defmodule Autolaunch.RegentFacts do
          circulating_supply: regent(circulating),
          staked_share_bps: share_bps(total_staked, circulating),
          usdc_received_lifetime: Rpc.format_units(usdc_received, @usdc_decimals),
-         usdc_received_7d: usdc_received_7d(staking, block.number),
+         usdc_credited_lifetime: Rpc.format_units(usdc_credited, @usdc_decimals),
+         usdc_treasury_lifetime: Rpc.format_units(usdc_received - usdc_credited, @usdc_decimals),
+         revenue_share_denominator: regent(denominator),
+         staked_denominator_share: share(total_staked, denominator),
+         usdc_received_7d: received_7d(deposits_7d),
+         deposits_7d: deposits_7d,
+         window_blocks: @window_blocks,
          emission_apr_percent: Rpc.format_units(apr_bps, 2),
          price_usd: price_usd(token),
          clanker_vault: %{
@@ -146,6 +169,9 @@ defmodule Autolaunch.RegentFacts do
   defp share_bps(part, whole) when whole > 0 and part <= whole, do: div(part * 10_000, whole)
   defp share_bps(_part, _whole), do: :unavailable
 
+  defp share(part, whole) when whole > 0, do: Decimal.div(part, whole)
+  defp share(_part, _whole), do: :unavailable
+
   defp balance_of(token, holder, block),
     do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [holder]), block)
 
@@ -162,27 +188,37 @@ defmodule Autolaunch.RegentFacts do
   end
 
   # Every USDC deposit the staking contract recorded over the seven days ending
-  # at `to_block`, added up from its own logs. The first stretch that fails ends
-  # the sum: a total made from the stretches that happened to answer would
-  # understate what the contract received.
-  defp usdc_received_7d(staking, to_block) do
+  # at `to_block`, added up from its own logs: what arrived, what was credited
+  # to stakers and what went to the treasury, in total and by source. The
+  # first stretch that fails ends the sum: a total made from the stretches that
+  # happened to answer would understate what the contract received.
+  defp deposits_7d(staking, to_block) do
     from_block = max(to_block - @window_blocks + 1, 0)
 
     from_block
     |> Stream.iterate(&(&1 + @chunk_blocks))
     |> Stream.take_while(&(&1 <= to_block))
-    |> Task.async_stream(&stretch_received(staking, &1, min(&1 + @chunk_blocks - 1, to_block)),
+    |> Task.async_stream(&stretch_deposits(staking, &1, min(&1 + @chunk_blocks - 1, to_block)),
       max_concurrency: @chunk_concurrency,
       timeout: @read_timeout,
       on_timeout: :kill_task
     )
-    |> Enum.reduce_while({:received, 0}, fn
-      {:ok, {:ok, received}}, {:received, total} -> {:cont, {:received, total + received}}
-      failed, _total -> {:halt, {:failed, failed}}
+    |> Enum.reduce_while({:deposits, []}, fn
+      {:ok, {:ok, deposits}}, {:deposits, all} -> {:cont, {:deposits, deposits ++ all}}
+      failed, _deposits -> {:halt, {:failed, failed}}
     end)
     |> case do
-      {:received, received} ->
-        Rpc.format_units(received, @usdc_decimals)
+      {:deposits, deposits} ->
+        %{
+          from_block: from_block,
+          to_block: to_block,
+          count: length(deposits),
+          total: allocation(deposits),
+          sources:
+            for source <- sources(deposits) do
+              {source, deposits |> Enum.filter(&(&1.source == source)) |> allocation()}
+            end
+        }
 
       {:failed, failed} ->
         Logger.warning("REGENT seven-day USDC unavailable: #{inspect(failed)}")
@@ -190,7 +226,32 @@ defmodule Autolaunch.RegentFacts do
     end
   end
 
-  defp stretch_received(staking, from_block, to_block) do
+  # The three Autolaunch sources always, each other tag and the unattributed
+  # deposits only when the window has some.
+  defp sources(deposits) do
+    found = deposits |> Enum.map(& &1.source) |> Enum.uniq()
+    tags = found |> Enum.filter(&match?({:tag, _text}, &1)) |> Enum.sort()
+    unattributed = Enum.filter(found, &(&1 == :unattributed))
+
+    [:memestake_base, :token_splitters, :robinhood] ++ tags ++ unattributed
+  end
+
+  defp received_7d(:unavailable), do: :unavailable
+  defp received_7d(%{total: %{received: received}}), do: received
+
+  defp allocation(deposits) do
+    %{
+      received: usdc(deposits, :received),
+      stakers: usdc(deposits, :stakers),
+      treasury: usdc(deposits, :treasury)
+    }
+  end
+
+  defp usdc(deposits, key),
+    do:
+      deposits |> Enum.map(&Map.fetch!(&1, key)) |> Enum.sum() |> Rpc.format_units(@usdc_decimals)
+
+  defp stretch_deposits(staking, from_block, to_block) do
     filter = %{
       address: staking,
       topics: [@usdc_deposited],
@@ -199,19 +260,53 @@ defmodule Autolaunch.RegentFacts do
     }
 
     case Rpc.request("eth_getLogs", [filter]) do
-      {:ok, logs} when is_list(logs) -> sum_received(logs, staking)
+      {:ok, logs} when is_list(logs) -> decode_deposits(logs, staking)
       {:ok, _malformed} -> {:error, :invalid_chain_response}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp sum_received(logs, staking) do
-    Enum.reduce_while(logs, {:ok, 0}, fn log, {:ok, total} ->
+  defp decode_deposits(logs, staking) do
+    Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, deposits} ->
       case Abi.one_event([log], @usdc_deposited, staking, 3, 4) do
-        {:ok, {_indexed, [received | _rest]}} -> {:cont, {:ok, total + received}}
-        :error -> {:halt, {:error, :invalid_chain_response}}
+        {:ok, {_indexed, [received, stakers, treasury, tag]}} ->
+          deposit = %{
+            received: received,
+            stakers: stakers,
+            treasury: treasury,
+            source: source(tag)
+          }
+
+          {:cont, {:ok, [deposit | deposits]}}
+
+        :error ->
+          {:halt, {:error, :invalid_chain_response}}
       end
     end)
+  end
+
+  @memestake_base_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-stocks", 32, <<0>>))
+  @robinhood_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-robinhood", 32, <<0>>))
+
+  # The source a deposit's tag records. A token splitter tags its 2% with the
+  # token's address. Any other tag written as short plain text is kept as
+  # written; a tag that is neither stays unattributed.
+  defp source(@memestake_base_tag), do: :memestake_base
+  defp source(@robinhood_tag), do: :robinhood
+
+  defp source(tag) do
+    case Abi.word_address(tag) do
+      {:ok, _token} -> :token_splitters
+      :error -> text_tag(tag)
+    end
+  end
+
+  defp text_tag(tag) do
+    text = <<tag::256>> |> String.trim_trailing(<<0>>)
+
+    if text != "" and String.printable?(text) and not String.contains?(text, <<0>>),
+      do: {:tag, text},
+      else: :unattributed
   end
 
   defp quantity(value), do: "0x" <> String.downcase(Integer.to_string(value, 16))

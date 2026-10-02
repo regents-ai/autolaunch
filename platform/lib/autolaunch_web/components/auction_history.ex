@@ -124,7 +124,8 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
       assign(assigns,
         elapsed: min(div((now - assigns.start_block) * 100, span), 100),
         marks: Enum.map(assigns.bids, &share(&1.clock_block, assigns.start_block, span)),
-        newest: Enum.reverse(assigns.bids)
+        newest: Enum.reverse(assigns.bids),
+        ended: assigns.block >= assigns.end_block
       )
 
     ~H"""
@@ -132,7 +133,9 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
       <.tabs id={"#{@id}-tabs"} label="Bids and timeline" class="auction-tabs--large">
         <:tab label="Activity">
           <div :if={@bids != []} class="auction-history__bids">
-            <p class="auction-history__note">{bid_count(@bids)} so far, newest first.</p>
+            <p class="auction-history__note">
+              {bid_count(@bids)}{if !@ended, do: " so far"}, newest first.
+            </p>
             <div class="auction-history__table">
               <table>
                 <thead>

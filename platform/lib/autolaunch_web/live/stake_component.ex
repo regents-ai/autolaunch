@@ -11,6 +11,10 @@ defmodule AutolaunchWeb.StakeComponent do
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
   `%{chain: :robinhood, auction: record}`; `pool` is its current facts.
+  With `design: :next`, for the new token page, the card shows the wallet's
+  rewards one asset to a row, its stake apart from them, and what staking the
+  typed amount would change (`AutolaunchWeb.Components.TokenNext`); `supply`
+  is the token's whole supply, which a Revstake share is of.
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); the card shows that wallet's
@@ -28,7 +32,7 @@ defmodule AutolaunchWeb.StakeComponent do
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.{FeeSchedule, StakeActions}
   alias AutolaunchWeb.{AgentPress, OnchainSteps, TokenDisplay}
-  alias AutolaunchWeb.Components.{ShareDialog, SwapForm}
+  alias AutolaunchWeb.Components.{ShareDialog, SwapForm, TokenNext}
   alias RegentChain.{Presses, Review}
 
   @copy %{
@@ -84,6 +88,8 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:session_lease, fn -> nil end)
       |> assign_new(:share_url, fn -> nil end)
       |> assign_new(:share_image, fn -> nil end)
+      |> assign_new(:design, fn -> :current end)
+      |> assign_new(:supply, fn -> nil end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> scoped()
       |> OnchainSteps.adopt()
@@ -186,7 +192,13 @@ defmodule AutolaunchWeb.StakeComponent do
         </p>
       </details>
 
-      <dl class="token-stake__facts">
+      <TokenNext.stake_figures
+        :if={@design == :next}
+        id={"#{@id}-figures"}
+        pool={@pool}
+        position={@position}
+      />
+      <dl :if={@design == :current} class="token-stake__facts">
         <div>
           <dt>Staked by everyone</dt>
           <dd>
@@ -401,6 +413,15 @@ defmodule AutolaunchWeb.StakeComponent do
           mismatch={@mismatch}
         />
       </div>
+
+      <TokenNext.stake_impact
+        :if={@design == :next}
+        id={"#{@id}-impact"}
+        pool={@pool}
+        amount={@amount}
+        position={@position}
+        supply={@supply}
+      />
     </section>
     """
   end

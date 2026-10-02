@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.RegentLive do
   alias Autolaunch.Lab
   alias Autolaunch.RegentFacts
   alias Autolaunch.Stocks.Amounts
-  alias AutolaunchWeb.Components.TokenLinks
+  alias AutolaunchWeb.Components.{RegentNext, TokenLinks}
   alias AutolaunchWeb.TokenDisplay
 
   @revenue_sources [
@@ -22,6 +22,7 @@ defmodule AutolaunchWeb.RegentLive do
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/regent"))
      |> assign(:local_lab?, Lab.test_chain?())
+     |> assign(:design, if(socket.assigns.live_action == :regent_next, do: :next, else: :current))
      |> assign(:revenue_sources, @revenue_sources)
      |> assign_async(:facts, fn ->
        case RegentFacts.read() do
@@ -31,9 +32,153 @@ defmodule AutolaunchWeb.RegentLive do
      end)}
   end
 
+  def render(assigns), do: page(assigns)
+
+  # The new page, in preview at /next/regent: where the USDC went, deposit by
+  # deposit and source by source, how the next one would split, Memestake's
+  # two chains kept apart, and REGENT emissions as a stream of their own.
+  # Its links carry their own ids: the top bar's REGENT menu already uses the
+  # current page's.
+  defp page(%{design: :next} = assigns) do
+    ~H"""
+    <main class="fact-page regent-next">
+      <header class="autolaunch-heading">
+        <h1>REGENT</h1>
+        <p>
+          $REGENT is the value token for all Regents Labs products. Stake it to earn USDC from those
+          products and REGENT emissions. Revstake auctions are priced in REGENT.
+        </p>
+        <p class="regent-next-preview">
+          This is the new REGENT page. <.link navigate="/regent">Open the current page</.link>
+        </p>
+      </header>
+
+      <p :if={@local_lab?} id="regent-next-scope" class="regent-scope" role="note">
+        Public Base mainnet data and links. The test REGENT on this fork is separate and is
+        not bought, staked or redeemed here.
+      </p>
+
+      <nav class="regent-links" aria-describedby={if @local_lab?, do: "regent-next-scope"}>
+        <a
+          id="regent-next-buy"
+          class="rg-button rg-button--primary"
+          href={TokenLinks.buy()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span class="rg-button__label">Buy REGENT <span aria-hidden="true">↗</span></span>
+        </a>
+        <.link
+          class="rg-button rg-button--secondary"
+          id="regent-next-stake"
+          href="https://regents.sh/stake"
+        >
+          Stake REGENT
+        </.link>
+        <a
+          id="regent-next-chart"
+          class="rg-button rg-button--secondary"
+          href={TokenLinks.chart()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View REGENT Chart <span aria-hidden="true">↗</span>
+        </a>
+        <.link
+          class="rg-button rg-button--secondary"
+          id="regent-next-redeem"
+          href="https://regents.sh/redeem"
+        >
+          Redeem
+        </.link>
+      </nav>
+
+      <p :if={@facts.loading} id="regent-next-loading" class="regent-status">
+        Loading REGENT figures…
+      </p>
+      <p :if={@facts.failed} id="regent-next-unavailable" class="regent-status">
+        REGENT figures are unavailable right now.
+      </p>
+
+      <div :if={@facts.ok?} class="regent-next-layout">
+        <RegentNext.deposit_allocation facts={@facts.result} />
+        <RegentNext.next_split facts={@facts.result} />
+        <RegentNext.emissions facts={@facts.result} />
+        <RegentNext.deposits_by_source facts={@facts.result} />
+        <RegentNext.memestake_sources facts={@facts.result} />
+        <section
+          id="regent-next-yours"
+          class="regent-next-card"
+          aria-labelledby="regent-next-yours-title"
+        >
+          <header class="regent-next-card__head">
+            <h2 id="regent-next-yours-title">Your rewards</h2>
+          </header>
+          <p>
+            Stake, unstake, claim or compound from your own wallet. Every step needs your signature.
+          </p>
+          <p class="regent-next-muted">
+            Your USDC and REGENT rewards are not shown here. They are on the staking page.
+          </p>
+          <.link class="regent-next-link" href="https://regents.sh/stake">
+            See your rewards on regents.sh
+          </.link>
+        </section>
+      </div>
+
+      <dl :if={@facts.ok?} id="regent-next-supply" class="regent-figures">
+        <div>
+          <dt>REGENT staked</dt>
+          <dd><TokenDisplay.amount amount={@facts.result.total_staked} unit="REGENT" /></dd>
+        </div>
+        <div>
+          <dt>Circulating REGENT</dt>
+          <dd><TokenDisplay.amount amount={@facts.result.circulating_supply} unit="REGENT" /></dd>
+        </div>
+        <div>
+          <dt>Circulating market cap</dt>
+          <dd>{market_cap(@facts.result)}</dd>
+        </div>
+        <div>
+          <dt>Total REGENT</dt>
+          <dd><TokenDisplay.amount amount={@facts.result.total_supply} unit="REGENT" /></dd>
+        </div>
+      </dl>
+
+      <section class="fact-page__section" aria-labelledby="regent-next-products">
+        <h2 id="regent-next-products">What each product is set up to pay in</h2>
+        <p>
+          Figures on this page come only from recorded deposits. This list is what each product
+          is set up to pay into staking.
+        </p>
+        <table class="fact-table">
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col">Pays in</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={{product, streams} <- @revenue_sources}>
+              <th scope="row">{product}</th>
+              <td data-label="Pays in">
+                <span :for={stream <- streams} class="regent-stream">{stream}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <.circulating :if={@facts.ok?} facts={@facts.result} />
+
+      <.contracts :if={@facts.ok?} facts={@facts.result} />
+    </main>
+    """
+  end
+
   # Every figure and link here is public Base mainnet. A local-fork site says
   # so, because the fork carries its own test REGENT that none of this reaches.
-  def render(assigns) do
+  defp page(assigns) do
     ~H"""
     <main class="fact-page">
       <header class="autolaunch-heading">
@@ -174,84 +319,101 @@ defmodule AutolaunchWeb.RegentLive do
         </table>
       </section>
 
-      <section
-        :if={@facts.ok?}
-        class="fact-page__section"
-        aria-labelledby="regent-circulating"
-      >
-        <h2 id="regent-circulating">Circulating supply</h2>
-        <p :if={@facts.result.staked_share_bps != :unavailable} id="regent-staked-share">
-          <strong class="fact-page__hi">{percent(@facts.result.staked_share_bps)}</strong>
-          of circulating REGENT is staked.
-        </p>
-        <div
-          :if={@facts.result.staked_share_bps != :unavailable}
-          class="regent-share"
-          aria-hidden="true"
-        >
-          <span style={"width: #{percent(@facts.result.staked_share_bps)}"}></span>
-        </div>
-        <table class="fact-table">
-          <thead>
-            <tr>
-              <th scope="col">Not circulating</th>
-              <th scope="col" class="fact-table__amount">Amount</th>
-              <th scope="col">When it circulates</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={holding <- holdings(@facts.result)}>
-              <th scope="row">
-                <a
-                  href={"https://basescan.org/address/#{holding.address}"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {holding.name}
-                </a>
-              </th>
-              <td data-label="Amount" class="fact-table__amount">
-                <TokenDisplay.amount amount={holding.amount} unit="REGENT" />
-              </td>
-              <td data-label="When it circulates">{holding.release}</td>
-            </tr>
-          </tbody>
-        </table>
-        <p>
-          Circulating REGENT is the total less these four. Read at Base block {Amounts.grouped(
-            Integer.to_string(@facts.result.block_number)
-          )}.
-        </p>
-      </section>
+      <.circulating :if={@facts.ok?} facts={@facts.result} />
 
-      <details :if={@facts.ok?} class="fact-more">
-        <summary>Show details</summary>
-        <dl class="fact-more__body regent-contracts">
-          <dt>REGENT token</dt>
-          <dd>
-            <a
-              href={"https://basescan.org/token/#{@facts.result.token_address}"}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {@facts.result.token_address}
-            </a>
-          </dd>
-          <dt>Staking contract</dt>
-          <dd>
-            <a
-              href={"https://basescan.org/address/#{@facts.result.staking_address}"}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {@facts.result.staking_address}
-            </a>
-          </dd>
-          <dt>Updated</dt>
-          <dd>Figures are read from Base about once a minute.</dd>
-        </dl>
-      </details>
+      <.contracts :if={@facts.ok?} facts={@facts.result} />
     </main>
+    """
+  end
+
+  attr :facts, :map, required: true
+
+  # How much of the circulating supply is staked, and the four holdings it
+  # leaves out.
+  defp circulating(assigns) do
+    ~H"""
+    <section
+      class="fact-page__section"
+      aria-labelledby="regent-circulating"
+    >
+      <h2 id="regent-circulating">Circulating supply</h2>
+      <p :if={@facts.staked_share_bps != :unavailable} id="regent-staked-share">
+        <strong class="fact-page__hi">{percent(@facts.staked_share_bps)}</strong>
+        of circulating REGENT is staked.
+      </p>
+      <div
+        :if={@facts.staked_share_bps != :unavailable}
+        class="regent-share"
+        aria-hidden="true"
+      >
+        <span style={"width: #{percent(@facts.staked_share_bps)}"}></span>
+      </div>
+      <table class="fact-table">
+        <thead>
+          <tr>
+            <th scope="col">Not circulating</th>
+            <th scope="col" class="fact-table__amount">Amount</th>
+            <th scope="col">When it circulates</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={holding <- holdings(@facts)}>
+            <th scope="row">
+              <a
+                href={"https://basescan.org/address/#{holding.address}"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {holding.name}
+              </a>
+            </th>
+            <td data-label="Amount" class="fact-table__amount">
+              <TokenDisplay.amount amount={holding.amount} unit="REGENT" />
+            </td>
+            <td data-label="When it circulates">{holding.release}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Circulating REGENT is the total less these four. Read at Base block {Amounts.grouped(
+          Integer.to_string(@facts.block_number)
+        )}.
+      </p>
+    </section>
+    """
+  end
+
+  attr :facts, :map, required: true
+
+  defp contracts(assigns) do
+    ~H"""
+    <details class="fact-more">
+      <summary>Show details</summary>
+      <dl class="fact-more__body regent-contracts">
+        <dt>REGENT token</dt>
+        <dd>
+          <a
+            href={"https://basescan.org/token/#{@facts.token_address}"}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {@facts.token_address}
+          </a>
+        </dd>
+        <dt>Staking contract</dt>
+        <dd>
+          <a
+            href={"https://basescan.org/address/#{@facts.staking_address}"}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {@facts.staking_address}
+          </a>
+        </dd>
+        <dt>Updated</dt>
+        <dd>Figures are read from Base about once a minute.</dd>
+      </dl>
+    </details>
     """
   end
 

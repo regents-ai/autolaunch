@@ -17,10 +17,14 @@
 @import "./shell/top_bar.css";
 @import "./shell/account_control.css";
 @import "./pages/regent.css";
+@import "./pages/regent_next.css";
 @import "./pages/autolaunch.css";
 @import "./pages/auction.css";
+@import "./pages/auction_next.css";
+@import "./pages/token_next.css";
 @import "./pages/market.css";
 @import "./pages/create.css";
+@import "./pages/create_next.css";
 @import "./pages/memestock.css";
 @import "./pages/portfolio.css";
 @import "./pages/home.css";

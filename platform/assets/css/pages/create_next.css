@@ -1,0 +1,40 @@
+/* The new Create pages (/next/create, /next/create/revstake): where the supply
+   and the money go, the raise at the starting price, and the terms. */
+
+.create-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
+.memestock__summary.memestock__summary--next { position: static; }
+.create-next { display: grid; gap: 16px; min-width: 0; }
+.create-next__card { container-type: inline-size; display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
+.create-next__title { margin: 0; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; }
+.create-next__subtitle { margin: 4px 0 0; font-size: .875rem; font-weight: 600; }
+.create-next__lead, .create-next__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
+
+/* Source on the left, where it goes on the right; stacked in a narrow card. */
+.create-next__flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: stretch; }
+@container (min-width: 30rem) { .create-next__flow { grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: 12px; } }
+.create-next__source { display: grid; align-content: center; gap: 2px; padding: 12px; border: 1px solid var(--hairline-strong); border-radius: 10px; color: var(--color-fg-muted); font-size: .75rem; }
+.create-next__source strong { color: var(--color-fg); font-size: 1.25rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.create-next__parts { display: grid; min-width: 0; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.create-next__part { display: grid; gap: 4px; padding: 10px 12px; border-left: 4px solid var(--part); border-radius: 8px; background: color-mix(in srgb, var(--part) 10%, var(--color-surface)); }
+.create-next__part-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: .8125rem; }
+.create-next__part-head strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.create-next__part-note { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
+.create-next__part--auction { --part: var(--brand-accent); }
+.create-next__part--pool { --part: var(--color-success); }
+.create-next__part--creator { --part: var(--color-fg-muted); }
+
+.create-next__bar { display: flex; height: 10px; overflow: hidden; border-radius: 999px; background: var(--hairline); }
+.create-next__bar-part { background: var(--part); }
+
+/* Each trading fee, with a bar against the largest. */
+.create-next__fees { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.create-next__fees li { display: grid; grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; font-size: .8125rem; }
+.create-next__fees li > .create-next__part-note { grid-column: 1 / -1; }
+.create-next__fee-track { height: 6px; overflow: hidden; border-radius: 999px; background: var(--hairline); }
+.create-next__fee-track > span { display: block; height: 100%; border-radius: inherit; background: var(--brand-accent); }
+.create-next__fees strong { font-variant-numeric: tabular-nums; }
+
+.create-next__facts { display: grid; margin: 0; }
+.create-next__facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding-block: 8px; border-top: 1px solid var(--hairline); font-size: .8125rem; }
+.create-next__facts dt { color: var(--color-fg-muted); }
+.create-next__facts dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }

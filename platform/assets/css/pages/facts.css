@@ -8,6 +8,8 @@
 .fact-page__total { color: var(--product-autolaunch); }
 .fact-page__section > p { max-width: 70ch; font-size: .9375rem; line-height: 1.6; }
 .fact-page__hi { color: var(--product-autolaunch); font-weight: 600; }
+.fact-page__subhead { margin-top: var(--space-1); font-size: 1rem; line-height: 1.4; }
+.fact-page__list { display: grid; gap: 6px; max-width: 70ch; padding-left: 1.25rem; font-size: .9375rem; line-height: 1.6; }
 .fact-table { width: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.55; text-align: left; font-variant-numeric: tabular-nums; }
 .fact-table :is(th, td) { padding: 12px 24px 12px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; }
 .fact-table :is(th, td):last-child { padding-right: 0; }

@@ -247,11 +247,13 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def human_actor(_access_context), do: nil
 
-  @doc "The wallet the verified session signed in with, lowercase; its account's other wallets are never read."
+  @doc "The wallet the verified session signed in with, lowercase, or nil when signed out; its account's other wallets are never read."
   def signed_in_wallet(%{principal: {:human, %{wallet_address: wallet}}}) do
     {:ok, address} = Address.normalize(wallet)
     address
   end
+
+  def signed_in_wallet(_access_context), do: nil
 
   def current_human_id(%{principal: {:human, %{id: id}}}), do: id
   def current_human_id(_access_context), do: nil

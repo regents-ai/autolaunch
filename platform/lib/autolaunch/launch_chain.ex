@@ -22,7 +22,7 @@ defmodule Autolaunch.LaunchChain do
   is always an estimate, never a promise.
   """
   def time_estimate(chain, blocks) when is_integer(blocks) and blocks >= 0 do
-    seconds = blocks * seconds_per_block(chain)
+    seconds = seconds(chain, blocks)
 
     cond do
       seconds < 60 -> "less than a minute"
@@ -31,6 +31,10 @@ defmodule Autolaunch.LaunchChain do
       true -> about(seconds / 86_400, "day")
     end
   end
+
+  @doc "How many seconds a number of blocks takes on the chain, by its usual block time."
+  def seconds(chain, blocks) when is_integer(blocks) and blocks >= 0,
+    do: blocks * seconds_per_block(chain)
 
   defp seconds_per_block(:base), do: 2
   defp seconds_per_block(:robinhood), do: 0.1

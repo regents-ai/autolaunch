@@ -1,7 +1,10 @@
 defmodule AutolaunchWeb.MarketPageLive do
   @moduledoc """
   An auction's page at `/auctions/<TICKER>/<tail>` or its token's at
-  `/tokens/<TICKER>/<tail>` (see `AutolaunchWeb.Paths`), on either chain.
+  `/tokens/<TICKER>/<tail>` (see `AutolaunchWeb.Paths`), on either chain. The
+  new auction and token pages, in preview beside the current ones, are at
+  `/next/auctions/<TICKER>/<tail>` and `/next/tokens/<TICKER>/<tail>`: the
+  same chain page, told `design: :next`.
 
   Base and Robinhood keep their own pages. This finds the one listed auction
   the address names, picks its chain's page, hands that page the record it
@@ -38,6 +41,7 @@ defmodule AutolaunchWeb.MarketPageLive do
 
     socket
     |> assign(market_page: page, market_page_params: page_params)
+    |> assign(:design, design(socket.assigns.live_action))
     |> assign(:share, if(connected?(socket), do: nil, else: share))
     |> assign(PublicDocuments.page(Map.fetch!(@pages, page)))
     |> then(&page.mount(page_params, session, &1))
@@ -64,12 +68,18 @@ defmodule AutolaunchWeb.MarketPageLive do
     end
   end
 
+  defp page!(:auction_next, symbol, tail), do: page!(:auction, symbol, tail)
+  defp page!(:token_next, symbol, tail), do: page!(:token, symbol, tail)
+
   defp page!(:token, symbol, tail) do
     case Paths.find_token(symbol, tail) do
       {:ok, auction, token} -> token_page(auction, token)
       :error -> raise NotFoundError
     end
   end
+
+  defp design(action) when action in [:auction_next, :token_next], do: :next
+  defp design(_action), do: :current
 
   defp auction_page(auction) do
     if RobinhoodLab.chain?(auction.chain_id),

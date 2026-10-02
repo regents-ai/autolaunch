@@ -83,7 +83,7 @@ defmodule AutolaunchWeb.PublicDocuments do
        "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
     "/how-it-works" =>
       {"How Autolaunch works",
-       "Supply, trading fees and staking rewards for every Autolaunch token."},
+       "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
     "/profile" => {"Profile", "The accounts you have connected to Autolaunch."},
     "/settings" => {"Settings", "Your Autolaunch sign-in and account."},

@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.CreateNext
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.MarketCard
@@ -77,6 +78,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
+  attr :design, :atom, default: :current
   attr :has_connections, :boolean, default: false
   attr :connections_waived, :boolean, default: false
   attr :no_connections_typed, :string, default: ""
@@ -328,6 +330,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             preview
           />
           <p>This auction and the resulting token will show these identities</p>
+          <.launch_plan
+            :if={@design == :next}
+            id="revstake-plan"
+            kind={:revstake}
+            ticker={present_ticker(@draft_values["symbol"])}
+            minimum="Less than one REGENT, so any real bid is enough"
+            chosen={[
+              {"Treasury", present(@draft_values["treasury"], "Not set yet")}
+            ]}
+          />
         </aside>
       </section>
       <.draft_carry_over
@@ -568,6 +580,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   end
 
   defp token_detail_fields, do: @token_detail_fields
+
+  defp present(value, placeholder) do
+    case String.trim(value) do
+      "" -> placeholder
+      value -> value
+    end
+  end
+
+  # Until the creator names a symbol, the supply is counted in plain tokens.
+  defp present_ticker(symbol), do: present(symbol, "tokens")
 
   defp treasury_field, do: @treasury_field
 

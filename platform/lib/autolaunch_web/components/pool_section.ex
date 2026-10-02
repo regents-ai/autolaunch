@@ -2,7 +2,9 @@ defmodule AutolaunchWeb.Components.PoolSection do
   @moduledoc """
   The "Pool" section of a graduated token's page: the pool a launch graduated
   into, its locked positions, its price, and its fee lanes and revenue, read from
-  Base by `Autolaunch.Pool`.
+  Base by `Autolaunch.Pool`. With `design: :next`, for the new token page,
+  the locked positions and the Memestake fee totals are left to that page's
+  own locked-liquidity section and reward trace; the settlements stay here.
   """
   use AutolaunchWeb, :html
 
@@ -10,6 +12,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   alias AutolaunchWeb.TokenDisplay
 
   attr :pool, :any, required: true
+  attr :design, :atom, default: :current, values: [:current, :next]
 
   def pool_facts(assigns) do
     ~H"""
@@ -24,12 +27,13 @@ defmodule AutolaunchWeb.Components.PoolSection do
           Read again
         </Regent.Primitives.button>
       </div>
-      <.facts :if={@pool.ok?} facts={@pool.result} />
+      <.facts :if={@pool.ok?} facts={@pool.result} design={@design} />
     </section>
     """
   end
 
   attr :facts, :map, required: true
+  attr :design, :atom, required: true
 
   defp facts(assigns) do
     ~H"""
@@ -101,8 +105,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
       </div>
     </dl>
 
-    <h3>Locked liquidity</h3>
-    <ol class="autolaunch-record-list pool-positions">
+    <h3 :if={@design == :current}>Locked liquidity</h3>
+    <ol :if={@design == :current} class="autolaunch-record-list pool-positions">
       <li :for={position <- @facts.positions}>
         <article>
           <h4>{position.label} position · NFT #{position.token_id}</h4>
@@ -186,7 +190,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
     </Regent.Primitives.disclosure>
 
     <.agent_fees :if={@facts.kind == :agent} facts={@facts} />
-    <.stocks_fees :if={@facts.kind == :stocks} facts={@facts} />
+    <.stocks_fees :if={@facts.kind == :stocks} facts={@facts} design={@design} />
     """
   end
 
@@ -235,6 +239,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   end
 
   attr :facts, :map, required: true
+  attr :design, :atom, required: true
 
   defp stocks_fees(assigns) do
     lane = &FeeSchedule.lane(assigns.facts.chain, assigns.facts.version, &1)
@@ -249,22 +254,22 @@ defmodule AutolaunchWeb.Components.PoolSection do
 
     ~H"""
     <section id="pool-fees" aria-label="Trading fees">
-      <h3>Trading fees</h3>
-      <p :if={@creator}>
+      <h3 :if={@design == :current}>Trading fees</h3>
+      <p :if={@design == :current && @creator}>
         Every trade pays {@creator.rate} of its <span class="ticker">{@facts.currency.symbol}</span>
         side to the launch's creator, {@regent_rate} to <span class="ticker">REGENT</span>
         stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
         stakers. All three are always on. <span class="figure__value">{@facts.fees.trades}</span>
         trades have been charged since graduation.
       </p>
-      <p :if={!@creator}>
+      <p :if={@design == :current && !@creator}>
         Every trade pays {@regent_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
         side to <span class="ticker">REGENT</span>
         stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
         stakers. Both are always on. <span class="figure__value">{@facts.fees.trades}</span>
         trades have been charged since graduation.
       </p>
-      <ol class="autolaunch-record-list pool-buckets">
+      <ol :if={@design == :current} class="autolaunch-record-list pool-buckets">
         <li :if={@creator}>
           <article>
             <h5>Creator's share</h5>
@@ -354,7 +359,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
           </article>
         </li>
       </ol>
-      <p>
+      <p :if={@design == :current}>
         <span :if={@creator}>
           The creator's share can be paid out by anyone, straight to the wallet that created the
           launch.
@@ -366,7 +371,9 @@ defmodule AutolaunchWeb.Components.PoolSection do
         stakers.
       </p>
 
-      <h4>Settlements so far</h4>
+      <.dynamic_tag tag_name={if(@design == :next, do: "h3", else: "h4")}>
+        Settlements so far
+      </.dynamic_tag>
       <p :if={@facts.fees.settlements == []} class="autolaunch-empty">
         Nothing has been settled yet.
       </p>
