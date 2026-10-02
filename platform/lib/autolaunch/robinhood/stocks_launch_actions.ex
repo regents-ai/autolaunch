@@ -103,7 +103,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          {:ok, config} <- robinhood_lab(),
          {:ok, snapshot} <- snapshot(fields.stock),
          {:ok, executable} <- executable(fields, snapshot),
-         {:ok, _review} <- record_review(actor, signer, fields, executable),
+         {:ok, _review} <- record_review(actor, signer, fields),
          do: {:ok, build(draft, fields, executable, signer, snapshot, config)}
   end
 
@@ -129,7 +129,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   # The launch this review would carry out, kept so the market feed knows it
   # as this site's launch whether or not the browser reports it back.
-  defp record_review(%Human{human_account_id: account_id}, signer, fields, executable),
+  defp record_review(%Human{human_account_id: account_id}, signer, fields),
     do:
       Autolaunch.record_robinhood_launch_review(
         %{
@@ -139,9 +139,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           name: fields.name,
           symbol: fields.symbol,
           stock: String.downcase(fields.stock),
-          telegram: fields.telegram,
-          required_stock_raised: Integer.to_string(executable.required_stock_raised),
-          floor_price_q96: Integer.to_string(executable.floor_price_q96)
+          telegram: fields.telegram
         },
         actor: %Autolaunch.Actors.System{}
       )

@@ -16,7 +16,6 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   @graduated_auction "0x7000000000000000000000000000000000000007"
   @splitter "0x8000000000000000000000000000000000000008"
   @token "0x6000000000000000000000000000000000000006"
-  @floor 7 * 2 ** 96
 
   defmodule Chain do
     @moduledoc """
@@ -483,9 +482,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
         human_account_id: creator.id,
         name: name,
         symbol: symbol,
-        stock: @stock.address,
-        required_stock_raised: "1000",
-        floor_price_q96: Integer.to_string(@floor)
+        stock: @stock.address
       },
       actor: %System{}
     )

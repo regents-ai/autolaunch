@@ -33,9 +33,7 @@ defmodule Autolaunch.Robinhood.LaunchReview do
         :name,
         :symbol,
         :stock,
-        :telegram,
-        :required_stock_raised,
-        :floor_price_q96
+        :telegram
       ]
     end
 
@@ -75,10 +73,6 @@ defmodule Autolaunch.Robinhood.LaunchReview do
     attribute :symbol, :string, allow_nil?: false, constraints: [trim?: false]
     attribute :stock, :string, allow_nil?: false, constraints: [min_length: 42, max_length: 42]
     attribute :telegram, :string, constraints: [max_length: 256]
-
-    # Exact integers, in the stock's base units and Q96.
-    attribute :required_stock_raised, :string, allow_nil?: false
-    attribute :floor_price_q96, :string, allow_nil?: false
 
     create_timestamp :inserted_at
   end
