@@ -22,7 +22,8 @@ defmodule Autolaunch.Robinhood.Auctions do
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
-  alias Autolaunch.Stocks.{Amounts, Assets}
+  alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias Autolaunch.Stocks.{Amounts, Assets, LaunchActions}
 
   @token_decimals 18
 
@@ -63,15 +64,14 @@ defmodule Autolaunch.Robinhood.Auctions do
     end
   end
 
-  # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock,
-  # …, at word 8 the stock the auction must raise to graduate, and at word 10
-  # the launch lifecycle (1 active, 2 graduated, 3 failed).
+  # A launch's lifecycle is 1 active, 2 graduated, 3 failed.
   defp auction(config, contracts, launch_id, block, clock, opts) do
     with {:ok, words} <- launch_words(contracts, launch_id, block, opts),
-         {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
-         {:ok, token} <- Abi.word_address(Enum.at(words, 1)),
-         {:ok, stock_address} <- Abi.word_address(Enum.at(words, 2)),
-         {:ok, auction} <- Abi.word_address(Enum.at(words, 3)),
+         record = RobinhoodLabAbi.record(contracts, words),
+         {:ok, launcher} <- Abi.word_address(record.launcher),
+         {:ok, token} <- Abi.word_address(record.new_token),
+         {:ok, stock_address} <- Abi.word_address(record.currency),
+         {:ok, auction} <- Abi.word_address(record.auction),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), stock_address),
          {:ok, name} <- Rpc.call_string(token, LabAbi.selector("name()"), block, opts),
          {:ok, symbol} <- Rpc.call_string(token, LabAbi.selector("symbol()"), block, opts),
@@ -93,14 +93,14 @@ defmodule Autolaunch.Robinhood.Auctions do
          stock_address: stock.address,
          stock_symbol: stock.symbol,
          stock_decimals: stock.decimals,
-         state: state(Enum.at(words, 10), Enum.at(words, 4), Enum.at(words, 5), clock),
+         state: state(record.lifecycle, record.start_block, record.end_block, clock),
          minimum_reached: minimum_reached,
          clearing_price: Amounts.format_cca_price(clearing, stock.decimals, @token_decimals),
          clearing_price_q96: clearing,
          raised: Rpc.format_units(raised, stock.decimals),
-         required: Rpc.format_units(Enum.at(words, 8), stock.decimals),
-         start_block: Enum.at(words, 4),
-         end_block: Enum.at(words, 5),
+         required: Rpc.format_units(required_raise(contracts.version, record), stock.decimals),
+         start_block: record.start_block,
+         end_block: record.end_block,
          clock: clock
        }}
     else
@@ -108,6 +108,11 @@ defmodule Autolaunch.Robinhood.Auctions do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # The first launchpad records each launch's required raise; the second has
+  # one fixed for every launch.
+  defp required_raise(:v1, record), do: record.required_stock_raised
+  defp required_raise(:v2, _record), do: LaunchActions.required_stock_raised()
 
   defp state(2, _start_block, _end_block, _clock), do: :graduated
   defp state(3, _start_block, _end_block, _clock), do: :failed

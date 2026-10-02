@@ -36,11 +36,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   # Preset terms the review states back, from contracts/stocks-v2/src/StocksPreset.sol.
   @new_decimals 18
-  @auction_inventory 500_000_000 * Integer.pow(10, 18)
+  @auction_inventory 495_000_000 * Integer.pow(10, 18)
   @start_lead_blocks 300
   @auction_duration_blocks 43_200
   @claim_delay_blocks 64
   @migration_delay_blocks 128
+  @creator_vesting_blocks 1_296_000
   @tick_divisor 100
   # The auction's lowest floor, 2^32 + 1, rounded up to the next multiple of
   # the tick divisor so the bid tick spacing divides it exactly.
@@ -59,23 +60,24 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 #{ticker}"},
-      {"Sold at auction", "500,000,000 #{ticker} (50%)"},
-      {"Pool reserve", "500,000,000 #{ticker} (50%)"},
+      {"Sold at auction", "495,000,000 #{ticker} (49.5%)"},
+      {"Pool reserve", "495,000,000 #{ticker} (49.5%)"},
       {"Starting price", "The lowest the auction accepts"},
       {"Minimum raise", "The whole sale at the starting price, a small fraction of one share"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
       {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
-      {"Creator allocation", "None"},
-      {"Vesting", "None"},
+      {"Creator allocation", "10,000,000 #{ticker} (1%)"},
+      {"Vesting",
+       "Released block by block over #{schedule_copy(@creator_vesting_blocks)} from the pool opening; anyone can release it and it always goes to the creator"},
       {"Treasury", "None"}
     ] ++
       FeeSchedule.terms(:base) ++
       [
         {"Unsold tokens", "Burned"},
         {"Pool liquidity",
-         "The whole raise and the whole reserve, locked forever; its trading fees go to stakers"},
+         "Opens at the auction's final price with the whole raise and the reserve it matches; the rest of the reserve is a second position holding only #{ticker}. Both are locked forever and their trading fees go to stakers"},
         {"If the minimum raise is not reached",
          "Every bidder takes back their full bid and every token is burned"}
       ]
@@ -92,7 +94,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @doc """
   The stock a launch must raise to graduate: the whole sale at the floor,
-  rounded up, as the launchpad's `requiredStockRaisedFor` derives it.
+  rounded up, as `StocksPreset.REQUIRED_STOCK_RAISED` derives it.
   """
   def required_stock_raised,
     do: div(@auction_inventory * @floor_price_q96 + @q96 - 1, @q96)
@@ -202,8 +204,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
     %{
       "chain" => Client.chain(config),
       "signer" => signer,
-      "step" =>
-        Review.step("launch", snapshot.launchpad, launch_data(fields, executable, config)),
+      "step" => Review.step("launch", snapshot.launchpad, launch_data(fields, config)),
       "facts" => %{
         "draft_id" => draft.id,
         "name" => fields.name,
@@ -241,7 +242,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   end
 
   @doc "The exact `launch(LaunchParams)` calldata for reviewed fields and executable values."
-  def launch_data(fields, executable, config) do
+  def launch_data(fields, config) do
     LabAbi.encode(Lab.abi!(config, :launchpad), StocksLabAbi.launch_signature(), [
       [
         fields.name,
@@ -249,8 +250,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         fields.description,
         fields.website,
         fields.image,
-        fields.stock,
-        executable.floor_price_q96
+        fields.stock
       ]
     ])
   end

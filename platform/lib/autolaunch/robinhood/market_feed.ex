@@ -41,7 +41,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{LabProjection, MarketWatch}
-  alias Autolaunch.Stocks.Amounts
+  alias Autolaunch.Stocks.{Amounts, LaunchActions}
 
   @topic "autolaunch:robinhood_market"
   @lab_interval 1_000
@@ -246,8 +246,6 @@ defmodule Autolaunch.Robinhood.MarketFeed do
            launch.name,
            launch.symbol,
            String.downcase(launch.stock.address),
-           Integer.to_string(launch.required),
-           Integer.to_string(launch.floor_price_q96),
            actor: @actor
          ) do
       {:ok, %{human_account_id: account_id, telegram: telegram}} ->
@@ -289,7 +287,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         quote_token_symbol: launch.stock.symbol,
         quote_token_decimals: launch.stock.decimals,
         current_clearing_price: "0",
-        required_currency_raised: Integer.to_string(launch.required),
+        required_currency_raised: Integer.to_string(LaunchActions.required_stock_raised()),
         treasury_address: launch.launchpad,
         token_address: launch.token,
         launch_id: launch.launch_id,
@@ -447,12 +445,9 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     alias Autolaunch.Chain.{Abi, Rpc}
     alias Autolaunch.LabAbi
     alias Autolaunch.Robinhood.{BlockClock, Lab}
+    alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
     alias Autolaunch.Stocks.Assets
 
-    # `launches(id)`: launcher, newToken, currency (the stock), auction,
-    # startBlock, endBlock, claimBlock, migrationBlock, requiredRaise,
-    # floorPriceQ96, lifecycle, ...
-    @lifecycle_index 10
     @graduated 2
 
     def head do
@@ -470,11 +465,11 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     def launch(head, launch_id) do
       contracts = current(head)
 
-      with {:ok, words} <- launch_words(head, contracts, launch_id),
-           {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
-           {:ok, token} <- Abi.word_address(Enum.at(words, 1)),
-           {:ok, stock_address} <- Abi.word_address(Enum.at(words, 2)),
-           {:ok, auction} <- Abi.word_address(Enum.at(words, 3)),
+      with {:ok, record} <- launch_record(head, contracts, launch_id),
+           {:ok, launcher} <- Abi.word_address(record.launcher),
+           {:ok, token} <- Abi.word_address(record.new_token),
+           {:ok, stock_address} <- Abi.word_address(record.currency),
+           {:ok, auction} <- Abi.word_address(record.auction),
            {:ok, stock} <- Assets.fetch(head.chain_id, stock_address),
            {:ok, name} <- token_string(head, token, "name()"),
            {:ok, symbol} <- token_string(head, token, "symbol()"),
@@ -492,11 +487,9 @@ defmodule Autolaunch.Robinhood.MarketFeed do
            description: metadata["description"],
            website: metadata["website"],
            image: metadata["image"],
-           start_block: Enum.at(words, 4),
-           end_block: Enum.at(words, 5),
-           required: Enum.at(words, 8),
-           floor_price_q96: Enum.at(words, 9),
-           lifecycle: Enum.at(words, @lifecycle_index)
+           start_block: record.start_block,
+           end_block: record.end_block,
+           lifecycle: record.lifecycle
          }}
       else
         :error -> {:error, :invalid_chain_response}
@@ -510,7 +503,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
       with {:ok, contracts} <- Lab.contracts(head.config, version),
            {:ok, launch_id} <-
              launchpad_uint(head, contracts, "launchIdOfAuction(address)", [auction]),
-           {:ok, words} <- launch_words(head, contracts, launch_id),
+           {:ok, record} <- launch_record(head, contracts, launch_id),
            {:ok, minimum_reached} <-
              Rpc.call_bool(auction, auction_call(head, "isGraduated()"), head.block, head.opts),
            {:ok, clearing} <-
@@ -520,28 +513,27 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         {:ok,
          %{
            launch_id: launch_id,
-           lifecycle: Enum.at(words, @lifecycle_index),
-           start_block: Enum.at(words, 4),
-           end_block: Enum.at(words, 5),
+           lifecycle: record.lifecycle,
+           start_block: record.start_block,
+           end_block: record.end_block,
            minimum_reached: minimum_reached,
            clearing_price_q96: clearing,
            currency_raised: raised,
-           pool: pool(contracts, words)
+           pool: pool(contracts, record)
          }}
       end
     end
 
-    # A graduated launch's pool (word 11), splitter (word 13) and liquidity
-    # position (word 14), all held by the launchpad's locker. `nil` before
-    # `migrate` records them.
-    defp pool(contracts, words) do
-      if Enum.at(words, @lifecycle_index) == @graduated do
+    # A graduated launch's pool, splitter and liquidity position, all held by
+    # the launchpad's locker. `nil` before `migrate` records them.
+    defp pool(contracts, record) do
+      if record.lifecycle == @graduated do
         %{
-          pool_id: bytes32(Enum.at(words, 11)),
-          token: address(Enum.at(words, 1)),
-          stock: address(Enum.at(words, 2)),
-          splitter: address(Enum.at(words, 13)),
-          lp_token_id: Enum.at(words, 14),
+          pool_id: bytes32(record.pool_id),
+          token: address(record.new_token),
+          stock: address(record.currency),
+          splitter: address(record.splitter),
+          lp_token_id: record.lp_token_id,
           locker: contracts.locker
         }
       end
@@ -596,14 +588,16 @@ defmodule Autolaunch.Robinhood.MarketFeed do
       contracts
     end
 
-    defp launch_words(head, contracts, launch_id) do
-      Rpc.call_words(
-        contracts.launchpad,
-        LabAbi.encode(contracts.abis["launchpad"], "launches(uint256)", [launch_id]),
-        head.block,
-        contracts.record_words,
-        head.opts
-      )
+    defp launch_record(head, contracts, launch_id) do
+      with {:ok, words} <-
+             Rpc.call_words(
+               contracts.launchpad,
+               LabAbi.encode(contracts.abis["launchpad"], "launches(uint256)", [launch_id]),
+               head.block,
+               contracts.record_words,
+               head.opts
+             ),
+           do: {:ok, RobinhoodLabAbi.record(contracts, words)}
     end
 
     defp launchpad_uint(head, contracts, signature, arguments) do

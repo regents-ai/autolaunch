@@ -14,7 +14,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{Lab, LaunchActions}
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps}
 
   @copy %{
@@ -142,7 +141,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             </div>
             <div>
               <dt>Minimum REGENT raised</dt>
-              <dd>About {Amounts.grouped(@prepared.facts["required_regent_raised"])} REGENT</dd>
+              <dd>{@prepared.facts["required_regent_raised"]} REGENT</dd>
             </div>
             <div>
               <dt>Launch fee</dt>
@@ -350,8 +349,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp allocation_display(terms) do
     "#{share(terms, "auction_allocation")} auction · " <>
-      "#{share(terms, "reserve_allocation")} pool reserve · " <>
-      "#{share(terms, "pending_allocation")} vests to the treasury over a year"
+      "up to #{share(terms, "reserve_allocation")} for the pool · " <>
+      "#{share(terms, "pending_allocation")} or more vests to the treasury over a year"
   end
 
   # The three allocations are the whole supply, so each share is read from the

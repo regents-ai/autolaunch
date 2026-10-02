@@ -27,6 +27,19 @@
   },
   {
     "type": "function",
+    "name": "BID_TICK_SPACING_Q96",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "CLAIM_DELAY_BLOCKS",
     "inputs": [],
     "outputs": [
@@ -34,6 +47,19 @@
         "name": "",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "FLOOR_PRICE_Q96",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -92,6 +118,19 @@
   },
   {
     "type": "function",
+    "name": "REQUIRED_REGENT_RAISED",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "RESERVE_ALLOCATION",
     "inputs": [],
     "outputs": [
@@ -118,22 +157,16 @@
   },
   {
     "type": "function",
-    "name": "bidTickSpacingFor",
-    "inputs": [
-      {
-        "name": "floorPriceQ96",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "name": "lpLocker",
+    "inputs": [],
     "outputs": [
       {
-        "name": "tickSpacing",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "",
+        "type": "address",
+        "internalType": "contract RevstakeLPLocker"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -157,43 +190,6 @@
         "name": "",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "requiredRegentRaisedFor",
-    "inputs": [
-      {
-        "name": "floorPriceQ96",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "minimumRegentRaised",
-        "type": "uint128",
-        "internalType": "uint128"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "requiredRegentRaised",
-        "type": "uint128",
-        "internalType": "uint128"
-      }
-    ],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "lpLocker",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract RevstakeLPLocker"
       }
     ],
     "stateMutability": "view"

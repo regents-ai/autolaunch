@@ -5,8 +5,8 @@ defmodule Autolaunch.Robinhood.LaunchReview do
   browser never reports it back.
 
   The Robinhood market feed matches each launch it discovers to these reviews:
-  one whose wallet launched it with exactly the reviewed name, symbol, stock,
-  required raise and floor price makes it a site launch, in that review's
+  one whose wallet launched it with exactly the reviewed name, symbol and
+  stock makes it a site launch, in that review's
   account, with the Telegram link the review carried; no match makes it a
   launch seen only on chain.
   """
@@ -47,14 +47,10 @@ defmodule Autolaunch.Robinhood.LaunchReview do
       argument :name, :string, allow_nil?: false
       argument :symbol, :string, allow_nil?: false
       argument :stock, :string, allow_nil?: false
-      argument :required_stock_raised, :string, allow_nil?: false
-      argument :floor_price_q96, :string, allow_nil?: false
 
       filter expr(
                chain_id == ^arg(:chain_id) and signer == ^arg(:signer) and name == ^arg(:name) and
-                 symbol == ^arg(:symbol) and stock == ^arg(:stock) and
-                 required_stock_raised == ^arg(:required_stock_raised) and
-                 floor_price_q96 == ^arg(:floor_price_q96)
+                 symbol == ^arg(:symbol) and stock == ^arg(:stock)
              )
 
       prepare build(sort: [inserted_at: :desc], limit: 1)

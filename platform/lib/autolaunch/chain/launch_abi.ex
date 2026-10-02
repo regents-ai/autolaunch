@@ -19,22 +19,15 @@ defmodule Autolaunch.Chain.LaunchAbi do
   @external_resource @factory_abi_path
   @external_resource @strategy_abi_path
 
-  @uint128_max Integer.pow(2, 128) - 1
-
-  # Every Revstake auction opens at 0.000001 REGENT per token: that price in Q96,
-  # rounded down to the strategy's 100-tick grid. Launchers choose no floor and
-  # no minimum raise of their own.
-  @floor_price_q96 79_228_162_514_264_337_593_500
-
   @factory_events %{
     launch_created:
-      {"LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64)",
-       "0x03b8e7e24c72d48c2e84e289badf2b06c6110f781ed91973fbee4f42b14d5d12"}
+      {"LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)",
+       "0x98bf615dd919b6d317dc5bb1beac4c0f8b834256c7076d92cabb8a7e32136ce8"}
   }
 
   # The launch terms, read for display and never chosen, plus the three strategy
-  # identities a review compares a treasury against. The bid tick and the
-  # required raise are the strategy's own answers for the fixed floor.
+  # identities a review compares a treasury against. The floor, the bid tick and
+  # the required raise are the strategy's fixed constants; launchers choose none.
   @strategy_functions %{
     factory: {"factory()", "0xc45a0155"},
     hook: {"hook()", "0x7f5a7c7b"},
@@ -48,12 +41,13 @@ defmodule Autolaunch.Chain.LaunchAbi do
     pending_allocation: {"PENDING_ALLOCATION()", "0xebd6c243"},
     pool_fee: {"POOL_FEE()", "0xdd1b9c4a"},
     pool_tick_spacing: {"POOL_TICK_SPACING()", "0x7381527f"},
-    bid_tick_q96: {"bidTickSpacingFor(uint256)", "0x9e82ecfc"},
-    required_regent_raised: {"requiredRegentRaisedFor(uint256,uint128)", "0x711d8db3"}
+    floor_price_q96: {"FLOOR_PRICE_Q96()", "0x14ec99b0"},
+    bid_tick_q96: {"BID_TICK_SPACING_Q96()", "0xf54c506c"},
+    required_regent_raised: {"REQUIRED_REGENT_RAISED()", "0xcfc7e1db"}
   }
 
   # The launch terms in the order a review presents them: the strategy reads
-  # other than the identity reads, plus the fixed floor.
+  # other than the identity reads.
   @terms [
     :start_delay_blocks,
     :auction_duration_blocks,
@@ -69,7 +63,7 @@ defmodule Autolaunch.Chain.LaunchAbi do
     :pool_tick_spacing
   ]
 
-  Enum.sort(@terms -- [:floor_price_q96]) ==
+  Enum.sort(@terms) ==
     Enum.sort(Map.keys(@strategy_functions) -- [:factory, :hook, :lp_locker]) ||
     raise "the launch terms drifted from the declared strategy reads"
 
@@ -105,10 +99,6 @@ defmodule Autolaunch.Chain.LaunchAbi do
   @spec terms() :: [atom()]
   def terms, do: @terms
 
-  @doc "Every Revstake auction's floor price, in Q96."
-  @spec floor_price_q96() :: pos_integer()
-  def floor_price_q96, do: @floor_price_q96
-
   @doc "The strategy read behind one launch term."
   @spec term_signature(atom()) :: String.t()
   def term_signature(id), do: @strategy_functions |> Map.fetch!(id) |> elem(0)
@@ -124,15 +114,14 @@ defmodule Autolaunch.Chain.LaunchAbi do
   @spec launch_created([map()], String.t()) :: {:ok, map()} | :error
   def launch_created(logs, factory) do
     with {:ok, {[launch_id, launcher_word, subject_word], data}} <-
-           Abi.one_event(logs, selector(:launch_created), factory, 3, 7),
-         [auction, escrow, treasury, floor_price_q96, required_raise, start_block, end_block] <-
-           data,
+           Abi.one_event(logs, selector(:launch_created), factory, 3, 5),
+         [auction, escrow, treasury, start_block, end_block] <- data,
          {:ok, launcher} <- Abi.word_address(launcher_word),
          {:ok, subject} <- Abi.word_address(subject_word),
          {:ok, auction} <- Abi.word_address(auction),
          {:ok, escrow} <- Abi.word_address(escrow),
          {:ok, treasury} <- Abi.word_address(treasury),
-         true <- required_raise <= @uint128_max and launch_id > 0 do
+         true <- launch_id > 0 do
       {:ok,
        %{
          launch_id: launch_id,
@@ -141,8 +130,6 @@ defmodule Autolaunch.Chain.LaunchAbi do
          auction: auction,
          escrow: escrow,
          treasury: treasury,
-         floor_price_q96: floor_price_q96,
-         required_regent_raised: required_raise,
          start_block: start_block,
          end_block: end_block
        }}

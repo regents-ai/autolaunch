@@ -16,12 +16,10 @@ defmodule Autolaunch.LabAbi do
     :end_block,
     :claim_block,
     :migration_block,
-    :required_regent_raised,
     :reserve,
     :lp_regent_used,
     :lp_subject_used,
     :final_sqrt_price_x96,
-    :floor_price_q96,
     :launch_id,
     :subject,
     :escrow,
@@ -35,15 +33,15 @@ defmodule Autolaunch.LabAbi do
   @required %{
     "factory" => [
       f:
-        {"launch((string,string,string,string,string,address,uint256,uint128))", "nonpayable",
+        {"launch((string,string,string,string,string,address))", "nonpayable",
          ["uint256", "address", "address", "address"]},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"strategy()", "view", ["address"]},
       f: {"launches(uint256)", "view", ["(address,address,address,address,address)"]},
       f: {"launchIdOfSubject(address)", "view", ["uint256"]},
       e:
-        {"LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64)",
-         [true, true, true, false, false, false, false, false, false, false]}
+        {"LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)",
+         [true, true, true, false, false, false, false, false]}
     ],
     "strategy" => [
       f: {"factory()", "view", ["address"]},
@@ -58,12 +56,13 @@ defmodule Autolaunch.LabAbi do
       f: {"PENDING_ALLOCATION()", "view", ["uint256"]},
       f: {"POOL_FEE()", "view", ["uint24"]},
       f: {"POOL_TICK_SPACING()", "view", ["int24"]},
-      f: {"bidTickSpacingFor(uint256)", "pure", ["uint256"]},
-      f: {"requiredRegentRaisedFor(uint256,uint128)", "pure", ["uint128"]},
+      f: {"FLOOR_PRICE_Q96()", "view", ["uint256"]},
+      f: {"BID_TICK_SPACING_Q96()", "view", ["uint256"]},
+      f: {"REQUIRED_REGENT_RAISED()", "view", ["uint128"]},
       f:
         {"distribution(address)", "view",
          [
-           "(uint8,uint64,uint64,uint64,uint64,uint128,uint128,uint128,uint128,uint160,uint256,uint256,address,address,address,address,address,bytes32,uint256)"
+           "(uint8,uint64,uint64,uint64,uint64,uint128,uint128,uint128,uint160,uint256,address,address,address,address,address,bytes32,uint256)"
          ]},
       f: {"migrate(address)", "nonpayable", []}
     ],

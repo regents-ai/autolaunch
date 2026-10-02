@@ -86,12 +86,12 @@ defmodule Autolaunch.MarketFeedTest do
             1 | List.duplicate(0, LabAbi.distribution_words() - 1)
           ],
           # The Memestake launchpad: every auction's record at `lifecycle`
-          # (word 11). It is asked nothing else.
+          # (word 9). It is asked nothing else.
           LabAbi.selector("launchIdOfAuction(address)") => [1],
           # Its token, stock and splitter are words 1, 2 and 4.
           LabAbi.selector("launches(uint256)") =>
             [0, 0x61, 0x62, 0, 0x64] ++
-              List.duplicate(0, 6) ++ [lifecycle] ++ List.duplicate(0, 6),
+              List.duplicate(0, 4) ++ [lifecycle] ++ List.duplicate(0, 10),
           # The pool manager's slot0 before the first swap.
           LabAbi.selector("extsload(bytes32)") => [0]
         }

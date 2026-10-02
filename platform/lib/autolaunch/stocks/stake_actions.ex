@@ -5,13 +5,15 @@ defmodule Autolaunch.Stocks.StakeActions do
   memestock launch's memestake splitter with its fee hook and LP locker, on
   Base or on Robinhood.
 
-  Six actions, each one review of the steps the wallet sends in turn: stake
+  Seven actions, each one review of the steps the wallet sends in turn: stake
   (the exact token allowance to the splitter when it is short, then the
   stake), unstake, claim (every reward the splitter holds for the wallet),
   settle (the hook's staker lane into the splitter, open to anyone), collect
-  (the locked position's trading fees into the splitter, open to anyone) and
+  (the locked position's trading fees into the splitter, open to anyone),
   convert (a memestock hook's REGENT lane sold through the stock's route into
-  REGENT's revenue, only by the wallet the Safe named as the hook's executor).
+  REGENT's revenue, only by the wallet the Safe named as the hook's executor)
+  and release (the vested part of a second-launchpad memestock launch's
+  creator allocation, paid to its creator, open to anyone).
   A Revstake splitter's hook lane is pulled on the trade itself, so it offers
   no settle and no convert. Nothing is written anywhere: the chain is the only
   record, and the page reads what each step did from its receipt.
@@ -33,7 +35,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.{Address, Review}
 
-  @kinds [:stake, :unstake, :claim, :settle, :collect, :convert]
+  @kinds [:stake, :unstake, :claim, :settle, :collect, :convert, :release]
   # Where a launch lives, by its chain and kind: its deployment and that
   # deployment's event signatures and the actions the staking contract offers.
   # A memestock venue also names its stock route, the hook call that converts
@@ -120,7 +122,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   `%{chain: :robinhood, auction: auction_record}`. `:stake` and `:unstake`
   take the token amount typed and `:convert` the stock amount, with `floor:
   true` to refuse less than 95% of the Chainlink price and `false` for no
-  minimum; the other three take nothing.
+  minimum; the other four take nothing.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(%{kind: kind, launch: launch} = request, address, opts) when kind in @kinds do
@@ -129,6 +131,7 @@ defmodule Autolaunch.Stocks.StakeActions do
          {:ok, pool} <- pool(launch),
          true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          :ok <- converter(kind, pool, signer),
+         :ok <- vests(kind, pool),
          {:ok, config} <- lab(venue(pool)),
          {:ok, contracts} <- contracts(pool, venue(pool), config),
          {:ok, wallet} <- position(pool, signer),
@@ -200,6 +203,10 @@ defmodule Autolaunch.Stocks.StakeActions do
   end
 
   defp converter(_kind, _pool, _signer), do: :ok
+
+  # Only a second-launchpad memestock launch vests anything to its creator.
+  defp vests(:release, %{vesting: nil}), do: unavailable(:unknown_action)
+  defp vests(_kind, _pool), do: :ok
 
   # The stock amount to sell from REGENT's lane and the least the sale may
   # bring. With the floor, that is 95% of what the stock's route says it is
@@ -328,6 +335,8 @@ defmodule Autolaunch.Stocks.StakeActions do
         dollar: pool.fees.splitter.dollar.address,
         dollar_symbol: pool.fees.splitter.dollar.symbol,
         dollar_decimals: pool.fees.splitter.dollar.decimals,
+        # A Revstake launch has no launchpad.
+        launchpad: contracts[:launchpad],
         amount_atomic: amount_atomic(amount)
       }
     }
@@ -368,6 +377,14 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp review(:settle, pool, _wallet, _amount) do
     [["Waiting for stakers", "#{pool.fees.stakers.accrued} #{pool.currency.symbol}"]]
+  end
+
+  defp review(:release, pool, _wallet, _amount) do
+    [
+      ["Paid to the creator", pool.vesting.creator],
+      ["Ready to release", "#{pool.vesting.releasable} #{pool.token.symbol}"],
+      ["Released so far", "#{pool.vesting.released} #{pool.token.symbol}"]
+    ]
   end
 
   defp review(:collect, pool, _wallet, _amount) do
@@ -429,6 +446,15 @@ defmodule Autolaunch.Stocks.StakeActions do
     data = LabAbi.encode(contracts.abis["hook"], "settleStakerLane(bytes32)", [pool.pool_id])
 
     [step("settle", contracts.hook, data)]
+  end
+
+  defp reviewed_steps(:release, pool, {_venue, _config, contracts}, _wallet, _amount) do
+    data =
+      LabAbi.encode(contracts.abis["launchpad"], "releaseCreatorVesting(uint256)", [
+        pool.launch_id
+      ])
+
+    [step("release", contracts.launchpad, data)]
   end
 
   defp reviewed_steps(:collect, pool, {_venue, _config, contracts}, _wallet, _amount) do
@@ -508,7 +534,22 @@ defmodule Autolaunch.Stocks.StakeActions do
     }
   end
 
-  defp moved(step, context, logs) when step in [:collect_full_range, :collect_stock_only] do
+  # A release with nothing vested yet succeeds and records nothing.
+  defp moved(:release, context, logs) do
+    amount =
+      logs
+      |> emitted(context.launchpad, context.venue.abi.creator_vesting_released_signature())
+      |> Enum.reduce(0, fn {_topics, [amount]}, sum -> sum + amount end)
+
+    %{
+      "kind" => "release",
+      "token_units" => units(amount, @token_decimals),
+      "token_symbol" => context.token_symbol
+    }
+  end
+
+  defp moved(step, context, logs)
+       when step in [:collect_full_range, :collect_stock_only, :collect_new_only] do
     [{_topics, [currency0, _currency1, amount0, amount1]}] =
       emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
 

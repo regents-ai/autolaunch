@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert changed.stock_address == @amzn
     assert html =~ "Saved"
     # The whole sale at the lowest starting price, in the 8-decimal stock.
-    assert html =~ "0.27105056 AMZNc"
+    assert html =~ "0.26834005 AMZNc"
 
     view
     |> form("#stocks-token-details",

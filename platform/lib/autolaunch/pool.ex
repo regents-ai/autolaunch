@@ -22,6 +22,7 @@ defmodule Autolaunch.Pool do
 
   alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PriceHistory}
   alias Autolaunch.Stocks.FeeSchedule
+  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias RegentChain.Address
 
@@ -29,7 +30,7 @@ defmodule Autolaunch.Pool do
   @token_decimals 18
   @regent_decimals 18
   @usdc_decimals 6
-  @lane_bps 100
+  @staker_lane_bps 200
   @pools_slot 6
   @liquidity_offset 3
   @quote_fraction_digits 18
@@ -104,10 +105,10 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  @spec stocks_price_quote(map(), [non_neg_integer()], non_neg_integer(), Rpc.block(), keyword()) ::
+  @spec stocks_price_quote(map(), map(), non_neg_integer(), Rpc.block(), keyword()) ::
           {:ok, String.t() | nil} | {:error, atom()}
-  def stocks_price_quote(config, words, currency_decimals, block, opts) do
-    case stocks_launch(words) do
+  def stocks_price_quote(config, record, currency_decimals, block, opts) do
+    case stocks_launch(record) do
       {:ok, launch} ->
         pool_price_quote(
           %{
@@ -269,19 +270,50 @@ defmodule Autolaunch.Pool do
              block,
              opts
            ),
-         {:ok, launch} <- stocks_launch(words) do
+         record <- StocksLabAbi.record(contracts, words),
+         {:ok, launch} <- stocks_launch(record),
+         {:ok, vesting} <- creator_vesting(contracts, record, launch_id, block, opts) do
       {:ok,
        Map.merge(launch, %{
          launch_id: launch_id,
          contracts: contracts,
-         stock_only: stock_only(contracts.version, words)
+         second: second_position(contracts.version, record),
+         vesting: vesting
        })}
     end
   end
 
-  # The first launchpad's record ends in a second, stock-only position.
-  defp stock_only(:v1, words), do: %{token_id: Enum.at(words, 18), used: Enum.at(words, 19)}
-  defp stock_only(:v2, _words), do: nil
+  # The second launchpad vests 1% of each launch's supply to its creator.
+  defp creator_vesting(%{version: :v1}, _record, _launch_id, _block, _opts), do: {:ok, nil}
+
+  defp creator_vesting(%{version: :v2} = contracts, record, launch_id, block, opts) do
+    with {:ok, releasable} <-
+           launchpad_uint(contracts, "creatorReleasable(uint256)", [launch_id], block, opts),
+         do: vesting(record, releasable)
+  end
+
+  @doc """
+  A launch's creator vesting as a pool shows it: the creator it pays, what
+  has been released and what anyone can release to the creator now.
+  """
+  def vesting(record, releasable) do
+    with {:ok, creator} <- Abi.word_address(record.launcher) do
+      {:ok,
+       %{
+         creator: creator,
+         released: Rpc.format_units(record.creator_released, @token_decimals),
+         releasable: Rpc.format_units(releasable, @token_decimals)
+       }}
+    end
+  end
+
+  # Beside the full-range position, the first launchpad keeps a stock-only
+  # position and the second a new-token-only one above the opening price.
+  defp second_position(:v1, record),
+    do: %{key: :stock_only, token_id: record.stock_only_token_id, used: record.stock_only_used}
+
+  defp second_position(:v2, record),
+    do: %{key: :new_only, token_id: record.new_only_token_id, used: record.new_only_used}
 
   # Agent
 
@@ -425,9 +457,9 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  # Every `SwapFeeSettled` this pool emitted since graduation, summed per fee
-  # token. The Regent and staker lanes are the same rate, so the staker lane's
-  # total per token names both.
+  # Every `SwapFeeSettled` this pool emitted since graduation, the staker lane
+  # summed per fee token. A swap is charged both lanes: 1% to Regent and 2% to
+  # the launch's stakers.
   # The splitter's lane lands in it on the trade itself; the locked position's
   # own pool fees wait in the position until collected, and the position
   # carries what a collection would deposit now.
@@ -451,12 +483,12 @@ defmodule Autolaunch.Pool do
         |> Enum.filter(&(topic_at(&1, 0) == topic))
         |> Enum.map(fn log ->
           {:ok, fee_token} = log |> topic_at(3) |> word() |> Abi.word_address()
-          [_fee_base, _regent_lane, lane, _exact_input] = data_words(log)
-          {String.downcase(fee_token), lane, quantity(log["blockNumber"])}
+          [_fee_base, regent_lane, lane, _exact_input] = data_words(log)
+          {String.downcase(fee_token), lane, regent_lane + lane, quantity(log["blockNumber"])}
         end)
 
       per_token =
-        Enum.reduce(settled, %{}, fn {token, lane, _block}, sums ->
+        Enum.reduce(settled, %{}, fn {token, lane, _charged, _block}, sums ->
           Map.update(sums, token, lane, &(&1 + lane))
         end)
 
@@ -465,7 +497,7 @@ defmodule Autolaunch.Pool do
 
       {:ok,
        %{
-         lane_bps: @lane_bps,
+         lane_bps: @staker_lane_bps,
          splitter: splitter,
          receiver: distribution.receiver,
          swaps: length(settled),
@@ -480,10 +512,10 @@ defmodule Autolaunch.Pool do
          },
          token_symbol: auction.token_symbol,
          charged:
-           for {token, lane, block} <- settled do
+           for {token, _lane, charged, block} <- settled do
              if regent_fee?.(token),
-               do: %{block: block, currency: 2 * lane, token: 0},
-               else: %{block: block, currency: 0, token: 2 * lane}
+               do: %{block: block, currency: charged, token: 0},
+               else: %{block: block, currency: 0, token: charged}
            end
        }}
     end
@@ -562,7 +594,8 @@ defmodule Autolaunch.Pool do
            address: @dead
          },
          uniswap_url: uniswap_url(launch.pool_id),
-         fees: fees
+         fees: fees,
+         vesting: launch.vesting
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -572,23 +605,23 @@ defmodule Autolaunch.Pool do
 
   # A launch that has not graduated has no splitter or pool yet, so its record
   # is read only once its lifecycle says the pool exists.
-  defp stocks_launch(words) do
-    with 2 <- Enum.at(words, 11),
-         {:ok, new_token} <- Abi.word_address(Enum.at(words, 1)),
-         {:ok, stock} <- Abi.word_address(Enum.at(words, 2)),
-         {:ok, splitter} <- Abi.word_address(Enum.at(words, 4)) do
+  defp stocks_launch(record) do
+    with 2 <- record.lifecycle,
+         {:ok, new_token} <- Abi.word_address(record.new_token),
+         {:ok, stock} <- Abi.word_address(record.stock),
+         {:ok, splitter} <- Abi.word_address(record.splitter) do
       {:ok,
        %{
          new_token: new_token,
          stock: stock,
          splitter: splitter,
-         migration_block: Enum.at(words, 8),
-         pool_id: bytes32(Enum.at(words, 12)),
-         final_sqrt_price_x96: Enum.at(words, 13),
-         lp_token_id: Enum.at(words, 14),
-         lp_stock_used: Enum.at(words, 15),
-         lp_new_used: Enum.at(words, 16),
-         retired_new: Enum.at(words, 17)
+         migration_block: record.migration_block,
+         pool_id: bytes32(record.pool_id),
+         final_sqrt_price_x96: record.final_sqrt_price_x96,
+         lp_token_id: record.lp_token_id,
+         lp_stock_used: record.lp_stock_used,
+         lp_new_used: record.lp_new_used,
+         retired_new: record.retired_new
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -633,8 +666,8 @@ defmodule Autolaunch.Pool do
     end)
   end
 
-  # The full-range position, and beside it the first launchpad's stock-only
-  # position when the launch made one.
+  # The full-range position, and beside it the launch's second position when
+  # it made one.
   defp held_positions(launch, decimals) do
     full_range = %{
       key: :full_range,
@@ -644,14 +677,27 @@ defmodule Autolaunch.Pool do
       currency_amount: Rpc.format_units(launch.lp_stock_used, decimals)
     }
 
-    case launch.stock_only do
-      %{token_id: token_id, used: used} when token_id != 0 ->
+    case launch.second do
+      %{key: :stock_only, token_id: token_id, used: used} when token_id != 0 ->
         [full_range, stock_only_position(token_id, used, decimals)]
+
+      %{key: :new_only, token_id: token_id, used: used} when token_id != 0 ->
+        [full_range, new_only_position(token_id, used)]
 
       _none ->
         [full_range]
     end
   end
+
+  @doc "A launch's new-token-only position above the opening price, as a pool's positions list it."
+  def new_only_position(token_id, used),
+    do: %{
+      key: :new_only,
+      label: "One-sided (token only)",
+      token_id: token_id,
+      token_amount: Rpc.format_units(used, @token_decimals),
+      currency_amount: "0"
+    }
 
   @doc "The first launchpad's stock-only position, as a pool's positions list it."
   def stock_only_position(token_id, used, decimals),

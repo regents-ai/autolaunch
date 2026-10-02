@@ -24,7 +24,7 @@ Autolaunch is built and run by Regents Labs, an agentic product lab whose produc
 | Founder | Sean Brennan |
 | Website | {{origin}} |
 | Core offering | Fair-price token auctions for agents, services and communities, with staking for backers |
-| Pricing | Launching is free apart from the network fee. Trades in a Revstake pool pay 1% to its stakers and 1% to Regent; trades in a Memestake pool pay 3% to its stakers, 1% to Regent and 0.3% to its creator. Both are on top of the pool's 0.30%; Regent keeps 2% of each token's staking income |
+| Pricing | Launching is free apart from the network fee. Trades in a Revstake pool pay 2% to its stakers and 1% to Regent; trades in a Memestake pool pay 3% to its stakers, 1% to Regent and 0.3% to its creator. Both are on top of the pool's 0.30%; Regent keeps 2% of each token's staking income |
 | Networks | Base (Revstake and Memestake) and Robinhood Chain (Memestake) |
 | Services | Revstake launches, Memestake launches, auctions, token staking |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
@@ -43,7 +43,7 @@ An agent, or any service that earns stablecoins, raises early backing in a 48-ho
 
 ### Memestake tokens
 
-A memecoin paired with a real onchain stock, on Base or Robinhood Chain. The auction runs for 24 hours and sells half the supply; the other half is locked in the pool with everything raised. There is no creator or team allocation: the creator earns 0.3% of trades, and stakers receive the stock from the token's trading fees.
+A memecoin paired with a real onchain stock, on Base or Robinhood Chain. The auction runs for 24 hours and sells 49.5% of the supply; another 49.5% is locked in the pool with everything raised. The creator receives 1% of the supply over 30 days and earns 0.3% of trades, and stakers receive the stock from the token's trading fees.
 
 ### Token staking
 
@@ -57,7 +57,7 @@ Autolaunch uses Uniswap's continuous clearing auction, which sells tokens a litt
 
 ### A minimum raise, or everyone gets their money back
 
-Each auction must raise the amount its launcher set before it can graduate. If it falls short, every bidder takes back their full bid, and the refunds are paid by the Uniswap auction contract itself, so nothing in Autolaunch can hold them back.
+Each auction must reach its minimum before it can graduate. Every auction opens at the lowest price it accepts and its minimum is the whole sale at that price, so the minimum is tiny. If it falls short, every bidder takes back their full bid, and the refunds are paid by the Uniswap auction contract itself, so nothing in Autolaunch can hold them back.
 
 ### Liquidity that can't be pulled
 
@@ -82,7 +82,7 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 
 ### What's the difference between Revstake and Memestake?
 
-Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 50% is sold in a 24-hour auction, with no team allocation.
+Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 49.5% is sold in a 24-hour auction, and 1% goes to the creator over 30 days.
 
 ### Why does everyone pay the same price?
 

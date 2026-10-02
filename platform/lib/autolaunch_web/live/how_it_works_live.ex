@@ -42,8 +42,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Revstake supply <span class="fact-page__total">100 billion</span>
         </h2>
         <p>
-          Revstake token auctions have a 48 hour duration, with 20% of tokens for the auction, 15%
-          locked in the trading pool, and 65% vesting to the launch's treasury over one year. This small amount
+          Revstake token auctions have a 48 hour duration, with 20% of tokens for the auction, up to 10%
+          locked in the trading pool, and 70% vesting to the launch's treasury over one year. This small amount
           of float is because launching a revstake is close in concept to a company doing a preseed
           round. Best practice is for the founders to retain most of the equity.
         </p>
@@ -66,28 +66,30 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Liquidity reserve</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>15 billion (15%)</strong>
+                <strong>Up to 10 billion (10%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Paired with about three quarters of the REGENT raised in a permanently locked
-                trading position. The pool opens at the auction's average price.
+                Paired with up to half the REGENT raised in a permanently locked trading position.
+                The pool opens at the auction's final clearing price.
               </td>
             </tr>
             <tr>
               <th scope="row">Treasury</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>65 billion (65%)</strong>
+                <strong>70 billion (70%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Released to the launch's treasury over <strong>365 days</strong>, with any leftover
-                tokens. The treasury also receives about a quarter of the REGENT raised.
+                Released to the launch's treasury over <strong>365 days</strong>, with any of the
+                liquidity reserve the pool did not take. The treasury also receives at least half the
+                REGENT raised.
               </td>
             </tr>
           </tbody>
         </table>
         <p>
-          If the auction doesn't reach its minimum, every bidder takes back their full bid and all
-          100 billion tokens are burned.
+          Every auction opens at the lowest price it accepts. Its minimum is tiny, about a billionth
+          of a REGENT, so any real bid lets the launch go ahead. If the auction doesn't reach its
+          minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
         </p>
         <p>
           The launcher of the revstake token is making an implicit promise to pass all future
@@ -103,9 +105,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Memestake supply <span class="fact-page__total">1 billion</span>
         </h2>
         <p>
-          Memestake launches last 24 hours. Half the tokens are sold in the auction and the other half
-          is locked in the trading pool with everything the auction raised. Stakers earn the onchain
-          stock from fees.
+          Memestake launches last 24 hours. 49.5% of the tokens are sold in the auction, 49.5% is
+          locked in the trading pool with everything the auction raised, and 1% goes to the token's
+          creator over 30 days. Stakers earn the onchain stock from fees.
         </p>
         <table class="fact-table">
           <thead>
@@ -119,7 +121,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Auction</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>500 million (50%)</strong>
+                <strong>495 million (49.5%)</strong>
               </td>
               <td data-label="After a successful auction">
                 Winning bidders claim what they bought.
@@ -128,20 +130,23 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Liquidity reserve</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>500 million (50%)</strong>
+                <strong>495 million (49.5%)</strong>
               </td>
               <td data-label="After a successful auction">
                 Paired with all the stock raised in a permanently locked trading position. The pool
-                opens at the auction's average price.
+                opens at the auction's final clearing price. The rest of the reserve is locked in a
+                second position that holds only the new token.
               </td>
             </tr>
             <tr>
-              <th scope="row">Creator, team or treasury</th>
+              <th scope="row">Creator</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong class="fact-page__hi">0</strong>
+                <strong>10 million (1%)</strong>
               </td>
               <td data-label="After a successful auction">
-                No token allocation. The creator earns a share of trading fees instead.
+                Released to the token's creator block by block over <strong>30 days</strong>
+                from when the pool opens. Anyone can send the release, and it always pays the
+                creator. The creator also earns a share of trading fees.
               </td>
             </tr>
           </tbody>
@@ -162,7 +167,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
         <h2 id="how-it-works-fees">Trading fees</h2>
         <p>
           The trading fee on revstake tokens benefits the creator's revstaking contract
-          (<strong class="fact-page__hi">1%</strong>) and REGENT stakers (<strong class="fact-page__hi">1%</strong>). Use
+          (<strong class="fact-page__hi">2%</strong>) and REGENT stakers (<strong class="fact-page__hi">1%</strong>). Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
           to participate. The trading fee on memestake tokens benefits the memestakers
           (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
@@ -180,7 +185,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
               <th scope="row">Revstake <span class="fact-table__note">Base</span></th>
               <td data-label="Fee paid in">REGENT or the Revstake token, depending on the trade</td>
               <td data-label="Where it goes">
-                1% sent to Regent. 1% added to the token's staking rewards.
+                1% sent to Regent. 2% added to the token's staking rewards.
               </td>
             </tr>
             <tr>

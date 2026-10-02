@@ -90,15 +90,25 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   end
 
   def launch(pad, launch_id, block) do
-    {count, auction_at, migration_at, state_at} = layout(pad.launchpad)
+    {abi_module, shape} = layout(pad.launchpad)
 
-    with {:ok, launch} <-
-           words(pad.contract, pad.abi, "launches(uint256)", [launch_id], count, block, pad) do
+    with {:ok, words} <-
+           words(
+             pad.contract,
+             pad.abi,
+             "launches(uint256)",
+             [launch_id],
+             shape.record_words,
+             block,
+             pad
+           ) do
+      launch = abi_module.record(shape, words)
+
       {:ok,
        %{
-         auction: address(Enum.at(launch, auction_at)),
-         migration_block: Enum.at(launch, migration_at),
-         state: Map.fetch!(@states, Enum.at(launch, state_at))
+         auction: address(launch.auction),
+         migration_block: launch.migration_block,
+         state: Map.fetch!(@states, launch.lifecycle)
        }}
     end
   end
@@ -145,9 +155,9 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     }
   end
 
-  # {words in a launch, auction, migration block, lifecycle}
-  defp layout(:base_memestake), do: {StocksLabAbi.launch_record_words(), 3, 8, 11}
-  defp layout(:robinhood_memestake), do: {RobinhoodLabAbi.launch_record_words(), 3, 7, 10}
+  # The finisher drives only the second launchpads.
+  defp layout(:base_memestake), do: {StocksLabAbi, StocksLabAbi.shape(:v2)}
+  defp layout(:robinhood_memestake), do: {RobinhoodLabAbi, RobinhoodLabAbi.shape(:v2)}
 
   defp words(to, abi, signature, arguments, count, block, pad),
     do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, pad.opts)

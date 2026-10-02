@@ -23,13 +23,13 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
+  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @topic "autolaunch:lab_market"
   @lab_interval 1_000
   @mainnet_interval 15_000
   @actor %System{}
   @new_decimals 18
-  @lifecycle_index 11
 
   def topic, do: @topic
 
@@ -195,7 +195,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
            ),
          {:ok, launch_id} <-
            launchpad_uint(contracts, "launchIdOfAuction(address)", [address], block, opts),
-         {:ok, record} <-
+         {:ok, words} <-
            launchpad_words(
              contracts,
              "launches(uint256)",
@@ -204,6 +204,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              block,
              opts
            ),
+         record <- StocksLabAbi.record(contracts, words),
          market <- %{end_block: end_block, claim_block: claim_block},
          {:ok, positions} <- positions(config, auction, market, block, opts),
          {:ok, price_quote} <- Pool.stocks_price_quote(config, record, decimals, block, opts) do
@@ -213,7 +214,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          auction_address: String.downcase(address),
          state:
            MarketState.observed(
-             Enum.at(record, @lifecycle_index),
+             record.lifecycle,
              block.number,
              start_block,
              end_block

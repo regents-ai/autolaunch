@@ -37,31 +37,30 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
   }
 
   # AT09: the exact tuple the launchpad executes.
-  test "the launch calldata carries the lowest floor and nothing else the creator chose" do
+  test "the launch calldata carries only what the creator chose" do
     assert {:ok, executable} = LaunchActions.executable(@fields, @snapshot, @config)
 
     # The auction's lowest floor, 2^32 + 1, rounded up onto the bid grid.
     assert executable.floor_price_q96 == 4_294_967_300
     assert executable.tick_spacing_q96 == 42_949_673
-    # ceil(500,000,000e18 x floor / 2^96), the launchpad's requiredStockRaisedFor.
-    assert executable.required_stock_raised == 27_105_055
+    # ceil(495,000,000e18 x floor / 2^96), the preset's REQUIRED_STOCK_RAISED.
+    assert executable.required_stock_raised == 26_834_004
     assert executable.stock_decimals == 8
 
-    data = LaunchActions.launch_data(@fields, executable, @config)
+    data = LaunchActions.launch_data(@fields, @config)
 
-    signature = "launch((string,string,string,string,string,address,uint256))"
+    signature = "launch((string,string,string,string,string,address))"
 
     assert String.starts_with?(data, LabAbi.selector(signature))
     {:ok, words} = LabAbi.decode_words("0x" <> String.slice(data, 10..-1//1))
 
-    # One dynamic tuple: its offset, then the tuple head of seven words.
+    # One dynamic tuple: its offset, then the tuple head of six words.
     assert Enum.at(words, 0) == 32
 
-    [name, symbol, description, website, image, stock, floor] = Enum.slice(words, 1, 7)
+    [name, symbol, description, website, image, stock] = Enum.slice(words, 1, 6)
 
-    assert [name, symbol, description, website, image] == [224, 288, 352, 416, 480]
+    assert [name, symbol, description, website, image] == [192, 256, 320, 384, 448]
     assert {:ok, @stock} == Abi.word_address(stock)
-    assert floor == 4_294_967_300
 
     assert {:error, %{reason: :launches_paused}} =
              LaunchActions.executable(@fields, %{@snapshot | paused: true}, @config)

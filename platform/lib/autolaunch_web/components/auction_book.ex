@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
           If the price passes your maximum, you stop buying and the remainder of your budget can be withdrawn.
         </li>
         <li>
-          If the auction doesn't reach the minimum set by the creator, you can withdraw your whole bid.
+          If the auction doesn't reach its minimum raise, you can withdraw your whole bid.
         </li>
       </ul>
     </section>

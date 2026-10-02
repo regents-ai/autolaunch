@@ -118,7 +118,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert %{kind: :stocks, origin: :site, state: :ended, minimum_reached: true} = site
     assert site.creator_human_account_id == creator.id
     assert site.quote_token_symbol == "TSLA"
-    assert site.required_currency_raised == "1000"
+    assert site.required_currency_raised == "26834004"
     assert site.treasury_address == @launchpad
 
     # The launch's facts from its launchpad record, the schedule in the rollup
@@ -445,20 +445,15 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       image: nil,
       start_block: 100,
       end_block: 200,
-      required: 1_000,
-      floor_price_q96: @floor,
       lifecycle: lifecycle
     }
   end
 
   test "a launch from a creator's wallet that no review of this site prepared is seen on chain only",
        %{creator: creator} do
-    # The same wallet launches again, directly, with terms it never reviewed
-    # here.
-    direct = %{
-      launch(3, @graduated_auction, creator.wallet_address)
-      | floor_price_q96: @floor + 1
-    }
+    # The same wallet launches again, directly, under a name it never
+    # reviewed here.
+    direct = launch(3, @graduated_auction, creator.wallet_address)
 
     Chain.put(%{
       Chain.chain()

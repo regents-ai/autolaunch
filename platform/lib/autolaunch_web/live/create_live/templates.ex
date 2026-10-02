@@ -6,8 +6,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.MarketCard
 
-  alias AutolaunchWeb.UsdValue
-
   alias Autolaunch.LaunchDraft
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
@@ -79,7 +77,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
-  attr :regent_usd_rate, :any, default: nil
   attr :has_connections, :boolean, default: false
   attr :connections_waived, :boolean, default: false
   attr :no_connections_typed, :string, default: ""
@@ -228,26 +225,29 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 </tr>
                 <tr>
                   <th scope="row">Opening price</th>
-                  <td>0.000001 REGENT per token</td>
+                  <td>The lowest the auction accepts</td>
                 </tr>
                 <tr>
                   <th scope="row">Minimum raise</th>
                   <td>
-                    About 20,000 REGENT <UsdValue.usd amount="20000" rate={@regent_usd_rate} />
+                    Less than one REGENT, so any real bid is enough
                     <br />If bids fall short, bidders get their REGENT back.
                   </td>
                 </tr>
                 <tr>
                   <th scope="row">Trading pool</th>
-                  <td>15% of the tokens, paired with about three quarters of the raise</td>
+                  <td>Up to 10% of the tokens, paired with up to half the raise</td>
                 </tr>
                 <tr>
                   <th scope="row">Your treasury</th>
-                  <td>About a quarter of the raise at once, and 65% of the tokens over a year</td>
+                  <td>
+                    At least half the raise at once, and 70% of the tokens, plus any the pool did
+                    not take, over a year
+                  </td>
                 </tr>
                 <tr>
                   <th scope="row">Trading fees</th>
-                  <td>1% to stakers and 1% to Regent, plus the 0.30% pool fee</td>
+                  <td>2% to stakers and 1% to Regent, plus the 0.30% pool fee</td>
                 </tr>
               </tbody>
             </table>

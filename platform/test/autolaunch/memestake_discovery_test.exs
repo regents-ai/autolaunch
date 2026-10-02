@@ -250,10 +250,9 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
             BaseRpcStub.address_word(@auction),
             BaseRpcStub.hex_word(@start_block),
             BaseRpcStub.hex_word(@end_block),
-            BaseRpcStub.hex_word(@floor),
-            BaseRpcStub.hex_word(@required),
-            BaseRpcStub.hex_word(10 ** 24),
-            BaseRpcStub.hex_word(10 ** 23)
+            BaseRpcStub.hex_word(495 * 10 ** 24),
+            BaseRpcStub.hex_word(495 * 10 ** 24),
+            BaseRpcStub.hex_word(10 ** 25)
           ])
     }
   end
@@ -278,8 +277,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
   end
 
   # launcher, newToken, stock, auction, splitter, startBlock, endBlock,
-  # claimBlock, migrationBlock, requiredStockRaised, floorPriceQ96, lifecycle,
-  # then the rest of the twenty words.
+  # claimBlock, migrationBlock, lifecycle, then the rest of the twenty words.
   defp launch_record(launcher) do
     [
       BaseRpcStub.address_word(launcher),
@@ -291,10 +289,8 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
       BaseRpcStub.hex_word(@end_block),
       BaseRpcStub.hex_word(@end_block + 64),
       BaseRpcStub.hex_word(@end_block + 128),
-      BaseRpcStub.hex_word(@required),
-      BaseRpcStub.hex_word(@floor),
       BaseRpcStub.hex_word(1)
-    ] ++ List.duplicate(BaseRpcStub.hex_word(0), 6)
+    ] ++ List.duplicate(BaseRpcStub.hex_word(0), 10)
   end
 
   defp discover do

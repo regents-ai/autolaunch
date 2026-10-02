@@ -44,6 +44,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @auction_duration_blocks 864_000
   @claim_delay_blocks 1_280
   @migration_delay_blocks 2_560
+  @creator_vesting_blocks 25_920_000
   @tick_divisor 100
   @lifecycles %{0 => "none", 1 => "active", 2 => "graduated", 3 => "failed"}
 
@@ -56,16 +57,17 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 #{ticker}"},
-      {"Sold at auction", "500,000,000 #{ticker} (50%)"},
-      {"Pool reserve", "500,000,000 #{ticker} (50%)"},
+      {"Sold at auction", "495,000,000 #{ticker} (49.5%)"},
+      {"Pool reserve", "495,000,000 #{ticker} (49.5%)"},
       {"Starting price", "The lowest the auction accepts"},
       {"Minimum raise", "The whole sale at the starting price, a small fraction of one share"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
       {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
-      {"Creator allocation", "None"},
-      {"Vesting", "None"},
+      {"Creator allocation", "10,000,000 #{ticker} (1%)"},
+      {"Vesting",
+       "Released block by block over #{schedule_copy(@creator_vesting_blocks)} from the pool opening; anyone can release it and it always goes to the creator"},
       {"Treasury", "None"},
       {"Pool pair", "#{ticker} and the stock it was launched against"}
     ] ++
@@ -73,7 +75,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       [
         {"Unsold tokens", "Burned"},
         {"Pool liquidity",
-         "The whole raise and the whole reserve, locked forever; its trading fees go to stakers"},
+         "Opens at the auction's final price with the whole raise and the reserve it matches; the rest of the reserve is a second position holding only #{ticker}. Both are locked forever and their trading fees go to stakers"},
         {"If the minimum raise is not reached",
          "Every bidder takes back their full bid and every token is burned"}
       ]
@@ -227,7 +229,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       signer: signer,
       chain: Client.chain(config),
       steps: [
-        Review.step("launch", snapshot.launchpad, launch_data(fields, executable, config))
+        Review.step("launch", snapshot.launchpad, launch_data(fields, config))
       ],
       facts: %{
         "draft_id" => draft.id,
@@ -271,7 +273,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     do:
       "#{Amounts.compact_decimal(Amounts.format_cca_price(executable.floor_price_q96, executable.stock_decimals, @new_decimals))} #{fields.stock_symbol} per token, the lowest the auction accepts"
 
-  defp launch_data(fields, executable, config) do
+  defp launch_data(fields, config) do
     LabAbi.encode(
       Lab.abi!(config, :stocks_launchpad),
       RobinhoodLabAbi.stocks_launch_signature(),
@@ -282,8 +284,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
             fields.symbol,
             fields.description,
             fields.website,
-            fields.image,
-            executable.floor_price_q96
+            fields.image
           ],
           fields.stock
         ]
@@ -326,15 +327,16 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
     Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, launches} ->
       with {:ok, created} <- launch_created(abi, log, launchpad, signer),
-           {:ok, record} <-
+           shape = RobinhoodLabAbi.shape(:v2),
+           {:ok, words} <-
              Rpc.call_words(
                launchpad,
                LabAbi.encode(abi, "launches(uint256)", [created.launch_id]),
                block,
-               RobinhoodLabAbi.launch_record_words(),
+               shape.record_words,
                rpc
              ),
-           {:ok, launch} <- launch_record(created, record) do
+           {:ok, launch} <- launch_record(created, RobinhoodLabAbi.record(shape, words)) do
         {:cont, {:ok, [launch | launches]}}
       else
         {:error, :chain_unavailable} -> {:halt, unavailable(:chain_unavailable)}
@@ -357,10 +359,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
              auction_word,
              start_block,
              end_block,
-             floor_price_q96,
-             required_raise,
              _auction_inventory,
-             _migration_reserve
+             _migration_reserve,
+             _creator_vesting
            ]}} <-
            LabAbi.event_words(
              abi,
@@ -381,49 +382,28 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          stock: stock,
          auction: auction,
          start_block: start_block,
-         end_block: end_block,
-         floor_price_q96: floor_price_q96,
-         required_raise: required_raise
+         end_block: end_block
        }}
     else
       _ -> :error
     end
   end
 
-  # `launches(launchId)`: launcher, newToken, currency (the STOCK), auction,
-  # startBlock, endBlock, claimBlock, migrationBlock, requiredRaise,
-  # floorPriceQ96, lifecycle, ... Every fact the event announced must be
-  # repeated by the record; only the later blocks and the lifecycle are new.
-  defp launch_record(
-         created,
-         [
-           launcher_word,
-           new_token_word,
-           currency_word,
-           auction_word,
-           start_block,
-           end_block,
-           claim_block,
-           migration_block,
-           required_raise,
-           floor_price_q96,
-           lifecycle | _rest
-         ]
-       ) do
-    with {:ok, launcher} <- Abi.word_address(launcher_word),
-         {:ok, new_token} <- Abi.word_address(new_token_word),
-         {:ok, stock} <- Abi.word_address(currency_word),
-         {:ok, auction} <- Abi.word_address(auction_word),
+  # Every fact the event announced must be repeated by the launchpad's record;
+  # only the later blocks and the lifecycle are new.
+  defp launch_record(created, record) do
+    with {:ok, launcher} <- Abi.word_address(record.launcher),
+         {:ok, new_token} <- Abi.word_address(record.new_token),
+         {:ok, stock} <- Abi.word_address(record.currency),
+         {:ok, auction} <- Abi.word_address(record.auction),
          true <-
            Address.equal?(launcher, created.launcher) and
              Address.equal?(new_token, created.new_token) and
              Address.equal?(stock, created.stock) and
              Address.equal?(auction, created.auction) and
-             start_block == created.start_block and
-             end_block == created.end_block and
-             required_raise == created.required_raise and
-             floor_price_q96 == created.floor_price_q96,
-         {:ok, lifecycle} <- Map.fetch(@lifecycles, lifecycle) do
+             record.start_block == created.start_block and
+             record.end_block == created.end_block,
+         {:ok, lifecycle} <- Map.fetch(@lifecycles, record.lifecycle) do
       {:ok,
        %{
          "launch_id" => Integer.to_string(created.launch_id),
@@ -431,20 +411,16 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          "new_token" => new_token,
          "stock" => stock,
          "auction" => auction,
-         "start_block" => Integer.to_string(start_block),
-         "end_block" => Integer.to_string(end_block),
-         "claim_block" => Integer.to_string(claim_block),
-         "migration_block" => Integer.to_string(migration_block),
-         "required_stock_raised" => Integer.to_string(required_raise),
-         "floor_price_q96" => Integer.to_string(floor_price_q96),
+         "start_block" => Integer.to_string(record.start_block),
+         "end_block" => Integer.to_string(record.end_block),
+         "claim_block" => Integer.to_string(record.claim_block),
+         "migration_block" => Integer.to_string(record.migration_block),
          "lifecycle" => lifecycle
        }}
     else
       _ -> :error
     end
   end
-
-  defp launch_record(_created, _record), do: :error
 
   defp topic_address("0x" <> hex), do: "0x" <> String.pad_leading(hex, 64, "0")
 

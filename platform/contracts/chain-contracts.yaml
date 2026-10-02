@@ -160,19 +160,18 @@ contracts:
         target: c5_admitted_factory_address
         source_commit: 5030fb4f326054db1283884d6475f2fc64e7289c
         abi_path: abi/regents-autolaunch-factory-v2.json
-        abi_sha256: c7e874ee82d87eb376b7f658bec1d3b9b4faef4aa8b64c6c82b54704424cc537
+        abi_sha256: c991a020081b28f6fcfe6287ee3eae9d37e4063d17622aedef43e8f70b335d9a
         artifact_provenance: >-
           The consumer ABI is the subset of contracts/revstake-v2/abi/RegentsAutolaunchFactoryV2.json
           this site calls and decodes, from contracts/revstake-v2/src/factory/RegentsAutolaunchFactoryV2.sol
           at source_commit.
         interface_note: >-
-          launch takes one tuple: name, symbol, description, website, image, treasury,
-          floorPriceQ96 and minimumRegentRaised. The site always sends the fixed floor of
-          0.000001 REGENT per token and a minimum of zero, so the strategy's required raise is the
-          whole sale at that floor. There is no launch fee and no REGENT allowance.
+          launch takes one tuple: name, symbol, description, website, image and treasury. The
+          floor and the required raise are the strategy's fixed constants (FLOOR_PRICE_Q96,
+          REQUIRED_REGENT_RAISED). There is no launch fee and no REGENT allowance.
           pauseLaunches and unpauseLaunches are deliberately not derived.
         confirmation_event_signatures:
-          - LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64)
+          - LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)
         action_ids:
           - launch
       - contract_id: regent_lbp_strategy_v2
@@ -180,14 +179,14 @@ contracts:
         target: reviewed_factory_bound_strategy_address
         source_commit: 5030fb4f326054db1283884d6475f2fc64e7289c
         abi_path: abi/regent-lbp-strategy-v2.json
-        abi_sha256: 8ab3451157a4f95b0bd18e37f84de7b0cf532fcf36c0ff73bfd81a7a7692ffd5
+        abi_sha256: d13690359ed8bfe27c74bef3db2fa2f68422c0f75a767f2be6a8efe5f15eedda
         artifact_provenance: >-
           The consumer ABI is the subset of contracts/revstake-v2/abi/RegentLBPStrategyV2.json this
           site reads, from contracts/revstake-v2/src/strategy/RegentLBPStrategyV2.sol at
           source_commit.
         interface_note: >-
-          Every term here is read for display only. bidTickSpacingFor and requiredRegentRaisedFor
-          are pure and are read at the site's fixed floor. lpLocker() is created by the strategy's
+          Every term here is read for display only. FLOOR_PRICE_Q96, BID_TICK_SPACING_Q96 and
+          REQUIRED_REGENT_RAISED are the fixed auction terms. lpLocker() is created by the strategy's
           constructor and must equal the configured locker. _requireAdmissibleTreasury refuses
           exactly seven launch treasuries: the factory, this strategy, hook(), lpLocker(),
           PoolManager, PositionManager and live staking. No strategy call is prepared.
@@ -198,12 +197,15 @@ contracts:
           - id: lp_locker
             signature: lpLocker()
             selector: "0x03fc2013"
-          - id: bid_tick_spacing_for
-            signature: bidTickSpacingFor(uint256)
-            selector: "0x9e82ecfc"
-          - id: required_regent_raised_for
-            signature: requiredRegentRaisedFor(uint256,uint128)
-            selector: "0x711d8db3"
+          - id: floor_price_q96
+            signature: FLOOR_PRICE_Q96()
+            selector: "0x14ec99b0"
+          - id: bid_tick_spacing_q96
+            signature: BID_TICK_SPACING_Q96()
+            selector: "0xf54c506c"
+          - id: required_regent_raised
+            signature: REQUIRED_REGENT_RAISED()
+            selector: "0xcfc7e1db"
         refused_launch_treasuries:
           - id: pool_manager
             address: "0x498581fF718922c3f8e6A244956aF099B2652b2b"
@@ -253,16 +255,17 @@ contracts:
         contract_name: StocksLaunchpadV2
         target: stocks_lab_launchpad_address
         abi_path: abi/stocks-launchpad-v2.json
-        abi_sha256: e9762e3192e7cd0548b85b06af37bf590333b303e698a313e3f0aebd92e41d6c
+        abi_sha256: b0a52fce7ee21aa013868296234d03a9e91fa00c6d0043acf0991f3c4b7823d8
         interface_note: >-
-          launch takes one LaunchParams tuple (name, symbol, description, website, image, stock,
-          floorPriceQ96) and nothing else. The site always sends the lowest floor on the bid
-          grid, 4,294,967,300; the launchpad derives the required raise as the whole sale
-          allocation at that floor (requiredStockRaisedFor). No launch fee and no creator
-          allocation. Graduation clones a memestake splitter per launch
-          (MemestockSplitterCreated) and locks one full-range position in the launchpad's locker.
+          launch takes one LaunchParams tuple (name, symbol, description, website, image, stock)
+          and nothing else. The floor is the fixed StocksPreset.FLOOR_PRICE_Q96, 4,294,967,300, and
+          the required raise is the fixed StocksPreset.REQUIRED_STOCK_RAISED. No launch fee. One percent of the
+          supply vests to the launcher over 30 days from graduation (releaseCreatorVesting, callable
+          by anyone, pays the launcher). Graduation clones a memestake splitter per launch
+          (MemestockSplitterCreated) and locks a full-range position and a new-token-only position
+          in the launchpad's locker.
         confirmation_event_signatures:
-          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint128,uint128)
+          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint256,uint256)
         reads:
           - id: stock_admission
             signature: stockAdmission(address)
@@ -270,8 +273,8 @@ contracts:
             signature: launches(uint256)
           - id: launches_paused
             signature: launchesPaused()
-          - id: required_stock_raised_for
-            signature: requiredStockRaisedFor(uint256)
+          - id: creator_releasable
+            signature: creatorReleasable(uint256)
           - id: launch_id_of_token
             signature: launchIdOfToken(address)
           - id: locker
@@ -280,6 +283,7 @@ contracts:
             signature: splitterImplementation()
         action_ids:
           - launch
+          - release_creator_vesting
       - contract_id: stocks_bid_adapter_v2
         contract_name: StockBidAdapterV1
         target: stocks_lab_bid_adapter_address

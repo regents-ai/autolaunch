@@ -37,16 +37,6 @@
             "name": "treasury",
             "type": "address",
             "internalType": "address"
-          },
-          {
-            "name": "floorPriceQ96",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minimumRegentRaised",
-            "type": "uint128",
-            "internalType": "uint128"
           }
         ]
       }
@@ -205,18 +195,6 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
-      },
-      {
-        "name": "floorPriceQ96",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "requiredRegentRaised",
-        "type": "uint128",
-        "indexed": false,
-        "internalType": "uint128"
       },
       {
         "name": "startBlock",

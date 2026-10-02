@@ -13,10 +13,8 @@ defmodule AutolaunchWeb.CreateLive do
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
   alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Limits}
-  alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
-  alias AutolaunchWeb.UsdValue
 
   import AutolaunchWeb.Components.AuctionStats
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
@@ -39,9 +37,6 @@ defmodule AutolaunchWeb.CreateLive do
       |> assign(AutolaunchWeb.PublicDocuments.page("/create/revstake"))
       |> assign_auction_stats()
       |> assign_defaults(actor)
-      |> UsdValue.assign_rate(:regent_usd_rate, :base, fn ->
-        {:ok, %{regent_usd_rate: MarketData.regent_price()}}
-      end)
 
     case actor do
       nil ->
@@ -136,11 +131,7 @@ defmodule AutolaunchWeb.CreateLive do
     do: {:noreply, assign_connections(socket)}
 
   defp render_revshare(assigns) do
-    assigns =
-      assign(assigns,
-        launch_image_upload: assigns[:uploads][:launch_image],
-        regent_usd_rate: assigns.regent_usd_rate.result
-      )
+    assigns = assign(assigns, launch_image_upload: assigns[:uploads][:launch_image])
 
     Templates.create(assigns)
   end

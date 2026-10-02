@@ -58,8 +58,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
   defp settled(:reverted, _signer, _facts, _config), do: {:ok, %{outcome: :reverted}}
 
   # The launch is confirmed only when the launchpad's event names the reviewed
-  # signer, STOCK, floor and required raise, and its own record and auction
-  # index agree with that event. The start and end blocks are the launchpad's
+  # signer and STOCK, and its own record and auction index agree with that
+  # event. The floor and the required raise are the launchpad's fixed preset. The start and end blocks are the launchpad's
   # own: bidding opens a fixed lead after the block the launch was created in.
   defp settled({:success, logs}, signer, facts, config) do
     opts = Lab.rpc_opts(config)
@@ -68,18 +68,17 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
          {:ok, event} <- launch_created(logs, config),
          true <- Address.equal?(event.launcher, signer),
          true <- Address.equal?(event.stock, facts["stock"]),
-         true <- event.floor_price_q96 == integer(facts, "floor_price_q96"),
-         true <- event.required_stock_raised == integer(facts, "required_stock_raised"),
-         {:ok, record} <-
+         shape = RobinhoodLabAbi.shape(:v2),
+         {:ok, words} <-
            launchpad_words(
              config,
              "launches(uint256)",
              [event.launch_id],
-             RobinhoodLabAbi.launch_record_words(),
+             shape.record_words,
              block,
              opts
            ),
-         true <- record_matches?(record, event),
+         true <- record_matches?(RobinhoodLabAbi.record(shape, words), event),
          {:ok, launch_id} <-
            launchpad_uint(config, "launchIdOfAuction(address)", [event.auction], block, opts),
          true <- launch_id == event.launch_id do
@@ -93,9 +92,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
            "stock" => event.stock,
            "start_block" => Integer.to_string(event.start_block),
            "end_block" => Integer.to_string(event.end_block),
-           "required_stock_raised" => Integer.to_string(event.required_stock_raised),
            "auction_inventory" => Integer.to_string(event.auction_inventory),
            "migration_reserve" => Integer.to_string(event.migration_reserve),
+           "creator_vesting" => Integer.to_string(event.creator_vesting),
            "local_block_hash" => block.hash
          }
        }}
@@ -114,8 +113,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
              logs,
              Lab.address!(config, :stocks_launchpad)
            ),
-         [stock_word, auction_word, start_block, end_block, floor, required, inventory, reserve] <-
-           data,
+         [stock_word, auction_word, start_block, end_block, inventory, reserve, vesting] <- data,
          {:ok, launcher} <- Abi.word_address(launcher_word),
          {:ok, new_token} <- Abi.word_address(new_token_word),
          {:ok, stock} <- Abi.word_address(stock_word),
@@ -129,38 +127,29 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
          auction: auction,
          start_block: start_block,
          end_block: end_block,
-         floor_price_q96: floor,
-         required_stock_raised: required,
          auction_inventory: inventory,
-         migration_reserve: reserve
+         migration_reserve: reserve,
+         creator_vesting: vesting
        }}
     else
       _ -> :error
     end
   end
 
-  # `launches(launchId)`: launcher, newToken, currency (the STOCK), auction,
-  # startBlock, endBlock, claimBlock, migrationBlock, requiredRaise,
-  # floorPriceQ96, lifecycle, poolId, finalSqrtPriceX96, splitter, ...
-  defp record_matches?(
-         [launcher, new_token, currency, auction, start_block, end_block | _rest] = record,
-         event
-       ) do
-    with {:ok, launcher} <- Abi.word_address(launcher),
-         {:ok, new_token} <- Abi.word_address(new_token),
-         {:ok, currency} <- Abi.word_address(currency),
-         {:ok, auction} <- Abi.word_address(auction) do
-      Address.equal?(launcher, event.launcher) and Address.equal?(new_token, event.new_token) and
-        Address.equal?(currency, event.stock) and Address.equal?(auction, event.auction) and
-        start_block == event.start_block and end_block == event.end_block and
-        Enum.at(record, 8) == event.required_stock_raised and
-        Enum.at(record, 9) == event.floor_price_q96
-    else
-      _ -> false
-    end
+  defp record_matches?(record, event) do
+    Enum.all?(
+      [launcher: :launcher, new_token: :new_token, currency: :stock, auction: :auction],
+      fn {field, key} ->
+        record
+        |> Map.fetch!(field)
+        |> Abi.word_address()
+        |> address_matches?(Map.fetch!(event, key))
+      end
+    ) and record.start_block == event.start_block and record.end_block == event.end_block
   end
 
-  defp record_matches?(_record, _event), do: false
+  defp address_matches?({:ok, address}, expected), do: Address.equal?(address, expected)
+  defp address_matches?(:error, _expected), do: false
 
   defp launchpad_bool(config, signature, arguments, block, opts) do
     Rpc.call_bool(
@@ -205,6 +194,4 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
   end
 
   defp admission(_words), do: :error
-
-  defp integer(facts, key), do: facts |> Map.fetch!(key) |> String.to_integer()
 end

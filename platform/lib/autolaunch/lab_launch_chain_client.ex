@@ -46,32 +46,16 @@ defmodule Autolaunch.LabLaunchChainClient do
          do: settled(outcome, signer, facts, config)
   end
 
-  # The fixed floor, then every strategy read for it: the constants take no
-  # argument, the bid tick takes the floor, and the required raise takes the
-  # floor with no minimum of the launcher's own.
+  # Every term is one of the strategy's constants, read with no argument.
   defp terms(config, block, opts) do
-    floor = LaunchAbi.floor_price_q96()
-
     LaunchAbi.terms()
-    |> List.delete(:floor_price_q96)
-    |> Enum.reduce_while({:ok, %{floor_price_q96: floor}}, fn key, {:ok, terms} ->
-      case LabRpc.uint(
-             config,
-             :strategy,
-             LaunchAbi.term_signature(key),
-             args(key, floor),
-             block,
-             opts
-           ) do
+    |> Enum.reduce_while({:ok, %{}}, fn key, {:ok, terms} ->
+      case LabRpc.uint(config, :strategy, LaunchAbi.term_signature(key), [], block, opts) do
         {:ok, value} -> {:cont, {:ok, Map.put(terms, key, value)}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
   end
-
-  defp args(:bid_tick_q96, floor), do: [floor]
-  defp args(:required_regent_raised, floor), do: [floor, 0]
-  defp args(_constant, _floor), do: []
 
   defp settled(:pending, _signer, _facts, _config), do: {:ok, %{outcome: :pending}}
   defp settled(:reverted, _signer, _facts, _config), do: {:ok, %{outcome: :reverted}}
@@ -84,10 +68,6 @@ defmodule Autolaunch.LabLaunchChainClient do
          {:ok, event} <- LaunchAbi.launch_created(logs, Lab.address!(config, :factory)),
          true <- Address.equal?(event.launcher, signer),
          true <- Address.equal?(event.treasury, facts["treasury"]),
-         true <- event.floor_price_q96 == String.to_integer(facts["terms"]["floor_price_q96"]),
-         true <-
-           event.required_regent_raised ==
-             String.to_integer(facts["terms"]["required_regent_raised"]),
          opts <- LabRpc.opts(config),
          {:ok, record_words} <-
            LabRpc.words(config, :factory, "launches(uint256)", [event.launch_id], 5, block, opts),

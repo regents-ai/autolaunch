@@ -3,12 +3,34 @@ defmodule Autolaunch.Robinhood.LabAbi do
 
   alias Autolaunch.LabAbi
 
-  @core_params "(string,string,string,string,string,uint256)"
+  @core_params "(string,string,string,string,string)"
   @stocks_launch_params "(#{@core_params},address)"
-  @launch_record "(address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,address,uint256,uint128,uint128,uint256)"
-  @launch_record_words 18
+  @launch_record "(address,address,address,address,uint64,uint64,uint64,uint64,uint8,bytes32,uint160,address,uint256,uint128,uint128,uint256,uint128,uint64,uint128,uint256)"
+  @launch_fields [
+    :launcher,
+    :new_token,
+    :currency,
+    :auction,
+    :start_block,
+    :end_block,
+    :claim_block,
+    :migration_block,
+    :lifecycle,
+    :pool_id,
+    :final_sqrt_price_x96,
+    :splitter,
+    :lp_token_id,
+    :lp_currency_used,
+    :lp_new_used,
+    :new_only_token_id,
+    :new_only_used,
+    :vesting_start_block,
+    :creator_released,
+    :retired_new
+  ]
 
-  @stock_launch_created "StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint128,uint128)"
+  @stock_launch_created "StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128,uint128)"
+  @creator_vesting_released "CreatorVestingReleased(uint256,address,uint256)"
   @splitter_created "MemestockSplitterCreated(uint256,address,address,address)"
   @stock_bid_placed "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @bid_submitted "BidSubmitted(uint256,address,uint256,uint128)"
@@ -22,9 +44,30 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @claimed "Claimed(address,address,uint256)"
   @bid_record "(uint64,uint24,uint64,uint256,address,uint256,uint256)"
 
-  # The first Robinhood launchpad (RDOG): the same launch record, the
+  # The first Robinhood launchpad (RDOG): its own launch record, the
   # stock-only position kept in `stockRecords`, and a hook with only the
   # protocol's and the stakers' lanes.
+  @v1_launch_record "(address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,address,uint256,uint128,uint128,uint256)"
+  @v1_launch_fields [
+    :launcher,
+    :new_token,
+    :currency,
+    :auction,
+    :start_block,
+    :end_block,
+    :claim_block,
+    :migration_block,
+    :required_stock_raised,
+    :floor_price_q96,
+    :lifecycle,
+    :pool_id,
+    :final_sqrt_price_x96,
+    :splitter,
+    :lp_token_id,
+    :lp_currency_used,
+    :lp_new_used,
+    :retired_new
+  ]
   @v1_hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
   @checkpoint "(uint256,uint256,uint256,uint24,uint64,uint64)"
 
@@ -39,13 +82,15 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
-      f: {"requiredStockRaisedFor(uint256)", "pure", ["uint128"]},
+      f: {"creatorReleasable(uint256)", "view", ["uint256"]},
+      f: {"releaseCreatorVesting(uint256)", "nonpayable", ["uint256"]},
       f: {"hook()", "view", ["address"]},
       f: {"locker()", "view", ["address"]},
       f: {"splitterImplementation()", "view", ["address"]},
       e:
         {@stock_launch_created,
-         [true, true, true, false, false, false, false, false, false, false, false]},
+         [true, true, true, false, false, false, false, false, false, false]},
+      e: {@creator_vesting_released, [true, true, false]},
       e: {@splitter_created, [true, true, true, false]}
     ],
     "stocks_hook" => [
@@ -130,7 +175,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
   # What the site reads from the first launchpad, hook and locker.
   @v1_required %{
     "launchpad" => [
-      f: {"launches(uint256)", "view", [@launch_record]},
+      f: {"launches(uint256)", "view", [@v1_launch_record]},
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
@@ -152,11 +197,12 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @doc """
   The shape of one Robinhood launchpad version's hook: its lanes in the order
   `accrued` returns them, its fee event, and the event each lane's settlement
-  emits. Both versions keep the same 18-word launch record.
+  emits, and its launch record's fields in word order.
   """
   def shape(:v2),
     do: %{
-      record_words: @launch_record_words,
+      record_fields: @launch_fields,
+      record_words: length(@launch_fields),
       lanes: [:creator, :regent, :stakers],
       fee_accrued: @hook_fee_accrued,
       lane_settled: %{
@@ -168,13 +214,20 @@ defmodule Autolaunch.Robinhood.LabAbi do
 
   def shape(:v1),
     do: %{
-      record_words: @launch_record_words,
+      record_fields: @v1_launch_fields,
+      record_words: length(@v1_launch_fields),
       lanes: [:regent, :stakers],
       fee_accrued: @v1_hook_fee_accrued,
       lane_settled: %{regent: @protocol_lane_settled, stakers: @staker_lane_settled}
     }
 
-  def launch_record_words, do: @launch_record_words
+  def launch_record_words, do: length(@launch_fields)
+
+  @doc "One launch record's words as a map keyed by that version's field names."
+  def record(%{record_fields: fields}, words) when length(words) == length(fields),
+    do: fields |> Enum.zip(words) |> Map.new()
+
+  def creator_vesting_released_signature, do: @creator_vesting_released
   def stocks_launch_signature, do: "launch(#{@stocks_launch_params})"
   def stock_launch_created_signature, do: @stock_launch_created
   def splitter_created_signature, do: @splitter_created

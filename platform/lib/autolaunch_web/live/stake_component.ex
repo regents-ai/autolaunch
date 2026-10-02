@@ -3,8 +3,9 @@ defmodule AutolaunchWeb.StakeComponent do
   The staking card of a graduated launch, on its Base or Robinhood token page:
   what the launch's staking contract holds, what this wallet has in it, an
   amount to stake or unstake, and the open actions (claim, collect the locked
-  liquidity's trading fees, and for a memestock launch settle for stakers; a
-  Revstake launch's swap fee reaches its splitter on the trade itself). A
+  liquidity's trading fees, and for a memestock launch settle for stakers and,
+  when it vests to its creator, release the creator's tokens; a Revstake
+  launch's swap fee reaches its splitter on the trade itself). A
   panel over the card walks the wallet through each reviewed action and
   closes itself when the chain confirms it.
 
@@ -55,7 +56,8 @@ defmodule AutolaunchWeb.StakeComponent do
     "unstake" => :unstake,
     "claim" => :claim,
     "settle" => :settle,
-    "collect" => :collect
+    "collect" => :collect,
+    "release" => :release
   }
   # The page tools an agent presses this card with, and the kind each reviews.
   @agent_kinds %{
@@ -209,6 +211,12 @@ defmodule AutolaunchWeb.StakeComponent do
             />
           </dd>
         </div>
+        <div :if={@pool.kind == :stocks && @pool.vesting}>
+          <dt>Creator's tokens ready to release</dt>
+          <dd>
+            <TokenDisplay.tokens amount={@pool.vesting.releasable} unit={@pool.token.symbol} />
+          </dd>
+        </div>
         <div :if={is_map(@position)}>
           <dt>Your stake</dt>
           <dd><TokenDisplay.tokens amount={@position.staked.shown} unit={@pool.token.symbol} /></dd>
@@ -344,6 +352,15 @@ defmodule AutolaunchWeb.StakeComponent do
             </Regent.Primitives.button>
             <Regent.Primitives.button type="submit" name="kind" value="collect" variant="secondary">
               Collect trading fees
+            </Regent.Primitives.button>
+            <Regent.Primitives.button
+              :if={@pool.kind == :stocks && @pool.vesting}
+              type="submit"
+              name="kind"
+              value="release"
+              variant="secondary"
+            >
+              Release the creator's tokens
             </Regent.Primitives.button>
           </div>
           <Regent.Primitives.button
@@ -678,7 +695,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp lead(%{kind: :agent} = pool),
     do:
-      "Stakers share this launch's revenue as it arrives: 1% of every trade, the locked liquidity's trading fees once anyone collects them, and anything else paid to the staking contract, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
+      "Stakers share this launch's revenue as it arrives: 2% of every trade, the locked liquidity's trading fees once anyone collects them, and anything else paid to the staking contract, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
 
   defp lead(%{kind: :stocks} = pool),
     do:
@@ -711,6 +728,8 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("settle", _review), do: "Confirm settlement"
   defp step_label("collect_full_range", _review), do: "Collect the full-range fees"
   defp step_label("collect_stock_only", _review), do: "Collect the one-sided fees"
+  defp step_label("collect_new_only", _review), do: "Collect the one-sided fees"
+  defp step_label("release", _review), do: "Confirm release"
 
   defp step_state(nil), do: :ready
 
@@ -738,7 +757,7 @@ defmodule AutolaunchWeb.StakeComponent do
   defp reverted_copy(:settle),
     do: "Nothing was waiting for stakers, so there was nothing to settle."
 
-  defp reverted_copy(:collect), do: @generic
+  defp reverted_copy(kind) when kind in [:collect, :release], do: @generic
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
@@ -889,12 +908,14 @@ defmodule AutolaunchWeb.StakeComponent do
   defp title(:claim), do: "You’re claiming"
   defp title(:settle), do: "Settling for stakers"
   defp title(:collect), do: "Collecting trading fees"
+  defp title(:release), do: "Releasing the creator's tokens"
 
   defp done_title(:stake), do: "Staked"
   defp done_title(:unstake), do: "Unstaked"
   defp done_title(:claim), do: "Claimed"
   defp done_title(:settle), do: "Settled for stakers"
   defp done_title(:collect), do: "Trading fees collected"
+  defp done_title(:release), do: "Released to the creator"
 
   defp done_lines(%{results: results}) do
     for %{} = result <- results, do: done_line(result)
@@ -910,6 +931,9 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp done_line(%{"kind" => "settle"} = result),
     do: "#{result["settled_units"]} #{result["currency_symbol"]} moved to the staking contract"
+
+  defp done_line(%{"kind" => "release"} = result),
+    do: "#{result["token_units"]} #{result["token_symbol"]} sent to the creator"
 
   defp done_line(%{"kind" => "collect"} = result) do
     "#{result["token_units"]} #{result["token_symbol"]} · #{result["currency_units"]} #{result["currency_symbol"]} moved to the staking contract"

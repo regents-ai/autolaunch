@@ -16,6 +16,7 @@ defmodule Autolaunch.Robinhood.Pool do
 
   alias Autolaunch.{LabAbi, PriceHistory}
   alias Autolaunch.Robinhood.Lab
+  alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Assets, FeeSchedule}
   alias RegentChain.Address
 
@@ -87,7 +88,8 @@ defmodule Autolaunch.Robinhood.Pool do
          pool_manager: Lab.address!(config, :pool_manager),
          positions: positions,
          fees: fees,
-         prices: prices
+         prices: prices,
+         vesting: launch.vesting
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -176,7 +178,7 @@ defmodule Autolaunch.Robinhood.Pool do
              block,
              opts
            ) do
-      case launch(words) do
+      case launch(RobinhoodLabAbi.record(contracts, words)) do
         {:ok, launch} ->
           {:ok,
            %{
@@ -210,45 +212,60 @@ defmodule Autolaunch.Robinhood.Pool do
              block,
              opts
            ),
-         {:ok, launch} <- launch(words),
-         {:ok, stock_only} <- stock_only(contracts, launch_id, block, opts) do
+         record = RobinhoodLabAbi.record(contracts, words),
+         {:ok, launch} <- launch(record),
+         {:ok, second} <- second_position(contracts, record, launch_id, block, opts),
+         {:ok, vesting} <- creator_vesting(contracts, record, launch_id, block, opts) do
       {:ok,
-       Map.merge(launch, %{launch_id: launch_id, contracts: contracts, stock_only: stock_only})}
+       Map.merge(launch, %{
+         launch_id: launch_id,
+         contracts: contracts,
+         second: second,
+         vesting: vesting
+       })}
     end
   end
 
-  # The first launchpad keeps a second, stock-only position in `stockRecords`.
-  defp stock_only(%{version: :v1} = contracts, launch_id, block, opts) do
-    with {:ok, [token_id, used]} <-
-           launchpad_words(contracts, "stockRecords(uint256)", [launch_id], 2, block, opts),
-         do: {:ok, %{token_id: token_id, used: used}}
+  # The second launchpad vests 1% of each launch's supply to its creator.
+  defp creator_vesting(%{version: :v1}, _record, _launch_id, _block, _opts), do: {:ok, nil}
+
+  defp creator_vesting(%{version: :v2} = contracts, record, launch_id, block, opts) do
+    with {:ok, releasable} <-
+           launchpad_uint(contracts, "creatorReleasable(uint256)", [launch_id], block, opts),
+         do: Autolaunch.Pool.vesting(record, releasable)
   end
 
-  defp stock_only(%{version: :v2}, _launch_id, _block, _opts), do: {:ok, nil}
+  # Each launch's second locked position: the first launchpad keeps a
+  # stock-only one in `stockRecords`, the second a token-only one in its record.
+  defp second_position(%{version: :v1} = contracts, _record, launch_id, block, opts) do
+    with {:ok, [token_id, used]} <-
+           launchpad_words(contracts, "stockRecords(uint256)", [launch_id], 2, block, opts),
+         do: {:ok, %{key: :stock_only, token_id: token_id, used: used}}
+  end
+
+  defp second_position(%{version: :v2}, record, _launch_id, _block, _opts),
+    do: {:ok, %{key: :new_only, token_id: record.new_only_token_id, used: record.new_only_used}}
 
   defp normalized({:ok, address}), do: {:ok, address}
   defp normalized(:error), do: {:error, :invalid_auction}
 
-  # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock,
-  # claimBlock, migrationBlock, requiredRaise, floorPriceQ96, lifecycle, poolId,
-  # finalSqrtPriceX96, splitter, lpTokenId, lpCurrencyUsed, lpNewUsed, retiredNew.
-  defp launch(words) do
-    with {:ok, new_token} <- Abi.word_address(Enum.at(words, 1)),
-         {:ok, stock} <- Abi.word_address(Enum.at(words, 2)),
-         {:ok, auction} <- Abi.word_address(Enum.at(words, 3)),
-         @graduated <- Enum.at(words, 10),
-         {:ok, splitter} <- Abi.word_address(Enum.at(words, 13)) do
+  defp launch(record) do
+    with {:ok, new_token} <- Abi.word_address(record.new_token),
+         {:ok, stock} <- Abi.word_address(record.currency),
+         {:ok, auction} <- Abi.word_address(record.auction),
+         @graduated <- record.lifecycle,
+         {:ok, splitter} <- Abi.word_address(record.splitter) do
       {:ok,
        %{
          new_token: new_token,
          stock: stock,
          auction: auction,
-         migration_block: Enum.at(words, 7),
-         pool_id: bytes32(Enum.at(words, 11)),
+         migration_block: record.migration_block,
+         pool_id: bytes32(record.pool_id),
          splitter: splitter,
-         lp_token_id: Enum.at(words, 14),
-         lp_stock_used: Enum.at(words, 15),
-         lp_new_used: Enum.at(words, 16)
+         lp_token_id: record.lp_token_id,
+         lp_stock_used: record.lp_currency_used,
+         lp_new_used: record.lp_new_used
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -272,9 +289,12 @@ defmodule Autolaunch.Robinhood.Pool do
     }
 
     held =
-      case launch.stock_only do
-        %{token_id: token_id, used: used} when token_id != 0 ->
+      case launch.second do
+        %{key: :stock_only, token_id: token_id, used: used} when token_id != 0 ->
           [full_range, Autolaunch.Pool.stock_only_position(token_id, used, stock.decimals)]
+
+        %{key: :new_only, token_id: token_id, used: used} when token_id != 0 ->
+          [full_range, Autolaunch.Pool.new_only_position(token_id, used)]
 
         _none ->
           [full_range]

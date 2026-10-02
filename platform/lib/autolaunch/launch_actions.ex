@@ -15,7 +15,7 @@ defmodule Autolaunch.LaunchActions do
   alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Abi, Client, LaunchAbi}
+  alias Autolaunch.Chain.{Abi, Client, LaunchAbi, Rpc}
   alias RegentChain.{Address, Review}
 
   alias Autolaunch.{
@@ -43,8 +43,6 @@ defmodule Autolaunch.LaunchActions do
   ]
 
   @withdrawn "review withdrawn"
-
-  @regent_unit Integer.pow(10, 18)
 
   # A Base read that may answer differently later never settles anything.
   @transient [
@@ -163,7 +161,7 @@ defmodule Autolaunch.LaunchActions do
   defp launch_data(config, fields) do
     LabAbi.encode(
       Lab.abi!(config, :factory),
-      "launch((string,string,string,string,string,address,uint256,uint128))",
+      "launch((string,string,string,string,string,address))",
       [
         [
           fields.name,
@@ -171,9 +169,7 @@ defmodule Autolaunch.LaunchActions do
           fields.description,
           fields.website,
           fields.image,
-          fields.treasury,
-          LaunchAbi.floor_price_q96(),
-          0
+          fields.treasury
         ]
       ]
     )
@@ -189,7 +185,7 @@ defmodule Autolaunch.LaunchActions do
       "image" => fields.image,
       "treasury" => fields.treasury,
       "treasury_security" => treasury_binding(treasury_report),
-      "required_regent_raised" => whole_regent(snapshot.terms.required_regent_raised),
+      "required_regent_raised" => minimum_regent(snapshot.terms.required_regent_raised),
       "regent" => snapshot.regent,
       "factory" => snapshot.factory,
       "strategy" => snapshot.strategy,
@@ -201,10 +197,9 @@ defmodule Autolaunch.LaunchActions do
     }
   end
 
-  # The required raise in whole REGENT, rounded up: the strategy asks for the
-  # whole sale allocation at the floor, which lands a hair under a round number.
-  defp whole_regent(atomic),
-    do: atomic |> Kernel.+(@regent_unit - 1) |> div(@regent_unit) |> Integer.to_string()
+  # The smallest raise that graduates, in REGENT: one unit above the required
+  # raise, since the auction can count a bid up to one unit short.
+  defp minimum_regent(atomic), do: Rpc.format_units(atomic + 1, 18)
 
   defp risk_copy do
     if Lab.test_chain?(),

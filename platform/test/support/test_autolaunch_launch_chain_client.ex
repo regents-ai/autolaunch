@@ -98,12 +98,12 @@ defmodule Autolaunch.LaunchFixture do
     auction_duration_blocks: 86_401,
     claim_delay_blocks: 64,
     migration_delay_blocks: 128,
-    floor_price_q96: 79_228_162_514_264_337_593_500,
-    bid_tick_q96: 792_281_625_142_643_375_935,
-    required_regent_raised: 19_999_999_999_999_999_999_989,
+    floor_price_q96: 4_294_967_300,
+    bid_tick_q96: 42_949_673,
+    required_regent_raised: 1_084_202_174,
     auction_allocation: 20_000_000_000 * @unit,
-    reserve_allocation: 15_000_000_000 * @unit,
-    pending_allocation: 65_000_000_000 * @unit,
+    reserve_allocation: 10_000_000_000 * @unit,
+    pending_allocation: 70_000_000_000 * @unit,
     pool_fee: 3_000,
     pool_tick_spacing: 60
   }

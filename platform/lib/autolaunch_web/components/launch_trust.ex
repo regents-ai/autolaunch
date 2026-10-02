@@ -278,14 +278,14 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     do: %{
       name: "Revstake",
       about: "stakers share the revenue the project sends through its contract",
-      reserve: "15 billion tokens (15%)",
+      reserve: "Up to 10 billion tokens (10%)",
       unused: "went to the treasury",
       rows: [
         {"Sold in the auction", "20 billion (20%)", "winning bidders claim what they bought"},
-        {"Reserved for liquidity", "15 billion (15%)",
-         "paired with about three quarters of the REGENT raised in a permanently locked position"},
-        {"Treasury", "65 billion (65%)",
-         "released over 365 days with any leftover tokens; the treasury also receives about a quarter of the raise"}
+        {"Reserved for liquidity", "Up to 10 billion (10%)",
+         "paired with up to half the REGENT raised in a permanently locked position"},
+        {"Treasury", "70 billion (70%)",
+         "released over 365 days with any reserve the pool did not take; the treasury also receives at least half the raise"}
       ]
     }
 
@@ -309,14 +309,14 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     do: %{
       name: "Memestake",
       about: "stakers earn the onchain stock from trading fees",
-      reserve: "500 million tokens (50%)",
-      unused: "was burned",
+      reserve: "495 million tokens (49.5%)",
+      unused: "is locked in a second position that holds only the token",
       rows: [
-        {"Sold in the auction", "500 million (50%)", "winning bidders claim what they bought"},
-        {"Reserved for liquidity", "500 million (50%)",
-         "paired with all the stock raised in a permanently locked position"},
-        {"Creator, team or treasury", "0",
-         "no token allocation; the creator earns a share of trading fees"}
+        {"Sold in the auction", "495 million (49.5%)", "winning bidders claim what they bought"},
+        {"Reserved for liquidity", "495 million (49.5%)",
+         "paired with all the stock raised in a permanently locked position; the rest is locked in a second position that holds only the token"},
+        {"Creator", "10 million (1%)",
+         "released to the creator block by block over 30 days from when the pool opens; the creator also earns a share of trading fees"}
       ]
     }
 

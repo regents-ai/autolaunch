@@ -71,7 +71,7 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
     "0x" <> Enum.map_join(Map.fetch!(answers, String.slice(data, 0, 10)), &BaseRpcStub.hex_word/1)
   end
 
-  # The strategy's eighteen-word `distribution` record of a migrated launch.
+  # The strategy's seventeen-word `distribution` record of a migrated launch.
   defp distribution do
     [
       0,
@@ -80,11 +80,9 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
       0,
       10,
       0,
-      0,
       5 * 10 ** 18,
       7 * 10 ** 18,
       @q96,
-      79_228_162_514_264_337_593_500,
       0,
       word(@subject),
       word(@escrow),

@@ -347,15 +347,7 @@ defmodule Autolaunch do
 
       define :matching_robinhood_launch_review,
         action: :matching,
-        args: [
-          :chain_id,
-          :signer,
-          :name,
-          :symbol,
-          :stock,
-          :required_stock_raised,
-          :floor_price_q96
-        ],
+        args: [:chain_id, :signer, :name, :symbol, :stock],
         not_found_error?: false
     end
 

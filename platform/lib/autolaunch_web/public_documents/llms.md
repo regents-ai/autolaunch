@@ -41,17 +41,17 @@ Two main differences from other launchpads:
 1. The point of buying a revstake token is to stake it in the Autolaunch staking contract, which is easy to do through the site.
 2. No early snipers here. If you are in the auction, you are early. Most of the tokens in an auction go at the end of it, and since your bid amount is split up by block, there is never a disadvantage to bidding your true value bid in full, as early as possible. More on CCA mechanics from Hayden Adams, reflecting on Aztec's launch: https://x.com/haydenzadams/status/1997358255442440584
 
-Revstake token auctions have a 48 hour duration and are priced in REGENT, with 20% of tokens for the auction, 15% locked in the Uni v4 pool, and 65% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain most of the equity.
+Revstake token auctions have a 48 hour duration and are priced in REGENT, with 20% of tokens for the auction, up to 10% locked in the Uni v4 pool, and 70% vesting to the launch's treasury over one year. This small amount of float is because launching a revstake is close in concept to a company doing a preseed round. Best practice is for the founders to retain most of the equity.
 
 Revstake supply: 100 billion tokens.
 
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
 | Auction | 20 billion (20%) | Winning bidders claim what they bought. |
-| Liquidity reserve | 15 billion (15%) | Paired with about three quarters of the REGENT raised in a permanently locked trading position. The pool opens at the auction's average price. |
-| Treasury | 65 billion (65%) | Released to the launch's treasury over 365 days, with any leftover tokens. The treasury also receives about a quarter of the REGENT raised when the auction succeeds. |
+| Liquidity reserve | Up to 10 billion (10%) | Paired with up to half the REGENT raised in a permanently locked trading position. The pool opens at the auction's final clearing price. |
+| Treasury | 70 billion (70%) | Released to the launch's treasury over 365 days, with any of the liquidity reserve the pool did not take. The treasury also receives at least half the REGENT raised when the auction succeeds. |
 
-If the auction doesn't reach its minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
+Every auction opens at the lowest price it accepts. Its minimum is tiny, about a billionth of a REGENT, so any real bid lets the launch go ahead. If the auction doesn't reach its minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
 
 The launcher of the revstake token is making an implicit promise to pass all future revenue through the revstake contract, where stakers receive a pro rata slice. You buy the token, stake it, and then always receive a portion of the USDC made by the agent or service.
 
@@ -61,15 +61,15 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestake: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours. Half the tokens are sold in the auction and the other half is locked in the Uni v4 pool with everything the auction raised. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours. 49.5% of the tokens are sold in the auction, 49.5% is locked in the Uni v4 pool with everything the auction raised, and 1% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
 
 Memestake supply: 1 billion tokens.
 
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
-| Auction | 500 million (50%) | Winning bidders claim what they bought. |
-| Liquidity reserve | 500 million (50%) | Paired with all the stock raised in a permanently locked trading position. The pool opens at the auction's average price. |
-| Creator, team or treasury | 0 | No token allocation. The creator earns a share of trading fees instead. |
+| Auction | 495 million (49.5%) | Winning bidders claim what they bought. |
+| Liquidity reserve | 495 million (49.5%) | Paired with all the stock raised in a permanently locked trading position. The pool opens at the auction's final clearing price. The rest of the reserve is locked in a second position that holds only the new token. |
+| Creator | 10 million (1%) | Released to the token's creator block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
 Every auction opens at the lowest price it accepts. Its minimum is the whole sale at that price, a small fraction of one share. If the auction doesn't reach it, every bidder takes back their full bid and all 1 billion tokens are burned.
 
@@ -77,11 +77,11 @@ The first four Memestake tokens (BITE, JollyB, AGI and RDOG) keep the terms they
 
 ## Trading fees
 
-The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (1%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (3%), Regents Labs revstakers (1%) and the token's creator (0.3%). The Uni v4 pool also charges the standard 0.3%, and what the locked liquidity earns from it is added to the token's staking rewards.
+The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (2%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (3%), Regents Labs revstakers (1%) and the token's creator (0.3%). The Uni v4 pool also charges the standard 0.3%, and what the locked liquidity earns from it is added to the token's staking rewards.
 
 | Launch | Fee paid in | Where it goes |
 | --- | --- | --- |
-| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent to Regent. 1% added to the token's staking rewards. |
+| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent to Regent. 2% added to the token's staking rewards. |
 | Memestake (Base) | The paired stock, buying or selling | 3% added to the token's staking rewards. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
 | Memestake (Robinhood Chain) | The paired stock, buying or selling | 3% added to the token's staking rewards. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
 

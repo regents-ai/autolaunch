@@ -1096,7 +1096,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       website: values["website"],
       status: "Preview",
       metric_label: "Minimum raise",
-      metric: metric("20,000", "REGENT", nil),
+      metric: metric(nil, "REGENT", "Less than one REGENT"),
       path: nil,
       creator: nil,
       creator_address: nil,
