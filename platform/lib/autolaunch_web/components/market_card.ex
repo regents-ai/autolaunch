@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       "What the whole token supply is worth at the price bidders pay right now. It rises as bids push the price up.",
     volume: "Everything bidders have put in so far.",
     threshold:
-      "What the auction must raise for the token to launch, set by its creator. If it ends short, every bidder can withdraw their whole bid."
+      "What the auction must raise for the token to launch. If it ends short, every bidder can withdraw their whole bid."
   }
 
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
