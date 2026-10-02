@@ -19,12 +19,11 @@ import {AutolaunchFixture} from "./AutolaunchFixture.sol";
 
 /// @notice A graduated auction sells its whole sale allocation to its bidders through the auction
 ///         itself: after graduation and every bid's exit and claim, the bidders hold the 20% up to
-///         rounding crumbs. The pool opens at the raise divided by the sale allocation and pairs the
-///         whole reserve with three quarters of the raise. Whatever SUBJECT the strategy has left
-///         after the position — the auction's unsold crumbs, the reserve the pool did not pair and
-///         anything sent to the strategy — goes to the launch's escrow. The required raise is the
-///         sale allocation at the floor, or the launcher's higher minimum, and an auction that falls
-///         short of it fails.
+///         rounding crumbs. The pool opens at the final clearing price and pairs half the raise with
+///         at most the whole reserve. Whatever SUBJECT the strategy has left after the position — the
+///         auction's unsold crumbs, the reserve the pool did not pair and anything sent to the
+///         strategy — goes to the launch's escrow. The required raise is the sale allocation at the
+///         floor, and an auction that falls short of it fails.
 contract AutolaunchFullSaleTest is AutolaunchFixture {
     using StateLibrary for IPoolManager;
 
@@ -110,11 +109,11 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
         uint256 anchorPrice = _bidPrice(1_000);
 
         _rollToStart(l);
-        uint256 earlyBid = _bid(l, makeAddr("early"), 12_000e18, _bidPrice(20));
+        uint256 earlyBid = _bid(l, makeAddr("early"), FLOOR_RAISE * 6 / 10, _bidPrice(20));
         vm.roll(l.auction.startBlock() + 1_000);
-        uint256 anchorBid = _bid(l, makeAddr("anchor"), 400_000e18, anchorPrice);
+        uint256 anchorBid = _bid(l, makeAddr("anchor"), 20 * FLOOR_RAISE, anchorPrice);
         vm.roll(l.auction.startBlock() + 2_000);
-        uint256 lateBid = _bid(l, makeAddr("late"), 40_000e18, _bidPrice(GRADUATING_TICKS));
+        uint256 lateBid = _bid(l, makeAddr("late"), 2 * FLOOR_RAISE, _bidPrice(GRADUATING_TICKS));
         _rollToMigration(l);
         uint256 toEscrow = _migrateAndAssertGraduation(l);
 
@@ -132,25 +131,6 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
         assertGt(anchorReceived, lateReceived, "the anchor bid bought the most");
 
         _assertSoldOut(l, earlyReceived + anchorReceived + lateReceived, toEscrow);
-    }
-
-    /// @dev A launcher's minimum three times the floor minimum: two bidders meet it, the launch
-    ///      graduates, and they buy the whole sale allocation just the same.
-    function test_SALE_006_HighLauncherMinimumGraduatesAndSellsTheWholeSaleAllocation() public {
-        RegentsAutolaunchFactoryV2.LaunchParams memory params = _params();
-        params.minimumRegentRaised = 3 * FLOOR_RAISE;
-        Launched memory l = _launchSorted(false, params);
-        assertEq(_distribution(l).requiredRegentRaised, 3 * FLOOR_RAISE, "the launcher's minimum is recorded");
-
-        _rollToStart(l);
-        uint256 first = _bid(l, makeAddr("first"), 2 * FLOOR_RAISE, _bidPrice(GRADUATING_TICKS));
-        vm.roll(l.auction.startBlock() + 40_000);
-        uint256 second = _bid(l, makeAddr("second"), 2 * FLOOR_RAISE, _bidPrice(GRADUATING_TICKS));
-        _rollToMigration(l);
-        uint256 toEscrow = _migrateAndAssertGraduation(l);
-        assertGe(l.auction.lbpInitializationParams().currencyRaised, 3 * FLOOR_RAISE, "the minimum was raised");
-
-        _assertSoldOut(l, _settle(l, first) + _settle(l, second), toEscrow);
     }
 
     /// @dev The auction pays bids from the claim block, before migration can run, so SUBJECT can
@@ -219,35 +199,14 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
         assertEq(uint8(_distribution(l).lifecycle), uint8(RegentLBPStrategyV2.Lifecycle.Failed), "not failed");
     }
 
-    /// @dev A launcher's minimum above the floor minimum is what the auction must raise: met exactly
-    ///      it graduates and opens the pool at that raise over the sale allocation, and one unit
-    ///      short it fails even though it clears the floor minimum many times over.
-    function test_MIN_004_LauncherMinimumAboveTheFloorMinimumIsTheRequiredRaise() public {
-        RegentsAutolaunchFactoryV2.LaunchParams memory params = _params();
-        params.minimumRegentRaised = 3 * FLOOR_RAISE;
-        Launched memory met = _launchSorted(true, params);
-        Launched memory below = _launchSorted(false, params);
-        assertEq(_distribution(met).requiredRegentRaised, 3 * FLOOR_RAISE, "the launcher's minimum is recorded");
-
-        _rollToStart(met);
-        _bid(met, bidder, 3 * FLOOR_RAISE, _bidPrice(GRADUATING_TICKS));
-        _bid(below, bidder, 3 * FLOOR_RAISE - 1, _bidPrice(GRADUATING_TICKS));
-        _rollToMigration(below);
-
-        _migrateAndAssertGraduation(met);
-        assertEq(met.auction.lbpInitializationParams().currencyRaised, 3 * FLOOR_RAISE, "the whole minimum was raised");
-        strategy.migrate(address(below.auction));
-        assertEq(uint8(_distribution(below).lifecycle), uint8(RegentLBPStrategyV2.Lifecycle.Failed), "one unit short");
-    }
-
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
 
-    /// @dev Migrates and checks the graduation's economics: the pool opens at the raise over the sale
-    ///      allocation, pairs the whole reserve (to crumbs) with three quarters of the raise, the rest
-    ///      of the raise reaches the treasury, and every unit of this launch's SUBJECT the strategy
-    ///      held or swept, less what the position used, goes to the escrow on top of its 65%.
+    /// @dev Migrates and checks the graduation's economics: the pool opens at the final clearing
+    ///      price, pairs half the raise with at most the whole reserve, the rest of the raise reaches
+    ///      the treasury, and every unit of this launch's SUBJECT the strategy
+    ///      held or swept, less what the position used, goes to the escrow on top of its 70%.
     /// @return toEscrow The SUBJECT graduation sent to the escrow.
     function _migrateAndAssertGraduation(Launched memory l) private returns (uint256 toEscrow) {
         uint256 treasuryBefore = regent.balanceOf(treasury);
@@ -259,19 +218,23 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
         RegentLBPStrategyV2.Distribution memory d = _distribution(l);
         assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategyV2.Lifecycle.Graduated), "the launch did not graduate");
         LBPInitializationParams memory lbp = l.auction.lbpInitializationParams();
-        assertGe(lbp.currencyRaised, d.requiredRegentRaised, "the minimum was met");
+        assertGe(lbp.currencyRaised, strategy.REQUIRED_REGENT_RAISED(), "the minimum was met");
 
         PoolKey memory key = strategy.poolKeyOf(address(l.subject));
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == BaseBindings.REGENT;
-        uint256 priceX96 = FullMath.mulDiv(lbp.currencyRaised, FixedPoint96.Q96, AUCTION_ALLOCATION);
-        assertLe(priceX96, lbp.initialPriceX96, "at or below the final clearing price");
+        assertLe(
+            FullMath.mulDiv(lbp.currencyRaised, FixedPoint96.Q96, AUCTION_ALLOCATION),
+            lbp.initialPriceX96,
+            "the raise never exceeds the sale allocation at the final clearing price"
+        );
         uint160 expected =
-            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, regentIsCurrency0));
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, regentIsCurrency0));
         (uint160 slotPrice,,,) = IPoolManager(BaseBindings.POOL_MANAGER).getSlot0(_poolId(l));
-        assertEq(slotPrice, expected, "the pool did not open at the raise over the sale allocation");
+        assertEq(slotPrice, expected, "the pool did not open at the final clearing price");
 
-        assertApproxEqAbs(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, SALE_CRUMBS, "the whole reserve is paired");
-        assertApproxEqRel(uint256(d.lpRegentUsed), (lbp.currencyRaised * 3) / 4, 1e12, "three quarters of the raise");
+        assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "the position used more than the reserve");
+        assertApproxEqRel(uint256(d.lpRegentUsed), lbp.currencyRaised / 2, 1e12, "half the raise");
+        assertLe(uint256(d.lpRegentUsed), lbp.currencyRaised / 2, "more than half the raise");
         assertEq(
             regent.balanceOf(treasury) - treasuryBefore,
             lbp.currencyRaised - d.lpRegentUsed,
@@ -280,7 +243,7 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
 
         uint256 swept = auctionBefore - l.subject.balanceOf(address(l.auction));
         toEscrow = l.subject.balanceOf(address(l.escrow)) - escrowBefore;
-        assertEq(escrowBefore, PENDING_ALLOCATION, "escrow held exactly its 65% before graduation");
+        assertEq(escrowBefore, PENDING_ALLOCATION, "escrow held exactly its 70% before graduation");
         assertEq(toEscrow, strategyBefore + swept - d.lpSubjectUsed, "the leftover SUBJECT went to the escrow");
         assertEq(l.subject.balanceOf(address(strategy)), 0, "the strategy kept SUBJECT");
     }
@@ -300,7 +263,7 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
     }
 
     /// @dev Every bid has exited and claimed: the bidders hold the whole sale allocation up to crumbs,
-    ///      graduation sent no more than crumbs to the escrow, and the sale allocation and the reserve
+    ///      graduation sent no more than the unpaired reserve and crumbs to the escrow, and the sale allocation and the reserve
     ///      are exactly the bidders' SUBJECT, the pool's, the escrow's leftover and what the auction's
     ///      own rounding keeps.
     function _assertSoldOut(Launched memory l, uint256 received, uint256 toEscrow) private view {
@@ -308,7 +271,11 @@ contract AutolaunchFullSaleTest is AutolaunchFixture {
         uint256 auctionKept = l.subject.balanceOf(address(l.auction));
         assertLe(received, AUCTION_ALLOCATION, "the bidders received more than the sale allocation");
         assertLe(AUCTION_ALLOCATION - received, SALE_CRUMBS, "the bidders did not buy the whole sale allocation");
-        assertLe(toEscrow, SALE_CRUMBS, "graduation sent more than crumbs to the escrow");
+        assertLe(
+            toEscrow,
+            RESERVE_ALLOCATION - d.lpSubjectUsed + SALE_CRUMBS,
+            "graduation sent more than the unpaired reserve and crumbs to the escrow"
+        );
         assertEq(
             received + auctionKept + toEscrow + d.lpSubjectUsed,
             AUCTION_ALLOCATION + RESERVE_ALLOCATION,

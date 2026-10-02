@@ -87,8 +87,8 @@ GRAPH_LOG_RE = re.compile(r"REGENT_ROBINHOOD_LAB_([A-Z0-9_]+)\s*:?\s*(0x[0-9a-fA
 STOCK_LABEL_RE = re.compile(r"^(stock|route)_([a-z0-9]+)$")
 LAUNCH_FIELDS = (
     "launcher", "newToken", "currency", "auction", "startBlock", "endBlock", "claimBlock", "migrationBlock",
-    "requiredRaise", "floorPriceQ96", "lifecycle", "poolId", "finalSqrtPriceX96", "splitter", "lpTokenId", "lpCurrencyUsed",
-    "lpNewUsed", "retiredNew",
+    "lifecycle", "poolId", "finalSqrtPriceX96", "splitter", "lpTokenId", "lpCurrencyUsed", "lpNewUsed",
+    "newOnlyTokenId", "newOnlyUsed", "vestingStartBlock", "creatorReleased", "retiredNew",
 )
 LIFECYCLES = ("None", "Active", "Graduated", "Failed")
 ARB_SYS = "0x0000000000000000000000000000000000000064"

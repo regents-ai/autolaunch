@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 110,
+  "total": 109,
   "tests": {
     "test/RobinhoodBaseReceiver.t.sol": {
       "RobinhoodBaseReceiverTest": [
@@ -45,15 +45,16 @@
       "RobinhoodLaunchpadMigrateTest": [
         "testFuzz_minimum_plus_one_unit_graduates_in_any_block",
         "testFuzz_sole_bidder_receives_the_whole_sale_allocation",
+        "test_creator_vesting_releases_linearly_to_the_launcher_only",
         "test_eight_decimal_stock_graduates_and_sells_the_whole_sale_allocation",
-        "test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca",
+        "test_failed_minimum_retires_inventory_reserve_and_vesting_and_refunds_through_the_cca",
         "test_graduation_emits_the_record",
         "test_launch_nobody_bid_in_never_graduates",
         "test_launchpad_never_exposes_a_token_or_stock_withdrawal",
         "test_minimum_bid_after_the_first_block_is_counted_one_unit_short_and_fails",
         "test_minimum_met_exactly_graduates_and_one_unit_below_fails",
         "test_new_sent_to_the_launchpad_before_migration_is_retired",
-        "test_no_principal_path_exists_for_the_locked_position",
+        "test_no_principal_path_exists_for_the_locked_positions",
         "test_several_bidders_each_way_a_bid_ends_receive_the_whole_sale_allocation_both_orderings",
         "test_sole_bidder_at_the_start_receives_the_whole_sale_allocation_both_orderings",
         "test_sole_bidder_in_the_last_eligible_block_receives_the_whole_sale_allocation",
@@ -62,13 +63,11 @@
     },
     "test/RobinhoodLaunchpads.t.sol": {
       "RobinhoodLaunchpadsTest": [
-        "testFuzz_required_raise_is_never_zero_and_never_below_the_floor_value",
         "test_admission_is_safe_only",
         "test_auction_opens_exactly_ten_minutes_after_the_creation_block",
         "test_each_graduation_gets_its_own_splitter",
         "test_launch_costs_no_usdg_and_needs_no_allowance",
         "test_migration_waits_for_the_migration_block",
-        "test_required_raise_is_the_sale_allocation_at_the_floor_rounded_up",
         "test_stock_graduation_creates_the_splitter_and_locks_one_position_in_the_locker",
         "test_stock_launch_requires_admission_and_records_the_launch",
         "test_stock_launch_that_misses_the_raise_retires_every_new",

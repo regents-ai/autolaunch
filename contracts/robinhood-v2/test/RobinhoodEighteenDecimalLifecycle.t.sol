@@ -20,7 +20,8 @@ interface IERC721Owner {
 /// @notice The whole Robinhood launch life cycle with an 18-decimal STOCK (every real Robinhood
 ///         stock has 18) and the production route in both caller paths: launch, an auction bid
 ///         through the bid adapter and the route, graduation (pool creation, the positions library,
-///         the one full-range position in the locker, the leftover NEW retired), the bid's claim,
+///         the full-range position in the locker, the vesting kept, the leftover NEW retired), the
+///         bid's claim,
 ///         official-pool swaps accruing the three fee lanes, the protocol lane settled through the route
 ///         into the inbox, the staker lane settled into the splitter, the locker's `collect`, and the
 ///         staker's claims. Once with the STOCK sorting
@@ -58,10 +59,9 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         assertEq(stock.decimals(), 18, "an 18-decimal stock");
         UniswapV3StockRouteV1 route = _admitProductionRoute(stockAddress);
 
-        // --- launch: the floor sets the raise, the sale allocation at the floor in 18-decimal units ---
+        // --- launch: every auction has the fixed floor ---
         Launched memory l = _launchStock(stockAddress);
-        assertEq(stocks.launches(l.launchId).requiredRaise, REQUIRED_RAISE);
-        assertEq(REQUIRED_RAISE, 5e18, "five whole shares");
+        assertEq(l.auction.floorPrice(), FLOOR_PRICE_Q96, "the fixed floor");
 
         // --- bid: USDG in through the adapter, STOCK out of the route, the bid owned by the bidder ---
         _rollToStart(l);
@@ -78,7 +78,9 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         _assertEmpty(route, stock);
         assertEq(usdg.balanceOf(address(adapter)) + stock.balanceOf(address(adapter)), 0, "adapter empty");
 
-        // --- graduation: pool creation, the positions library, one full-range position locked ---
+        // --- graduation: pool creation, the positions library, the full-range position locked. A sole
+        //     bidder from the first block pays the final price throughout, so the raise pairs the whole
+        //     reserve and no NEW-only position is minted ---
         _rollToMigration(l);
         uint256 nextTokenId = positionManager.nextTokenId();
         stocks.migrate(l.launchId);
@@ -94,7 +96,11 @@ contract RobinhoodEighteenDecimalLifecycleTest is RobinhoodFixture {
         (, uint256 dust,) = stocksHook.accrued(record.poolId);
         assertEq(record.lpCurrencyUsed + dust, BID_STOCK, "every raised STOCK unit is in the pool or the lane");
         assertEq(stock.balanceOf(address(stocks)), 0, "the launchpad keeps no STOCK");
-        assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), 0, "the launchpad keeps no NEW");
+        assertEq(
+            MockERC20(l.newToken).balanceOf(address(stocks)),
+            StocksPreset.CREATOR_VESTING,
+            "the launchpad keeps only the vesting"
+        );
         assertEq(MockERC20(l.newToken).balanceOf(DEAD), record.retiredNew, "the leftover NEW is retired");
 
         // --- the sole bid claims its fill and stakes it ---

@@ -39,22 +39,22 @@
     },
     {
       "type": "function",
-      "name": "bidTickSpacingFor",
+      "name": "creatorReleasable",
       "inputs": [
         {
-          "name": "floorPriceQ96",
+          "name": "launchId",
           "type": "uint256",
           "internalType": "uint256"
         }
       ],
       "outputs": [
         {
-          "name": "tickSpacing",
+          "name": "",
           "type": "uint256",
           "internalType": "uint256"
         }
       ],
-      "stateMutability": "pure"
+      "stateMutability": "view"
     },
     {
       "type": "function",
@@ -107,11 +107,6 @@
               "name": "stock",
               "type": "address",
               "internalType": "address"
-            },
-            {
-              "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
             }
           ]
         }
@@ -235,16 +230,6 @@
               "internalType": "uint64"
             },
             {
-              "name": "requiredStockRaised",
-              "type": "uint128",
-              "internalType": "uint128"
-            },
-            {
-              "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
               "name": "lifecycle",
               "type": "uint8",
               "internalType": "enum IStocksLaunchpadV2.Lifecycle"
@@ -271,6 +256,26 @@
             },
             {
               "name": "lpNewUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "newOnlyTokenId",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "newOnlyUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "vestingStartBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "creatorReleased",
               "type": "uint128",
               "internalType": "uint128"
             },
@@ -345,22 +350,22 @@
     },
     {
       "type": "function",
-      "name": "requiredStockRaisedFor",
+      "name": "releaseCreatorVesting",
       "inputs": [
         {
-          "name": "floorPriceQ96",
+          "name": "launchId",
           "type": "uint256",
           "internalType": "uint256"
         }
       ],
       "outputs": [
         {
-          "name": "",
-          "type": "uint128",
-          "internalType": "uint128"
+          "name": "amount",
+          "type": "uint256",
+          "internalType": "uint256"
         }
       ],
-      "stateMutability": "pure"
+      "stateMutability": "nonpayable"
     },
     {
       "type": "function",
@@ -423,6 +428,31 @@
       "inputs": [],
       "outputs": [],
       "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "CreatorVestingReleased",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "launcher",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
     },
     {
       "type": "event",
@@ -533,18 +563,6 @@
           "internalType": "uint64"
         },
         {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "requiredStockRaised",
-          "type": "uint128",
-          "indexed": false,
-          "internalType": "uint128"
-        },
-        {
           "name": "auctionInventory",
           "type": "uint256",
           "indexed": false,
@@ -552,6 +570,12 @@
         },
         {
           "name": "migrationReserve",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "creatorVesting",
           "type": "uint256",
           "indexed": false,
           "internalType": "uint256"
@@ -601,6 +625,18 @@
         },
         {
           "name": "lpNewUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "newOnlyTokenId",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "newOnlyUsed",
           "type": "uint128",
           "indexed": false,
           "internalType": "uint128"
@@ -741,28 +777,6 @@
     },
     {
       "type": "error",
-      "name": "FloorPriceNotOnGrid",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "FloorPriceTooLow",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "InexactTransfer",
       "inputs": [
         {
@@ -780,6 +794,17 @@
     {
       "type": "error",
       "name": "LaunchNotActive",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "uint8",
+          "internalType": "enum IStocksLaunchpadV2.Lifecycle"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "LaunchNotGraduated",
       "inputs": [
         {
           "name": "found",
@@ -987,17 +1012,6 @@
     },
     {
       "type": "error",
-      "name": "TickSpacingTooSmall",
-      "inputs": [
-        {
-          "name": "tickSpacingQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "TokenCreatorMismatch",
       "inputs": [
         {
@@ -1038,6 +1052,17 @@
           "type": "uint256",
           "internalType": "uint256"
         },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnexpectedNewOnlyPositionCount",
+      "inputs": [
         {
           "name": "found",
           "type": "uint256",
@@ -1101,9 +1126,9 @@
   ],
   "method_identifiers": {
     "admitStock(address,address)": "f6f19fe1",
-    "bidTickSpacingFor(uint256)": "9e82ecfc",
+    "creatorReleasable(uint256)": "5a902fce",
     "hook()": "7f5a7c7b",
-    "launch((string,string,string,string,string,address,uint256))": "06432e91",
+    "launch((string,string,string,string,string,address))": "b7ba1ad4",
     "launchIdOfAuction(address)": "a568a4fe",
     "launchIdOfToken(address)": "a27d865a",
     "launches(uint256)": "7b443a76",
@@ -1112,7 +1137,7 @@
     "migrate(uint256)": "454b0608",
     "nextLaunchId()": "979bd9cc",
     "pauseLaunches()": "e79b502e",
-    "requiredStockRaisedFor(uint256)": "eab65e5d",
+    "releaseCreatorVesting(uint256)": "952ebca5",
     "revokeStock(address)": "06b0b7f2",
     "splitterImplementation()": "e63db9b2",
     "stockAdmission(address)": "03631d24",

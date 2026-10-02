@@ -29,7 +29,10 @@ import {StagedERC20} from "../../strategy/doubles/StagedERC20.sol";
 ///      reverting when there is nothing to do, so `fail_on_revert = true` keeps its full strength.
 contract LifecycleHandler is CommonBase, StdUtils {
     uint256 internal constant LAUNCHES = 3;
-    uint128 internal constant RESERVE_ALLOCATION = 15_000_000_000e18;
+    uint128 internal constant RESERVE_ALLOCATION = 10_000_000_000e18;
+    /// @dev The fixed required raise. Bids span a tenth to six tenths of it, so a launch needs at least
+    ///      two of the largest bids to graduate and fewer leave it failed.
+    uint128 internal constant FLOOR_RAISE = 1_084_202_174;
 
     /// @notice Base's fixed block time. One block forward is two seconds forward, always.
     uint256 internal constant SECONDS_PER_BLOCK = 2;
@@ -132,7 +135,7 @@ contract LifecycleHandler is CommonBase, StdUtils {
         if (block.number < auction.startBlock() || block.number >= auction.endBlock()) return;
         if (strategy.distribution(auctions[index]).lifecycle != RegentLBPStrategyV2.Lifecycle.Active) return;
 
-        uint128 bidAmount = uint128(bound(amount, 2_000e18, 12_000e18));
+        uint128 bidAmount = uint128(bound(amount, FLOOR_RAISE / 10, (uint256(FLOOR_RAISE) * 6) / 10));
 
         // The pinned CCA refuses a bid at or below the live clearing price, so the bid is placed
         // strictly above it, on the frozen tick grid. Checkpointing first is the same permissionless

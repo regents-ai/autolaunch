@@ -20,9 +20,9 @@ import {Vm} from "forge-std/Vm.sol";
 ///         schedule, no caller-chosen entropy, and complete isolation between launches.
 contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     /// @notice The price a bid of exactly the floor raise clears at: the exact Q96 price at which the
-    ///         floor raise buys the whole 20 billion allocation, rounded up. The floor is that same
-    ///         quotient rounded down, so the book settles one Q96 unit above the floor.
-    uint256 internal constant FLOOR_RAISE_CLEARING_PRICE_Q96 = 79_228_162_514_264_337_593_501;
+    ///         floor raise buys the whole 20 billion allocation, rounded up. The floor raise is itself
+    ///         rounded up, so the book settles just above the floor.
+    uint256 internal constant FLOOR_RAISE_CLEARING_PRICE_Q96 = 4_294_967_302;
 
     event LaunchCreated(
         uint256 indexed launchId,
@@ -31,8 +31,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         address auction,
         address escrow,
         address treasury,
-        uint256 floorPriceQ96,
-        uint128 requiredRegentRaised,
         uint64 startBlock,
         uint64 endBlock
     );
@@ -94,12 +92,12 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             );
         }
 
-        // The signature carries exactly the eight admitted fields, so there is nowhere for a
+        // The signature carries exactly the six admitted fields, so there is nowhere for a
         // user-supplied salt to enter.
         assertEq(
             RegentsAutolaunchFactoryV2.launch.selector,
-            bytes4(keccak256("launch((string,string,string,string,string,address,uint256,uint128))")),
-            "the launch signature is not the admitted eight-field tuple"
+            bytes4(keccak256("launch((string,string,string,string,string,address))")),
+            "the launch signature is not the admitted six-field tuple"
         );
 
         // C5 correction: name and symbol *do* move the created address, because the pinned UERC20
@@ -145,7 +143,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
 
     /// @notice `FAC-004`: exactly one hundred billion 18-decimal SUBJECT exist and they sit in
     ///         exactly three places in exactly the fixed proportions.
-    function test_FAC_004_SupplySplitsExactlyTwentyFifteenSixtyFive() public {
+    function test_FAC_004_SupplySplitsExactlyTwentyTenSeventy() public {
         Launched memory launched = _defaultLaunch();
         UERC20 subject = launched.subject;
 
@@ -157,8 +155,8 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         uint256 escrowHeld = subject.balanceOf(address(launched.escrow));
 
         assertEq(auctionHeld, 20_000_000_000e18, "the auction does not hold exactly 20%");
-        assertEq(reserveHeld, 15_000_000_000e18, "the strategy reserve is not exactly 15%");
-        assertEq(escrowHeld, 65_000_000_000e18, "escrow does not hold exactly 65%");
+        assertEq(reserveHeld, 10_000_000_000e18, "the strategy reserve is not exactly 10%");
+        assertEq(escrowHeld, 70_000_000_000e18, "escrow does not hold exactly 70%");
         assertEq(auctionHeld + reserveHeld + escrowHeld, subject.totalSupply(), "the three parts are not the whole");
 
         assertEq(subject.balanceOf(address(factory)), 0, "the factory kept SUBJECT");
@@ -167,13 +165,13 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(subject.balanceOf(BaseBindings.DEAD_ADDRESS), 0, "SUBJECT was retired at launch");
     }
 
-    /// @notice `STR-017`: the canonical initialization moves exactly 20%, 15% and 65% through the
+    /// @notice `STR-017`: the canonical initialization moves exactly 20%, 10% and 70% through the
     ///         factory-created graph and leaves no rounding residue anywhere.
-    function test_STR_017_DistributionIsExactlyTwentyFifteenSixtyFive() public {
+    function test_STR_017_DistributionIsExactlyTwentyTenSeventy() public {
         Launched memory launched = _defaultLaunch();
         RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
 
-        assertEq(uint256(d.reserve), strategy.RESERVE_ALLOCATION(), "the recorded reserve is not the fixed 15%");
+        assertEq(uint256(d.reserve), strategy.RESERVE_ALLOCATION(), "the recorded reserve is not the fixed 10%");
         assertEq(
             launched.subject.balanceOf(address(strategy)),
             uint256(d.reserve),
@@ -187,12 +185,12 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(
             launched.subject.balanceOf(address(launched.escrow)),
             strategy.PENDING_ALLOCATION(),
-            "escrow did not receive exactly the fixed 65%"
+            "escrow did not receive exactly the fixed 70%"
         );
         assertEq(
             strategy.AUCTION_ALLOCATION() + strategy.RESERVE_ALLOCATION(),
             strategy.DISTRIBUTION_PULL(),
-            "the 35% pull is not exactly the auction plus the reserve"
+            "the 30% pull is not exactly the auction plus the reserve"
         );
         assertEq(launched.subject.balanceOf(address(factory)), 0, "an initialization residue stayed at the factory");
         assertEq(launched.subject.balanceOf(address(uerc20Factory)), 0, "a residue stayed at the token factory");
@@ -371,7 +369,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     }
 
     /// @notice `FAC-015`: value a launcher deliberately routes to another launch's artifact is not
-    ///         promised to stay isolated. Lifecycle state and the isolated 15% reserve still are.
+    ///         promised to stay isolated. Lifecycle state and the isolated 10% reserve still are.
     /// @dev The named accepted consequence, produced exactly as production produces it and with no
     ///      predicted address anywhere. A first launch graduates and its splitter becomes a real,
     ///      deployed, ordinary contract. A second launcher then names *that already-deployed
@@ -611,40 +609,20 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(hook.splitterOf(_poolId(second)), address(0), "the failed pool was registered");
     }
 
-    /// @notice `FAC-023`: the launcher chooses the floor and may set a higher minimum raise; the required
-    ///         raise is the whole sale allocation at the floor, rounded up, or that minimum when it is
-    ///         higher, and a minimum the auction can never reach is refused.
+    /// @notice `FAC-023`: every launch has the same floor and the same required raise: the pinned
+    ///         auction's lowest admitted floor, and the whole sale allocation at that floor, rounded up.
     /// @dev The floor raise's economics are measured, not assumed: a real pinned auction, filled by a
     ///      single bid of exactly the floor raise, sells its whole allocation at the floor clearing
     ///      price and migrates in both PoolKey orderings and at both reachable bid-price endpoints —
     ///      the floor and the highest on-grid price.
-    function test_FAC_023_RequiredRaiseIsTheFloorMinimumOrTheLauncherMinimum() public {
-        RegentsAutolaunchFactoryV2.LaunchParams memory params = _params();
+    function test_FAC_023_EveryLaunchHasTheOneFloorAndItsRequiredRaise() public {
+        assertEq(strategy.FLOOR_PRICE_Q96(), DEFAULT_FLOOR_Q96, "the floor is not the lowest on-grid floor");
+        assertEq(strategy.BID_TICK_SPACING_Q96(), DEFAULT_TICK_Q96, "the tick is not a hundredth of the floor");
+        assertEq(strategy.REQUIRED_REGENT_RAISED(), FLOOR_RAISE, "the required raise is not the floor raise");
 
-        uint128 tooHigh = uint128(strategy.maxReachableRaiseFor(DEFAULT_TICK_Q96)) + 1;
-        params.minimumRegentRaised = tooHigh;
-        _expectMetadataRevert(
-            params, abi.encodeWithSelector(RegentLBPStrategyV2.UnreachableRequiredRaise.selector, tooHigh)
-        );
-        params.minimumRegentRaised = 0;
-        params.floorPriceQ96 = DEFAULT_FLOOR_Q96 + 1;
-        _expectMetadataRevert(
-            params, abi.encodeWithSelector(RegentLBPStrategyV2.FloorPriceNotOnGrid.selector, DEFAULT_FLOOR_Q96 + 1)
-        );
-        assertEq(factory.nextLaunchId(), 1, "a refused launch allocated an ID");
-
-        // No minimum, or one below the floor minimum, records the floor minimum; a higher one is kept.
-        params = _params();
-        Launched memory plain = _launchAs(launcher, params);
-        assertEq(_distribution(plain).requiredRegentRaised, FLOOR_RAISE, "no minimum is the floor minimum");
-        params.minimumRegentRaised = 1;
-        Launched memory lower = _launchAs(launcher, params);
-        assertEq(_distribution(lower).requiredRegentRaised, FLOOR_RAISE, "a lower minimum is the floor minimum");
-        params.minimumRegentRaised = 3 * FLOOR_RAISE;
-        Launched memory higher = _launchAs(launcher, params);
-        assertEq(_distribution(higher).requiredRegentRaised, 3 * FLOOR_RAISE, "a higher minimum is kept");
-        params.minimumRegentRaised = tooHigh - 1;
-        _launchAs(launcher, params);
+        Launched memory launched = _defaultLaunch();
+        assertEq(launched.auction.floorPrice(), DEFAULT_FLOOR_Q96, "the auction floor");
+        assertEq(launched.auction.tickSpacing(), DEFAULT_TICK_Q96, "the auction tick spacing");
 
         // The floor-raise graduated outcome resolves at both endpoints, both orderings.
         uint256 structuralMax = MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION));
@@ -654,10 +632,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         _assertFloorRaiseMigrates(false, 1);
         _assertFloorRaiseMigrates(true, maxOnGridTicks);
         _assertFloorRaiseMigrates(false, maxOnGridTicks);
-
-        // And so does the largest admitted raise, in both orderings.
-        _assertBoundaryRaiseMigrates(true, maxOnGridTicks);
-        _assertBoundaryRaiseMigrates(false, maxOnGridTicks);
     }
 
     /// @notice `TOK-001`: an admitted SUBJECT's supply is exactly one hundred billion units.
@@ -705,11 +679,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         // admitted implementation, so the strategy refuses it outright.
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategyV2.NotAuthenticEscrow.selector, impostor));
         vm.prank(address(factory));
-        strategy.initializeDistribution(
-            RegentLBPStrategyV2.DistributionParams({
-                launchId: 99, escrow: impostor, floorPriceQ96: DEFAULT_FLOOR_Q96, minimumRegentRaised: 0
-            })
-        );
+        strategy.initializeDistribution(RegentLBPStrategyV2.DistributionParams({launchId: 99, escrow: impostor}));
     }
 
     /// @notice `TOK-004`: the token's metadata is exactly what the launch asked for and stays that
@@ -805,8 +775,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         uint64 endBlock
     ) private {
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        bytes32 topic =
-            keccak256("LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64)");
+        bytes32 topic = keccak256("LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)");
         bool seen;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != address(factory) || logs[i].topics[0] != topic) continue;
@@ -819,20 +788,12 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
                 address loggedAuction,
                 address loggedEscrow,
                 address loggedTreasury,
-                uint256 loggedFloor,
-                uint128 loggedRaise,
                 uint64 loggedStart,
                 uint64 loggedEnd
-            ) = abi.decode(logs[i].data, (address, address, address, uint256, uint128, uint64, uint64));
+            ) = abi.decode(logs[i].data, (address, address, address, uint64, uint64));
             assertEq(loggedAuction, auction, "event auction");
             assertEq(loggedEscrow, escrow, "event escrow");
             assertEq(loggedTreasury, params.treasury, "event treasury");
-            assertEq(loggedFloor, params.floorPriceQ96, "event floor");
-            assertEq(
-                loggedRaise,
-                strategy.requiredRegentRaisedFor(params.floorPriceQ96, params.minimumRegentRaised),
-                "event required raise"
-            );
             assertEq(loggedStart, startBlock, "event start block");
             assertEq(loggedEnd, endBlock, "event end block");
         }
@@ -893,37 +854,16 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             "the final price handed to migration was not the floor clearing price"
         );
 
-        // The pool opens at the raise over the whole sale allocation, so the whole reserve pairs with
-        // three quarters of the raise and the last quarter reaches the treasury.
+        // The pool opens at the final clearing price, where half the raise buys the whole reserve, so
+        // the position pairs half the raise with the whole reserve and the other half reaches the
+        // treasury.
         RegentLBPStrategyV2.Distribution memory d = _distribution(launched);
         assertApproxEqRel(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, 1e12, "the whole reserve, to the crumb");
         assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "the position consumed more than the isolated reserve");
-        assertApproxEqRel(uint256(d.lpRegentUsed), (uint256(FLOOR_RAISE) * 3) / 4, 1e12, "three quarters of the raise");
+        assertApproxEqRel(uint256(d.lpRegentUsed), uint256(FLOOR_RAISE) / 2, 1e12, "half the raise");
+        assertLe(uint256(d.lpRegentUsed), uint256(FLOOR_RAISE) / 2, "the position consumed more than half the raise");
         assertEq(regent.balanceOf(treasury), FLOOR_RAISE - d.lpRegentUsed, "the rest of the raise to the treasury");
         assertGt(positionManager.getPositionLiquidity(d.lpTokenId), 0, "the minted position carries no liquidity");
-        require(vm.revertToState(snap), "revert to snapshot failed");
-    }
-
-    function _assertBoundaryRaiseMigrates(bool subjectBelowRegent, uint256 ticksAboveFloor) private {
-        uint256 snap = vm.snapshotState();
-        uint128 boundary = uint128(strategy.maxReachableRaiseFor(DEFAULT_TICK_Q96));
-        RegentsAutolaunchFactoryV2.LaunchParams memory params = _params();
-        params.minimumRegentRaised = boundary;
-        Launched memory launched = _launchSorted(subjectBelowRegent, params);
-
-        _rollToStart(launched);
-        _bid(launched, bidder, boundary + 1, _bidPrice(ticksAboveFloor));
-        _rollToMigration(launched);
-
-        strategy.migrate(address(launched.auction));
-        assertEq(
-            uint256(launched.auction.currencyRaised()), uint256(boundary), "the boundary raise was not settled exactly"
-        );
-        assertEq(
-            uint8(_distribution(launched).lifecycle),
-            uint8(RegentLBPStrategyV2.Lifecycle.Graduated),
-            "the largest admitted raise did not resolve"
-        );
         require(vm.revertToState(snap), "revert to snapshot failed");
     }
 

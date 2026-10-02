@@ -17,7 +17,7 @@
       "deployed_by": "StocksLaunchpadV2 constructor (CREATE2 with the mined hook salt)"
     },
     "MemestockLPLocker": {
-      "role": "Holds every graduated launch's full-range v4 position forever and routes collected fees to the launch's splitter; exposes no principal path.",
+      "role": "Holds every graduated launch's v4 positions (full range and NEW only) forever and routes collected fees to the launch's splitter; exposes no principal path.",
       "deployed_by": "StocksLaunchpadV2 constructor (CREATE)"
     },
     "MemestockSplitterV1": {

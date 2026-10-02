@@ -19,6 +19,8 @@ contract RobinhoodPresetTest is Test {
         assertEq(RobinhoodPreset.MIGRATION_DELAY_BLOCKS, 2_560);
         assertEq(RobinhoodPreset.MIGRATION_DELAY_BLOCKS, StocksPreset.MIGRATION_DELAY_BLOCKS * 20);
         assertGt(RobinhoodPreset.MIGRATION_DELAY_BLOCKS, RobinhoodPreset.CLAIM_DELAY_BLOCKS);
+        assertEq(RobinhoodPreset.CREATOR_VESTING_BLOCKS, 25_920_000, "thirty days at 0.1 s blocks");
+        assertEq(RobinhoodPreset.CREATOR_VESTING_BLOCKS, StocksPreset.CREATOR_VESTING_BLOCKS * 20);
     }
 
     function test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps() public pure {

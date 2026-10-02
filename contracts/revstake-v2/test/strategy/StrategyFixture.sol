@@ -47,17 +47,16 @@ abstract contract StrategyFixture is Test {
     using StateLibrary for IPoolManager;
 
     uint256 internal constant TOTAL_SUPPLY = 100_000_000_000e18;
-    uint256 internal constant PENDING_ALLOCATION = 65_000_000_000e18;
+    uint256 internal constant PENDING_ALLOCATION = 70_000_000_000e18;
     uint256 internal constant AUCTION_ALLOCATION = 20_000_000_000e18;
-    uint256 internal constant RESERVE_ALLOCATION = 15_000_000_000e18;
-    uint256 internal constant DISTRIBUTION_PULL = 35_000_000_000e18;
-    /// @dev The Revstake default floor, 0.000001 REGENT per SUBJECT in Q96, on the 100-tick grid.
-    uint256 internal constant DEFAULT_FLOOR_Q96 = 79_228_162_514_264_337_593_500;
-    uint256 internal constant DEFAULT_TICK_Q96 = 792_281_625_142_643_375_935;
-    /// @dev The required raise at the default floor with no launcher minimum: the whole sale
-    ///      allocation at the floor, rounded up. A single bid of exactly this amount placed in the
-    ///      auction's first block is the smallest graduating bid.
-    uint128 internal constant FLOOR_RAISE = 19_999_999_999_999_999_999_989;
+    uint256 internal constant RESERVE_ALLOCATION = 10_000_000_000e18;
+    uint256 internal constant DISTRIBUTION_PULL = 30_000_000_000e18;
+    /// @dev The one fixed Revstake floor, the pinned CCA's lowest admitted price on the 100-tick grid.
+    uint256 internal constant DEFAULT_FLOOR_Q96 = 4_294_967_300;
+    uint256 internal constant DEFAULT_TICK_Q96 = 42_949_673;
+    /// @dev The required raise: the whole sale allocation at the floor, rounded up. A single bid of
+    ///      exactly this amount placed in the auction's first block is the smallest graduating bid.
+    uint128 internal constant FLOOR_RAISE = 1_084_202_174;
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -175,30 +174,18 @@ abstract contract StrategyFixture is Test {
     // launches
     // -------------------------------------------------------------------------
 
-    /// @dev A launch at the default floor with this launcher minimum.
-    function _newLaunch(address subjectAt, uint256 launchId, uint128 minimumRegentRaised)
-        internal
-        returns (Launch memory launch)
-    {
-        launch = _newLaunchAt(subjectAt, launchId, DEFAULT_FLOOR_Q96, minimumRegentRaised);
-    }
-
-    function _newLaunchAt(address subjectAt, uint256 launchId, uint256 floorPriceQ96, uint128 minimumRegentRaised)
-        internal
-        returns (Launch memory launch)
-    {
+    function _newLaunch(address subjectAt, uint256 launchId) internal returns (Launch memory launch) {
         launch.subject = _etchToken(subjectAt);
         launch.subject.mint(address(factory), TOTAL_SUPPLY);
 
-        (address escrow, address auction) =
-            factory.launch(subjectAt, treasury, launchId, floorPriceQ96, minimumRegentRaised);
+        (address escrow, address auction) = factory.launch(subjectAt, treasury, launchId);
         launch.escrow = ConditionalVestingEscrowV2(escrow);
         launch.auction = IContinuousClearingAuction(auction);
     }
 
     /// @dev The default launch: SUBJECT sorts below REGENT, so REGENT is the pool's currency1.
     function _defaultLaunch() internal returns (Launch memory launch) {
-        launch = _newLaunch(SUBJECT_LOW, 1, FLOOR_RAISE);
+        launch = _newLaunch(SUBJECT_LOW, 1);
     }
 
     /// @notice The two addresses the strategy's next two ordinary `CREATE` clones will occupy.

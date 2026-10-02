@@ -18,6 +18,7 @@ import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 ///         (EIP-170). Every function is pure: it reads no storage and moves no value.
 library RobinhoodPositionsLib {
     error NoFullRangePosition();
+    error UnexpectedNewOnlyPositionCount(uint256 found);
 
     /// @dev The full-range position the pinned planner resolves from a currency budget and the reserve.
     function fullRange(
@@ -37,6 +38,37 @@ library RobinhoodPositionsLib {
         );
         if (positions.length != 1) revert NoFullRangePosition();
         return positions[0];
+    }
+
+    /// @dev The one-sided NEW position the pinned planner resolves from the reserve the full range left,
+    ///      at the `StocksPreset` geometry: one pool tick spacing past the opening price on the NEW side,
+    ///      out as far as the planner reaches. Empty when the budget buys no liquidity.
+    function newOnly(uint160 sqrtPriceX96, bool currencyIsCurrency0, uint128 newBudget, address recipient)
+        external
+        pure
+        returns (Position[] memory positions)
+    {
+        PositionDefinition[] memory definitions = new PositionDefinition[](1);
+        // NEW is currency1 when the currency is currency0, so its side of the book is below the pool price.
+        definitions[0] = PositionDefinition({
+            offsetLower: currencyIsCurrency0
+                ? StocksPreset.NEW_ONLY_BELOW_LOWER_OFFSET
+                : StocksPreset.NEW_ONLY_ABOVE_LOWER_OFFSET,
+            offsetUpper: currencyIsCurrency0
+                ? StocksPreset.NEW_ONLY_BELOW_UPPER_OFFSET
+                : StocksPreset.NEW_ONLY_ABOVE_UPPER_OFFSET,
+            weight: PositionPlanner.MPS,
+            overridePositionRecipient: address(0)
+        });
+        // slither-disable-next-line unused-return
+        (positions,) = PositionPlanner.resolve(
+            definitions,
+            sqrtPriceX96,
+            StocksPreset.POOL_TICK_SPACING,
+            currencyAmounts(currencyIsCurrency0, 0, newBudget),
+            recipient
+        );
+        if (positions.length > 1) revert UnexpectedNewOnlyPositionCount(positions.length);
     }
 
     /// @dev The pinned plan with its two `CONTRACT_BALANCE` settlement sentinels replaced by the exact

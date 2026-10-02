@@ -94,25 +94,6 @@
     },
     {
       "type": "function",
-      "name": "bidTickSpacingFor",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "tickSpacing",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "pure"
-    },
-    {
-      "type": "function",
       "name": "ccaFactory",
       "inputs": [],
       "outputs": [
@@ -120,6 +101,25 @@
           "name": "",
           "type": "address",
           "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "creatorReleasable",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
         }
       ],
       "stateMutability": "view"
@@ -201,11 +201,6 @@
                   "name": "image",
                   "type": "string",
                   "internalType": "string"
-                },
-                {
-                  "name": "floorPriceQ96",
-                  "type": "uint256",
-                  "internalType": "uint256"
                 }
               ]
             },
@@ -331,16 +326,6 @@
               "internalType": "uint64"
             },
             {
-              "name": "requiredRaise",
-              "type": "uint128",
-              "internalType": "uint128"
-            },
-            {
-              "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
               "name": "lifecycle",
               "type": "uint8",
               "internalType": "enum IRobinhoodLaunchpadBase.Lifecycle"
@@ -372,6 +357,26 @@
             },
             {
               "name": "lpNewUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "newOnlyTokenId",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "newOnlyUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "vestingStartBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "creatorReleased",
               "type": "uint128",
               "internalType": "uint128"
             },
@@ -472,22 +477,22 @@
     },
     {
       "type": "function",
-      "name": "requiredStockRaisedFor",
+      "name": "releaseCreatorVesting",
       "inputs": [
         {
-          "name": "floorPriceQ96",
+          "name": "launchId",
           "type": "uint256",
           "internalType": "uint256"
         }
       ],
       "outputs": [
         {
-          "name": "",
-          "type": "uint128",
-          "internalType": "uint128"
+          "name": "amount",
+          "type": "uint256",
+          "internalType": "uint256"
         }
       ],
-      "stateMutability": "pure"
+      "stateMutability": "nonpayable"
     },
     {
       "type": "function",
@@ -576,6 +581,31 @@
         }
       ],
       "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "CreatorVestingReleased",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "launcher",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
     },
     {
       "type": "event",
@@ -717,18 +747,6 @@
           "internalType": "uint64"
         },
         {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "requiredStockRaised",
-          "type": "uint128",
-          "indexed": false,
-          "internalType": "uint128"
-        },
-        {
           "name": "auctionInventory",
           "type": "uint128",
           "indexed": false,
@@ -736,6 +754,12 @@
         },
         {
           "name": "migrationReserve",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "creatorVesting",
           "type": "uint128",
           "indexed": false,
           "internalType": "uint128"
@@ -785,6 +809,18 @@
         },
         {
           "name": "lpNewUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "newOnlyTokenId",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "newOnlyUsed",
           "type": "uint128",
           "indexed": false,
           "internalType": "uint128"
@@ -900,28 +936,6 @@
     },
     {
       "type": "error",
-      "name": "FloorPriceNotOnGrid",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "FloorPriceTooLow",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "HookBindingMismatch",
       "inputs": [
         {
@@ -971,6 +985,17 @@
     {
       "type": "error",
       "name": "LaunchNotActive",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "uint8",
+          "internalType": "enum IRobinhoodLaunchpadBase.Lifecycle"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "LaunchNotGraduated",
       "inputs": [
         {
           "name": "found",
@@ -1178,17 +1203,6 @@
     },
     {
       "type": "error",
-      "name": "TickSpacingTooSmall",
-      "inputs": [
-        {
-          "name": "tickSpacingQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "TokenCreatorMismatch",
       "inputs": [
         {
@@ -1309,12 +1323,12 @@
   "method_identifiers": {
     "adminSafe()": "4b8c9c2d",
     "admitStock(address,address)": "f6f19fe1",
-    "bidTickSpacingFor(uint256)": "9e82ecfc",
     "ccaFactory()": "688e6956",
+    "creatorReleasable(uint256)": "5a902fce",
     "currentBlock()": "e12ed13c",
     "hook()": "7f5a7c7b",
     "inbox()": "fb0e722b",
-    "launch(((string,string,string,string,string,uint256),address))": "40809c8c",
+    "launch(((string,string,string,string,string),address))": "f1164bd9",
     "launchIdOfAuction(address)": "a568a4fe",
     "launchIdOfToken(address)": "a27d865a",
     "launches(uint256)": "7b443a76",
@@ -1325,7 +1339,7 @@
     "pauseLaunches()": "e79b502e",
     "poolManager()": "dc4c90d3",
     "positionManager()": "791b98bc",
-    "requiredStockRaisedFor(uint256)": "eab65e5d",
+    "releaseCreatorVesting(uint256)": "952ebca5",
     "revokeStock(address)": "06b0b7f2",
     "splitterImplementation()": "e63db9b2",
     "stockAdmission(address)": "03631d24",

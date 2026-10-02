@@ -44,10 +44,10 @@ contract StocksForkLifecycleTest is Test {
             | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
     );
     uint256 internal constant USDC_PER_SHARE = 230_000000;
-    /// @dev 1e-8 share per NEW, as in the hermetic fixture: the launch must raise five shares.
-    uint256 internal constant FLOOR_PRICE_Q96 = 79_228_162_500;
+    /// @dev Every launch's floor.
+    uint256 internal constant FLOOR_PRICE_Q96 = StocksPreset.FLOOR_PRICE_Q96;
     /// @dev A price limit far above where the fork bids clear, so each exits through `exitBid`.
-    uint256 internal constant GRADUATING_TICKS = 100_000;
+    uint256 internal constant GRADUATING_TICKS = 10_000_000;
 
     StocksLaunchpadV2 internal launchpad;
     StocksFeeHookV1 internal hook;
@@ -131,11 +131,7 @@ contract StocksForkLifecycleTest is Test {
         assertEq(record.startBlock, creationBlock + StocksPreset.START_LEAD_BLOCKS, "creation block + 300");
         assertEq(auction.startBlock(), record.startBlock, "the real auction opens on the recorded block");
         assertEq(auction.endBlock(), record.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS);
-        assertEq(
-            record.requiredStockRaised,
-            launchpad.requiredStockRaisedFor(params.floorPriceQ96),
-            "the sale allocation at the floor is the raise"
-        );
+        assertEq(auction.floorPrice(), FLOOR_PRICE_Q96, "every launch has the one floor");
         assertEq(regent.balanceOf(launcher), 0, "nothing was pulled");
         assertEq(regent.balanceOf(address(launchpad)), launchpadBefore, "the launchpad holds no REGENT");
         assertEq(regent.balanceOf(StocksBindings.LIVE_STAKING), stakingBefore, "real staking received nothing");
@@ -143,7 +139,7 @@ contract StocksForkLifecycleTest is Test {
         // A raise bidders did not meet fails through the CCA: bidders refund,
         // and still no REGENT has moved anywhere.
         vm.roll(auction.startBlock());
-        _bidDirect(auction, bidderDirect, 1e8, _bidPrice(1));
+        _bidDirect(auction, bidderDirect, StocksPreset.REQUIRED_STOCK_RAISED - 1, _bidPrice(1));
         vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
         launchpad.migrate(launchId);
         assertEq(uint8(launchpad.launches(launchId).lifecycle), uint8(IStocksLaunchpadV2.Lifecycle.Failed));
@@ -187,9 +183,13 @@ contract StocksForkLifecycleTest is Test {
         PoolKey memory key = _poolKey(newToken);
         assertEq(PoolId.unwrap(key.toId()), record.poolId, "the derived key is the registered pool");
         (uint160 sqrtPriceX96,,,) = IPoolManager(StocksBindings.POOL_MANAGER).getSlot0(PoolId.wrap(record.poolId));
-        assertEq(sqrtPriceX96, record.finalSqrtPriceX96, "real PoolManager initialized at raise / sale allocation");
+        assertEq(sqrtPriceX96, record.finalSqrtPriceX96, "real PoolManager initialized at the final clearing price");
         assertGt(IPoolManager(StocksBindings.POOL_MANAGER).getLiquidity(PoolId.wrap(record.poolId)), 0);
-        assertEq(IERC20(newToken).balanceOf(address(launchpad)), 0, "the NEW left over is retired");
+        assertEq(
+            IERC20(newToken).balanceOf(address(launchpad)),
+            StocksPreset.CREATOR_VESTING,
+            "the NEW left over but the vesting is retired"
+        );
         assertEq(IERC20(newToken).balanceOf(StocksBindings.DEAD_ADDRESS), record.retiredNew, "at the dead address");
         assertEq(stock.balanceOf(address(launchpad)), 0);
         _assertLocked(record, auction.lbpInitializationParams().currencyRaised);
@@ -385,9 +385,10 @@ contract StocksForkLifecycleTest is Test {
     // helpers
     // -------------------------------------------------------------------------
 
-    /// @dev On the real PositionManager: one full-range position held by the fee-only locker, pairing
-    ///      the whole reserve and the whole raise but for rounding; the unpaired STOCK is in the hook's
-    ///      REGENT lane.
+    /// @dev On the real PositionManager: the full-range position pairing the whole raise, and the
+    ///      NEW-only position holding the rest of the reserve, both held by the fee-only locker; together
+    ///      they take the whole reserve but for rounding, and the unpaired STOCK is in the hook's REGENT
+    ///      lane.
     function _assertLocked(IStocksLaunchpadV2.Launch memory record, uint256 raised) private view {
         IERC721 nft = IERC721(StocksBindings.POSITION_MANAGER);
         IPositionManager positions = IPositionManager(StocksBindings.POSITION_MANAGER);
@@ -398,13 +399,20 @@ contract StocksForkLifecycleTest is Test {
         assertEq(PoolId.unwrap(key.toId()), record.poolId);
         assertEq(info.tickLower(), TickMath.minUsableTick(spacing));
         assertEq(info.tickUpper(), TickMath.maxUsableTick(spacing));
-        assertEq(positions.nextTokenId(), record.lpTokenId + 1, "one position minted");
+        assertEq(record.newOnlyTokenId, record.lpTokenId + 1, "the NEW-only position is the second mint");
+        assertEq(nft.ownerOf(record.newOnlyTokenId), launchpad.locker(), "NEW-only position to the locker");
+        (key,) = positions.getPoolAndPositionInfo(record.newOnlyTokenId);
+        assertEq(PoolId.unwrap(key.toId()), record.poolId);
+        assertEq(positions.nextTokenId(), record.lpTokenId + 2, "two positions minted");
 
         (, uint256 dust,) = hook.accrued(record.poolId);
         assertEq(uint256(record.lpStockUsed) + dust, raised, "raised == paired + dust");
         assertLe(dust, raised / 1e9 + 2, "dust is rounding");
         assertApproxEqAbs(
-            record.lpNewUsed, StocksPreset.MIGRATION_RESERVE, StocksPreset.INITIAL_SUPPLY / 1e9, "reserve paired"
+            uint256(record.lpNewUsed) + record.newOnlyUsed,
+            StocksPreset.MIGRATION_RESERVE,
+            StocksPreset.INITIAL_SUPPLY / FLOOR_PRICE_Q96,
+            "the reserve is placed"
         );
         assertEq(stock.balanceOf(address(hook)), dust, "hook holds exactly the dust");
     }
@@ -416,8 +424,7 @@ contract StocksForkLifecycleTest is Test {
             description: "Fork lifecycle",
             website: "https://autolaunch.sh",
             image: "ipfs://image",
-            stock: ForkAddresses.AAPLC,
-            floorPriceQ96: FLOOR_PRICE_Q96
+            stock: ForkAddresses.AAPLC
         });
     }
 
@@ -443,7 +450,7 @@ contract StocksForkLifecycleTest is Test {
     }
 
     function _bidPrice(uint256 ticks) private pure returns (uint256) {
-        return FLOOR_PRICE_Q96 + ticks * (FLOOR_PRICE_Q96 / StocksPreset.BID_TICK_DIVISOR);
+        return FLOOR_PRICE_Q96 + ticks * StocksPreset.BID_TICK_SPACING_Q96;
     }
 
     function _bidDirect(IContinuousClearingAuction auction, address account, uint128 amount, uint256 price)

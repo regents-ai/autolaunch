@@ -17,9 +17,9 @@ import {MockLiveStaking} from "./MockLiveStaking.sol";
 ///      strategy claim; it only reaches the initializer the way production will.
 abstract contract C1Fixture is Test {
     uint256 internal constant TOTAL_SUPPLY = 100_000_000_000e18;
-    uint256 internal constant PENDING_ALLOCATION = 65_000_000_000e18;
+    uint256 internal constant PENDING_ALLOCATION = 70_000_000_000e18;
     uint256 internal constant AUCTION_ALLOCATION = 20_000_000_000e18;
-    uint256 internal constant RESERVE_ALLOCATION = 15_000_000_000e18;
+    uint256 internal constant RESERVE_ALLOCATION = 10_000_000_000e18;
 
     ConditionalVestingEscrowV2 internal escrowImplementation;
     SubjectSplitterV1 internal splitterImplementation;
@@ -83,8 +83,8 @@ abstract contract C1Fixture is Test {
     }
 
     /// @dev One launch: its own SUBJECT token at exactly 100B supply, held by this contract the way
-    ///      the factory holds it before distributing 20/15/65, and an escrow clone initialized with
-    ///      the exact 65%. Each launch gets a fresh token so several launches can coexist in one
+    ///      the factory holds it before distributing 20/10/70, and an escrow clone initialized with
+    ///      the exact 70%. Each launch gets a fresh token so several launches can coexist in one
     ///      test without any of them presenting the wrong total supply.
     function _newLaunch() internal returns (MockERC20 launchSubject, ConditionalVestingEscrowV2 escrow) {
         launchSubject = new MockERC20("Subject", "SUBJ", 18);
@@ -110,7 +110,7 @@ abstract contract C1Fixture is Test {
     }
 
     /// @dev A launch resolved as economically failed: the strategy has swept the failed auction's
-    ///      whole 20% and delivered it with the isolated 15% reserve before it resolves.
+    ///      whole 20% and delivered it with the isolated 10% reserve before it resolves.
     function _failedLaunch()
         internal
         returns (MockERC20 launchSubject, ConditionalVestingEscrowV2 escrow, MockAuction auction)

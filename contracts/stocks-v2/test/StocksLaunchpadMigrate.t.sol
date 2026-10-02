@@ -30,12 +30,14 @@ import {FixtureStockRoute} from "../src/routes/FixtureStockRoute.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {StocksFixture} from "./StocksFixture.sol";
 
-/// @notice Graduation and failure. A graduated launch has sold its whole sale allocation to its
-///         bidders through the auction but for rounding, opens the official pool at the raise divided
-///         by the sale allocation, locks the whole reserve with the whole raise in one full-range
-///         position held by the fee-only locker and retires the NEW left over. An auction that raised
-///         less than the sale allocation at the floor, including one nobody bid in, fails: the
-///         inventory is retired and bidders are refunded through the CCA alone.
+/// @notice Graduation, the launcher's vesting and failure. A graduated launch has sold its whole sale
+///         allocation to its bidders through the auction but for rounding, opens the official pool at
+///         the final clearing price, locks the whole raise with the reserve it pairs in one full-range
+///         position and the rest of the reserve in one NEW-only position above the opening price, both
+///         held by the fee-only locker, starts the launcher's vesting and retires the NEW left over. An
+///         auction that raised less than the sale allocation at the floor, including one nobody bid in,
+///         fails: the inventory, reserve and vesting are retired and bidders are refunded through the
+///         CCA alone.
 contract StocksLaunchpadMigrateTest is StocksFixture {
     using StateLibrary for IPoolManager;
     using PoolIdLibrary for PoolKey;
@@ -115,13 +117,16 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         uint256 anchorPrice = _bidPrice(1_000);
 
         _rollToStart(l);
-        uint256 earlyBid = _bidDirect(l, early, 3e8, _bidPrice(20));
+        uint128 earlyAmount = REQUIRED_RAISE * 6 / 10;
+        uint128 anchorAmount = 20 * REQUIRED_RAISE;
+        uint128 lateAmount = 2 * REQUIRED_RAISE;
+        uint256 earlyBid = _bidDirect(l, early, earlyAmount, _bidPrice(20));
         vm.roll(l.auction.startBlock() + 1_000);
-        uint256 anchorBid = _bidDirect(l, anchor, 100e8, anchorPrice);
+        uint256 anchorBid = _bidDirect(l, anchor, anchorAmount, anchorPrice);
         vm.roll(l.auction.startBlock() + 2_000);
-        uint256 lateBid = _bidDirect(l, late, 10e8, _bidPrice(GRADUATING_TICKS));
+        uint256 lateBid = _bidDirect(l, late, lateAmount, _bidPrice(GRADUATING_TICKS));
         _rollToMigration(l);
-        _migrateAndAssertGraduation(l, 113e8);
+        _migrateAndAssertGraduation(l, uint256(earlyAmount) + anchorAmount + lateAmount);
 
         Checkpoint memory finalCheckpoint = l.auction.checkpoints(l.auction.endBlock());
         assertEq(finalCheckpoint.clearingPrice, anchorPrice, "the anchor bid sets the final price");
@@ -144,7 +149,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
 
     /// @dev The auction pays bids from the claim block, before migration can run, so NEW can already
     ///      be sent to the launchpad when it graduates. Graduation retires every unit of the launch's
-    ///      NEW it still holds, so NEW sent beforehand is retired with the crumbs.
+    ///      NEW it still holds but the vesting, so NEW sent beforehand is retired with the crumbs.
     function test_new_sent_to_the_launchpad_before_migration_is_retired() public {
         Launched memory l = _launch(STOCK_LOW);
         _rollToStart(l);
@@ -160,9 +165,14 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         assertGe(record.retiredNew, claimed, "the NEW sent here is retired");
         assertLe(record.retiredNew - claimed, _newCrumbs(l), "on top of crumbs");
         assertEq(UERC20(l.newToken).balanceOf(StocksBindings.DEAD_ADDRESS), record.retiredNew, "at the dead address");
-        assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), 0, "the launchpad keeps no NEW");
         assertEq(
-            UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.retiredNew,
+            UERC20(l.newToken).balanceOf(address(launchpad)),
+            StocksPreset.CREATOR_VESTING,
+            "the launchpad keeps only the vesting"
+        );
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.newOnlyUsed + record.retiredNew
+                + StocksPreset.CREATOR_VESTING,
             StocksPreset.INITIAL_SUPPLY,
             "the supply reconciles"
         );
@@ -215,8 +225,8 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     // other currency decimals
     // -------------------------------------------------------------------------
 
-    /// @dev An eighteen-decimal STOCK: the same rules hold at a floor of 1e-8 of it per NEW, a minimum
-    ///      of five whole units.
+    /// @dev An eighteen-decimal STOCK: the same floor, the same required raise in its base units, the
+    ///      same rules.
     function test_eighteen_decimal_stock_graduates_and_sells_the_whole_sale_allocation() public {
         address stock18 = address(new MockERC20("Eighteen", "EIGHTEEN", 18));
         FixtureStockRoute route = new FixtureStockRoute(stock18, USDC_PER_SHARE);
@@ -225,36 +235,28 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         (, uint8 decimals,) = launchpad.stockAdmission(stock18);
         assertEq(decimals, 18);
 
-        IStocksLaunchpadV2.LaunchParams memory params = _params(stock18);
-        params.floorPriceQ96 = 792_281_625_142_643_375_900;
-        uint256 required = launchpad.requiredStockRaisedFor(params.floorPriceQ96);
-        assertEq(required, 5e18, "five whole units");
-
-        Launched memory short = _launchAs(launcher, params);
-        Launched memory l = _launchAs(launcher, params);
-        uint256 limit = params.floorPriceQ96 * 1_001;
+        Launched memory short = _launch(stock18);
+        Launched memory l = _launch(stock18);
+        uint256 limit = _bidPrice(GRADUATING_TICKS);
         _rollToStart(l);
-        _bidAt(short, uint128(required - 1), limit, params.floorPriceQ96);
-        uint256 bidId = _bidAt(l, uint128(required * 3), limit, params.floorPriceQ96);
+        _bidAt(short, REQUIRED_RAISE - 1, limit);
+        uint256 bidId = _bidAt(l, REQUIRED_RAISE * 3, limit);
         _rollToMigration(l);
         launchpad.migrate(short.launchId);
         assertEq(uint8(_record(short).lifecycle), uint8(IStocksLaunchpadV2.Lifecycle.Failed), "one unit short");
-        _migrateAndAssertGraduation(l, required * 3);
+        _migrateAndAssertGraduation(l, uint256(REQUIRED_RAISE) * 3);
 
         _assertWholeAllocationSold(l, _settle(l, bidId));
     }
 
-    /// @dev `_bidDirect` for a launch at its own floor, which is the bid's tick hint.
-    function _bidAt(Launched memory l, uint128 amount, uint256 priceQ96, uint256 floorPriceQ96)
-        private
-        returns (uint256 bidId)
-    {
+    /// @dev `_bidDirect` for a STOCK the fixture does not mint as a `FixtureStockToken`.
+    function _bidAt(Launched memory l, uint128 amount, uint256 priceQ96) private returns (uint256 bidId) {
         MockERC20(l.stock).mint(bidder, amount);
         vm.startPrank(bidder);
         MockERC20(l.stock).approve(StocksBindings.PERMIT2, amount);
         IAllowanceTransfer(StocksBindings.PERMIT2)
             .approve(l.stock, address(l.auction), uint160(amount), type(uint48).max);
-        bidId = l.auction.submitBid(priceQ96, amount, bidder, floorPriceQ96, "");
+        bidId = l.auction.submitBid(priceQ96, amount, bidder, FLOOR_PRICE_Q96, "");
         vm.stopPrank();
     }
 
@@ -269,7 +271,11 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         uint256 pmStockBefore = MockERC20(l.stock).balanceOf(address(positionManager));
         uint256 pmNewBefore = UERC20(l.newToken).balanceOf(address(positionManager));
         uint256 ccaNewBefore = UERC20(l.newToken).balanceOf(address(cca));
-        assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), StocksPreset.MIGRATION_RESERVE, "only the reserve");
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(launchpad)),
+            uint256(StocksPreset.MIGRATION_RESERVE) + StocksPreset.CREATOR_VESTING,
+            "only the reserve and the vesting"
+        );
         uint256 nextTokenId = positionManager.nextTokenId();
         bytes32 poolId = _poolId(l);
 
@@ -278,21 +284,24 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         IStocksLaunchpadV2.Launch memory record = _record(l);
         assertEq(uint8(record.lifecycle), uint8(IStocksLaunchpadV2.Lifecycle.Graduated));
         assertEq(record.poolId, poolId);
-        assertGe(lbp.currencyRaised, record.requiredStockRaised, "the minimum was met");
+        assertGe(lbp.currencyRaised, StocksPreset.REQUIRED_STOCK_RAISED, "the minimum was met");
+        assertEq(record.vestingStartBlock, block.number, "the vesting starts at graduation");
+        assertEq(record.creatorReleased, 0, "nothing of the vesting is paid yet");
 
-        // The pool opens at the raise divided by the whole sale allocation, never above the auction's
-        // final clearing price.
+        // The pool opens at the auction's final clearing price.
         bool stockIsCurrency0 = _stockIsCurrency0(l);
-        uint256 priceX96 = FullMath.mulDiv(lbp.currencyRaised, Q96, StocksPreset.AUCTION_INVENTORY);
-        assertLe(priceX96, lbp.initialPriceX96, "at or below the final clearing price");
+        assertLe(
+            FullMath.mulDiv(lbp.currencyRaised, Q96, StocksPreset.AUCTION_INVENTORY),
+            lbp.initialPriceX96,
+            "the raise never buys more than the sale allocation at the final price"
+        );
         uint160 expectedSqrtPrice =
-            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, stockIsCurrency0));
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0));
         assertEq(record.finalSqrtPriceX96, expectedSqrtPrice);
-        assertEq(_sqrtPrice(l), expectedSqrtPrice, "pool at raise / sale allocation");
+        assertEq(_sqrtPrice(l), expectedSqrtPrice, "pool at the final clearing price");
         assertGt(IPoolManager(address(poolManager)).getLiquidity(PoolId.wrap(poolId)), 0, "live liquidity");
 
-        _assertLockedPosition(record, nextTokenId, _newCrumbs(l));
-        assertEq(positionManager.nextTokenId(), nextTokenId + 1, "exactly one position minted");
+        _assertLockedPositions(l, record, nextTokenId, _newCrumbs(l));
         assertEq(
             MockERC20(l.stock).balanceOf(address(positionManager)), pmStockBefore, "PositionManager STOCK unchanged"
         );
@@ -310,19 +319,26 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
             "auction keeps only the bidders' refundable remainder"
         );
 
-        // NEW: the auction keeps what it sold for its bids, the pool takes the reserve, and the
-        // launchpad retires the rest: the auction's unsold rounding and the reserve the position did
-        // not pair. The three reconcile exactly and the launchpad keeps nothing.
+        // NEW: the auction keeps what it sold for its bids, the two positions take the reserve, the
+        // launchpad keeps the vesting and retires the rest: the auction's unsold rounding and the
+        // positions' rounding. They reconcile exactly.
         uint256 ccaNewAfter = UERC20(l.newToken).balanceOf(address(cca));
         uint256 swept = ccaNewBefore - ccaNewAfter;
+        uint256 newPlaced = uint256(record.lpNewUsed) + record.newOnlyUsed;
         assertGe(ccaNewAfter, lbp.tokensSold, "the auction keeps the claimable NEW");
-        assertEq(record.retiredNew, swept + StocksPreset.MIGRATION_RESERVE - record.lpNewUsed, "what was left over");
+        assertEq(record.retiredNew, swept + StocksPreset.MIGRATION_RESERVE - newPlaced, "what was left over");
         assertEq(
-            ccaNewAfter + record.lpNewUsed + record.retiredNew, StocksPreset.INITIAL_SUPPLY, "the supply reconciles"
+            ccaNewAfter + newPlaced + record.retiredNew + StocksPreset.CREATOR_VESTING,
+            StocksPreset.INITIAL_SUPPLY,
+            "the supply reconciles"
         );
         assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
         assertEq(UERC20(l.newToken).balanceOf(StocksBindings.DEAD_ADDRESS), record.retiredNew, "at the dead address");
-        assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), 0, "the launchpad keeps no NEW");
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(launchpad)),
+            StocksPreset.CREATOR_VESTING,
+            "the launchpad keeps only the vesting"
+        );
 
         // The hook knows the pool, and the launch has its own fresh splitter.
         StocksFeeHookV1.PoolRecord memory pool = hook.pool(poolId);
@@ -339,13 +355,17 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         created.initialize(l.newToken, l.stock);
     }
 
-    /// @dev The one locked position: full range, in the official pool, owned by and registered in the
-    ///      locker.
-    function _assertLockedPosition(IStocksLaunchpadV2.Launch memory record, uint256 nextTokenId, uint256 crumbs)
-        private
-        view
-    {
-        assertEq(record.lpTokenId, nextTokenId, "the position is this graduation's mint");
+    /// @dev The locked positions, both in the official pool, owned by and registered in the locker: the
+    ///      full range, and the NEW-only position wholly on NEW's side of the opening price. Together
+    ///      they take the whole reserve but for crumbs. The NEW-only position is missing only when the
+    ///      reserve the full range left was below one unit of liquidity.
+    function _assertLockedPositions(
+        Launched memory l,
+        IStocksLaunchpadV2.Launch memory record,
+        uint256 nextTokenId,
+        uint256 crumbs
+    ) private view {
+        assertEq(record.lpTokenId, nextTokenId, "the full range is this graduation's first mint");
         assertEq(IERC721(address(positionManager)).ownerOf(record.lpTokenId), address(locker), "owned by the locker");
         assertEq(locker.splitterOf(record.lpTokenId), record.splitter, "registered with the launch's splitter");
         (PoolKey memory key, PositionInfo info) = positionManager.getPoolAndPositionInfo(record.lpTokenId);
@@ -353,7 +373,57 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         assertEq(info.tickLower(), TickMath.minUsableTick(StocksPreset.POOL_TICK_SPACING));
         assertEq(info.tickUpper(), TickMath.maxUsableTick(StocksPreset.POOL_TICK_SPACING));
         assertGt(positionManager.getPositionLiquidity(record.lpTokenId), 0);
-        assertApproxEqAbs(record.lpNewUsed, StocksPreset.MIGRATION_RESERVE, crumbs, "the whole reserve is paired");
+        assertApproxEqAbs(
+            uint256(record.lpNewUsed) + record.newOnlyUsed,
+            StocksPreset.MIGRATION_RESERVE,
+            crumbs,
+            "the whole reserve is placed"
+        );
+
+        if (record.newOnlyTokenId == 0) {
+            assertEq(record.newOnlyUsed, 0, "no NEW-only position, no NEW placed in one");
+            assertLe(StocksPreset.MIGRATION_RESERVE - record.lpNewUsed, crumbs, "the full range took the reserve");
+            assertEq(positionManager.nextTokenId(), nextTokenId + 1, "exactly one position minted");
+            return;
+        }
+        assertEq(record.newOnlyTokenId, nextTokenId + 1, "the NEW-only position is the second mint");
+        assertEq(positionManager.nextTokenId(), nextTokenId + 2, "exactly two positions minted");
+        assertEq(
+            IERC721(address(positionManager)).ownerOf(record.newOnlyTokenId), address(locker), "owned by the locker"
+        );
+        assertEq(locker.splitterOf(record.newOnlyTokenId), record.splitter, "registered with the launch's splitter");
+        (key, info) = positionManager.getPoolAndPositionInfo(record.newOnlyTokenId);
+        assertEq(PoolId.unwrap(key.toId()), record.poolId);
+        assertGt(positionManager.getPositionLiquidity(record.newOnlyTokenId), 0);
+        // The far bound is as far as the pinned planner's offset reaches: 887,272 ticks from the opening
+        // tick, or the usable edge when that is nearer.
+        (, int24 tick,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(record.poolId));
+        int24 spacing = StocksPreset.POOL_TICK_SPACING;
+        int256 minUsable = TickMath.minUsableTick(spacing);
+        int256 maxUsable = TickMath.maxUsableTick(spacing);
+        if (_stockIsCurrency0(l)) {
+            // NEW is currency1: its side of the book is at and below the opening tick.
+            int256 reach = int256(tick) + TickMath.MIN_TICK;
+            assertEq(info.tickLower(), _snapDown(reach < minUsable ? minUsable : reach, spacing), "as far as reaches");
+            assertLe(info.tickUpper(), tick, "wholly below the opening price");
+        } else {
+            // NEW is currency0: its side of the book is above the opening tick.
+            int256 reach = int256(tick) + TickMath.MAX_TICK;
+            assertGt(info.tickLower(), tick, "wholly above the opening price");
+            assertEq(info.tickUpper(), _snapUp(reach > maxUsable ? maxUsable : reach, spacing), "as far as reaches");
+        }
+    }
+
+    function _snapDown(int256 t, int24 spacing) private pure returns (int24) {
+        int256 compressed = t / spacing;
+        if (t < 0 && t % spacing != 0) compressed--;
+        return int24(compressed * spacing);
+    }
+
+    function _snapUp(int256 t, int24 spacing) private pure returns (int24) {
+        int256 compressed = t / spacing;
+        if (t > 0 && t % spacing != 0) compressed++;
+        return int24(compressed * spacing);
     }
 
     /// @dev Exit one bid at the auction and claim its NEW. Returns the NEW the auction paid it.
@@ -372,14 +442,16 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     }
 
     /// @dev Once every bid has exited and claimed: the bids received the whole sale allocation but for
-    ///      crumbs, and the auction, the pool, the dead address and the bids hold the whole supply.
+    ///      crumbs, and the auction, the two positions, the dead address, the vesting and the bids hold
+    ///      the whole supply.
     function _assertWholeAllocationSold(Launched memory l, uint256 received) private view {
         IStocksLaunchpadV2.Launch memory record = _record(l);
         assertLe(received, StocksPreset.AUCTION_INVENTORY, "never more than the sale allocation");
         assertGe(received, StocksPreset.AUCTION_INVENTORY - _newCrumbs(l), "the whole sale allocation, but for crumbs");
         assertLe(record.retiredNew, _newCrumbs(l), "only crumbs are retired");
         assertEq(
-            received + UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.retiredNew,
+            received + UERC20(l.newToken).balanceOf(address(l.auction)) + record.lpNewUsed + record.newOnlyUsed
+                + record.retiredNew + StocksPreset.CREATOR_VESTING,
             StocksPreset.INITIAL_SUPPLY,
             "the supply reconciles"
         );
@@ -389,9 +461,8 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     ///      allocation the bids' claims may fall and how much NEW graduation may retire. Both come from
     ///      prices kept to one Q96 unit and never below the floor: the auction's clearing price sets how
     ///      much NEW the bids' STOCK buys, leaving the unsold rounding, and the pool price sets how much
-    ///      of the reserve the position pairs. So the supply divided by the floor price in Q96 bounds
-    ///      them together: about 1.26e16 (0.0126 NEW) at the fixture's floor, where the largest observed is
-    ///      about 2.36e15.
+    ///      of the reserve the positions take. So the supply divided by the floor price in Q96 bounds
+    ///      them together: about 2.33e17 (0.23 NEW) at the floor.
     function _newCrumbs(Launched memory l) private view returns (uint256) {
         return StocksPreset.INITIAL_SUPPLY / l.auction.floorPrice();
     }
@@ -434,7 +505,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         launchpad.migrate(l.launchId);
         IStocksLaunchpadV2.Launch memory record = _record(l);
         bytes32 topic = keccak256(
-            "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint256)"
+            "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint128,uint256,uint256,uint256)"
         );
         bool found;
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -449,15 +520,22 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
                     uint256 lpTokenId,
                     uint128 lpStockUsed,
                     uint128 lpNewUsed,
+                    uint256 newOnlyTokenId,
+                    uint128 newOnlyUsed,
                     uint256 stockRaised,
                     uint256 stockDust,
                     uint256 unsoldNewRetired
-                ) = abi.decode(logs[i].data, (bytes32, uint160, uint256, uint128, uint128, uint256, uint256, uint256));
+                ) = abi.decode(
+                    logs[i].data,
+                    (bytes32, uint160, uint256, uint128, uint128, uint256, uint128, uint256, uint256, uint256)
+                );
                 assertEq(poolId, record.poolId);
                 assertEq(sqrtPriceX96, record.finalSqrtPriceX96);
                 assertEq(lpTokenId, record.lpTokenId);
                 assertEq(lpStockUsed, record.lpStockUsed);
                 assertEq(lpNewUsed, record.lpNewUsed);
+                assertEq(newOnlyTokenId, record.newOnlyTokenId);
+                assertEq(newOnlyUsed, record.newOnlyUsed);
                 assertEq(stockRaised, l.auction.lbpInitializationParams().currencyRaised);
                 assertEq(uint256(lpStockUsed) + stockDust, stockRaised);
                 assertEq(unsoldNewRetired, record.retiredNew);
@@ -467,10 +545,53 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     }
 
     // -------------------------------------------------------------------------
+    // the launcher's vesting
+    // -------------------------------------------------------------------------
+
+    /// @dev Linear per block from the graduation block, whole after thirty days, paid only to the
+    ///      launcher whoever calls, never more than the 1%, and nothing before graduation.
+    function test_creator_vesting_releases_linearly_to_the_launcher_only() public {
+        Launched memory l = _launch(STOCK_LOW);
+        vm.expectRevert(
+            abi.encodeWithSelector(StocksLaunchpadV2.LaunchNotGraduated.selector, IStocksLaunchpadV2.Lifecycle.Active)
+        );
+        launchpad.releaseCreatorVesting(l.launchId);
+
+        _graduate(l, 1_000e8);
+        UERC20 token = UERC20(l.newToken);
+        uint256 start = _record(l).vestingStartBlock;
+        assertEq(launchpad.creatorReleasable(l.launchId), 0, "nothing vests in the graduation block");
+        assertEq(launchpad.releaseCreatorVesting(l.launchId), 0, "an early release pays nothing");
+
+        uint256 quarter = StocksPreset.CREATOR_VESTING_BLOCKS / 4;
+        vm.roll(start + quarter);
+        uint256 expected = uint256(StocksPreset.CREATOR_VESTING) * quarter / StocksPreset.CREATOR_VESTING_BLOCKS;
+        assertEq(launchpad.creatorReleasable(l.launchId), expected, "a quarter after a quarter of the term");
+        vm.expectEmit(true, true, false, true, address(launchpad));
+        emit IStocksLaunchpadV2.CreatorVestingReleased(l.launchId, launcher, expected);
+        vm.prank(outsider);
+        assertEq(launchpad.releaseCreatorVesting(l.launchId), expected);
+        assertEq(token.balanceOf(launcher), expected, "paid to the launcher, not the caller");
+        assertEq(token.balanceOf(outsider), 0);
+        assertEq(launchpad.releaseCreatorVesting(l.launchId), 0, "a second release in the same block pays nothing");
+
+        vm.roll(start + StocksPreset.CREATOR_VESTING_BLOCKS * 3);
+        assertEq(
+            launchpad.releaseCreatorVesting(l.launchId),
+            StocksPreset.CREATOR_VESTING - expected,
+            "the rest after the term"
+        );
+        assertEq(token.balanceOf(launcher), StocksPreset.CREATOR_VESTING, "exactly the 1%");
+        assertEq(_record(l).creatorReleased, StocksPreset.CREATOR_VESTING);
+        assertEq(token.balanceOf(address(launchpad)), 0, "the launchpad keeps no NEW");
+        assertEq(launchpad.releaseCreatorVesting(l.launchId), 0, "nothing more ever");
+    }
+
+    // -------------------------------------------------------------------------
     // failure
     // -------------------------------------------------------------------------
 
-    function test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca() public {
+    function test_failed_minimum_retires_inventory_reserve_and_vesting_and_refunds_through_the_cca() public {
         Launched memory l = _launch(STOCK_LOW);
         _rollToStart(l);
         uint128 bidAmount = REQUIRED_RAISE - 1; // one base unit below the required raise
@@ -486,12 +607,17 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
 
         IStocksLaunchpadV2.Launch memory record = _record(l);
         assertEq(uint8(record.lifecycle), uint8(IStocksLaunchpadV2.Lifecycle.Failed));
-        assertEq(record.retiredNew, StocksPreset.INITIAL_SUPPLY, "inventory + reserve retired");
+        assertEq(record.retiredNew, StocksPreset.INITIAL_SUPPLY, "inventory + reserve + vesting retired");
         assertEq(UERC20(l.newToken).balanceOf(StocksBindings.DEAD_ADDRESS) - deadBefore, StocksPreset.INITIAL_SUPPLY);
         assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), 0);
         assertEq(UERC20(l.newToken).balanceOf(address(l.auction)), 0);
         assertEq(record.poolId, bytes32(0), "no pool");
         assertEq(record.lpTokenId, 0, "no position");
+        assertEq(launchpad.creatorReleasable(l.launchId), 0, "nothing vests");
+        vm.expectRevert(
+            abi.encodeWithSelector(StocksLaunchpadV2.LaunchNotGraduated.selector, IStocksLaunchpadV2.Lifecycle.Failed)
+        );
+        launchpad.releaseCreatorVesting(l.launchId);
 
         // Bidder STOCK never moved through this component; the CCA refunds it in full.
         assertEq(FixtureStockToken(l.stock).balanceOf(address(launchpad)), 0);
@@ -552,30 +678,44 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         poolManager.initialize(key, TickMath.getSqrtPriceAtTick(0));
     }
 
-    function test_no_principal_path_exists_for_the_locked_position() public {
+    function test_no_principal_path_exists_for_the_locked_positions() public {
+        // An early bid buys at a lower price than the later demand sets, so the raise pairs less than
+        // the whole reserve at the final price and the NEW-only position is minted.
         Launched memory l = _launch(STOCK_LOW);
-        _graduate(l, 1_000e8);
-        uint256 tokenId = _record(l).lpTokenId;
+        _rollToStart(l);
+        _bidDirect(l, bidder, REQUIRED_RAISE, _bidPrice(GRADUATING_TICKS));
+        vm.roll(l.auction.startBlock() + 10_000);
+        _bidDirect(l, outsider, 1_000e8, _bidPrice(GRADUATING_TICKS));
+        _rollToMigration(l);
+        launchpad.migrate(l.launchId);
+        uint256[2] memory tokenIds = [_record(l).lpTokenId, _record(l).newOnlyTokenId];
+        assertNotEq(tokenIds[1], 0, "the NEW-only position was minted");
 
         address[3] memory callers = [address(launchpad), governance, outsider];
         bytes memory actions = abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR));
         bytes[] memory params = new bytes[](2);
-        params[0] = abi.encode(tokenId, uint256(1), uint128(0), uint128(0), bytes(""));
         params[1] = abi.encode(_poolKey(l).currency0, _poolKey(l).currency1, address(this));
-        for (uint256 i; i < callers.length; ++i) {
-            vm.expectRevert();
-            vm.prank(callers[i]);
-            positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp);
+        for (uint256 t; t < tokenIds.length; ++t) {
+            params[0] = abi.encode(tokenIds[t], uint256(1), uint128(0), uint128(0), bytes(""));
+            for (uint256 i; i < callers.length; ++i) {
+                vm.expectRevert();
+                vm.prank(callers[i]);
+                positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp);
+            }
         }
     }
 
     function test_launchpad_never_exposes_a_token_or_stock_withdrawal() public {
         // The launchpad's whole external surface is the interface; there is no transfer, sweep, rescue
-        // or approve of NEW or STOCK. Graduation leaves it holding neither.
+        // or approve of NEW or STOCK, and the vesting only ever pays the launcher. Graduation leaves it
+        // holding only the vesting and no STOCK.
         Launched memory l = _launch(STOCK_LOW);
-        assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), StocksPreset.MIGRATION_RESERVE);
+        assertEq(
+            UERC20(l.newToken).balanceOf(address(launchpad)),
+            uint256(StocksPreset.MIGRATION_RESERVE) + StocksPreset.CREATOR_VESTING
+        );
         _graduate(l, 1_000e8);
-        assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), 0);
+        assertEq(UERC20(l.newToken).balanceOf(address(launchpad)), StocksPreset.CREATOR_VESTING);
         assertEq(FixtureStockToken(l.stock).balanceOf(address(launchpad)), 0);
     }
 }

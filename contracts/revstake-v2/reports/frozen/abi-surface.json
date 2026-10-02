@@ -344,7 +344,6 @@
         "0x3bc340c2 launchesPaused()",
         "0x4861cf83 SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
         "0x4e894821 UERC20_FACTORY_RUNTIME_CODE_HASH()",
-        "0x53cb738a launch((string,string,string,string,string,address,uint256,uint128))",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x5ab3c139 launchIdOfPaymentReceiver(address)",
         "0x5af02677 unpauseLaunches()",
@@ -359,6 +358,7 @@
         "0x979bd9cc nextLaunchId()",
         "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
         "0xa8c62e76 strategy()",
+        "0xb7ba1ad4 launch((string,string,string,string,string,address))",
         "0xc81ea2a0 MAX_DESCRIPTION_BYTES()",
         "0xca2afc6c launchIdOfSubject(address)",
         "0xe79b502e pauseLaunches()",
@@ -366,10 +366,10 @@
         "0xf1bf1b45 MAX_WEBSITE_BYTES()"
       ],
       "mutating_functions": [
-        "0x53cb738a launch((string,string,string,string,string,address,uint256,uint128))",
         "0x5af02677 unpauseLaunches()",
         "0x77f2b0c7 registerCanonicalPaymentReceiver(address)",
         "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
+        "0xb7ba1ad4 launch((string,string,string,string,string,address))",
         "0xe79b502e pauseLaunches()"
       ],
       "view_functions": [
@@ -396,10 +396,10 @@
         "0xf1bf1b45 MAX_WEBSITE_BYTES()"
       ],
       "events": [
-        "0x03b8e7e24c72d48c2e84e289badf2b06c6110f781ed91973fbee4f42b14d5d12 LaunchCreated(uint256,address,address,address,address,address,uint256,uint128,uint64,uint64) indexed=3",
         "0x07b3e48e8c6545581bdbef8629eb988aa7dcb66c8a7152384af19096cf2b4d1d LaunchesPaused() indexed=0",
         "0x07ec20fda323d7aad667bc196c6195b67fa0027c76058fe6d9fb0ffa94f1719a LaunchesUnpaused() indexed=0",
-        "0x2d6582e82dfaee6ad7ac4835d63119ce985332ceedd38d6187674eabc44fe857 PaymentReceiverCreated(uint256,address,address,address,uint16) indexed=3"
+        "0x2d6582e82dfaee6ad7ac4835d63119ce985332ceedd38d6187674eabc44fe857 PaymentReceiverCreated(uint256,address,address,address,uint16) indexed=3",
+        "0x98bf615dd919b6d317dc5bb1beac4c0f8b834256c7076d92cabb8a7e32136ce8 LaunchCreated(uint256,address,address,address,address,address,uint64,uint64) indexed=3"
       ],
       "event_fields": {
         "LaunchCreated": [
@@ -409,8 +409,6 @@
           "address auction",
           "address escrow",
           "address treasury",
-          "uint256 floorPriceQ96",
-          "uint128 requiredRegentRaised",
           "uint64 startBlock",
           "uint64 endBlock"
         ],
@@ -449,9 +447,7 @@
           "string description",
           "string website",
           "string image",
-          "address treasury",
-          "uint256 floorPriceQ96",
-          "uint128 minimumRegentRaised"
+          "address treasury"
         ]
       },
       "return_structs": {
@@ -475,70 +471,68 @@
       "functions": [
         "0x03fc2013 lpLocker()",
         "0x0e0651f3 escrowCloneCodehash()",
-        "0x0ef1397d maxReachableRaiseFor(uint256)",
         "0x10202c54 bindHook(address)",
         "0x112e335c receiverImplementation()",
+        "0x14ec99b0 FLOOR_PRICE_Q96()",
         "0x48bd92bb START_DELAY_BLOCKS()",
         "0x4a9923ac CLAIM_DELAY_BLOCKS()",
         "0x4ca8ff5a escrowImplementation()",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x56586874 AUCTION_DURATION_BLOCKS()",
-        "0x6649e11a initializeDistribution((uint256,address,uint256,uint128))",
-        "0x6f77cc21 BID_TICK_DIVISOR()",
-        "0x711d8db3 requiredRegentRaisedFor(uint256,uint128)",
         "0x7381527f POOL_TICK_SPACING()",
         "0x7b5c7f03 RESERVE_ALLOCATION()",
         "0x7f5a7c7b hook()",
         "0x80ff9c38 AUCTION_ALLOCATION()",
         "0x8652edf9 poolKeyOf(address)",
-        "0x9e82ecfc bidTickSpacingFor(uint256)",
+        "0x8a7cefa7 initializeDistribution((uint256,address))",
         "0xbad6a39e auctionOfSubject(address)",
         "0xbfd822e1 MIGRATION_DELAY_BLOCKS()",
         "0xc2db09c1 distribution(address)",
         "0xc45a0155 factory()",
         "0xce5494bb migrate(address)",
+        "0xcfc7e1db REQUIRED_REGENT_RAISED()",
         "0xdb46bf59 AUCTION_STEPS()",
         "0xdd1b9c4a POOL_FEE()",
         "0xe63db9b2 splitterImplementation()",
-        "0xebd6c243 PENDING_ALLOCATION()"
+        "0xebd6c243 PENDING_ALLOCATION()",
+        "0xf54c506c BID_TICK_SPACING_Q96()"
       ],
       "mutating_functions": [
         "0x10202c54 bindHook(address)",
-        "0x6649e11a initializeDistribution((uint256,address,uint256,uint128))",
+        "0x8a7cefa7 initializeDistribution((uint256,address))",
         "0xce5494bb migrate(address)"
       ],
       "view_functions": [
         "0x03fc2013 lpLocker()",
         "0x0e0651f3 escrowCloneCodehash()",
-        "0x0ef1397d maxReachableRaiseFor(uint256)",
         "0x112e335c receiverImplementation()",
+        "0x14ec99b0 FLOOR_PRICE_Q96()",
         "0x48bd92bb START_DELAY_BLOCKS()",
         "0x4a9923ac CLAIM_DELAY_BLOCKS()",
         "0x4ca8ff5a escrowImplementation()",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x56586874 AUCTION_DURATION_BLOCKS()",
-        "0x6f77cc21 BID_TICK_DIVISOR()",
-        "0x711d8db3 requiredRegentRaisedFor(uint256,uint128)",
         "0x7381527f POOL_TICK_SPACING()",
         "0x7b5c7f03 RESERVE_ALLOCATION()",
         "0x7f5a7c7b hook()",
         "0x80ff9c38 AUCTION_ALLOCATION()",
         "0x8652edf9 poolKeyOf(address)",
-        "0x9e82ecfc bidTickSpacingFor(uint256)",
         "0xbad6a39e auctionOfSubject(address)",
         "0xbfd822e1 MIGRATION_DELAY_BLOCKS()",
         "0xc2db09c1 distribution(address)",
         "0xc45a0155 factory()",
+        "0xcfc7e1db REQUIRED_REGENT_RAISED()",
         "0xdb46bf59 AUCTION_STEPS()",
         "0xdd1b9c4a POOL_FEE()",
         "0xe63db9b2 splitterImplementation()",
-        "0xebd6c243 PENDING_ALLOCATION()"
+        "0xebd6c243 PENDING_ALLOCATION()",
+        "0xf54c506c BID_TICK_SPACING_Q96()"
       ],
       "events": [
         "0x22a226df6ec984fbff8a5635682b83b8c0c5ef200e674e367f1f60220854426b LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128) indexed=3",
         "0x3ffca04b410a3e894f1a96e386c5d29bfb1b8d48859f387f78e0297c9bb9fd5e HookBound(address) indexed=1",
         "0x7a1ee17eb6872fdd7f530ae8b8b7cd6159f7e08cc0dfb63afd46721508bc6d09 LaunchSettled(address,uint256,uint256,uint256) indexed=1",
-        "0xa767998b8ae499d01107314dc284a97faaabff67936241ddc51c2e003e375a7b DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint128) indexed=3",
+        "0xc97934148a1d4c8bf3552966851bf841100ea06dce9fbc508fc933d24660e3ef DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128) indexed=3",
         "0xf959e469f4721f504ad67a8ba60bc852cd0ec7e23b703384bd9db9b3e9e1288c LaunchRetired(address,address,uint256) indexed=2"
       ],
       "event_fields": {
@@ -550,8 +544,6 @@
           "address treasury",
           "uint64 startBlock",
           "uint64 endBlock",
-          "uint256 floorPriceQ96",
-          "uint128 requiredRegentRaised",
           "uint128 reserve"
         ],
         "HookBound": [
@@ -585,7 +577,6 @@
         "0x1bd28bc7 CurrencyRaisedMismatch(uint256,uint256)",
         "0x1bd658b6 ProtocolFeeControllerNotZero(address)",
         "0x2007aa4c SelfAddress()",
-        "0x27a9468c FloorPriceTooLow(uint256)",
         "0x41637616 HookHasNoCode(address)",
         "0x523b6596 EscrowNotPending()",
         "0x536acae5 EscrowCustodyMismatch(uint256)",
@@ -595,14 +586,11 @@
         "0x87ebe85d PriceTooHigh(uint256,uint256)",
         "0x8d7fc6f2 EscrowStrategyMismatch(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
-        "0x962d77b1 UnreachableRequiredRaise(uint128)",
         "0x98e8cdf6 HookNotBound()",
         "0x9e172b1d ImplementationHasNoCode(address)",
         "0xa30fa418 RefusedTreasury(address)",
         "0xab143c06 Reentrancy()",
         "0xb550282e NotFactory(address)",
-        "0xb72f4bb9 TickSpacingTooSmall(uint256)",
-        "0xc500eb86 FloorPriceNotOnGrid(uint256)",
         "0xc6ab8458 MigrationNotYetAllowed(uint64,uint256)",
         "0xd020a6e4 LaunchNotActive(uint8)",
         "0xd0f2fc46 AuctionHasNoCode(address)",
@@ -617,9 +605,7 @@
       "input_structs": {
         "initializeDistribution_params": [
           "uint256 launchId",
-          "address escrow",
-          "uint256 floorPriceQ96",
-          "uint128 minimumRegentRaised"
+          "address escrow"
         ]
       },
       "return_structs": {
@@ -629,12 +615,10 @@
           "uint64 endBlock",
           "uint64 claimBlock",
           "uint64 migrationBlock",
-          "uint128 requiredRegentRaised",
           "uint128 reserve",
           "uint128 lpRegentUsed",
           "uint128 lpSubjectUsed",
           "uint160 finalSqrtPriceX96",
-          "uint256 floorPriceQ96",
           "uint256 launchId",
           "address subject",
           "address escrow",

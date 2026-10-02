@@ -11,13 +11,15 @@ import {RobinhoodFeeHookV1} from "./RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "./RobinhoodLaunchpadBase.sol";
 
 /// @title RobinhoodStocksLaunchpadV2
-/// @notice The Base Stocks launchpad's rules on the Robinhood chain, with USDG as the dollar: half of a
-///         NEW's supply is sold for an admitted STOCK and half is the reserve. The required raise is
-///         the whole sale allocation at the floor price, rounded up. Graduation creates the launch's
-///         own memestock splitter, opens the pool at the raise divided by the sale allocation, locks
-///         one full-range position of the whole reserve and the whole raise in the fee-only locker,
-///         credits the rounding remainder to the pool's protocol lane and retires the NEW left over.
-///         There is no launch fee and no governance minimum raise.
+/// @notice The Base Stocks launchpad's rules on the Robinhood chain, with USDG as the dollar: 49.5% of
+///         a NEW's supply is sold for an admitted STOCK, 49.5% is the reserve and 1% vests to the
+///         launcher over 30 days from graduation. Every auction opens at the one fixed floor and the
+///         required raise is the whole sale allocation at it, rounded up. Graduation creates the
+///         launch's own memestock splitter, opens the pool at the final clearing price, locks a
+///         full-range position of the whole raise and a NEW-only position of the reserve it left in the
+///         fee-only locker, credits the rounding remainder to the pool's protocol lane, starts the
+///         vesting and retires the NEW left over. There is no launch fee and no governance minimum
+///         raise.
 /// @dev No launch has an administrator. All three hook lanes are always on; the splitter, created by
 ///      this contract at graduation, and the launcher are their only configuration.
 contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksLaunchpadV2 {
@@ -61,10 +63,9 @@ contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksL
             auction,
             record.startBlock,
             record.endBlock,
-            params.core.floorPriceQ96,
-            record.requiredRaise,
             StocksPreset.AUCTION_INVENTORY,
-            StocksPreset.MIGRATION_RESERVE
+            StocksPreset.MIGRATION_RESERVE,
+            StocksPreset.CREATOR_VESTING
         );
     }
 
@@ -111,11 +112,6 @@ contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         return (admission.admitted, admission.decimals, admission.route);
     }
 
-    /// @inheritdoc IRobinhoodStocksLaunchpadV2
-    function requiredStockRaisedFor(uint256 floorPriceQ96) external pure override returns (uint128) {
-        return _requiredRaiseFor(floorPriceQ96);
-    }
-
     // -------------------------------------------------------------------------
     // launch internals
     // -------------------------------------------------------------------------
@@ -124,7 +120,8 @@ contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         return Terms({
             totalSupply: StocksPreset.INITIAL_SUPPLY,
             auctionInventory: StocksPreset.AUCTION_INVENTORY,
-            migrationReserve: StocksPreset.MIGRATION_RESERVE
+            migrationReserve: StocksPreset.MIGRATION_RESERVE,
+            creatorVesting: StocksPreset.CREATOR_VESTING
         });
     }
 
@@ -151,6 +148,8 @@ contract RobinhoodStocksLaunchpadV2 is RobinhoodLaunchpadBase, IRobinhoodStocksL
             record.lpTokenId,
             record.lpCurrencyUsed,
             record.lpNewUsed,
+            record.newOnlyTokenId,
+            record.newOnlyUsed,
             raised,
             stockDust,
             record.retiredNew

@@ -14,7 +14,7 @@ import {LifecycleHandler} from "./handlers/LifecycleHandler.sol";
 /// @dev Each model answers a different question and none of them is a restatement of another.
 ///
 ///      `INV-001` is *supply*: every unit of a launch's SUBJECT is somewhere reachable, always.
-///      `INV-006` is *one launch's reserve and leftover*: this launch's 15% and unsold sale allocation
+///      `INV-006` is *one launch's reserve and leftover*: this launch's 10% and unsold sale allocation
 ///      against this launch's own destinations.
 ///      `INV-007` is *lifecycle*: exactly one state, terminal once reached, escrow agreeing.
 ///      `INV-009` is *isolation across launches*: no launch's reserve is credited to, consumed by, or
@@ -40,18 +40,15 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
     function setUp() public {
         _deployAutolaunch();
 
-        // Three launches created in the same block, on both sides of REGENT, at launcher minimums
-        // spanning the admitted interval: one that needs real demand, one at the floor minimum
-        // that two of the handler's largest bids meet, and one at the admitted maximum that no
-        // reachable bid sequence in this portfolio can meet.
-        uint128[LAUNCHES] memory raises = [3 * FLOOR_RAISE, 0, uint128(strategy.maxReachableRaiseFor(DEFAULT_TICK_Q96))];
+        // Three launches created in the same block, on both sides of REGENT, all at the one fixed
+        // required raise, which two of the handler's largest bids meet.
         bool[LAUNCHES] memory below = [true, false, true];
 
         address[LAUNCHES] memory auctions;
         address[LAUNCHES] memory subjects;
         address[LAUNCHES] memory escrows;
         for (uint256 i; i < LAUNCHES; ++i) {
-            launches[i] = _launchSorted(below[i], _paramsWithRaise(raises[i]));
+            launches[i] = _launchSorted(below[i], _params());
             auctions[i] = address(launches[i].auction);
             subjects[i] = address(launches[i].subject);
             escrows[i] = address(launches[i].escrow);
@@ -125,7 +122,7 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
     // INV-006 — one launch's reserve
     // -------------------------------------------------------------------------
 
-    /// @notice `INV-006`: while a launch is active the strategy custodies exactly its 15% reserve;
+    /// @notice `INV-006`: while a launch is active the strategy custodies exactly its 10% reserve;
     ///         graduation sends this launch's own escrow exactly the unpaired reserve plus the
     ///         auction's unsold remainder plus the gifts it absorbed, keeps none of it, and the unsold
     ///         remainder is never more than crumbs; after failure the reserve and the sale allocation
@@ -138,7 +135,7 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
             UERC20 subject = launches[i].subject;
             RegentLBPStrategyV2.Distribution memory d = strategy.distribution(address(launches[i].auction));
 
-            assertEq(uint256(d.reserve), RESERVE_ALLOCATION, "the recorded reserve is not the fixed 15%");
+            assertEq(uint256(d.reserve), RESERVE_ALLOCATION, "the recorded reserve is not the fixed 10%");
 
             // Whatever the strategy holds of this SUBJECT, minus explained gifts, is this launch's.
             uint256 attributable = subject.balanceOf(address(strategy)) - handler.strategySubjectGifts(i);
@@ -160,7 +157,7 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
                     "the measured LP consumption is not the recorded one"
                 );
 
-                // The whole equation: every unit of the 15% either funded the full-range position or
+                // The whole equation: every unit of the 10% either funded the full-range position or
                 // went to the escrow, with the auction's unsold remainder and the absorbed gifts.
                 assertEq(
                     handler.graduationSentToEscrow(i),
@@ -342,15 +339,5 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
         // A gift never blocks a flow: launches that have not reached a terminal state can still be
         // migrated, and those that have are still exactly where their outcome put them.
         assertEq(factory.launchesPaused(), false, "the shared factory became paused");
-    }
-
-    // -------------------------------------------------------------------------
-    // helpers
-    // -------------------------------------------------------------------------
-
-    function _paramsWithRaise(uint128 minimum) private view returns (RegentsAutolaunchFactoryV2.LaunchParams memory) {
-        RegentsAutolaunchFactoryV2.LaunchParams memory params = _params();
-        params.minimumRegentRaised = minimum;
-        return params;
     }
 }

@@ -7,14 +7,17 @@ Stocks preset geometry (`autolaunch-stocks/StocksPreset.sol`), the chain-neutral
 (`autolaunch-stocks/MemestockSplitterCore.sol`), the fee-only position locker
 (`autolaunch-stocks/MemestockLPLocker.sol`) and the pinned libraries under `../stocks-v2/lib`.
 
-A launch mints a new token, **NEW**, and sells half of its supply (the sale allocation) through the
-pinned Continuous Clearing Auction for one admitted STOCK; the other half is the reserve. The launch
-graduates when the auction raises the whole sale allocation at the floor price, rounded up. At
-graduation the official NEW/STOCK pool opens at the raise divided by the sale allocation, one
-full-range position pairs the whole raise with the whole reserve and is locked forever in the
-fee-only locker, and the few units of NEW left over (the auction's rounding and any reserve the
-position could not pair) are retired to the dead address. A launch that misses the raise retires
-its reserve and unsold NEW and refunds every bidder through the auction.
+A launch mints a new token, **NEW**, and sells 49.5% of its supply (the sale allocation) through the
+pinned Continuous Clearing Auction for one admitted STOCK, at the lowest floor the auction allows;
+another 49.5% is the locked pool reserve and the last 1% vests to the launcher. The launch graduates
+when the auction raises the whole sale allocation at that floor, rounded up. At graduation the
+official NEW/STOCK pool opens at the auction's final clearing price; one full-range position pairs
+the whole raise with as much of the reserve as it takes at that price, a second position, NEW only,
+holds the rest of the reserve just past the opening price, and both are locked forever in the
+fee-only locker. The creator vesting then releases to the launcher linearly, block by block, over
+30 days, and the few units of NEW left over (the auction's and the positions' rounding) are retired
+to the dead address. A launch that misses the raise retires its reserve, its vesting and its unsold
+NEW and refunds every bidder through the auction.
 
 Official-pool trading pays the 0.30% LP fee plus three STOCK-side hook lanes, all always on: a 30 bps
 creator lane, paid as STOCK to the launcher, a 100 bps protocol lane, converted to USDG and deposited
@@ -22,8 +25,8 @@ into the inbox, and a 300 bps staker lane, deposited as STOCK into the launch's 
 fee is 4.3% of the gross STOCK-side amount, floored once; the creator and protocol lanes are each
 floored and the staker lane takes the rest (founder decision 2026-09-28). Holders stake the MEMESTOCK
 there and divide, pro rata, everything the splitter recognizes in USDG, MEMESTOCK and STOCK after a
-2% protocol share. The locked position's LP fees flow into the same splitter. No launch has a creator
-allocation, an administrator or a treasury.
+2% protocol share. The locked positions' LP fees flow into the same splitter. No launch has an
+administrator or a treasury.
 
 ## Status
 
@@ -31,10 +34,11 @@ Version 2, not deployed; version 1 stays live. Version 1 (`contracts/robinhood`)
 Robinhood Chain and Base on 23–24 September 2026 under the founder-approved packet; its addresses are
 listed in `contracts/robinhood/deployments/robinhood-mainnet/README.md` and it stays there for the
 launches made on it. Version 2 changes only the sale and graduation terms, the same ones
-`contracts/stocks-v2` changes on Base (founder decisions of 27 September 2026): half of the supply
-is sold and half pairs the raise in the pool, the required raise is the whole sale allocation at the
-floor, bidders receive the whole sale allocation, and the pool opens at the raise divided by it in
-one full-range position. The inbox, Base receiver, hook, splitter, locker, bid adapter and routes are
+`contracts/stocks-v2` changes on Base (founder decisions of 1 October 2026): 49.5% of the supply is
+sold, 49.5% is the locked pool reserve and 1% vests to the launcher over 30 days; every auction uses
+the lowest floor and the required raise is the sale allocation at that floor; bidders receive the
+whole sale allocation; and the pool opens at the final clearing price with a full-range position and
+a NEW-only position. The inbox, Base receiver, hook, splitter, locker, bid adapter and routes are
 the same source; a version 2 deployment creates new instances bound to the new launchpad. The bridge
 from the inbox to Base is chosen (Across, USDG to native Base USDC) but not built; until the Safe
 names a bridge adapter, protocol USDG stays in the inbox.
@@ -48,11 +52,11 @@ names a bridge adapter, protocol USDG stays in the inbox.
 | `RobinhoodBaseRevenueReceiverV1` | The Base-side address bridged USDC lands on. Base-Safe-attested batch attribution, permissionless deposit into live REGENT staking, surplus sweep. |
 | `RobinhoodMemestockSplitterV1` | The per-launch staking splitter (clone target) over `MemestockSplitterCore`: recognizes USDG, MEMESTOCK and STOCK; 2% protocol share of each (USDG into the inbox, tagged `robinhood-splitter`; MEMESTOCK and STOCK to the Robinhood Safe); the other 98% wholly to MEMESTOCK stakers pro rata; everything to the protocol route while nothing is staked. No owner, no parameters. |
 | `RobinhoodFeeHookV1` + `RobinhoodFeeHookFactory` | The official-pool v4 hook: three always-on STOCK-side lanes (0.3% creator, 1% protocol, 3% staker). `settleCreatorLane` (anyone) pays the whole creator lane as STOCK to the launcher; `settleProtocolLane` (executor only, admitted route, `minUsdgOut`) deposits USDG into the inbox; `settleStakerLane` (anyone) deposits the whole staker lane as STOCK into the pool's splitter. The factory holds the hook's creation code so the launchpad stays under the EIP-170 size limit. |
-| `RobinhoodLaunchpadBase` | The launch machinery: validated constructor bindings, pause governance, NEW and auction creation on the fixed Robinhood schedule with full read-back, the required raise derived from the floor, custody and migration. A launch costs nothing beyond gas. Deploys the splitter implementation and the `MemestockLPLocker` in its constructor; at graduation clones the launch's splitter, registers it with the hook, opens the pool at the raise divided by the sale allocation, mints one full-range position to the locker and registers it to that splitter. |
-| `RobinhoodStocksLaunchpadV2` | Stock-pair launches: admitted STOCK as the auction currency, the required raise the whole sale allocation at the floor in STOCK, rounded up (`requiredStockRaisedFor`); the STOCK the position could not pair goes to the hook's protocol lane. |
+| `RobinhoodLaunchpadBase` | The launch machinery: validated constructor bindings, pause governance, NEW and auction creation on the fixed Robinhood schedule at the fixed floor and required raise with full read-back, custody, migration and the creator vesting (`releaseCreatorVesting`, anyone may call, pays only the launcher). A launch costs nothing beyond gas. Deploys the splitter implementation and the `MemestockLPLocker` in its constructor; at graduation clones the launch's splitter, registers it with the hook, opens the pool at the final clearing price, mints the full-range and the NEW-only positions to the locker and registers both to that splitter. |
+| `RobinhoodStocksLaunchpadV2` | Stock-pair launches: admitted STOCK as the auction currency, the fixed floor, bid tick spacing and required raise from `StocksPreset`; the STOCK the full-range position could not pair goes to the hook's protocol lane. |
 | `RobinhoodStockBidAdapterV1` | USDG in, STOCK bid out, in one transaction, owned by the caller. |
 | `routes/UniswapV3StockRouteV1` | The production USDG <-> STOCK route, one per admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order) under the caller's minimum alone and quotes from its Chainlink feed. Holds nothing between calls. |
-| `RobinhoodPositionsLib` | Linked library carrying the full-range position planner (EIP-170). Must be deployed and linked before the launchpad. |
+| `RobinhoodPositionsLib` | Linked library carrying the full-range and NEW-only position planners (EIP-170). Must be deployed and linked before the launchpad. |
 | `fixtures/FixtureUsdgStockRoute` | Lab-only fixed-price USDG/STOCK route. Never a production binding. |
 
 [SECURITY.md](SECURITY.md) lists the money and custody rules and the test that proves each one.
@@ -123,14 +127,20 @@ decimals, matching cross-bindings). None is known at build time.
 2. `RobinhoodPositionsLib` (linked), `RobinhoodFeeHookFactory(poolManager)`.
 3. `RobinhoodStocksLaunchpadV2(bindings, hookSalt)` with a salt mined against the hook factory for the predicted launchpad address (the launchpad deploys its hook, its locker and its splitter implementation itself), then `RobinhoodStockBidAdapterV1(stocksLaunchpad, permit2)`.
 4. On Base: `RobinhoodBaseRevenueReceiverV1(usdc, liveStaking, baseSafe)`; then the Safe sets the inbox's destination and adapter.
-5. The Safe admits stocks, sets the hook executor, and unpauses the launchpad.
+5. The Safe admits stocks, sets the hook executor, and unpauses the launchpad. In the same Safe
+   transaction it sends `pauseLaunches()` to the version 1 launchpad
+   `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e` on chain 4663 (founder decision 16a,
+   30 September 2026). This is the Robinhood admin Safe, at the same address as the Base
+   Governance Safe but a separate wallet on Robinhood Chain, so it is its own transaction apart from
+   the Base batch. Pausing stops new launches only; RDOG's auction, claims, staking and fees are
+   untouched. The version 1 launchpad was open on 30 September 2026.
 
 ## Decisions recorded in this package
 
 1. Bindings are constructor immutables validated at construction; no bindings library and no hard-coded addresses.
 2. A launch costs nothing beyond gas: no fee is pulled and the launchpad never holds USDG (founder decision 2026-09-21). There is no REGENT on the Robinhood chain.
-3. Every auction opens exactly ten minutes after its creation block (6,000 Robinhood blocks); the opening block is in the launch record and the creation event. The launcher supplies only the floor price; the required raise is the whole sale allocation at the floor, rounded up, so it is never zero and an auction nobody bid in never graduates; there is no governance minimum (founder decisions 2026-09-21 and 2026-09-27).
-4. Robinhood is memestake-only (founder decision 2026-09-18): the USDG agent launch, its splitter and its vesting were removed.
+3. Every auction opens exactly ten minutes after its creation block (6,000 Robinhood blocks); the opening block is in the launch record and the creation event. The launcher supplies only the token's name, symbol and metadata; every auction uses the fixed lowest floor, and the required raise is the whole sale allocation at that floor, rounded up, so it is never zero and an auction nobody bid in never graduates; there is no governance minimum (founder decisions 2026-09-21, 2026-09-27 and 2026-10-01).
+4. Robinhood is memestake-only (founder decision 2026-09-18): the USDG agent launch and its splitter were removed. The memestake creator vesting (1%, 30 days from graduation) is the Base term scaled to Robinhood blocks (founder decision 2026-10-01).
 5. The splitter is created at graduation as a clone of an implementation the launchpad deploys in its constructor; the launch record's `splitter` is the only splitter provenance, and the hook and the locker accept a splitter only from the launchpad.
 6. There is no payment-receiver clone and no administrator: all three lanes are always on, and the splitter's `depositRecognizedRevenue` and `recognizeSurplusRevenue` are its only revenue surfaces.
 7. The protocol lane settles executor-only (it chooses an amount and a minimum price); the creator lane, the staker lane and the locker's `collect` are permissionless (they choose nothing). The splitter's 2% protocol share goes to the inbox in USDG and to the Robinhood Safe in MEMESTOCK and STOCK (founder decision 2026-09-18).
@@ -155,12 +165,12 @@ decimals, matching cross-bindings). None is known at build time.
    Both columns sum to 100% of the auction inventory over one day of clock time.
 9. USDG is assumed six-decimal and the assumption is enforced at construction of every contract that reads it.
 10. Base receiver attribution is Base-Safe-attested; the deposit itself is permissionless with a surplus sweep.
-11. The full-range position planner lives in a linked library and the hook creation code in a factory so the launchpad stays under the EIP-170 limit.
+11. The full-range and NEW-only position planners live in a linked library and the hook creation code in a factory so the launchpad stays under the EIP-170 limit.
 12. The splitter's exit rule ("nothing leaves an account in its own stake block") reads the chain's native `block.number`, which on this Arbitrum Orbit rollup is the Ethereum block the rollup last observed, while the launchpad and the auction count Robinhood blocks through `BlockNumberish`. A staker therefore waits until the next Ethereum block, about twelve seconds, before claiming or unstaking (verified read-only on chain 4663 on 21 September 2026: a contract saw block 26,027,887 while `ArbSys.arbBlockNumber()` returned 69,038,732). The founder kept the rule as is and had this documented (21 September 2026). The local lab, a plain Anvil chain, does not reproduce this.
 13. Stock routes. `UniswapV3StockRouteV1` is the production route, one per admitted stock, created by the deployment ceremony after the bid adapter and admitted by the Safe. It executes directly on the stock's Uniswap v3 USDG/STOCK pool (the Robinhood pools sort USDG and the stock either way; the route reads the order once at construction), quotes from the stock's Chainlink USD feed and refuses a quote from a feed older than seven days (the feeds hold the last close over weekends and holidays, so a shorter bound would stop every Monday morning). `swapExactIn` never reads the feed: the price control is the minimum each caller sets, and nothing in the route refuses an execution under the feed. The executor's minimum is what protects REGENT's share, so the executor key must be kept safe and sales should be split in thin markets; the website offers bidders a minimum at 95% of the Chainlink price. Every Robinhood stock has eighteen decimals; the hermetic suite, the lab and the fixtures use eighteen decimals throughout, and `RobinhoodEighteenDecimalLifecycle.t.sol` walks a whole launch through the production route in both currency orders. `test/fork/UniswapV3StockRouteFork.t.sol` bought and sold a thousand dollars of AAPL, TSLA and SNDK through the live pools on 23 September 2026 (largest shortfall against the feed: 1.28% on the thin SNDK sale) and showed a fifty-thousand-dollar SNDK purchase refused by a 95%-of-quote minimum and, at a zero minimum, executed 74% under the feed (6.86 shares delivered against 26.43 quoted).
 14. The issuer's powers over the stock tokens. The Robinhood stock tokens are the issuer's upgradeable contracts. One issuer key can replace the token code for every stock at once, pause all transfers, block any address from sending or receiving, burn any holder's balance (neither the pause nor the blocklist stops a burn), and rename a token, with no delay and no on-chain notice before it happens (verified on chain 4663 on 23 September 2026: every issuer role is held by a single externally owned key; 175 addresses are blocked, all of them wallets and none of them contracts; the global pause was used once, before launch). Any of these powers used against the launchpad, the hook, the locker, a splitter, a route or a pool would stall bids, settlements and fee collection for every market on that stock until the issuer reversed it; balances would stay where they are, a burn being the issuer's alone. The pools trade against these tokens around the clock today, and nothing in the graph can be blocked for being a contract. Accepted as a known limit (recorded 23 September 2026 on the chief engineer's instruction; the founder's own word on it is not yet on file).
 15. Thin pools. Several USDG pools are thin (SNDK, INTC and MSTR at the time of writing: more than 1% of price impact on a ten-thousand-dollar trade, and the SNDK pool cannot fill fifty thousand dollars near the feed price). Nothing in the route refuses such a fill on its own; the caller's minimum does. The executor settles the protocol lane in pieces small enough for the pool at hand rather than in one call, with a minimum chosen from the quote every time, and the website should size bids the same way.
-16. Graduation terms, version 2 (founder decisions of 27 September 2026, the same as `contracts/stocks-v2`). The supply splits 50/50 between the sale allocation and the reserve. The required raise is the sale allocation at the floor price, rounded up. The pool opens at the raise divided by the sale allocation, which is never above the auction's final clearing price, and one full-range position pairs the whole raise with the whole reserve at that price; there is no STOCK-only position. The STOCK the position cannot pair (rounding, below one part in a billion of the raise in every test) is credited to the hook's protocol lane. Because the pinned auction never lowers its clearing price and carries unsold supply forward, a graduated auction has sold the whole sale allocation to its bidders but for rounding, so bidders receive it from the auction itself. Every unit of the launch's NEW the launchpad still holds after the position is minted (the auction's unsold rounding, the reserve the position did not pair and anything sent to the launchpad) is retired to the dead address and recorded as `retiredNew`. These are crumbs: the tests hold them below the supply divided by the floor price, about 1.26 × 10^6 base units of NEW at the 18-decimal test floor, where the largest measured is about 2.7 × 10^5. The pinned auction may count a bid placed after its first block one STOCK base unit short, so a bid of exactly the minimum graduates only in the first block; the website should show the minimum plus one base unit.
+16. Graduation terms, version 2 (founder decisions of 1 October 2026, the same as `contracts/stocks-v2`). The supply splits 49.5% sale allocation, 49.5% reserve and 1% creator vesting. Every auction uses the pinned auction's lowest floor (2^32 + 1, rounded up to the 100-tick grid) and the required raise is the sale allocation at that floor, rounded up: a few hundred-billionths of a share of an 18-decimal stock, so in practice any real bid graduates. The pool opens at the auction's final clearing price. One full-range position pairs the whole raise with as much of the reserve as it takes at that price, and the rest of the reserve is a NEW-only position from just past the opening price out as far as the pinned planner reaches (887,272 ticks, or the last usable tick); both are locked in the fee-only locker. A sole bidder from the first block pays the final price throughout, so the full range takes the whole reserve and no NEW-only position is minted. The STOCK the full range cannot pair (rounding, below one part in a billion of the raise in every test) is credited to the hook's protocol lane. Because the pinned auction never lowers its clearing price and carries unsold supply forward, a graduated auction has sold the whole sale allocation to its bidders but for rounding, so bidders receive it from the auction itself. The creator vesting starts at the graduation block and releases linearly over 25,920,000 Robinhood blocks; anyone may release it and it pays only the launcher. Every other unit of the launch's NEW the launchpad still holds after graduation (the auction's unsold rounding, the positions' rounding and anything sent to the launchpad) is retired to the dead address and recorded as `retiredNew`. These are crumbs: the tests hold them below the supply divided by the floor price, about 0.23 NEW. The pinned auction may count a bid placed after its first block one STOCK base unit short, so a bid of exactly the minimum graduates only in the first block; the website should show the minimum plus one base unit.
 
 ## The local lab
 

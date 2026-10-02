@@ -39,7 +39,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         assertTrue(factory.launchesPaused(), "the factory is not paused");
 
         // 1. bidding on an existing auction
-        uint256 loserBid = _bid(loser, outsider, 100e18, _bidPrice(10));
+        uint256 loserBid = _bid(loser, outsider, FLOOR_RAISE / 2, _bidPrice(10));
         uint256 extraBid = _bid(winner, outsider, 1_000e18, _bidPrice(11));
         assertGt(extraBid, 0, "a paused factory blocked a bid");
 
@@ -60,7 +60,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         // 3. refunds from the failed auction
         vm.prank(outsider);
         loser.auction.exitBid(loserBid);
-        assertEq(regent.balanceOf(outsider), 100e18, "a paused factory blocked a refund");
+        assertEq(regent.balanceOf(outsider), FLOOR_RAISE / 2, "a paused factory blocked a refund");
 
         // 4. vesting release from the graduated escrow
         vm.warp(block.timestamp + 365 days);
@@ -90,7 +90,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         vm.roll(vm.getBlockNumber() + 1);
         vm.prank(outsider);
         splitter.claim(address(regent));
-        assertEq(regent.balanceOf(outsider), 100e18 + claimable, "a paused factory blocked a claim");
+        assertEq(regent.balanceOf(outsider), FLOOR_RAISE / 2 + claimable, "a paused factory blocked a claim");
 
         // 7. swaps through the official pool and its hook
         uint256 safeSubjectBefore = winner.subject.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);

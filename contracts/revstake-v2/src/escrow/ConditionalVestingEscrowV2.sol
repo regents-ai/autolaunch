@@ -10,7 +10,7 @@ import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 /// @title ConditionalVestingEscrowV2
-/// @notice The fixed, implementation-locked clone target that custodies one launch's pending 65%
+/// @notice The fixed, implementation-locked clone target that custodies one launch's pending 70%
 ///         SUBJECT allocation until that launch reaches exactly one terminal state.
 /// @dev Authority is three immutable-in-lifecycle bindings fixed at initialization: the launch's
 ///      SUBJECT token, the launch treasury that is the only vesting beneficiary, and the strategy
@@ -35,8 +35,8 @@ contract ConditionalVestingEscrowV2 is Initializable, ReentrancyGuard {
     /// @notice The exact SUBJECT supply a launch must present before escrow accepts custody.
     uint256 public constant TOTAL_SUPPLY = 100_000_000_000e18;
 
-    /// @notice The exact pending allocation escrow custodies, 65% of `TOTAL_SUPPLY`.
-    uint256 public constant PENDING_ALLOCATION = 65_000_000_000e18;
+    /// @notice The exact pending allocation escrow custodies, 70% of `TOTAL_SUPPLY`.
+    uint256 public constant PENDING_ALLOCATION = 70_000_000_000e18;
 
     /// @notice The exact linear vesting duration measured from the activation timestamp.
     uint256 public constant VESTING_DURATION = 365 days;
@@ -94,7 +94,7 @@ contract ConditionalVestingEscrowV2 is Initializable, ReentrancyGuard {
     }
 
     /// @notice Bind this clone to one launch and take custody of exactly `PENDING_ALLOCATION`.
-    /// @dev Runs exactly once per clone. The initializer is also the funding caller: the exact 65%
+    /// @dev Runs exactly once per clone. The initializer is also the funding caller: the exact 70%
     ///      is pulled from `msg.sender` inside this call, so a bound-but-unfunded escrow cannot
     ///      exist. `C1-I6`.
     function initialize(address subject_, address treasury_, address strategy_) external initializer {
@@ -120,7 +120,7 @@ contract ConditionalVestingEscrowV2 is Initializable, ReentrancyGuard {
 
     /// @notice Resolve this launch as economically failed and retire exactly `TOTAL_SUPPLY`.
     /// @dev The strategy, the auction's unsold-token recipient, has already swept the failed auction's
-    ///      20% and sent it here with its isolated 15% reserve when it calls this. Escrow checkpoints
+    ///      20% and sent it here with its isolated 10% reserve when it calls this. Escrow checkpoints
     ///      the named auction, proves it did not graduate, and requires its balance to be the whole
     ///      supply to the unit. A short or long inventory deliberately leaves the launch unresolved
     ///      rather than retiring a partial supply. `C1-I1`, `C1-I7`.

@@ -59,16 +59,15 @@ abstract contract AutolaunchFixture is Test {
     using StateLibrary for IPoolManager;
 
     uint256 internal constant TOTAL_SUPPLY = 100_000_000_000e18;
-    uint256 internal constant PENDING_ALLOCATION = 65_000_000_000e18;
+    uint256 internal constant PENDING_ALLOCATION = 70_000_000_000e18;
     uint256 internal constant AUCTION_ALLOCATION = 20_000_000_000e18;
-    uint256 internal constant RESERVE_ALLOCATION = 15_000_000_000e18;
-    /// @dev The Revstake default floor, 0.000001 REGENT per SUBJECT in Q96, on the 100-tick grid.
-    uint256 internal constant DEFAULT_FLOOR_Q96 = 79_228_162_514_264_337_593_500;
-    uint256 internal constant DEFAULT_TICK_Q96 = 792_281_625_142_643_375_935;
-    /// @dev The required raise at the default floor with no launcher minimum: the whole sale
-    ///      allocation at the floor, rounded up. A single bid of exactly this amount placed in the
-    ///      auction's first block is the smallest graduating bid.
-    uint128 internal constant FLOOR_RAISE = 19_999_999_999_999_999_999_989;
+    uint256 internal constant RESERVE_ALLOCATION = 10_000_000_000e18;
+    /// @dev The one fixed Revstake floor, the pinned CCA's lowest admitted price on the 100-tick grid.
+    uint256 internal constant DEFAULT_FLOOR_Q96 = 4_294_967_300;
+    uint256 internal constant DEFAULT_TICK_Q96 = 42_949_673;
+    /// @dev The required raise: the whole sale allocation at the floor, rounded up. A single bid of
+    ///      exactly this amount placed in the auction's first block is the smallest graduating bid.
+    uint128 internal constant FLOOR_RAISE = 1_084_202_174;
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -222,8 +221,7 @@ abstract contract AutolaunchFixture is Test {
     // launches
     // -------------------------------------------------------------------------
 
-    /// @notice The default launch parameters: a valid launch of every field's smallest useful shape,
-    ///         at the default floor with no launcher minimum.
+    /// @notice The default launch parameters: a valid launch of every field's smallest useful shape.
     function _params() internal view returns (RegentsAutolaunchFactoryV2.LaunchParams memory params) {
         params = RegentsAutolaunchFactoryV2.LaunchParams({
             name: "Subject One",
@@ -231,9 +229,7 @@ abstract contract AutolaunchFixture is Test {
             description: "A launch",
             website: "https://regents.sh",
             image: "ipfs://image",
-            treasury: treasury,
-            floorPriceQ96: DEFAULT_FLOOR_Q96,
-            minimumRegentRaised: 0
+            treasury: treasury
         });
     }
 

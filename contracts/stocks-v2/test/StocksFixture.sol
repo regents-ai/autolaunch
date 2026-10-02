@@ -60,17 +60,18 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     /// @dev Fixture price: 230 USDC per whole share, 8-decimal shares, 6-decimal USDC.
     uint256 internal constant USDC_PER_SHARE = 230_000000;
 
-    /// @dev A STOCK-per-NEW floor: 1e-8 share per NEW, in base units 1e8 * 1e-8 / 1e18 = 1e-18,
-    ///      times 2^96 and rounded down to the bid grid. Comfortably above `MIN_FLOOR_PRICE`.
-    uint256 internal constant FLOOR_PRICE_Q96 = 79_228_162_500;
+    /// @dev Every launch's floor (`StocksPreset.FLOOR_PRICE_Q96`).
+    uint256 internal constant FLOOR_PRICE_Q96 = StocksPreset.FLOOR_PRICE_Q96;
 
-    /// @dev The raise every fixture launch must reach: the whole sale allocation at the floor, rounded
-    ///      up (`requiredStockRaisedFor`). Exactly five shares, about 1,150 USDC at 230 USDC per share.
-    uint128 internal constant REQUIRED_RAISE = 5e8;
+    /// @dev The raise every launch must reach: the whole sale allocation at the floor, rounded up
+    ///      (`StocksPreset.REQUIRED_STOCK_RAISED`). 26,834,004 base units, about 0.27 of an 8-decimal
+    ///      share.
+    uint128 internal constant REQUIRED_RAISE = StocksPreset.REQUIRED_STOCK_RAISED;
 
-    /// @dev The price limit of a fixture bid meant to graduate: 1,001 times the floor, so any bid of up
-    ///      to about 5,000 shares clears below it, is filled in every block and exits through `exitBid`.
-    uint256 internal constant GRADUATING_TICKS = 100_000;
+    /// @dev The price limit of a fixture bid meant to graduate: 100,001 times the floor, so any bid of
+    ///      up to about 25,000 shares clears below it, is filled in every block and exits through
+    ///      `exitBid`.
+    uint256 internal constant GRADUATING_TICKS = 10_000_000;
 
     struct Launched {
         uint256 launchId;
@@ -217,8 +218,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
             description: "A stocks launch",
             website: "https://autolaunch.sh",
             image: "ipfs://image",
-            stock: stock,
-            floorPriceQ96: FLOOR_PRICE_Q96
+            stock: stock
         });
     }
 
@@ -243,7 +243,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
 
     /// @dev Pure (no external call) so it can be an argument inside an armed prank or expectRevert.
     function _bidPrice(uint256 ticksAboveFloor) internal pure returns (uint256) {
-        return FLOOR_PRICE_Q96 + ticksAboveFloor * (FLOOR_PRICE_Q96 / StocksPreset.BID_TICK_DIVISOR);
+        return FLOOR_PRICE_Q96 + ticksAboveFloor * StocksPreset.BID_TICK_SPACING_Q96;
     }
 
     /// @dev A direct bid the way a wallet places it: ERC-20 approval to Permit2, Permit2 allowance to the

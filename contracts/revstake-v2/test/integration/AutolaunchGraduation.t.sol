@@ -11,8 +11,6 @@ import {RegentLBPStrategyV2} from "../../src/strategy/RegentLBPStrategyV2.sol";
 import {LBPInitializationParams} from "liquidity-launcher/src/interfaces/ILBPInitializer.sol";
 import {TokenPricing} from "liquidity-launcher/src/libraries/TokenPricing.sol";
 import {IAuctionStorage} from "continuous-clearing-auction/interfaces/IAuctionStorage.sol";
-import {FixedPoint96} from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
-import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
@@ -75,7 +73,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     }
 
     /// @notice `MIG-002`: the official pool key and ID come from the launch's own currencies, and the
-    ///         pool opens at the raise over the whole sale allocation, in whichever order the two token
+    ///         pool opens at the auction's final clearing price, in whichever order the two token
     ///         addresses fall.
     function test_MIG_002_DerivesFinalPricePoolKeyAndPoolId() public {
         _assertPoolKeyDerivation(true);
@@ -148,8 +146,8 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     }
 
     /// @notice `MIG-005`: the raised REGENT is swept out of the auction and the pool opens at exactly
-    ///         the raise over the whole sale allocation — what the bidders paid on average for it.
-    function test_MIG_005_InitializesThePoolAtTheRaiseOverTheSaleAllocation() public {
+    ///         the auction's final clearing price.
+    function test_MIG_005_InitializesThePoolAtTheFinalClearingPrice() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduationAt(launched, 3 * FLOOR_RAISE, 500);
 
@@ -161,7 +159,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
 
         PoolKey memory key = strategy.poolKeyOf(address(launched.subject));
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == BaseBindings.REGENT;
-        uint256 priceX96 = FullMath.mulDiv(lbp.currencyRaised, FixedPoint96.Q96, AUCTION_ALLOCATION);
+        uint256 priceX96 = lbp.initialPriceX96;
         uint160 expected =
             TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, regentIsCurrency0));
 
@@ -201,7 +199,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertEq(info.tickUpper(), TickMath.maxUsableTick(60), "the position is not full range above");
     }
 
-    /// @notice `MIG-007`: the whole reserve pairs with three quarters of the raise, and the REGENT the
+    /// @notice `MIG-007`: half the raise pairs with at most the whole reserve, and the REGENT the
     ///         position did not consume goes to the launch's immutable treasury and nowhere else.
     function test_MIG_007_UnusedRegentGoesToTheImmutableTreasury() public {
         Launched memory launched = _defaultLaunch();
@@ -214,14 +212,14 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         uint256 raised = launched.auction.lbpInitializationParams().currencyRaised;
         uint256 residue = raised - d.lpRegentUsed;
 
-        assertApproxEqRel(uint256(d.lpRegentUsed), (raised * 3) / 4, 1e12, "the position did not take three quarters");
+        assertApproxEqRel(uint256(d.lpRegentUsed), raised / 2, 1e12, "the position did not take half the raise");
         assertEq(regent.balanceOf(treasury) - treasuryBefore, residue, "the treasury did not receive the residue");
         assertEq(regent.balanceOf(address(strategy)), 0, "the strategy kept REGENT");
         assertEq(regent.balanceOf(BaseBindings.POSITION_MANAGER), 0, "the PositionManager kept REGENT");
     }
 
     /// @notice `MIG-008`: the SUBJECT the position did not pair and the auction's unsold remainder go
-    ///         to the launch's escrow, on top of its 65%, and the strategy keeps none of it.
+    ///         to the launch's escrow, on top of its 70%, and the strategy keeps none of it.
     function test_MIG_008_LeftoverSubjectGoesToTheEscrow() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduation(launched, FLOOR_RAISE);
@@ -497,7 +495,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         uint256 raised = launched.auction.lbpInitializationParams().currencyRaised;
 
         // SUBJECT: the pool position, what the auction sold (bidders claim it from the auction after
-        // the claim block) and escrow, which holds the 65% plus everything else, and nowhere else.
+        // the claim block) and escrow, which holds the 70% plus everything else, and nowhere else.
         uint256 sold = AUCTION_ALLOCATION - launched.auction.remainingSupply();
         assertEq(
             launched.subject.balanceOf(BaseBindings.POOL_MANAGER) + launched.subject.balanceOf(address(launched.escrow))
@@ -548,7 +546,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertEq(PoolId.unwrap(d.poolId), PoolId.unwrap(key.toId()), "the recorded PoolId is not the key's");
 
         LBPInitializationParams memory lbp = launched.auction.lbpInitializationParams();
-        uint256 priceX96 = FullMath.mulDiv(lbp.currencyRaised, FixedPoint96.Q96, AUCTION_ALLOCATION);
+        uint256 priceX96 = lbp.initialPriceX96;
         uint160 expectedPrice =
             TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, !subjectBelowRegent));
         assertEq(d.finalSqrtPriceX96, expectedPrice, "the final price conversion is wrong for this ordering");

@@ -70,7 +70,7 @@
     },
     {
       "type": "function",
-      "name": "BID_TICK_DIVISOR",
+      "name": "BID_TICK_SPACING_Q96",
       "inputs": [],
       "outputs": [
         {
@@ -97,6 +97,19 @@
     {
       "type": "function",
       "name": "DISTRIBUTION_PULL",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "FLOOR_PRICE_Q96",
       "inputs": [],
       "outputs": [
         {
@@ -161,6 +174,19 @@
     },
     {
       "type": "function",
+      "name": "REQUIRED_REGENT_RAISED",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "RESERVE_ALLOCATION",
       "inputs": [],
       "outputs": [
@@ -203,25 +229,6 @@
         }
       ],
       "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "bidTickSpacingFor",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "tickSpacing",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "pure"
     },
     {
       "type": "function",
@@ -278,11 +285,6 @@
               "internalType": "uint64"
             },
             {
-              "name": "requiredRegentRaised",
-              "type": "uint128",
-              "internalType": "uint128"
-            },
-            {
               "name": "reserve",
               "type": "uint128",
               "internalType": "uint128"
@@ -301,11 +303,6 @@
               "name": "finalSqrtPriceX96",
               "type": "uint160",
               "internalType": "uint160"
-            },
-            {
-              "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
             },
             {
               "name": "launchId",
@@ -422,16 +419,6 @@
               "name": "escrow",
               "type": "address",
               "internalType": "address"
-            },
-            {
-              "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "minimumRegentRaised",
-              "type": "uint128",
-              "internalType": "uint128"
             }
           ]
         }
@@ -457,25 +444,6 @@
         }
       ],
       "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "maxReachableRaiseFor",
-      "inputs": [
-        {
-          "name": "tickSpacing",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "pure"
     },
     {
       "type": "function",
@@ -551,30 +519,6 @@
     },
     {
       "type": "function",
-      "name": "requiredRegentRaisedFor",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "minimumRegentRaised",
-          "type": "uint128",
-          "internalType": "uint128"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "requiredRegentRaised",
-          "type": "uint128",
-          "internalType": "uint128"
-        }
-      ],
-      "stateMutability": "pure"
-    },
-    {
-      "type": "function",
       "name": "splitterImplementation",
       "inputs": [],
       "outputs": [
@@ -631,18 +575,6 @@
           "type": "uint64",
           "indexed": false,
           "internalType": "uint64"
-        },
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "requiredRegentRaised",
-          "type": "uint128",
-          "indexed": false,
-          "internalType": "uint128"
         },
         {
           "name": "reserve",
@@ -855,28 +787,6 @@
           "name": "found",
           "type": "address",
           "internalType": "address"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "FloorPriceNotOnGrid",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "FloorPriceTooLow",
-      "inputs": [
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "internalType": "uint256"
         }
       ]
     },
@@ -1102,17 +1012,6 @@
     },
     {
       "type": "error",
-      "name": "TickSpacingTooSmall",
-      "inputs": [
-        {
-          "name": "tickSpacingQ96",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "UnexpectedPositionMintCount",
       "inputs": [
         {
@@ -1140,17 +1039,6 @@
     },
     {
       "type": "error",
-      "name": "UnreachableRequiredRaise",
-      "inputs": [
-        {
-          "name": "requiredRegentRaised",
-          "type": "uint128",
-          "internalType": "uint128"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "ZeroAddress",
       "inputs": []
     }
@@ -1159,30 +1047,29 @@
     "AUCTION_ALLOCATION()": "80ff9c38",
     "AUCTION_DURATION_BLOCKS()": "56586874",
     "AUCTION_STEPS()": "db46bf59",
-    "BID_TICK_DIVISOR()": "6f77cc21",
+    "BID_TICK_SPACING_Q96()": "f54c506c",
     "CLAIM_DELAY_BLOCKS()": "4a9923ac",
     "DISTRIBUTION_PULL()": "53e916eb",
+    "FLOOR_PRICE_Q96()": "14ec99b0",
     "MIGRATION_DELAY_BLOCKS()": "bfd822e1",
     "PENDING_ALLOCATION()": "ebd6c243",
     "POOL_FEE()": "dd1b9c4a",
     "POOL_TICK_SPACING()": "7381527f",
+    "REQUIRED_REGENT_RAISED()": "cfc7e1db",
     "RESERVE_ALLOCATION()": "7b5c7f03",
     "START_DELAY_BLOCKS()": "48bd92bb",
     "auctionOfSubject(address)": "bad6a39e",
-    "bidTickSpacingFor(uint256)": "9e82ecfc",
     "bindHook(address)": "10202c54",
     "distribution(address)": "c2db09c1",
     "escrowCloneCodehash()": "0e0651f3",
     "escrowImplementation()": "4ca8ff5a",
     "factory()": "c45a0155",
     "hook()": "7f5a7c7b",
-    "initializeDistribution((uint256,address,uint256,uint128))": "6649e11a",
+    "initializeDistribution((uint256,address))": "8a7cefa7",
     "lpLocker()": "03fc2013",
-    "maxReachableRaiseFor(uint256)": "0ef1397d",
     "migrate(address)": "ce5494bb",
     "poolKeyOf(address)": "8652edf9",
     "receiverImplementation()": "112e335c",
-    "requiredRegentRaisedFor(uint256,uint128)": "711d8db3",
     "splitterImplementation()": "e63db9b2"
   }
 }

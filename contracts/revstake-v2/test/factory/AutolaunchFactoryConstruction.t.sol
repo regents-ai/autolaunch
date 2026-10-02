@@ -198,12 +198,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategyV2.NotFactory.selector, outsider));
         vm.prank(outsider);
         strategy.initializeDistribution(
-            RegentLBPStrategyV2.DistributionParams({
-                launchId: 1,
-                escrow: address(escrowImplementation),
-                floorPriceQ96: DEFAULT_FLOOR_Q96,
-                minimumRegentRaised: 0
-            })
+            RegentLBPStrategyV2.DistributionParams({launchId: 1, escrow: address(escrowImplementation)})
         );
 
         // The factory keeps no mutable authority of its own over any of it.

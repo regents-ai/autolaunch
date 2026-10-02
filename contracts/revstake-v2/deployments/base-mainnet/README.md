@@ -1,11 +1,11 @@
 # Base mainnet
 
-**Prepared, not approved, nothing sent.** `mainnet-no-go-packet.json` was prepared on
-29 September 2026 against live Base at block 51936156 for deployer
-`0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 28 (founder decision 1a, 29 September 2026)
-and rehearsed on a Base node after block 51936163. Its digest is
-`0x78e5e04928efd068eec73d58aa11cb605fcf755d0c140c8b00ea483b596f79a2`. Nothing may be sent until the
-founder names that digest.
+`mainnet-no-go-packet.json` was prepared on 1 October 2026 for the 1 October launch terms, against
+live Base at block 52059675 for deployer `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 28
+(founder decision 1a, 29 September 2026), and rehearsed on a Base node after block 52059692. Its
+digest is `0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba`. Nothing may be sent
+until the founder names that digest. The 29 September packet (digest `0x78e5…79a2`) was never sent
+and no longer matches the source.
 
 Two files live in this directory, and keeping them apart is the point.
 
@@ -24,7 +24,7 @@ keystore, sender or hardware-wallet variable, or beside a dotenv file.
 Five plain zero-value contract creations from the deployer, in nonce order. The factory's
 constructor then creates the strategy (factory nonce 1), whose constructor creates the LP locker
 (strategy nonce 1), and the fee hook (`CREATE2` over the pinned salt
-`0x…1989`, address bits `0x2044`).
+`0x…3b12`, address bits `0x2044`).
 
 | Nonce | Contract | Predicted address | Gas used in rehearsal |
 | --- | --- | --- | --- |
@@ -32,19 +32,22 @@ constructor then creates the strategy (factory nonce 1), whose constructor creat
 | 29 | ConditionalVestingEscrowV2 | `0x8F511153393429468C3861E7cC5341Abb3310871` | 831,431 |
 | 30 | SubjectSplitterV1 | `0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942` | 1,438,247 |
 | 31 | PaymentReceiverV1 | `0xb58f2AF6A588414C6ad44280143db9aE7927d5fc` | 900,720 |
-| 32 | RegentsAutolaunchFactoryV2 | `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` | 8,099,110 |
+| 32 | RegentsAutolaunchFactoryV2 | `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` | 7,824,234 |
 | (factory) | RegentLBPStrategyV2 | `0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9` | |
 | (strategy) | RevstakeLPLocker | `0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120` | |
-| (factory) | RegentFeeHook | `0x57681398fB72027E719F3E558a0E188dd0c96044` | |
+| (factory) | RegentFeeHook | `0x72bE4F7FAE670e42048697e010699316318A2044` | |
 
-14,063,217 gas in all. The factory is born paused. The Governance and Regent Safe is its only
+13,788,341 gas in all. The factory is born paused. The Governance and Regent Safe is its only
 authority; the deployer holds none after the last creation.
 
 The Base Memestake launchpad binds the token factory created at nonce 28 (founder decision 2a), so
-Memestake is prepared only after this ceremony lands. On 29 September 2026 all five creations and
+Memestake is prepared only after this ceremony lands. On 1 October 2026 all five creations and
 then Memestake's twelve (v1's ten Base stocks, nonces 33 to 44) were simulated back to back on a
-Base node after block 51936147: every creation landed at its predicted address and all 47 wiring
-readbacks matched, 30,158,802 gas in all.
+Base node after block 52059829: every creation landed at its predicted address and all 47 wiring
+readbacks matched, 30,209,669 gas in all. The same day a trial Robinhood prepare and rehearsal
+(v1's 25 stocks, Robinhood nonce 31) succeeded against live Robinhood Chain and Base; the real
+Robinhood packet is prepared after Memestake lands, because its Base receiver takes the next Base
+nonce.
 
 ## Before the first send
 
@@ -114,7 +117,7 @@ cast call 0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E "launchesPaused()(bool)" --
 Put the five transaction hashes, in nonce order, in a file `{"transactions": ["0x…", …]}` and run:
 
 ```bash
-REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0x78e5e04928efd068eec73d58aa11cb605fcf755d0c140c8b00ea483b596f79a2
+REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba
 ```
 
 It checks every receipt against the packet, proves all eight contracts' code against the frozen
@@ -123,5 +126,23 @@ build and reads back the twelve wiring facts, then writes the deployed-manifest 
 
 ## Opening
 
-Deploying and opening are separate acts. After the website's version 2 switch is ready, the Safe
-sends `unpauseLaunches()` to the factory, at the same moment as the Base Memestake launchpad opens.
+Deploying and opening are separate acts. After the website's version 2 switch is ready, the
+Governance Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` sends one batch on Base that opens
+version 2 and closes version 1 (founder decision 16a, 30 September 2026):
+
+| Call | Target |
+| --- | --- |
+| `unpauseLaunches()` | this package's `RegentsAutolaunchFactoryV2` |
+| `unpauseLaunches()` | the Base Memestake version 2 launchpad |
+| `pauseLaunches()` | Revstake version 1 factory `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e` |
+| `pauseLaunches()` | Memestake version 1 launchpad `0x1d36a95112835f81b1B499A808e556020C64Cac2` |
+
+Pausing stops new launches only. Existing auctions, claims, refunds, staking and fee collection on
+version 1 are untouched. Both version 1 launchers were open (`launchesPaused()` false) on
+30 September 2026. Robinhood's version 1 launchpad is closed by its own Safe transaction on
+Robinhood Chain; see `contracts/robinhood-v2/README.md`.
+
+AGI (version 1 Memestake launch 3, auction `0xd4cecfbf6d1e4afb46b054d1b7a284f450551140`) ended
+without being migrated. Read on Base on 1 October 2026: `nextBidId()` 0, `currencyRaised()` 0,
+`totalCleared()` 0, no `BidSubmitted` event. Nobody bid, so it stays ended and unmigrated
+(founder decision 18: migrate only if it had bids). Pausing the launchpad does not change it.

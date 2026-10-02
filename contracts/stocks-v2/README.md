@@ -1,17 +1,19 @@
 # Autolaunch Stocks contracts
 
-Autolaunch Stocks creates a new token, **NEW**, sells half of its initial supply through the
+Autolaunch Stocks creates a new token, **NEW**, sells 49.5% of its initial supply through the
 pinned Uniswap Continuous Clearing Auction denominated in one admitted Base stock token,
-**STOCK**, and after a successful auction gives its bidders that whole half and opens the official
-**NEW/STOCK** Uniswap v4 pool at the raise divided by the sale allocation, with the whole raise and the
-other half of the supply locked forever in one full-range position. Official-pool trading pays
+**STOCK**, and after a successful auction gives its bidders that whole 49.5% and opens the official
+**NEW/STOCK** Uniswap v4 pool at the auction's final clearing price. The whole raise and another
+49.5% of the supply are locked forever: one full-range position pairs the whole raise with as much of
+that reserve as it takes at the opening price, and a second position, NEW only, holds the rest of the
+reserve just above the opening price. The last 1% vests to the launcher linearly, block by block, over
+30 days from graduation. Official-pool trading pays
 three STOCK-side hook fees on top of the 0.30% LP fee, all always on: a 30 bps creator lane, paid as
 STOCK to the launcher, a 100 bps REGENT lane, converted to USDC and deposited into REGENT staking,
 and a 300 bps staker lane, deposited as STOCK into the launch's own **memestock splitter**. Holders
 stake NEW (the MEMESTOCK) in that splitter and divide, pro rata, everything it recognizes in USDC,
 MEMESTOCK and STOCK after a 2% protocol share. The locked position sits in a fee-only locker whose
-LP fees also flow into the splitter. No launch has a creator allocation, an administrator or a
-treasury.
+LP fees also flow into the splitter. No launch has an administrator or a treasury.
 
 This is a separate Foundry component. It reuses the frozen `contracts/v1` dependencies at their
 pinned revisions and never modifies them. Nothing here changes the Agent factory, strategy,
@@ -22,12 +24,13 @@ Agent subject splitter, not a change to it.
 
 Version 2, not deployed. It replaces the Base launchpad in `contracts/stocks`, which is live on Base
 and stays there for the launches made on it; nothing in that folder changes. Version 2 changes only
-the sale and graduation terms (founder decisions of 27 September 2026): half of the supply is sold
-and half pairs the raise in the pool, the required raise is the whole sale allocation at the floor,
-bidders receive the whole sale allocation from the auction itself, the pool opens at the raise
-divided by it in one full-range position, and the few crumbs of NEW left over after graduation are
-retired. The hook, splitter, locker, bid adapter and routes are the same source; a
-version 2 deployment creates new instances bound to the new launchpad.
+the sale and graduation terms (founder decisions of 1 October 2026): 49.5% of the supply is sold,
+49.5% is the locked pool reserve and 1% vests to the launcher over 30 days; every auction uses the
+lowest floor the pinned auction allows and the required raise is the sale allocation at that floor;
+bidders receive the whole sale allocation from the auction itself; the pool opens at the final
+clearing price with a full-range position and a NEW-only position above it, and the few crumbs of
+NEW left over after graduation are retired. The hook, splitter, locker, bid adapter and routes are
+the same source; a version 2 deployment creates new instances bound to the new launchpad.
 
 ## Layout
 
@@ -64,14 +67,16 @@ shared it is because the same pinned dependency imposes it.
 | --- | --- | --- |
 | NEW decimals | 18 | Founder decision 2026-09-09 |
 | NEW initial supply `S0` | 1,000,000,000 × 10^18 | Founder decision 2026-09-09; even; below the CCA `MAX_TOTAL_SUPPLY` |
-| Auction inventory (the sale allocation) | `S0 / 2` = 500,000,000 × 10^18 | Founder decision 2026-09-27 |
-| Migration reserve | `S0 / 2` = 500,000,000 × 10^18 | Founder decision 2026-09-27 |
+| Auction inventory (the sale allocation) | 49.5% of `S0` = 495,000,000 × 10^18 | Founder decision 2026-10-01 |
+| Migration reserve | 49.5% of `S0` = 495,000,000 × 10^18 | Founder decision 2026-10-01 |
+| Creator vesting | 1% of `S0` = 10,000,000 × 10^18, held by the launchpad from launch; vests linearly per block over `CREATOR_VESTING_BLOCKS` 1,296,000 blocks (30 days at 2 s blocks) from the graduation block; anyone may call `releaseCreatorVesting`, which pays only the launcher; retired with the rest if the auction fails | Founder decision 2026-10-01 |
 | Auction duration | 43,200 blocks (~24 h at Base's 2 s blocks) | Brief P03 "approximately 24 hours"; block count founder decision 2026-09-09 |
 | Step schedule | 13 packed steps summing to 43,200 blocks and exactly `MPS = 1e7` | Derived; shape mirrors Agent's pinned schedule, proven by test |
 | Start lead | `START_LEAD_BLOCKS` 300 (ten minutes at 2 s blocks): every auction opens exactly 300 blocks after its creation block; the launcher does not choose it; the opening block is in the launch record and the `StockLaunchCreated` event | Founder decision 2026-09-21 |
 | Claim delay | 64 blocks after end | Same pinned CCA convention as Agent |
 | Migration delay | 128 blocks after end | Same pinned CCA convention as Agent |
-| Bid tick spacing | `floorPriceQ96 / 100`, requiring `floorPriceQ96 % 100 == 0` and the result ≥ CCA `MIN_TICK_SPACING` | Derived; floor ≥ CCA `MIN_FLOOR_PRICE` |
+| Floor price | `FLOOR_PRICE_Q96` 4,294,967,300: the CCA `MIN_FLOOR_PRICE` (2^32 + 1) rounded up to the 100-tick grid; the same for every launch, the launcher chooses nothing | Founder decision 2026-10-01 (the lowest floor) |
+| Bid tick spacing | `BID_TICK_SPACING_Q96` = `FLOOR_PRICE_Q96 / 100` = 42,949,673, at least CCA `MIN_TICK_SPACING` | Derived from the floor |
 | Official pool LP fee | 3000 (0.30%) | Founder decision 2026-09-09 |
 | Official pool tick spacing | 60 | Founder decision 2026-09-09 |
 | Hook fee | 430 bps of the gross STOCK-side amount, floored once, split into the three lanes below | Founder decision 2026-09-28 |
@@ -81,13 +86,14 @@ shared it is because the same pinned dependency imposes it.
 | Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
 | Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe); the rule holds only while `totalStaked == 0`, so any stake placed before a settlement takes the 98% share of that settlement | Founder decision 2026-09-18 |
 | Launch fee | none: a launch costs nothing beyond gas; no REGENT is pulled and the launchpad never holds REGENT | Founder decision 2026-09-21 |
-| Required raise | the whole sale allocation at the floor price, rounded up: `ceil(AUCTION_INVENTORY × floorPriceQ96 / 2^96)` STOCK base units (`requiredStockRaisedFor`), never zero, so an auction nobody bid in never graduates; the launcher chooses only the floor; below it the auction fails and bidders are refunded | Founder decision 2026-09-27 |
-| Creator allocation, vesting, treasury | none | Brief P05 |
-| Leftover NEW after graduation | every unit of the launch's NEW the launchpad still holds once the position is minted (the auction's unsold rounding, the reserve the position could not pair, and anything sent to the launchpad) is transferred to `0x…dEaD` in `migrate` and recorded as `retiredNew`; bidders receive the whole sale allocation from the auction itself | Founder decision 2026-09-27 |
-| Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decision 2026-09-09 |
-| Locked liquidity | One full-range position, its NFT to the `MemestockLPLocker`, funded by the whole reserve and the whole raise at the pool's opening price, the raise divided by the sale allocation; no STOCK-only position and nothing burned | Founder decision 2026-09-27 |
+| Required raise | the whole sale allocation at the floor price, rounded up: `REQUIRED_STOCK_RAISED` = `ceil(AUCTION_INVENTORY × FLOOR_PRICE_Q96 / 2^96)` = 26,834,004 STOCK base units, never zero, so an auction nobody bid in never graduates; below it the auction fails and bidders are refunded. At the lowest floor it is about 0.27 of a share for an 8-decimal stock | Founder decision 2026-10-01 (derived from the floor only) |
+| Treasury | none | Brief P05 |
+| Leftover NEW after graduation | every unit of the launch's NEW the launchpad still holds once both positions are minted, apart from the creator vesting (the auction's unsold rounding, the planner's rounding, and anything sent to the launchpad) is transferred to `0x…dEaD` in `migrate` and recorded as `retiredNew`; bidders receive the whole sale allocation from the auction itself | Founder decision 2026-10-01 |
+| Reserve, inventory and vesting after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decisions 2026-09-09 and 2026-10-01 |
+| Opening price | the auction's final clearing price (`lbpInitializationParams().initialPriceX96`) | Founder decision 2026-10-01 |
+| Locked liquidity | Two positions, both NFTs to the `MemestockLPLocker`: one full-range position pairing the whole raise with the reserve it takes at the opening price, and one NEW-only position holding the rest of the reserve from one pool tick spacing past the opening price out as far as the pinned planner reaches (887,272 ticks, or the last usable tick when nearer); no NEW-only position is minted when the full range takes the whole reserve; nothing burned | Founder decision 2026-10-01 |
 | LP rounding remainder (STOCK the position could not pair) | accrued to the REGENT lane of the pool's hook; below one part in a billion of the raise in every test | Founder decision 2026-09-09 (the destination) |
-| LP custody | the position NFT minted to the launchpad's `MemestockLPLocker` and registered to the launch's splitter, once and forever; the locker can only collect fees (a decrease of exactly zero) and deposit them into that splitter; no principal path exists | Brief P13; founder decision 2026-09-18 (fees to stakers) |
+| LP custody | each position NFT minted to the launchpad's `MemestockLPLocker` and registered to the launch's splitter, once and forever; the locker can only collect fees (a decrease of exactly zero) and deposit them into that splitter; no principal path exists | Brief P13; founder decision 2026-09-18 (fees to stakers) |
 
 ### Design note on graduation
 
@@ -96,18 +102,22 @@ blocks that follow. An auction that ended at the floor therefore sold its raise 
 which is at least the sale allocation once the raise meets the minimum; an auction that ended above
 the floor sold everything left in its final block. Either way a graduated auction has sold the whole
 sale allocation to its bidders but for its own rounding, so bidders receive the whole sale allocation
-from the auction itself. The shortfall, and the NEW retired at graduation, come from prices kept to
-one unit of 2^-96 and never below the floor, so the tests hold them below the supply divided by the
-floor price (`_newCrumbs` in `StocksLaunchpadMigrateTest`): about 0.0126 NEW at the test floor. The
-largest seen in the tests is about 0.0024 NEW.
+from the auction itself.
 
-Every bidder pays the clearing price of the blocks it bought in, and the average over the whole sale
-allocation is the raise divided by the sale allocation. The pool opens at exactly that price, never
-above the final clearing price, and one full-range position pairs the whole reserve with the whole
-raise at it. The planner's rounding leaves a sliver of one side unpaired: STOCK goes to the REGENT
-lane, NEW is retired. Every unit of the launch's NEW the launchpad still holds after the position is
-minted, the auction's unsold rounding, the unpaired reserve and anything sent to the launchpad, goes
-to the dead address.
+Every bidder pays the clearing price of the blocks it bought in, never more than the final clearing
+price, so the raise is at most the sale allocation times the final price. The pool opens at that
+final price, and the full-range position pairing the whole raise there takes the raise divided by the
+final price of NEW: never more than the reserve, which equals the sale allocation. When every unit
+sold at the final price (a single bidder from the first block, say) the full range takes the whole
+reserve but for rounding and no NEW-only position is minted. Otherwise the rest of the reserve goes
+into the NEW-only position, which starts one pool tick spacing past the opening price on the NEW side
+and so holds only NEW until buyers lift the price into it.
+
+The planner's rounding leaves a sliver unpaired: STOCK goes to the REGENT lane, NEW is retired. Every
+unit of the launch's NEW the launchpad still holds after the positions are minted, except the creator
+vesting, goes to the dead address. The shortfall and the retired NEW come from prices kept to one
+unit of 2^-96 and never below the floor, so the tests hold them below the supply divided by the floor
+price (`_newCrumbs` in `StocksLaunchpadMigrateTest`): about 0.23 NEW at the fixed floor.
 
 The pinned auction may count a bid placed after its first block one STOCK base unit short, so a
 single bid of exactly the minimum graduates only in the first block; the minimum plus one base unit
@@ -207,17 +217,19 @@ AAPLc pool whenever it is run against Base itself.
 
 ## Money and custody rules the implementation must prove
 
-1. Exactly `S0` is minted, to the launchpad, once. `auctionInventory + migrationReserve == S0`.
-   The launchpad holds nothing of NEW after `launch` except the reserve.
+1. Exactly `S0` is minted, to the launchpad, once.
+   `auctionInventory + migrationReserve + creatorVesting == S0`. The launchpad holds nothing of NEW
+   after `launch` except the reserve and the vesting.
 2. CCA `currency == stock`, `tokensRecipient == launchpad`, `fundsRecipient == launchpad`,
    `protocolFeeController == 0`.
 3. `migrate` classifies with the final checkpoint. Graduated: register the launch's splitter and
-   the pool with the hook, sweep STOCK, sweep unsold NEW, initialize at the raise divided by the sale
-   allocation, mint one full-range position from the whole reserve and the whole raise to the locker
-   and register it to the splitter, so `lpStockUsed + dust == raised` with `dust` the rounding the
-   REGENT lane takes, and retire every unit of the launch's NEW still held:
-   `NEW kept by the auction + lpNewUsed + retiredNew == S0`. Failed: retire reserve and swept
-   inventory; never touch bidder STOCK.
+   the pool with the hook, sweep STOCK, sweep unsold NEW, initialize at the final clearing price,
+   mint the full-range position from the whole raise and the reserve it takes, and the NEW-only
+   position from the rest of the reserve, both to the locker and registered to the splitter, so
+   `lpStockUsed + dust == raised` with `dust` the rounding the REGENT lane takes; start the creator
+   vesting at the graduation block and retire every other unit of the launch's NEW still held:
+   `NEW kept by the auction + lpNewUsed + newOnlyUsed + retiredNew + creatorVesting == S0`. Failed:
+   retire the reserve, the vesting and the swept inventory; never touch bidder STOCK.
 4. Bidder refunds and claims go through the CCA and depend on nothing in this component. The bids
    of a graduated launch receive the whole sale allocation from the auction but for crumbs.
 5. The hook only accrues. The creator lane leaves only through `settleCreatorLane` (anyone, whole

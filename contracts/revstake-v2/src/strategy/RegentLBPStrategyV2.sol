@@ -14,8 +14,6 @@ import {
 import {
     IContinuousClearingAuctionFactory
 } from "continuous-clearing-auction/interfaces/IContinuousClearingAuctionFactory.sol";
-import {ConstantsLib} from "continuous-clearing-auction/libraries/ConstantsLib.sol";
-import {MaxBidPriceLib} from "continuous-clearing-auction/libraries/MaxBidPriceLib.sol";
 import {LBPInitializationParams} from "liquidity-launcher/src/interfaces/ILBPInitializer.sol";
 import {PositionPlanner} from "liquidity-launcher/src/libraries/PositionPlanner.sol";
 import {TokenPricing} from "liquidity-launcher/src/libraries/TokenPricing.sol";
@@ -28,7 +26,6 @@ import {
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {FixedPoint96} from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
-import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -42,19 +39,20 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 /// @title RegentLBPStrategyV2
 /// @notice The one shared strategy behind every Revstake launch. It is permanently bound to one
 ///         Autolaunch factory and to the three C1 clone implementations, binds exactly one authentic
-///         C2 hook once, creates each launch's CCA auction at the launcher's floor price, custodies
-///         that launch's isolated 15% LP reserve, and finally drives the launch to exactly one
+///         C2 hook once, creates each launch's CCA auction at the one fixed floor price, custodies
+///         that launch's isolated 10% LP reserve, and finally drives the launch to exactly one
 ///         terminal state.
-/// @notice Version 2 (founder decisions, 27 September 2026): the auction sells 20%, and a graduated
-///         auction sells that whole 20% to its bidders through the auction itself. The required raise
-///         is the whole sale allocation at the floor price, rounded up, or the launcher's own higher
-///         minimum; the pinned CCA rolls unsold supply forward and never lowers its clearing price,
-///         so an auction that raises that much has sold its whole allocation, and an auction nobody
-///         bid in never graduates. The official pool opens at the raise divided by the sale
-///         allocation and one full-range position pairs the whole reserve with three quarters of the
-///         raise; the other quarter goes to the treasury. Whatever SUBJECT of the launch is left here
-///         after the position is minted — rounding crumbs and anything sent here — goes to the
-///         launch's escrow and vests to the treasury with the 65%.
+/// @notice Version 2 (founder decisions, 1 October 2026): the auction sells 20% from the lowest floor
+///         the pinned CCA admits, so the price is discovered by the bids and the required raise is
+///         only the whole sale allocation at that floor, rounded up. The pinned CCA rolls unsold
+///         supply forward and never lowers its clearing price, so an auction that raises that much
+///         has sold its whole allocation, and an auction nobody bid in never graduates. The official
+///         pool opens at the auction's final clearing price, and one full-range position pairs up to
+///         half of the raise with as much of the 10% reserve as that half buys at that price; the
+///         rest of the raise, at least half, goes to the treasury. Whatever SUBJECT of the launch is
+///         left here after the position is minted — the reserve the position did not pair, rounding
+///         crumbs and anything sent here — goes to the launch's escrow and vests to the treasury with
+///         the 70%.
 /// @dev This is a hard-cut fork of the pinned Liquidity Launcher `LBPStrategy`
 ///      (`3a3103543f50a13a0ae52a253bb98a925d72146f`). The preserved behaviour is the CCA creation and
 ///      readback discipline, the final-price conversion through `TokenPricing`, the full-range
@@ -75,17 +73,17 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     using SafeTransferLib for address;
 
-    /// @notice The exact 65% escrow holds while a launch is pending.
-    uint256 public constant PENDING_ALLOCATION = 65_000_000_000e18;
+    /// @notice The exact 70% escrow holds while a launch is pending.
+    uint256 public constant PENDING_ALLOCATION = 70_000_000_000e18;
 
     /// @notice The exact 20% the auction sells.
     uint128 public constant AUCTION_ALLOCATION = 20_000_000_000e18;
 
-    /// @notice The exact 15% this strategy custodies as one launch's isolated LP reserve.
-    uint128 public constant RESERVE_ALLOCATION = 15_000_000_000e18;
+    /// @notice The exact 10% this strategy custodies as one launch's isolated LP reserve.
+    uint128 public constant RESERVE_ALLOCATION = 10_000_000_000e18;
 
-    /// @notice The exact 35% one initialization pulls from the bound factory.
-    uint256 public constant DISTRIBUTION_PULL = 35_000_000_000e18;
+    /// @notice The exact 30% one initialization pulls from the bound factory.
+    uint256 public constant DISTRIBUTION_PULL = 30_000_000_000e18;
 
     /// @notice Every auction starts exactly this many blocks after its initializing block.
     uint64 public constant START_DELAY_BLOCKS = 300;
@@ -99,9 +97,20 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     /// @notice The fixed delay between the auction end and migration eligibility.
     uint64 public constant MIGRATION_DELAY_BLOCKS = 128;
 
-    /// @notice A floor price is a whole number of bid ticks: the tick spacing is the floor divided by
-    ///         this, so bids move in steps of one hundredth of the floor.
-    uint256 public constant BID_TICK_DIVISOR = 100;
+    /// @notice Every auction's floor price (Q96 REGENT base units per SUBJECT base unit): the lowest
+    ///         the pinned CCA admits (`ConstantsLib.MIN_FLOOR_PRICE`, 2^32 + 1) rounded up to a whole
+    ///         number of bid ticks. It carries no valuation; the bids discover the price.
+    uint256 public constant FLOOR_PRICE_Q96 = 4_294_967_300;
+
+    /// @notice Bids move in steps of one hundredth of the floor.
+    uint256 public constant BID_TICK_SPACING_Q96 = FLOOR_PRICE_Q96 / 100;
+
+    /// @notice The REGENT an auction must raise to graduate: the whole sale allocation at the floor
+    ///         price, rounded up, about 0.000000001 REGENT. Never zero, so an auction nobody bid in
+    ///         never graduates.
+    // forge-lint: disable-next-line(unsafe-typecast)
+    uint128 public constant REQUIRED_REGENT_RAISED =
+        uint128((uint256(AUCTION_ALLOCATION) * FLOOR_PRICE_Q96 + FixedPoint96.Q96 - 1) / FixedPoint96.Q96);
 
     /// @notice The frozen 104-byte, thirteen-step issuance schedule, byte for byte.
     /// @dev This vector is founder-frozen economics, not a value this ticket may choose. It is the
@@ -136,13 +145,9 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     /// @notice Everything the bound factory supplies for one launch.
     /// @dev SUBJECT, treasury and the fixed start are derived from the authenticated escrow and the
     ///      current block; they are deliberately not redundant caller-supplied copies.
-    ///      `minimumRegentRaised` is the launcher's own minimum raise, zero for none; the auction's
-    ///      required raise is the larger of it and the floor minimum (`requiredRegentRaisedFor`).
     struct DistributionParams {
         uint256 launchId;
         address escrow;
-        uint256 floorPriceQ96;
-        uint128 minimumRegentRaised;
     }
 
     /// @notice One launch's complete recorded state.
@@ -152,12 +157,10 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         uint64 endBlock;
         uint64 claimBlock;
         uint64 migrationBlock;
-        uint128 requiredRegentRaised;
         uint128 reserve;
         uint128 lpRegentUsed;
         uint128 lpSubjectUsed;
         uint160 finalSqrtPriceX96;
-        uint256 floorPriceQ96;
         uint256 launchId;
         address subject;
         address escrow;
@@ -203,8 +206,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         address treasury,
         uint64 startBlock,
         uint64 endBlock,
-        uint256 floorPriceQ96,
-        uint128 requiredRegentRaised,
         uint128 reserve
     );
     event LaunchRetired(address indexed auction, address indexed subject, uint256 subjectReturned);
@@ -238,10 +239,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     error EscrowNotPending();
     error EscrowCustodyMismatch(uint256 found);
     error SubjectAlreadyLaunched(address subject, address auction);
-    error FloorPriceTooLow(uint256 floorPriceQ96);
-    error FloorPriceNotOnGrid(uint256 floorPriceQ96);
-    error TickSpacingTooSmall(uint256 tickSpacingQ96);
-    error UnreachableRequiredRaise(uint128 requiredRegentRaised);
     error RefusedTreasury(address treasury);
     error ProtocolFeeControllerNotZero(address controller);
     error AuctionHasNoCode(address auction);
@@ -309,11 +306,10 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         emit HookBound(hook_);
     }
 
-    /// @notice Create one launch's canonical CCA auction and take custody of its isolated 15% reserve.
+    /// @notice Create one launch's canonical CCA auction and take custody of its isolated 10% reserve.
     /// @dev Factory only, impossible before the hook is bound. Every economic input except the launch
-    ///      id, the escrow, the floor price and the launcher's own minimum raise is fixed here; SUBJECT,
-    ///      treasury and the start block come from the authenticated escrow and the current block, and
-    ///      the tick spacing and the required raise are derived from the floor. `C3-I2`.
+    ///      id and the escrow is fixed here; SUBJECT, treasury and the start block come from the
+    ///      authenticated escrow and the current block. `C3-I2`.
     ///
     ///      `_requireAdmissibleTreasury` is the system's only launch-time treasury admission, and it
     ///      runs here — after the escrow is authenticated, so the treasury being judged is the one
@@ -330,8 +326,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
 
         (address subject, address treasury) = _authenticateEscrow(params.escrow);
         _requireAdmissibleTreasury(treasury);
-        uint256 tickSpacing = bidTickSpacingFor(params.floorPriceQ96);
-        uint128 requiredRegentRaised = requiredRegentRaisedFor(params.floorPriceQ96, params.minimumRegentRaised);
 
         address auctionFactory = BaseBindings.CCA_FACTORY;
         address controller = address(IContinuousClearingAuctionFactory(auctionFactory).protocolFeeController());
@@ -353,10 +347,10 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
                             startBlock: startBlock,
                             endBlock: endBlock,
                             claimBlock: endBlock + CLAIM_DELAY_BLOCKS,
-                            tickSpacing: tickSpacing,
+                            tickSpacing: BID_TICK_SPACING_Q96,
                             validationHook: address(0),
-                            floorPrice: params.floorPriceQ96,
-                            requiredCurrencyRaised: requiredRegentRaised,
+                            floorPrice: FLOOR_PRICE_Q96,
+                            requiredCurrencyRaised: REQUIRED_REGENT_RAISED,
                             auctionStepsData: AUCTION_STEPS
                         })
                     ),
@@ -364,7 +358,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
                 )
         );
 
-        _verifyAuction(auction, subject, startBlock, endBlock, params.floorPriceQ96, tickSpacing);
+        _verifyAuction(auction, subject, startBlock, endBlock);
 
         Distribution storage d = _distributions[auction];
         d.lifecycle = Lifecycle.Active;
@@ -372,9 +366,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         d.endBlock = endBlock;
         d.claimBlock = endBlock + CLAIM_DELAY_BLOCKS;
         d.migrationBlock = endBlock + MIGRATION_DELAY_BLOCKS;
-        d.requiredRegentRaised = requiredRegentRaised;
         d.reserve = RESERVE_ALLOCATION;
-        d.floorPriceQ96 = params.floorPriceQ96;
         d.launchId = params.launchId;
         d.subject = subject;
         d.escrow = params.escrow;
@@ -382,16 +374,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         auctionOfSubject[subject] = auction;
 
         emit DistributionCreated(
-            params.launchId,
-            auction,
-            subject,
-            params.escrow,
-            treasury,
-            startBlock,
-            endBlock,
-            params.floorPriceQ96,
-            requiredRegentRaised,
-            RESERVE_ALLOCATION
+            params.launchId, auction, subject, params.escrow, treasury, startBlock, endBlock, RESERVE_ALLOCATION
         );
 
         uint256 held = subject.balanceOf(address(this));
@@ -439,45 +422,6 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         return _distributions[auction];
     }
 
-    /// @notice The bid tick spacing (Q96) an auction at this floor price is created with.
-    /// @dev The floor must be at least the pinned CCA's minimum, a whole number of `BID_TICK_DIVISOR`
-    ///      ticks, and give a tick at least the pinned CCA's minimum spacing.
-    function bidTickSpacingFor(uint256 floorPriceQ96) public pure returns (uint256 tickSpacing) {
-        if (floorPriceQ96 < ConstantsLib.MIN_FLOOR_PRICE) revert FloorPriceTooLow(floorPriceQ96);
-        if (floorPriceQ96 % BID_TICK_DIVISOR != 0) revert FloorPriceNotOnGrid(floorPriceQ96);
-        tickSpacing = floorPriceQ96 / BID_TICK_DIVISOR;
-        if (tickSpacing < ConstantsLib.MIN_TICK_SPACING) revert TickSpacingTooSmall(tickSpacing);
-    }
-
-    /// @notice The REGENT an auction at this floor must raise to graduate: the whole sale allocation at
-    ///         the floor price, rounded up, or the launcher's own minimum when that is higher.
-    /// @dev The launcher's minimum must be reachable: no more than the whole sale allocation at the
-    ///      highest price the auction admits a bid at (`maxReachableRaiseFor`).
-    function requiredRegentRaisedFor(uint256 floorPriceQ96, uint128 minimumRegentRaised)
-        public
-        pure
-        returns (uint128 requiredRegentRaised)
-    {
-        uint256 tickSpacing = bidTickSpacingFor(floorPriceQ96);
-        uint128 floorMinimum =
-            SafeCastLib.toUint128(FullMath.mulDivRoundingUp(AUCTION_ALLOCATION, floorPriceQ96, FixedPoint96.Q96));
-        if (minimumRegentRaised > maxReachableRaiseFor(tickSpacing)) {
-            revert UnreachableRequiredRaise(minimumRegentRaised);
-        }
-        requiredRegentRaised = minimumRegentRaised > floorMinimum ? minimumRegentRaised : floorMinimum;
-    }
-
-    /// @notice The largest REGENT raise an auction with this tick spacing can actually reach.
-    /// @dev `MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION)` is the pinned CCA's structural ceiling on
-    ///      a bid price, and the pinned `TickStorage` admits a bid only at an exact multiple of the tick
-    ///      spacing, so the highest admitted, and therefore highest clearing, price is the last multiple
-    ///      at or below that ceiling. A graduated auction sells at most `AUCTION_ALLOCATION` tokens and
-    ///      never clears above that price, so the raise never exceeds this value.
-    function maxReachableRaiseFor(uint256 tickSpacing) public pure returns (uint256) {
-        uint256 ceiling = MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION);
-        return FullMath.mulDiv(AUCTION_ALLOCATION, ceiling - ceiling % tickSpacing, FixedPoint96.Q96);
-    }
-
     /// @notice The official pool key one launch's SUBJECT graduates into.
     function poolKeyOf(address subject) public view returns (PoolKey memory key) {
         bool regentIsCurrency0 = BaseBindings.REGENT < subject;
@@ -521,7 +465,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         address escrow = d.escrow;
 
         // Load-bearing: this reverts unless the auction is checkpointed at its exact end block and
-        // actually graduated, and it returns the fee-adjusted raise.
+        // actually graduated, and it returns the fee-adjusted raise and the final clearing price.
         LBPInitializationParams memory lbp = IContinuousClearingAuction(auction).lbpInitializationParams();
 
         d.lifecycle = Lifecycle.Graduated;
@@ -552,29 +496,32 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         // auction's rounding crumbs; the sold SUBJECT stays in the auction for its bids' claims.
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
 
-        // The pool opens at the raise divided by the whole sale allocation (REGENT per SUBJECT, Q96),
-        // the price the bidders paid on average for it.
+        // The pool opens at the auction's final clearing price (REGENT per SUBJECT, Q96), the price the
+        // last bids cleared at.
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == regent;
-        uint256 priceX96 = FullMath.mulDiv(raised, FixedPoint96.Q96, AUCTION_ALLOCATION);
         uint160 sqrtPriceX96 =
-            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, regentIsCurrency0));
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, regentIsCurrency0));
         // slither-disable-next-line unused-return
         IPoolManager(BaseBindings.POOL_MANAGER).initialize(key, sqrtPriceX96);
 
+        // Half of the raise, rounded down, is the position's REGENT budget. The CCA never lowers its
+        // clearing price, so the raise is at most the sale allocation at the final price and half of it
+        // buys at most half the sale allocation, the whole 10% reserve; the position therefore binds on
+        // the REGENT budget but for rounding.
         (uint128 lpRegentUsed, uint128 lpSubjectUsed, uint256 lpTokenId) = _mintFullRangePosition(
-            key, sqrtPriceX96, regentIsCurrency0, subject, SafeCastLib.toUint128(raised), d.reserve
+            key, sqrtPriceX96, regentIsCurrency0, subject, SafeCastLib.toUint128(raised / 2), d.reserve
         );
         lpLocker.register(lpTokenId, key, splitter);
 
-        // At the pool price the whole reserve pairs with three quarters of the raise; the rest of this
-        // launch's own delta goes to the treasury. Unrelated REGENT already held by the shared strategy
-        // is preserved by construction, because `regentBefore` is subtracted out.
+        // Everything of this launch's own delta the position did not use — at least half of the raise —
+        // goes to the treasury. Unrelated REGENT already held by the shared strategy is preserved by
+        // construction, because `regentBefore` is subtracted out.
         uint256 regentToTreasury = regent.balanceOf(address(this)) - regentBefore;
         if (regentToTreasury != 0) regent.safeTransfer(d.treasury, regentToTreasury);
 
         // Every remaining unit of this launch's SUBJECT — the auction's unsold crumbs, the reserve the
         // position did not pair and anything sent here — belongs to the launch and goes to escrow,
-        // where it vests to the treasury with the 65%.
+        // where it vests to the treasury with the 70%.
         uint256 subjectToEscrow = subject.balanceOf(address(this));
         if (subjectToEscrow != 0) subject.safeTransfer(escrow, subjectToEscrow);
 
@@ -605,8 +552,8 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         emit LaunchSettled(auction, raised, regentToTreasury, subjectToEscrow);
     }
 
-    /// @dev Resolves exactly one full-range position from the raised REGENT and the recorded reserve,
-    ///      which at the pool price binds on the reserve,
+    /// @dev Resolves exactly one full-range position from the REGENT budget and the recorded reserve,
+    ///      which at the pool price binds on the REGENT budget,
     ///      mints its NFT straight to the permanent fee-only locker, and returns the amounts the position actually
     ///      consumed — never the offered maxima. This launch's own plan dust returns here through
     ///      `TAKE_PAIR`, and nothing else does: the two settlement amounts are rewritten from the
@@ -680,14 +627,7 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
     }
 
     /// @dev Every exposed binding of the freshly created auction, read back before any value moves.
-    function _verifyAuction(
-        address auction,
-        address subject,
-        uint64 startBlock,
-        uint64 endBlock,
-        uint256 floorPriceQ96,
-        uint256 tickSpacing
-    ) private view {
+    function _verifyAuction(address auction, address subject, uint64 startBlock, uint64 endBlock) private view {
         // slither-disable-next-line incorrect-equality
         if (auction.code.length == 0) revert AuctionHasNoCode(auction);
         IContinuousClearingAuction cca = IContinuousClearingAuction(auction);
@@ -700,12 +640,12 @@ contract RegentLBPStrategyV2 is ReentrancyGuardTransient {
         _requireBinding(6, endBlock, cca.endBlock());
         _requireBinding(7, endBlock + CLAIM_DELAY_BLOCKS, cca.claimBlock());
         _requireBinding(8, 0, uint256(uint160(address(cca.validationHook()))));
-        _requireBinding(9, floorPriceQ96, cca.floorPrice());
-        _requireBinding(10, tickSpacing, cca.tickSpacing());
+        _requireBinding(9, FLOOR_PRICE_Q96, cca.floorPrice());
+        _requireBinding(10, BID_TICK_SPACING_Q96, cca.tickSpacing());
     }
 
     /// @dev The escrow must be an authentic clone of the bound implementation, bound to this strategy,
-    ///      still pending, and holding exactly the 65% its own initializer pulled.
+    ///      still pending, and holding exactly the 70% its own initializer pulled.
     function _authenticateEscrow(address escrow) private view returns (address subject, address treasury) {
         if (escrow.codehash != escrowCloneCodehash) revert NotAuthenticEscrow(escrow);
 

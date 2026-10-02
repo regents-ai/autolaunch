@@ -27,7 +27,7 @@ import {AutolaunchFixture} from "./AutolaunchFixture.sol";
 ///      normally onto different addresses.
 ///
 ///      The stall is bounded, not silent: while it lasts the raised REGENT is still in the CCA, the
-///      escrow is still `Pending`, the isolated 15% reserve and the auction's unsold SUBJECT have not
+///      escrow is still `Pending`, the isolated 10% reserve and the auction's unsold SUBJECT have not
 ///      moved, no pool or vesting has begun, and the CCA's own exit and claim rights are untouched.
 ///
 ///      The test computes `CREATE` addresses in order to *construct* this edge case. Production

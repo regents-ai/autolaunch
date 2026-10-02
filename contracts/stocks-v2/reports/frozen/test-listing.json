@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 115,
+  "total": 112,
   "tests": {
     "test/AerodromeStockRoute.t.sol": {
       "AerodromeStockRouteTest": [
@@ -99,22 +99,18 @@
     },
     "test/StocksLaunchpadLaunch.t.sol": {
       "StocksLaunchpadLaunchTest": [
-        "testFuzz_bidTickSpacingFor_is_one_hundredth_of_an_on_grid_floor",
-        "testFuzz_required_raise_is_never_zero_and_never_below_the_floor_value",
         "test_a_fresh_launchpad_is_born_paused",
         "test_admission_reads_decimals_and_verifies_the_route_bindings",
         "test_auction_is_bound_to_stock_and_to_the_launchpad_as_both_recipients",
         "test_auction_opens_exactly_ten_minutes_after_the_creation_block",
         "test_both_pool_orderings_are_reachable",
-        "test_floor_price_rules",
         "test_governance_only_mutators",
         "test_launch_costs_no_regent_and_needs_no_allowance",
         "test_launch_is_atomic_when_the_auction_creation_fails",
-        "test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve",
+        "test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve_and_the_vesting",
         "test_launch_refuses_unadmitted_and_revoked_stock",
         "test_launch_refuses_while_paused_and_only_gates_launch",
         "test_metadata_caps",
-        "test_required_raise_is_the_sale_allocation_at_the_floor_rounded_up",
         "test_revoke_never_changes_an_existing_launch"
       ]
     },
@@ -122,9 +118,10 @@
       "StocksLaunchpadMigrateTest": [
         "testFuzz_minimum_plus_one_unit_graduates_in_any_block",
         "testFuzz_sole_bidder_receives_the_whole_sale_allocation",
+        "test_creator_vesting_releases_linearly_to_the_launcher_only",
         "test_each_graduation_gets_its_own_splitter",
         "test_eighteen_decimal_stock_graduates_and_sells_the_whole_sale_allocation",
-        "test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca",
+        "test_failed_minimum_retires_inventory_reserve_and_vesting_and_refunds_through_the_cca",
         "test_graduation_emits_the_record",
         "test_launch_nobody_bid_in_never_graduates",
         "test_launchpad_never_exposes_a_token_or_stock_withdrawal",
@@ -132,7 +129,7 @@
         "test_minimum_bid_after_the_first_block_is_counted_one_unit_short_and_fails",
         "test_minimum_met_exactly_graduates_and_one_unit_below_fails",
         "test_new_sent_to_the_launchpad_before_migration_is_retired",
-        "test_no_principal_path_exists_for_the_locked_position",
+        "test_no_principal_path_exists_for_the_locked_positions",
         "test_nobody_can_initialize_the_official_pool_before_migration",
         "test_several_bidders_each_way_a_bid_ends_receive_the_whole_sale_allocation_both_orderings",
         "test_sole_bidder_at_the_start_receives_the_whole_sale_allocation_both_orderings",
@@ -142,7 +139,7 @@
     },
     "test/StocksPreset.t.sol": {
       "StocksPresetTest": [
-        "test_allocation_splits_the_initial_supply_exactly",
+        "test_allocation_and_floor_are_exact",
         "test_lane_constants",
         "test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps",
         "test_timing_constants",

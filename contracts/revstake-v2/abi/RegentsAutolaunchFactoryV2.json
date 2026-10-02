@@ -283,16 +283,6 @@
               "name": "treasury",
               "type": "address",
               "internalType": "address"
-            },
-            {
-              "name": "floorPriceQ96",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "minimumRegentRaised",
-              "type": "uint128",
-              "internalType": "uint128"
             }
           ]
         }
@@ -523,18 +513,6 @@
           "type": "address",
           "indexed": false,
           "internalType": "address"
-        },
-        {
-          "name": "floorPriceQ96",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "requiredRegentRaised",
-          "type": "uint128",
-          "indexed": false,
-          "internalType": "uint128"
         },
         {
           "name": "startBlock",
@@ -810,7 +788,7 @@
     "UERC20_FACTORY_RUNTIME_CODE_HASH()": "4e894821",
     "createPaymentReceiver(uint256,address,uint16)": "9d2299e4",
     "hook()": "7f5a7c7b",
-    "launch((string,string,string,string,string,address,uint256,uint128))": "53cb738a",
+    "launch((string,string,string,string,string,address))": "b7ba1ad4",
     "launchIdOfPaymentReceiver(address)": "5ab3c139",
     "launchIdOfSubject(address)": "ca2afc6c",
     "launches(uint256)": "7b443a76",

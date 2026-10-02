@@ -8,7 +8,6 @@ import {
 import {
     IContinuousClearingAuctionFactory
 } from "continuous-clearing-auction/interfaces/IContinuousClearingAuctionFactory.sol";
-import {ConstantsLib} from "continuous-clearing-auction/libraries/ConstantsLib.sol";
 import {LBPInitializationParams} from "liquidity-launcher/src/interfaces/ILBPInitializer.sol";
 import {PositionPlanner} from "liquidity-launcher/src/libraries/PositionPlanner.sol";
 import {TokenPricing} from "liquidity-launcher/src/libraries/TokenPricing.sol";
@@ -20,8 +19,6 @@ import {
 } from "liquidity-launcher/src/types/PositionPlannerTypes.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
-import {FixedPoint96} from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
-import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -45,26 +42,32 @@ import {StocksPreset} from "./StocksPreset.sol";
 
 /// @title StocksLaunchpadV2
 /// @notice Admission, creation, custody and migration of Autolaunch Stocks.
-/// @dev One launch mints exactly `S0` of a new UERC20 (NEW) to this contract, sells the half that is
-///      the sale allocation through a pinned Continuous Clearing Auction denominated in one admitted
-///      STOCK, custodies the other half as the reserve, and after the auction either graduates or
-///      retires the inventory. Every economic term comes from `StocksPreset`; a launcher supplies
-///      metadata, the STOCK and the floor price, nothing else, and keeps no authority over the launch
-///      afterwards. The required raise is the whole sale allocation at the floor price, rounded up, so
-///      an auction nobody bid in never graduates. The auction opens `START_LEAD_BLOCKS` after creation.
+/// @dev One launch mints exactly `S0` of a new UERC20 (NEW) to this contract, sells 49.5% as the sale
+///      allocation through a pinned Continuous Clearing Auction denominated in one admitted STOCK,
+///      custodies 49.5% as the reserve and 1% as the launcher's vesting, and after the auction either
+///      graduates or retires the inventory. Every economic term comes from `StocksPreset`; a launcher
+///      supplies metadata and the STOCK, nothing else, and keeps no authority over the launch
+///      afterwards. Every auction opens at the one fixed floor, and the required raise is the whole
+///      sale allocation at that floor, rounded up, so an auction nobody bid in never graduates. The
+///      auction opens `START_LEAD_BLOCKS` after creation.
 ///
 ///      An auction that reaches the required raise has sold its whole sale allocation, but for rounding:
 ///      the pinned CCA carries unsold supply forward and never lowers its clearing price, so the bids
-///      themselves are paid the allocation by the auction. The official pool opens at the raise
-///      divided by the sale allocation, the price bidders paid on average, and one full-range position
-///      pairs the whole reserve with the whole raise. Graduation creates the launch's own memestock
-///      splitter, the fixed destination of the hook's staker lane, registers the launcher as the fixed
-///      destination of the hook's creator lane, and mints the position to the permanent fee-only
-///      locker, which deposits its LP fees into that same splitter. Every unit of
-///      the launch's NEW still held afterwards (rounding crumbs and anything sent here) is retired to
-///      the dead address. No principal path exists.
+///      themselves are paid the allocation by the auction. The official pool opens at the final
+///      clearing price. Because no unit sold above that price, the raise never buys more than the sale
+///      allocation there, so one full-range position pairs the whole raise with at most the reserve,
+///      and the reserve it did not pair is locked as a NEW-only position above the opening price.
+///      Graduation creates the launch's own memestock splitter, the fixed destination of the hook's
+///      staker lane, registers the launcher as the fixed destination of the hook's creator lane, mints
+///      both positions to the permanent fee-only locker, which deposits their LP fees into that same
+///      splitter, and starts the launcher's vesting. Every other unit of the launch's NEW still held
+///      afterwards (rounding crumbs and anything sent here) is retired to the dead address. No
+///      principal path exists.
 ///
-///      The CCA creation, `_graduate`, `_mintLockedPosition` and `_exactlyFundedPlan` mirror the
+///      The launcher's 1% vests linearly per block over `CREATOR_VESTING_BLOCKS` from the graduation
+///      block; anyone may release what has vested, and it only ever goes to the recorded launcher.
+///
+///      The CCA creation, `_graduate`, `_mintLockedPositions` and `_exactlyFundedPlan` mirror the
 ///      frozen Agent `RegentLBPStrategy` technique: the auction is read back field by field before any
 ///      value moves, the price is converted through the pinned `TokenPricing`, the position is planned
 ///      by the pinned `PositionPlanner`, and the two settlement amounts are pinned to what this
@@ -86,11 +89,14 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         address route;
     }
 
-    /// @dev What one graduation locked in the locker.
+    /// @dev What one graduation locked in the locker. `newOnlyTokenId` is zero when the reserve the
+    ///      full range left was below one unit of liquidity and no NEW-only position was minted.
     struct LockedLiquidity {
         uint256 tokenId;
         uint128 stockUsed;
         uint128 newUsed;
+        uint256 newOnlyTokenId;
+        uint128 newOnlyUsed;
     }
 
     /// @dev The pinned UERC20 factory every NEW is created by. A constructor argument; the lab records
@@ -128,9 +134,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
     error StockNotAdmitted(address stock);
     error StockRefused(address stock);
     error RouteBindingMismatch(address expected, address found);
-    error FloorPriceTooLow(uint256 floorPriceQ96);
-    error FloorPriceNotOnGrid(uint256 floorPriceQ96);
-    error TickSpacingTooSmall(uint256 tickSpacingQ96);
     error ProtocolFeeControllerNotZero(address controller);
     error TokenHasNoCode(address token);
     error TokenCreatorMismatch(address found);
@@ -142,9 +145,11 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
     error ReserveMismatch(uint256 expected, uint256 found);
     error UnknownLaunch(uint256 launchId);
     error LaunchNotActive(Lifecycle found);
+    error LaunchNotGraduated(Lifecycle found);
     error MigrationNotYetAllowed(uint64 migrationBlock, uint256 currentBlock);
     error CurrencyRaisedMismatch(uint256 expected, uint256 found);
     error NoFullRangePosition();
+    error UnexpectedNewOnlyPositionCount(uint256 found);
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
     error AllowanceNotConsumed(address spender, uint256 remaining);
 
@@ -189,9 +194,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         Admission storage admission = _admissions[params.stock];
         if (!admission.admitted) revert StockNotAdmitted(params.stock);
 
-        uint256 tickSpacing = bidTickSpacingFor(params.floorPriceQ96);
-        uint128 requiredStockRaised = requiredStockRaisedFor(params.floorPriceQ96);
-
         address controller =
             address(IContinuousClearingAuctionFactory(StocksBindings.CCA_FACTORY).protocolFeeController());
         if (controller != address(0)) revert ProtocolFeeControllerNotZero(controller);
@@ -203,7 +205,7 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
 
         uint64 startBlock = SafeCastLib.toUint64(block.number) + StocksPreset.START_LEAD_BLOCKS;
         uint64 endBlock = startBlock + StocksPreset.AUCTION_DURATION_BLOCKS;
-        auction = _createAuction(newToken, params, launchId, startBlock, endBlock, tickSpacing, requiredStockRaised);
+        auction = _createAuction(newToken, params, launchId, startBlock, endBlock);
 
         Launch storage record = _launches[launchId];
         record.launcher = msg.sender;
@@ -214,8 +216,6 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         record.endBlock = endBlock;
         record.claimBlock = endBlock + StocksPreset.CLAIM_DELAY_BLOCKS;
         record.migrationBlock = endBlock + StocksPreset.MIGRATION_DELAY_BLOCKS;
-        record.requiredStockRaised = requiredStockRaised;
-        record.floorPriceQ96 = params.floorPriceQ96;
         record.lifecycle = Lifecycle.Active;
         launchIdOfAuction[auction] = launchId;
         launchIdOfToken[newToken] = launchId;
@@ -228,12 +228,12 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             auction,
             startBlock,
             endBlock,
-            params.floorPriceQ96,
-            requiredStockRaised,
             StocksPreset.AUCTION_INVENTORY,
-            StocksPreset.MIGRATION_RESERVE
+            StocksPreset.MIGRATION_RESERVE,
+            StocksPreset.CREATOR_VESTING
         );
-        // Custody: exactly the inventory leaves for the auction and exactly the reserve stays.
+        // Custody: exactly the inventory leaves for the auction and exactly the reserve and the
+        // vesting stay.
         uint256 auctionHeld = newToken.balanceOf(auction);
         newToken.safeTransfer(auction, StocksPreset.AUCTION_INVENTORY);
         uint256 delivered = newToken.balanceOf(auction) - auctionHeld;
@@ -243,7 +243,8 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         IContinuousClearingAuction(auction).onTokensReceived();
 
         uint256 held = newToken.balanceOf(address(this));
-        if (held != StocksPreset.MIGRATION_RESERVE) revert ReserveMismatch(StocksPreset.MIGRATION_RESERVE, held);
+        uint256 kept = uint256(StocksPreset.MIGRATION_RESERVE) + StocksPreset.CREATOR_VESTING;
+        if (held != kept) revert ReserveMismatch(kept, held);
     }
 
     /// @inheritdoc IStocksLaunchpadV2
@@ -263,6 +264,23 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         } else {
             _retire(launchId, record);
         }
+    }
+
+    /// @inheritdoc IStocksLaunchpadV2
+    /// @dev Nothing vested yet is a zero-amount no-op rather than a revert. The paid amount is
+    ///      recorded before the transfer.
+    function releaseCreatorVesting(uint256 launchId) external override nonReentrant returns (uint256 amount) {
+        Launch storage record = _launches[launchId];
+        if (record.lifecycle != Lifecycle.Graduated) revert LaunchNotGraduated(record.lifecycle);
+
+        amount = _creatorVested(record) - record.creatorReleased;
+        // slither-disable-next-line incorrect-equality
+        if (amount == 0) return 0;
+
+        record.creatorReleased += SafeCastLib.toUint128(amount);
+        address launcher = record.launcher;
+        emit CreatorVestingReleased(launchId, launcher, amount);
+        record.newToken.safeTransfer(launcher, amount);
     }
 
     // -------------------------------------------------------------------------
@@ -328,18 +346,18 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
     }
 
     /// @inheritdoc IStocksLaunchpadV2
-    function bidTickSpacingFor(uint256 floorPriceQ96) public pure override returns (uint256 tickSpacing) {
-        if (floorPriceQ96 < ConstantsLib.MIN_FLOOR_PRICE) revert FloorPriceTooLow(floorPriceQ96);
-        if (floorPriceQ96 % StocksPreset.BID_TICK_DIVISOR != 0) revert FloorPriceNotOnGrid(floorPriceQ96);
-        tickSpacing = floorPriceQ96 / StocksPreset.BID_TICK_DIVISOR;
-        if (tickSpacing < ConstantsLib.MIN_TICK_SPACING) revert TickSpacingTooSmall(tickSpacing);
+    function creatorReleasable(uint256 launchId) external view override returns (uint256) {
+        Launch storage record = _launches[launchId];
+        if (record.lifecycle != Lifecycle.Graduated) return 0;
+        return _creatorVested(record) - record.creatorReleased;
     }
 
-    /// @inheritdoc IStocksLaunchpadV2
-    function requiredStockRaisedFor(uint256 floorPriceQ96) public pure override returns (uint128) {
-        return SafeCastLib.toUint128(
-            FullMath.mulDivRoundingUp(StocksPreset.AUCTION_INVENTORY, floorPriceQ96, FixedPoint96.Q96)
-        );
+    /// @dev The launcher's vesting earned by now: linear per block from the graduation block, whole
+    ///      after `CREATOR_VESTING_BLOCKS`. Only meaningful for a graduated launch.
+    function _creatorVested(Launch storage record) private view returns (uint256) {
+        uint256 elapsed = block.number - record.vestingStartBlock;
+        if (elapsed >= StocksPreset.CREATOR_VESTING_BLOCKS) return StocksPreset.CREATOR_VESTING;
+        return uint256(StocksPreset.CREATOR_VESTING) * elapsed / StocksPreset.CREATOR_VESTING_BLOCKS;
     }
 
     /// @dev The official pool key one launch graduates into.
@@ -392,9 +410,7 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         LaunchParams calldata params,
         uint256 launchId,
         uint64 startBlock,
-        uint64 endBlock,
-        uint256 tickSpacing,
-        uint128 requiredStockRaised
+        uint64 endBlock
     ) private returns (address auction) {
         auction = address(
             IContinuousClearingAuctionFactory(StocksBindings.CCA_FACTORY)
@@ -409,10 +425,10 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
                             startBlock: startBlock,
                             endBlock: endBlock,
                             claimBlock: endBlock + StocksPreset.CLAIM_DELAY_BLOCKS,
-                            tickSpacing: tickSpacing,
+                            tickSpacing: StocksPreset.BID_TICK_SPACING_Q96,
                             validationHook: address(0),
-                            floorPrice: params.floorPriceQ96,
-                            requiredCurrencyRaised: requiredStockRaised,
+                            floorPrice: StocksPreset.FLOOR_PRICE_Q96,
+                            requiredCurrencyRaised: StocksPreset.REQUIRED_STOCK_RAISED,
                             auctionStepsData: StocksPreset.AUCTION_STEPS
                         })
                     ),
@@ -433,15 +449,15 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         _requireBinding(6, endBlock, cca.endBlock());
         _requireBinding(7, endBlock + StocksPreset.CLAIM_DELAY_BLOCKS, cca.claimBlock());
         _requireBinding(8, 0, uint256(uint160(address(cca.validationHook()))));
-        _requireBinding(9, params.floorPriceQ96, cca.floorPrice());
-        _requireBinding(10, tickSpacing, cca.tickSpacing());
+        _requireBinding(9, StocksPreset.FLOOR_PRICE_Q96, cca.floorPrice());
+        _requireBinding(10, StocksPreset.BID_TICK_SPACING_Q96, cca.tickSpacing());
     }
 
     // -------------------------------------------------------------------------
     // internals: terminal states
     // -------------------------------------------------------------------------
 
-    /// @dev Economic failure: the swept inventory and the reserve are retired; bidder STOCK is never
+    /// @dev Economic failure: the swept inventory, the reserve and the vesting are retired; bidder STOCK is never
     ///      touched and refunds go through the CCA. The terminal lifecycle is written before the sweep
     ///      and `migrate` is guarded, so the amount recorded after it is the only late write.
     // slither-disable-next-line reentrancy-no-eth
@@ -488,15 +504,14 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
 
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
 
-        // The pool opens at the raise divided by the whole sale allocation (STOCK per NEW, Q96).
+        // The pool opens at the auction's final clearing price (STOCK per NEW, Q96).
         bool stockIsCurrency0 = Currency.unwrap(key.currency0) == stock;
-        uint256 priceX96 = FullMath.mulDiv(raised, FixedPoint96.Q96, StocksPreset.AUCTION_INVENTORY);
         uint160 sqrtPriceX96 =
-            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, stockIsCurrency0));
+            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(lbp.initialPriceX96, stockIsCurrency0));
         // slither-disable-next-line unused-return
         IPoolManager(StocksBindings.POOL_MANAGER).initialize(key, sqrtPriceX96);
 
-        LockedLiquidity memory locked = _mintLockedPosition(
+        LockedLiquidity memory locked = _mintLockedPositions(
             key,
             sqrtPriceX96,
             stockIsCurrency0,
@@ -506,9 +521,10 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             StocksPreset.MIGRATION_RESERVE
         );
         MemestockLPLocker(locker).register(locked.tokenId, key, splitter);
+        if (locked.newOnlyTokenId != 0) MemestockLPLocker(locker).register(locked.newOnlyTokenId, key, splitter);
 
         // Only this launch's own STOCK delta moves on. Anything unrelated already held here stays.
-        // After the position this is the rounding remainder below one unit of liquidity.
+        // After the full range this is the rounding remainder below one unit of liquidity.
         uint256 stockDust = stock.balanceOf(address(this)) - stockBefore;
         if (stockDust != 0) {
             stock.safeApprove(hook, stockDust);
@@ -517,9 +533,9 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             if (remaining != 0) revert AllowanceNotConsumed(hook, remaining);
         }
 
-        // Every unit of this launch's NEW still here — the unsold rounding, the reserve the position
-        // did not pair and anything sent here — is retired. No principal path exists.
-        uint256 retired = newToken.balanceOf(address(this));
+        // Every unit of this launch's NEW still here but the vesting — the unsold rounding, the
+        // positions' rounding and anything sent here — is retired. No principal path exists.
+        uint256 retired = newToken.balanceOf(address(this)) - StocksPreset.CREATOR_VESTING;
         if (retired != 0) newToken.safeTransfer(StocksBindings.DEAD_ADDRESS, retired);
 
         record.poolId = poolId;
@@ -527,6 +543,9 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         record.lpTokenId = locked.tokenId;
         record.lpStockUsed = locked.stockUsed;
         record.lpNewUsed = locked.newUsed;
+        record.newOnlyTokenId = locked.newOnlyTokenId;
+        record.newOnlyUsed = locked.newOnlyUsed;
+        record.vestingStartBlock = SafeCastLib.toUint64(block.number);
         record.retiredNew = retired;
 
         emit StockLaunchGraduated(
@@ -537,17 +556,20 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
             locked.tokenId,
             locked.stockUsed,
             locked.newUsed,
+            locked.newOnlyTokenId,
+            locked.newOnlyUsed,
             raised,
             stockDust,
             retired
         );
     }
 
-    /// @dev The locked full-range position, planned by the pinned planner from the whole reserve and the
-    ///      whole raise and minted straight to the locker. Its amounts never exceed the budget it was
-    ///      planned from (floor liquidity, then round-up amounts of that liquidity), so the total settled
-    ///      is exactly what this function transfers in.
-    function _mintLockedPosition(
+    /// @dev The two locked positions, planned by the pinned planner and minted straight to the locker
+    ///      in one call: the full range from the whole raise and the reserve, then a NEW-only position
+    ///      above the opening price from the reserve the full range did not pair. Each position's
+    ///      amounts never exceed the budget it was planned from (floor liquidity, then round-up amounts
+    ///      of that liquidity), so the total settled is exactly what this function transfers in.
+    function _mintLockedPositions(
         PoolKey memory key,
         uint160 sqrtPriceX96,
         bool stockIsCurrency0,
@@ -557,33 +579,69 @@ contract StocksLaunchpadV2 is ReentrancyGuardTransient, IStocksLaunchpadV2 {
         uint128 reserve
     ) private returns (LockedLiquidity memory locked) {
         // slither-disable-next-line unused-return
-        (Position[] memory positions,) = PositionPlanner.resolve(
+        (Position[] memory fullRange,) = PositionPlanner.resolve(
             new PositionDefinition[](0),
             sqrtPriceX96,
             StocksPreset.POOL_TICK_SPACING,
             _currencyAmounts(stockIsCurrency0, stockBudget, reserve),
             locker
         );
-        if (positions.length != 1) revert NoFullRangePosition();
-        (locked.stockUsed, locked.newUsed) = _stockAndNew(stockIsCurrency0, positions[0]);
+        if (fullRange.length != 1) revert NoFullRangePosition();
+        (locked.stockUsed, locked.newUsed) = _stockAndNew(stockIsCurrency0, fullRange[0]);
 
+        // slither-disable-next-line unused-return
+        (Position[] memory newOnly,) = PositionPlanner.resolve(
+            _newOnlyDefinition(stockIsCurrency0),
+            sqrtPriceX96,
+            StocksPreset.POOL_TICK_SPACING,
+            _currencyAmounts(stockIsCurrency0, 0, reserve - locked.newUsed),
+            locker
+        );
+        if (newOnly.length > 1) revert UnexpectedNewOnlyPositionCount(newOnly.length);
+
+        Position[] memory positions = new Position[](1 + newOnly.length);
+        positions[0] = fullRange[0];
+        if (newOnly.length == 1) {
+            positions[1] = newOnly[0];
+            (, locked.newOnlyUsed) = _stockAndNew(stockIsCurrency0, newOnly[0]);
+        }
+
+        uint128 newPlaced = locked.newUsed + locked.newOnlyUsed;
         Plan memory plan = _exactlyFundedPlan(
             positions,
             key,
-            stockIsCurrency0 ? locked.stockUsed : locked.newUsed,
-            stockIsCurrency0 ? locked.newUsed : locked.stockUsed
+            stockIsCurrency0 ? locked.stockUsed : newPlaced,
+            stockIsCurrency0 ? newPlaced : locked.stockUsed
         );
 
         address positionManager = StocksBindings.POSITION_MANAGER;
         locked.tokenId = IPositionManager(positionManager).nextTokenId();
+        if (newOnly.length == 1) locked.newOnlyTokenId = locked.tokenId + 1;
 
         stock.safeTransfer(positionManager, locked.stockUsed);
-        newToken.safeTransfer(positionManager, locked.newUsed);
+        newToken.safeTransfer(positionManager, newPlaced);
         IPositionManager(positionManager).modifyLiquidities(abi.encode(plan.actions, plan.params), block.timestamp);
 
-        uint256 expected = locked.tokenId + 1;
+        uint256 expected = locked.tokenId + positions.length;
         uint256 minted = IPositionManager(positionManager).nextTokenId();
         if (minted != expected) revert UnexpectedPositionMintCount(expected, minted);
+    }
+
+    /// @dev The one-sided NEW position as the pinned planner reads it: offsets from the initial tick
+    ///      (`StocksPreset` geometry), the whole budget, the default (locker) recipient. NEW is currency1
+    ///      when STOCK is currency0, so its side of the book is below the pool price.
+    function _newOnlyDefinition(bool stockIsCurrency0) private pure returns (PositionDefinition[] memory definitions) {
+        definitions = new PositionDefinition[](1);
+        definitions[0] = PositionDefinition({
+            offsetLower: stockIsCurrency0
+                ? StocksPreset.NEW_ONLY_BELOW_LOWER_OFFSET
+                : StocksPreset.NEW_ONLY_ABOVE_LOWER_OFFSET,
+            offsetUpper: stockIsCurrency0
+                ? StocksPreset.NEW_ONLY_BELOW_UPPER_OFFSET
+                : StocksPreset.NEW_ONLY_ABOVE_UPPER_OFFSET,
+            weight: PositionPlanner.MPS,
+            overridePositionRecipient: address(0)
+        });
     }
 
     function _currencyAmounts(bool stockIsCurrency0, uint128 stockAmount, uint128 newAmount)

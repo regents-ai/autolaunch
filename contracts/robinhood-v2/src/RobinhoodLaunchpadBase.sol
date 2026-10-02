@@ -9,14 +9,11 @@ import {
 import {
     IContinuousClearingAuctionFactory
 } from "continuous-clearing-auction/interfaces/IContinuousClearingAuctionFactory.sol";
-import {ConstantsLib} from "continuous-clearing-auction/libraries/ConstantsLib.sol";
 import {LBPInitializationParams} from "liquidity-launcher/src/interfaces/ILBPInitializer.sol";
 import {TokenPricing} from "liquidity-launcher/src/libraries/TokenPricing.sol";
 import {Position} from "liquidity-launcher/src/types/PositionPlannerTypes.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
-import {FixedPoint96} from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
-import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -42,16 +39,19 @@ import {RobinhoodPositionsLib} from "./libraries/RobinhoodPositionsLib.sol";
 /// @title RobinhoodLaunchpadBase
 /// @notice The chain-level machinery of a Robinhood launch: bindings, pause governance, NEW
 ///         creation, CCA creation and read-back on the fixed Robinhood schedule, custody, migration,
-///         the launch's own memestock splitter and the locked-liquidity technique of the Base Stocks
-///         launchpad. The required raise is the whole sale allocation at the floor price, rounded up,
-///         so an auction nobody bid in never graduates, and an auction that reaches it has sold its
-///         whole sale allocation to its bidders but for rounding. Graduation opens the official pool
-///         at the raise divided by the sale allocation and pairs the whole reserve with the whole raise
-///         in one full-range position; every unit of the launch's NEW still held afterwards (rounding
-///         crumbs and anything sent here) is retired to the dead address. The launchpad on top
-///         supplies its terms (supply split) and what it does with the currency the full range could
-///         not pair. A launch costs nothing beyond gas: no fee is pulled and the
-///         launchpad never holds USDG.
+///         the launch's own memestock splitter, the creator vesting and the locked-liquidity technique
+///         of the Base Stocks launchpad. Every auction opens at the one fixed floor and the required
+///         raise is the whole sale allocation at it, rounded up, so an auction nobody bid in never
+///         graduates, and an auction that reaches it has sold its whole sale allocation to its bidders
+///         but for rounding. Graduation opens the official pool at the final clearing price; because no
+///         unit sold above it, the raise never buys more than the sale allocation there, so one
+///         full-range position pairs the whole raise with at most the reserve and the reserve it did
+///         not pair is locked as a NEW-only position past the opening price. The creator vesting
+///         starts at graduation and every other unit of the launch's NEW still held afterwards
+///         (rounding crumbs and anything sent here) is retired to the dead address. The launchpad on
+///         top supplies its terms (supply split) and what it does with the currency the full range
+///         could not pair. A launch costs nothing beyond gas: no fee is pulled and the launchpad never
+///         holds USDG.
 /// @dev Bindings are constructor immutables, each proved to be deployed code and, where it has one,
 ///      to present the expected binding (USDG decimals, the inbox's USDG). Nothing is hard-coded:
 ///      no Robinhood address is known at build time, and a deployment with a wrong binding fails at
@@ -84,6 +84,17 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         uint256 totalSupply;
         uint128 auctionInventory;
         uint128 migrationReserve;
+        uint128 creatorVesting;
+    }
+
+    /// @dev What graduation locked: the full-range position, and the NEW-only position when any reserve
+    ///      was left for it (`newOnlyTokenId` zero otherwise).
+    struct LockedLiquidity {
+        uint256 tokenId;
+        uint128 currencyUsed;
+        uint128 newUsed;
+        uint256 newOnlyTokenId;
+        uint128 newOnlyUsed;
     }
 
     address public immutable override uerc20Factory;
@@ -120,9 +131,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     error LaunchesArePaused();
     error EmptyMetadataField(uint256 field);
     error MetadataFieldTooLong(uint256 field, uint256 maximum, uint256 found);
-    error FloorPriceTooLow(uint256 floorPriceQ96);
-    error FloorPriceNotOnGrid(uint256 floorPriceQ96);
-    error TickSpacingTooSmall(uint256 tickSpacingQ96);
     error ProtocolFeeControllerNotZero(address controller);
     error TokenHasNoCode(address token);
     error TokenCreatorMismatch(address found);
@@ -134,6 +142,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     error ReserveMismatch(uint256 expected, uint256 found);
     error UnknownLaunch(uint256 launchId);
     error LaunchNotActive(Lifecycle found);
+    error LaunchNotGraduated(Lifecycle found);
     error MigrationNotYetAllowed(uint64 migrationBlock, uint256 currentBlock);
     error CurrencyRaisedMismatch(uint256 expected, uint256 found);
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
@@ -227,6 +236,21 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         }
     }
 
+    /// @inheritdoc IRobinhoodLaunchpadBase
+    function releaseCreatorVesting(uint256 launchId) external override nonReentrant returns (uint256 amount) {
+        Launch storage record = _launches[launchId];
+        if (record.lifecycle != Lifecycle.Graduated) revert LaunchNotGraduated(record.lifecycle);
+
+        amount = _creatorVested(record) - record.creatorReleased;
+        // slither-disable-next-line incorrect-equality
+        if (amount == 0) return 0;
+
+        record.creatorReleased += SafeCastLib.toUint128(amount);
+        address launcher = record.launcher;
+        emit CreatorVestingReleased(launchId, launcher, amount);
+        record.newToken.safeTransfer(launcher, amount);
+    }
+
     // -------------------------------------------------------------------------
     // Safe surface
     // -------------------------------------------------------------------------
@@ -255,11 +279,10 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     }
 
     /// @inheritdoc IRobinhoodLaunchpadBase
-    function bidTickSpacingFor(uint256 floorPriceQ96) public pure override returns (uint256 tickSpacing) {
-        if (floorPriceQ96 < ConstantsLib.MIN_FLOOR_PRICE) revert FloorPriceTooLow(floorPriceQ96);
-        if (floorPriceQ96 % StocksPreset.BID_TICK_DIVISOR != 0) revert FloorPriceNotOnGrid(floorPriceQ96);
-        tickSpacing = floorPriceQ96 / StocksPreset.BID_TICK_DIVISOR;
-        if (tickSpacing < ConstantsLib.MIN_TICK_SPACING) revert TickSpacingTooSmall(tickSpacing);
+    function creatorReleasable(uint256 launchId) external view override returns (uint256) {
+        Launch storage record = _launches[launchId];
+        if (record.lifecycle != Lifecycle.Graduated) return 0;
+        return _creatorVested(record) - record.creatorReleased;
     }
 
     /// @inheritdoc IRobinhoodLaunchpadBase
@@ -267,11 +290,13 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         return _getBlockNumberish();
     }
 
-    /// @dev The currency a launch at this floor must raise to graduate: the whole sale allocation at
-    ///      the floor price, rounded up, so it is never zero.
-    function _requiredRaiseFor(uint256 floorPriceQ96) internal pure returns (uint128) {
-        return
-            SafeCastLib.toUint128(FullMath.mulDivRoundingUp(_terms().auctionInventory, floorPriceQ96, FixedPoint96.Q96));
+    /// @dev The creator vesting vested so far: linear per block, in the auction's block units, from the
+    ///      graduation block, the whole of it once `RobinhoodPreset.CREATOR_VESTING_BLOCKS` have passed.
+    function _creatorVested(Launch storage record) private view returns (uint256) {
+        uint256 total = _terms().creatorVesting;
+        uint256 elapsed = _getBlockNumberish() - record.vestingStartBlock;
+        if (elapsed >= RobinhoodPreset.CREATOR_VESTING_BLOCKS) return total;
+        return total * elapsed / RobinhoodPreset.CREATOR_VESTING_BLOCKS;
     }
 
     // -------------------------------------------------------------------------
@@ -279,9 +304,9 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     // -------------------------------------------------------------------------
 
     /// @dev The whole shared creation path. The caller has already validated its kind-specific
-    ///      inputs; nothing here is kind-specific but the terms. The required raise follows from the
-    ///      floor (`_requiredRaiseFor`). The auction opens `RobinhoodPreset.START_LEAD_BLOCKS` after the
-    ///      current block, in the auction's block units.
+    ///      inputs; nothing here is kind-specific but the terms. The floor, bid tick spacing and required
+    ///      raise are the `StocksPreset` constants. The auction opens `RobinhoodPreset.START_LEAD_BLOCKS`
+    ///      after the current block, in the auction's block units.
     function _create(CoreParams memory core, address currency)
         internal
         returns (uint256 launchId, address newToken, address auction)
@@ -295,8 +320,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         _requireBytes(4, bytes(core.image).length, StocksPreset.MAX_IMAGE_BYTES);
 
         Terms memory terms = _terms();
-        uint256 tickSpacing = bidTickSpacingFor(core.floorPriceQ96);
-        uint128 requiredRaise = _requiredRaiseFor(core.floorPriceQ96);
 
         address controller = address(IContinuousClearingAuctionFactory(ccaFactory).protocolFeeController());
         if (controller != address(0)) revert ProtocolFeeControllerNotZero(controller);
@@ -308,8 +331,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
 
         uint64 startBlock = SafeCastLib.toUint64(_getBlockNumberish()) + RobinhoodPreset.START_LEAD_BLOCKS;
         uint64 endBlock = startBlock + RobinhoodPreset.AUCTION_DURATION_BLOCKS;
-        auction =
-            _createAuction(newToken, currency, core, launchId, startBlock, endBlock, tickSpacing, requiredRaise, terms);
+        auction = _createAuction(newToken, currency, launchId, startBlock, endBlock, terms);
 
         Launch storage record = _launches[launchId];
         record.launcher = msg.sender;
@@ -320,13 +342,11 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         record.endBlock = endBlock;
         record.claimBlock = endBlock + RobinhoodPreset.CLAIM_DELAY_BLOCKS;
         record.migrationBlock = endBlock + RobinhoodPreset.MIGRATION_DELAY_BLOCKS;
-        record.requiredRaise = requiredRaise;
-        record.floorPriceQ96 = core.floorPriceQ96;
         record.lifecycle = Lifecycle.Active;
         launchIdOfAuction[auction] = launchId;
         launchIdOfToken[newToken] = launchId;
 
-        // Custody: exactly the inventory leaves for the auction and exactly the reserve stays.
+        // Custody: exactly the inventory leaves for the auction and exactly the reserve and the vesting stay.
         uint256 auctionHeld = newToken.balanceOf(auction);
         newToken.safeTransfer(auction, terms.auctionInventory);
         uint256 delivered = newToken.balanceOf(auction) - auctionHeld;
@@ -334,8 +354,8 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         IContinuousClearingAuction(auction).onTokensReceived();
 
         uint256 held = newToken.balanceOf(address(this));
-        uint256 reserve = terms.totalSupply - terms.auctionInventory;
-        if (held != reserve) revert ReserveMismatch(reserve, held);
+        uint256 kept = uint256(terms.migrationReserve) + terms.creatorVesting;
+        if (held != kept) revert ReserveMismatch(kept, held);
     }
 
     /// @dev Exactly `totalSupply` of NEW, minted once, to this contract, by the pinned UERC20 factory.
@@ -367,16 +387,14 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     }
 
     /// @dev The canonical fixed auction: the launch currency, both recipients this contract, no
-    ///      validation hook, the preset schedule. Every exposed binding is read back before any value moves.
+    ///      validation hook, the preset floor, tick spacing, required raise and schedule. Every exposed
+    ///      binding is read back before any value moves.
     function _createAuction(
         address newToken,
         address currency,
-        CoreParams memory core,
         uint256 launchId,
         uint64 startBlock,
         uint64 endBlock,
-        uint256 tickSpacing,
-        uint128 requiredRaise,
         Terms memory terms
     ) private returns (address auction) {
         auction = address(
@@ -392,10 +410,10 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
                             startBlock: startBlock,
                             endBlock: endBlock,
                             claimBlock: endBlock + RobinhoodPreset.CLAIM_DELAY_BLOCKS,
-                            tickSpacing: tickSpacing,
+                            tickSpacing: StocksPreset.BID_TICK_SPACING_Q96,
                             validationHook: address(0),
-                            floorPrice: core.floorPriceQ96,
-                            requiredCurrencyRaised: requiredRaise,
+                            floorPrice: StocksPreset.FLOOR_PRICE_Q96,
+                            requiredCurrencyRaised: StocksPreset.REQUIRED_STOCK_RAISED,
                             auctionStepsData: RobinhoodPreset.AUCTION_STEPS
                         })
                     ),
@@ -416,16 +434,17 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         _requireBinding(6, endBlock, cca.endBlock());
         _requireBinding(7, endBlock + RobinhoodPreset.CLAIM_DELAY_BLOCKS, cca.claimBlock());
         _requireBinding(8, 0, uint256(uint160(address(cca.validationHook()))));
-        _requireBinding(9, core.floorPriceQ96, cca.floorPrice());
-        _requireBinding(10, tickSpacing, cca.tickSpacing());
+        _requireBinding(9, StocksPreset.FLOOR_PRICE_Q96, cca.floorPrice());
+        _requireBinding(10, StocksPreset.BID_TICK_SPACING_Q96, cca.tickSpacing());
     }
 
     // -------------------------------------------------------------------------
     // internals: terminal states
     // -------------------------------------------------------------------------
 
-    /// @dev Economic failure: every unit of this launch's NEW still held, the swept inventory and the
-    ///      reserve alike, is retired; bidder currency is never touched and refunds go through the CCA.
+    /// @dev Economic failure: every unit of this launch's NEW still held, the swept inventory, the
+    ///      reserve and the vesting alike, is retired; bidder currency is never touched and refunds go
+    ///      through the CCA.
     // slither-disable-next-line reentrancy-no-eth
     function _retire(uint256 launchId, Launch storage record) private {
         record.lifecycle = Lifecycle.Failed;
@@ -471,15 +490,15 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
 
         IContinuousClearingAuction(auction).sweepUnsoldTokens();
 
-        // The pool opens at the raise divided by the whole sale allocation (currency per NEW, Q96).
+        // The pool opens at the auction's final clearing price (currency per NEW, Q96).
         bool currencyIsCurrency0 = Currency.unwrap(key.currency0) == currency;
-        uint256 priceX96 = FullMath.mulDiv(raised, FixedPoint96.Q96, terms.auctionInventory);
-        uint160 sqrtPriceX96 =
-            TokenPricing.convertToSqrtPriceX96(TokenPricing.convertToPriceX192(priceX96, currencyIsCurrency0));
+        uint160 sqrtPriceX96 = TokenPricing.convertToSqrtPriceX96(
+            TokenPricing.convertToPriceX192(lbp.initialPriceX96, currencyIsCurrency0)
+        );
         // slither-disable-next-line unused-return
         IPoolManager(poolManager).initialize(key, sqrtPriceX96);
 
-        (uint256 tokenId, uint128 currencyUsed, uint128 newUsed) = _mintLockedPosition(
+        LockedLiquidity memory locked = _mintLockedPositions(
             key,
             sqrtPriceX96,
             currencyIsCurrency0,
@@ -488,22 +507,26 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
             SafeCastLib.toUint128(raised),
             terms.migrationReserve
         );
-        MemestockLPLocker(locker).register(tokenId, key, splitter);
+        MemestockLPLocker(locker).register(locked.tokenId, key, splitter);
+        if (locked.newOnlyTokenId != 0) MemestockLPLocker(locker).register(locked.newOnlyTokenId, key, splitter);
 
-        // Every unit of this launch's NEW still here — the unsold rounding, the reserve the position
-        // did not pair and anything sent here — is retired. No principal path exists.
-        uint256 retired = newToken.balanceOf(address(this));
+        // Every unit of this launch's NEW still here but the vesting — the unsold rounding, the
+        // positions' rounding and anything sent here — is retired. No principal path exists.
+        uint256 retired = newToken.balanceOf(address(this)) - terms.creatorVesting;
         if (retired != 0) newToken.safeTransfer(DEAD_ADDRESS, retired);
 
         record.poolId = poolId;
         record.finalSqrtPriceX96 = sqrtPriceX96;
-        record.lpTokenId = tokenId;
-        record.lpCurrencyUsed = currencyUsed;
-        record.lpNewUsed = newUsed;
+        record.lpTokenId = locked.tokenId;
+        record.lpCurrencyUsed = locked.currencyUsed;
+        record.lpNewUsed = locked.newUsed;
+        record.newOnlyTokenId = locked.newOnlyTokenId;
+        record.newOnlyUsed = locked.newOnlyUsed;
+        record.vestingStartBlock = SafeCastLib.toUint64(_getBlockNumberish());
         record.retiredNew = retired;
 
         // Only this launch's own currency delta moves on. Anything unrelated already held here stays.
-        // After the position this is the rounding remainder below one unit of liquidity.
+        // After the full range this is the rounding remainder below one unit of liquidity.
         uint256 currencyRemainder = currency.balanceOf(address(this)) - currencyBefore;
         _finishGraduation(launchId, record, raised, currencyRemainder);
     }
@@ -520,13 +543,14 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         });
     }
 
-    /// @dev The locked full-range position, planned by the pinned planner from the whole reserve and the
-    ///      whole raise and minted straight to the locker in one PositionManager call, funded with
-    ///      exactly its two amounts, so nothing already sitting at the shared PositionManager is
-    ///      settled as this launch's credit. Its amounts never exceed the budget it was planned from
-    ///      (floor liquidity, then round-up amounts of that liquidity), so the total settled is exactly
-    ///      what this function transfers in.
-    function _mintLockedPosition(
+    /// @dev The locked positions, planned by the pinned planner and minted straight to the locker in one
+    ///      PositionManager call, funded with exactly their amounts, so nothing already sitting at the
+    ///      shared PositionManager is settled as this launch's credit. The full range is planned from
+    ///      the whole raise and the reserve; the NEW-only position from the reserve the full range left.
+    ///      Their amounts never exceed the budgets they were planned from (floor liquidity, then
+    ///      round-up amounts of that liquidity), so the total settled is exactly what this function
+    ///      transfers in.
+    function _mintLockedPositions(
         PoolKey memory key,
         uint160 sqrtPriceX96,
         bool currencyIsCurrency0,
@@ -534,24 +558,39 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         address newToken,
         uint128 currencyBudget,
         uint128 reserve
-    ) private returns (uint256 tokenId, uint128 currencyUsed, uint128 newUsed) {
-        Position[] memory positions = new Position[](1);
-        positions[0] =
-            RobinhoodPositionsLib.fullRange(sqrtPriceX96, currencyIsCurrency0, currencyBudget, reserve, locker);
-        (currencyUsed, newUsed) = _currencyAndNew(currencyIsCurrency0, positions[0]);
+    ) private returns (LockedLiquidity memory locked) {
+        Position memory fullRange = RobinhoodPositionsLib.fullRange(
+            sqrtPriceX96, currencyIsCurrency0, currencyBudget, reserve, locker
+        );
+        (locked.currencyUsed, locked.newUsed) = _currencyAndNew(currencyIsCurrency0, fullRange);
 
+        Position[] memory newOnly =
+            RobinhoodPositionsLib.newOnly(sqrtPriceX96, currencyIsCurrency0, reserve - locked.newUsed, locker);
+
+        Position[] memory positions = new Position[](1 + newOnly.length);
+        positions[0] = fullRange;
+        if (newOnly.length == 1) {
+            positions[1] = newOnly[0];
+            (, locked.newOnlyUsed) = _currencyAndNew(currencyIsCurrency0, newOnly[0]);
+        }
+
+        uint128 newPlaced = locked.newUsed + locked.newOnlyUsed;
         bytes memory unlockData = RobinhoodPositionsLib.exactlyFundedPlan(
-            positions, key, currencyIsCurrency0 ? currencyUsed : newUsed, currencyIsCurrency0 ? newUsed : currencyUsed
+            positions,
+            key,
+            currencyIsCurrency0 ? locked.currencyUsed : newPlaced,
+            currencyIsCurrency0 ? newPlaced : locked.currencyUsed
         );
 
         address manager = positionManager;
-        tokenId = IPositionManager(manager).nextTokenId();
+        locked.tokenId = IPositionManager(manager).nextTokenId();
+        if (newOnly.length == 1) locked.newOnlyTokenId = locked.tokenId + 1;
 
-        currency.safeTransfer(manager, currencyUsed);
-        newToken.safeTransfer(manager, newUsed);
+        currency.safeTransfer(manager, locked.currencyUsed);
+        newToken.safeTransfer(manager, newPlaced);
         IPositionManager(manager).modifyLiquidities(unlockData, block.timestamp);
 
-        uint256 expected = tokenId + 1;
+        uint256 expected = locked.tokenId + positions.length;
         uint256 minted = IPositionManager(manager).nextTokenId();
         if (minted != expected) revert UnexpectedPositionMintCount(expected, minted);
     }
