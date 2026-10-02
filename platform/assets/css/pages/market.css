@@ -42,6 +42,12 @@
 .price-chart__facts div { display: flex; gap: 6px; min-width: 0; }
 .price-chart__facts dt { color: var(--color-fg-muted); }
 .price-chart__facts dd { margin: 0; overflow-wrap: anywhere; }
+.market-identity__chart { grid-column: 1 / -1; min-width: 0; }
+.market-identity__chart .price-chart { padding: 0; border: 0; background: none; }
+/* A token's stake and buy/sell widgets side by side, with the staked share under the stake widget. */
+.token-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 30rem)); gap: var(--space-4); align-items: start; min-width: 0; }
+.token-actions__stake { display: grid; gap: var(--space-3); min-width: 0; }
+@media (max-width: 64rem) { .token-actions { grid-template-columns: minmax(0, 30rem); } }
 .market-identity__description { margin: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
 .market-identity__trade { position: relative; justify-self: start; max-width: 100%; overflow: hidden; }
 .market-identity__trade .rg-button__label { overflow-wrap: anywhere; }

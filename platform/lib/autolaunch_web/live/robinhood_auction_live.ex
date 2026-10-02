@@ -95,7 +95,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       </p>
       <.headline
         record={@launch}
-        minimum={required(@launch)}
         usd_rate={@usd_rate}
         details="robinhood-auction-details"
       />

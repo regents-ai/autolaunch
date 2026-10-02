@@ -90,39 +90,56 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <.detail_card
         kind={:token}
         record={@token}
-      />
-      <section id="stake" class="token-stake" aria-label="Staking">
-        <.stake_summary
-          :if={@pool.ok?}
-          id="robinhood-token-staked"
-          pool={@pool.result}
-          supply={@token.auction.token_supply}
-          label="Memestake"
-          fees={@fee_totals.result}
-          rate={@usd_rate.result}
-        />
+      >
+        <:chart>
+          <.price_chart
+            :if={@pool.ok?}
+            id="robinhood-token-price-chart"
+            label="Price since the pool opened"
+            history={@pool.result.prices}
+            unit={@pool.result.currency.symbol}
+            color={@token.auction.image_color}
+          />
+        </:chart>
+      </.detail_card>
+      <section class="token-actions" aria-label="Staking and trading">
+        <div id="stake" class="token-actions__stake">
+          <.live_component
+            :if={@pool.ok?}
+            module={AutolaunchWeb.StakeComponent}
+            id={"robinhood-stake-#{@token.auction.auction_address}"}
+            launch={%{chain: :robinhood, auction: @token.auction}}
+            pool={@pool.result}
+            initial_amount={@stake_amount}
+            share_url={Paths.token_url(@token.auction)}
+            share_image={ShareCard.token_image_url(@token.auction, DateTime.utc_now())}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+          <.stake_summary
+            :if={@pool.ok?}
+            id="robinhood-token-staked"
+            pool={@pool.result}
+            supply={@token.auction.token_supply}
+            label="Memestake"
+            fees={@fee_totals.result}
+            rate={@usd_rate.result}
+          />
+        </div>
         <.live_component
-          :if={@pool.ok?}
-          module={AutolaunchWeb.StakeComponent}
-          id={"robinhood-stake-#{@token.auction.auction_address}"}
+          :if={@swap?}
+          module={AutolaunchWeb.SwapComponent}
+          id={"robinhood-trade-#{@token.auction.auction_address}"}
+          agent_tools
           launch={%{chain: :robinhood, auction: @token.auction}}
-          pool={@pool.result}
-          initial_amount={@stake_amount}
-          share_url={Paths.token_url(@token.auction)}
-          share_image={ShareCard.token_image_url(@token.auction, DateTime.utc_now())}
+          symbol={@token.symbol}
+          currency={@token.auction.quote_token_symbol}
           authenticated={@account_control.kind == :signed_in}
           current_human_id={current_human_id(@access_context)}
           session_lease={@session_lease}
         />
       </section>
-      <.price_chart
-        :if={@pool.ok?}
-        id="robinhood-token-price-chart"
-        label="Price since the pool opened"
-        history={@pool.result.prices}
-        unit={@pool.result.currency.symbol}
-        color={@token.auction.image_color}
-      />
       <dl class="autolaunch-live-market" aria-label="Token facts">
         <div>
           <dt>Token address</dt>
@@ -147,18 +164,6 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           </dd>
         </div>
       </dl>
-      <.live_component
-        :if={@swap?}
-        module={AutolaunchWeb.SwapComponent}
-        id={"robinhood-trade-#{@token.auction.auction_address}"}
-        agent_tools
-        launch={%{chain: :robinhood, auction: @token.auction}}
-        symbol={@token.symbol}
-        currency={@token.auction.quote_token_symbol}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
       <p class="autolaunch-live-market">
         <.link navigate={Paths.auction(@token.auction)}>
           Open the auction this token graduated from

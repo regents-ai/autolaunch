@@ -136,7 +136,6 @@ defmodule AutolaunchWeb.AuctionLive do
       />
       <.headline
         record={@page_record}
-        minimum={minimum(@page_record)}
         usd_rate={@usd_rate}
         details="auction-details"
       />

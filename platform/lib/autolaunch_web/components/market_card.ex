@@ -894,6 +894,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     doc: "the page's own reading of the state, when the record's state label lags the chain"
 
   slot :price_note, doc: "shown after the price, such as its dollar value"
+  slot :chart, doc: "the price chart, across the card under the image and the price"
 
   def detail_card(assigns) do
     assigns =
@@ -960,6 +961,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           {@view.description}
         </p>
       </div>
+      <div :if={@chart != []} class="market-identity__chart">{render_slot(@chart)}</div>
     </section>
     """
   end

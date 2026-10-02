@@ -15,14 +15,14 @@ defmodule AutolaunchWeb.Components.AuctionPage do
   alias Phoenix.LiveView.JS
 
   attr :record, :map, required: true, doc: "the auction, with `fdv` loaded"
-  attr :minimum, :string, required: true, doc: "the minimum to graduate, in whole units"
   attr :usd_rate, :any, required: true
   attr :details, :string, required: true, doc: "the id of the full-details window"
 
   @doc """
   The auction's headline figures in one row, wrapping on narrow screens: the
-  price now, what all its tokens are worth at that price, everything bid so
-  far and the minimum, with the link to the full details.
+  price now, what all its tokens are worth at that price and everything bid
+  so far, each with its dollar value under it, with the link to the full
+  details.
   """
   def headline(assigns) do
     ~H"""
@@ -47,22 +47,15 @@ defmodule AutolaunchWeb.Components.AuctionPage do
         <div class="auction-headline__stat">
           <dt>FDV</dt>
           <dd>
-            <strong>{short(@record.fdv, @record.quote_token_symbol)}</strong>
+            <strong><.short amount={@record.fdv} unit={@record.quote_token_symbol} /></strong>
             <UsdValue.usd amount={@record.fdv} rate={@usd_rate} />
           </dd>
         </div>
         <div class="auction-headline__stat">
           <dt>Bids placed</dt>
           <dd>
-            <strong>{short(@record.bid_volume, @record.quote_token_symbol)}</strong>
+            <strong><.short amount={@record.bid_volume} unit={@record.quote_token_symbol} /></strong>
             <UsdValue.usd amount={@record.bid_volume} rate={@usd_rate} />
-          </dd>
-        </div>
-        <div class="auction-headline__stat">
-          <dt>Minimum to graduate</dt>
-          <dd>
-            <strong>{short(Decimal.new(@minimum), @record.quote_token_symbol)}</strong>
-            <UsdValue.usd amount={@minimum} rate={@usd_rate} />
           </dd>
         </div>
       </dl>
@@ -73,8 +66,17 @@ defmodule AutolaunchWeb.Components.AuctionPage do
     """
   end
 
-  defp short(%Decimal{} = amount, symbol), do: "#{MarketCard.compact(amount)} #{symbol}"
-  defp short(nil, _symbol), do: "—"
+  attr :amount, :any, required: true
+  attr :unit, :string, required: true
+
+  # A large total in four significant digits, a tiny one with its zeros counted.
+  defp short(%{amount: nil} = assigns), do: ~H"—"
+
+  defp short(assigns) do
+    ~H"""
+    <TokenDisplay.counted amount={MarketCard.compact(@amount)} unit={@unit} />
+    """
+  end
 
   attr :id, :string, required: true
   attr :label, :string, required: true, doc: "what the tabs choose between, for screen readers"

@@ -90,57 +90,62 @@ defmodule AutolaunchWeb.TokenLive do
       <.detail_card
         kind={:token}
         record={@page_record}
-      />
-      <section id="stake" class="token-stake" aria-label="Staking">
-        <.stake_summary
-          :if={@pool.ok?}
-          id="token-staked"
-          pool={@pool.result}
-          supply={@page_record.auction.token_supply}
-          label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestake"}
-          fees={@fee_totals.result}
-          rate={@usd_rate.result}
-        />
-        <.live_component
-          :if={@pool.ok?}
-          module={AutolaunchWeb.StakeComponent}
-          id={"token-stake-#{@page_record.id}"}
-          launch={%{chain: :base, auction: @page_record.auction}}
-          pool={@pool.result}
-          initial_amount={@stake_amount}
-          share_url={Paths.token_url(@page_record.auction)}
-          share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
-          authenticated={@account_control.kind == :signed_in}
-          current_human_id={current_human_id(@access_context)}
-          session_lease={@session_lease}
-        />
-      </section>
-      <.price_chart
-        :if={@pool.ok?}
-        id="token-price-chart"
-        label="Price since the pool opened"
-        history={@pool.result.prices}
-        unit={@pool.result.currency.symbol}
-        color={@presentation.image_color}
-      />
+      >
+        <:chart>
+          <.price_chart
+            :if={@pool.ok?}
+            id="token-price-chart"
+            label="Price since the pool opened"
+            history={@pool.result.prices}
+            unit={@pool.result.currency.symbol}
+            color={@presentation.image_color}
+          />
+        </:chart>
+      </.detail_card>
       <.exact_price
         id="token-exact-price"
         summary="Price to 18 decimals"
         amount={@page_record.price_quote}
         unit={SwapComponent.entry_symbol(@page_record.auction)}
       />
-      <.live_component
-        module={AutolaunchWeb.SwapComponent}
-        id={"token-trade-#{@page_record.id}"}
-        agent_tools
-        launch={%{chain: :base, auction: @page_record.auction}}
-        symbol={@presentation.symbol}
-        image={@presentation.image}
-        currency={SwapComponent.entry_symbol(@page_record.auction)}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
+      <section class="token-actions" aria-label="Staking and trading">
+        <div id="stake" class="token-actions__stake">
+          <.live_component
+            :if={@pool.ok?}
+            module={AutolaunchWeb.StakeComponent}
+            id={"token-stake-#{@page_record.id}"}
+            launch={%{chain: :base, auction: @page_record.auction}}
+            pool={@pool.result}
+            initial_amount={@stake_amount}
+            share_url={Paths.token_url(@page_record.auction)}
+            share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+          <.stake_summary
+            :if={@pool.ok?}
+            id="token-staked"
+            pool={@pool.result}
+            supply={@page_record.auction.token_supply}
+            label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestake"}
+            fees={@fee_totals.result}
+            rate={@usd_rate.result}
+          />
+        </div>
+        <.live_component
+          module={AutolaunchWeb.SwapComponent}
+          id={"token-trade-#{@page_record.id}"}
+          agent_tools
+          launch={%{chain: :base, auction: @page_record.auction}}
+          symbol={@presentation.symbol}
+          image={@presentation.image}
+          currency={SwapComponent.entry_symbol(@page_record.auction)}
+          authenticated={@account_control.kind == :signed_in}
+          current_human_id={current_human_id(@access_context)}
+          session_lease={@session_lease}
+        />
+      </section>
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
         <.link navigate={Paths.auction(@page_record.auction)}>Open the auction this token graduated from</.link>
       </p>
