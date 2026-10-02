@@ -69,10 +69,10 @@
 #home-explore .home-coin__links a { justify-self: start; display: inline-flex; align-items: center; gap: .4em; max-width: 100%; color: var(--color-fg-muted); text-decoration: none; }
 #home-explore .home-coin__links a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #home-explore .home-coin__links a:is(:hover, :focus-visible) { color: var(--color-fg); }
-/* An auction's figures row: the bid volume and launch threshold at the left, shown while the pointer is over the card or the keyboard is inside it; the FDV at the lower right, always. */
-#home-explore .home-coin__figures { --figure-lines: 2; display: flex; align-items: flex-end; gap: 8px; height: calc(var(--figure-lines) * 1.5em); margin-top: 8px; font-size: .6875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__raise { flex: 1; min-width: 0; opacity: 0; }
-#home-explore .home-coin__raise p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* An auction's figures: the bid volume and launch threshold on full-width lines that wrap on a narrow card, shown while the pointer is over the card or the keyboard is inside it; the FDV under them at the right, always. */
+#home-explore .home-coin__figures { display: grid; gap: 2px; margin-top: 8px; font-size: .6875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
+#home-explore .home-coin__raise { min-width: 0; opacity: 0; }
+#home-explore .home-coin__raise p { margin: 0; overflow-wrap: anywhere; }
 #home-explore .home-coin__raise span { color: var(--color-fg-muted); }
 #home-explore .home-coin:has(:focus-visible) .home-coin__raise { opacity: 1; }
 @media (hover: hover) { #home-explore .home-coin:hover .home-coin__raise { opacity: 1; } }
@@ -88,7 +88,7 @@
   #home-explore .home-coin:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
   #home-explore .home-coin:hover :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
-#home-explore .home-coin__floor { flex: none; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
+#home-explore .home-coin__floor { justify-self: end; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
 @container (max-width: 170px) {
   #home-explore .home-coin__pair { height: 2.6em; line-height: 1.3; }
   #home-explore .home-coin__ticker wbr { display: inline; }
@@ -125,7 +125,7 @@
 #home-explore .home-coin__time--base { --time-color: #2970ff; }
 #home-explore .home-coin__time--robinhood { --time-color: #00e606; }
 /* Phone cards sit a little tighter; on a touch phone the raise figures never show, so their
-   corner closes up and only the FDV line stays. */
+   lines close up and only the FDV line stays. */
 @container (max-width: 170px) {
   #home-explore .home-coin__pair { margin-top: 10px; }
   #home-explore .home-coin__metric { margin-top: 6px; }
@@ -135,7 +135,6 @@
 }
 @media (hover: none) {
   @container (max-width: 170px) {
-    #home-explore .home-coin__figures { --figure-lines: 1; }
     #home-explore .home-coin__raise { display: none; }
   }
 }
