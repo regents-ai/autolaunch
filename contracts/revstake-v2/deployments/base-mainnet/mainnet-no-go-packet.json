@@ -22,9 +22,9 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "948de2583574e8dc9b78f123214264f64ccca585"
+    "src_tree": "61f244288955c472156fc2bcc80e309b392d79bf"
   },
-  "frozen_manifest_sha256": "00bf5dac395ceb48f7bbaa7c721a52eede626acea69d5f935a2c3276436c5ce7",
+  "frozen_manifest_sha256": "7cc268562f3bd83b2f21b183bbd00bf49baa297e02c412382c3b49284327f36d",
   "code_identity": [
     {
       "contract": "UERC20Factory",
@@ -43,12 +43,12 @@
       "source": "src/escrow/ConditionalVestingEscrowV2.sol",
       "constructor": [],
       "runtime_bytes": 3485,
-      "runtime_keccak256": "0x8b46a521a2caaef63d1c01a06b828d1db1556118e8e76d8f61a4f9d0306205da",
+      "runtime_keccak256": "0xeb0532f7a40fb683b1fd1335e26a39a8384d3f10aceb427225bb5c6db2ae137e",
       "runtime_immutable_references": 0,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": true,
       "creation_bytes": 3623,
-      "creation_keccak256": "0x082d33a38628a6e682a3c0783c4cb85faab214fa9a098f9083477f22886f4139"
+      "creation_keccak256": "0x5caee27f670a0e310715ed7cb5bbffe6db7c06fbeb048751162f81907c34ddc9"
     },
     {
       "contract": "SubjectSplitterV1",
@@ -84,13 +84,13 @@
         "address receiverImplementation_",
         "bytes32 hookSalt"
       ],
-      "runtime_bytes": 7052,
-      "runtime_keccak256": "0x8f6b9d89b272b82a47e7bed1b8357ab2ddd56695549b84db66c0e22cb2095d45",
+      "runtime_bytes": 6777,
+      "runtime_keccak256": "0x7e85da393e09dd63dc74340606355ff162bf6ba70d0e13a9e10aae33e00eddfc",
       "runtime_immutable_references": 3,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 38759,
-      "creation_keccak256": "0x61c6bfb59437faba36bb0db0480e05ad13b6dd75038dc24f85da2ef79ff84d00"
+      "creation_bytes": 37488,
+      "creation_keccak256": "0x85e2603d71916d1594436c419bce29e35f3ef9ca312ccfcc8bdab1c69c950551"
     },
     {
       "contract": "RegentLBPStrategyV2",
@@ -101,13 +101,13 @@
         "address splitterImplementation_",
         "address receiverImplementation_"
       ],
-      "runtime_bytes": 20544,
-      "runtime_keccak256": "0x434c5488de2a55ca905e77b9eafe6cf857393390550eaf90575371a85a2a307e",
+      "runtime_bytes": 19523,
+      "runtime_keccak256": "0xe0036705eff028c612b1ddc8003fb1ca82a15e6ab3c1a174883b095a86d697de",
       "runtime_immutable_references": 6,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 24793,
-      "creation_keccak256": "0x6c1f098f3712503a50220bf1e9c149393555854d487a677a554c2333b021b652"
+      "creation_bytes": 23772,
+      "creation_keccak256": "0xcda216836aab2d36049eb9853c7084656894aa284ef8168a1d5933b4862f42f3"
     },
     {
       "contract": "RevstakeLPLocker",
@@ -130,20 +130,20 @@
         "address manager_",
         "address strategy_"
       ],
-      "runtime_bytes": 5143,
-      "runtime_keccak256": "0x685ca9e016533927346f65cd7c89b65871e0e4f4e9d2cb511672cfbdd671d8d6",
+      "runtime_bytes": 5168,
+      "runtime_keccak256": "0x70bd3cc329d0c4353492a726918048b47d255904e56cfb0cf8f61bbafd6e76f5",
       "runtime_immutable_references": 2,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 5952,
-      "creation_keccak256": "0x00514cf372e7385336e0f183bce1d72dbdb3215b6af6eb76fe3ca4f58109c8f8"
+      "creation_bytes": 5977,
+      "creation_keccak256": "0xd6d5a2b58c480c4048896d742d0866a7aa38902af07a1e5d7fca1f52fc16f212"
     }
   ],
   "hook_permission_bits": "0x2044",
   "selection": {
     "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
     "starting_nonce": 28,
-    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000001989",
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000003b12",
     "predicted_addresses": {
       "uerc20_factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
       "escrow_implementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
@@ -152,11 +152,11 @@
       "factory": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E",
       "strategy": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9",
       "lp_locker": "0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120",
-      "hook": "0x57681398fB72027E719F3E558a0E188dd0c96044"
+      "hook": "0x72bE4F7FAE670e42048697e010699316318A2044"
     }
   },
   "external_observation": {
-    "observed_at_block": 51936156,
+    "observed_at_block": 52059675,
     "bindings": {
       "regent": {
         "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
@@ -252,7 +252,7 @@
             "escrowImplementation_": "0x8F511153393429468C3861E7cC5341Abb3310871",
             "splitterImplementation_": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
             "receiverImplementation_": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
-            "hookSalt": "0x0000000000000000000000000000000000000000000000000000000000001989"
+            "hookSalt": "0x0000000000000000000000000000000000000000000000000000000000003b12"
           }
         }
       ],
@@ -284,8 +284,8 @@
           "contract": "RegentFeeHook",
           "mechanism": "CREATE2",
           "created_by": "RegentsAutolaunchFactoryV2 constructor",
-          "salt": "0x0000000000000000000000000000000000000000000000000000000000001989",
-          "address": "0x57681398fB72027E719F3E558a0E188dd0c96044",
+          "salt": "0x0000000000000000000000000000000000000000000000000000000000003b12",
+          "address": "0x72bE4F7FAE670e42048697e010699316318A2044",
           "constructor_arguments": {
             "manager_": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
             "strategy_": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9"
@@ -298,6 +298,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x78e5e04928efd068eec73d58aa11cb605fcf755d0c140c8b00ea483b596f79a2"
+    "value": "0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba"
   }
 }
