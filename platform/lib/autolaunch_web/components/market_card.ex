@@ -713,11 +713,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   # An amount in dollars where its currency's dollar price is known, otherwise
-  # in the currency itself; nil while the amount is not known.
+  # in the currency itself; nil while the amount is not known. A tiny amount
+  # counts its zeros after the point, as the clearing price does.
   defp money(amount, rate, unit \\ nil)
   defp money(nil, _rate, _unit), do: nil
-  defp money(%Decimal{} = amount, nil, unit), do: String.trim("#{compact(amount)} #{unit}")
-  defp money(%Decimal{} = amount, rate, _unit), do: dollars(amount, rate)
+
+  defp money(%Decimal{} = amount, nil, unit),
+    do: TokenDisplay.zeros(String.trim("#{compact(amount)} #{unit}"))
+
+  defp money(%Decimal{} = amount, rate, _unit), do: TokenDisplay.zeros(dollars(amount, rate))
 
   @doc "An amount shortened to three significant digits: 0.0000123, 1.48, 24.7K, 1.48M."
   def compact(value) do
