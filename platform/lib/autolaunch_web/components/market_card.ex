@@ -72,11 +72,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
   currency with its chain, its name, its price and one more figure, the
   creator's links.
 
-  An auction's card shows only its clearing price up top, then has a
-  figures row (the bid volume and launch threshold on hover or keyboard
-  focus, the FDV always), Details and Bid, and two thin bars: how much of
-  the launch threshold is met, while it is not yet met, over how much of
-  the auction's time has passed. A token's card shows its price and market
+  An auction's card shows only its clearing price up top, then its figures
+  (on a Revstake auction the bid volume and launch threshold on hover or
+  keyboard focus; the FDV always), Details and Bid, and two thin bars: how
+  much of the launch threshold is met, while it is not yet met, over how
+  much of the auction's time has passed. A token's card shows its price and market
   cap, then Details and Buy.
   """
   def explore_card(%{kind: :auction} = assigns) do
@@ -100,7 +100,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </div>
       <.card_links view={@view} />
       <div class="home-coin__figures">
-        <div class="home-coin__raise">
+        <div :if={@record.kind == :agent} class="home-coin__raise">
           <p>
             <span>Bid volume</span>
             <.info_tip id={"volume-#{@figures.id}"} text={tip(:volume)} icon={false}>
