@@ -30,7 +30,7 @@
 
 /* The three headline figures, each in its own card: the figure large, then its
    status and small print. */
-.auction-next-figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.auction-next-figures { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; margin: 0; }
 .auction-next-figure { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
 .auction-next-figure dt { color: var(--color-fg-muted); font-size: .8125rem; }
 .auction-next-figure dd { display: grid; gap: 4px; margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -40,7 +40,7 @@
 .auction-next-figure__status[data-on="true"] { color: var(--color-success); }
 .auction-next-figure__block { font-size: 1rem; font-weight: 600; }
 .auction-next-figure__note { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
-@media (max-width: 48rem) { .auction-next-figures { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 48rem) { .auction-next-figures { grid-auto-flow: row; } }
 
 /* Cards in the main column. */
 .auction-next-card { display: grid; gap: 14px; min-width: 0; padding: 18px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--color-surface); }

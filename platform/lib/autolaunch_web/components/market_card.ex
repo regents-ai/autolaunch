@@ -74,9 +74,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   An auction's card shows only its clearing price up top, then its figures
   (on a Revstake auction the bid volume and launch threshold on hover or
-  keyboard focus; the FDV always), Details and Bid, and two thin bars: how
-  much of the launch threshold is met, while it is not yet met, over how
-  much of the auction's time has passed. A token's card shows its price and market
+  keyboard focus; the FDV always), Details and Bid, and a thin bar of how
+  much of the auction's time has passed, under, on a Revstake auction, one
+  of how much of the launch threshold is met while it is not yet met. A
+  token's card shows its price and market
   cap, then Details and Buy.
   """
   def explore_card(%{kind: :auction} = assigns) do
@@ -149,7 +150,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </div>
       <div class="home-coin__bars">
         <div
-          :if={@figures.met && @figures.met < 100}
+          :if={@record.kind == :agent && @figures.met && @figures.met < 100}
           class="home-coin__met"
           role="img"
           aria-label={"#{@figures.met}% of the launch threshold met"}

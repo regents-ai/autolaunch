@@ -159,8 +159,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         <.figures
           :if={@snapshot.ok?}
           snapshot={@snapshot.result}
-          minimum={required(@launch)}
-          raised={@snapshot.result.raised}
           symbol={@launch.quote_token_symbol}
           token_symbol={@launch.token_symbol}
           chain={:robinhood}
@@ -520,8 +518,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
       required = String.to_integer(launch.required_currency_raised)
       stage = AuctionStage.read(launch.state, snapshot, required, pool)
-      raised = Rpc.format_units(snapshot.blocks.raised, launch.quote_token_decimals)
-      {:ok, %{snapshot: Map.merge(snapshot, %{stage: stage, raised: raised})}}
+      {:ok, %{snapshot: Map.put(snapshot, :stage, stage)}}
     end
   end
 

@@ -96,15 +96,22 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   defp status_words(:next), do: ", still to come"
 
   attr :snapshot, :map, required: true
-  attr :minimum, :string, required: true, doc: "the minimum in whole currency"
-  attr :raised, :string, required: true, doc: "the currency raised in whole currency"
+
+  attr :minimum, :string,
+    default: nil,
+    doc: "a Revstake auction's minimum in whole currency; a Memestake auction shows none"
+
+  attr :raised, :string,
+    default: nil,
+    doc: "the currency raised in whole currency, beside the minimum"
+
   attr :symbol, :string, required: true
   attr :token_symbol, :string, required: true
   attr :chain, :atom, required: true
 
   @doc """
-  The price now per million tokens, the amount raised against the minimum, and
-  a live countdown to the end of bidding. The countdown runs to a time worked
+  The price now per million tokens, on a Revstake auction the amount raised
+  against the minimum, and a live countdown to the end of bidding. The countdown runs to a time worked
   out from the blocks left and the chain's block time, so it is an estimate;
   the end block it counts to is shown under it.
   """
@@ -138,7 +145,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           </span>
         </dd>
       </div>
-      <div class="auction-next-figure">
+      <div :if={@minimum} class="auction-next-figure">
         <dt>Minimum to graduate</dt>
         <dd>
           <strong class="auction-next-figure__value">

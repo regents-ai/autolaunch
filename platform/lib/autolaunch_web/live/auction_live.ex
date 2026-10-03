@@ -208,7 +208,7 @@ defmodule AutolaunchWeb.AuctionLive do
         <.figures
           :if={@snapshot.ok?}
           snapshot={@snapshot.result}
-          minimum={minimum(@page_record)}
+          minimum={if @page_record.kind == :agent, do: minimum(@page_record)}
           raised={@snapshot.result.raised}
           symbol={@page_record.quote_token_symbol}
           token_symbol={@page_record.token_symbol}
