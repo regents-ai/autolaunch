@@ -180,8 +180,8 @@ defmodule AutolaunchWeb.PortfolioLive do
       )
 
     ~H"""
-    <section id="autolaunch-holdings" class="memestock portfolio">
-      <header class="memestock__header">
+    <section id="autolaunch-holdings" class="portfolio">
+      <header class="portfolio__header">
         <h1>Portfolio</h1>
         <Regent.Primitives.button
           :if={@account_control.kind != :sign_in}
@@ -192,7 +192,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           Refresh
         </Regent.Primitives.button>
       </header>
-      <p class="memestock__hint portfolio__lede">
+      <p class="portfolio__hint portfolio__lede">
         Bids and tokens from the wallet you signed in with.<span
           :if={@account_control.kind != :sign_in}
           role="status"
@@ -208,10 +208,10 @@ defmodule AutolaunchWeb.PortfolioLive do
 
       <section
         :if={@account_control.kind == :sign_in}
-        class="rg-panel rg-panel--surface memestock__sign-in portfolio__sign-in"
+        class="rg-panel rg-panel--surface portfolio__sign-in"
       >
         <h2>Connect to your portfolio</h2>
-        <p class="memestock__hint">Sign in to see the bids and tokens of your wallet.</p>
+        <p class="portfolio__hint">Sign in to see the bids and tokens of your wallet.</p>
         <Regent.Primitives.button
           type="button"
           class="account-control__sign-in"
@@ -833,10 +833,10 @@ defmodule AutolaunchWeb.PortfolioLive do
   # been, otherwise kept from its last read with that read's time.
   defp read_note(assigns) do
     ~H"""
-    <p :if={@read.failed && is_nil(@read.result)} class="memestock__hint" role="alert">
+    <p :if={@read.failed && is_nil(@read.result)} class="portfolio__hint" role="alert">
       {@subject} are unavailable right now.
     </p>
-    <p :if={@read.failed && @read.result} class="memestock__hint" role="alert">
+    <p :if={@read.failed && @read.result} class="portfolio__hint" role="alert">
       {@subject} could not be updated just now. These are from {Calendar.strftime(
         @read_at,
         "%H:%M UTC"

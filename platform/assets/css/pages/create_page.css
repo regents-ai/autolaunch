@@ -1,0 +1,63 @@
+/* Both Create pages: one narrow form beside a summary of the token it makes. */
+.create-page { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
+.create-page__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.create-page__header h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
+
+.create-page__layout { display: grid; grid-template-columns: minmax(0, 35rem) minmax(0, 21rem); gap: var(--space-4); align-items: start; justify-content: center; }
+.create-page__form { display: grid; gap: var(--space-2); padding: var(--space-4); }
+.create-page__fields { display: grid; gap: var(--space-2); min-width: 0; }
+.create-page__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.create-field { min-width: 0; align-content: start; }
+.create-field textarea { min-height: 4.5rem; resize: vertical; }
+.create-field__optional { color: var(--color-fg-muted); font-size: .75rem; font-weight: 400; }
+.create-page__label { font-weight: 600; }
+.create-page__hint { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
+.create-page__hint a { color: var(--color-link, var(--brand-accent)); }
+.create-page .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
+.create-page__more { border-block-end: 0; }
+.create-page__more > summary { min-height: 2.75rem; }
+.create-page__more .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
+.create-page__more .rg-disclosure-body { display: grid; gap: var(--space-3); }
+/* Creator connections sit inside the form, without a card of their own. */
+.create-page .creator-connections { padding: 0; border: 0; border-radius: 0; }
+.create-page .creator-connections::before, .create-page .creator-connections::after { display: none; }
+.create-page .creator-connections > p { margin: 0; }
+.create-page .creator-connections--optional .rg-disclosure > summary { min-height: 2.75rem; }
+
+.create-page__launch { display: grid; gap: var(--space-2); }
+.create-page__launch > p { margin: 0; }
+.create-page__launch-button { width: 100%; }
+.create-page__notice { font-size: .8125rem; color: var(--color-fg-muted); }
+.create-page__notice--error { color: var(--color-error, var(--color-fg)); }
+
+/* The summary card: the token as it will look, then its terms. */
+.create-page__summary { position: sticky; top: var(--space-4); display: grid; gap: var(--space-3); padding: var(--space-4); }
+.create-page__summary .autolaunch-kicker { margin: 0; }
+.create-token { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.create-token__image { flex: none; width: 3.5rem; height: 3.5rem; border-radius: 10px; object-fit: cover; background: color-mix(in srgb, var(--color-fg) 8%, transparent); }
+.create-token__names { display: grid; min-width: 0; }
+.create-token__names strong { overflow: hidden; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.create-token__names span { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .8125rem; overflow-wrap: anywhere; }
+.create-terms { display: grid; margin: 0; }
+.create-terms > div { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: var(--space-2); border-top: 1px solid var(--hairline); font-size: .8125rem; }
+.create-terms dt { flex: none; color: var(--color-fg-muted); }
+.create-terms dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.create-terms__stock { display: inline-flex; align-items: center; gap: var(--space-1); }
+.create-terms__stock .stock-logo { width: 1.25rem; height: 1.25rem; }
+
+@media (max-width: 61.99rem) {
+  .create-page__layout { grid-template-columns: minmax(0, 35rem); }
+  .create-page__summary { position: relative; top: auto; }
+}
+
+@media (max-width: 30rem) {
+  .create-page__pair { grid-template-columns: minmax(0, 1fr); }
+  .create-page__form, .create-page__summary { padding: var(--space-3); }
+}
+
+/* Signed in on Revstake, the connections heading reads as one field label. */
+.create-page .creator-connections > header { margin: 0; }
+.create-page .creator-connections > header .autolaunch-kicker { display: none; }
+.create-page .creator-connections .rg-section-bar { min-block-size: 0; padding: 0; border: 0; }
+.create-page .creator-connections :is(.rg-section-bar__diamond, .rg-section-bar__leader) { display: none; }
+.create-page .creator-connections .rg-section-bar__label { font-family: inherit; font-size: 1rem; font-weight: 600; letter-spacing: 0; text-transform: none; }

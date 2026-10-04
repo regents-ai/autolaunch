@@ -1,7 +1,11 @@
-/* Portfolio: the create page's column, with bids and tokens in the auctions list's rows; a bid's buttons sit in its Action cell, a token's follow its row. */
+/* Portfolio: one centred column, with bids and tokens in the auctions list's rows; a bid's buttons sit in its Action cell, a token's follow its row. */
+.portfolio { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
+.portfolio__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.portfolio__header h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
+.portfolio__hint { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 .portfolio__lede { margin-top: calc(-1 * var(--space-2)); }
 .portfolio__lede > span { margin-left: .25em; }
-.portfolio__sign-in { padding: var(--space-4); }
+.portfolio__sign-in { display: grid; justify-items: start; gap: var(--space-3); padding: var(--space-4); }
 .portfolio__sign-in > * { margin: 0; }
 .portfolio__section { display: grid; gap: var(--space-2); min-width: 0; }
 .portfolio__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }

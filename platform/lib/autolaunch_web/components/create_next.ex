@@ -367,7 +367,8 @@ defmodule AutolaunchWeb.Components.CreateNext do
     percent
   end
 
-  defp revstake_schedule,
+  @doc "When a Revstake auction opens and how long it runs, in words."
+  def revstake_schedule,
     do: %{
       opens: LaunchChain.time_estimate(:base, @revstake_opens_blocks),
       length: LaunchChain.time_estimate(:base, @revstake_length_blocks)

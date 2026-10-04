@@ -16,7 +16,6 @@ defmodule AutolaunchWeb.CreateLive do
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
 
-  import AutolaunchWeb.Components.AuctionStats
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
   import AutolaunchWeb.Components.LaunchKindChoice
 
@@ -39,7 +38,6 @@ defmodule AutolaunchWeb.CreateLive do
         :design,
         if(socket.assigns.live_action == :create_next, do: :next, else: :current)
       )
-      |> assign_auction_stats()
       |> assign_defaults(actor)
 
     case actor do
@@ -105,28 +103,17 @@ defmodule AutolaunchWeb.CreateLive do
 
   def render(assigns) do
     ~H"""
-    <div class="autolaunch-page launchpad-create">
+    <main class="create-page">
       <.launch_kind_choice current={:revstake} design={@design} />
-      <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
-      <header class="launchpad-create__header">
-        <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">Create a Revstake token</h1>
-        </Regent.Structure.section_bar>
+      <header class="create-page__header">
+        <h1>Create a Revstake token</h1>
         <p :if={@design == :next} class="create-next-preview">
           This is the new create page.
           <.link navigate={~p"/create/revstake"}>Open the current page</.link>
         </p>
-        <p>
-          Raise early funds through an auction. It tokenizes a stablecoin generating service or
-          agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders
-          pay in REGENT, and you can set a minimum REGENT raise. There is no launch fee.
-          <.link href="/blog/durable-agent-services">
-            Read about building a durable service for one.
-          </.link>
-        </p>
       </header>
       {render_revshare(assigns)}
-    </div>
+    </main>
     """
   end
 
@@ -324,11 +311,9 @@ defmodule AutolaunchWeb.CreateLive do
       draft_errors: %{},
       draft_notice: nil,
       image_notice: nil,
-      x_connections: [],
       has_connections: false,
       connections_waived: false,
       no_connections_typed: "",
-      x_oauth_enabled: XOAuth.enabled?(),
       auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor && actor.human_account_id,
       status: :loading
@@ -367,7 +352,6 @@ defmodule AutolaunchWeb.CreateLive do
     identities = CreatorConnectionsComponent.identities(human_actor(socket))
 
     assign(socket,
-      x_connections: x_connections,
       has_connections:
         Enum.any?(x_connections, &match?(%{verified_at: %DateTime{}}, &1)) or
           Map.take(identities, [:github, :ens]) != %{}

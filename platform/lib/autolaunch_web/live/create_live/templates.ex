@@ -5,7 +5,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.CreateNext
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
-  import AutolaunchWeb.Components.MarketCard
 
   alias Autolaunch.LaunchDraft
 
@@ -13,7 +12,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   @token_detail_fields [
     %{key: :name, param: "name", label: "Name", kind: :text, hint: nil},
-    %{key: :symbol, param: "symbol", label: "Symbol", kind: :text, hint: nil},
+    %{key: :symbol, param: "symbol", label: "Ticker", kind: :text, hint: nil},
     %{key: :description, param: "description", label: "Description", kind: :long_text, hint: nil},
     %{
       key: :website,
@@ -72,8 +71,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :draft_notice, :map, default: nil
   attr :image_notice, :string, default: nil
   attr :launch_image_upload, :map, default: nil
-  attr :x_connections, :list, default: []
-  attr :x_oauth_enabled, :boolean, default: false
   attr :auction_limit_reached, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -89,265 +86,261 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     assigns =
       assigns
       |> assign(:active_draft, draft)
-      |> assign(:token_complete?, draft && LaunchDraft.token_details_complete?(draft))
-      |> assign(:treasury_complete?, draft && LaunchDraft.treasury_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
-      |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
+      |> assign(:schedule, revstake_schedule())
 
     ~H"""
-    <section id="autolaunch-create">
-      <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
-        You already have an auction. One auction per account for now.
-      </p>
+    <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
+      You already have an auction. One auction per account for now.
+    </p>
+    <p :if={@status == :error} class="autolaunch-empty">
+      Your draft could not be loaded. Refresh and try again.
+    </p>
 
-      <.empty_state
-        :if={@status == :error}
-        copy="Your draft could not be loaded. Refresh and try again."
-      />
+    <div :if={@status != :error} id="autolaunch-create" class="create-page__layout">
+      <section class="create-page__form rg-panel rg-panel--surface" aria-label="Your Revstake token">
+        <.live_component
+          :if={@current_human_id}
+          module={AutolaunchWeb.CreatorConnectionsComponent}
+          id="creator-connections"
+          current_human_id={@current_human_id}
+          session_lease={@session_lease}
+          notify
+        />
+        <div :if={!@current_human_id} id="creator-connections" class="create-page__fields">
+          <span class="create-page__label">Creator connections</span>
+          <p class="create-page__hint">
+            After you sign in, connect X, GitHub or ENS to build trust with bidders.
+          </p>
+        </div>
 
-      <section
-        :if={@status != :error}
-        class="launchpad-create__workspace"
-        aria-labelledby="launch-draft-title"
-      >
-        <div class="launchpad-create__form-column">
-          <.live_component
-            :if={@current_human_id}
-            module={AutolaunchWeb.CreatorConnectionsComponent}
-            id="creator-connections"
-            current_human_id={@current_human_id}
-            session_lease={@session_lease}
-            notify
-          />
-          <section
-            :if={!@current_human_id}
-            id="creator-connections"
-            class="creator-connections launchpad-form-section rg-panel rg-panel--surface"
-          >
-            <header>
-              <div>
-                <p class="autolaunch-kicker">Start Here</p>
-                <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label">Creator connections</h2>
-                </Regent.Structure.section_bar>
-              </div>
-            </header>
-            <p>After you sign in, connect X, GitHub or ENS to build trust with bidders.</p>
-          </section>
-
-          <form
-            id="launch-token-details"
-            phx-change="autosave_launch_token_details"
-            phx-submit="autosave_launch_token_details"
-            class="launchpad-form-section rg-panel rg-panel--surface rg-field"
-          >
-            <header>
-              <div>
-                <p class="autolaunch-kicker">Public identity</p>
-                <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label" id="launch-draft-title">Token details</h2>
-                </Regent.Structure.section_bar>
-              </div>
-              <span>{stage_status(@token_complete?)}</span>
-            </header>
-
-            <div class="launchpad-form-grid">
-              <.draft_field
-                :for={field <- token_detail_fields()}
-                field={field}
-                form_id="launch-token-details"
-                hint={field.hint}
-                value={@draft_values[field.param]}
-                error={@draft_errors[field.param]}
-                autosave
-              />
-            </div>
-
-            <.image_upload
-              upload={@launch_image_upload}
-              image={@draft_values["image"]}
-              notice={@image_notice}
-            />
-          </form>
-
-          <form
-            id="launch-treasury-details"
-            phx-change="autosave_launch_treasury"
-            phx-submit="autosave_launch_treasury"
-            class="launchpad-form-section rg-panel rg-panel--surface rg-field"
-          >
-            <header>
-              <div>
-                <p class="autolaunch-kicker">Proceeds</p>
-                <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label">Treasury</h2>
-                </Regent.Structure.section_bar>
-              </div>
-              <span>{stage_status(@treasury_complete?)}</span>
-            </header>
-            <.custody_path
-              form_id="launch-treasury-details"
-              path={@draft_values["treasury_path"]}
-              acknowledgement={@draft_values["eoa_acknowledgement"]}
-              error={@draft_errors["eoa_acknowledgement"]}
+        <form
+          id="launch-token-details"
+          class="create-page__fields"
+          phx-change="autosave_launch_token_details"
+          phx-submit="autosave_launch_token_details"
+        >
+          <div class="create-page__pair">
+            <.draft_field
+              field={token_field(:name)}
+              form_id="launch-token-details"
+              value={@draft_values["name"]}
+              error={@draft_errors["name"]}
             />
             <.draft_field
-              field={treasury_field()}
-              form_id="launch-treasury-details"
-              note={custody_note(@draft_values["treasury_path"])}
-              hint={treasury_field().hint}
-              value={@draft_values["treasury"]}
-              error={@draft_errors["treasury"]}
-              autosave
+              field={token_field(:symbol)}
+              form_id="launch-token-details"
+              value={@draft_values["symbol"]}
+              error={@draft_errors["symbol"]}
             />
-          </form>
+          </div>
+          <.draft_field
+            field={token_field(:description)}
+            form_id="launch-token-details"
+            value={@draft_values["description"]}
+            error={@draft_errors["description"]}
+          />
+          <.image_upload
+            upload={@launch_image_upload}
+            image={@draft_values["image"]}
+            notice={@image_notice}
+          />
+          <.draft_field
+            field={token_field(:website)}
+            form_id="launch-token-details"
+            value={@draft_values["website"]}
+            error={@draft_errors["website"]}
+          />
+        </form>
 
-          <section
-            id="launch-terms"
-            class="launchpad-form-section rg-panel rg-panel--surface"
-            aria-labelledby="launch-terms-title"
+        <form
+          id="launch-treasury-details"
+          class="create-page__fields"
+          phx-change="autosave_launch_treasury"
+          phx-submit="autosave_launch_treasury"
+        >
+          <.custody_path
+            form_id="launch-treasury-details"
+            path={@draft_values["treasury_path"]}
+            acknowledgement={@draft_values["eoa_acknowledgement"]}
+            error={@draft_errors["eoa_acknowledgement"]}
+          />
+          <.draft_field
+            field={treasury_field()}
+            form_id="launch-treasury-details"
+            note={custody_note(@draft_values["treasury_path"])}
+            value={@draft_values["treasury"]}
+            error={@draft_errors["treasury"]}
+          />
+        </form>
+
+        <div id="launch-transactions" class="create-page__launch">
+          <p class="create-page__hint">
+            You will see every value and the one transaction before anything is sent.
+          </p>
+          <.no_connections
+            :if={@launch_ready? && @active_draft && !@has_connections && !@connections_waived}
+            typed={@no_connections_typed}
+          />
+          <.live_component
+            :if={@launch_ready? && @active_draft && (@has_connections || @connections_waived)}
+            module={AutolaunchWeb.LaunchWalletComponent}
+            id={"autolaunch-launch-wallet-#{@active_draft.id}"}
+            draft={@active_draft}
+            authenticated
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+          />
+          <Regent.Primitives.button
+            :if={@current_human_id && !@launch_ready?}
+            type="button"
+            class="create-page__launch-button"
+            disabled
           >
-            <header>
-              <div>
-                <p class="autolaunch-kicker">The same for every launch</p>
-                <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label" id="launch-terms-title">Launch terms</h2>
-                </Regent.Structure.section_bar>
-              </div>
-            </header>
-            <table class="stocks-terms-table">
-              <tbody>
-                <tr>
-                  <th scope="row">Total supply</th>
-                  <td>100 billion tokens</td>
-                </tr>
-                <tr>
-                  <th scope="row">Sold in the auction</th>
-                  <td>20% (20 billion tokens)</td>
-                </tr>
-                <tr>
-                  <th scope="row">Opening price</th>
-                  <td>The lowest the auction accepts</td>
-                </tr>
-                <tr>
-                  <th scope="row">Minimum raise</th>
-                  <td>
-                    Less than one REGENT, so any real bid is enough
-                    <br />If bids fall short, bidders get their REGENT back.
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Trading pool</th>
-                  <td>Up to 10% of the tokens, paired with up to half the raise</td>
-                </tr>
-                <tr>
-                  <th scope="row">Your treasury</th>
-                  <td>
-                    At least half the raise at once, and 70% of the tokens, plus any the pool did
-                    not take, over a year
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Trading fees</th>
-                  <td>2% to stakers and 1% to Regent, plus the 0.30% pool fee</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          <section
-            id="launch-transactions"
-            class="launchpad-form-section launchpad-transactions rg-panel rg-panel--surface"
+            Complete token details and treasury
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
+            :if={!@current_human_id}
+            type="button"
+            class="create-page__launch-button"
+            data-account-target="sign-in"
           >
-            <header>
-              <div>
-                <p class="autolaunch-kicker">Wallet review</p>
-                <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label">Launch transactions</h2>
-                </Regent.Structure.section_bar>
-              </div>
-              <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
-            </header>
-            <p>
-              You will see every value and the one transaction before anything is sent. There is
-              no launch fee.
-            </p>
-            <.no_connections
-              :if={@launch_ready? && @active_draft && !@has_connections && !@connections_waived}
-              typed={@no_connections_typed}
-            />
-            <.live_component
-              :if={@launch_ready? && @active_draft && (@has_connections || @connections_waived)}
-              module={AutolaunchWeb.LaunchWalletComponent}
-              id={"autolaunch-launch-wallet-#{@active_draft.id}"}
-              draft={@active_draft}
-              authenticated
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
-            <Regent.Primitives.button
-              :if={@current_human_id && !@launch_ready?}
-              type="button"
-              disabled
-            >
-              Complete token details and treasury
-            </Regent.Primitives.button>
-            <Regent.Primitives.button
-              :if={!@current_human_id}
-              type="button"
-              data-account-target="sign-in"
-            >
-              Sign in to save and launch
-            </Regent.Primitives.button>
-            <p :if={!@current_human_id} class="autolaunch-draft-hint">
-              Nothing is saved until you sign in. What you have entered comes with you.
-            </p>
-          </section>
-
+            Sign in to save and launch
+          </Regent.Primitives.button>
+          <p :if={!@current_human_id} class="create-page__hint">
+            Nothing is saved until you sign in. What you have entered comes with you.
+          </p>
           <p
             :if={@draft_notice}
-            class={"autolaunch-draft-notice autolaunch-draft-notice--#{@draft_notice.tone}"}
+            class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
             role={notice_role(@draft_notice.tone)}
           >
             {@draft_notice.message}
           </p>
         </div>
-
-        <aside
-          class="launchpad-create__preview rg-panel rg-support-panel"
-          aria-label="Live launch preview"
-        >
-          <div>
-            <p class="autolaunch-kicker">Live preview</p>
-            <Regent.Structure.section_bar>
-              <h2 class="rg-section-bar__label">Your auction</h2>
-            </Regent.Structure.section_bar>
-          </div>
-          <.autolaunch_market_card
-            kind={:draft}
-            record={@draft_values}
-            creator_connections={@draft_x_connections}
-            preview
-          />
-          <p>This auction and the resulting token will show these identities</p>
-          <.launch_plan
-            :if={@design == :next}
-            id="revstake-plan"
-            kind={:revstake}
-            ticker={present_ticker(@draft_values["symbol"])}
-            minimum="Less than one REGENT, so any real bid is enough"
-            chosen={[
-              {"Treasury", present(@draft_values["treasury"], "Not set yet")}
-            ]}
-          />
-        </aside>
       </section>
-      <.draft_carry_over
-        id="launch-carry-over"
-        key="autolaunch:create:revstake"
-        signed_in={@current_human_id != nil}
-      />
-    </section>
+
+      <aside
+        class={[
+          "create-page__summary rg-panel rg-panel--surface",
+          @design == :next && "create-page__summary--next"
+        ]}
+        aria-label="Your token"
+      >
+        <p class="autolaunch-kicker">Your token</p>
+        <div class="create-token">
+          <img
+            :if={@draft_values["image"] != ""}
+            src={@draft_values["image"]}
+            alt=""
+            class="create-token__image"
+          />
+          <span :if={@draft_values["image"] == ""} class="create-token__image" aria-hidden="true"></span>
+          <div class="create-token__names">
+            <strong>{present(@draft_values["name"], "Your token")}</strong>
+            <span>${present(@draft_values["symbol"], "TICKER")}</span>
+          </div>
+        </div>
+        <.launch_plan
+          :if={@design == :next}
+          id="revstake-plan"
+          kind={:revstake}
+          ticker={present_ticker(@draft_values["symbol"])}
+          minimum="Less than one REGENT, so any real bid is enough"
+          chosen={[
+            {"Treasury", present(@draft_values["treasury"], "Not set yet")}
+          ]}
+        />
+        <dl :if={@design != :next} class="create-terms">
+          <div>
+            <dt>Chain</dt>
+            <dd>Base</dd>
+          </div>
+          <div>
+            <dt>Bidders pay in</dt>
+            <dd>REGENT</dd>
+          </div>
+          <div>
+            <dt>Trading fees</dt>
+            <dd>2% to stakers and 1% to Regent, plus the 0.30% pool fee</dd>
+          </div>
+          <div>
+            <dt>Bidding opens</dt>
+            <dd>{@schedule.opens} after launch</dd>
+          </div>
+          <div>
+            <dt>Auction</dt>
+            <dd>{@schedule.length}</dd>
+          </div>
+          <div>
+            <dt>Starting price</dt>
+            <dd>The lowest the auction accepts</dd>
+          </div>
+          <div>
+            <dt>Minimum raise</dt>
+            <dd>Less than one REGENT</dd>
+          </div>
+          <div>
+            <dt>Liquidity</dt>
+            <dd>Locked forever</dd>
+          </div>
+          <div>
+            <dt>Launch fee</dt>
+            <dd>None</dd>
+          </div>
+        </dl>
+        <Regent.Primitives.disclosure
+          id="launch-terms"
+          summary="Every term"
+          class="create-page__more"
+          phx-mounted={JS.ignore_attributes(["open"])}
+        >
+          <table class="stocks-terms-table">
+            <tbody>
+              <tr>
+                <th scope="row">Total supply</th>
+                <td>100 billion tokens</td>
+              </tr>
+              <tr>
+                <th scope="row">Sold in the auction</th>
+                <td>20% (20 billion tokens)</td>
+              </tr>
+              <tr>
+                <th scope="row">Opening price</th>
+                <td>The lowest the auction accepts</td>
+              </tr>
+              <tr>
+                <th scope="row">Minimum raise</th>
+                <td>
+                  Less than one REGENT, so any real bid is enough
+                  <br />If bids fall short, bidders get their REGENT back.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Trading pool</th>
+                <td>Up to 10% of the tokens, paired with up to half the raise</td>
+              </tr>
+              <tr>
+                <th scope="row">Your treasury</th>
+                <td>
+                  At least half the raise at once, and 70% of the tokens, plus any the pool did
+                  not take, over a year
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Trading fees</th>
+                <td>2% to stakers and 1% to Regent, plus the 0.30% pool fee</td>
+              </tr>
+            </tbody>
+          </table>
+        </Regent.Primitives.disclosure>
+      </aside>
+    </div>
+    <.draft_carry_over
+      id="launch-carry-over"
+      key="autolaunch:create:revstake"
+      signed_in={@current_human_id != nil}
+    />
     """
   end
 
@@ -511,75 +504,46 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :field, :map, required: true
   attr :form_id, :string, required: true
   attr :note, :string, default: nil
-  attr :hint, :string, default: nil
   attr :value, :string, default: nil
   attr :error, :string, default: nil
-  attr :autosave, :boolean, default: false
 
   def draft_field(assigns) do
     id = "#{assigns.form_id}-#{assigns.field.param}"
 
     assigns =
-      assign(assigns, id: id, described_by: described_by(id, assigns.hint, assigns.error))
+      assign(assigns, id: id, described_by: described_by(id, assigns.field.hint, assigns.error))
 
     ~H"""
-    <div class={[
-      "rg-field autolaunch-draft-field",
-      @field.kind == :long_text && "autolaunch-draft-field--wide"
-    ]}>
-      <div class="autolaunch-draft-field__head">
-        <.field_label id={@id} field={@field} />
-      </div>
-      <div class="autolaunch-draft-field__body">
-        <textarea
-          :if={@field.kind == :long_text}
-          id={@id}
-          name={"launch_draft[#{@field.param}]"}
-          aria-invalid={@error && "true"}
-          aria-describedby={@described_by}
-          phx-debounce={@autosave && "400"}
-        >{@value}</textarea>
-        <p :if={@note} class="autolaunch-draft-note">{@note}</p>
-        <input
-          :if={@field.kind == :text}
-          type="text"
-          id={@id}
-          name={"launch_draft[#{@field.param}]"}
-          value={@value}
-          aria-invalid={@error && "true"}
-          aria-describedby={@described_by}
-          phx-debounce={@autosave && "400"}
-        />
-        <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
-        <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
-      </div>
+    <div class="rg-field create-field">
+      <label for={@id}>{@field.label}</label>
+      <p :if={@note} class="create-page__hint">{@note}</p>
+      <textarea
+        :if={@field.kind == :long_text}
+        id={@id}
+        name={"launch_draft[#{@field.param}]"}
+        rows="3"
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+        phx-debounce="400"
+      >{@value}</textarea>
+      <input
+        :if={@field.kind == :text}
+        type="text"
+        id={@id}
+        name={"launch_draft[#{@field.param}]"}
+        value={@value}
+        autocomplete="off"
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+        phx-debounce="400"
+      />
+      <p :if={@field.hint} id={"#{@id}-hint"} class="create-page__hint">{@field.hint}</p>
+      <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>
     </div>
     """
   end
 
-  attr :id, :string, required: true
-  attr :field, :map, required: true
-
-  defp field_label(assigns) do
-    ~H"""
-    <label for={@id} class="autolaunch-draft-label">
-      {@field.label}
-      <span :if={@field[:optional]} class="autolaunch-draft-optional">optional</span>
-    </label>
-    """
-  end
-
-  attr :copy, :string, required: true
-
-  def empty_state(assigns) do
-    ~H"""
-    <div class="autolaunch-empty">
-      <p>{@copy}</p>
-    </div>
-    """
-  end
-
-  defp token_detail_fields, do: @token_detail_fields
+  defp token_field(key), do: Enum.find(@token_detail_fields, &(&1.key == key))
 
   defp present(value, placeholder) do
     case String.trim(value) do
@@ -592,9 +556,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   defp present_ticker(symbol), do: present(symbol, "tokens")
 
   defp treasury_field, do: @treasury_field
-
-  defp stage_status(true), do: "Complete"
-  defp stage_status(_incomplete), do: "In progress"
 
   defp described_by(id, hint, error) do
     case Enum.filter([hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do

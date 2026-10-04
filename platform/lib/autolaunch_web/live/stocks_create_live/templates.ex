@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def header(assigns) do
     ~H"""
     <.launch_kind_choice current={:memestake} design={@design} />
-    <header class="memestock__header">
+    <header class="create-page__header">
       <h1>Create a Memestake token</h1>
       <p :if={@design == :next} class="create-next-preview">
         This is the new create page. <.link navigate={~p"/create"}>Open the current page</.link>
@@ -76,16 +76,16 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:schedule, schedule(chain))
 
     ~H"""
-    <main class="memestock">
+    <main class="create-page">
       <.header design={@design} />
       <p :if={@status == :error} class="autolaunch-empty">
         Your draft could not be loaded. Refresh and try again.
       </p>
 
-      <div :if={@status != :error} class="memestock__layout">
+      <div :if={@status != :error} class="create-page__layout">
         <section
           id="memestock-form"
-          class="memestock__form rg-panel rg-panel--surface"
+          class="create-page__form memestock rg-panel rg-panel--surface"
           data-chain={@launch_chain}
           aria-label="Your memestock"
         >
@@ -95,16 +95,15 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           <fieldset class="memestock__lock" disabled={@live_memestake?}>
             <form
               id="stocks-token-details"
-              class="memestock__fields"
+              class="create-page__fields"
               phx-change="autosave_stocks_token_details"
               phx-submit="autosave_stocks_token_details"
             >
-              <div class="memestock__pair">
+              <div class="create-page__pair">
                 <.draft_field
                   form_id="stocks-token-details"
                   param="name"
                   label="Name"
-                  placeholder="Rocket Dog"
                   values={@draft_values}
                   errors={@detail_errors}
                 />
@@ -112,7 +111,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   form_id="stocks-token-details"
                   param="symbol"
                   label="Ticker"
-                  placeholder="RDOG"
                   values={@draft_values}
                   errors={@detail_errors}
                 />
@@ -131,7 +129,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 image={@draft_values["image"]}
                 notice={@image_notice}
               />
-              <div class="memestock__pair">
+              <div class="create-page__pair">
                 <.draft_field
                   form_id="stocks-token-details"
                   param="website"
@@ -161,19 +159,19 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               session_lease={@session_lease}
               optional
             />
-            <p :if={!@current_human_id} class="memestock__hint">
+            <p :if={!@current_human_id} class="create-page__hint">
               After you sign in, you can connect X, GitHub or ENS to show on your auction and token.
             </p>
 
             <form
               id="stocks-terms"
-              class="memestock__fields"
+              class="create-page__fields"
               phx-change="autosave_stocks_terms"
               phx-submit="autosave_stocks_terms"
             >
               <div class="memestock__paired">
                 <div class="memestock__paired-head">
-                  <span class="memestock__label" id="stocks-terms-stock-label">Paired stock</span>
+                  <span class="create-page__label" id="stocks-terms-stock-label">Paired stock</span>
                   <div class="chain-switch" role="group" aria-label="Chain">
                     <button
                       :for={chain <- LaunchChain.chains()}
@@ -201,11 +199,11 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
                   {@draft_errors["stock_address"]}
                 </p>
-                <p class="memestock__hint">{pay_line(@launch_chain, @stock)}</p>
+                <p class="create-page__hint">{pay_line(@launch_chain, @stock)}</p>
                 <p
                   :if={@stock && @market.venues != []}
                   id="stocks-terms-buy-at"
-                  class="memestock__hint"
+                  class="create-page__hint"
                 >
                   Buy {@stock.symbol} at
                   <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
@@ -217,7 +215,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </div>
             </form>
 
-            <div id="stocks-transactions" class="memestock__launch">
+            <div id="stocks-transactions" class="create-page__launch">
               <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
                 Robinhood launches are not open yet.
                 <span :if={@current_human_id}>
@@ -227,12 +225,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <Regent.Primitives.button
                 :if={!@current_human_id}
                 type="button"
-                class="memestock__launch-button"
+                class="create-page__launch-button"
                 data-account-target="sign-in"
               >
                 Sign in to save and launch
               </Regent.Primitives.button>
-              <p :if={!@current_human_id} class="memestock__hint">
+              <p :if={!@current_human_id} class="create-page__hint">
                 Nothing is saved until you sign in. What you have entered comes with you.
               </p>
               <.live_component
@@ -257,14 +255,14 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   @current_human_id && (@launch_chain == :base || @robinhood_open?) && !@launch_ready?
                 }
                 type="button"
-                class="memestock__launch-button"
+                class="create-page__launch-button"
                 disabled
               >
                 Still needed: {missing_label(@missing)}
               </Regent.Primitives.button>
               <p
                 :if={@draft_notice}
-                class={"memestock__notice memestock__notice--#{@draft_notice.tone}"}
+                class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
                 role={if @draft_notice.tone == :error, do: "alert", else: "status"}
               >
                 {@draft_notice.message}
@@ -286,21 +284,21 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
         <aside
           class={[
-            "memestock__summary rg-panel rg-panel--surface",
-            @design == :next && "memestock__summary--next"
+            "create-page__summary rg-panel rg-panel--surface",
+            @design == :next && "create-page__summary--next"
           ]}
           aria-label="Your token"
         >
           <p class="autolaunch-kicker">Your token</p>
-          <div class="memestock-token">
+          <div class="create-token">
             <img
               :if={@draft_values["image"] != ""}
               src={@draft_values["image"]}
               alt=""
-              class="memestock-token__image"
+              class="create-token__image"
             />
-            <span :if={@draft_values["image"] == ""} class="memestock-token__image" aria-hidden="true"></span>
-            <div class="memestock-token__names">
+            <span :if={@draft_values["image"] == ""} class="create-token__image" aria-hidden="true"></span>
+            <div class="create-token__names">
               <strong>{present(@draft_values["name"], "Your token")}</strong>
               <span>${present(@draft_values["symbol"], "TICKER")}</span>
             </div>
@@ -319,14 +317,14 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")}
             ]}
           />
-          <dl :if={@design != :next} class="memestock-terms">
+          <dl :if={@design != :next} class="create-terms">
             <div>
               <dt>Chain</dt>
               <dd>{LaunchChain.label(@launch_chain)}</dd>
             </div>
             <div>
               <dt>Paired with</dt>
-              <dd :if={@stock} class="memestock-terms__stock">
+              <dd :if={@stock} class="create-terms__stock">
                 <.stock_logo stock={@stock} />{@stock.symbol}
               </dd>
               <dd :if={!@stock}>Choose a stock</dd>
@@ -363,7 +361,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           <Regent.Primitives.disclosure
             id="stocks-fixed-terms"
             summary="Every term"
-            class="memestock__more"
+            class="create-page__more"
             phx-mounted={JS.ignore_attributes(["open"])}
           >
             <table class="stocks-terms-table">
@@ -414,9 +412,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       )
 
     ~H"""
-    <div class="rg-field memestock-field">
+    <div class="rg-field create-field">
       <label for={@id}>
-        {@label} <span :if={@optional} class="memestock-field__optional">optional</span>
+        {@label} <span :if={@optional} class="create-field__optional">optional</span>
       </label>
       <textarea
         :if={@kind == :long_text}
@@ -440,7 +438,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         aria-describedby={@described_by}
         phx-debounce="400"
       />
-      <p :if={@hint} id={"#{@id}-hint"} class="memestock__hint">{@hint}</p>
+      <p :if={@hint} id={"#{@id}-hint"} class="create-page__hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>
     </div>
     """

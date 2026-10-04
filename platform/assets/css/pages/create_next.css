@@ -2,7 +2,7 @@
    and the money go, the raise at the starting price, and the terms. */
 
 .create-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
-.memestock__summary.memestock__summary--next { position: static; }
+.create-page__summary.create-page__summary--next { position: relative; top: auto; }
 .create-next { display: grid; gap: 16px; min-width: 0; }
 .create-next__card { container-type: inline-size; display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
 .create-next__title { margin: 0; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; }
