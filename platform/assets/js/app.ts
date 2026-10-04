@@ -13,9 +13,9 @@ import {
   type PinnedSocket,
 } from "./auth_lazy"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
-import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {ImageGradient} from "./hooks/image_gradient"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
@@ -36,7 +36,7 @@ const hooks = {
   Optics,
   XConnections,
   CreatorConnections,
-  HomeSearch,
+  SearchDialog,
   Toast,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
@@ -55,7 +55,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
 installMotion()
-installStaticMarketSearch()
 installRegentTokenMenu()
 installCopyButtons()
 installTheme()

@@ -573,6 +573,72 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :record, :map, required: true, doc: "an auction with `fdv` or a token with `market_cap`"
+  attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
+
+  @doc """
+  One search result: the token cell as the lists show it, then an auction's
+  value and state or a token's price and market cap. It opens the record's page.
+  """
+  def search_result(%{kind: :auction, record: auction} = assigns) do
+    assigns =
+      assign(assigns,
+        view: view(:auction, auction, %{}),
+        figures: figures(auction, figure_rate(assigns.rates, auction))
+      )
+
+    ~H"""
+    <.link navigate={@view.path} class="search-result" data-search-result>
+      <span class="market-list__token">
+        <.list_token_contents
+          name={@view.name}
+          symbol={@view.symbol}
+          unit={nil}
+          image={@view.image}
+          chain={@view.chain}
+        />
+      </span>
+      <span class="search-result__figures">
+        <strong>{@figures.fdv}</strong>
+        <small>{@figures.status}</small>
+      </span>
+    </.link>
+    """
+  end
+
+  def search_result(%{kind: :token, record: token} = assigns) do
+    view = view(:token, token, %{})
+    rate = figure_rate(assigns.rates, token.auction)
+
+    assigns =
+      assign(assigns,
+        view: view,
+        rate: rate,
+        market_cap: money(token.market_cap, rate, view.metric.unit)
+      )
+
+    ~H"""
+    <.link navigate={@view.path} class="search-result" data-search-result>
+      <span class="market-list__token">
+        <.list_token_contents
+          name={@view.name}
+          symbol={@view.symbol}
+          unit={nil}
+          image={@view.image}
+          chain={@view.chain}
+        />
+      </span>
+      <span class="search-result__figures">
+        <strong>
+          <.price_figure amount={@record.price_quote} unit={@view.metric.unit} rate={@rate} />
+        </strong>
+        <small :if={@market_cap}>{@market_cap} market cap</small>
+      </span>
+    </.link>
+    """
+  end
+
   attr :name, :string, required: true
   attr :symbol, :string, required: true
 

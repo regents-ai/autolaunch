@@ -18,7 +18,6 @@ defmodule AutolaunchWeb.Plugs.PageShell do
     conn
     |> Phoenix.Controller.put_layout(html: {AutolaunchWeb.Layouts, :app})
     |> assign(:current_path, conn.request_path)
-    |> assign(:search_query, "")
     |> assign(:account_control, Autolaunch.AccessContext.account_control(access))
   end
 end

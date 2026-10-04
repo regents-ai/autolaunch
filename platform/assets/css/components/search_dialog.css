@@ -1,0 +1,56 @@
+/* The search window: the search field across the top, what to show on the
+   left, results on the right. On a phone the choices run across under the field. */
+.search-dialog { width: min(52rem, calc(100% - 2rem)); max-height: min(40rem, calc(100dvh - 4rem)); margin: 8vh auto auto; padding: 0; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface); color: var(--color-fg); overflow: hidden; }
+.search-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.search-dialog::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+
+.search-dialog__field { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--hairline); color: var(--color-fg-muted); }
+.search-dialog__field svg { flex-shrink: 0; }
+.search-dialog__field input { flex: 1; min-width: 0; padding: 12px 0; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--color-fg); font: inherit; font-size: 1rem; }
+.search-dialog__field input::-webkit-search-cancel-button { display: none; }
+.search-dialog__close { flex-shrink: 0; min-height: 32px; padding: 0 6px; border: 0; background: transparent; color: inherit; font: inherit; font-size: .75rem; cursor: pointer; }
+.search-dialog__close kbd { padding: 2px 6px; border: 1px solid var(--hairline); border-radius: 4px; font-family: inherit; }
+.search-dialog__close span { display: none; }
+
+.search-dialog__body { display: grid; grid-template-columns: 10rem minmax(0, 1fr); min-height: 0; }
+.search-dialog__categories { display: grid; align-content: start; gap: 2px; padding: 12px 8px; border-right: 1px solid var(--hairline); }
+.search-dialog__categories button,
+.search-dialog__chains button,
+.search-dialog__recent button { border: 1px solid transparent; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .875rem; cursor: pointer; }
+.search-dialog__categories button { min-height: 36px; padding: 0 12px; border-radius: 6px; text-align: left; }
+.search-dialog__categories button:hover { color: var(--color-fg); }
+.search-dialog__categories button[aria-pressed="true"] { background: color-mix(in srgb, var(--color-fg) 8%, transparent); color: var(--color-fg); font-weight: 600; }
+
+.search-dialog__results { display: grid; align-content: start; gap: 20px; min-height: 0; padding: 12px 16px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.search-dialog__chains, .search-dialog__recent { display: flex; flex-wrap: wrap; gap: 8px; }
+.search-dialog__chains button, .search-dialog__recent button { min-height: 32px; padding: 0 12px; border-color: var(--hairline); border-radius: 999px; }
+.search-dialog__chains button:hover, .search-dialog__recent button:hover { color: var(--color-fg); }
+.search-dialog__chains button[aria-pressed="true"] { border-color: var(--color-fg); color: var(--color-fg); }
+
+.search-dialog__section { display: grid; gap: 4px; }
+.search-dialog__section header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.search-dialog__section h2 { margin: 0 0 4px; color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.search-dialog__clear { padding: 4px; border: 0; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; cursor: pointer; }
+.search-dialog__clear:hover { color: var(--color-fg); }
+.search-dialog__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.search-dialog__all { justify-self: start; color: var(--color-fg); font-size: .875rem; text-underline-offset: 3px; }
+
+.search-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; padding: 8px; border-radius: 8px; color: inherit; text-decoration: none; }
+.search-result:hover, .search-result:focus-visible { background: color-mix(in srgb, var(--color-fg) 6%, transparent); outline: none; }
+.search-result .market-list__token { flex: 1 1 auto; }
+.search-result__figures { display: grid; flex-shrink: 0; justify-items: end; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
+.search-result__figures strong { font-size: .875rem; font-weight: 600; }
+.search-result__figures small { color: var(--color-fg-muted); font-size: .75rem; }
+/* While something is typed, Enter opens the first result: it shows as chosen. */
+.search-dialog:has(#search-dialog-q:focus:not(:placeholder-shown)) .search-dialog__section:has(> .search-result):not(.search-dialog__section:has(> .search-result) ~ .search-dialog__section) > .search-result:first-of-type { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
+
+@media (max-width: 40rem) {
+  .search-dialog { width: calc(100% - 1rem); max-height: calc(100dvh - 1rem); margin-top: .5rem; }
+  .search-dialog__close kbd { display: none; }
+  .search-dialog__close span { display: inline; font-size: .875rem; }
+  .search-dialog__body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .search-dialog__categories { display: flex; gap: 4px; padding: 8px 12px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--hairline); }
+  .search-dialog__categories button { flex-shrink: 0; }
+  .search-dialog__results { padding: 12px; }
+  .search-result__figures small { display: none; }
+}

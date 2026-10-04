@@ -5,29 +5,20 @@ defmodule AutolaunchWeb.Components.TopBar do
   import AutolaunchWeb.Components.AccountControl
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
-  attr :search_query, :string, default: ""
-
-  attr :home?, :boolean, default: false
-  attr :market_options, :map, default: %{}
 
   def top_bar(assigns) do
     ~H"""
     <header class="shell-top home-top" id="home-top">
       <%!-- Hidden until opening: before then there is nothing to search. --%>
-      <form
+      <button
         :if={!Autolaunch.Prelaunch.read_only?()}
+        type="button"
         id="home-search"
         class="home-search"
-        action="/"
-        method="get"
-        role="search"
-        phx-hook="HomeSearch"
-        data-query={@search_query}
-        phx-submit={if @home?, do: "search"}
-        phx-change={if @home?, do: "type_search"}
-        data-home={if @home?, do: "true"}
+        data-open-search
+        aria-haspopup="dialog"
+        aria-controls="search-dialog"
       >
-        <label for="home-search-q" class="visually-hidden">Search coins and creators</label>
         <svg
           viewBox="0 0 24 24"
           width="20"
@@ -37,31 +28,9 @@ defmodule AutolaunchWeb.Components.TopBar do
           stroke-width="1.5"
           aria-hidden="true"
         ><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
-        <input
-          id="home-search-q"
-          type="search"
-          name="q"
-          value={@search_query}
-          placeholder="Search coins, stocks, creators and addresses…"
-          autocomplete="off"
-          phx-debounce="300"
-        />
-        <input
-          :for={{key, value} <- Map.take(@market_options, [:view, :sort, :display, :state])}
-          type="hidden"
-          name={key}
-          value={value}
-        />
-        <button
-          type="button"
-          class="home-search__clear"
-          aria-label="Clear search"
-          data-clear-search
-          hidden={@search_query == ""}
-        >×</button>
+        <span class="home-search__prompt">Search coins, stocks, creators and addresses…</span>
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
-        <button type="submit" class="visually-hidden">Search</button>
-      </form>
+      </button>
       <AutolaunchWeb.Components.RegentLinks.header_links>
         <:lead>
           <Regent.Primitives.button

@@ -40,12 +40,8 @@ defmodule AutolaunchWeb.Live.Session do
     {:cont,
      socket
      |> assign_shell_control(session)
-     |> attach_hook(:shell_location, :handle_params, fn params, uri, socket ->
-       {:cont,
-        Phoenix.Component.assign(socket,
-          current_path: path_of(uri),
-          search_query: Autolaunch.Search.normalize(params["q"])
-        )}
+     |> attach_hook(:shell_location, :handle_params, fn _params, uri, socket ->
+       {:cont, Phoenix.Component.assign(socket, current_path: path_of(uri))}
      end)}
   end
 
@@ -175,7 +171,6 @@ defmodule AutolaunchWeb.Live.Session do
 
     Phoenix.Component.assign(socket,
       current_path: "/",
-      search_query: "",
       account_control: AccessContext.account_control(access_context)
     )
   end
