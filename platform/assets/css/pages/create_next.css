@@ -1,7 +1,6 @@
-/* The new Create pages (/next/create, /next/create/revstake): where the supply
-   and the money go, the raise at the starting price, and the terms. */
+/* The Create pages: where the supply and the money go, how the auction runs,
+   what happens when, and the terms. */
 
-.create-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
 .create-page__summary.create-page__summary--next { position: relative; top: auto; }
 .create-next { display: grid; gap: 16px; min-width: 0; }
 .create-next__card { container-type: inline-size; display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
@@ -38,3 +37,12 @@
 .create-next__facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding-block: 8px; border-top: 1px solid var(--hairline); font-size: .8125rem; }
 .create-next__facts dt { color: var(--color-fg-muted); }
 .create-next__facts dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* What happens when: a dot on a line for each milestone, its time above it. */
+.create-next__timeline { display: grid; margin: 0; padding: 0; list-style: none; }
+.create-next__milestone { position: relative; display: grid; gap: 2px; padding: 0 0 14px 22px; font-size: .8125rem; }
+.create-next__milestone::before { content: ""; position: absolute; top: 4px; left: 0; width: 10px; height: 10px; border: 2px solid var(--brand-accent); border-radius: 50%; background: var(--color-surface); box-sizing: border-box; }
+.create-next__milestone:not(:last-child)::after { content: ""; position: absolute; top: 16px; bottom: 0; left: 4px; width: 2px; background: var(--hairline-strong); }
+.create-next__milestone:last-child { padding-bottom: 0; }
+.create-next__milestone:last-child::before { background: var(--brand-accent); }
+.create-next__when { color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }

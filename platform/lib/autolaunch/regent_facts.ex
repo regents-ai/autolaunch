@@ -146,7 +146,6 @@ defmodule Autolaunch.RegentFacts do
          usdc_treasury_lifetime: Rpc.format_units(usdc_received - usdc_credited, @usdc_decimals),
          revenue_share_denominator: regent(denominator),
          staked_denominator_share: share(total_staked, denominator),
-         usdc_received_7d: received_7d(deposits_7d),
          deposits_7d: deposits_7d,
          window_blocks: @window_blocks,
          emission_apr_percent: Rpc.format_units(apr_bps, 2),
@@ -235,9 +234,6 @@ defmodule Autolaunch.RegentFacts do
 
     [:memestake_base, :token_splitters, :robinhood] ++ tags ++ unattributed
   end
-
-  defp received_7d(:unavailable), do: :unavailable
-  defp received_7d(%{total: %{received: received}}), do: received
 
   defp allocation(deposits) do
     %{

@@ -75,7 +75,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
-  attr :design, :atom, default: :current
   attr :has_connections, :boolean, default: false
   attr :connections_waived, :boolean, default: false
   attr :no_connections_typed, :string, default: ""
@@ -87,7 +86,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       assigns
       |> assign(:active_draft, draft)
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
-      |> assign(:schedule, revstake_schedule())
 
     ~H"""
     <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
@@ -221,10 +219,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       </section>
 
       <aside
-        class={[
-          "create-page__summary rg-panel rg-panel--surface",
-          @design == :next && "create-page__summary--next"
-        ]}
+        class="create-page__summary create-page__summary--next rg-panel rg-panel--surface"
         aria-label="Your token"
       >
         <p class="autolaunch-kicker">Your token</p>
@@ -242,7 +237,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           </div>
         </div>
         <.launch_plan
-          :if={@design == :next}
           id="revstake-plan"
           kind={:revstake}
           ticker={present_ticker(@draft_values["symbol"])}
@@ -251,44 +245,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             {"Treasury", present(@draft_values["treasury"], "Not set yet")}
           ]}
         />
-        <dl :if={@design != :next} class="create-terms">
-          <div>
-            <dt>Chain</dt>
-            <dd>Base</dd>
-          </div>
-          <div>
-            <dt>Bidders pay in</dt>
-            <dd>REGENT</dd>
-          </div>
-          <div>
-            <dt>Trading fees</dt>
-            <dd>2% to stakers and 1% to Regent, plus the 0.30% pool fee</dd>
-          </div>
-          <div>
-            <dt>Bidding opens</dt>
-            <dd>{@schedule.opens} after launch</dd>
-          </div>
-          <div>
-            <dt>Auction</dt>
-            <dd>{@schedule.length}</dd>
-          </div>
-          <div>
-            <dt>Starting price</dt>
-            <dd>The lowest the auction accepts</dd>
-          </div>
-          <div>
-            <dt>Minimum raise</dt>
-            <dd>Less than one REGENT</dd>
-          </div>
-          <div>
-            <dt>Liquidity</dt>
-            <dd>Locked forever</dd>
-          </div>
-          <div>
-            <dt>Launch fee</dt>
-            <dd>None</dd>
-          </div>
-        </dl>
         <Regent.Primitives.disclosure
           id="launch-terms"
           summary="Every term"

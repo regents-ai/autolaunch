@@ -1,9 +1,8 @@
 defmodule Autolaunch.AuctionBook do
   @moduledoc """
   What a bidder needs to see in an open auction, read from the auction
-  contract each time a page asks: the price everyone pays right now, the
-  lowest maximum a new bid can use to get tokens, how much has been bid at
-  each maximum price, and how much of the supply has sold.
+  contract each time a page asks: the price everyone pays right now and the
+  lowest maximum a new bid can use to get tokens.
 
   The price is the one the auction would record in this block, from a call to
   `checkpoint()` that is never sent, so it counts bids the auction has not
@@ -11,9 +10,9 @@ defmodule Autolaunch.AuctionBook do
   price grid and above that price, so the lowest one that gets tokens is the
   next grid step above it.
 
-  Every maximum price comes from the auction's `BidSubmitted` logs. A bid whose
-  maximum is above the price buys at the price every block; a bid exactly at
-  it shares what the higher bids leave; a bid below it has stopped buying.
+  A bid whose maximum is above the price buys at the price every block; a bid
+  exactly at it shares what the higher bids leave; a bid below it has stopped
+  buying.
   """
 
   alias Autolaunch.{BidActions, BidPrice}
@@ -24,21 +23,7 @@ defmodule Autolaunch.AuctionBook do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
 
-  @bid_submitted "BidSubmitted(uint256,address,uint256,uint128)"
-
-  # The ladder shows the prices nearest the auction price: this many above it,
-  # and this many below.
-  @above 7
-  @below 3
-
   @type standing :: :in | :sharing | :outbid
-  @type level :: %{
-          price: String.t(),
-          price_q96: pos_integer(),
-          amount: String.t(),
-          bids: pos_integer(),
-          standing: standing()
-        }
 
   @doc "A Base auction's book, read at the latest block."
   @spec base(map()) :: {:ok, map()} | {:error, atom()}
@@ -46,17 +31,14 @@ defmodule Autolaunch.AuctionBook do
       when is_binary(address) do
     with {:ok, opts} <- base_opts(auction),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, start} <- Rpc.call_uint(address, LabAbi.selector("startBlock()"), block, opts),
-         do: read(address, decimals, start, block, opts)
+         do: read(address, decimals, block, opts)
   end
 
   def base(_auction), do: {:error, :no_auction_contract}
 
   @doc """
   A Robinhood auction's book, read at the latest block by its address alone:
-  the auction names its currency, and the currency its decimals. Its contracts
-  keep time by the rollup clock, not by the block numbers logs carry, so its
-  logs are read from the chain's start.
+  the auction names its currency, and the currency its decimals.
   """
   @spec robinhood(String.t()) :: {:ok, map()} | {:error, atom()}
   def robinhood(address) when is_binary(address) do
@@ -66,7 +48,7 @@ defmodule Autolaunch.AuctionBook do
          {:ok, currency} <- Rpc.call_uint(address, LabAbi.selector("currency()"), block, opts),
          {:ok, currency} <- Abi.word_address(currency),
          {:ok, decimals} <- Rpc.call_uint(currency, LabAbi.selector("decimals()"), block, opts) do
-      read(address, decimals, 0, block, opts)
+      read(address, decimals, block, opts)
     else
       :error -> {:error, :invalid_chain_response}
       error -> error
@@ -132,81 +114,31 @@ defmodule Autolaunch.AuctionBook do
   defp plain(typed), do: Decimal.new(String.trim(typed), max_digits: :infinity)
 
   @doc """
-  The book of the auction at `address`, read at `block` with its bid logs from
-  `from_block`: the reading `base/1` and `robinhood/1` return, for a caller
-  that reads more of the same auction at the same block.
+  The book of the auction at `address`, read at `block`: the reading `base/1`
+  and `robinhood/1` return, for a caller that reads more of the same auction
+  at the same block.
   """
-  def read(address, decimals, from_block, block, opts) do
-    with {:ok, floor} <- uint(address, "floorPrice()", block, opts),
-         {:ok, spacing} <- uint(address, "tickSpacing()", block, opts),
+  def read(address, decimals, block, opts) do
+    with {:ok, spacing} <- uint(address, "tickSpacing()", block, opts),
          {:ok, cap} <- uint(address, "MAX_BID_PRICE()", block, opts),
-         {:ok, supply} <- uint(address, "totalSupply()", block, opts),
-         {:ok, cleared} <- uint(address, "totalCleared()", block, opts),
          {:ok, [clearing | _checkpoint]} <-
-           Rpc.call_words(address, LabAbi.selector("checkpoint()"), block, 6, opts),
-         {:ok, logs} <- logs(address, from_block, block, opts),
-         {:ok, bids} <- bids(logs) do
+           Rpc.call_words(address, LabAbi.selector("checkpoint()"), block, 6, opts) do
       to_beat = (div(clearing, spacing) + 1) * spacing
-      book = %{clearing_q96: clearing}
 
       {:ok,
        %{
          block: block,
          clearing_q96: clearing,
          clearing: BidPrice.decimal(clearing, decimals),
-         floor: BidPrice.decimal(floor, decimals),
          decimals: decimals,
          price_to_beat_q96: if(to_beat <= cap, do: to_beat),
-         price_to_beat: if(to_beat <= cap, do: entered(to_beat, spacing, decimals)),
-         sold_percent: if(supply > 0, do: cleared * 100 / supply, else: 0.0),
-         levels: levels(bids, decimals, book)
+         price_to_beat: if(to_beat <= cap, do: entered(to_beat, spacing, decimals))
        }}
     end
   end
 
   defp uint(address, signature, block, opts),
     do: Rpc.call_uint(address, LabAbi.selector(signature), block, opts)
-
-  # Each bid's maximum price and amount, in chain order.
-  defp bids(logs) do
-    Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, found} ->
-      with %{"removed" => false, "data" => "0x" <> data} <- log,
-           [price, amount] <- words(data) do
-        {:cont, {:ok, [{price, amount} | found]}}
-      else
-        _invalid -> {:halt, {:error, :invalid_chain_response}}
-      end
-    end)
-  end
-
-  defp words(hex), do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
-
-  # The bids grouped by maximum price, highest first, trimmed to the prices
-  # nearest the auction price with a count of the ones left out on each side.
-  defp levels(bids, decimals, book) do
-    {above, rest} =
-      bids
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-      |> Enum.map(fn {price, amounts} ->
-        %{
-          price: BidPrice.decimal(price, decimals),
-          price_q96: price,
-          amount: Rpc.format_units(Enum.sum(amounts), decimals),
-          bids: length(amounts),
-          standing: standing(price, book)
-        }
-      end)
-      |> Enum.sort_by(& &1.price_q96, :desc)
-      |> Enum.split_with(&(&1.standing == :in))
-
-    {sharing, below} = Enum.split_with(rest, &(&1.standing == :sharing))
-
-    %{
-      shown: Enum.take(above, -@above) ++ sharing ++ Enum.take(below, @below),
-      hidden_above: max(length(above) - @above, 0),
-      hidden_below: max(length(below) - @below, 0)
-    }
-  end
 
   # The shortest price a bidder can type that the bid form turns back into
   # exactly this grid price: rounded up, so it never falls to the grid step
@@ -239,21 +171,6 @@ defmodule Autolaunch.AuctionBook do
     do: trimmed(div(coef, 10), exp + 1)
 
   defp trimmed(coef, exp), do: Decimal.new(1, coef, exp)
-
-  defp logs(address, from_block, block, opts) do
-    filter = %{
-      address: address,
-      fromBlock: "0x" <> Integer.to_string(from_block, 16),
-      toBlock: "0x" <> Integer.to_string(block.number, 16),
-      topics: [LabAbi.topic(@bid_submitted)]
-    }
-
-    case Rpc.request("eth_getLogs", [filter], opts) do
-      {:ok, logs} when is_list(logs) -> {:ok, logs}
-      {:ok, _other} -> {:error, :invalid_chain_response}
-      error -> error
-    end
-  end
 
   @doc "The read options for a Base auction's chain, by the launch kind that says which deployment it is on."
   def base_opts(%{kind: :agent}) do

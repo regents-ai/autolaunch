@@ -2,17 +2,16 @@ defmodule AutolaunchWeb.Components.PoolSection do
   @moduledoc """
   The "Pool" section of a graduated token's page: the pool a launch graduated
   into, its locked positions, its price, and its fee lanes and revenue, read from
-  Base by `Autolaunch.Pool`. With `design: :next`, for the new token page,
-  the locked positions and the Memestake fee totals are left to that page's
-  own locked-liquidity section and reward trace; the settlements stay here.
+  Base by `Autolaunch.Pool`. The locked positions and the Memestake fee totals
+  are left to the token page's own locked-liquidity section and reward trace;
+  the settlements stay here.
   """
   use AutolaunchWeb, :html
 
-  alias Autolaunch.Stocks.{Amounts, FeeSchedule}
+  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.TokenDisplay
 
   attr :pool, :any, required: true
-  attr :design, :atom, default: :current, values: [:current, :next]
 
   def pool_facts(assigns) do
     ~H"""
@@ -27,13 +26,12 @@ defmodule AutolaunchWeb.Components.PoolSection do
           Read again
         </Regent.Primitives.button>
       </div>
-      <.facts :if={@pool.ok?} facts={@pool.result} design={@design} />
+      <.facts :if={@pool.ok?} facts={@pool.result} />
     </section>
     """
   end
 
   attr :facts, :map, required: true
-  attr :design, :atom, required: true
 
   defp facts(assigns) do
     ~H"""
@@ -105,44 +103,6 @@ defmodule AutolaunchWeb.Components.PoolSection do
       </div>
     </dl>
 
-    <h3 :if={@design == :current}>Locked liquidity</h3>
-    <ol :if={@design == :current} class="autolaunch-record-list pool-positions">
-      <li :for={position <- @facts.positions}>
-        <article>
-          <h4>{position.label} position · NFT #{position.token_id}</h4>
-          <dl class="autolaunch-live-market">
-            <div>
-              <dt>{@facts.token.symbol}</dt>
-              <dd>
-                <TokenDisplay.tokens
-                  amount={position.token_amount}
-                  unit={@facts.token.symbol}
-                />
-              </dd>
-            </div>
-            <div>
-              <dt>{@facts.currency.symbol}</dt>
-              <dd>
-                <TokenDisplay.tokens
-                  amount={position.currency_amount}
-                  unit={@facts.currency.symbol}
-                />
-              </dd>
-            </div>
-            <div>
-              <dt>Owner</dt>
-              <dd>
-                <span class="autolaunch-exact-value">{position.owner}</span>
-                <span :if={position.locked?}>
-                  Locked forever: its trading fees go to stakers.
-                </span>
-              </dd>
-            </div>
-          </dl>
-        </article>
-      </li>
-    </ol>
-
     <p>
       <a href={@facts.uniswap_url} target="_blank" rel="noopener noreferrer">
         Open this pool on the Uniswap app
@@ -190,7 +150,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
     </Regent.Primitives.disclosure>
 
     <.agent_fees :if={@facts.kind == :agent} facts={@facts} />
-    <.stocks_fees :if={@facts.kind == :stocks} facts={@facts} design={@design} />
+    <.stocks_fees :if={@facts.kind == :stocks} facts={@facts} />
     """
   end
 
@@ -239,141 +199,11 @@ defmodule AutolaunchWeb.Components.PoolSection do
   end
 
   attr :facts, :map, required: true
-  attr :design, :atom, required: true
 
   defp stocks_fees(assigns) do
-    lane = &FeeSchedule.lane(assigns.facts.chain, assigns.facts.version, &1)
-
-    # The first four Memestake tokens have no creator's share.
-    assigns =
-      assign(assigns,
-        creator: lane.(:creator),
-        regent_rate: lane.(:regent).rate,
-        stakers_rate: lane.(:stakers).rate
-      )
-
     ~H"""
     <section id="pool-fees" aria-label="Trading fees">
-      <h3 :if={@design == :current}>Trading fees</h3>
-      <p :if={@design == :current && @creator}>
-        Every trade pays {@creator.rate} of its <span class="ticker">{@facts.currency.symbol}</span>
-        side to the launch's creator, {@regent_rate} to <span class="ticker">REGENT</span>
-        stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
-        stakers. All three are always on. <span class="figure__value">{@facts.fees.trades}</span>
-        trades have been charged since graduation.
-      </p>
-      <p :if={@design == :current && !@creator}>
-        Every trade pays {@regent_rate} of its <span class="ticker">{@facts.currency.symbol}</span>
-        side to <span class="ticker">REGENT</span>
-        stakers and {@stakers_rate} to <span class="ticker">{@facts.token.symbol}</span>
-        stakers. Both are always on. <span class="figure__value">{@facts.fees.trades}</span>
-        trades have been charged since graduation.
-      </p>
-      <ol :if={@design == :current} class="autolaunch-record-list pool-buckets">
-        <li :if={@creator}>
-          <article>
-            <h5>Creator's share</h5>
-            <dl class="autolaunch-live-market">
-              <div>
-                <dt>Awaiting payment</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.creator.accrued}
-                    unit={@facts.currency.symbol}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt>Paid to the creator so far</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.creator.settled_currency}
-                    unit={@facts.currency.symbol}
-                  />
-                </dd>
-              </div>
-            </dl>
-          </article>
-        </li>
-        <li>
-          <article>
-            <h5>REGENT's share</h5>
-            <dl class="autolaunch-live-market">
-              <div>
-                <dt>Awaiting conversion</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.regent.accrued}
-                    unit={@facts.currency.symbol}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt>Converted so far</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.regent.settled_currency}
-                    unit={@facts.currency.symbol}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt>Deposited so far</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.regent.settled_usdc}
-                    unit="USDC"
-                  />
-                </dd>
-              </div>
-            </dl>
-          </article>
-        </li>
-        <li>
-          <article>
-            <h5>Stakers' share</h5>
-            <dl class="autolaunch-live-market">
-              <div>
-                <dt>Awaiting settlement</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.stakers.accrued}
-                    unit={@facts.currency.symbol}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt>Sent to stakers so far</dt>
-                <dd>
-                  <TokenDisplay.tokens
-                    amount={@facts.fees.stakers.settled_currency}
-                    unit={@facts.currency.symbol}
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt>Staking contract</dt>
-                <dd class="autolaunch-exact-value">{@facts.fees.splitter.address}</dd>
-              </div>
-            </dl>
-          </article>
-        </li>
-      </ol>
-      <p :if={@design == :current}>
-        <span :if={@creator}>
-          The creator's share can be paid out by anyone, straight to the wallet that created the
-          launch.
-        </span>
-        REGENT's share is converted to USDC by the operator outside trading. The stakers'
-        share can be settled by anyone, and the locked liquidity's own trading fees can be collected
-        by anyone; both land in the staking contract for
-        <span class="ticker">{@facts.token.symbol}</span>
-        stakers.
-      </p>
-
-      <.dynamic_tag tag_name={if(@design == :next, do: "h3", else: "h4")}>
-        Settlements so far
-      </.dynamic_tag>
+      <h3>Settlements so far</h3>
       <p :if={@facts.fees.settlements == []} class="autolaunch-empty">
         Nothing has been settled yet.
       </p>

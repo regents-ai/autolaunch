@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.Components.TokenNext do
   @moduledoc """
-  The pieces of the new token page (`/next/tokens/<TICKER>/<tail>`), all drawn
+  The pieces of the token page (`/tokens/<TICKER>/<tail>`), all drawn
   from the pool facts the page already reads (`Autolaunch.Pool` on Base,
   `Autolaunch.Robinhood.Pool` on Robinhood Chain) and, inside the staking
   card, the signed-in wallet's own position:
@@ -414,7 +414,11 @@ defmodule AutolaunchWeb.Components.TokenNext do
 
   attr :id, :string, required: true
   attr :pool, :map, required: true
-  attr :position, :map, default: nil, doc: "the signed-in wallet's position, or nil"
+
+  attr :position, :any,
+    default: nil,
+    doc:
+      "the signed-in wallet's position, nil when signed out, or :unread when it could not be read"
 
   @doc """
   The wallet's rewards, one row per asset, and its staked tokens in a card of
@@ -422,10 +426,18 @@ defmodule AutolaunchWeb.Components.TokenNext do
   as the wallet's; fees still waiting are not.
   """
   def stake_figures(assigns) do
+    mine = if is_map(assigns.position), do: assigns.position
+
     assigns =
       assign(assigns,
         block: grouped(assigns.pool.block.number),
-        rows: reward_rows(assigns.pool, assigns.position)
+        rows: reward_rows(assigns.pool, mine),
+        mine: mine,
+        missing:
+          if(assigns.position == :unread,
+            do: "Can't be read right now",
+            else: "Sign in to see yours"
+          )
       )
 
     ~H"""
@@ -442,12 +454,12 @@ defmodule AutolaunchWeb.Components.TokenNext do
               <TokenDisplay.tokens amount={row.amount} unit={row.symbol} />
             </span>
             <span :if={!row.amount} class="token-next-basket__amount token-next-muted">
-              Sign in to see yours
+              {@missing}
             </span>
           </li>
         </ul>
         <p class="token-next-source">
-          {if @position,
+          {if @mine,
             do: "Read from the chain at block #{@block}.",
             else: "Each asset is its own reward."} Only rewards the staking contract has counted can be
           claimed. Fees still waiting in the pool are not yours yet.
@@ -461,15 +473,15 @@ defmodule AutolaunchWeb.Components.TokenNext do
         <dl class="token-next-rows">
           <div>
             <dt>Your stake</dt>
-            <dd :if={@position}>
-              <TokenDisplay.tokens amount={@position.staked.shown} unit={@pool.token.symbol} />
+            <dd :if={@mine}>
+              <TokenDisplay.tokens amount={@mine.staked.shown} unit={@pool.token.symbol} />
             </dd>
-            <dd :if={!@position} class="token-next-muted">Sign in to see yours</dd>
+            <dd :if={!@mine} class="token-next-muted">{@missing}</dd>
           </div>
-          <div :if={@position}>
+          <div :if={@mine}>
             <dt>In your wallet</dt>
             <dd>
-              <TokenDisplay.tokens amount={@position.balance.shown} unit={@pool.token.symbol} />
+              <TokenDisplay.tokens amount={@mine.balance.shown} unit={@pool.token.symbol} />
             </dd>
           </div>
           <div>
@@ -496,7 +508,12 @@ defmodule AutolaunchWeb.Components.TokenNext do
   attr :id, :string, required: true
   attr :pool, :map, required: true
   attr :amount, :string, required: true, doc: "the amount typed in the staking form"
-  attr :position, :map, default: nil, doc: "the signed-in wallet's position, or nil"
+
+  attr :position, :any,
+    default: nil,
+    doc:
+      "the signed-in wallet's position, nil when signed out, or :unread when it could not be read"
+
   attr :supply, :any, default: nil, doc: "the token's whole supply in whole tokens, or nil"
 
   @doc """
@@ -520,6 +537,9 @@ defmodule AutolaunchWeb.Components.TokenNext do
       </header>
       <p :if={@impact == :waiting} class="token-next-source">
         Enter an amount above to see your share before and after staking it.
+      </p>
+      <p :if={@impact == :unread} class="token-next-source">
+        Unavailable: your stake could not be read just now, so your share cannot be worked out.
       </p>
       <p :if={@impact == :no_supply} class="token-next-source">
         Unavailable: this token's total supply is not recorded yet, so its share cannot be worked out.
@@ -752,6 +772,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
     end
   end
 
+  defp impact(_pool, :unread, _added, _amount, _supply), do: :unread
   defp impact(%{kind: :agent}, _position, _added, _amount, nil), do: :no_supply
 
   defp impact(pool, position, added, amount, supply) do

@@ -90,6 +90,19 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   def auction_duration_blocks, do: @auction_duration_blocks
 
   @doc """
+  The launch's fixed schedule in blocks: bidding opens `opens` after the
+  launch, runs for `length`, and claims and the trading pool open `claim` and
+  `pool` after bidding ends.
+  """
+  def schedule,
+    do: %{
+      opens: @start_lead_blocks,
+      length: @auction_duration_blocks,
+      claim: @claim_delay_blocks,
+      pool: @migration_delay_blocks
+    }
+
+  @doc """
   Reviews one saved Robinhood draft for `address`, one of the account's own
   wallets: one snapshot, then the review's signer, chain and one step, the
   facts it was built from and the plain facts the page shows.

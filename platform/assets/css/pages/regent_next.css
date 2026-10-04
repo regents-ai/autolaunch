@@ -1,8 +1,7 @@
-/* The new REGENT page (/next/regent): where the USDC went, the last seven days
+/* The REGENT page: where the USDC went, the last seven days
    by source, how the next deposit splits, Memestake's two chains and REGENT
    emissions, each in its own card. */
 
-.regent-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-next-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
 @media (min-width: 64rem) {
   .regent-next-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }

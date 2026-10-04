@@ -11,10 +11,10 @@ defmodule AutolaunchWeb.StakeComponent do
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
   `%{chain: :robinhood, auction: record}`; `pool` is its current facts.
-  With `design: :next`, for the new token page, the card shows the wallet's
-  rewards one asset to a row, its stake apart from them, and what staking the
-  typed amount would change (`AutolaunchWeb.Components.TokenNext`); `supply`
-  is the token's whole supply, which a Revstake share is of.
+  The card shows the wallet's rewards one asset to a row, its stake apart
+  from them, and what staking the typed amount would change
+  (`AutolaunchWeb.Components.TokenNext`); `supply` is the token's whole
+  supply, which a Revstake share is of.
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); the card shows that wallet's
@@ -88,7 +88,6 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:session_lease, fn -> nil end)
       |> assign_new(:share_url, fn -> nil end)
       |> assign_new(:share_image, fn -> nil end)
-      |> assign_new(:design, fn -> :current end)
       |> assign_new(:supply, fn -> nil end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> scoped()
@@ -193,66 +192,10 @@ defmodule AutolaunchWeb.StakeComponent do
       </details>
 
       <TokenNext.stake_figures
-        :if={@design == :next}
         id={"#{@id}-figures"}
         pool={@pool}
         position={@position}
       />
-      <dl :if={@design == :current} class="token-stake__facts">
-        <div>
-          <dt>Staked by everyone</dt>
-          <dd>
-            <TokenDisplay.tokens amount={@pool.fees.splitter.total_staked} unit={@pool.token.symbol} />
-          </dd>
-        </div>
-        <div :if={@pool.kind == :stocks}>
-          <dt>Waiting for stakers</dt>
-          <dd>
-            <TokenDisplay.tokens amount={@pool.fees.stakers.accrued} unit={@pool.currency.symbol} />
-          </dd>
-        </div>
-        <div :for={position <- @pool.positions}>
-          <dt>{position.label} fees to collect</dt>
-          <dd :if={!position.uncollected}>Not readable right now</dd>
-          <dd :if={position.uncollected}>
-            <TokenDisplay.tokens amount={position.uncollected.token_amount} unit={@pool.token.symbol} />
-            ·
-            <TokenDisplay.tokens
-              amount={position.uncollected.currency_amount}
-              unit={@pool.currency.symbol}
-            />
-          </dd>
-        </div>
-        <div :if={@pool.kind == :stocks && @pool.vesting}>
-          <dt>Creator's tokens ready to release</dt>
-          <dd>
-            <TokenDisplay.tokens amount={@pool.vesting.releasable} unit={@pool.token.symbol} />
-          </dd>
-        </div>
-        <div :if={is_map(@position)}>
-          <dt>Your stake</dt>
-          <dd><TokenDisplay.tokens amount={@position.staked.shown} unit={@pool.token.symbol} /></dd>
-        </div>
-        <div :if={is_map(@position)}>
-          <dt>You can claim</dt>
-          <dd>
-            <TokenDisplay.tokens
-              amount={@position.claimable.dollar.shown}
-              unit={@pool.fees.splitter.dollar.symbol}
-            /> ·
-            <TokenDisplay.tokens amount={@position.claimable.token.shown} unit={@pool.token.symbol} />
-            ·
-            <TokenDisplay.tokens
-              amount={@position.claimable.stock.shown}
-              unit={@pool.currency.symbol}
-            />
-          </dd>
-        </div>
-        <div :if={@position == :unread}>
-          <dt>Your stake</dt>
-          <dd>Can't be read right now</dd>
-        </div>
-      </dl>
 
       <div class="token-swap__stack">
         <form
@@ -415,7 +358,6 @@ defmodule AutolaunchWeb.StakeComponent do
       </div>
 
       <TokenNext.stake_impact
-        :if={@design == :next}
         id={"#{@id}-impact"}
         pool={@pool}
         amount={@amount}

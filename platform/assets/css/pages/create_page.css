@@ -38,12 +38,6 @@
 .create-token__names { display: grid; min-width: 0; }
 .create-token__names strong { overflow: hidden; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .create-token__names span { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .8125rem; overflow-wrap: anywhere; }
-.create-terms { display: grid; margin: 0; }
-.create-terms > div { display: flex; justify-content: space-between; gap: var(--space-3); padding-block: var(--space-2); border-top: 1px solid var(--hairline); font-size: .8125rem; }
-.create-terms dt { flex: none; color: var(--color-fg-muted); }
-.create-terms dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
-.create-terms__stock { display: inline-flex; align-items: center; gap: var(--space-1); }
-.create-terms__stock .stock-logo { width: 1.25rem; height: 1.25rem; }
 
 @media (max-width: 61.99rem) {
   .create-page__layout { grid-template-columns: minmax(0, 35rem); }

@@ -1,8 +1,7 @@
-/* The new token page (/next/tokens/…): one reward followed from the trade to
+/* The token page: one reward followed from the trade to
    the claim beside the staking card, the wallet's rewards by asset, what
    staking more would change, and the locked liquidity. */
 
-.token-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
 .token-next-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: start; min-width: 0; }
 .token-next-layout__main { display: grid; gap: var(--space-4); min-width: 0; }
 .token-next-layout > .token-stake { margin-top: 0; min-width: 0; }

@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.Components.AuctionNext do
   @moduledoc """
-  The pieces of the new auction page (`/next/auctions/<TICKER>/<tail>`), all
+  The pieces of the auction page (`/auctions/<TICKER>/<tail>`), all
   drawn from one chain reading (`Autolaunch.AuctionSnapshot`) and the
   auction's recorded prices:
 

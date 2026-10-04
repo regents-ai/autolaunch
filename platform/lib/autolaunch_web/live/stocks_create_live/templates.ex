@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
-  alias Autolaunch.Stocks.{Amounts, FeeSchedule, LaunchActions, LaunchDraft}
+  alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
   alias Phoenix.LiveView.JS
 
   @sections %{
@@ -28,17 +28,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def draft_values(draft),
     do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
 
-  attr :design, :atom, default: :current
-
   @doc "The choice between the two launches, then the page title."
   def header(assigns) do
     ~H"""
-    <.launch_kind_choice current={:memestake} design={@design} />
+    <.launch_kind_choice current={:memestake} />
     <header class="create-page__header">
       <h1>Create a Memestake token</h1>
-      <p :if={@design == :next} class="create-next-preview">
-        This is the new create page. <.link navigate={~p"/create"}>Open the current page</.link>
-      </p>
     </header>
     """
   end
@@ -56,7 +51,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
   attr :status, :atom, default: :ready
-  attr :design, :atom, default: :current
 
   def create(assigns) do
     draft = assigns.draft
@@ -73,11 +67,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         stock_for(chain, assigns.stocks_lab, assigns.draft_values["stock_address"])
       )
       |> assign(:fixed_terms, fixed_terms(chain, ticker(assigns.draft_values["symbol"])))
-      |> assign(:schedule, schedule(chain))
 
     ~H"""
     <main class="create-page">
-      <.header design={@design} />
+      <.header />
       <p :if={@status == :error} class="autolaunch-empty">
         Your draft could not be loaded. Refresh and try again.
       </p>
@@ -283,10 +276,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         </section>
 
         <aside
-          class={[
-            "create-page__summary rg-panel rg-panel--surface",
-            @design == :next && "create-page__summary--next"
-          ]}
+          class="create-page__summary create-page__summary--next rg-panel rg-panel--surface"
           aria-label="Your token"
         >
           <p class="autolaunch-kicker">Your token</p>
@@ -304,60 +294,17 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </div>
           </div>
           <.launch_plan
-            :if={@design == :next}
             id="memestock-plan"
             kind={:memestake}
             chain={@launch_chain}
             ticker={ticker(@draft_values["symbol"])}
             currency={@stock && @stock.symbol}
             minimum={minimum_raise(@stock)}
-            schedule={@schedule}
             chosen={[
               {"Chain", LaunchChain.label(@launch_chain)},
               {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")}
             ]}
           />
-          <dl :if={@design != :next} class="create-terms">
-            <div>
-              <dt>Chain</dt>
-              <dd>{LaunchChain.label(@launch_chain)}</dd>
-            </div>
-            <div>
-              <dt>Paired with</dt>
-              <dd :if={@stock} class="create-terms__stock">
-                <.stock_logo stock={@stock} />{@stock.symbol}
-              </dd>
-              <dd :if={!@stock}>Choose a stock</dd>
-            </div>
-            <div :for={lane <- FeeSchedule.lanes(@launch_chain, :v2)}>
-              <dt>{lane.label}</dt>
-              <dd>{lane.rate} of {FeeSchedule.charged_on(lane.charged_on)}</dd>
-            </div>
-            <div>
-              <dt>Bidding opens</dt>
-              <dd>{@schedule.opens} after launch</dd>
-            </div>
-            <div>
-              <dt>Auction</dt>
-              <dd>{@schedule.length}</dd>
-            </div>
-            <div>
-              <dt>Starting price</dt>
-              <dd>The lowest the auction accepts</dd>
-            </div>
-            <div>
-              <dt>Minimum raise</dt>
-              <dd id="stocks-minimum-raise">{minimum_raise(@stock)}</dd>
-            </div>
-            <div>
-              <dt>Liquidity</dt>
-              <dd>Locked forever</dd>
-            </div>
-            <div>
-              <dt>Launch fee</dt>
-              <dd>None</dd>
-            </div>
-          </dl>
           <Regent.Primitives.disclosure
             id="stocks-fixed-terms"
             summary="Every term"
@@ -488,19 +435,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp fixed_terms(:base, ticker), do: LaunchActions.terms(ticker)
   defp fixed_terms(:robinhood, ticker), do: RobinhoodLaunchActions.terms(ticker)
-
-  defp schedule(:base),
-    do: %{
-      opens: LaunchChain.time_estimate(:base, LaunchActions.start_lead_blocks()),
-      length: LaunchChain.time_estimate(:base, LaunchActions.auction_duration_blocks())
-    }
-
-  defp schedule(:robinhood),
-    do: %{
-      opens: LaunchChain.time_estimate(:robinhood, RobinhoodLaunchActions.start_lead_blocks()),
-      length:
-        LaunchChain.time_estimate(:robinhood, RobinhoodLaunchActions.auction_duration_blocks())
-    }
 
   # Until the creator names a symbol, the supply is counted in plain tokens.
   defp ticker(symbol) do

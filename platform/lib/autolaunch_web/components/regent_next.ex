@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.Components.RegentNext do
   @moduledoc """
-  The pieces of the new REGENT page (`/next/regent`), all drawn from the one
+  The pieces of the REGENT page (`/regent`), all drawn from the one
   shared `Autolaunch.RegentFacts` reading of REGENT staking on Base:
 
     * `deposit_allocation/1` - every USDC deposit since staking opened, as

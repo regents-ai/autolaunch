@@ -1,8 +1,8 @@
 defmodule Autolaunch.AuctionSnapshot do
   @moduledoc """
   Everything the auction page shows about an open or finished auction, read
-  from the auction contract at one block: the bid book (`Autolaunch.AuctionBook`),
-  the price ladder, the release schedule and the auction's key blocks, with
+  from the auction contract at one block: the price now and the price to beat
+  (`Autolaunch.AuctionBook`), the price ladder, the release schedule and the auction's key blocks, with
   the block the auction keeps time by (`clock`): the chain's own on Base, the
   rollup block on Robinhood (`Autolaunch.Robinhood.BlockClock`).
 
@@ -35,8 +35,7 @@ defmodule Autolaunch.AuctionSnapshot do
       when is_binary(address) do
     with {:ok, opts} <- AuctionBook.base_opts(auction),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, start} <- uint(address, "startBlock()", block, opts),
-         do: read(address, decimals, start, {block, block.number}, opts)
+         do: read(address, decimals, {block, block.number}, opts)
   end
 
   def base(_auction), do: {:error, :no_auction_contract}
@@ -51,7 +50,7 @@ defmodule Autolaunch.AuctionSnapshot do
          {:ok, currency} <- word_address(currency),
          {:ok, decimals} <- uint(currency, "decimals()", block, opts),
          {:ok, clock} <- BlockClock.read(block, opts) do
-      read(address, decimals, 0, {block, clock}, opts)
+      read(address, decimals, {block, clock}, opts)
     end
   end
 
@@ -77,8 +76,8 @@ defmodule Autolaunch.AuctionSnapshot do
 
   def needed_at(_price_q96, _snapshot), do: nil
 
-  defp read(address, decimals, from_block, {block, clock}, opts) do
-    with {:ok, book} <- AuctionBook.read(address, decimals, from_block, block, opts),
+  defp read(address, decimals, {block, clock}, opts) do
+    with {:ok, book} <- AuctionBook.read(address, decimals, block, opts),
          {:ok, blocks} <- blocks(address, block, opts),
          {:ok, schedule} <- schedule(address, blocks.start, block, opts),
          {:ok, ladder} <- ladder(address, block, opts) do

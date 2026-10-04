@@ -1,7 +1,6 @@
-/* The new auction page (/next/auctions/…): stage rail, facts, figures, the
+/* The auction page: stage rail, facts, figures, the
    recorded prices over the schedule, the price ladder and bid receipts. */
 
-.auction-next-preview { margin: 4px 0 0; color: var(--color-fg-muted); font-size: .875rem; }
 .auction-next-overview { display: grid; gap: 16px; margin-block-end: 28px; min-width: 0; }
 .auction-next-source { margin: 0; color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
 .auction-next-lead { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }

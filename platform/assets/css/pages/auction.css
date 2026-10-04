@@ -2,38 +2,6 @@
 
 .bid-settlement-row { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--space-2); min-width: 0; margin-top: var(--space-2); }
 .bid-settlement-row h4 { margin: 0; }
-/* An open auction's price panel: the price to beat, the bids by maximum price around the price now, and how a bid works. */
-.auction-book { --book-color: var(--image-color, var(--brand-accent)); display: grid; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
-.auction-book__beat { position: relative; display: grid; gap: 6px; justify-items: start; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--book-color) 14%, var(--color-surface)); }
-.auction-book__lead { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
-.auction-book__price { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.auction-book__price strong { font-size: 1.5rem; }
-.auction-book__info { display: inline-block; margin-inline-start: 4px; vertical-align: middle; }
-.auction-book__info-icon { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--color-fg-muted); font: italic 600 0.75rem/1 Georgia, serif; cursor: help; }
-.auction-book__info-icon:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-.auction-book__info-panel { position: absolute; z-index: 5; bottom: calc(100% - 4px); left: 8px; right: 8px; padding: 8px 10px; border-radius: 8px; background: var(--color-fg); color: var(--color-bg); font-size: 0.8125rem; line-height: 1.4; visibility: hidden; opacity: 0; transition: opacity 120ms; pointer-events: none; }
-.auction-book__info:hover .auction-book__info-panel, .auction-book__info-icon:focus + .auction-book__info-panel { visibility: visible; opacity: 1; }
-.auction-book__ladder { display: grid; gap: 8px; margin: 0; min-width: 0; }
-.auction-book__ladder figcaption, .auction-book__empty, .auction-book__more { margin: 0; color: var(--color-fg-muted); font-size: .75rem; }
-/* One column grid for every row, so the bars start and end together. */
-.auction-book__ladder ol { display: grid; grid-template-columns: minmax(0, auto) minmax(3rem, 1fr) minmax(0, auto); gap: 6px 10px; margin: 0; padding: 0; list-style: none; }
-.auction-book__ladder ol > li { grid-column: 1 / -1; }
-.auction-book__level { display: grid; grid-template-columns: subgrid; align-items: center; font-size: .8125rem; font-variant-numeric: tabular-nums; }
-.auction-book__level-price { overflow-wrap: anywhere; }
-.auction-book__level-amount { color: var(--color-fg-muted); font-size: .75rem; text-align: right; }
-.auction-book__bar { display: block; height: 10px; border-radius: 999px; background: var(--hairline); overflow: hidden; }
-.auction-book__bar span { display: block; height: 100%; border-radius: inherit; background: var(--book-color); }
-.auction-book__level[data-standing="sharing"] .auction-book__bar span { background: color-mix(in srgb, var(--book-color) 50%, var(--hairline)); }
-.auction-book__level[data-standing="outbid"] { color: var(--color-fg-muted); }
-.auction-book__level[data-standing="outbid"] .auction-book__bar span { background: var(--hairline-strong); }
-.auction-book__now { display: flex; justify-content: space-between; gap: 12px; padding-top: 4px; border-top: 1px dashed var(--color-fg-muted); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.auction-book__sold { margin: 0; font-size: .875rem; }
-.auction-book__how { display: grid; gap: 4px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--hairline); list-style: none; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
-@media (max-width: 480px) {
-  .auction-book__ladder ol { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
-  .auction-book__level { row-gap: 2px; }
-  .auction-book__level-amount { grid-column: 2; text-align: left; }
-}
 .bid-positions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .875rem; overflow-wrap: anywhere; }
 .bid-positions > li + li { padding-top: 10px; border-top: 1px solid var(--hairline); }
 
@@ -77,8 +45,6 @@
 .auction-tabs__tab[aria-selected="true"] { border-color: var(--hairline-strong); color: var(--color-fg); }
 .auction-tabs--large > .auction-tabs__bar .auction-tabs__tab { padding-inline: 0; margin-inline-end: 16px; border: 0; font-size: 1.5rem; }
 .auction-tabs__panel { min-width: 0; }
-.auction-chart .auction-history__plot svg { height: 260px; }
-@media (max-width: 480px) { .auction-chart .auction-history__plot svg { height: 180px; } }
 
 /* The full-details window, over a dimmed page. */
 .auction-details-window { width: min(40rem, calc(100vw - 32px)); max-height: min(85vh, 48rem); margin: auto; padding: 20px; overflow: auto; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface); color: var(--color-fg); }
@@ -112,24 +78,7 @@
 .auction-outbid-banner p { margin: 0; }
 .auction-outbid-banner__links { display: flex; flex-wrap: wrap; gap: 8px 16px; font-weight: 600; }
 
-
-/* Progress to an auction's minimum raise: auction pages. */
-.raise-progress { display: grid; gap: var(--space-1); padding-block: var(--space-2); }
-.raise-progress__figure { margin: 0; font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.raise-progress__figure strong { font-size: 1.125rem; }
-.raise-progress__bar { appearance: none; width: 100%; height: 10px; border: 0; border-radius: 999px; overflow: hidden; background: var(--hairline); color: var(--brand-accent); }
-.raise-progress__bar::-webkit-progress-bar { background: var(--hairline); border-radius: 999px; }
-.raise-progress__bar::-webkit-progress-value { background: var(--brand-accent); border-radius: 999px; }
-.raise-progress__bar::-moz-progress-bar { background: var(--brand-accent); border-radius: 999px; }
-.raise-progress__note { display: flex; flex-wrap: wrap; gap: 4px var(--space-2); margin: 0; font-size: .8125rem; color: var(--color-fg-muted); }
-
-.raise-progress__figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: var(--space-2); margin: 0; }
-.raise-progress__figures > div { padding: 12px; border: 1px solid var(--hairline); }
-.raise-progress__figures dt { font-size: .6875rem; letter-spacing: .06em; text-transform: uppercase; color: var(--color-fg-muted); }
-.raise-progress__figures dd { margin: 4px 0 0; font-size: .875rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.raise-progress__figures strong { display: block; font-size: 1.125rem; }
-.raise-progress__explain { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--color-fg-muted); }
-.auction-chart, .auction-history { display: grid; gap: var(--space-3); min-width: 0; }
+.auction-history { display: grid; gap: var(--space-3); min-width: 0; }
 .auction-history__note { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--color-fg-muted); }
 .auction-history__failed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
 .auction-history__track { position: relative; height: 28px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--color-fg) 4%, transparent); }
@@ -138,29 +87,12 @@
 .auction-history__now { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--brand-accent); }
 .auction-history__ends { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--space-2); margin-top: 6px; font-size: .8125rem; font-variant-numeric: tabular-nums; color: var(--color-fg-muted); }
 .auction-history__timeline .auction-history__note { margin-top: 6px; }
-.auction-history__chart { display: grid; gap: 6px; }
-.auction-history__figure { margin: 0; font-size: .875rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.auction-history__plot { position: relative; padding: 18px 0 22px; }
-.auction-history__plot svg { display: block; width: 100%; height: 140px; border-bottom: 1px solid var(--hairline); border-left: 1px solid var(--hairline); }
-.auction-history__axis { position: absolute; font-size: .6875rem; font-variant-numeric: tabular-nums; color: var(--color-fg-muted); white-space: nowrap; }
-.auction-history__axis--top { top: 0; left: 4px; }
-.auction-history__axis--zero { bottom: 24px; left: 4px; }
-.auction-history__axis--start { bottom: 0; left: 0; }
-.auction-history__axis--now { bottom: 0; right: 0; }
-.auction-history__line { fill: none; stroke-width: 2px; }
-.auction-history__line--price, .auction-history__line--bids { stroke: var(--brand-accent); }
-.auction-history__line--sold { stroke: var(--color-fg); stroke-dasharray: 6 4; }
-.auction-history__legend { display: flex; flex-wrap: wrap; gap: 4px var(--space-3); margin: 0; padding: 0; list-style: none; font-size: .875rem; font-variant-numeric: tabular-nums; }
-.auction-history__key { display: inline-flex; align-items: center; gap: 6px; }
-.auction-history__key::before { content: ""; width: 18px; height: 0; border-top: 2px solid var(--brand-accent); }
-.auction-history__key--sold::before { border-top: 2px dashed var(--color-fg); }
 /* Its own box for the hidden exact figures, so they scroll with the table instead of widening the page. */
 .auction-history__table { position: relative; max-height: 24rem; overflow: auto; border: 1px solid var(--hairline); }
 .auction-history__table table { width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .auction-history__table th { position: sticky; top: 0; padding: 8px; text-align: left; font-weight: 500; color: var(--color-fg-muted); background: var(--color-surface); border-bottom: 1px solid var(--hairline); }
 .auction-history__table td { padding: 8px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
 .auction-history__bids { display: grid; gap: 6px; min-width: 0; }
-
 
 /* The one bid form: soft boxes for the max budget, the max FDV and what the
    bid can expect, with big figures and quiet labels. */

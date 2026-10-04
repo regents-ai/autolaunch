@@ -27,11 +27,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   attr :token_path, :string, default: nil, doc: "the launched token's page, from an auction page"
 
-  attr :design, :atom,
-    default: :current,
-    doc:
-      "`:next` on the new auction page, which names the two parts Launch Creator and Additional Details"
-
   def launch_trust(assigns) do
     auction = assigns.auction
     chain = if RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base
@@ -53,7 +48,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     <div class="launch-trust">
       <section class="launch-trust__block" aria-labelledby="launch-trust-who">
         <h2 id="launch-trust-who">
-          {if @design == :next, do: "Launch Creator", else: "Who's behind it"}
+          Launch Creator
         </h2>
         <p class="launch-trust__note">
           A checked account means the creator proved they own it. It is not an endorsement of the project.
@@ -106,7 +101,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
       <section class="launch-trust__block" aria-labelledby="launch-trust-launch">
         <h2 id="launch-trust-launch">
-          {if @design == :next, do: "Additional Details", else: "The launch itself"}
+          Additional Details
         </h2>
         <dl class="launch-trust__rows">
           <div>

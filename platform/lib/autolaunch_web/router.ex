@@ -114,21 +114,14 @@ defmodule AutolaunchWeb.Router do
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
       live "/create", StocksCreateLive, :create
       live "/create/revstake", CreateLive, :create
-      # The new Create pages, beside the current ones until they replace them.
-      live "/next/create", StocksCreateLive, :create_next
-      live "/next/create/revstake", CreateLive, :create_next
       live "/auctions", AuctionsLive, :index
       live "/auctions/:symbol/:tail", MarketPageLive, :auction
-      # The new auction page, beside the current one until it replaces it.
-      live "/next/auctions/:symbol/:tail", MarketPageLive, :auction_next
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
-      live "/next/tokens/:symbol/:tail", MarketPageLive, :token_next
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/profile", ProfileLive, :profile
       live "/regent", RegentLive, :regent
-      live "/next/regent", RegentLive, :regent_next
       live "/convert", ConvertLive, :index
     end
   end

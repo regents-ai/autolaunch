@@ -26,8 +26,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.AuctionHistory
-  import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
-  import AutolaunchWeb.Components.RaiseProgress
+  import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
   import AutolaunchWeb.Components.AuctionNext
 
   alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt}
@@ -47,13 +46,15 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
        |> assign_usd_prices()}
 
   def handle_params(%{"auction" => address}, _uri, socket),
-    do: {:noreply, socket |> assign(:auction, address) |> load_launch() |> load_next(true)}
+    do: {:noreply, socket |> assign(:auction, address) |> load_launch() |> load_snapshot(true)}
 
   def handle_event("retry", _params, socket), do: {:noreply, load_launch(socket)}
   def handle_event("retry_history", _params, socket), do: {:noreply, load_history(socket, false)}
-  def handle_event("retry_snapshot", _params, socket), do: {:noreply, load_next(socket, false)}
 
-  # The new page's replay of the recorded prices, and its bid lookup.
+  def handle_event("retry_snapshot", _params, socket),
+    do: {:noreply, load_snapshot(socket, false)}
+
+  # The replay of the recorded prices, and the bid lookup.
   def handle_event("scrub", %{"checkpoint" => at}, socket) do
     case Integer.parse(at) do
       {at, ""} when at >= 0 -> {:noreply, assign(socket, :scrub_at, at)}
@@ -91,13 +92,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
        |> reload_launch()
        |> load_history(false)
        |> load_book(false)
-       |> load_next(false)}
+       |> load_snapshot(false)}
 
   # The bid panel found one of the wallet's bids outbid, or none any more.
   def handle_info({:robinhood_outbid, outbid}, socket),
     do: {:noreply, assign(socket, :outbid, outbid)}
 
-  # The bid form's maximum, marked on the new page's chart and ladder.
+  # The bid form's maximum, marked on the chart and ladder.
   def handle_info({:bid_draft_price, price}, socket),
     do: {:noreply, assign(socket, :draft_price, price)}
 
@@ -114,10 +115,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     page(assigns)
   end
 
-  # The new page, in preview at /next/auctions/…: the stage and facts first,
-  # the recorded prices over the schedule, the price ladder and a bid lookup,
-  # around the same bid panel.
-  defp page(%{design: :next} = assigns) do
+  # The stage and facts first, the recorded prices over the schedule, the
+  # price ladder and a bid lookup, around the bid panel.
+  defp page(assigns) do
     ~H"""
     <article
       :if={@open? && @launch}
@@ -130,10 +130,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           <h1 class="rg-section-bar__label">{@launch.title} · {@launch.token_symbol}</h1>
         </Regent.Structure.section_bar>
         <p>{network_copy(Lab.test_chain?())}</p>
-        <p class="auction-next-preview">
-          This is the new auction page.
-          <.link navigate={Paths.auction(@launch)}>Open the current page</.link>
-        </p>
       </header>
       <.outbid_banner
         :if={@outbid}
@@ -142,6 +138,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       />
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this auction shows what was last read.
+      </p>
+      <p :if={@launch_failed?} class="autolaunch-live-market" role="status">
+        This auction could not be read again just now, so it shows what was last read.
       </p>
       <section class="auction-next-overview" aria-label="Where this auction is">
         <p :if={!@snapshot.ok? && @snapshot.loading} class="auction-next-note" role="status">
@@ -228,115 +227,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             launch={@launch}
             usd_rate={@usd_rate}
             creator_connections={@creator_connections}
-            design={:next}
           />
         </div>
       </div>
       <.details launch={@launch} usd_rate={@usd_rate} reading={@reading} />
     </article>
-    <.page_states open?={@open?} launch={@launch} launch_failed?={@launch_failed?} auction={@auction} />
-    """
-  end
-
-  defp page(assigns) do
-    ~H"""
-    <article
-      :if={@open? && @launch}
-      id="autolaunch-robinhood-auction"
-      class="autolaunch-page auction-page"
-    >
-      <header class="autolaunch-heading">
-        <.link navigate="/auctions" class="market-back">← Auctions</.link>
-        <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{@launch.title} · {@launch.token_symbol}</h1>
-        </Regent.Structure.section_bar>
-        <p>{network_copy(Lab.test_chain?())}</p>
-      </header>
-      <.outbid_banner
-        :if={@outbid}
-        bid_form="autolaunch-robinhood-bid"
-        return_to={if @outbid.graduated?, do: @outbid.bid}
-      />
-      <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
-        Robinhood could not be read just now, so this auction shows what was last read.
-      </p>
-      <p :if={@launch_failed?} class="autolaunch-live-market" role="status">
-        This auction could not be read again just now, so it shows what was last read.
-      </p>
-      <.headline
-        record={@launch}
-        usd_rate={@usd_rate}
-        details="robinhood-auction-details"
-      />
-      <div class="auction-layout">
-        <section class="auction-layout__chart" aria-label="Price and progress">
-          <.history_note history={@history} />
-          <.auction_chart
-            :if={@reading && @history.ok? && @history.result}
-            id="robinhood-auction-chart"
-            bids={@history.result.bids}
-            points={@history.result.points}
-            symbol={@launch.quote_token_symbol}
-            token_symbol={@launch.token_symbol}
-            usd_rate={@usd_rate}
-            raised={@reading.currency_raised}
-            block={@reading.clock}
-            start_block={@launch.start_block}
-            end_block={@launch.end_block}
-          />
-          <.raise_progress
-            :if={@reading}
-            id="robinhood-raise-progress"
-            state={@launch.state}
-            raised={@reading.currency_raised}
-            required={required(@launch)}
-            symbol={@launch.quote_token_symbol}
-            usd_rate={@usd_rate}
-            block={@reading.clock}
-            start_block={@launch.start_block}
-            end_block={@launch.end_block}
-            chain={:robinhood}
-            test_chain={Lab.test_chain?()}
-            bids={@launch.bid_volume && Decimal.to_string(@launch.bid_volume, :normal)}
-          />
-        </section>
-        <aside class="auction-layout__bid" aria-label="Bid on this auction">
-          <.bid_aside
-            auction={@auction}
-            launch={@launch}
-            book={@book}
-            account_control={@account_control}
-            access_context={@access_context}
-            session_lease={@session_lease}
-          />
-        </aside>
-        <div class="auction-layout__rest">
-          <.auction_book
-            :if={@launch.state == :active && @book.ok?}
-            id="robinhood-auction-book"
-            book={@book.result}
-            symbol={@launch.quote_token_symbol}
-            usd_rate={@usd_rate}
-            color={@launch.image_color}
-            bid_form="autolaunch-robinhood-bid"
-          />
-          <.auction_activity
-            :if={@reading && @history.ok? && @history.result}
-            id="robinhood-auction-activity"
-            bids={@history.result.bids}
-            symbol={@launch.quote_token_symbol}
-            block={@reading.clock}
-            start_block={@launch.start_block}
-            end_block={@launch.end_block}
-            chain={:robinhood}
-            test_chain={Lab.test_chain?()}
-          />
-          <.about launch={@launch} usd_rate={@usd_rate} creator_connections={@creator_connections} />
-        </div>
-      </div>
-      <.details launch={@launch} usd_rate={@usd_rate} reading={@reading} />
-    </article>
-
     <.page_states open?={@open?} launch={@launch} launch_failed?={@launch_failed?} auction={@auction} />
     """
   end
@@ -374,7 +269,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   attr :launch, :map, required: true
   attr :usd_rate, :any, required: true
   attr :creator_connections, :any, required: true
-  attr :design, :atom, default: :current
 
   defp about(assigns) do
     ~H"""
@@ -393,7 +287,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         </:price_note>
       </.detail_card>
       <.launch_trust
-        design={@design}
         auction={@launch}
         connections={@creator_connections.result}
         token_path={@launch.state == :graduated && Paths.token(@launch)}
@@ -493,10 +386,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     """
   end
 
-  # The new page's chain reading: the auction's snapshot with its stage, and
-  # the signed-in wallet. The current page reads none of it.
-  defp load_next(
-         %{assigns: %{design: :next, launch: %{} = launch, auction: address}} = socket,
+  # The chain reading: the auction's snapshot with its stage, and the
+  # signed-in wallet, once the launch is known.
+  defp load_snapshot(
+         %{assigns: %{launch: %{} = launch, auction: address}} = socket,
          reset
        ) do
     socket
@@ -507,7 +400,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     |> assign_async(:snapshot, fn -> snapshot(address, launch) end, reset: reset)
   end
 
-  defp load_next(socket, _reset), do: socket
+  defp load_snapshot(socket, _reset), do: socket
 
   defp snapshot(address, launch) do
     with {:ok, snapshot} <- AuctionSnapshot.robinhood(address) do

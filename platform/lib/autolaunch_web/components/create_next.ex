@@ -1,8 +1,8 @@
 defmodule AutolaunchWeb.Components.CreateNext do
   @moduledoc """
-  The new Create page's launch plan, shown beside the form at /next/create and
-  /next/create/revstake: where the supply goes, where the money goes, how the
-  auction opens, and the terms at a glance.
+  The Create page's launch plan, shown beside the form at /create and
+  /create/revstake: where the supply goes, where the money goes, how the
+  auction runs, when each part of the launch happens, and the terms at a glance.
 
   Every figure is the launch type's fixed profile from the 1 October contracts:
   StocksPreset and RobinhoodPreset (Memestake, on Base and Robinhood Chain
@@ -14,13 +14,14 @@ defmodule AutolaunchWeb.Components.CreateNext do
   import AutolaunchWeb.Components.InfoTip
 
   alias Autolaunch.LaunchChain
-  alias Autolaunch.Stocks.FeeSchedule
+  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
+  alias Autolaunch.Stocks.{FeeSchedule, LaunchActions}
 
   @floor_tip "The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply."
 
-  # RegentLBPStrategy: START_DELAY_BLOCKS 300 and AUCTION_DURATION_BLOCKS 86,401.
-  @revstake_opens_blocks 300
-  @revstake_length_blocks 86_401
+  # RegentLBPStrategyV2: START_DELAY_BLOCKS, AUCTION_DURATION_BLOCKS,
+  # CLAIM_DELAY_BLOCKS and MIGRATION_DELAY_BLOCKS.
+  @revstake_schedule %{opens: 300, length: 86_401, claim: 64, pool: 128}
 
   @supply %{
     memestake: %{
@@ -87,14 +88,14 @@ defmodule AutolaunchWeb.Components.CreateNext do
   attr :currency, :string, default: nil, doc: "the stock's symbol, or nil before one is chosen"
   attr :minimum, :string, required: true, doc: "the minimum raise, in words"
   attr :chosen, :list, required: true, doc: "{label, value} rows the creator sets"
-  attr :schedule, :map, default: nil, doc: "Memestake's opens and length, in words"
 
-  @doc "The four cards of the launch plan, in reading order."
+  @doc "The five cards of the launch plan, in reading order."
   def launch_plan(assigns) do
     assigns =
       assign(assigns,
         supply: Map.fetch!(@supply, assigns.kind),
-        unit: assigns.currency || default_unit(assigns.kind)
+        unit: assigns.currency || default_unit(assigns.kind),
+        schedule: schedule(assigns.kind, assigns.chain)
       )
 
     ~H"""
@@ -102,13 +103,15 @@ defmodule AutolaunchWeb.Components.CreateNext do
       <.supply_map id={"#{@id}-supply"} supply={@supply} ticker={@ticker} />
       <.money_map id={"#{@id}-money"} kind={@kind} chain={@chain} unit={@unit} />
       <.auction_card id={"#{@id}-auction"} minimum={@minimum} />
+      <.timeline id={"#{@id}-timeline"} chain={@chain} schedule={@schedule} />
       <.terms_digest
         id={"#{@id}-terms"}
         kind={@kind}
+        chain={@chain}
         supply={@supply}
         chosen={@chosen}
         minimum={@minimum}
-        schedule={@schedule || revstake_schedule()}
+        schedule={@schedule}
       />
     </div>
     """
@@ -266,13 +269,48 @@ defmodule AutolaunchWeb.Components.CreateNext do
   end
 
   attr :id, :string, required: true
+  attr :chain, :atom, required: true
+  attr :schedule, :map, required: true
+
+  # What happens when, counted from the launch itself.
+  defp timeline(assigns) do
+    assigns = assign(assigns, :milestones, milestones(assigns.chain, assigns.schedule))
+
+    ~H"""
+    <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
+      <h2 id={"#{@id}-title"} class="create-next__title">What happens when</h2>
+      <p class="create-next__lead">Counted from the moment you launch.</p>
+      <ol class="create-next__timeline">
+        <li :for={milestone <- @milestones} class="create-next__milestone">
+          <span class="create-next__when">{milestone.at}</span>
+          <strong>{milestone.label}</strong>
+          <span class="create-next__part-note">{milestone.note}</span>
+        </li>
+      </ol>
+      <p class="create-next__note">
+        Times follow the chain's usual pace, so each can come a little early or late. If the
+        auction ends under its minimum raise, every bidder takes back their whole bid and the
+        token never trades.
+      </p>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
   attr :kind, :atom, required: true
+  attr :chain, :atom, required: true
   attr :supply, :map, required: true
   attr :chosen, :list, required: true
   attr :minimum, :string, required: true
   attr :schedule, :map, required: true
 
   defp terms_digest(assigns) do
+    assigns =
+      assign(assigns,
+        opens: LaunchChain.time_estimate(assigns.chain, assigns.schedule.opens),
+        length: LaunchChain.time_estimate(assigns.chain, assigns.schedule.length)
+      )
+
     ~H"""
     <section id={@id} class="create-next__card" aria-labelledby={"#{@id}-title"}>
       <h2 id={"#{@id}-title"} class="create-next__title">Your terms at a glance</h2>
@@ -303,11 +341,11 @@ defmodule AutolaunchWeb.Components.CreateNext do
         </div>
         <div>
           <dt>Bidding opens</dt>
-          <dd>{@schedule.opens} after launch</dd>
+          <dd>{@opens} after launch</dd>
         </div>
         <div>
           <dt>Auction length</dt>
-          <dd>{@schedule.length}</dd>
+          <dd>{@length}</dd>
         </div>
         <div>
           <dt>Pool liquidity</dt>
@@ -367,12 +405,57 @@ defmodule AutolaunchWeb.Components.CreateNext do
     percent
   end
 
-  @doc "When a Revstake auction opens and how long it runs, in words."
-  def revstake_schedule,
-    do: %{
-      opens: LaunchChain.time_estimate(:base, @revstake_opens_blocks),
-      length: LaunchChain.time_estimate(:base, @revstake_length_blocks)
-    }
+  defp schedule(:revstake, _chain), do: @revstake_schedule
+  defp schedule(:memestake, :base), do: LaunchActions.schedule()
+  defp schedule(:memestake, :robinhood), do: RobinhoodLaunchActions.schedule()
+
+  # Each milestone at its block after the launch, as a time after it.
+  defp milestones(chain, %{opens: opens, length: length, claim: claim, pool: pool}) do
+    ends = opens + length
+
+    [
+      %{
+        at: "At launch",
+        label: "Your token is created",
+        note: "Its auction times are fixed now."
+      },
+      %{
+        at: after_launch(chain, opens),
+        label: "Bidding opens",
+        note: "Anyone can bid from here."
+      },
+      %{
+        at: after_launch(chain, ends),
+        label: "Bidding ends",
+        note: "The final price is set, and every bid still buying at it wins tokens."
+      },
+      %{
+        at: after_launch(chain, ends + claim),
+        label: "Tokens can be claimed",
+        note: "Winning bidders claim the tokens they bought."
+      },
+      %{
+        at: after_launch(chain, ends + pool),
+        label: "Trading opens",
+        note:
+          "The locked trading pool can open, and anyone can open it. From then the token can be bought and sold."
+      }
+    ]
+  end
+
+  # The time `blocks` take, to the nearest minute, as days, hours and minutes.
+  defp after_launch(chain, blocks) do
+    minutes = chain |> LaunchChain.seconds(blocks) |> Kernel./(60) |> round()
+
+    [
+      {div(minutes, 1440), "day"},
+      {div(rem(minutes, 1440), 60), "hour"},
+      {rem(minutes, 60), "minute"}
+    ]
+    |> Enum.reject(fn {count, _unit} -> count == 0 end)
+    |> Enum.map_join(" ", fn {count, unit} -> "#{count} #{unit}#{if count != 1, do: "s"}" end)
+    |> Kernel.<>(" after launch")
+  end
 
   defp default_unit(:memestake), do: "the stock"
   defp default_unit(:revstake), do: "REGENT"

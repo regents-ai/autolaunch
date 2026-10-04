@@ -90,6 +90,20 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   def start_lead_blocks, do: @start_lead_blocks
   def auction_duration_blocks, do: @auction_duration_blocks
+
+  @doc """
+  The launch's fixed schedule in blocks: bidding opens `opens` after the
+  launch, runs for `length`, and claims and the trading pool open `claim` and
+  `pool` after bidding ends.
+  """
+  def schedule,
+    do: %{
+      opens: @start_lead_blocks,
+      length: @auction_duration_blocks,
+      claim: @claim_delay_blocks,
+      pool: @migration_delay_blocks
+    }
+
   def floor_price_q96, do: @floor_price_q96
 
   @doc """

@@ -22,7 +22,6 @@ defmodule AutolaunchWeb.RegentLive do
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/regent"))
      |> assign(:local_lab?, Lab.test_chain?())
-     |> assign(:design, if(socket.assigns.live_action == :regent_next, do: :next, else: :current))
      |> assign(:revenue_sources, @revenue_sources)
      |> assign_async(:facts, fn ->
        case RegentFacts.read() do
@@ -32,14 +31,13 @@ defmodule AutolaunchWeb.RegentLive do
      end)}
   end
 
-  def render(assigns), do: page(assigns)
-
-  # The new page, in preview at /next/regent: where the USDC went, deposit by
-  # deposit and source by source, how the next one would split, Memestake's
-  # two chains kept apart, and REGENT emissions as a stream of their own.
-  # Its links carry their own ids: the top bar's REGENT menu already uses the
-  # current page's.
-  defp page(%{design: :next} = assigns) do
+  # Where the USDC went, deposit by deposit and source by source, how the next
+  # one would split, Memestake's two chains kept apart, and REGENT emissions as
+  # a stream of their own. Every figure and link is public Base mainnet; a
+  # local-fork site says so, because the fork carries its own test REGENT that
+  # none of this reaches. Its links carry their own ids: the top bar's REGENT
+  # menu already uses regent-buy and regent-chart.
+  def render(assigns) do
     ~H"""
     <main class="fact-page regent-next">
       <header class="autolaunch-heading">
@@ -47,9 +45,6 @@ defmodule AutolaunchWeb.RegentLive do
         <p>
           $REGENT is the value token for all Regents Labs products. Stake it to earn USDC from those
           products and REGENT emissions. Revstake auctions are priced in REGENT.
-        </p>
-        <p class="regent-next-preview">
-          This is the new REGENT page. <.link navigate="/regent">Open the current page</.link>
         </p>
       </header>
 
@@ -162,156 +157,6 @@ defmodule AutolaunchWeb.RegentLive do
             <tr :for={{product, streams} <- @revenue_sources}>
               <th scope="row">{product}</th>
               <td data-label="Pays in">
-                <span :for={stream <- streams} class="regent-stream">{stream}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <.circulating :if={@facts.ok?} facts={@facts.result} />
-
-      <.contracts :if={@facts.ok?} facts={@facts.result} />
-    </main>
-    """
-  end
-
-  # Every figure and link here is public Base mainnet. A local-fork site says
-  # so, because the fork carries its own test REGENT that none of this reaches.
-  defp page(assigns) do
-    ~H"""
-    <main class="fact-page">
-      <header class="autolaunch-heading">
-        <h1>REGENT</h1>
-        <p>
-          $REGENT is the value token for all Regents Labs products. Stake it to earn USDC from those
-          products and REGENT emissions. Revstake auctions are priced in REGENT.
-        </p>
-      </header>
-
-      <p :if={@local_lab?} id="regent-scope" class="regent-scope" role="note">
-        Public Base mainnet data and links. The test REGENT on this fork is separate and is
-        not bought, staked or redeemed here.
-      </p>
-
-      <nav class="regent-links" aria-describedby={if @local_lab?, do: "regent-scope"}>
-        <a
-          id="regent-buy"
-          class="rg-button rg-button--primary"
-          href={TokenLinks.buy()}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span class="rg-button__label">Buy REGENT <span aria-hidden="true">↗</span></span>
-        </a>
-        <.link
-          class="rg-button rg-button--secondary"
-          id="regent-stake"
-          href="https://regents.sh/stake"
-        >
-          Stake REGENT
-        </.link>
-        <a
-          id="regent-chart"
-          class="rg-button rg-button--secondary"
-          href={TokenLinks.chart()}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View REGENT Chart <span aria-hidden="true">↗</span>
-        </a>
-        <.link
-          class="rg-button rg-button--secondary"
-          id="regent-redeem"
-          href="https://regents.sh/redeem"
-        >
-          Redeem
-        </.link>
-      </nav>
-
-      <p :if={@facts.loading} id="regent-loading" class="regent-status">Loading REGENT figures…</p>
-      <p :if={@facts.failed} id="regent-unavailable" class="regent-status">
-        REGENT figures are unavailable right now.
-      </p>
-
-      <dl :if={@facts.ok?} id="regent-figures" class="regent-figures">
-        <div class="regent-figures__usdc">
-          <dt>USDC revenue</dt>
-          <dd>
-            <span>
-              <small>Last 7 days</small>
-              <strong class={@facts.result.usdc_received_7d != :unavailable && "fact-page__hi"}>
-                {usdc(@facts.result.usdc_received_7d)}
-              </strong>
-            </span>
-            <span>
-              <small>Lifetime</small>
-              <strong>{usdc(@facts.result.usdc_received_lifetime)}</strong>
-            </span>
-          </dd>
-        </div>
-        <div>
-          <dt>REGENT staked</dt>
-          <dd><TokenDisplay.amount amount={@facts.result.total_staked} unit="REGENT" /></dd>
-        </div>
-        <div>
-          <dt>Circulating REGENT</dt>
-          <dd><TokenDisplay.amount amount={@facts.result.circulating_supply} unit="REGENT" /></dd>
-        </div>
-        <div>
-          <dt>Circulating market cap</dt>
-          <dd>{market_cap(@facts.result)}</dd>
-        </div>
-        <div>
-          <dt>Total REGENT</dt>
-          <dd><TokenDisplay.amount amount={@facts.result.total_supply} unit="REGENT" /></dd>
-        </div>
-      </dl>
-
-      <section class="fact-page__section" aria-labelledby="regent-why">
-        <h2 id="regent-why">Why stake</h2>
-        <dl class="regent-reasons">
-          <div>
-            <dt>USDC revenue</dt>
-            <dd>
-              Stakers are paid from the USDC sent to staking by their share of all 100 billion
-              REGENT: staking 1% of all REGENT earns 1% of that USDC. The part for REGENT that is
-              not staked goes to the Regent treasury.
-            </dd>
-          </div>
-          <div>
-            <dt>REGENT emissions</dt>
-            <dd :if={@facts.ok?}>
-              Currently <strong class="fact-page__hi">{@facts.result.emission_apr_percent}%</strong>
-              a year, paid in REGENT while the reward supply lasts. The rate can change.
-            </dd>
-            <dd :if={!@facts.ok?}>
-              Paid in REGENT while the reward supply lasts. The rate can change.
-            </dd>
-          </div>
-          <div>
-            <dt>You stay in control</dt>
-            <dd>
-              Stake, unstake, claim or compound from your own wallet. Every step needs your
-              signature.
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="fact-page__section" aria-labelledby="regent-revenue">
-        <h2 id="regent-revenue">Where the USDC comes from</h2>
-        <table class="fact-table">
-          <thead>
-            <tr>
-              <th scope="col">Product</th>
-              <th scope="col">Revenue</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={{product, streams} <- @revenue_sources}>
-              <th scope="row">{product}</th>
-              <td data-label="Revenue">
                 <span :for={stream <- streams} class="regent-stream">{stream}</span>
               </td>
             </tr>
@@ -452,9 +297,6 @@ defmodule AutolaunchWeb.RegentLive do
 
   defp day(%DateTime{} = at), do: Calendar.strftime(at, "%-d %b %Y")
 
-  defp usdc(:unavailable), do: "Unavailable"
-  defp usdc(amount), do: "#{amount |> cents() |> Amounts.grouped()} USDC"
-
   defp market_cap(%{price_usd: :unavailable}), do: "Unavailable"
 
   defp market_cap(%{price_usd: price, circulating_supply: circulating}) do
@@ -467,10 +309,6 @@ defmodule AutolaunchWeb.RegentLive do
 
     "$" <> Amounts.grouped(dollars)
   end
-
-  # Figures are written to the cent and never rounded up.
-  defp cents(amount),
-    do: amount |> Decimal.new() |> Decimal.round(2, :down) |> Decimal.to_string(:normal)
 
   defp percent(bps), do: "#{bps |> Decimal.new() |> Decimal.div(100) |> Decimal.round(2)}%"
 end

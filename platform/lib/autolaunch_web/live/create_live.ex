@@ -34,10 +34,6 @@ defmodule AutolaunchWeb.CreateLive do
     socket =
       socket
       |> assign(AutolaunchWeb.PublicDocuments.page("/create/revstake"))
-      |> assign(
-        :design,
-        if(socket.assigns.live_action == :create_next, do: :next, else: :current)
-      )
       |> assign_defaults(actor)
 
     case actor do
@@ -104,13 +100,9 @@ defmodule AutolaunchWeb.CreateLive do
   def render(assigns) do
     ~H"""
     <main class="create-page">
-      <.launch_kind_choice current={:revstake} design={@design} />
+      <.launch_kind_choice current={:revstake} />
       <header class="create-page__header">
         <h1>Create a Revstake token</h1>
-        <p :if={@design == :next} class="create-next-preview">
-          This is the new create page.
-          <.link navigate={~p"/create/revstake"}>Open the current page</.link>
-        </p>
       </header>
       {render_revshare(assigns)}
     </main>
