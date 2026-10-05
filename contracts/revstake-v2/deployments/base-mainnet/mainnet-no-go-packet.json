@@ -22,9 +22,9 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "61f244288955c472156fc2bcc80e309b392d79bf"
+    "src_tree": "2e96aab2d4cb6b5843a775a2ab4b930699775ddf"
   },
-  "frozen_manifest_sha256": "7cc268562f3bd83b2f21b183bbd00bf49baa297e02c412382c3b49284327f36d",
+  "frozen_manifest_sha256": "8120a2f2de9b1a47e66f0412af6476e41e62a79928b89ba1c944182018aae469",
   "code_identity": [
     {
       "contract": "UERC20Factory",
@@ -89,8 +89,8 @@
       "runtime_immutable_references": 3,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 37488,
-      "creation_keccak256": "0x85e2603d71916d1594436c419bce29e35f3ef9ca312ccfcc8bdab1c69c950551"
+      "creation_bytes": 37846,
+      "creation_keccak256": "0x6ebb3227cb274830d313ffd204a67d4aaf6f0f506a8a334af885643ef312c323"
     },
     {
       "contract": "RegentLBPStrategyV2",
@@ -130,20 +130,20 @@
         "address manager_",
         "address strategy_"
       ],
-      "runtime_bytes": 5168,
-      "runtime_keccak256": "0x70bd3cc329d0c4353492a726918048b47d255904e56cfb0cf8f61bbafd6e76f5",
+      "runtime_bytes": 5519,
+      "runtime_keccak256": "0xbcefe8c2842f051c4b1e3665d67325c374812140b0b218ad17dc1f3734c47a7f",
       "runtime_immutable_references": 2,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 5977,
-      "creation_keccak256": "0xd6d5a2b58c480c4048896d742d0866a7aa38902af07a1e5d7fca1f52fc16f212"
+      "creation_bytes": 6335,
+      "creation_keccak256": "0xdd1b9a96c6dc11e6c39e7fca01450125f047c75998d9dc8c304b892caf74f2e2"
     }
   ],
   "hook_permission_bits": "0x2044",
   "selection": {
     "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
     "starting_nonce": 28,
-    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000003b12",
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000001dd6",
     "predicted_addresses": {
       "uerc20_factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
       "escrow_implementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
@@ -152,11 +152,11 @@
       "factory": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E",
       "strategy": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9",
       "lp_locker": "0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120",
-      "hook": "0x72bE4F7FAE670e42048697e010699316318A2044"
+      "hook": "0xa0546b145034b222EF229De236e5A94795A26044"
     }
   },
   "external_observation": {
-    "observed_at_block": 52059675,
+    "observed_at_block": 52222979,
     "bindings": {
       "regent": {
         "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
@@ -252,7 +252,7 @@
             "escrowImplementation_": "0x8F511153393429468C3861E7cC5341Abb3310871",
             "splitterImplementation_": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
             "receiverImplementation_": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
-            "hookSalt": "0x0000000000000000000000000000000000000000000000000000000000003b12"
+            "hookSalt": "0x0000000000000000000000000000000000000000000000000000000000001dd6"
           }
         }
       ],
@@ -284,8 +284,8 @@
           "contract": "RegentFeeHook",
           "mechanism": "CREATE2",
           "created_by": "RegentsAutolaunchFactoryV2 constructor",
-          "salt": "0x0000000000000000000000000000000000000000000000000000000000003b12",
-          "address": "0x72bE4F7FAE670e42048697e010699316318A2044",
+          "salt": "0x0000000000000000000000000000000000000000000000000000000000001dd6",
+          "address": "0xa0546b145034b222EF229De236e5A94795A26044",
           "constructor_arguments": {
             "manager_": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
             "strategy_": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9"
@@ -298,6 +298,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba"
+    "value": "0xc006a3afe15d7fa26b88d28c0a6560265a6e390cdfe5cc0d7f82fc82343cdb23"
   }
 }

@@ -1,13 +1,13 @@
 # Revstake v2: handoff, and launching from another contract
 
-Status on 4 October 2026, branch `feat/contracts-v2` (pushed at 481f813; the Base packet commit
-ea66500 is on it). Nothing below is on Base mainnet yet.
+Status on 5 October 2026, branch `feat/contracts-v2` (pushed at 481f813; the 5 October packet for
+the 0.3% creator lane is committed after it, locally). Nothing below is on Base mainnet yet.
 
 ## Where the v2 deploy stands
 
 | Step | State |
 | --- | --- |
-| Base Revstake (five creations, deployer `0x9b2C…6031`, nonces 28–32) | Packet digest `0xea59e17d…cfba` approved by the founder. The founder sends it. Re-rehearse just before sending. |
+| Base Revstake (five creations, deployer `0x9b2C…6031`, nonces 28–32) | Packet digest `0xc006a3afe15d7fa26b88d28c0a6560265a6e390cdfe5cc0d7f82fc82343cdb23` awaits the founder's go. The founder sends it. Re-rehearse just before sending. |
 | Base Memestake v2 | Waits for Revstake to land: it binds the token factory created at nonce 28. A whole-sequence simulation succeeded. |
 | Robinhood Memestake v2 | Waits for Base Memestake: its revenue receiver points at Base. A trial prepare and rehearse succeeded. |
 | Switch-on | The Governance Safe `0x9fa1…9a3e` sends one batch that unpauses the v2 factory and the v2 Memestake launchpad and pauses both v1 entry points (see `deployments/base-mainnet/README.md`). |
@@ -20,7 +20,7 @@ packet is sent exactly as approved, from deployer nonce 28.
 | --- | --- |
 | `RegentsAutolaunchFactoryV2` | `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` |
 | `RegentLBPStrategyV2` | `0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9` |
-| `RegentFeeHook` | `0x72bE4F7FAE670e42048697e010699316318A2044` |
+| `RegentFeeHook` | `0xa0546b145034b222EF229De236e5A94795A26044` |
 | `RevstakeLPLocker` | `0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120` |
 | `UERC20Factory` | `0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08` |
 
