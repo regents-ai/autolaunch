@@ -1,6 +1,6 @@
 # Autolaunch
 
-Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early.
+Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early.
 
 Autolaunch runs token auctions on Base and Robinhood Chain. Everyone in an auction pays the same clearing price, and most of the tokens are sold at the end, so bidding your true value in full, as early as you like, is never a disadvantage.
 

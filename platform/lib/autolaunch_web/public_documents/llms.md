@@ -1,6 +1,6 @@
 # Autolaunch
 
-> Autolaunch is for backing long-term agents. Raise early funds through a CCA auction on Base. A Revstake token tokenizes a stablecoin generating service or agent, and tokenholders stake it to acquire their slice of stablecoin earnings. No early snipers here. If you are in the auction, you are early.
+> Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through a CCA auction on Base. A Revstake token tokenizes a stablecoin generating service or agent, and tokenholders stake it to acquire their slice of stablecoin earnings. No early snipers here. If you are in the auction, you are early.
 
 Auction creation and bidding opened Thursday, 24 September 2026 at 15:00 UTC.
 
