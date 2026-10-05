@@ -193,6 +193,6 @@ no pool and refunds every bid in full.
   auction can count a bid placed after its first block one base unit short. Such a launch fails
   and refunds in full, as it should. Graduation and pool availability follow the counted raise,
   never the sum of bids.
-- The sweep files are not committed: `revstake-v2/test/integration/AutolaunchSelloutSweep.t.sol`,
+- The sweep files stay in the suite (Sean, 5 Oct, AL-03 a):
+  `revstake-v2/test/integration/AutolaunchSelloutSweep.t.sol`,
   `stocks-v2/test/StocksSelloutSweep.t.sol` and `robinhood-v2/test/RobinhoodSelloutSweep.t.sol`.
-  Whether they stay in the suite is Sean's call.

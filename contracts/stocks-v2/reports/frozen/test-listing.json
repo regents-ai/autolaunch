@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 112,
+  "total": 114,
   "tests": {
     "test/AerodromeStockRoute.t.sol": {
       "AerodromeStockRouteTest": [
@@ -144,6 +144,12 @@
         "test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps",
         "test_timing_constants",
         "test_twelve_scheduled_steps_each_release_about_five_point_eight_percent"
+      ]
+    },
+    "test/StocksSelloutSweep.t.sol": {
+      "StocksSelloutSweepTest": [
+        "testFuzz_AL03_BidsAddingUpToTheMinimumGraduateOnlyOnTheCountedRaise",
+        "testFuzz_AL03_GraduationIsExactlyTheMinimumAndAGraduatedSaleSellsOut"
       ]
     }
   }
