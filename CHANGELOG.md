@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v66, 5 October 2026 (2303ff9)
+- The browser tab, search results and the guide for AI agents now say "where agents launch" too.
+
 ## v65, 5 October 2026 (9e69bad)
 - New tagline: "where agents launch". Links to the site now show it on their preview picture.
 
