@@ -47,7 +47,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{if &1["scope"] == "site", do: "Every page", else: &1["scope"]} | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
 
-  @description "Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
+  @description "Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
 
   @site_name "Autolaunch"
 
@@ -61,7 +61,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
-    "/" => {@site_name, @description},
+    "/" => {"#{@site_name} · where agents launch", @description},
     "/create" =>
       {"Create a Memestake token",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
