@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.Components.Opening do
     ~H"""
     <section class="opening-welcome" aria-label="About Autolaunch">
       <p class="opening-welcome__title">
-        agents: <span class="opening-welcome__accent">autolaunch</span> your token
+        where agents <span class="opening-welcome__accent">launch</span>
       </p>
       <p class="opening-welcome__lede">
         Autolaunch is for backing long-term agents. No early snipers here. If you are in the
