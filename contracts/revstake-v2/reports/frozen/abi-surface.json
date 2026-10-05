@@ -725,6 +725,7 @@
         "0xe1a45218 BPS_DENOMINATOR()",
         "0xe1b4af69 afterDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
         "0xe8323b0b splitterOf(bytes32)",
+        "0xed47446b CREATOR_LANE_BPS()",
         "0xf703631d REGENT_LANE_BPS()",
         "0xfa02716d registerPool((address,address,uint24,int24,address),address)"
       ],
@@ -751,10 +752,11 @@
         "0xdd1b9c4a POOL_FEE()",
         "0xe1a45218 BPS_DENOMINATOR()",
         "0xe8323b0b splitterOf(bytes32)",
+        "0xed47446b CREATOR_LANE_BPS()",
         "0xf703631d REGENT_LANE_BPS()"
       ],
       "events": [
-        "0xebc4b2644bfd9bb3cca47febac3e89c17b5a8aac7760eae31cca799c1bc45d6d SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,bool) indexed=3",
+        "0xf31afb4b42ab991f691528f62ddc0b0b8c53f4bef5a8dc544522c9be64dabcea SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,uint256,bool) indexed=3",
         "0xfafdbdd88ac30f0aa936e576be61816ea751908540523fa81b80c4a406ad7bec PoolRegistered(bytes32,address,address) indexed=3"
       ],
       "event_fields": {
@@ -768,6 +770,7 @@
           "address indexed sender",
           "address indexed feeToken",
           "uint256 feeBase",
+          "uint256 creatorLane",
           "uint256 regentLane",
           "uint256 stakerLane",
           "bool exactInput"

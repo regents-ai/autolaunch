@@ -7,8 +7,8 @@ import {IRobinhoodStockAdmission} from "./IRobinhoodStockAdmission.sol";
 /// @title IRobinhoodStocksLaunchpadV2
 /// @notice The Robinhood stock-pair launchpad: a NEW token sold for an admitted STOCK, migrating into
 ///         the official NEW/STOCK pool whose hook lanes and LP fees belong to the launch's own
-///         memestock splitter. 49.5% of the supply is the sale allocation, 49.5% the reserve and 1% the
-///         creator vesting. Every auction opens at the same lowest floor and the required raise is the
+///         memestock splitter. 49.75% of the supply is the sale allocation, 49.75% the reserve and
+///         0.5% the creator vesting. Every auction opens at the same lowest floor and the required raise is the
 ///         whole sale allocation at it, rounded up; there is no governance minimum and the launcher
 ///         chooses no term.
 interface IRobinhoodStocksLaunchpadV2 is IRobinhoodLaunchpadBase, IRobinhoodStockAdmission {
@@ -47,7 +47,7 @@ interface IRobinhoodStocksLaunchpadV2 is IRobinhoodLaunchpadBase, IRobinhoodStoc
     event StockRevoked(address indexed stock);
 
     /// @notice Create one stock launch: NEW, its pinned CCA denominated in STOCK and the
-    ///         49.5/49.5/1 allocation, atomically.
+    ///         49.75/49.75/0.5 allocation, atomically.
     function launch(LaunchParams calldata params) external returns (uint256 launchId, address newToken, address auction);
 
     function admitStock(address stock, address route) external;

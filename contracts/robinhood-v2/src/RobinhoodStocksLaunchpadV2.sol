@@ -11,8 +11,8 @@ import {RobinhoodFeeHookV1} from "./RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "./RobinhoodLaunchpadBase.sol";
 
 /// @title RobinhoodStocksLaunchpadV2
-/// @notice The Base Stocks launchpad's rules on the Robinhood chain, with USDG as the dollar: 49.5% of
-///         a NEW's supply is sold for an admitted STOCK, 49.5% is the reserve and 1% vests to the
+/// @notice The Base Stocks launchpad's rules on the Robinhood chain, with USDG as the dollar: 49.75% of
+///         a NEW's supply is sold for an admitted STOCK, 49.75% is the reserve and 0.5% vests to the
 ///         launcher over 30 days from graduation. Every auction opens at the one fixed floor and the
 ///         required raise is the whole sale allocation at it, rounded up. Graduation creates the
 ///         launch's own memestock splitter, opens the pool at the final clearing price, locks a

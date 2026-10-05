@@ -34,6 +34,19 @@
     },
     {
       "type": "function",
+      "name": "CREATOR_LANE_BPS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "HOOK_FEE_BPS",
       "inputs": [],
       "outputs": [
@@ -1113,6 +1126,12 @@
           "internalType": "uint256"
         },
         {
+          "name": "creatorLane",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
           "name": "regentLane",
           "type": "uint256",
           "indexed": false,
@@ -1307,6 +1326,7 @@
   ],
   "method_identifiers": {
     "BPS_DENOMINATOR()": "e1a45218",
+    "CREATOR_LANE_BPS()": "ed47446b",
     "HOOK_FEE_BPS()": "89f69f01",
     "POOL_FEE()": "dd1b9c4a",
     "POOL_TICK_SPACING()": "7381527f",

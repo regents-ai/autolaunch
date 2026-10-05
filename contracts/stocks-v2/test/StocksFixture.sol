@@ -64,7 +64,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     uint256 internal constant FLOOR_PRICE_Q96 = StocksPreset.FLOOR_PRICE_Q96;
 
     /// @dev The raise every launch must reach: the whole sale allocation at the floor, rounded up
-    ///      (`StocksPreset.REQUIRED_STOCK_RAISED`). 26,834,004 base units, about 0.27 of an 8-decimal
+    ///      (`StocksPreset.REQUIRED_STOCK_RAISED`). 26,969,530 base units, about 0.27 of an 8-decimal
     ///      share.
     uint128 internal constant REQUIRED_RAISE = StocksPreset.REQUIRED_STOCK_RAISED;
 

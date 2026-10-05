@@ -3,13 +3,13 @@ pragma solidity 0.8.26;
 
 /// @title IStocksLaunchpadV2
 /// @notice The launch, custody and migration surface of Autolaunch Stocks. One launch creates a
-///         new token (NEW), sells 49.5% of its initial supply through a pinned Continuous Clearing
-///         Auction denominated in one admitted Base stock token (STOCK), holds 49.5% as the migration
+///         new token (NEW), sells 49.75% of its initial supply through a pinned Continuous Clearing
+///         Auction denominated in one admitted Base stock token (STOCK), holds 49.75% as the migration
 ///         reserve and 1% as the launcher's vesting. A graduated launch has sold its whole sale
 ///         allocation to its bidders through the auction, opens the official NEW/STOCK Uniswap v4 pool
 ///         at the final clearing price, locks the whole raise with the reserve it pairs in a full-range
 ///         position and the rest of the reserve in a NEW-only position above the opening price, and
-///         vests the 1% to the launcher over thirty days; a failed launch refunds bidders and retires
+///         vests the 0.5% to the launcher over thirty days; a failed launch refunds bidders and retires
 ///         the launch inventory, vesting included.
 /// @dev This interface is the contract between the Solidity component and the website, indexer
 ///      and CLI. Event and function shapes here are consumed off-chain; change them only together
@@ -119,8 +119,8 @@ interface IStocksLaunchpadV2 {
     // creation
     // -------------------------------------------------------------------------
 
-    /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK and the 49.5/49.5/1
-    ///         allocation, atomically.
+    /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK and the
+    ///         49.75/49.75/0.5 allocation, atomically.
     function launch(LaunchParams calldata params) external returns (uint256 launchId, address newToken, address auction);
 
     /// @notice Drive a launch past its end to its terminal state. Anyone may call once the

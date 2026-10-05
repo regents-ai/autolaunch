@@ -1,12 +1,12 @@
 # Autolaunch Stocks contracts
 
-Autolaunch Stocks creates a new token, **NEW**, sells 49.5% of its initial supply through the
+Autolaunch Stocks creates a new token, **NEW**, sells 49.75% of its initial supply through the
 pinned Uniswap Continuous Clearing Auction denominated in one admitted Base stock token,
-**STOCK**, and after a successful auction gives its bidders that whole 49.5% and opens the official
+**STOCK**, and after a successful auction gives its bidders that whole 49.75% and opens the official
 **NEW/STOCK** Uniswap v4 pool at the auction's final clearing price. The whole raise and another
-49.5% of the supply are locked forever: one full-range position pairs the whole raise with as much of
+49.75% of the supply are locked forever: one full-range position pairs the whole raise with as much of
 that reserve as it takes at the opening price, and a second position, NEW only, holds the rest of the
-reserve just above the opening price. The last 1% vests to the launcher linearly, block by block, over
+reserve just above the opening price. The last 0.5% vests to the launcher linearly, block by block, over
 30 days from graduation. Official-pool trading pays
 three STOCK-side hook fees on top of the 0.30% LP fee, all always on: a 30 bps creator lane, paid as
 STOCK to the launcher, a 100 bps REGENT lane, converted to USDC and deposited into REGENT staking,
@@ -24,8 +24,8 @@ Agent subject splitter, not a change to it.
 
 Version 2, not deployed. It replaces the Base launchpad in `contracts/stocks`, which is live on Base
 and stays there for the launches made on it; nothing in that folder changes. Version 2 changes only
-the sale and graduation terms (founder decisions of 1 October 2026): 49.5% of the supply is sold,
-49.5% is the locked pool reserve and 1% vests to the launcher over 30 days; every auction uses the
+the sale and graduation terms (founder decisions of 1 and 5 October 2026): 49.75% of the supply is
+sold, 49.75% is the locked pool reserve and 0.5% vests to the launcher over 30 days; every auction uses the
 lowest floor the pinned auction allows and the required raise is the sale allocation at that floor;
 bidders receive the whole sale allocation from the auction itself; the pool opens at the final
 clearing price with a full-range position and a NEW-only position above it, and the few crumbs of
@@ -67,9 +67,9 @@ shared it is because the same pinned dependency imposes it.
 | --- | --- | --- |
 | NEW decimals | 18 | Founder decision 2026-09-09 |
 | NEW initial supply `S0` | 1,000,000,000 × 10^18 | Founder decision 2026-09-09; even; below the CCA `MAX_TOTAL_SUPPLY` |
-| Auction inventory (the sale allocation) | 49.5% of `S0` = 495,000,000 × 10^18 | Founder decision 2026-10-01 |
-| Migration reserve | 49.5% of `S0` = 495,000,000 × 10^18 | Founder decision 2026-10-01 |
-| Creator vesting | 1% of `S0` = 10,000,000 × 10^18, held by the launchpad from launch; vests linearly per block over `CREATOR_VESTING_BLOCKS` 1,296,000 blocks (30 days at 2 s blocks) from the graduation block; anyone may call `releaseCreatorVesting`, which pays only the launcher; retired with the rest if the auction fails | Founder decision 2026-10-01 |
+| Auction inventory (the sale allocation) | 49.75% of `S0` = 497,500,000 × 10^18 | Founder decision 2026-10-05 |
+| Migration reserve | 49.75% of `S0` = 497,500,000 × 10^18 | Founder decision 2026-10-05 |
+| Creator vesting | 0.5% of `S0` = 5,000,000 × 10^18, held by the launchpad from launch; vests linearly per block over `CREATOR_VESTING_BLOCKS` 1,296,000 blocks (30 days at 2 s blocks) from the graduation block; anyone may call `releaseCreatorVesting`, which pays only the launcher; retired with the rest if the auction fails | Founder decisions 2026-10-01 (term) and 2026-10-05 (amount) |
 | Auction duration | 43,200 blocks (~24 h at Base's 2 s blocks) | Brief P03 "approximately 24 hours"; block count founder decision 2026-09-09 |
 | Step schedule | 13 packed steps summing to 43,200 blocks and exactly `MPS = 1e7` | Derived; shape mirrors Agent's pinned schedule, proven by test |
 | Start lead | `START_LEAD_BLOCKS` 300 (ten minutes at 2 s blocks): every auction opens exactly 300 blocks after its creation block; the launcher does not choose it; the opening block is in the launch record and the `StockLaunchCreated` event | Founder decision 2026-09-21 |
@@ -86,7 +86,7 @@ shared it is because the same pinned dependency imposes it.
 | Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
 | Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe); the rule holds only while `totalStaked == 0`, so any stake placed before a settlement takes the 98% share of that settlement | Founder decision 2026-09-18 |
 | Launch fee | none: a launch costs nothing beyond gas; no REGENT is pulled and the launchpad never holds REGENT | Founder decision 2026-09-21 |
-| Required raise | the whole sale allocation at the floor price, rounded up: `REQUIRED_STOCK_RAISED` = `ceil(AUCTION_INVENTORY × FLOOR_PRICE_Q96 / 2^96)` = 26,834,004 STOCK base units, never zero, so an auction nobody bid in never graduates; below it the auction fails and bidders are refunded. At the lowest floor it is about 0.27 of a share for an 8-decimal stock | Founder decision 2026-10-01 (derived from the floor only) |
+| Required raise | the whole sale allocation at the floor price, rounded up: `REQUIRED_STOCK_RAISED` = `ceil(AUCTION_INVENTORY × FLOOR_PRICE_Q96 / 2^96)` = 26,969,530 STOCK base units, never zero, so an auction nobody bid in never graduates; below it the auction fails and bidders are refunded. At the lowest floor it is about 0.27 of a share for an 8-decimal stock | Founder decision 2026-10-01 (derived from the floor only) |
 | Treasury | none | Brief P05 |
 | Leftover NEW after graduation | every unit of the launch's NEW the launchpad still holds once both positions are minted, apart from the creator vesting (the auction's unsold rounding, the planner's rounding, and anything sent to the launchpad) is transferred to `0x…dEaD` in `migrate` and recorded as `retiredNew`; bidders receive the whole sale allocation from the auction itself | Founder decision 2026-10-01 |
 | Reserve, inventory and vesting after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decisions 2026-09-09 and 2026-10-01 |

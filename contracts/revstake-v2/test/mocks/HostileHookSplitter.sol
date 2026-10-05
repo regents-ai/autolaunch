@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {MockERC20} from "./MockERC20.sol";
 
 /// @notice A splitter-shaped contract that answers the three bindings `RegentFeeHook.registerPool`
-///         validates and then misbehaves from inside `depositRecognizedRevenue`.
+///         validates and the treasury the creator lane pays, and then misbehaves from inside `depositRecognizedRevenue`.
 /// @dev One configurable surface rather than one mock per attack: it can revert outright, pull less
 ///      than the approval, pull the lane and refund it, or re-enter an arbitrary target while it
 ///      still holds the hook's approval — the single moment the hook is mid-settlement. Each test
@@ -13,6 +13,7 @@ contract HostileHookSplitter {
     address public regent;
     address public subject;
     address public regentSafe;
+    address public treasury;
 
     /// @notice When set, the deposit reverts.
     bool public reverts;
@@ -31,10 +32,11 @@ contract HostileHookSplitter {
 
     error HostileRevert();
 
-    constructor(address regent_, address subject_, address regentSafe_) {
+    constructor(address regent_, address subject_, address regentSafe_, address treasury_) {
         regent = regent_;
         subject = subject_;
         regentSafe = regentSafe_;
+        treasury = treasury_;
     }
 
     function setReverts(bool value) external {

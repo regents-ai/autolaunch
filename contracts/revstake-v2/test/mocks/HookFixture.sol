@@ -297,6 +297,7 @@ abstract contract HookFixture is Test {
         address sender;
         address feeToken;
         uint256 charged;
+        uint256 creatorLane;
         uint256 regentLane;
         uint256 stakerLane;
         bool exactInput;
@@ -317,8 +318,8 @@ abstract contract HookFixture is Test {
             entry.poolId = PoolId.wrap(logs[i].topics[1]);
             entry.sender = address(uint160(uint256(logs[i].topics[2])));
             entry.feeToken = address(uint160(uint256(logs[i].topics[3])));
-            (entry.charged, entry.regentLane, entry.stakerLane, entry.exactInput) =
-                abi.decode(logs[i].data, (uint256, uint256, uint256, bool));
+            (entry.charged, entry.creatorLane, entry.regentLane, entry.stakerLane, entry.exactInput) =
+                abi.decode(logs[i].data, (uint256, uint256, uint256, uint256, bool));
             buffer[count++] = entry;
         }
         found = new Settlement[](count);
@@ -327,12 +328,13 @@ abstract contract HookFixture is Test {
         }
     }
 
-    /// @dev The whole fee one settlement took out of the swap: both lanes, exactly.
+    /// @dev The whole fee one settlement took out of the swap: all three lanes, exactly.
     function _fee(Settlement memory settled) internal pure returns (uint256) {
-        return settled.regentLane + settled.stakerLane;
+        return settled.creatorLane + settled.regentLane + settled.stakerLane;
     }
 
-    /// @dev Where one settlement's fee must land. The Regent lane goes to the live staking contract
+    /// @dev Where one settlement's fee must land. The creator lane goes straight to the treasury. The
+    ///      Regent lane goes to the live staking contract
     ///      when the fee is REGENT and to the Regent Safe when it is SUBJECT. The staker lane goes
     ///      through the splitter, whose floored 2% skim reaches the Regent Safe and whose rest
     ///      reaches the treasury, since nobody is staked in these fixtures.
@@ -345,7 +347,7 @@ abstract contract HookFixture is Test {
         bool regentFee = settled.feeToken == REGENT;
         toSafe = skim + (regentFee ? 0 : settled.regentLane);
         toStaking = regentFee ? settled.regentLane : 0;
-        toTreasury = settled.stakerLane - skim;
+        toTreasury = settled.creatorLane + settled.stakerLane - skim;
     }
 
     function _onlySettlement() internal returns (Settlement memory settlement) {

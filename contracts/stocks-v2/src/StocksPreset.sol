@@ -21,21 +21,21 @@ library StocksPreset {
     // Founder decision 2026-09-09
     uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
 
-    /// @notice 49.5% of `S0` is the sale allocation. A launch that graduates has sold all of it to its
+    /// @notice 49.75% of `S0` is the sale allocation. A launch that graduates has sold all of it to its
     ///         bidders through the auction, but for rounding.
-    // Founder decision 2026-10-01
-    uint128 internal constant AUCTION_INVENTORY = 495_000_000e18;
+    // Founder decision 2026-10-05
+    uint128 internal constant AUCTION_INVENTORY = 497_500_000e18;
 
-    /// @notice 49.5% of `S0` is the migration reserve: the full-range position pairs what the whole
+    /// @notice 49.75% of `S0` is the migration reserve: the full-range position pairs what the whole
     ///         raise matches at the final clearing price, and the rest is locked as a NEW-only position
     ///         above the opening price.
-    // Founder decision 2026-10-01
-    uint128 internal constant MIGRATION_RESERVE = 495_000_000e18;
+    // Founder decision 2026-10-05
+    uint128 internal constant MIGRATION_RESERVE = 497_500_000e18;
 
-    /// @notice 1% of `S0` vests to the launcher, linearly per block from graduation. A failed launch
+    /// @notice 0.5% of `S0` vests to the launcher, linearly per block from graduation. A failed launch
     ///         retires it with the rest of its inventory.
-    // Founder decision 2026-10-01
-    uint128 internal constant CREATOR_VESTING = 10_000_000e18;
+    // Founder decision 2026-10-05
+    uint128 internal constant CREATOR_VESTING = 5_000_000e18;
 
     /// @notice Thirty days at Base's 2-second blocks.
     // Founder decision 2026-10-01

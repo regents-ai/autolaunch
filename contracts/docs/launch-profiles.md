@@ -1,6 +1,6 @@
 # Launch profiles: v1 today and v2
 
-**Status (1 October 2026): decided for all three launch types. Every value is fixed in the
+**Status (1 October 2026, amended 5 October): decided for all three launch types. Every value is fixed in the
 contracts, including the floor price: no launch takes a floor or a minimum raise from its creator.
 The v2 contracts are `contracts/revstake-v2`, `contracts/stocks-v2` and `contracts/robinhood-v2`,
 none deployed.**
@@ -56,7 +56,7 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Raise into the pool | whole raise | at most half; the treasury receives the rest (at least half) |
 | Pool price | the final clearing price | the final clearing price, one full-range position, locked |
 | Auction length | 86,401 blocks, 13-step schedule | same (about 48 hours) |
-| Swap hook fee | 1% Regent lane and 1% staker lane | 3%: a 1% Regent lane and 2% to the launch's splitter |
+| Swap hook fee | 1% Regent lane and 1% staker lane | 3.3%: a 0.3% creator lane paid to the launch's treasury, a 1% Regent lane and 2% to the launch's splitter |
 
 Unchanged from v1: start delay 300 blocks; claim delay 64; migration delay 128; pool fee 0.30%;
 pool tick spacing 60; 2% splitter skim; 2.5% referral cap; name,
@@ -69,11 +69,11 @@ Source: `stocks-v2/src/StocksPreset.sol`.
 | Parameter | v1 (deployed) | v2 |
 | --- | --- | --- |
 | Total supply | 1,000,000,000 | same |
-| Auction share | 80% | 49.5% (495,000,000) |
-| Pool reserve | 20% | 49.5% (495,000,000) |
-| Creator vesting | none | 1% (10,000,000) to the launcher, linearly per block over 1,296,000 blocks (30 days) from graduation |
+| Auction share | 80% | 49.75% (497,500,000) |
+| Pool reserve | 20% | 49.75% (497,500,000) |
+| Creator vesting | none | 0.5% (5,000,000) to the launcher, linearly per block over 1,296,000 blocks (30 days) from graduation |
 | Floor price | creator picks | the lowest floor above, for every launch |
-| Minimum raise | creator's | the floor minimum only: 26,834,004 STOCK base units (about 0.27 of a share at 8 decimals) |
+| Minimum raise | creator's | the floor minimum only: 26,969,530 STOCK base units (about 0.27 of a share at 8 decimals) |
 | Raise into the pool | whole raise | whole raise |
 | Pool price | the final clearing price | the final clearing price; a full-range position pairs the whole raise and a second, NEW-only position holds the rest of the reserve just past the opening price; both locked |
 | Auction length | 43,200 blocks, 13-step schedule | same (24 hours) |
@@ -88,7 +88,7 @@ Source: `robinhood-v2/src/RobinhoodPreset.sol`. The same terms as Memestake on B
 stock itself (a bidder may pay in USDG, which is bought into the stock on the way in), with
 Robinhood's block counts: start delay 6,000; auction 864,000 (24 hours); claim delay 1,280;
 migration delay 2,560; creator vesting 25,920,000 (30 days). With the stock's 18 decimals the
-minimum raise is 0.000000000026834004 STOCK. The 1% lane is the protocol lane, sold for USDG into
+minimum raise is 0.00000000002696953 STOCK. The 1% lane is the protocol lane, sold for USDG into
 the Robinhood protocol inbox. Stock the full-range position cannot pair goes to the protocol lane.
 
 ## Founder decisions, 27 September 2026
@@ -130,6 +130,8 @@ contract carries ("no more of the variable ranges").
 
 ## Founder decisions, 1 October 2026
 
+Items 1 and 5 are amended by the 5 October decisions below.
+
 1. Memestake (Base and Robinhood) sells 49.5%, locks 49.5% in the pool and vests 1% to the
    launcher over 30 days, linearly per block from graduation.
 2. Revstake sells 20%, keeps at most 10% for the pool and vests 70% to the treasury over 365
@@ -141,3 +143,13 @@ contract carries ("no more of the variable ranges").
    rest goes to the treasury.
 5. Revstake swap fees: 1% to Regent and 2% to the launch's splitter, plus the 0.3% Uniswap LP fee.
    Memestake fees are unchanged from 28 September.
+
+## Founder decisions, 5 October 2026
+
+1. Memestake (Base and Robinhood) sells 49.75%, locks 49.75% in the pool and vests 0.5% to the
+   launcher over 30 days, linearly per block from graduation. The launcher takes no share of the
+   raise; the whole raise still goes to the pool. Nothing else in the 1 October terms moves; the
+   minimum raise follows from the new sale allocation.
+2. Revstake adds a 0.3% creator lane on top of its 3%, paid to the launch's treasury: 3.3% in all,
+   plus the 0.3% Uniswap LP fee.
+3. Memestake's creator lane stays 0.3%.

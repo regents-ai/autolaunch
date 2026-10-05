@@ -27,10 +27,10 @@ snapshot `contracts/stocks-v2` exports (`../stocks-v2/lib`, pinned by
 ## Status
 
 Not deployed. The Base packet must be rebuilt for the 1 October 2026 terms (70/20/10, one fixed
-floor, pool at the final clearing price, half the raise to the pool, 3% hook fee) and its new
-digest approved by the founder; see `deployments/base-mainnet/README.md`. Version 2 changes only
-the sale and graduation terms and the hook's staker lane (founder decisions of 27 September and
-1 October 2026). The hook, splitter, payment receiver and locker are the version 1 sources;
+floor, pool at the final clearing price, half the raise to the pool) and the 5 October hook fee
+(3.3%), and its new digest approved by the founder; see `deployments/base-mainnet/README.md`.
+Version 2 changes only the sale and graduation terms and the hook's lanes (founder decisions of
+27 September, 1 October and 5 October 2026). The hook, splitter, payment receiver and locker are the version 1 sources;
 a version 2 deployment creates new instances bound to the new factory and strategy.
 
 ## Terms
@@ -48,7 +48,7 @@ a version 2 deployment creates new instances bound to the new factory and strate
 | Claim / migration | 64 / 128 blocks after the auction ends |
 | Pool price | the auction's final clearing price (`lbpInitializationParams().initialPriceX96`) |
 | Pool position | full range from half the raise and at most the reserve, locked in `RevstakeLPLocker`; the treasury receives the rest of the raise |
-| Pool fee | 0.30% LP fee, tick spacing 60, plus the `RegentFeeHook` 3%: 1% REGENT lane and 2% to the launch's splitter |
+| Pool fee | 0.30% LP fee, tick spacing 60, plus the `RegentFeeHook` 3.3%: 0.3% creator lane to the launch's treasury, 1% REGENT lane and 2% to the launch's splitter |
 | Leftover SUBJECT | everything the strategy holds after graduation (the unpaired reserve, the auction's rounding crumbs and any SUBJECT sent to it) goes to the escrow and vests to the treasury with the 70% |
 
 `migrate` is permissionless; the Regent bot sends it after the migration block.

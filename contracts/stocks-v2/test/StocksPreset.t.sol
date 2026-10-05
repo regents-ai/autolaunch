@@ -16,9 +16,9 @@ contract StocksPresetTest is Test {
             StocksPreset.INITIAL_SUPPLY,
             "inventory + reserve + vesting == S0"
         );
-        assertEq(uint256(StocksPreset.AUCTION_INVENTORY), 495_000_000e18, "49.5% is sold");
-        assertEq(uint256(StocksPreset.MIGRATION_RESERVE), 495_000_000e18, "49.5% is the pool reserve");
-        assertEq(uint256(StocksPreset.CREATOR_VESTING), 10_000_000e18, "1% vests to the launcher");
+        assertEq(uint256(StocksPreset.AUCTION_INVENTORY), 497_500_000e18, "49.75% is sold");
+        assertEq(uint256(StocksPreset.MIGRATION_RESERVE), 497_500_000e18, "49.75% is the pool reserve");
+        assertEq(uint256(StocksPreset.CREATOR_VESTING), 5_000_000e18, "0.5% vests to the launcher");
         assertLt(StocksPreset.AUCTION_INVENTORY, ConstantsLib.MAX_TOTAL_SUPPLY, "below CCA MAX_TOTAL_SUPPLY");
         assertLt(StocksPreset.INITIAL_SUPPLY, uint256(type(uint128).max), "fits the UERC20 supply width");
 
@@ -31,7 +31,7 @@ contract StocksPresetTest is Test {
             FullMath.mulDivRoundingUp(StocksPreset.AUCTION_INVENTORY, StocksPreset.FLOOR_PRICE_Q96, FixedPoint96.Q96),
             "the required raise is the sale allocation at the floor, rounded up"
         );
-        assertEq(StocksPreset.REQUIRED_STOCK_RAISED, 26_834_004, "the required raise");
+        assertEq(StocksPreset.REQUIRED_STOCK_RAISED, 26_969_530, "the required raise");
     }
 
     function test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps() public pure {

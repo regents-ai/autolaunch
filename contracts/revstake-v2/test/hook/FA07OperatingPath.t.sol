@@ -40,9 +40,14 @@ contract FA07OperatingPathTest is HookFixture {
         Settlement memory settled = _onlySettlement();
 
         assertEq(settled.feeToken, address(feeToken), "FA07-I1 fee token is realized unspecified output");
+        assertEq(settled.creatorLane, settled.charged * 30 / 10_000, "FA07-I2 floored 0.3% creator lane");
         assertEq(settled.regentLane, settled.charged / 100, "FA07-I2 floored 1% Regent lane");
-        assertEq(settled.stakerLane, settled.charged * 300 / 10_000 - settled.regentLane, "FA07-I2 staker lane");
-        assertGt(settled.regentLane, 0, "FA07-I2 operating path must charge both lanes");
+        assertEq(
+            settled.stakerLane,
+            settled.charged * 330 / 10_000 - settled.creatorLane - settled.regentLane,
+            "FA07-I2 staker lane"
+        );
+        assertGt(settled.creatorLane, 0, "FA07-I2 operating path must charge all three lanes");
         assertTrue(settled.exactInput, "FA07-I1 event shape");
 
         int128 specifiedDelta = zeroForOne ? delta.amount0() : delta.amount1();

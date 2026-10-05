@@ -1,5 +1,8 @@
 # Creator fees: evidence for decisions 80 and 82 (5 Oct 2026)
 
+**Decided 5 Oct:** 80 a (Revstake 0.3% creator lane on top, 3.3% in all, paid to the treasury) and
+82 (Memestake 49.75% auction, 49.75% pool, 0.5% to the launcher over 30 days; no share of the raise).
+
 Supports [creator-fee-proposal-2026-10-05.md](creator-fee-proposal-2026-10-05.md). Docs only. Nothing
 is deployed: the deployer is still at nonce 28. Every figure below is from the source on
 feat/contracts-v2 at 93b5d9c, the 1 Oct founder terms in `docs/launch-profiles.md`, and the
@@ -91,78 +94,20 @@ Memestake) follow the existing pattern.
 
 ---
 
-## 82 a: Memestake creator share of the raise, 5% at graduation
+## 82: Memestake creator share (decided 5 Oct)
 
-**Question.** When a Memestake auction graduates, should 5% of the raise go to the launcher in the
-stock token, and the rest into the pool?
+Sean's answer: "I said they get 0.5% vested over 30 days, where did 5% and 10% come from? no it is
+only 0.5%, and 49.75% is for auction, and 49.75% for liquidity." The raise-share options (5%, 10%)
+are withdrawn: the whole raise still goes to the pool.
 
-**Existing founder decision.** 1 Oct: "Memestake puts the whole raise in a full-range position and
-the rest of the reserve in a second, NEW-only position above the opening price, both locked forever"
-(`docs/launch-profiles.md`).
+**Change.** `StocksPreset` (shared by Base and Robinhood) now holds 497,500,000 NEW for the auction,
+497,500,000 NEW for the pool and 5,000,000 NEW for the launcher. The vesting itself was already what
+Sean asked for: linear per block from graduation over 30 days (1,296,000 Base blocks; 25,920,000
+Robinhood blocks). Only the amount changed, from 1% to 0.5%.
 
-**Code today.** `StocksLaunchpadV2` pairs the whole raise (`_mintLockedPositions`). The launcher is
-already recorded and already paid the 0.3% trading lane. Robinhood does the same in
-`RobinhoodStocksLaunchpadV2`.
-**Deployed state:** nothing; both packets are trials.
-
-**Alternatives.** a) 5%. b) 10%. c) None.
-
-### How the pool is built
-
-The pool opens at the final clearing price P. The full-range position pairs the stock with
-(stock ÷ P) NEW. The rest of the 495M NEW reserve becomes the NEW-only position above the opening
-price, where it is sold to buyers. The price can only rise during the auction, so the raise is at
-most P × 495M.
-
-### Worked example: strong auction
-
-Raise $100,000 of stock; final price $0.00022 per NEW (P × 495M = $108,900).
-
-| | Today | 82 a (5%) |
-| --- | --- | --- |
-| Creator receives | none | $5,000 of stock |
-| Full-range position | $100,000 stock + 454,545,455 NEW | $95,000 stock + 431,818,182 NEW |
-| NEW-only position above the price | 40,454,545 NEW | 63,181,818 NEW |
-| Someone sells $10,000 of NEW at the opening price, before fees | gets $9,091 | gets $9,048 (−$43, 0.47%) |
-
-### Worked example: thin auction that still graduates
-
-Raise $2,000; final price $0.0000045 per NEW (P × 495M = $2,227.50).
-
-| | Today | 82 a (5%) |
-| --- | --- | --- |
-| Creator receives | none | $100 of stock |
-| Full-range position | $2,000 stock + 444,444,444 NEW | $1,900 stock + 422,222,222 NEW |
-| NEW-only position | 50,555,556 NEW | 72,777,778 NEW |
-| Someone sells $200 of NEW, before fees | gets $181.82 | gets $180.95 (−$0.87) |
-
-### Auction that does not graduate
-
-No raise: bidders are refunded and the creator gets nothing. 82 a changes nothing.
-
-### Bounded cost
-
-- **Auction bidders:** nothing. They pay the same clearing price for the same tokens.
-- **Holders who sell after graduation:** the stock side of the pool is exactly 5% smaller. A sale
-  of 10% of the pool's depth receives about 0.47% less; smaller sales lose proportionally less.
-- **Buyers after graduation:** no worse. More NEW sits in the position just above the opening price.
-- **Regent and stakers:** their lanes are unchanged. Pool-fee income per trade is unchanged; only
-  the depth behind it is 5% smaller.
-- **No pressure on the token's price:** the creator is paid in the stock, not NEW, so nothing new
-  is sold into the pool.
-
-### Reversibility
-
-- **Before deployment:** free. The launchpad and shared settings change, which changes the
-  nonce-33 Memestake transaction and the Robinhood packet. Both are still trials.
-- **After deployment:** the contracts cannot be changed. A later change means a new launchpad on
-  each chain, rehearsed and sent again with Sean's signed go. Existing launches keep their terms.
-
-### Smallest remaining choice
-
-The percentage: 5% or 10%. A sub-question is whether the share is paid at once or vests with the
-creator's 1% over 30 days. We suggest paying at once: it is paid in the stock, not the launch's own
-token, so it cannot be sold into the pool.
+**Derived change.** The minimum raise is the whole sale at the floor, so it moves from 26,834,004 to
+26,969,530 STOCK base units (about 0.27 of a share at 8 decimals; 0.00000000002696953 of an
+18-decimal Robinhood stock). Nothing else in the 1 Oct profile moves.
 
 ---
 
