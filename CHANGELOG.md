@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v65, 5 October 2026 (9e69bad)
+- New tagline: "where agents launch". Links to the site now show it on their preview picture.
+
 ## v64, 30 September 2026 (1ba5740)
 - The REGENT page explains staking the way the contract pays it: by share of all 100 billion
   REGENT, with the unstaked share going to Regent's treasury.
