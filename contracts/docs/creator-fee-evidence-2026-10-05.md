@@ -1,6 +1,7 @@
 # Creator fees: evidence for decisions 80 and 82 (5 Oct 2026)
 
-**Decided 5 Oct:** 80 a (Revstake 0.3% creator lane on top, 3.3% in all, paid to the treasury) and
+**Decided 5 Oct:** 80 a (Revstake 0.3% creator lane on top, paid to the treasury; replaced 6 Oct by
+22 c, no creator lane, 3.3% in all with the LP fee) and
 82 (Memestake 49.75% auction, 49.75% pool, 0.5% to the launcher over 30 days; no share of the raise).
 
 Supports [creator-fee-proposal-2026-10-05.md](creator-fee-proposal-2026-10-05.md). Docs only. Nothing
@@ -169,7 +170,7 @@ not to trades.
 
 - The code, `docs/launch-profiles.md` and both package READMEs agree on every fee and split.
 - Comments only: `revstake-v2/src/hook/RegentFeeHook.sol` lines 20–22 and 189 still describe a 2%
-  fee with two 1% lanes. The constants charge 3%. The fix goes with the 80 change.
+  fee with two 1% lanes. The constants charge 3%. Fixed 6 Oct with 22 c.
 - Site copy: `llms.md` line 91 on the v2 site says the Revstake hook sends 2% to the creator's
   staking contract. It goes to the launch's splitter, which pays stakers and the treasury. This
   belongs to the pages cutover held under 57 b.

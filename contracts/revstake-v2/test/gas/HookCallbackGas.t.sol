@@ -10,8 +10,8 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///         supported router's own sync/settle timing, measured as a genuinely controlled difference
 ///         and recorded.
 /// @dev The measurement is a difference, and the control is exact. Against the pinned core at the
-///      fixture's opening state, specified inputs 33 and 32 realize unspecified outputs 31 and 30
-///      before the fee respectively, and 31 is the smallest fee base the 3.3% fee charges. The test
+///      fixture's opening state, specified inputs 36 and 35 realize unspecified outputs 34 and 33
+///      before the fee respectively, and 34 is the smallest fee base the 3% fee charges. The test
 ///      reads the settlement event to prove which side of the fee floor each execution reached. The two swaps therefore run one wei apart on two pools this fixture
 ///      opens identically — same currency ordering, same fee, same tick spacing, same opening
 ///      price, same liquidity, same direction, same price limit, same router, same warmth — and
@@ -19,8 +19,8 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///      nothing else.
 ///
 ///      A production-sized fee does slightly more work than a boundary one: at a one-wei fee the
-///      0.3% creator lane, the 1% Regent lane and the splitter's own 2% skim all floor to zero, so
-///      three ERC20 pushes do not happen. A second pair is therefore measured with a full one-REGENT swap against the
+///      1% Regent lane and the splitter's own 2% skim both floor to zero, so two ERC20 pushes do
+///      not happen. A second pair is therefore measured with a full one-REGENT swap against the
 ///      same zero-fee control, and it
 ///      is labelled for what it is rather than merged into the first: it runs *after* the boundary
 ///      pair, so the Regent Safe and the REGENT token's own slots are already warm and only the
@@ -42,11 +42,11 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///      founder's 14,000,000 complete-transaction limit, which contracts/v1 proved on its fork gate;
 ///      this package carries no fork gate, so that limit is not re-proved here.
 contract HookCallbackGasTest is HookFixture {
-    int256 internal constant BOUNDARY_CHARGING = -33;
-    int256 internal constant BOUNDARY_ZERO_FEE = -32;
+    int256 internal constant BOUNDARY_CHARGING = -36;
+    int256 internal constant BOUNDARY_ZERO_FEE = -35;
 
-    /// @dev A production-sized charging swap: one REGENT, whose fee is large enough that all three
-    ///      lanes and the splitter's own 2% skim are nonzero and every branch of the settlement runs.
+    /// @dev A production-sized charging swap: one REGENT, whose fee is large enough that both lanes
+    ///      and the splitter's own 2% skim are nonzero and every branch of the settlement runs.
     int256 internal constant PRODUCTION_SWAP = -1e18;
 
     uint256 internal constant POOL_LIQUIDITY = 1e24;
@@ -97,7 +97,7 @@ contract HookCallbackGasTest is HookFixture {
         // The only assertions are the ones the controlled measurement itself establishes. Cold is
         // the user-transaction posture; warm is the control beside it.
         assertLt(warmCallback, coldCallback, "the cold/warm control shows no warming at all");
-        // A one-wei fee skips the creator and Regent lanes and the splitter's floored 2% skim, so it really does under-measure a
+        // A one-wei fee skips the Regent lane and the splitter's floored 2% skim, so it really does under-measure a
         // production lane. Recording that the warm production lane is the dearer of the two is what
         // keeps the boundary figure from being read as the whole story.
         assertGt(warmProductionLane, warmCallback, "a production lane is not dearer than a boundary lane");

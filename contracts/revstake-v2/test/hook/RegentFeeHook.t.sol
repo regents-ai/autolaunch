@@ -85,7 +85,7 @@ contract RegentFeeHookTest is HookFixture {
         vm.expectRevert(abi.encodeWithSelector(RegentFeeHook.ForeignHook.selector, address(0)));
         hook.registerPool(wrong, address(splitter));
 
-        HostileHookSplitter foreignSubject = new HostileHookSplitter(REGENT, SUBJECT_HIGH, REGENT_SAFE, treasury);
+        HostileHookSplitter foreignSubject = new HostileHookSplitter(REGENT, SUBJECT_HIGH, REGENT_SAFE);
         vm.prank(strategy);
         vm.expectRevert(
             abi.encodeWithSelector(RegentFeeHook.SplitterBindingMismatch.selector, SUBJECT_LOW, SUBJECT_HIGH)
@@ -166,7 +166,7 @@ contract RegentFeeHookTest is HookFixture {
 
         assertEq(
             RegentFeeHook.SwapFeeSettled.selector,
-            keccak256("SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,uint256,bool)"),
+            keccak256("SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,bool)"),
             "FA07-I6 settlement event identity"
         );
     }
@@ -484,8 +484,8 @@ contract RegentFeeHookTest is HookFixture {
             settled.poolId = PoolId.wrap(logs[i].topics[1]);
             settled.sender = address(uint160(uint256(logs[i].topics[2])));
             settled.feeToken = address(uint160(uint256(logs[i].topics[3])));
-            (settled.charged, settled.creatorLane, settled.regentLane, settled.stakerLane, settled.exactInput) =
-                abi.decode(logs[i].data, (uint256, uint256, uint256, uint256, bool));
+            (settled.charged, settled.regentLane, settled.stakerLane, settled.exactInput) =
+                abi.decode(logs[i].data, (uint256, uint256, uint256, bool));
         }
         assertTrue(settled.found, "FA07-I1 missing raw settlement");
     }
@@ -573,16 +573,12 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(_currentSqrtPrice(pool), sqrtBefore, "FA07-I4 pool state rolled forward");
     }
 
-    /// @dev All three lanes are measured from the one fee base: the 3.3% fee floored once, the 0.3%
-    ///      creator lane and the 1% Regent lane each floored on their own, and the staker lane the
-    ///      exact remainder. `FA07-I2`.
+    /// @dev Both lanes are measured from the one fee base: the 3% fee floored once, the 1% Regent
+    ///      lane floored on its own, and the staker lane the exact remainder. `FA07-I2`.
     function _assertExactLanes(Settlement memory settled, uint256 feeBase) private view {
         uint256 fee = feeBase * hook.HOOK_FEE_BPS() / hook.BPS_DENOMINATOR();
-        assertEq(
-            settled.creatorLane, feeBase * hook.CREATOR_LANE_BPS() / hook.BPS_DENOMINATOR(), "FA07-I2 creator lane"
-        );
         assertEq(settled.regentLane, feeBase * hook.REGENT_LANE_BPS() / hook.BPS_DENOMINATOR(), "FA07-I2 Regent lane");
-        assertEq(settled.stakerLane, fee - settled.creatorLane - settled.regentLane, "FA07-I2 staker lane");
+        assertEq(settled.stakerLane, fee - settled.regentLane, "FA07-I2 staker lane");
         assertGe(
             settled.stakerLane, feeBase * hook.STAKER_LANE_BPS() / hook.BPS_DENOMINATOR(), "FA07-I2 staker lane floor"
         );
@@ -642,7 +638,7 @@ contract RegentFeeHookTest is HookFixture {
         pool.regentIsCurrency0 = REGENT < subjectAddress;
         pool.key = _officialKey(subjectAddress);
         pool.id = pool.key.toId();
-        HostileHookSplitter hostile = new HostileHookSplitter(REGENT, subjectAddress, REGENT_SAFE, treasury);
+        HostileHookSplitter hostile = new HostileHookSplitter(REGENT, subjectAddress, REGENT_SAFE);
         vm.prank(strategy);
         hook.registerPool(pool.key, address(hostile));
         vm.prank(strategy);

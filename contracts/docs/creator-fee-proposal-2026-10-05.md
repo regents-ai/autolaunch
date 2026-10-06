@@ -1,7 +1,7 @@
 # Creator fees: proposal (5 Oct 2026)
 
-**Decided 5 Oct (HQ 80 a, 81 a, 82, 83 a):** Revstake adds a 0.3% creator lane on top, paid to the
-treasury (3.3% in all). Memestake keeps its 0.3% creator lane, takes no share of the raise, and its
+**Decided 5 Oct (HQ 80 a, 81 a, 82, 83 a); 80 and 81 replaced 6 Oct (22 c):** Revstake has no
+creator lane; its hook stays 1% Regent and 2% to the splitter, 3.3% in all with the 0.3% LP fee. Memestake keeps its 0.3% creator lane, takes no share of the raise, and its
 supply becomes 49.75% auction, 49.75% pool and 0.5% to the launcher, vesting over 30 days. Item 3
 below is withdrawn.
 
@@ -35,17 +35,15 @@ address chosen at launch; the launching wallet gets nothing.
 
 ## What changes on chain
 
-- **Revstake:** only the fee hook changes. The factory creates the hook, so send 5 (nonce 32) changes,
-  and a new hook address must be mined. Sends 1–4 stay as they are, but the packet is rehearsed again
-  and gets a new digest in place of
-  0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba.
+- **Revstake:** nothing changes on chain after 22 c; the hook is the 1 Oct hook. The packet is still
+  rehearsed again at the current block and gets a new digest before Sean's signed go.
 - **Memestake Base and Robinhood:** the shared settings change (the supply split and the minimum raise). Both packets are
   still trial packets, so nothing is lost.
 
 ## Decisions (answered 5 Oct)
 
-- Revstake creator lane: 0.3% on top, 3.3% total (80 a).
-- Revstake creator: the treasury address (81 a).
+- Revstake creator lane: none (80 a, replaced 6 Oct by 22 c).
+- Revstake creator: not needed after 22 c (81 a).
 - Memestake creator share of the raise: none; the launcher's vesting share is 0.5% (82).
 - Memestake creator trading lane: keep 0.3% (83 a).
 - The Revstake send stays held until the new hook is rehearsed and Sean gives a signed go (HQ 56).

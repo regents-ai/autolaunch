@@ -1,6 +1,6 @@
 # Launch profiles: v1 today and v2
 
-**Status (1 October 2026, amended 5 October): decided for all three launch types. Every value is fixed in the
+**Status (1 October 2026, amended 5 and 6 October): decided for all three launch types. Every value is fixed in the
 contracts, including the floor price: no launch takes a floor or a minimum raise from its creator.
 The v2 contracts are `contracts/revstake-v2`, `contracts/stocks-v2` and `contracts/robinhood-v2`,
 none deployed.**
@@ -56,7 +56,7 @@ Sources: `revstake-v2/src/strategy/RegentLBPStrategyV2.sol`,
 | Raise into the pool | whole raise | at most half; the treasury receives the rest (at least half) |
 | Pool price | the final clearing price | the final clearing price, one full-range position, locked |
 | Auction length | 86,401 blocks, 13-step schedule | same (about 48 hours) |
-| Swap hook fee | 1% Regent lane and 1% staker lane | 3.3%: a 0.3% creator lane paid to the launch's treasury, a 1% Regent lane and 2% to the launch's splitter |
+| Swap hook fee | 1% Regent lane and 1% staker lane | 3%: a 1% Regent lane and 2% to the launch's splitter (3.3% with the 0.3% LP fee) |
 
 Unchanged from v1: start delay 300 blocks; claim delay 64; migration delay 128; pool fee 0.30%;
 pool tick spacing 60; 2% splitter skim; 2.5% referral cap; name,
@@ -130,7 +130,7 @@ contract carries ("no more of the variable ranges").
 
 ## Founder decisions, 1 October 2026
 
-Items 1 and 5 are amended by the 5 October decisions below.
+Item 1 is amended by the 5 October decisions below. Item 5 stands (6 October).
 
 1. Memestake (Base and Robinhood) sells 49.5%, locks 49.5% in the pool and vests 1% to the
    launcher over 30 days, linearly per block from graduation.
@@ -150,6 +150,12 @@ Items 1 and 5 are amended by the 5 October decisions below.
    launcher over 30 days, linearly per block from graduation. The launcher takes no share of the
    raise; the whole raise still goes to the pool. Nothing else in the 1 October terms moves; the
    minimum raise follows from the new sale allocation.
-2. Revstake adds a 0.3% creator lane on top of its 3%, paid to the launch's treasury: 3.3% in all,
-   plus the 0.3% Uniswap LP fee.
+2. Revstake was to add a 0.3% creator lane on top of its 3%, paid to the launch's treasury.
+   Replaced on 6 October: there is no Revstake creator lane.
 3. Memestake's creator lane stays 0.3%.
+
+## Founder decision, 6 October 2026
+
+1. Revstake has no creator lane (22 c, replacing HQ 80 a). Its swap fee is 1% to Regent and 2% to
+   the launch's splitter, 3.3% in all with the 0.3% Uniswap LP fee. Memestake keeps the 5 October
+   terms: 49.75% sold, 49.75% pooled, 0.5% to the launcher.

@@ -82,10 +82,10 @@
       "runtime_immutable_references": 3,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 37846,
-      "creation_keccak256": "0x6ebb3227cb274830d313ffd204a67d4aaf6f0f506a8a334af885643ef312c323",
-      "creation_sha256": "70fb9e72bad7c901bac2d9a903901edaa867bfc25e5e61e17a7e092900b74075",
-      "creation_object_sha256": "8b1f278a4b12398bacb375f766c59a3706bcfab99deac604ee6bfa46f22f732c",
+      "creation_bytes": 37488,
+      "creation_keccak256": "0x85e2603d71916d1594436c419bce29e35f3ef9ca312ccfcc8bdab1c69c950551",
+      "creation_sha256": "fc4ad3ae8312c173d175c494e73accfd036099fb3bee24cbf3b4788a3281321c",
+      "creation_object_sha256": "26473f5d2a435aae51ca3e01681be12dbd99b3e47b0e50bb85d9d0d5254dbc24",
       "creation_linked_libraries": [],
       "runtime_margin_bytes": 17799,
       "constructor": [
@@ -96,8 +96,8 @@
         "bytes32 hookSalt"
       ],
       "constructor_args_bytes": 160,
-      "initcode_bytes": 38006,
-      "initcode_margin_bytes": 11146
+      "initcode_bytes": 37648,
+      "initcode_margin_bytes": 11504
     },
     {
       "contract": "RegentLBPStrategyV2",
@@ -154,26 +154,26 @@
       "contract": "RegentFeeHook",
       "source": "src/hook/RegentFeeHook.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 5519,
-      "runtime_keccak256": "0xbcefe8c2842f051c4b1e3665d67325c374812140b0b218ad17dc1f3734c47a7f",
-      "runtime_sha256": "48abf133cf49bd6ce9912344681269c73ee8508a6fea05ad892b02d981fc8518",
-      "runtime_object_sha256": "869a2714b4d4e3c1c56aee32aaa391856501f402d199147392b1d1f04597b641",
+      "runtime_bytes": 5168,
+      "runtime_keccak256": "0x70bd3cc329d0c4353492a726918048b47d255904e56cfb0cf8f61bbafd6e76f5",
+      "runtime_sha256": "1af3a54c599fa1b3aef82f5a5d86d27a8643be18d9dac7ac3bbc286755e9dcbb",
+      "runtime_object_sha256": "9e6dba5863b30f30845e0ceae9a3dfb3ca2d395daaaeaaabcff8a14b8ed8f17c",
       "runtime_immutable_references": 2,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 6335,
-      "creation_keccak256": "0xdd1b9a96c6dc11e6c39e7fca01450125f047c75998d9dc8c304b892caf74f2e2",
-      "creation_sha256": "f7eae84baf1c61a6aeacb5cc9cb4234676fc1325d2173d2be2b0252a0ef01d3e",
-      "creation_object_sha256": "e83b2d8668d9a6b6c522ae1b6058773d6b80acea22d64fe2d54322940689be2c",
+      "creation_bytes": 5977,
+      "creation_keccak256": "0xd6d5a2b58c480c4048896d742d0866a7aa38902af07a1e5d7fca1f52fc16f212",
+      "creation_sha256": "20eb5390ba9052ba20816a61358c678ef49126ce989631bda1ee332deac5078d",
+      "creation_object_sha256": "0d514034ce2d08f96b3b55387d69e997ec5f3c8ec6d43ff9b58db8610f963ce6",
       "creation_linked_libraries": [],
-      "runtime_margin_bytes": 19057,
+      "runtime_margin_bytes": 19408,
       "constructor": [
         "address manager_",
         "address strategy_"
       ],
       "constructor_args_bytes": 64,
-      "initcode_bytes": 6399,
-      "initcode_margin_bytes": 42753
+      "initcode_bytes": 6041,
+      "initcode_margin_bytes": 43111
     }
   ],
   "dependency_contracts": [
