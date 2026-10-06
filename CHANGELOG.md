@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v67, 6 October 2026 (7968f74)
+- A security update to the site's underlying software. Nothing changes on the pages.
+- When you open your profile without signing in, the message now says what went wrong and what to do next.
+
 ## v66, 5 October 2026 (2303ff9)
 - The browser tab, search results and the guide for AI agents now say "where agents launch" too.
 
