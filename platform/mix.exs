@@ -8,7 +8,7 @@ defmodule Autolaunch.MixProject do
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "970b5bcf0d283ca7063a43c35e649ee04a5e8022"
   @regents "https://github.com/regents-ai/regents.git"
-  @regents_ref "0d5d18c2f4501a6a5bd00b0bedb005677d8876cc"
+  @regents_ref "004307e65ffcf9cc9b3034d7cc2b015dcd45011b"
 
   def project do
     [
@@ -55,10 +55,12 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.33.0"},
+      {:ash, "~> 3.34 and >= 3.34.3"},
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3"},
-      {:ash_postgres, "~> 2.13"},
+      # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+      # repo's prefix that picks Autolaunch's schema on the shared database.
+      {:ash_postgres, "== 2.13.0"},
       {:ash_oban, "~> 0.8.14"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
