@@ -21,7 +21,8 @@ defmodule Autolaunch.MixProject do
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
-      consolidate_protocols: Mix.env() != :dev
+      consolidate_protocols: Mix.env() != :dev,
+      usage_rules: usage_rules()
     ]
   end
 
@@ -44,6 +45,21 @@ defmodule Autolaunch.MixProject do
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  # `mix usage_rules.sync` writes the marked block at the end of AGENTS.md: how to
+  # read the installed version's docs, and links to each package's own rules in deps/.
+  defp usage_rules do
+    [
+      file: "AGENTS.md",
+      usage_rules: [
+        {:usage_rules, sub_rules: []},
+        {:usage_rules, sub_rules: :all, main: false, link: :markdown},
+        {:ash, link: :markdown},
+        {~r/^ash_/, link: :markdown},
+        {:phoenix, sub_rules: ["phoenix", "liveview", "html"], link: :markdown}
+      ]
+    ]
+  end
 
   # Specifies your project dependencies.
   #
@@ -83,6 +99,8 @@ defmodule Autolaunch.MixProject do
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
+      # In :test too, because precommit runs in :test and checks the synced block.
+      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:telemetry_metrics, "~> 1.0"},
@@ -169,7 +187,8 @@ defmodule Autolaunch.MixProject do
         # resource or check module lands.
         "xref graph --label compile-connected --fail-above 68",
         "test --warnings-as-errors",
-        "ash.codegen --check"
+        "ash.codegen --check",
+        "usage_rules.sync --check"
       ]
     ]
   end
