@@ -1,11 +1,12 @@
 # Base mainnet
 
-`mainnet-no-go-packet.json` was prepared on 5 October 2026 for the 5 October launch terms (the
-0.3% creator lane, founder decisions 80a and 81a), against live Base at block 52222979 for deployer
+`mainnet-no-go-packet.json` was prepared on 6 October 2026 for the 1 October hook lanes kept by
+founder decision 22 c (1% Regent and 2% to the splitter, no creator lane), against live Base at block 52258768 for deployer
 `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 28 (founder decision 1a, 29 September 2026),
-and rehearsed on a Base node after block 52222997. Its digest is
-`0xc006a3afe15d7fa26b88d28c0a6560265a6e390cdfe5cc0d7f82fc82343cdb23`. Nothing may be sent until the
-founder names that digest. The 1 October packet (digest
+and rehearsed on a Base node after block 52258789. Its digest is
+`0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862`. Nothing may be sent until the
+founder names that digest. The 5 October packet (digest
+`0xc006a3afe15d7fa26b88d28c0a6560265a6e390cdfe5cc0d7f82fc82343cdb23`), the 1 October packet (digest
 `0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba`) and the 29 September packet
 (digest `0x78e5…79a2`) were never sent and no longer match the source.
 
@@ -26,7 +27,7 @@ keystore, sender or hardware-wallet variable, or beside a dotenv file.
 Five plain zero-value contract creations from the deployer, in nonce order. The factory's
 constructor then creates the strategy (factory nonce 1), whose constructor creates the LP locker
 (strategy nonce 1), and the fee hook (`CREATE2` over the pinned salt
-`0x…1dd6`, address bits `0x2044`).
+`0x…3b12`, address bits `0x2044`).
 
 | Nonce | Contract | Predicted address | Gas used in rehearsal |
 | --- | --- | --- | --- |
@@ -34,12 +35,12 @@ constructor then creates the strategy (factory nonce 1), whose constructor creat
 | 29 | ConditionalVestingEscrowV2 | `0x8F511153393429468C3861E7cC5341Abb3310871` | 831,431 |
 | 30 | SubjectSplitterV1 | `0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942` | 1,438,247 |
 | 31 | PaymentReceiverV1 | `0xb58f2AF6A588414C6ad44280143db9aE7927d5fc` | 900,720 |
-| 32 | RegentsAutolaunchFactoryV2 | `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` | 7,899,987 |
+| 32 | RegentsAutolaunchFactoryV2 | `0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E` | 7,824,234 |
 | (factory) | RegentLBPStrategyV2 | `0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9` | |
 | (strategy) | RevstakeLPLocker | `0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120` | |
-| (factory) | RegentFeeHook | `0xa0546b145034b222EF229De236e5A94795A26044` | |
+| (factory) | RegentFeeHook | `0x72bE4F7FAE670e42048697e010699316318A2044` | |
 
-13,864,094 gas in all. The factory is born paused. The Governance and Regent Safe is its only
+13,788,341 gas in all. The factory is born paused. The Governance and Regent Safe is its only
 authority; the deployer holds none after the last creation.
 
 The Base Memestake launchpad binds the token factory created at nonce 28 (founder decision 2a), so
@@ -119,7 +120,7 @@ cast call 0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E "launchesPaused()(bool)" --
 Put the five transaction hashes, in nonce order, in a file `{"transactions": ["0x…", …]}` and run:
 
 ```bash
-REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0xc006a3afe15d7fa26b88d28c0a6560265a6e390cdfe5cc0d7f82fc82343cdb23
+REGENT_BASE_RPC_URL=https://mainnet.base.org python3 ../stocks-v2/bin/ceremony.py record --receipts receipts.json --approved-digest 0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862
 ```
 
 It checks every receipt against the packet, proves all eight contracts' code against the frozen
