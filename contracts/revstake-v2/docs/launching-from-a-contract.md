@@ -8,7 +8,7 @@ below are live on Base mainnet); the factory is born paused until the switch-on 
 | Step | State |
 | --- | --- |
 | Base Revstake (five creations, deployer `0x9b2C…6031`, nonces 28–32) | Deployed 6 October 2026 at Base blocks 52267808 to 52268160 from packet digest `0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862`, sent by the founder; recorded in `deployments/base-mainnet/deployed-manifest.json`. |
-| Base Memestake v2 | Next: it binds the token factory created at nonce 28 (`0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08`), now live. Its packet is prepared and rehearsed next and needs its own founder go. |
+| Base Memestake v2 | Packet digest `0x94fac84efc322f6ed6fe2a32d61acf51f4215cc78cae51ed01dfa3cea3db2e65` (twelve creations, nonces 33–44, binding the token factory `0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08`) awaits the founder's go; see `contracts/stocks-v2/deployments/base-mainnet/README.md`. |
 | Robinhood Memestake v2 | Waits for Base Memestake: its revenue receiver points at Base. A trial prepare and rehearse succeeded. |
 | Switch-on | The Governance Safe `0x9fa1…9a3e` sends one batch that unpauses the v2 factory and the v2 Memestake launchpad and pauses both v1 entry points (see `deployments/base-mainnet/README.md`). |
 | Website | `feat/v2-site` is built on these ABIs and held for release. |
