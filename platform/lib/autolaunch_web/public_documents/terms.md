@@ -196,4 +196,4 @@ Sections that by their nature should survive termination will survive, including
 **Regents Labs, Inc.**  
 Email: **[legal@regents.sh](mailto:legal@regents.sh)**
 
-For security reports, use **[security@regents.sh](mailto:security@regents.sh)**. Do not include private keys, recovery phrases, or unnecessary personal data.
+For security reports, use **[build@regents.sh](mailto:build@regents.sh)**. Do not include private keys, recovery phrases, or unnecessary personal data.

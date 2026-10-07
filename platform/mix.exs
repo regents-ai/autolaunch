@@ -6,9 +6,9 @@ defmodule Autolaunch.MixProject do
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "0b4496ece5359ff93288cf695715e703b7c25a87"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "970b5bcf0d283ca7063a43c35e649ee04a5e8022"
+  @design_system_ref "4da6db2bfe3559a8f8a761018dc099a28ab5f6a3"
   @regents "https://github.com/regents-ai/regents.git"
-  @regents_ref "0d5d18c2f4501a6a5bd00b0bedb005677d8876cc"
+  @regents_ref "004307e65ffcf9cc9b3034d7cc2b015dcd45011b"
 
   def project do
     [
@@ -21,7 +21,8 @@ defmodule Autolaunch.MixProject do
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
-      consolidate_protocols: Mix.env() != :dev
+      consolidate_protocols: Mix.env() != :dev,
+      usage_rules: usage_rules()
     ]
   end
 
@@ -45,6 +46,21 @@ defmodule Autolaunch.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
+  # `mix usage_rules.sync` writes the marked block at the end of AGENTS.md: how to
+  # read the installed version's docs, and links to each package's own rules in deps/.
+  defp usage_rules do
+    [
+      file: "AGENTS.md",
+      usage_rules: [
+        {:usage_rules, sub_rules: []},
+        {:usage_rules, sub_rules: :all, main: false, link: :markdown},
+        {:ash, link: :markdown},
+        {~r/^ash_/, link: :markdown},
+        {:phoenix, sub_rules: ["phoenix", "liveview", "html"], link: :markdown}
+      ]
+    ]
+  end
+
   # Specifies your project dependencies.
   #
   # Type `mix help deps` for examples and options.
@@ -55,10 +71,12 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.33.0"},
+      {:ash, "~> 3.34 and >= 3.34.3"},
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3"},
-      {:ash_postgres, "~> 2.13"},
+      # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+      # repo's prefix that picks Autolaunch's schema on the shared database.
+      {:ash_postgres, "== 2.13.0"},
       {:ash_oban, "~> 0.8.14"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
@@ -82,6 +100,8 @@ defmodule Autolaunch.MixProject do
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
+      # In :test too, because precommit runs in :test and checks the synced block.
+      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:telemetry_metrics, "~> 1.0"},
@@ -168,7 +188,8 @@ defmodule Autolaunch.MixProject do
         # resource or check module lands.
         "xref graph --label compile-connected --fail-above 68",
         "test --warnings-as-errors",
-        "ash.codegen --check"
+        "ash.codegen --check",
+        "usage_rules.sync --check"
       ]
     ]
   end

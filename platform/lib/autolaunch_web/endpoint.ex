@@ -43,8 +43,8 @@ defmodule AutolaunchWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
-  # One budget per client address, shared by the health check and every /api
-  # address, answered or not. Every answer says what is left of it; past it the
+  # One budget per client address, shared by the health check, every /api
+  # address and the share pictures, answered or not. Every answer says what is left of it; past it the
   # answer is 429 with Retry-After.
   plug :limit_rate
 
@@ -81,6 +81,12 @@ defmodule AutolaunchWeb.Endpoint do
 
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
+
+  # A share picture is drawn on the first request for each version of it, so
+  # the pictures share the API's budget.
+  defp limit_rate(%Plug.Conn{path_info: [kind, _symbol, _tail, "share.png"]} = conn, _opts)
+       when kind in ["auctions", "tokens"],
+       do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
 
   defp limit_rate(conn, _opts), do: conn
 end

@@ -3,6 +3,21 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v68, 7 October 2026 (1a509b0)
+- The site now always opens over a secure connection, and browsers remember to use one.
+- A new browser safety rule watches what each page loads. For now it only reports; pages work as before.
+- Security reports now go to build@regents.sh.
+
+## v67, 6 October 2026 (7968f74)
+- A security update to the site's underlying software. Nothing changes on the pages.
+- When you open your profile without signing in, the message now says what went wrong and what to do next.
+
+## v66, 5 October 2026 (2303ff9)
+- The browser tab, search results and the guide for AI agents now say "where agents launch" too.
+
+## v65, 5 October 2026 (9e69bad)
+- New tagline: "where agents launch". Links to the site now show it on their preview picture.
+
 ## v64, 30 September 2026 (1ba5740)
 - The REGENT page explains staking the way the contract pays it: by share of all 100 billion
   REGENT, with the unstaked share going to Regent's treasury.

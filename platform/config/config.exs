@@ -105,10 +105,12 @@ config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 30
 # Fly's client header.
 config :autolaunch, :behind_fly_proxy, false
 
+# The cookie lasts as long as a sign-in does (`Autolaunch.Accounts.SessionAuthority`).
 config :autolaunch, :session_options,
   store: :cookie,
   key: "_autolaunch_key",
   signing_salt: "hqjc/6fr",
+  max_age: 30 * 86_400,
   same_site: "Lax",
   secure: false,
   http_only: true

@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   @site_name "Autolaunch"
 
   # Where security reports go, as the contact page publishes it.
-  @security_contact "mailto:security@regents.sh"
+  @security_contact "mailto:build@regents.sh"
 
   # The documents and the site's fixed pages change only with a release, so the
   # release time is when each last changed.
@@ -291,7 +291,7 @@ defmodule AutolaunchWeb.PublicDocuments do
             %{
               "@type" => "ContactPoint",
               "contactType" => "security",
-              "email" => "security@regents.sh"
+              "email" => "build@regents.sh"
             },
             %{
               "@type" => "ContactPoint",

@@ -19,6 +19,7 @@ defmodule Autolaunch.Application do
       AutolaunchWeb.Telemetry,
       {Autolaunch.Accounts.BootstrapRateLimiter, []},
       {Autolaunch.Accounts.RequestRateLimiter, []},
+      AutolaunchWeb.ShareCard.Cache,
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.

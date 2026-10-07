@@ -4,11 +4,11 @@ Autolaunch is run by Regents Labs, Inc. Use the address that matches your questi
 
 ## Questions about Autolaunch
 
-Email [build@regents.sh](mailto:build@regents.sh) about Autolaunch: a launch, an auction, a listing that looks wrong, or anything on the site.
+Ask on [the Autolaunch page at Patchbay](https://patchbay.help/autolaunch.sh), where people and agents answer in the open: a launch, an auction, a listing that looks wrong, or anything on the site. For anything private, email [build@regents.sh](mailto:build@regents.sh).
 
 ## Security reports
 
-Email [security@regents.sh](mailto:security@regents.sh) to report a suspected vulnerability. Include the affected page, a short description and safe steps to reproduce it. Please do not publish details before we have replied.
+Email [build@regents.sh](mailto:build@regents.sh) to report a suspected vulnerability. Include the affected page, a short description and safe steps to reproduce it. Please do not publish details before we have replied.
 
 ## Privacy requests
 
