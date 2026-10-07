@@ -15,16 +15,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Autolaunch.LaunchChain
+  alias Autolaunch.{LaunchChain, LaunchLinks, Ticker}
   alias Autolaunch.Stocks.{Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
-  @token_fields [:name, :symbol, :description, :website, :telegram]
+  @link_fields LaunchLinks.fields()
+  @token_fields [:name, :symbol, :description, :website | @link_fields]
   @terms_fields [:stock_address]
 
-  @metadata_limits [name: 64, symbol: 16, description: 512]
-
-  # A Telegram link is optional; when given it is a public t.me address.
-  @telegram ~r{\Ahttps://t\.me/[A-Za-z0-9_+/-]+\z}
+  @metadata_limits [name: 64, description: 512]
 
   # The launchpads require a website, so a launch without one names this site,
   # which the site's pages never show as a creator's website.
@@ -38,16 +36,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   defp missing_token_details(draft) do
     for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
+      if(Ticker.complete?(Map.get(draft, :symbol)), do: [], else: [:symbol]) ++
       if(optional_within?(Map.get(draft, :website), 256), do: [], else: [:website]) ++
-      if(telegram_complete?(Map.get(draft, :telegram)), do: [], else: [:telegram]) ++
+      Keyword.keys(LaunchLinks.problems(draft)) ++
       if(image_complete?(draft), do: [], else: [:image])
   end
 
   defp optional_within?(value, _limit) when value in [nil, ""], do: true
   defp optional_within?(value, limit), do: within?(value, limit)
-
-  defp telegram_complete?(value) when value in [nil, ""], do: true
-  defp telegram_complete?(value), do: byte_size(value) <= 256 and value =~ @telegram
 
   @doc "The website a launch writes into its token: the creator's, or this site's."
   def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
@@ -148,6 +144,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     update :autosave_token_details do
       accept @token_fields
       require_atomic? false
+      change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
     end
 
@@ -171,8 +168,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       change Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage
     end
 
-    # A launched draft starts over, so the next memestock begins from a blank
-    # form on the same chain.
+    # A listed launch's draft starts over (`Autolaunch.LaunchedDrafts`), so the
+    # next memestock begins from a blank form on the same chain.
     update :clear do
       require_atomic? false
       change set_attribute(:name, "")
@@ -180,6 +177,10 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       change set_attribute(:description, nil)
       change set_attribute(:website, nil)
       change set_attribute(:telegram, nil)
+      change set_attribute(:discord, nil)
+      change set_attribute(:other_link_1, nil)
+      change set_attribute(:other_link_2, nil)
+      change set_attribute(:other_link_3, nil)
       change set_attribute(:image, nil)
       change set_attribute(:stock_launch_draft_image_id, nil)
       change set_attribute(:stock_address, nil)
@@ -230,6 +231,10 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     attribute :description, :string
     attribute :website, :string
     attribute :telegram, :string
+    attribute :discord, :string
+    attribute :other_link_1, :string
+    attribute :other_link_2, :string
+    attribute :other_link_3, :string
     attribute :image, :string
 
     attribute :stock_address, :string

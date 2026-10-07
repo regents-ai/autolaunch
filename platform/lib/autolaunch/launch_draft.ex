@@ -1,5 +1,5 @@
 defmodule Autolaunch.LaunchDraft do
-  alias Autolaunch.{LaunchDraftImage, LaunchDraftImageStorage}
+  alias Autolaunch.{LaunchDraftImage, LaunchDraftImageStorage, LaunchLinks, Ticker}
 
   use Ash.Resource,
     otp_app: :autolaunch,
@@ -7,12 +7,7 @@ defmodule Autolaunch.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @account_token_fields [
-    :name,
-    :symbol,
-    :description,
-    :website
-  ]
+  @account_token_fields [:name, :symbol, :description, :website | LaunchLinks.fields()]
 
   @treasury_fields [
     :treasury,
@@ -20,31 +15,48 @@ defmodule Autolaunch.LaunchDraft do
     :eoa_acknowledgement
   ]
 
-  @account_clean_v1_fields @account_token_fields ++ @treasury_fields
+  @draft_fields @account_token_fields ++ @treasury_fields
 
   @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
-  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
+  @metadata_limits [name: 64, description: 512]
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
   @zero_address "0x" <> String.duplicate("0", 40)
 
+  # The factory requires a website, so a launch without one names this site,
+  # which the site's pages never show as a creator's website.
+  @site_website "https://autolaunch.sh"
+
   @doc "Whether the persisted token metadata stage is ready for launch review."
   def token_details_complete?(draft) do
-    Enum.all?(@metadata_limits, fn {field, limit} ->
-      value = Map.get(draft, field)
-      is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
-    end) and image_complete?(draft)
+    Enum.all?(@metadata_limits, fn {field, limit} -> within?(Map.get(draft, field), limit) end) and
+      Ticker.complete?(Map.get(draft, :symbol)) and website_complete?(Map.get(draft, :website)) and
+      LaunchLinks.problems(draft) == [] and image_complete?(draft)
   end
+
+  defp website_complete?(website) when website in [nil, ""], do: true
+  defp website_complete?(website), do: within?(website, 256)
 
   @doc "Whether the persisted treasury stage is ready for launch review."
   def treasury_complete?(draft) do
-    treasury = Map.get(draft, :treasury)
     path = Map.get(draft, :treasury_path)
 
-    is_binary(treasury) and Regex.match?(@address, treasury) and
-      String.downcase(treasury) != @zero_address and path in [:safe, :contract, :eoa] and
+    treasury_address?(Map.get(draft, :treasury)) and path in [:safe, :contract, :eoa] and
       (path != :eoa or Map.get(draft, :eoa_acknowledgement) == @eoa_acknowledgement)
   end
+
+  @doc "Whether `treasury` is a whole address a launch can send to."
+  def treasury_address?(treasury),
+    do:
+      is_binary(treasury) and Regex.match?(@address, treasury) and
+        String.downcase(treasury) != @zero_address
+
+  @doc "The website a launch writes into its token: the creator's, or this site's."
+  def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
+  def onchain_website(%{website: website}), do: website
+
+  defp within?(value, limit),
+    do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
 
   @doc "Whether both persisted preparation stages are complete."
   def launch_ready?(draft), do: token_details_complete?(draft) and treasury_complete?(draft)
@@ -81,7 +93,7 @@ defmodule Autolaunch.LaunchDraft do
 
   actions do
     create :create_for_owner do
-      accept @account_clean_v1_fields
+      accept @draft_fields
       change Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
       validate Autolaunch.LaunchDraft.Validations.PartialFields
       change Autolaunch.LaunchDraft.Changes.AssignOwner
@@ -121,6 +133,7 @@ defmodule Autolaunch.LaunchDraft do
     update :autosave_token_details do
       accept @account_token_fields
       require_atomic? false
+      change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.LaunchDraft.Validations.PartialFields
     end
 
@@ -136,14 +149,24 @@ defmodule Autolaunch.LaunchDraft do
       change Autolaunch.LaunchDraft.Changes.AttachOwnedImage
     end
 
-    update :revise_by_owner do
-      accept @account_clean_v1_fields
+    # A listed launch's draft starts over (`Autolaunch.LaunchedDrafts`), so the
+    # form is blank again.
+    update :clear do
       require_atomic? false
-      validate Autolaunch.LaunchDraft.Validations.AccountOwnedImage
-      validate Autolaunch.LaunchDraft.Validations.CleanV1Fields
-
-      validate attribute_equals(:eoa_acknowledgement, @eoa_acknowledgement),
-        where: [attribute_equals(:treasury_path, :eoa)]
+      change set_attribute(:name, "")
+      change set_attribute(:symbol, "")
+      change set_attribute(:description, nil)
+      change set_attribute(:website, nil)
+      change set_attribute(:telegram, nil)
+      change set_attribute(:discord, nil)
+      change set_attribute(:other_link_1, nil)
+      change set_attribute(:other_link_2, nil)
+      change set_attribute(:other_link_3, nil)
+      change set_attribute(:image, nil)
+      change set_attribute(:launch_draft_image_id, nil)
+      change set_attribute(:treasury, nil)
+      change set_attribute(:treasury_path, :safe)
+      change set_attribute(:eoa_acknowledgement, nil)
     end
   end
 
@@ -157,7 +180,7 @@ defmodule Autolaunch.LaunchDraft do
              :autosave_token_details,
              :autosave_treasury,
              :attach_image,
-             :revise_by_owner
+             :clear
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
@@ -170,7 +193,7 @@ defmodule Autolaunch.LaunchDraft do
              :autosave_token_details,
              :autosave_treasury,
              :attach_image,
-             :revise_by_owner
+             :clear
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
@@ -200,6 +223,11 @@ defmodule Autolaunch.LaunchDraft do
     end
 
     attribute :website, :string, public?: true
+    attribute :telegram, :string, public?: true
+    attribute :discord, :string, public?: true
+    attribute :other_link_1, :string, public?: true
+    attribute :other_link_2, :string, public?: true
+    attribute :other_link_3, :string, public?: true
     attribute :image, :string, public?: true
     attribute :treasury, :string, public?: true
 

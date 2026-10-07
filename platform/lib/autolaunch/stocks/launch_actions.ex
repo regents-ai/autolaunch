@@ -20,7 +20,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Client, Rpc}
-  alias Autolaunch.{LabAbi, LaunchChain}
+  alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.{Address, Review}
 
@@ -226,6 +226,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "description" => fields.description,
         "website" => fields.website,
         "telegram" => fields.telegram,
+        "discord" => fields.discord,
+        "links" => fields.links,
         "image" => fields.image,
         "stock" => fields.stock,
         "stock_symbol" => fields.stock_symbol,
@@ -305,6 +307,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
          description: draft.description,
          website: LaunchDraft.onchain_website(draft),
          telegram: draft.telegram,
+         discord: draft.discord,
+         links: LaunchLinks.others(draft),
          image: draft.image,
          stock: stock,
          stock_symbol: asset.symbol

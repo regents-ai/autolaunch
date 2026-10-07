@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Stocks
+  alias Autolaunch.{Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
   alias RegentChain.Address
@@ -44,6 +44,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
         stocks_lab: stocks_lab(),
         market: %{prices: %{}, venues: []},
         live_memestake?: false,
+        reviewing?: false,
+        ticker_taken?: false,
         status: :loading
       )
 
@@ -78,6 +80,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
            |> load_draft(actor)
            |> choose_linked_stock()
            |> assign_market()
+           |> assign_ticker_taken()
          else
            socket
          end}
@@ -129,7 +132,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
           )
       end
 
-    {:noreply, keep(socket)}
+    {:noreply, socket |> assign_ticker_taken() |> keep()}
   end
 
   def handle_event("choose_chain", %{"chain" => chain}, socket) when is_map_key(@chains, chain) do
@@ -157,10 +160,13 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   # What a visitor typed while signed out, handed back by this tab. Signed in,
   # it goes into the account's draft through the same saves as typing it
-  # would, except while the account's live auction keeps the form locked;
-  # signed out, it refills the unsaved form after a reload.
+  # would; signed out, it refills the unsaved form after a reload. While the
+  # account's live auction keeps the form locked, or the draft could not be
+  # read, nothing is taken and the tab keeps the values for a later visit.
   def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values) do
-    {:noreply, restore(socket, values)}
+    if taken?(socket),
+      do: {:reply, %{taken: true}, restore(socket, values)},
+      else: {:reply, %{taken: false}, socket}
   end
 
   # The X connect button reloads the socials panel once the account is linked.
@@ -177,10 +183,21 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  # A launch card opened its review, so the saved note no longer describes
-  # what this page is doing and comes down.
+  # A launch card opened its review: the details lock so the review always
+  # matches them, and the saved note no longer describes what this page is
+  # doing and comes down. Once the review closes they open again, read anew,
+  # blank when the launch was listed.
   def handle_info({:launch_review, :open}, socket),
-    do: {:noreply, assign(socket, draft_notice: nil)}
+    do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
+
+  def handle_info({:launch_review, :closed}, socket) do
+    socket = assign(socket, reviewing?: false)
+
+    case human_actor(socket) do
+      nil -> {:noreply, socket}
+      actor -> {:noreply, socket |> load_draft(actor) |> assign_ticker_taken()}
+    end
+  end
 
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
@@ -234,8 +251,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp unsaved_notice(_socket),
     do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
 
-  defp restore(%{assigns: %{live_memestake?: true}} = socket, _values), do: socket
-  defp restore(%{assigns: %{status: :error}} = socket, _values), do: socket
+  defp taken?(%{assigns: %{live_memestake?: live?, status: status}}),
+    do: not live? and status != :error
 
   defp restore(socket, values) do
     values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
@@ -252,6 +269,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     )
     |> choose_linked_stock()
     |> assign_market()
+    |> assign_ticker_taken()
     |> keep()
   end
 
@@ -367,13 +385,12 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
-  # A draft last saved before the account's newest Memestake auction was
-  # launched as that auction, so it starts over; while that auction is still
-  # live the form stays locked.
+  # While the account's newest Memestake auction is live the details stay
+  # locked. A listed launch's draft was already started over
+  # (`Autolaunch.LaunchedDrafts`).
   defp load_draft(socket, %Human{human_account_id: id} = actor) do
     with {:ok, auction} <- Autolaunch.latest_memestake_auction(id),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, draft} <- start_over_after(draft, auction, actor) do
+         {:ok, draft} <- current_or_new_draft(actor) do
       socket
       |> assign_draft(draft)
       |> assign(live_memestake?: live?(auction))
@@ -381,14 +398,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
       {:error, _error} -> assign(socket, status: :error)
     end
   end
-
-  defp start_over_after(draft, %{inserted_at: launched_at}, actor) do
-    if DateTime.before?(draft.updated_at, launched_at),
-      do: Autolaunch.clear_stocks_launch_draft(draft, actor: actor),
-      else: {:ok, draft}
-  end
-
-  defp start_over_after(draft, nil, _actor), do: {:ok, draft}
 
   defp live?(%{state: state}), do: state in [:created, :active]
   defp live?(nil), do: false
@@ -410,6 +419,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   defp choose_linked_stock(socket), do: socket
+
+  defp assign_ticker_taken(socket),
+    do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
 
   defp assign_draft(socket, draft) do
     assign(socket,

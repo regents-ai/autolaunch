@@ -19,7 +19,7 @@ defmodule AutolaunchWeb.Components.ImagePicker do
       <button type="button" class="image-upload__box" data-account-target="sign-in">
         <span class="image-upload__text">
           <strong>Sign in to add an image</strong>
-          <span>PNG, JPEG or WebP, up to 2 MB · 400 × 400 px</span>
+          <span>PNG, JPEG or WebP, up to 2 MB · square works best</span>
         </span>
       </button>
     </div>
@@ -53,7 +53,7 @@ defmodule AutolaunchWeb.Components.ImagePicker do
         <span class="image-upload__text">
           <strong>{if @image == "", do: "Choose image", else: "Replace image"}</strong>
           <span :for={entry <- @upload.entries}>Uploading · {entry.progress}%</span>
-          <span :if={@upload.entries == []}>PNG, JPEG or WebP, up to 2 MB · 400 × 400 px</span>
+          <span :if={@upload.entries == []}>PNG, JPEG or WebP, up to 2 MB · square works best</span>
         </span>
         <.live_file_input upload={@upload} class="visually-hidden" />
       </label>

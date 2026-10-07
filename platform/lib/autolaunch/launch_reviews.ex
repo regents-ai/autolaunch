@@ -16,7 +16,7 @@ defmodule Autolaunch.LaunchReviews do
   require Ash.Query
 
   alias Autolaunch.Actors.System
-  alias Autolaunch.{LabProjection, LaunchChainClient, LaunchOperation}
+  alias Autolaunch.{LabProjection, LaunchChainClient, LaunchedDrafts, LaunchOperation}
   alias Autolaunch.Stocks.LabLaunchChainClient
   alias Autolaunch.Stocks.LabProjection, as: StocksLabProjection
   alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
@@ -80,13 +80,15 @@ defmodule Autolaunch.LaunchReviews do
   end
 
   # Under the review's lock, so a page's confirmation and discovery of the same
-  # launch are one after the other. The listing's notifications are sent once
-  # the transaction has committed.
+  # launch are one after the other. The account's draft starts over with the
+  # listing. The listing's notifications are sent once the transaction has
+  # committed.
   defp adopt(kind, id, result) do
     Ash.transaction(resource(kind), fn ->
       with {:ok, review} <- locked(kind, id),
            {:ok, notifications} <- project(kind, review, result),
-           {:ok, review} <- verified(review, result) do
+           {:ok, review} <- verified(review, result),
+           :ok <- start_over(kind, review) do
         {review.human_account_id, result, notifications}
       else
         {:error, reason} -> Ash.DataLayer.rollback(resource(kind), reason)
@@ -118,6 +120,12 @@ defmodule Autolaunch.LaunchReviews do
   end
 
   defp verified(review, _result), do: {:ok, review}
+
+  defp start_over(kind, %{human_account_id: account_id, review: %{"facts" => facts}}),
+    do: LaunchedDrafts.clear(draft_kind(kind), account_id, facts["name"], facts["symbol"])
+
+  defp draft_kind(:launch), do: :revstake
+  defp draft_kind(:stocks_launch), do: :memestake
 
   defp project(:launch, review, result), do: LabProjection.project_launch(review, result)
 

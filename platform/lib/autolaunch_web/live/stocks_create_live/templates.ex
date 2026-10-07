@@ -11,14 +11,17 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
+  alias AutolaunchWeb.DraftMarks
   alias Phoenix.LiveView.JS
 
+  @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
+
   @sections %{
-    "autosave_stocks_token_details" => ~w(name symbol description website telegram),
+    "autosave_stocks_token_details" => ~w(name symbol description website) ++ @link_params,
     "autosave_stocks_terms" => ~w(stock_address)
   }
 
-  @stored_params ~w(name symbol description website telegram image stock_address)
+  @stored_params ~w(name symbol description website) ++ @link_params ++ ~w(image stock_address)
 
   def section_params(event), do: Map.fetch!(@sections, event)
   def draft_field_params, do: @stored_params
@@ -51,6 +54,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
   attr :status, :atom, default: :ready
+  attr :live_memestake?, :boolean, default: false
+  attr :reviewing?, :boolean, default: false
+  attr :ticker_taken?, :boolean, default: false
 
   def create(assigns) do
     draft = assigns.draft
@@ -60,7 +66,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       assigns
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
       |> assign(:missing, LaunchDraft.missing(draft || %{}))
-      |> assign(:detail_errors, detail_errors(assigns.draft_errors, draft))
+      |> assign(:detail_errors, DraftMarks.marked(assigns.draft_errors, assigns.draft_values))
+      |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
       |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.configured?())
       |> assign(
         :stock,
@@ -85,7 +92,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           <p :if={@live_memestake?} id="memestock-locked" class="memestock__locked" role="status">
             Only one Memestake auction can be live per account
           </p>
-          <fieldset class="memestock__lock" disabled={@live_memestake?}>
+          <fieldset class="create-page__lock" disabled={@live_memestake? || @reviewing?}>
             <form
               id="stocks-token-details"
               class="create-page__fields"
@@ -104,6 +111,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   form_id="stocks-token-details"
                   param="symbol"
                   label="Ticker"
+                  hint={@ticker_taken? && "Another launch already uses this ticker."}
                   values={@draft_values}
                   errors={@detail_errors}
                 />
@@ -122,26 +130,53 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 image={@draft_values["image"]}
                 notice={@image_notice}
               />
-              <div class="create-page__pair">
+              <.draft_field
+                form_id="stocks-token-details"
+                param="website"
+                label="Website"
+                optional
+                placeholder="https://"
+                values={@draft_values}
+                errors={@detail_errors}
+              />
+              <Regent.Primitives.disclosure
+                id="stocks-token-links"
+                summary="More links"
+                class="create-page__more"
+                open={@links_given?}
+                phx-mounted={JS.ignore_attributes(["open"])}
+              >
+                <div class="create-page__pair">
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="telegram"
+                    label="Telegram"
+                    optional
+                    placeholder="https://t.me/yourgroup"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="discord"
+                    label="Discord"
+                    optional
+                    placeholder="https://discord.gg/invite"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                </div>
                 <.draft_field
+                  :for={param <- ~w(other_link_1 other_link_2 other_link_3)}
                   form_id="stocks-token-details"
-                  param="website"
-                  label="Website"
+                  param={param}
+                  label="Other link"
                   optional
                   placeholder="https://"
                   values={@draft_values}
                   errors={@detail_errors}
                 />
-                <.draft_field
-                  form_id="stocks-token-details"
-                  param="telegram"
-                  label="Telegram"
-                  optional
-                  placeholder="https://t.me/yourgroup"
-                  values={@draft_values}
-                  errors={@detail_errors}
-                />
-              </div>
+              </Regent.Primitives.disclosure>
             </form>
 
             <.live_component
@@ -207,72 +242,72 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 </p>
               </div>
             </form>
-
-            <div id="stocks-transactions" class="create-page__launch">
-              <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
-                Robinhood launches are not open yet.
-                <span :if={@current_human_id}>
-                  Your draft is saved and will be ready to launch here when they open.
-                </span>
-              </p>
-              <Regent.Primitives.button
-                :if={!@current_human_id}
-                type="button"
-                class="create-page__launch-button"
-                data-account-target="sign-in"
-              >
-                Sign in to save and launch
-              </Regent.Primitives.button>
-              <p :if={!@current_human_id} class="create-page__hint">
-                Nothing is saved until you sign in. What you have entered comes with you.
-              </p>
-              <.live_component
-                :if={@launch_chain == :robinhood && @robinhood_open? && @launch_ready?}
-                module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
-                id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
-                draft={@draft}
-                current_human_id={@current_human_id}
-                session_lease={@session_lease}
-              />
-              <.live_component
-                :if={@launch_chain == :base && @launch_ready?}
-                module={AutolaunchWeb.StocksLaunchWalletComponent}
-                id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
-                draft={@draft}
-                authenticated
-                current_human_id={@current_human_id}
-                session_lease={@session_lease}
-              />
-              <Regent.Primitives.button
-                :if={
-                  @current_human_id && (@launch_chain == :base || @robinhood_open?) && !@launch_ready?
-                }
-                type="button"
-                class="create-page__launch-button"
-                disabled
-              >
-                Still needed: {missing_label(@missing)}
-              </Regent.Primitives.button>
-              <p
-                :if={@draft_notice}
-                class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
-                role={if @draft_notice.tone == :error, do: "alert", else: "status"}
-              >
-                {@draft_notice.message}
-              </p>
-            </div>
-
+          </fieldset>
+          <div id="stocks-transactions" class="create-page__launch">
+            <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
+              Robinhood launches are not open yet.
+              <span :if={@current_human_id}>
+                Your draft is saved and will be ready to launch here when they open.
+              </span>
+            </p>
+            <Regent.Primitives.button
+              :if={!@current_human_id}
+              type="button"
+              class="create-page__launch-button"
+              data-account-target="sign-in"
+            >
+              Sign in to save and launch
+            </Regent.Primitives.button>
+            <p :if={!@current_human_id} class="create-page__hint">
+              Nothing is saved until you sign in. What you have entered comes with you.
+            </p>
             <.live_component
-              :if={
-                @current_human_id && @launch_chain == :base &&
-                  AutolaunchWeb.TestFundsComponent.available?()
-              }
-              module={AutolaunchWeb.TestFundsComponent}
-              id="autolaunch-test-funds"
+              :if={@launch_chain == :robinhood && @robinhood_open? && (@launch_ready? || @reviewing?)}
+              module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
+              id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
+              draft={@draft}
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-          </fieldset>
+            <.live_component
+              :if={@launch_chain == :base && (@launch_ready? || @reviewing?)}
+              module={AutolaunchWeb.StocksLaunchWalletComponent}
+              id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
+              draft={@draft}
+              authenticated
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
+            <Regent.Primitives.button
+              :if={
+                @current_human_id && (@launch_chain == :base || @robinhood_open?) && !@launch_ready? &&
+                  !@reviewing?
+              }
+              type="button"
+              class="create-page__launch-button"
+              disabled
+            >
+              Still needed: {missing_label(@missing)}
+            </Regent.Primitives.button>
+            <p
+              :if={@draft_notice}
+              class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
+              role={if @draft_notice.tone == :error, do: "alert", else: "status"}
+            >
+              {@draft_notice.message}
+            </p>
+          </div>
+
+          <.live_component
+            :if={
+              @current_human_id && @launch_chain == :base &&
+                AutolaunchWeb.TestFundsComponent.available?()
+            }
+            module={AutolaunchWeb.TestFundsComponent}
+            id="autolaunch-test-funds"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+          />
         </section>
 
         <aside
@@ -391,15 +426,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     """
   end
 
-  # A Telegram link saves as typed; until it is a t.me link, the field says so.
-  defp detail_errors(errors, %LaunchDraft{} = draft) do
-    if :telegram in LaunchDraft.missing(draft),
-      do: Map.put_new(errors, "telegram", "Use a link that starts with https://t.me/"),
-      else: errors
-  end
-
-  defp detail_errors(errors, nil), do: errors
-
   defp pay_line(:base, stock),
     do: "Bidders pay in #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
 
@@ -456,6 +482,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     description: "description",
     website: "website",
     telegram: "a t.me Telegram link",
+    discord: "a Discord invite link",
+    other_link_1: "a full https:// link",
+    other_link_2: "a full https:// link",
+    other_link_3: "a full https:// link",
     image: "image",
     stock_address: "paired stock"
   }

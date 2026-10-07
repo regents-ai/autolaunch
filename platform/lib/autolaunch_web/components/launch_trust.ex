@@ -37,7 +37,9 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         wallet: auction.creator_address,
         accounts: accounts(assigns.connections),
         website: MarketCard.web_link(auction.website),
-        telegram: telegram_link(auction.telegram),
+        telegram: named_link(auction.telegram),
+        discord: named_link(auction.discord),
+        links: Enum.flat_map(auction.links, &List.wrap(MarketCard.web_link(&1))),
         contracts: contracts(auction, assigns.pool),
         split: split(auction),
         supply: supply(auction.token_supply),
@@ -84,12 +86,17 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
               <span class="launch-trust__muted">Named by the creator, not checked</span>
             </dd>
           </div>
-          <div :if={@telegram}>
-            <dt>Telegram</dt>
+          <div :for={{label, link} <- [{"Telegram", @telegram}, {"Discord", @discord}]} :if={link}>
+            <dt>{label}</dt>
             <dd>
-              <a href={@telegram.url} target="_blank" rel="noopener noreferrer nofollow">
-                {@telegram.label}
-              </a>
+              <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">{link.label}</a>
+              <span class="launch-trust__muted">Named by the creator, not checked</span>
+            </dd>
+          </div>
+          <div :for={link <- @links}>
+            <dt>Link</dt>
+            <dd>
+              <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">{link.label}</a>
               <span class="launch-trust__muted">Named by the creator, not checked</span>
             </dd>
           </div>
@@ -239,9 +246,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   # Each account kind the creator could connect, with the matching accounts
   # or nil for a kind they have not connected; Company X only when there is one.
-  # A creator's Telegram community as a link and its t.me label.
-  defp telegram_link("https://" <> label = url), do: %{url: url, label: label}
-  defp telegram_link(_url), do: nil
+  # A creator's Telegram group or Discord invite as a link, labelled by its
+  # address without https://.
+  defp named_link("https://" <> label = url), do: %{url: url, label: label}
+  defp named_link(_url), do: nil
 
   defp accounts(nil), do: nil
 

@@ -23,7 +23,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, Rpc}
-  alias Autolaunch.{LabAbi, LaunchChain}
+  alias Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
   alias Autolaunch.Robinhood.{Lab, StocksLaunchChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
 
@@ -152,7 +152,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           name: fields.name,
           symbol: fields.symbol,
           stock: String.downcase(fields.stock),
-          telegram: fields.telegram
+          telegram: fields.telegram,
+          discord: fields.discord,
+          links: fields.links
         },
         actor: %Autolaunch.Actors.System{}
       )
@@ -204,6 +206,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          description: draft.description,
          website: LaunchDraft.onchain_website(draft),
          telegram: draft.telegram,
+         discord: draft.discord,
+         links: LaunchLinks.others(draft),
          image: draft.image,
          stock: stock,
          stock_symbol: asset.symbol
@@ -246,6 +250,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         "draft_id" => draft.id,
         "name" => fields.name,
         "symbol" => fields.symbol,
+        "description" => fields.description,
+        "website" => fields.website,
+        "image" => fields.image,
         "stock" => fields.stock,
         "stock_symbol" => fields.stock_symbol,
         "stock_decimals" => Integer.to_string(executable.stock_decimals),

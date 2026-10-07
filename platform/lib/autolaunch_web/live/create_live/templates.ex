@@ -7,28 +7,79 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.ImagePicker
 
   alias Autolaunch.LaunchDraft
+  alias AutolaunchWeb.DraftMarks
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
   @token_detail_fields [
-    %{key: :name, param: "name", label: "Name", kind: :text, hint: nil},
-    %{key: :symbol, param: "symbol", label: "Ticker", kind: :text, hint: nil},
-    %{key: :description, param: "description", label: "Description", kind: :long_text, hint: nil},
-    %{
-      key: :website,
-      param: "website",
-      label: "Website",
-      kind: :text,
-      hint: "A link readers can open."
-    }
-  ]
+                         %{key: :name, param: "name", label: "Name", kind: :text},
+                         %{key: :symbol, param: "symbol", label: "Ticker", kind: :text},
+                         %{
+                           key: :description,
+                           param: "description",
+                           label: "Description",
+                           kind: :long_text
+                         },
+                         %{
+                           key: :website,
+                           param: "website",
+                           label: "Website",
+                           placeholder: "https://",
+                           optional: true
+                         },
+                         %{
+                           key: :telegram,
+                           param: "telegram",
+                           label: "Telegram",
+                           placeholder: "https://t.me/yourgroup",
+                           optional: true
+                         },
+                         %{
+                           key: :discord,
+                           param: "discord",
+                           label: "Discord",
+                           placeholder: "https://discord.gg/invite",
+                           optional: true
+                         },
+                         %{
+                           key: :other_link_1,
+                           param: "other_link_1",
+                           label: "Other link",
+                           placeholder: "https://",
+                           optional: true
+                         },
+                         %{
+                           key: :other_link_2,
+                           param: "other_link_2",
+                           label: "Other link",
+                           placeholder: "https://",
+                           optional: true
+                         },
+                         %{
+                           key: :other_link_3,
+                           param: "other_link_3",
+                           label: "Other link",
+                           placeholder: "https://",
+                           optional: true
+                         }
+                       ]
+                       |> Enum.map(
+                         &Map.merge(
+                           %{kind: :text, hint: nil, placeholder: nil, optional: false},
+                           &1
+                         )
+                       )
+
+  @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
 
   @treasury_field %{
     key: :treasury,
     param: "treasury",
     label: "Immutable treasury recipient",
     kind: :text,
-    hint: @address_hint
+    hint: @address_hint,
+    placeholder: nil,
+    optional: false
   }
 
   @stored_params Enum.map(@token_detail_fields, & &1.param) ++
@@ -78,6 +129,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :has_connections, :boolean, default: false
   attr :connections_waived, :boolean, default: false
   attr :no_connections_typed, :string, default: ""
+  attr :reviewing?, :boolean, default: false
+  attr :ticker_taken?, :boolean, default: false
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -86,6 +139,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       assigns
       |> assign(:active_draft, draft)
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
+      |> assign(:marks, marks(assigns.draft_errors, assigns.draft_values))
+      |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
 
     ~H"""
     <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
@@ -112,65 +167,92 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           </p>
         </div>
 
-        <form
-          id="launch-token-details"
-          class="create-page__fields"
-          phx-change="autosave_launch_token_details"
-          phx-submit="autosave_launch_token_details"
-        >
-          <div class="create-page__pair">
+        <fieldset class="create-page__lock" disabled={@reviewing?}>
+          <form
+            id="launch-token-details"
+            class="create-page__fields"
+            phx-change="autosave_launch_token_details"
+            phx-submit="autosave_launch_token_details"
+          >
+            <div class="create-page__pair">
+              <.draft_field
+                field={token_field(:name)}
+                form_id="launch-token-details"
+                value={@draft_values["name"]}
+                error={@marks["name"]}
+              />
+              <.draft_field
+                field={token_field(:symbol)}
+                form_id="launch-token-details"
+                value={@draft_values["symbol"]}
+                error={@marks["symbol"]}
+                warning={@ticker_taken? && "Another launch already uses this ticker."}
+              />
+            </div>
             <.draft_field
-              field={token_field(:name)}
+              field={token_field(:description)}
               form_id="launch-token-details"
-              value={@draft_values["name"]}
-              error={@draft_errors["name"]}
+              value={@draft_values["description"]}
+              error={@marks["description"]}
+            />
+            <.image_upload
+              upload={@launch_image_upload}
+              image={@draft_values["image"]}
+              notice={@image_notice}
             />
             <.draft_field
-              field={token_field(:symbol)}
+              field={token_field(:website)}
               form_id="launch-token-details"
-              value={@draft_values["symbol"]}
-              error={@draft_errors["symbol"]}
+              value={@draft_values["website"]}
+              error={@marks["website"]}
             />
-          </div>
-          <.draft_field
-            field={token_field(:description)}
-            form_id="launch-token-details"
-            value={@draft_values["description"]}
-            error={@draft_errors["description"]}
-          />
-          <.image_upload
-            upload={@launch_image_upload}
-            image={@draft_values["image"]}
-            notice={@image_notice}
-          />
-          <.draft_field
-            field={token_field(:website)}
-            form_id="launch-token-details"
-            value={@draft_values["website"]}
-            error={@draft_errors["website"]}
-          />
-        </form>
+            <Regent.Primitives.disclosure
+              id="launch-token-links"
+              summary="More links"
+              class="create-page__more"
+              open={@links_given?}
+              phx-mounted={JS.ignore_attributes(["open"])}
+            >
+              <div class="create-page__pair">
+                <.draft_field
+                  :for={key <- [:telegram, :discord]}
+                  field={token_field(key)}
+                  form_id="launch-token-details"
+                  value={@draft_values[Atom.to_string(key)]}
+                  error={@marks[Atom.to_string(key)]}
+                />
+              </div>
+              <.draft_field
+                :for={key <- [:other_link_1, :other_link_2, :other_link_3]}
+                field={token_field(key)}
+                form_id="launch-token-details"
+                value={@draft_values[Atom.to_string(key)]}
+                error={@marks[Atom.to_string(key)]}
+              />
+            </Regent.Primitives.disclosure>
+          </form>
 
-        <form
-          id="launch-treasury-details"
-          class="create-page__fields"
-          phx-change="autosave_launch_treasury"
-          phx-submit="autosave_launch_treasury"
-        >
-          <.custody_path
-            form_id="launch-treasury-details"
-            path={@draft_values["treasury_path"]}
-            acknowledgement={@draft_values["eoa_acknowledgement"]}
-            error={@draft_errors["eoa_acknowledgement"]}
-          />
-          <.draft_field
-            field={treasury_field()}
-            form_id="launch-treasury-details"
-            note={custody_note(@draft_values["treasury_path"])}
-            value={@draft_values["treasury"]}
-            error={@draft_errors["treasury"]}
-          />
-        </form>
+          <form
+            id="launch-treasury-details"
+            class="create-page__fields"
+            phx-change="autosave_launch_treasury"
+            phx-submit="autosave_launch_treasury"
+          >
+            <.custody_path
+              form_id="launch-treasury-details"
+              path={@draft_values["treasury_path"]}
+              acknowledgement={@draft_values["eoa_acknowledgement"]}
+              error={@draft_errors["eoa_acknowledgement"]}
+            />
+            <.draft_field
+              field={treasury_field()}
+              form_id="launch-treasury-details"
+              note={custody_note(@draft_values["treasury_path"])}
+              value={@draft_values["treasury"]}
+              error={@marks["treasury"]}
+            />
+          </form>
+        </fieldset>
 
         <div id="launch-transactions" class="create-page__launch">
           <p class="create-page__hint">
@@ -181,7 +263,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             typed={@no_connections_typed}
           />
           <.live_component
-            :if={@launch_ready? && @active_draft && (@has_connections || @connections_waived)}
+            :if={
+              (@launch_ready? || @reviewing?) && @active_draft &&
+                (@has_connections || @connections_waived)
+            }
             module={AutolaunchWeb.LaunchWalletComponent}
             id={"autolaunch-launch-wallet-#{@active_draft.id}"}
             draft={@active_draft}
@@ -190,7 +275,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             session_lease={@session_lease}
           />
           <Regent.Primitives.button
-            :if={@current_human_id && !@launch_ready?}
+            :if={@current_human_id && !@launch_ready? && !@reviewing?}
             type="button"
             class="create-page__launch-button"
             disabled
@@ -462,16 +547,23 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :note, :string, default: nil
   attr :value, :string, default: nil
   attr :error, :string, default: nil
+  attr :warning, :string, default: nil
 
   def draft_field(assigns) do
     id = "#{assigns.form_id}-#{assigns.field.param}"
 
     assigns =
-      assign(assigns, id: id, described_by: described_by(id, assigns.field.hint, assigns.error))
+      assign(assigns,
+        id: id,
+        described_by: described_by(id, [assigns.field.hint, assigns.warning, assigns.error])
+      )
 
     ~H"""
     <div class="rg-field create-field">
-      <label for={@id}>{@field.label}</label>
+      <label for={@id}>
+        {@field.label}
+        <span :if={@field.optional} class="create-field__optional">optional</span>
+      </label>
       <p :if={@note} class="create-page__hint">{@note}</p>
       <textarea
         :if={@field.kind == :long_text}
@@ -488,12 +580,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         id={@id}
         name={"launch_draft[#{@field.param}]"}
         value={@value}
+        placeholder={@field.placeholder}
         autocomplete="off"
         aria-invalid={@error && "true"}
         aria-describedby={@described_by}
         phx-debounce="400"
       />
       <p :if={@field.hint} id={"#{@id}-hint"} class="create-page__hint">{@field.hint}</p>
+      <p :if={@warning} id={"#{@id}-warning"} class="create-page__hint" role="status">{@warning}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>
     </div>
     """
@@ -513,11 +607,30 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   defp treasury_field, do: @treasury_field
 
-  defp described_by(id, hint, error) do
-    case Enum.filter([hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do
+  defp described_by(id, [hint, warning, error]) do
+    case Enum.filter(
+           [hint && "#{id}-hint", warning && "#{id}-warning", error && "#{id}-error"],
+           &is_binary/1
+         ) do
       [] -> nil
       ids -> Enum.join(ids, " ")
     end
+  end
+
+  # Beside the saved-as-typed marks both create pages share, a treasury that
+  # is not yet a whole address says so.
+  defp marks(errors, values) do
+    marks = DraftMarks.marked(errors, values)
+    treasury = values["treasury"]
+
+    if treasury in [nil, ""] or LaunchDraft.treasury_address?(treasury),
+      do: marks,
+      else:
+        Map.put_new(
+          marks,
+          "treasury",
+          "Not a whole address yet. Copy it from your wallet or Safe."
+        )
   end
 
   defp notice_role(:error), do: "alert"

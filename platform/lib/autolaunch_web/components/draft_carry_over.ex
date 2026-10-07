@@ -3,7 +3,9 @@ defmodule AutolaunchWeb.Components.DraftCarryOver do
   What a signed-out visitor types on a create page, kept by this browser tab
   until they sign in. Signed out, the page hands the tab its latest values
   after every change, and a reload fills the form from them again. Signed in,
-  the tab hands them back once, as the `restore_draft` event, and forgets them.
+  the tab hands them back as the `restore_draft` event and forgets them once
+  the page answers `%{taken: true}`; a page that cannot take them yet answers
+  `%{taken: false}` and the tab keeps them for a later visit.
   """
   use Phoenix.Component
 
@@ -34,7 +36,6 @@ defmodule AutolaunchWeb.Components.DraftCarryOver do
 
           try {
             values = JSON.parse(sessionStorage.getItem(key) ?? "null")
-            if (signedIn) sessionStorage.removeItem(key)
           } catch {
             values = null
           }
@@ -51,7 +52,15 @@ defmodule AutolaunchWeb.Components.DraftCarryOver do
           }
 
           if (values && typeof values === "object" && Object.keys(values).length > 0) {
-            this.pushEvent("restore_draft", {values})
+            this.pushEvent("restore_draft", {values}, ({taken}) => {
+              if (!signedIn || !taken) return
+
+              try {
+                sessionStorage.removeItem(key)
+              } catch {
+                // A tab that cannot forget values offers them again next visit.
+              }
+            })
           }
         }
       }

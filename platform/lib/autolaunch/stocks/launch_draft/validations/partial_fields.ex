@@ -3,6 +3,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
   use Ash.Resource.Validation
 
   alias Ash.Error.Changes.InvalidAttribute
+  alias Autolaunch.Ticker
 
   # Bounds are UTF-8 byte sizes, not character counts. Partial text is allowed
   # so autosave never refuses a half-typed field; completeness lives on the
@@ -13,6 +14,10 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
     description: 512,
     website: 256,
     telegram: 256,
+    discord: 256,
+    other_link_1: 256,
+    other_link_2: 256,
+    other_link_3: 256,
     stock_address: 42
   }
 
@@ -34,6 +39,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
     cond do
       not String.valid?(value) -> [error(field, "must be readable text")]
       byte_size(value) > limit -> [error(field, "must be #{limit} bytes or fewer")]
+      field == :symbol and not Ticker.partial?(value) -> [error(field, Ticker.hint())]
       true -> []
     end
   end

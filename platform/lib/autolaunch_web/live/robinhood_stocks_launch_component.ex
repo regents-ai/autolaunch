@@ -96,6 +96,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
               <dt>Token</dt>
               <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
             </div>
+            <LaunchSteps.token_rows facts={@prepared.facts} />
             <div>
               <dt>Auction currency</dt>
               <dd>

@@ -201,6 +201,7 @@ defmodule Autolaunch.LaunchDiscoveryTest do
         "symbol" => "OPEN",
         "description" => "A launch profile awaiting review.",
         "website" => "https://example.test/open",
+        "links" => [],
         "image" => nil,
         "regent" => Abi.regent_address(),
         "terms" => %{"required_regent_raised" => "1084202174"},

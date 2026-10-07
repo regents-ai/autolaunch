@@ -186,6 +186,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
           "symbol" => "MINT",
           "description" => "A Memestake launch awaiting review.",
           "website" => "https://example.test/mint",
+          "links" => [],
           "image" => nil,
           "stock" => @stock,
           "stock_symbol" => "AAPLc",

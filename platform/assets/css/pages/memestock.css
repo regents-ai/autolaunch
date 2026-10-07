@@ -1,10 +1,8 @@
 /* Create a Memestake token: what only the Memestake form has. */
 .memestock { --memestock-base: #0052ff; --memestock-robinhood: #00c805; }
 
-/* While the account has a live Memestake auction the form stays readable but
-   grayed, under one line saying why. */
-.memestock__lock { display: grid; gap: var(--space-2); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
-.memestock__lock:disabled { opacity: .5; filter: grayscale(1); pointer-events: none; user-select: none; }
+/* While the account has a live Memestake auction the details stay readable
+   but grayed (`.create-page__lock`), under one line saying why. */
 .memestock__locked { margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline-strong); font-weight: 600; }
 
 /* Paired stock: Base or Robinhood, then the chain's stocks in one dropdown. */

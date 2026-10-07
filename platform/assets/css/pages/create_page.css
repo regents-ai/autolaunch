@@ -24,6 +24,11 @@
 .create-page .creator-connections > p { margin: 0; }
 .create-page .creator-connections--optional .rg-disclosure > summary { min-height: 2.75rem; }
 
+/* The details forms, grayed and still while a launch review is open, so the
+   review always matches them. The launch card is never inside. */
+.create-page__lock { display: grid; gap: var(--space-2); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.create-page__lock:disabled { opacity: .5; filter: grayscale(1); pointer-events: none; user-select: none; }
+
 .create-page__launch { display: grid; gap: var(--space-2); }
 .create-page__launch > p { margin: 0; }
 .create-page__launch-button { width: 100%; }

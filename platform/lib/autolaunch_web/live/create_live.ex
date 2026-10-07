@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Limits}
+  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Limits, Ticker}
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
 
@@ -54,6 +54,7 @@ defmodule AutolaunchWeb.CreateLive do
          if connected?(socket) do
            socket
            |> load_create(actor)
+           |> assign_ticker_taken()
          else
            socket
          end}
@@ -81,9 +82,13 @@ defmodule AutolaunchWeb.CreateLive do
 
   # What a visitor typed while signed out, handed back by this tab. Signed in,
   # it goes into the account's draft through the same saves as typing it
-  # would; signed out, it refills the unsaved form after a reload.
-  def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values),
-    do: {:noreply, restore(socket, values)}
+  # would; signed out, it refills the unsaved form after a reload. A draft
+  # that could not be read takes nothing, and the tab keeps the values.
+  def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values) do
+    if socket.assigns.status == :error,
+      do: {:reply, %{taken: false}, socket},
+      else: {:reply, %{taken: true}, restore(socket, values)}
+  end
 
   def handle_event("no_connections_typed", %{"typed" => typed}, socket) when is_binary(typed),
     do: {:noreply, assign(socket, no_connections_typed: typed)}
@@ -109,10 +114,21 @@ defmodule AutolaunchWeb.CreateLive do
     """
   end
 
-  # A launch card opened its review, so a saved-draft note no longer describes
-  # what this page is doing and comes down.
+  # A launch card opened its review: the details lock so the review always
+  # matches them, and a saved-draft note no longer describes what this page is
+  # doing and comes down. Once the review closes they open again, read anew,
+  # blank when the launch was listed.
   def handle_info({:launch_review, :open}, socket),
-    do: {:noreply, assign(socket, draft_notice: nil)}
+    do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
+
+  def handle_info({:launch_review, :closed}, socket) do
+    socket = assign(socket, reviewing?: false)
+
+    case human_actor(socket) do
+      nil -> {:noreply, socket}
+      actor -> {:noreply, socket |> load_create(actor) |> assign_ticker_taken()}
+    end
+  end
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
@@ -139,7 +155,7 @@ defmodule AutolaunchWeb.CreateLive do
           )
       end
 
-    {:noreply, keep(socket)}
+    {:noreply, socket |> assign_ticker_taken() |> keep()}
   end
 
   defp section_params("autosave_launch_token_details"), do: Templates.token_detail_params()
@@ -174,19 +190,19 @@ defmodule AutolaunchWeb.CreateLive do
   defp unsaved_notice(_socket),
     do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
 
-  defp restore(%{assigns: %{status: :error}} = socket, _values), do: socket
-
   defp restore(socket, values) do
     values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
 
     {socket, unsaved, errors} =
       Enum.reduce(@autosave_events, {socket, %{}, %{}}, &restore_section(&1, &2, values))
 
-    assign(socket,
+    socket
+    |> assign(
       draft_values: Map.merge(socket.assigns.draft_values, unsaved),
       draft_errors: errors,
       draft_notice: if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket))
     )
+    |> assign_ticker_taken()
   end
 
   # A section that cannot be saved stays on the form as typed, marked.
@@ -306,6 +322,8 @@ defmodule AutolaunchWeb.CreateLive do
       has_connections: false,
       connections_waived: false,
       no_connections_typed: "",
+      reviewing?: false,
+      ticker_taken?: false,
       auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor && actor.human_account_id,
       status: :loading
@@ -321,6 +339,9 @@ defmodule AutolaunchWeb.CreateLive do
       status: :ready
     )
   end
+
+  defp assign_ticker_taken(socket),
+    do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
 
   defp current_or_new_draft(actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do

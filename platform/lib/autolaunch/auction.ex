@@ -18,6 +18,8 @@ defmodule Autolaunch.Auction do
     :token_symbol,
     :website,
     :telegram,
+    :discord,
+    :links,
     :image,
     :creator_human_account_id,
     :creator_address,
@@ -495,11 +497,23 @@ defmodule Autolaunch.Auction do
       constraints max_length: 256, trim?: true
     end
 
-    # A Memestake creator's Telegram community, kept by this site: it is not
-    # part of the token's onchain metadata.
+    # The creator's Telegram group, Discord invite and up to three other links,
+    # kept by this site: they are not part of the token's onchain metadata.
     attribute :telegram, :string do
       public? true
       constraints max_length: 256, trim?: true
+    end
+
+    attribute :discord, :string do
+      public? true
+      constraints max_length: 256, trim?: true
+    end
+
+    attribute :links, {:array, :string} do
+      public? true
+      allow_nil? false
+      default []
+      constraints max_length: 3, items: [max_length: 256, trim?: true]
     end
 
     attribute :image, :string do

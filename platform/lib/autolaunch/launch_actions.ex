@@ -24,6 +24,7 @@ defmodule Autolaunch.LaunchActions do
     LaunchChainClient,
     LaunchDraft,
     LaunchDraftImageStorage,
+    LaunchLinks,
     LaunchOperations,
     TreasurySecurity
   }
@@ -182,8 +183,12 @@ defmodule Autolaunch.LaunchActions do
       "symbol" => fields.symbol,
       "description" => fields.description,
       "website" => fields.website,
+      "telegram" => fields.telegram,
+      "discord" => fields.discord,
+      "links" => fields.links,
       "image" => fields.image,
       "treasury" => fields.treasury,
+      "treasury_path" => Atom.to_string(draft.treasury_path),
       "treasury_security" => treasury_binding(treasury_report),
       "required_regent_raised" => minimum_regent(snapshot.terms.required_regent_raised),
       "regent" => snapshot.regent,
@@ -221,23 +226,29 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  # Everything the factory itself requires of a saved draft. A row written before
-  # the nonempty rule is refused here rather than reverting in the customer's
-  # wallet.
+  # Everything the factory itself requires of a saved draft, refused here
+  # rather than reverting in the customer's wallet. A launch without a website
+  # names this site.
   defp launchable(draft, actor) do
-    with :ok <- metadata(draft),
+    fields = %{
+      name: draft.name,
+      symbol: draft.symbol,
+      description: draft.description,
+      website: LaunchDraft.onchain_website(draft)
+    }
+
+    with :ok <- metadata(draft, fields),
          {:ok, image} <- launch_image(draft, actor),
          true <- LaunchDraft.treasury_complete?(draft),
          {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid) do
       {:ok,
-       %{
-         name: draft.name,
-         symbol: draft.symbol,
-         description: draft.description,
-         website: draft.website,
+       Map.merge(fields, %{
+         telegram: draft.telegram,
+         discord: draft.discord,
+         links: LaunchLinks.others(draft),
          image: image,
          treasury: treasury
-       }}
+       })}
     else
       false -> unavailable(:launch_treasury_invalid)
       error -> error
@@ -261,10 +272,11 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  defp metadata(draft) do
-    if Enum.all?(@metadata, fn {field, limit} -> within?(Map.fetch!(draft, field), limit) end),
-      do: :ok,
-      else: unavailable(:launch_metadata_incomplete)
+  defp metadata(draft, fields) do
+    if LaunchDraft.token_details_complete?(draft) and
+         Enum.all?(@metadata, fn {field, limit} -> within?(Map.fetch!(fields, field), limit) end),
+       do: :ok,
+       else: unavailable(:launch_metadata_incomplete)
   end
 
   defp within?(value, limit),

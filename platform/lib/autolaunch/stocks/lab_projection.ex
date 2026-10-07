@@ -38,6 +38,8 @@ defmodule Autolaunch.Stocks.LabProjection do
       token_symbol: facts["symbol"],
       website: facts["website"],
       telegram: facts["telegram"],
+      discord: facts["discord"],
+      links: facts["links"],
       image: facts["image"],
       quote_token_address: facts["stock"],
       quote_token_symbol: facts["stock_symbol"],

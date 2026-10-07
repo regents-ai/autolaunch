@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias Autolaunch.LaunchReviews
-  alias AutolaunchWeb.Components.SwapForm
+  alias AutolaunchWeb.Components.{MarketCard, SwapForm}
   alias AutolaunchWeb.{OnchainSteps, Paths, Telemetry}
   alias RegentChain.{Presses, Review}
 
@@ -162,8 +162,15 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   def reverted(socket, _earlier_review, _current, _prepare), do: socket
 
-  @doc "Takes the review off the page."
-  def withdrawn(socket), do: socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
+  @doc """
+  Takes the review off the page. The page's details forms, locked while a
+  review is open (`{:launch_review, :open}`), open again
+  (`{:launch_review, :closed}`).
+  """
+  def withdrawn(socket) do
+    send(self(), {:launch_review, :closed})
+    socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
+  end
 
   @doc "What the review a sent step came from was prepared with."
   def prepared(socket, %{review: %{id: id}}), do: Map.get(socket.assigns.reviews, id)
@@ -237,6 +244,33 @@ defmodule AutolaunchWeb.LaunchSteps do
   @doc "Whether a step of `review` has been sent."
   def started?(presses, review),
     do: Enum.any?(review.steps, &OnchainSteps.entry(presses, review, &1.step))
+
+  attr :facts, :map, required: true
+
+  @doc """
+  What the token itself will say, as the review on the page was built: its
+  description, its website and its picture. A launch without a website of the
+  creator's own names this site, which is not shown as a website.
+  """
+  def token_rows(assigns) do
+    assigns = assign(assigns, website: MarketCard.web_link(assigns.facts["website"]))
+
+    ~H"""
+    <div>
+      <dt>Description</dt>
+      <dd class="launch-wallet-text">{@facts["description"]}</dd>
+    </div>
+    <div>
+      <dt>Website</dt>
+      <dd :if={@website}>{@website.label}</dd>
+      <dd :if={!@website}>None given</dd>
+    </div>
+    <div>
+      <dt>Picture</dt>
+      <dd><img class="launch-wallet-picture" src={@facts["image"]} alt="" /></dd>
+    </div>
+    """
+  end
 
   attr :steps, :list, required: true
   attr :review, :map, default: nil

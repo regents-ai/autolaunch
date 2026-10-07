@@ -48,7 +48,7 @@ defmodule Autolaunch do
         action: :attach_image,
         args: [:launch_draft_image_id]
 
-      define :revise_account_launch_draft, action: :revise_by_owner
+      define :clear_launch_draft, action: :clear
     end
 
     # Keep this registration dynamic like the operation-only resources below;

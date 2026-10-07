@@ -15,11 +15,9 @@ defmodule Autolaunch.LaunchOperation.Validations.AuctionLimit do
 
     if n >= Autolaunch.Limits.auctions_per_account() do
       {:error,
-       Ash.Error.Changes.InvalidArgument.exception(
-         field: :human_account_id,
-         message: "You already have an auction. One auction per account for now.",
-         value: n,
-         vars: [code: :auction_limit_reached]
+       Ash.Error.Invalid.Unavailable.exception(
+         resource: Autolaunch.LaunchOperation,
+         reason: :auction_limit_reached
        )}
     else
       :ok

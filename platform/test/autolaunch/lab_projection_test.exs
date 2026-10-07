@@ -132,6 +132,7 @@ defmodule Autolaunch.LabProjectionTest do
           "symbol" => "LOCAL",
           "description" => "A local fork launch.",
           "website" => "https://example.test/local",
+          "links" => [],
           "image" => "https://example.test/local.png",
           "terms" => %{"required_regent_raised" => "19999999999999999999989"},
           "regent" => @regent,

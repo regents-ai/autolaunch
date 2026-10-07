@@ -40,7 +40,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   alias Autolaunch.Auction.MarketState
   alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{LabProjection, MarketWatch}
+  alias Autolaunch.{LabProjection, LaunchedDrafts, MarketWatch}
   alias Autolaunch.Stocks.{Amounts, LaunchActions}
 
   @topic "autolaunch:robinhood_market"
@@ -248,26 +248,33 @@ defmodule Autolaunch.Robinhood.MarketFeed do
            String.downcase(launch.stock.address),
            actor: @actor
          ) do
-      {:ok, %{human_account_id: account_id, telegram: telegram}} ->
-        {:ok, {:site, account_id, telegram}}
+      {:ok, %{human_account_id: account_id} = review} ->
+        {:ok, {:site, account_id, Map.take(review, [:telegram, :discord, :links])}}
 
       {:ok, nil} ->
-        {:ok, {:chain, nil, nil}}
+        {:ok, {:chain, nil, %{}}}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
+  # A site launch's draft starts over with its listing.
   defp project(head, launch, origin) do
     with {:ok, auction} <- project_auction(head, launch, origin),
          :ok <- LabProjection.project_graduated_token(auction),
+         :ok <- start_over(origin, launch),
          do: {:ok, auction}
   end
 
-  defp project_auction(head, launch, {origin, creator_id, telegram}) do
+  defp start_over({:site, account_id, _links}, launch),
+    do: LaunchedDrafts.clear(:memestake, account_id, launch.name, launch.symbol)
+
+  defp start_over({:chain, nil, _links}, _launch), do: :ok
+
+  defp project_auction(head, launch, {origin, creator_id, links}) do
     Autolaunch.record_launch_auction(
-      %{
+      Map.merge(links, %{
         kind: :stocks,
         origin: origin,
         chain_id: head.chain_id,
@@ -278,7 +285,6 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         summary: launch.description,
         token_symbol: String.slice(launch.symbol, 0, 16),
         website: launch.website,
-        telegram: telegram,
         image: launch.image,
         featured: false,
         state:
@@ -293,7 +299,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         launch_id: launch.launch_id,
         start_block: launch.start_block,
         end_block: launch.end_block
-      },
+      }),
       actor: @actor
     )
   end
