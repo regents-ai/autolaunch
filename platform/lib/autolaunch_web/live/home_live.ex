@@ -305,7 +305,11 @@ defmodule AutolaunchWeb.HomeLive do
         <nav :if={@kind == :auction} class="home-sort" aria-label="Sort auctions">
           <.link
             :for={
-              {value, label} <- [{"newest", "Recent"}, {"ending", "Closing"}, {"volume", "Highest"}]
+              {value, label} <- [
+                {"newest", "Recent"},
+                {"ending", "Closing"},
+                {"volume", "Bid volume"}
+              ]
             }
             patch={HomeMarket.path(@market_options, %{sort: value})}
             data-squish
@@ -470,12 +474,6 @@ defmodule AutolaunchWeb.HomeLive do
         </script>
       </div>
 
-      <p :if={@market_options.sort == "volume"} class="home-search-context">
-        Confirmed bids, valued at the latest available currency price. Auctions awaiting indexing or a price appear last.
-      </p>
-      <p :if={@market_options.sort == "ending"} class="home-search-context">
-        Live auctions, ordered by estimated closing time. Timing follows each network's block clock.
-      </p>
       <div :if={@market_options.q != ""} class="home-search-context">
         <span>Results for “{@market_options.q}”</span>
         <.link patch={HomeMarket.path(@market_options, %{q: ""})}>Clear search</.link>
