@@ -10,10 +10,8 @@ defmodule AutolaunchWeb.Router do
     plug AutolaunchWeb.Plugs.Theme
     plug :protect_from_forgery
     # Browser agents may use the tools the pages register, from this site only.
-    plug :put_secure_browser_headers, %{
-      "permissions-policy" => "tools=(self)",
-      "content-security-policy-report-only" => AutolaunchWeb.ContentSecurityPolicy.policy()
-    }
+    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
+    plug :put_content_security_policy
   end
 
   pipeline :api do
@@ -30,6 +28,11 @@ defmodule AutolaunchWeb.Router do
 
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
+
+  def put_content_security_policy(conn, _opts) do
+    policy = AutolaunchWeb.ContentSecurityPolicy.policy()
+    put_resp_header(conn, "content-security-policy-report-only", policy)
+  end
 
   scope "/", AutolaunchWeb do
     # The platform health check answers before sessions, flash or CSRF.
