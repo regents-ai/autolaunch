@@ -28,10 +28,15 @@ defmodule Autolaunch.LaunchDraft do
   @site_website "https://autolaunch.sh"
 
   @doc "Whether the persisted token metadata stage is ready for launch review."
-  def token_details_complete?(draft) do
-    Enum.all?(@metadata_limits, fn {field, limit} -> within?(Map.get(draft, field), limit) end) and
-      Ticker.complete?(Map.get(draft, :symbol)) and website_complete?(Map.get(draft, :website)) and
-      LaunchLinks.problems(draft) == [] and image_complete?(draft)
+  def token_details_complete?(draft), do: missing_token_details(draft) == []
+
+  @doc "The token details the launch review still needs, by field."
+  def missing_token_details(draft) do
+    for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
+      if(Ticker.complete?(Map.get(draft, :symbol)), do: [], else: [:symbol]) ++
+      if(website_complete?(Map.get(draft, :website)), do: [], else: [:website]) ++
+      Keyword.keys(LaunchLinks.problems(draft)) ++
+      if(image_complete?(draft), do: [], else: [:image])
   end
 
   defp website_complete?(website) when website in [nil, ""], do: true

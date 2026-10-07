@@ -1,12 +1,16 @@
-// The page tools that press a wallet card for an agent (WebMCP,
-// document.modelContext). A card names the tools it answers in
-// `data-agent-tools`, and a settlement card names its bid in `data-agent-bid`;
-// a tool is registered while a card on the page answers it. A call goes to the
-// card's server side as an `agent_press`, which builds exactly the review the
-// card's own button would send from and replies with it, and the call is sent
-// at once, so it opens the person's wallet the same way a press does. Every
-// call reaches the wallet, including one made while an earlier one is still
-// with it.
+// The page tools an agent uses on a page (WebMCP, document.modelContext). An
+// element names the tools it answers in `data-agent-tools`, and a settlement
+// card names its bid in `data-agent-bid`; a tool is registered while an
+// element on the page answers it.
+//
+// A wallet card's call goes to its server side as an `agent_press`, which
+// builds exactly the review the card's own button would send from and replies
+// with it, and the call is sent at once, so it opens the person's wallet the
+// same way a press does. Every call reaches the wallet, including one made
+// while an earlier one is still with it.
+//
+// Any other element's call (a form an agent fills or reads) goes to its server
+// side as an `agent_call`, and the reply is the tool's result.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 
 import type {Pressed, Review} from "./hooks/onchain_steps"
@@ -27,12 +31,17 @@ type Entry = {
   scope: string
 }
 type Input = Record<string, string>
-type Card = {bid?: string; call(tool: string, input: Input, signal?: AbortSignal): Promise<AgentOutcome>}
+type Card = {
+  bid?: string
+  call(tool: string, input: Input, signal?: AbortSignal): Promise<unknown>
+  /** The result for a call whose input does not match the tool's schema. */
+  invalid(fields: string): unknown
+}
 type ModelContext = {
   registerTool(
     tool: Omit<Entry, "input_schema" | "scope"> & {
       inputSchema: Entry["input_schema"]
-      execute(input: unknown, client?: {signal?: AbortSignal}): Promise<AgentOutcome>
+      execute(input: unknown, client?: {signal?: AbortSignal}): Promise<unknown>
     },
     options: {signal: AbortSignal},
   ): Promise<void>
@@ -74,10 +83,10 @@ function failed(reason: Failure): AgentOutcome {
   return failures[reason]
 }
 
-function sent(transaction_hash: string, remaining: string[]): AgentOutcome {
+function sent(transaction_hash: string, remaining: string[], landed?: string): AgentOutcome {
   const message = remaining.length
     ? `Sent. Still to send: ${remaining.join(", then ")}. Wait a few seconds for this step to land, then call this tool again with the same values to send the next one; a call before it lands asks the wallet for this step again.`
-    : "Sent. The page shows when it lands, and autolaunch_my_positions reads the result."
+    : landed ?? "Sent. The page shows when it lands, and autolaunch_my_positions reads the result."
   return {outcome: "sent", transaction_hash, message}
 }
 
@@ -95,12 +104,12 @@ function valid(entry: Entry, input: unknown): input is Input {
   })
 }
 
-async function execute(entry: Entry, input: unknown, signal?: AbortSignal): Promise<AgentOutcome> {
+async function execute(entry: Entry, input: unknown, signal?: AbortSignal): Promise<unknown> {
+  const cards = [...(registered.get(entry.name)?.cards ?? [])]
   if (!valid(entry, input)) {
     const fields = Object.keys(entry.input_schema.properties).join(", ") || "no fields"
-    return notSent(`Nothing was sent. Use only the documented fields (${fields}), as strings; amounts are plain decimals such as 12.5.`)
+    return (cards[0] ?? walletInvalid).invalid(fields)
   }
-  const cards = [...(registered.get(entry.name)?.cards ?? [])]
   const card = Object.hasOwn(entry.input_schema.properties, "bid")
     ? cards.find(candidate => candidate.bid === input.bid.toLowerCase())
     : cards[0]
@@ -157,8 +166,17 @@ const replaced = notSent(
   "Nothing was sent. The page changed before the wallet opened. Call again on the page as it is now.",
 )
 
-/** The card's answer to an agent's call: the review to send from, or why there is none. */
-type Reply = {review?: Review; send?: string; remaining?: string[]; message?: string}
+/**
+ * The card's answer to an agent's call: the review to send from, or why there
+ * is none; `landed` replaces the default words once the last step is sent.
+ */
+type Reply = {review?: Review; send?: string; remaining?: string[]; landed?: string; message?: string}
+
+// A wallet tool's answer to input that does not match its schema.
+const walletInvalid = {
+  invalid: (fields: string) =>
+    notSent(`Nothing was sent. Use only the documented fields (${fields}), as strings; amounts are plain decimals such as 12.5.`),
+}
 
 /**
  * Makes a mounted card answer the tools it names. Each call asks the card's
@@ -175,6 +193,7 @@ export function agentCard(
   const waiting = new Set<(outcome: AgentOutcome) => void>()
 
   const card: Card = {
+    ...walletInvalid,
     bid: hook.el.dataset.agentBid?.toLowerCase(),
     call(tool, input, signal) {
       if (signal?.aborted) return Promise.resolve(notSent("The call was cancelled before the page prepared anything."))
@@ -196,7 +215,7 @@ export function agentCard(
             waiting.delete(finish)
             void press(reply.review, reply.send).then(pressed =>
               resolve("transaction_hash" in pressed
-                ? sent(pressed.transaction_hash, reply.remaining ?? [])
+                ? sent(pressed.transaction_hash, reply.remaining ?? [], reply.landed)
                 : failed(pressed.reason)),
             )
           },
@@ -221,3 +240,43 @@ export function agentCard(
 }
 
 export type AgentCardHandle = ReturnType<typeof agentCard>
+
+type PageHook = {
+  el: HTMLElement
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): Promise<PromiseSettledResult<{reply: unknown}>[]>
+}
+
+/**
+ * Makes a mounted element answer the tools it names that open no wallet: each
+ * call goes to its server side as an `agent_call`, and the reply is the tool's
+ * result.
+ */
+export function agentPage(hook: PageHook) {
+  const names = (hook.el.dataset.agentTools ?? "").split(" ").filter(name => entries.has(name))
+  const lost = {
+    outcome: "not_reached",
+    message: "The page lost its connection to the site. Call again once the page has reconnected.",
+  }
+
+  const card: Card = {
+    invalid: fields => ({
+      outcome: "invalid_input",
+      message: `Nothing was done. Use only the documented fields (${fields}), as strings.`,
+    }),
+    call(tool, input, signal) {
+      if (signal?.aborted) return Promise.resolve({outcome: "cancelled", message: "The call was cancelled."})
+      return hook.pushEventTo(hook.el, "agent_call", {tool, input}).then(
+        ([result]) => (result?.status === "fulfilled" ? result.value.reply : lost),
+        () => lost,
+      )
+    },
+  }
+
+  for (const name of names) register(name, card)
+
+  return {
+    dispose() {
+      for (const name of names) unregister(name, card)
+    },
+  }
+}

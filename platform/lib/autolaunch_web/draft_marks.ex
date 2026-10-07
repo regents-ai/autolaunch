@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.DraftMarks do
   What both create pages mark beside a field whose text is saved as typed but
   that a launch cannot use yet: a link that is not a link of its kind, or a
   ticker outside the ticker rule. A field the save itself refused keeps that
-  message instead.
+  message instead. And what a draft still needs before its launch review.
   """
 
   alias Autolaunch.{LaunchLinks, Ticker}
@@ -22,5 +22,30 @@ defmodule AutolaunchWeb.DraftMarks do
         else: Map.put(marks, "symbol", Ticker.hint())
     end)
     |> Map.merge(errors)
+  end
+
+  @missing_labels %{
+    name: "name",
+    symbol: "ticker",
+    description: "description",
+    website: "website",
+    telegram: "a t.me Telegram link",
+    discord: "a Discord invite link",
+    other_link_1: "a full https:// link",
+    other_link_2: "a full https:// link",
+    other_link_3: "a full https:// link",
+    image: "image",
+    stock_address: "paired stock"
+  }
+
+  @doc "What a draft still needs, as the Memestake page's Still needed button names it."
+  @spec still_needed([atom()]) :: String.t()
+  def still_needed(fields) do
+    labels = Enum.map(fields, &Map.fetch!(@missing_labels, &1))
+
+    case Enum.split(labels, -1) do
+      {[], [only]} -> only
+      {rest, [last]} -> Enum.join(rest, ", ") <> " and " <> last
+    end
   end
 end

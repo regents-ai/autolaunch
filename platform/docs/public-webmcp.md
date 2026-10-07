@@ -14,7 +14,7 @@ description, input schema, annotations, what it needs, whether it changes
 anything, the HTTP route behind it and its `scope`: `site` for a tool every page
 offers, otherwise the pages that offer it. The developer guide at `/docs`
 and the agent guide at `/llms.txt` build their tool tables from it. There are
-three kinds:
+four kinds:
 
 - **Reads on every page.** `assets/js/public_tools.ts` registers the `site`
   `autolaunch_` tools, adding only each tool's request. Five are public reads; the
@@ -23,8 +23,11 @@ three kinds:
   tools, which register through the shared identity package
   (`assets/js/shared_profile.ts`) and need the person's sign-in.
 - **Wallet tools on the pages that have the card.** `assets/js/agent_wallet_tools.ts`
-  registers each of the other tools while a card that answers it is on the page
+  registers each wallet tool while a card that answers it is on the page
   (see [Wallet tools](#wallet-tools)).
+- **Launch tools on the create pages.** The same file registers the tools that
+  read and fill the launch forms on `/create` and `/create/revstake` and press
+  their launch button (see [Launch tools](#launch-tools)).
 
 The list options are the website's own, read through the same discovery as its
 auction and token lists (`Autolaunch.HomeMarket`), with the same names and meanings in
@@ -129,8 +132,40 @@ Results are `{outcome, transaction_hash?, message}`:
 - `unknown` when the wallet may have sent it but did not say, or the page changed
   or the call was cancelled after the card began preparing it.
 
-Launching has no tool; it stays on `/create`. Paying an agent's revenue and the
-public upkeep buttons are not tools yet.
+Paying an agent's revenue and the public upkeep buttons are not tools yet.
+
+## Launch tools
+
+An agent launches a Memestake token on `/create` or a Revstake token on
+`/create/revstake` with the page open in the person's browser:
+
+1. `autolaunch_launch_form` reads the form: every field as saved, whether a
+   picture is chosen, the stocks on offer (Memestake), the problems with any
+   field, and `next`, what is left and who does it.
+2. `autolaunch_fill_memestake` or `autolaunch_fill_revstake` saves the given
+   fields through the same saves as typing them (`AutolaunchWeb.StocksCreateLive`,
+   `AutolaunchWeb.CreateLive`): to the account's draft when signed in, otherwise
+   in this browser tab until the person signs in. The result is
+   `{outcome: saved | not_saved, message?, form}`, where `form` is what
+   `autolaunch_launch_form` reads. Input that does not match the schema answers
+   `{outcome: invalid_input, message}` and saves nothing.
+3. On `/create/revstake` off the test network, `autolaunch_verify_treasury`
+   checks the treasury Safe from three of its Base transactions, as the card's
+   own verification form does.
+4. `autolaunch_launch` presses the launch card's button: the card opens the
+   launch review "Review launch" would open and the browser sends its one step at
+   once, so the person's wallet opens. It is a [wallet tool](#wallet-tools) and
+   answers the same way.
+
+The form element (`#memestock-form`, `#autolaunch-create`) and the treasury
+check carry the `AgentTools` hook (`assets/js/hooks/agent_tools.ts`); a call
+pushes `agent_call` to their LiveView or component, and the reply is the tool's
+result. While the launch review is open, or the account's Memestake auction is
+live, the form is locked for the agent as it is for the person.
+
+Some steps stay with the person: signing in, choosing the picture, typing the
+single-key treasury warning and the warning a Revstake launch with no X, GitHub
+or ENS connection needs, making the Safe, and confirming in the wallet.
 
 ## Verification
 

@@ -150,7 +150,13 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       Your draft could not be loaded. Refresh and try again.
     </p>
 
-    <div :if={@status != :error} id="autolaunch-create" class="create-page__layout">
+    <div
+      :if={@status != :error}
+      id="autolaunch-create"
+      class="create-page__layout"
+      data-agent-tools="autolaunch_launch_form autolaunch_fill_revstake"
+      phx-hook="AgentTools"
+    >
       <section class="create-page__form rg-panel rg-panel--surface" aria-label="Your Revstake token">
         <.live_component
           :if={@current_human_id}

@@ -6,6 +6,11 @@ defmodule AutolaunchWeb.CreateLive do
   A signed-out visitor explores the same form against an unsaved draft that
   follows the saved draft's rules. This browser tab keeps what they typed, and
   once they sign in it is saved into their account's draft.
+
+  An agent reads the form with `autolaunch_launch_form` and fills it with
+  `autolaunch_fill_revstake`, through the same saves as typing
+  (`assets/js/hooks/agent_tools.ts`). The picture and both typed warnings stay
+  with the person.
   """
 
   use AutolaunchWeb, :live_view
@@ -13,13 +18,15 @@ defmodule AutolaunchWeb.CreateLive do
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
   alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Limits, Ticker}
-  alias AutolaunchWeb.CreatorConnectionsComponent
+  alias AutolaunchWeb.{CreatorConnectionsComponent, DraftMarks}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
   import AutolaunchWeb.Components.LaunchKindChoice
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
+  # The single-key warning is the person's to type.
+  @agent_treasury_params ["treasury_path", "treasury"]
   @actions %{
     "autosave_launch_token_details" => :autosave_token_details,
     "autosave_launch_treasury" => :autosave_treasury
@@ -80,6 +87,32 @@ defmodule AutolaunchWeb.CreateLive do
   def handle_event(event, params, socket) when event in @autosave_events,
     do: handle_draft_event(event, params["launch_draft"] || %{}, socket)
 
+  def handle_event("agent_call", %{"tool" => "autolaunch_launch_form"}, socket),
+    do: {:reply, form_state(socket), socket}
+
+  def handle_event(
+        "agent_call",
+        %{"tool" => "autolaunch_fill_revstake", "input" => input},
+        socket
+      )
+      when is_map(input) do
+    case agent_filled(socket, input) do
+      {:ok, %{assigns: %{draft_errors: errors}} = socket} when errors == %{} ->
+        {:reply, %{outcome: "saved", form: form_state(socket)}, socket}
+
+      {:ok, socket} ->
+        {:reply,
+         %{
+           outcome: "not_saved",
+           message: "The fields named in problems were not saved; the rest were.",
+           form: form_state(socket)
+         }, socket}
+
+      {:error, message, socket} ->
+        {:reply, %{outcome: "not_saved", message: message, form: form_state(socket)}, socket}
+    end
+  end
+
   # What a visitor typed while signed out, handed back by this tab. Signed in,
   # it goes into the account's draft through the same saves as typing it
   # would; signed out, it refills the unsaved form after a reload. A draft
@@ -139,9 +172,11 @@ defmodule AutolaunchWeb.CreateLive do
     Templates.create(assigns)
   end
 
-  defp handle_draft_event(event, submitted, socket) do
-    values = Map.take(submitted, section_params(event))
+  defp handle_draft_event(event, submitted, socket),
+    do: {:noreply, autosaved(socket, event, Map.take(submitted, section_params(event)))}
 
+  # One section of the form saved as typing it would save it.
+  defp autosaved(socket, event, values) do
     socket =
       case save_section(socket, event, values) do
         {:ok, socket} ->
@@ -155,7 +190,112 @@ defmodule AutolaunchWeb.CreateLive do
           )
       end
 
-    {:noreply, socket |> assign_ticker_taken() |> keep()}
+    socket |> assign_ticker_taken() |> keep()
+  end
+
+  # An agent's fill: the token details, then the treasury, each saved as
+  # typing it on the page would save it. A section that is not saved stays
+  # marked while the next one saves.
+  defp agent_filled(%{assigns: %{status: status}} = socket, _input) when status != :ready,
+    do: {:error, "The draft could not be loaded. Ask the person to refresh the page.", socket}
+
+  defp agent_filled(%{assigns: %{reviewing?: true}} = socket, _input),
+    do:
+      {:error,
+       "The details are locked while the launch review is open on the page. Ask the person to cancel the review to change them.",
+       socket}
+
+  defp agent_filled(socket, input) do
+    {socket, errors} =
+      [
+        {"autosave_launch_token_details", Templates.token_detail_params()},
+        {"autosave_launch_treasury", @agent_treasury_params}
+      ]
+      |> Enum.reduce({socket, %{}}, fn {event, params}, {socket, errors} ->
+        case Map.take(input, params) do
+          values when values == %{} ->
+            {socket, errors}
+
+          values ->
+            socket = autosaved(socket, event, values)
+            {socket, Map.merge(errors, socket.assigns.draft_errors)}
+        end
+      end)
+
+    notice = if errors == %{}, do: saved_notice(socket), else: unsaved_notice(socket)
+    {:ok, assign(socket, draft_errors: errors, draft_notice: notice)}
+  end
+
+  # The form as an agent reads it. The fields are what a person typed.
+  defp form_state(%{assigns: assigns}) do
+    %{
+      launch: "revstake",
+      chain: "base",
+      signed_in: is_integer(assigns.current_human_id),
+      fields:
+        Map.take(
+          assigns.draft_values,
+          Templates.token_detail_params() ++ @agent_treasury_params
+        ),
+      picture: assigns.draft_values["image"] != "",
+      problems: assigns.draft_errors,
+      next: next_step(assigns)
+    }
+  end
+
+  defp next_step(%{status: status}) when status != :ready,
+    do: "The draft could not be loaded. Ask the person to refresh the page."
+
+  defp next_step(%{auction_limit_reached: true}),
+    do: "This account already has an auction. One auction per account for now."
+
+  defp next_step(%{reviewing?: true}),
+    do:
+      "The launch review is open on the page. Call autolaunch_launch to send it to the person's wallet."
+
+  defp next_step(%{current_human_id: nil}),
+    do:
+      "The person is not signed in. What you fill stays in this browser tab and is saved to their account once they sign in on the page. Launching needs them signed in."
+
+  defp next_step(%{launch_drafts: [draft | _rest]} = assigns) do
+    case still_needed(draft) do
+      [] ->
+        if assigns.has_connections or assigns.connections_waived,
+          do: "Ready. Call autolaunch_launch to review the launch and open the person's wallet.",
+          else:
+            "Ready, once the person connects X, GitHub or ENS on the page, or types the warning shown there that the launch may not appear in the gallery. Then call autolaunch_launch."
+
+      needed ->
+        "Still needed: #{Enum.join(needed, "; ")}."
+    end
+  end
+
+  defp still_needed(draft) do
+    details =
+      case LaunchDraft.missing_token_details(draft) -- [:image] do
+        [] -> []
+        missing -> [DraftMarks.still_needed(missing)]
+      end
+
+    picture =
+      if LaunchDraft.image_complete?(draft),
+        do: [],
+        else: ["the picture, which the person chooses on the page"]
+
+    details ++ picture ++ treasury_needed(draft)
+  end
+
+  defp treasury_needed(draft) do
+    cond do
+      LaunchDraft.treasury_complete?(draft) ->
+        []
+
+      LaunchDraft.treasury_address?(draft.treasury) ->
+        ["the single-key warning, which the person types on the page"]
+
+      true ->
+        ["the treasury address"]
+    end
   end
 
   defp section_params("autosave_launch_token_details"), do: Templates.token_detail_params()

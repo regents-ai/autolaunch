@@ -87,6 +87,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           id="memestock-form"
           class="create-page__form memestock rg-panel rg-panel--surface"
           data-chain={@launch_chain}
+          data-agent-tools="autolaunch_launch_form autolaunch_fill_memestake"
+          phx-hook="AgentTools"
           aria-label="Your memestock"
         >
           <p :if={@live_memestake?} id="memestock-locked" class="memestock__locked" role="status">
@@ -301,7 +303,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               class="create-page__launch-button"
               disabled
             >
-              Still needed: {missing_label(@missing)}
+              Still needed: {DraftMarks.still_needed(@missing)}
             </Regent.Primitives.button>
             <p
               :if={@draft_notice}
@@ -492,27 +494,4 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp present("", placeholder), do: placeholder
   defp present(value, _placeholder), do: value
-
-  @missing_labels %{
-    name: "name",
-    symbol: "ticker",
-    description: "description",
-    website: "website",
-    telegram: "a t.me Telegram link",
-    discord: "a Discord invite link",
-    other_link_1: "a full https:// link",
-    other_link_2: "a full https:// link",
-    other_link_3: "a full https:// link",
-    image: "image",
-    stock_address: "paired stock"
-  }
-
-  defp missing_label(fields) do
-    labels = Enum.map(fields, &Map.fetch!(@missing_labels, &1))
-
-    case Enum.split(labels, -1) do
-      {[], [only]} -> only
-      {rest, [last]} -> Enum.join(rest, ", ") <> " and " <> last
-    end
-  end
 end

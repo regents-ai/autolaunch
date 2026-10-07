@@ -52,7 +52,12 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     assigns = assign(assigns, steps: LaunchSteps.steps(assigns))
 
     ~H"""
-    <section id={@id} class="launch-wallet" phx-hook="OnchainSteps">
+    <section
+      id={@id}
+      class="launch-wallet"
+      data-agent-tools="autolaunch_launch"
+      phx-hook="OnchainSteps"
+    >
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
       <div class="launch-wallet-open" hidden={!!@review}>
@@ -186,6 +191,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   def handle_event("review_launch", _params, socket),
     do: {:noreply, LaunchSteps.review(socket, &prepare(socket, &1))}
+
+  def handle_event("agent_press", %{"tool" => "autolaunch_launch"}, socket) do
+    {reply, socket} = LaunchSteps.agent_press(socket, &prepare(socket, &1))
+    {:reply, reply, socket}
+  end
 
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}

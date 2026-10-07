@@ -70,10 +70,22 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     assigns = assign(assigns, steps: LaunchSteps.steps(assigns))
 
     ~H"""
-    <section id={@id} class="launch-wallet" phx-hook="OnchainSteps">
+    <section
+      id={@id}
+      class="launch-wallet"
+      data-agent-tools="autolaunch_launch"
+      phx-hook="OnchainSteps"
+    >
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <section :if={!@local_lab?} class="treasury-verification" aria-label="Treasury verification">
+      <section
+        :if={!@local_lab?}
+        id={"#{@id}-treasury"}
+        class="treasury-verification"
+        aria-label="Treasury verification"
+        data-agent-tools="autolaunch_verify_treasury"
+        phx-hook="AgentTools"
+      >
         <h4>Verify immutable treasury</h4>
         <p class="launch-wallet-mono">{RegentFormat.short_address(@draft.treasury)}</p>
         <p
@@ -235,6 +247,11 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   def handle_event("review_launch", _params, socket),
     do: {:noreply, LaunchSteps.review(socket, &prepare(socket, &1))}
 
+  def handle_event("agent_press", %{"tool" => "autolaunch_launch"}, socket) do
+    {reply, socket} = LaunchSteps.agent_press(socket, &prepare(socket, &1))
+    {:reply, reply, socket}
+  end
+
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -257,8 +274,27 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     if socket.assigns.local_lab? do
       {:noreply, socket}
     else
-      verify_treasury(hashes, socket)
+      {:noreply, verify_treasury(hashes, socket)}
     end
+  end
+
+  def handle_event(
+        "agent_call",
+        %{"tool" => "autolaunch_verify_treasury", "input" => input},
+        socket
+      )
+      when is_map(input) do
+    socket = verify_treasury(input, socket)
+
+    outcome =
+      if freshly_verified?(
+           socket.assigns.treasury_report,
+           socket.assigns.fresh_treasury_report_id
+         ),
+         do: "verified",
+         else: "not_verified"
+
+    {:reply, %{outcome: outcome, message: socket.assigns.notice}, socket}
   end
 
   @impl true
@@ -309,15 +345,14 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
     case result do
       {:ok, report} ->
-        {:noreply,
-         assign(socket,
-           treasury_report: report,
-           fresh_treasury_report_id: report.id,
-           notice: copy(:treasury_observation_recorded)
-         )}
+        assign(socket,
+          treasury_report: report,
+          fresh_treasury_report_id: report.id,
+          notice: copy(:treasury_observation_recorded)
+        )
 
       {:error, error} ->
-        {:noreply, assign(socket, fresh_treasury_report_id: nil, notice: copy(refusal(error)))}
+        assign(socket, fresh_treasury_report_id: nil, notice: copy(refusal(error)))
     end
   end
 
