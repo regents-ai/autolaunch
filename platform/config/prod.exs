@@ -8,6 +8,13 @@ import Config
 config :autolaunch, AutolaunchWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
+# Every page is served over HTTPS and says so with Strict-Transport-Security. Fly's
+# proxy ends TLS and says so in `x-forwarded-proto`. Fly's health check reaches the
+# machine directly over plain HTTP, so its path is answered rather than redirected.
+# `:force_ssl` is read when the endpoint compiles, so it lives here.
+config :autolaunch, AutolaunchWeb.Endpoint,
+  force_ssl: [rewrite_on: [:x_forwarded_proto], exclude: [paths: ["/healthz"]]]
+
 # Every request reaches production through Fly's proxy, which sets Fly-Client-IP.
 config :autolaunch, :behind_fly_proxy, true
 
