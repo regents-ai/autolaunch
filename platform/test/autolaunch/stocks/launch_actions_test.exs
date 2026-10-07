@@ -43,8 +43,8 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     # The auction's lowest floor, 2^32 + 1, rounded up onto the bid grid.
     assert executable.floor_price_q96 == 4_294_967_300
     assert executable.tick_spacing_q96 == 42_949_673
-    # ceil(495,000,000e18 x floor / 2^96), the preset's REQUIRED_STOCK_RAISED.
-    assert executable.required_stock_raised == 26_834_004
+    # ceil(497,500,000e18 x floor / 2^96), the preset's REQUIRED_STOCK_RAISED.
+    assert executable.required_stock_raised == 26_969_530
     assert executable.stock_decimals == 8
 
     data = LaunchActions.launch_data(@fields, @config)

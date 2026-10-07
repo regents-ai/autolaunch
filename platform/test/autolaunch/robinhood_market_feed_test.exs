@@ -117,7 +117,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert %{kind: :stocks, origin: :site, state: :ended, minimum_reached: true} = site
     assert site.creator_human_account_id == creator.id
     assert site.quote_token_symbol == "TSLA"
-    assert site.required_currency_raised == "26834004"
+    assert site.required_currency_raised == "26969530"
     assert site.treasury_address == @launchpad
 
     # The launch's facts from its launchpad record, the schedule in the rollup

@@ -36,7 +36,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   # Preset terms the review states back, from contracts/stocks-v2/src/StocksPreset.sol.
   @new_decimals 18
-  @auction_inventory 495_000_000 * Integer.pow(10, 18)
+  @auction_inventory 497_500_000 * Integer.pow(10, 18)
   @start_lead_blocks 300
   @auction_duration_blocks 43_200
   @claim_delay_blocks 64
@@ -60,15 +60,15 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 #{ticker}"},
-      {"Sold at auction", "495,000,000 #{ticker} (49.5%)"},
-      {"Pool reserve", "495,000,000 #{ticker} (49.5%)"},
+      {"Sold at auction", "497,500,000 #{ticker} (49.75%)"},
+      {"Pool reserve", "497,500,000 #{ticker} (49.75%)"},
       {"Starting price", "The lowest the auction accepts"},
       {"Minimum raise", "The whole sale at the starting price, a small fraction of one share"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
       {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
-      {"Creator allocation", "10,000,000 #{ticker} (1%)"},
+      {"Creator allocation", "5,000,000 #{ticker} (0.5%)"},
       {"Vesting",
        "Released block by block over #{schedule_copy(@creator_vesting_blocks)} from the pool opening; anyone can release it and it always goes to the creator"},
       {"Treasury", "None"},

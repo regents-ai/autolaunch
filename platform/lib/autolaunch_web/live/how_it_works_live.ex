@@ -168,8 +168,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
           Memestake supply <span class="fact-page__total">1 billion</span>
         </h2>
         <p>
-          Memestake launches last 24 hours. 49.5% of the tokens are sold in the auction, 49.5% is
-          locked in the trading pool with everything the auction raised, and 1% goes to the token's
+          Memestake launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is
+          locked in the trading pool with everything the auction raised, and 0.5% goes to the token's
           creator over 30 days. Stakers earn the onchain stock from fees.
         </p>
         <table class="fact-table">
@@ -184,7 +184,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Auction</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>495 million (49.5%)</strong>
+                <strong>497.5 million (49.75%)</strong>
               </td>
               <td data-label="After a successful auction">
                 Winning bidders claim what they bought.
@@ -193,7 +193,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Liquidity reserve</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>495 million (49.5%)</strong>
+                <strong>497.5 million (49.75%)</strong>
               </td>
               <td data-label="After a successful auction">
                 Paired with all the stock raised in a permanently locked trading position. The pool
@@ -204,7 +204,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
             <tr>
               <th scope="row">Creator</th>
               <td data-label="Amount" class="fact-table__amount">
-                <strong>10 million (1%)</strong>
+                <strong>5 million (0.5%)</strong>
               </td>
               <td data-label="After a successful auction">
                 Released to the token's creator block by block over <strong>30 days</strong>

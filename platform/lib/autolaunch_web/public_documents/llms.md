@@ -72,15 +72,15 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestake: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours. 49.5% of the tokens are sold in the auction, 49.5% is locked in the Uni v4 pool with everything the auction raised, and 1% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
 
 Memestake supply: 1 billion tokens.
 
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
-| Auction | 495 million (49.5%) | Winning bidders claim what they bought. |
-| Liquidity reserve | 495 million (49.5%) | Paired with all the stock raised in a permanently locked trading position. The pool opens at the auction's final clearing price. The rest of the reserve is locked in a second position that holds only the new token. |
-| Creator | 10 million (1%) | Released to the token's creator block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
+| Auction | 497.5 million (49.75%) | Winning bidders claim what they bought. |
+| Liquidity reserve | 497.5 million (49.75%) | Paired with all the stock raised in a permanently locked trading position. The pool opens at the auction's final clearing price. The rest of the reserve is locked in a second position that holds only the new token. |
+| Creator | 5 million (0.5%) | Released to the token's creator block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
 Every auction opens at the lowest price it accepts. Its minimum is the whole sale at that price, a small fraction of one share. If the auction doesn't reach it, every bidder takes back their full bid and all 1 billion tokens are burned.
 

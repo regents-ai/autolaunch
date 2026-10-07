@@ -42,12 +42,12 @@ defmodule Autolaunch.AuctionFigures do
 
   @doc """
   The tokens the auction sells, fixed by its launch type: a Revstake auction
-  sells 20 billion of its 100 billion tokens, a Memestake auction 495 million
+  sells 20 billion of its 100 billion tokens, a Memestake auction 497.5 million
   of its 1 billion, on either chain; the first four Memestake auctions sold
   up to 800 million.
   """
   @spec token_allocation(map()) :: Decimal.t()
   def token_allocation(%{kind: :agent}), do: Decimal.new(20_000_000_000)
   def token_allocation(%{kind: :stocks, contracts_version: :v1}), do: Decimal.new(800_000_000)
-  def token_allocation(%{kind: :stocks, contracts_version: :v2}), do: Decimal.new(495_000_000)
+  def token_allocation(%{kind: :stocks, contracts_version: :v2}), do: Decimal.new(497_500_000)
 end

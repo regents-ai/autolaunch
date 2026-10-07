@@ -30,23 +30,23 @@ defmodule AutolaunchWeb.Components.CreateNext do
         %{
           key: :auction,
           label: "Auction",
-          amount: "495 million",
-          share: 49.5,
+          amount: "497.5 million",
+          share: 49.75,
           note: "Winning bidders claim what they bought."
         },
         %{
           key: :pool,
           label: "Trading pool",
-          amount: "495 million",
-          share: 49.5,
+          amount: "497.5 million",
+          share: 49.75,
           note:
             "Paired with everything the auction raised at its final price. The rest is a second position holding only the token. Both are locked forever."
         },
         %{
           key: :creator,
           label: "You, the creator",
-          amount: "10 million",
-          share: 1,
+          amount: "5 million",
+          share: 0.5,
           note:
             "Released to you block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays you."
         }

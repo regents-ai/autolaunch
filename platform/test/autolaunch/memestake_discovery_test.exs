@@ -257,9 +257,9 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
             BaseRpcStub.address_word(@auction),
             BaseRpcStub.hex_word(@start_block),
             BaseRpcStub.hex_word(@end_block),
-            BaseRpcStub.hex_word(495 * 10 ** 24),
-            BaseRpcStub.hex_word(495 * 10 ** 24),
-            BaseRpcStub.hex_word(10 ** 25)
+            BaseRpcStub.hex_word(4975 * 10 ** 23),
+            BaseRpcStub.hex_word(4975 * 10 ** 23),
+            BaseRpcStub.hex_word(5 * 10 ** 24)
           ])
     }
   end
