@@ -80,6 +80,9 @@ mix setup
 mix phx.server
 ```
 
+Set `PRIVY_APP_ID` and `PRIVY_VERIFICATION_KEY` first; without them the local server
+refuses to start, because nobody could sign in.
+
 The site is then at `http://localhost:4050`. `mix setup` fetches dependencies, runs
 `npm ci` against the platform lockfile (React, Privy, and the TypeScript
 tooling the browser bundle needs), creates the `autolaunch_dev` database on loopback
