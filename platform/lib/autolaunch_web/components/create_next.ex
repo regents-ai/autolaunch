@@ -225,9 +225,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
           <span class="create-next__part-note">{fee.note}</span>
         </li>
       </ul>
-      <p class="create-next__note">
-        Regent keeps 2% of the token's staking rewards. It is not another trading fee.
-      </p>
     </section>
     """
   end
