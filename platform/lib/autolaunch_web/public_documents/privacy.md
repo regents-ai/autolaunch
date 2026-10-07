@@ -8,7 +8,7 @@ Every auction, token and public page can be read without an account or a wallet,
 
 ## Cookies and your browser
 
-The site sets one session cookie, which keeps you signed in and protects forms from forgery. Your browser also remembers a few conveniences on your own device, such as what you last typed in search. Privy, which handles signing in, keeps its own sign-in data in your browser.
+The site sets one session cookie, which keeps you signed in for up to 30 days and protects forms from forgery. Your browser also remembers a few conveniences on your own device, such as what you last typed in search. Privy, which handles signing in, keeps its own sign-in data in your browser.
 
 ## Signing in
 

@@ -48,7 +48,7 @@ An unknown address under `/api` answers a JSON 404 whatever the `Accept` header 
 
 ## Rate limits
 
-Each client address has 120 requests per 60 seconds, shared by `/healthz` and every address under `/api`, including the calls the browser tools make. Every answer there says where you stand:
+Each client address has 120 requests per 60 seconds, shared by `/healthz`, every address under `/api`, including the calls the browser tools make, and the auction and token share pictures. Every answer there says where you stand:
 
 ```http
 RateLimit-Policy: "default";q=120;w=60

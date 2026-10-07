@@ -24,6 +24,7 @@ defmodule AutolaunchWeb.ShareCard do
   alias Autolaunch.StoredImage
   alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{Paths, PublicDocuments, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.ShareCard.Cache
   alias Vix.Vips.{Image, Operation}
 
   @width 1200
@@ -174,10 +175,17 @@ defmodule AutolaunchWeb.ShareCard do
 
   @doc """
   An auction's picture as PNG bytes, with its figures as read at `now`: its
-  FDV, the time left or where it stands, and its clearing price so far.
+  FDV, the time left or where it stands, and its clearing price so far. The
+  picture is drawn once per version of its address and kept (`Cache`).
   """
   @spec auction_png(struct(), DateTime.t()) :: {:ok, binary()} | {:error, term()}
-  def auction_png(auction, now) do
+  def auction_png(auction, now),
+    do:
+      Cache.fetch({:auction, auction.id}, auction_version(auction, now), fn ->
+        draw_auction(auction, now)
+      end)
+
+  defp draw_auction(auction, now) do
     rate = rate(auction)
 
     with {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil) do
@@ -196,7 +204,10 @@ defmodule AutolaunchWeb.ShareCard do
   is the FDV: the price times the whole supply.
   """
   @spec token_png(struct(), struct(), DateTime.t()) :: {:ok, binary()} | {:error, term()}
-  def token_png(auction, token, now) do
+  def token_png(auction, token, now),
+    do: Cache.fetch({:token, auction.id}, bucket(now), fn -> draw_token(auction, token, now) end)
+
+  defp draw_token(auction, token, now) do
     rate = rate(auction)
     price = token.price_quote && Decimal.new(token.price_quote, max_digits: :infinity)
 

@@ -1,8 +1,9 @@
 defmodule Autolaunch.Accounts.RequestRateLimiter do
   @moduledoc """
-  Per-client fixed-window budgets for the public API and the health check.
-  Every answer carries what is left of the window, so a response can tell the
-  caller how many requests remain and when the window resets.
+  Per-client fixed-window budgets for the public API, the health check and the
+  share pictures. Every answer carries what is left of the window, so a
+  response can tell the caller how many requests remain and when the window
+  resets.
 
   This is a per-instance best-effort bound, not a global hard cap. With N
   application instances, a client can spend up to N × limit in one window.

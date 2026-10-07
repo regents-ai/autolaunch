@@ -11,7 +11,9 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   `/auth/csrf` commits an unbound generation-zero row that confers nothing until
   a verified sign-in binds it, and first bind and every same-account refresh
   advance the generation exactly once, so the cookie that carried the previous
-  generation is stale for every later request and mount. Revocation is terminal.
+  generation is stale for every later request and mount. Revocation is terminal,
+  and a sign-in lapses thirty days after its last sign-in or refresh, after which
+  the lineage is treated as revoked.
 
   Every transition runs inside one transaction that inserts the operation's row
   when it is absent, locks it `FOR UPDATE`, and applies at most one legal
@@ -36,6 +38,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   @lineage_bytes 32
   @maximum_generation 9_223_372_036_854_775_807
   @topic_prefix "session_authority:"
+  @sign_in_lifetime_seconds 30 * 86_400
   @canonical_keys ["session_lineage", "session_generation", "live_socket_id"]
 
   @typedoc "Everything a browser carries. There is no account here by design."
@@ -279,12 +282,12 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   A same-account refresh advances the generation beneath a mounted socket, so a
   lease revalidates the lineage, its account, its revocation and the account's
-  provider evidence rather than the generation it mounted with.
+  provider evidence rather than the generation it mounted with, and a lapsed
+  sign-in ends it.
   """
   @spec leased_account(String.t(), integer()) :: Ash.Resource.record() | nil
   def leased_account(lineage, account_id) when is_binary(lineage) and is_integer(account_id) do
-    if match?(%{revoked_at: nil, human_account_id: ^account_id}, lineage |> digest() |> row()),
-      do: verified(account_id)
+    if leased?(lineage |> digest() |> row(), account_id), do: verified(account_id)
   end
 
   def leased_account(_lineage, _account_id), do: nil
@@ -307,12 +310,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   @spec transact_lease(String.t(), integer(), callback()) :: {:ok, term()} | {:error, term()}
   def transact_lease(lineage, account_id, callback)
       when is_binary(lineage) and is_integer(account_id),
-      do:
-        guarded(
-          lineage,
-          &match?(%{revoked_at: nil, human_account_id: ^account_id}, &1),
-          callback
-        )
+      do: guarded(lineage, &leased?(&1, account_id), callback)
 
   def transact_lease(_lineage, _account_id, _callback), do: {:error, :stale_authority}
 
@@ -323,16 +321,32 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   # The four states an integrity-valid claim can hold against its row. A claim
   # ahead of its row, or above generation zero without one, is unrecoverable
-  # rather than merely superseded.
+  # rather than merely superseded, and so is a sign-in that has lapsed.
   defp state(nil, %{generation: 0}), do: :ensurable
   defp state(nil, _claim), do: :reset
   defp state(%{revoked_at: revoked_at}, _claim) when not is_nil(revoked_at), do: :reset
-  defp state(%{generation: generation}, %{generation: generation}), do: :exact
 
-  defp state(%{generation: generation}, %{generation: claimed}) when claimed < generation,
-    do: :superseded
+  defp state(row, claim),
+    do: if(lapsed?(row), do: :reset, else: generation_state(row, claim))
 
-  defp state(_row, _claim), do: :reset
+  defp generation_state(%{generation: generation}, %{generation: generation}), do: :exact
+
+  defp generation_state(%{generation: generation}, %{generation: claimed})
+       when claimed < generation,
+       do: :superseded
+
+  defp generation_state(_row, _claim), do: :reset
+
+  # A sign-in lasts thirty days from the last sign-in or refresh. Those are the
+  # only transitions that write a bound row short of revoking it, so its
+  # `updated_at` is when it was last signed in.
+  defp lapsed?(%{human_account_id: nil}), do: false
+
+  defp lapsed?(%{updated_at: signed_in_at}),
+    do: DateTime.diff(DateTime.utc_now(), signed_in_at) > @sign_in_lifetime_seconds
+
+  defp leased?(row, account_id),
+    do: match?(%{revoked_at: nil, human_account_id: ^account_id}, row) and not lapsed?(row)
 
   # Exhaustion is terminal rather than wrapping: the lineage is revoked and the
   # browser bootstraps a fresh one.
