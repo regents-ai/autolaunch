@@ -9,6 +9,8 @@
 .create-page__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 .create-field { min-width: 0; align-content: start; }
 .create-field textarea { min-height: 4.5rem; resize: vertical; }
+/* A ticker is saved in capitals, so the box shows it that way as it is typed. */
+.create-field input[name$="[symbol]"] { text-transform: uppercase; }
 .create-field__optional { color: var(--color-fg-muted); font-size: .75rem; font-weight: 400; }
 .create-page__label { font-weight: 600; }
 .create-page__hint { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
