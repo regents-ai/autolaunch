@@ -43,7 +43,11 @@
   #home-explore .home-sort a:not([aria-current]):hover, #home-explore .home-display a:not([aria-current]):hover, #home-explore .home-filter summary:hover { color: var(--color-fg); }
 }
 @media (pointer: coarse) { #home-explore .home-filter__option { min-height: 40px; } }
-#home-explore .home-search-context { display: flex; flex-wrap: wrap; gap: 16px; margin: -8px 0 24px; font-size: .875rem; }
+/* The search line keeps its one-line space with or without a search, so the list below never moves. */
+#home-explore .home-search-context { display: flex; gap: 16px; height: 1.5em; margin: -8px 0 24px; font-size: .875rem; line-height: 1.5; white-space: nowrap; }
+#home-explore .home-search-context[data-empty] { visibility: hidden; }
+#home-explore .home-search-context span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#home-explore .home-search-context a { flex: none; }
 #home-explore .home-coin-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 32px 18px; }
 #home-explore .home-coin-grid > * { display: block; grid-row: auto; min-width: 0; }
 #home-explore .home-coin__main { display: block; color: inherit; text-decoration: none; border-radius: 8px; }

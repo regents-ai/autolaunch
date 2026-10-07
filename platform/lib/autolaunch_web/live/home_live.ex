@@ -474,7 +474,12 @@ defmodule AutolaunchWeb.HomeLive do
         </script>
       </div>
 
-      <div :if={@market_options.q != ""} class="home-search-context">
+      <div
+        class="home-search-context"
+        data-empty={@market_options.q == ""}
+        inert={@market_options.q == ""}
+        aria-hidden={to_string(@market_options.q == "")}
+      >
         <span>Results for “{@market_options.q}”</span>
         <.link patch={HomeMarket.path(@market_options, %{q: ""})}>Clear search</.link>
       </div>
