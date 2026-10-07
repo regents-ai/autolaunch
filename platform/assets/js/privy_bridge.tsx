@@ -4,6 +4,7 @@ import {
   type PrivyEvents,
   getIdentityToken,
   useActiveWallet,
+  useConnectWallet,
   useLogin,
   useLinkAccount,
   usePrivy,
@@ -499,7 +500,9 @@ export type PrivyBridgeProviderState = {
   walletsReady: ReturnType<typeof useWallets>["ready"]
   wallets: ReturnType<typeof useWallets>["wallets"]
   activeWallet?: ReturnType<typeof useActiveWallet>["wallet"]
-  connectActiveWallet?: ReturnType<typeof useActiveWallet>["connect"]
+  linkedWallets?: string[]
+  setActiveWallet?: ReturnType<typeof useActiveWallet>["setActiveWallet"]
+  connectWallet?: ReturnType<typeof useConnectWallet>["connectWallet"]
 }
 
 function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}: AccountBridgeProps) {
@@ -512,7 +515,22 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const walletsReady = providerState?.walletsReady ?? providerWallets.ready
   const wallets = providerState?.wallets ?? providerWallets.wallets
   const activeWallet = providerState?.activeWallet ?? providerActiveWallet.wallet
-  const connectActiveWallet = providerState?.connectActiveWallet ?? providerActiveWallet.connect
+  const setActiveWallet = providerState?.setActiveWallet ?? providerActiveWallet.setActiveWallet
+  // A wallet the customer connects in Privy's window becomes this tab's wallet.
+  const providerWalletConnector = useConnectWallet({
+    onSuccess: ({wallet}) => {
+      if (isAvailable() && wallet.type === "ethereum") setActiveWallet(wallet)
+    },
+  })
+  const connectWallet = providerState?.connectWallet ?? providerWalletConnector.connectWallet
+  // The Ethereum wallets the signed-in account is linked to, joined so a render
+  // with the same accounts leaves the wallet sync below alone.
+  const linkedWallets = (
+    providerState?.linkedWallets ??
+    (privy.user?.linkedAccounts ?? []).flatMap(account =>
+      account.type === "wallet" && account.chainType === "ethereum" ? [account.address] : [],
+    )
+  ).map(address => address.toLowerCase()).join(",")
   const signOutOnly = mode === "sign-out-only"
   const signOutOnlyState = React.useRef<"preterminal" | "terminal">(
     signOutOnly ? "preterminal" : "terminal",
@@ -674,7 +692,22 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const synchronizeWallets = React.useCallback(async () => {
     if (!isAvailable()) return
     const generation = ++walletSyncGeneration.current
-    const selected = eligibleActiveWallet(activeWallet, wallets)
+    let selected = eligibleActiveWallet(activeWallet, wallets)
+
+    // Privy names no wallet after a sign-in that skipped its window, or in a new
+    // tab. The signed-in wallet then sends as this tab has it connected: the one
+    // connected wallet the account is linked to. Two such wallets are no wallet;
+    // the press opens Privy's connect window and the customer picks.
+    if (!selected && ready && walletsReady && linkedWallets) {
+      const linked = linkedWallets.split(",")
+      const signedIn = wallets.filter(wallet =>
+        wallet.type === "ethereum" && linked.includes(wallet.address.toLowerCase()),
+      )
+      if (signedIn.length === 1) {
+        selected = signedIn[0]
+        setActiveWallet(selected)
+      }
+    }
 
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (!isAvailable() || walletSyncGeneration.current !== generation) return
@@ -696,7 +729,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     replaceActiveEthereumWallet(selected && provider ? {address: selected.address, provider} : null)
     showWalletBadge(selected && provider ? selected.meta : undefined)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
-  }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady, isAvailable])
+  }, [activeWallet, linkedWallets, ready, reconcileProviderSession, setActiveWallet, wallets, walletsReady, isAvailable])
 
   React.useEffect(() => {
     if (signOutOnly) return
@@ -706,13 +739,14 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     }
   }, [signOutOnly, synchronizeWallets])
 
-  // A press with no active wallet in this tab opens Privy's own chooser.
-  // Nothing here picks a wallet: the customer connects one.
+  // A press with no wallet in this tab opens Privy's connect window, for a
+  // wallet this tab does not have yet or for a choice between wallets.
   React.useEffect(() => {
-    const openChooser = () => void Promise.resolve(connectActiveWallet()).catch(() => undefined)
+    const openChooser = () =>
+      void Promise.resolve(connectWallet({walletChainType: "ethereum-only"})).catch(() => undefined)
     window.addEventListener("autolaunch:wallet-connect", openChooser)
     return () => window.removeEventListener("autolaunch:wallet-connect", openChooser)
-  }, [connectActiveWallet])
+  }, [connectWallet])
 
   const markSignOutTerminal = React.useCallback(() => {
     signOutOnlyState.current = "terminal"
