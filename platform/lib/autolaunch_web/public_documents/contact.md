@@ -8,7 +8,7 @@ Email [build@regents.sh](mailto:build@regents.sh) about Autolaunch: a launch, an
 
 ## Security reports
 
-Email [security@regents.sh](mailto:security@regents.sh) to report a suspected vulnerability. Include the affected page, a short description and safe steps to reproduce it. Please do not publish details before we have replied.
+Email [build@regents.sh](mailto:build@regents.sh) to report a suspected vulnerability. Include the affected page, a short description and safe steps to reproduce it. Please do not publish details before we have replied.
 
 ## Privacy requests
 
