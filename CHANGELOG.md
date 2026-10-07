@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v68, 7 October 2026 (1a509b0)
+- The site now always opens over a secure connection, and browsers remember to use one.
+- A new browser safety rule watches what each page loads. For now it only reports; pages work as before.
+- Security reports now go to build@regents.sh.
+
 ## v67, 6 October 2026 (7968f74)
 - A security update to the site's underlying software. Nothing changes on the pages.
 - When you open your profile without signing in, the message now says what went wrong and what to do next.
