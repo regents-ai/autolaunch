@@ -102,7 +102,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   form_id="stocks-token-details"
                   param="name"
                   label="Name"
-                  placeholder="Rocket Dog"
                   values={@draft_values}
                   errors={@detail_errors}
                 />
@@ -110,7 +109,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   form_id="stocks-token-details"
                   param="symbol"
                   label="Ticker"
-                  placeholder="RDOG"
                   values={@draft_values}
                   errors={@detail_errors}
                 />
