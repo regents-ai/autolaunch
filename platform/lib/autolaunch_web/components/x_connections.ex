@@ -21,7 +21,9 @@ defmodule AutolaunchWeb.Components.XConnections do
 
     ~H"""
     <div id={@id} class="connections" phx-hook="XConnections" data-x-oauth-origin={XOAuth.origin()}>
-      <p :if={!@enabled} class="connections__note">X accounts can't be added right now.</p>
+      <p :if={!@enabled} class="connections__note">
+        [local text to be replaced by: no note; the Connect buttons below work]
+      </p>
       <ul class="connections__list">
         <.x_role
           :for={role <- [:profile, :company]}

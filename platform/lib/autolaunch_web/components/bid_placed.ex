@@ -78,7 +78,9 @@ defmodule AutolaunchWeb.Components.BidPlaced do
                 data-x-intent-sequence={intent_sequence(@x_connection)}
               >
                 <p :if={@x_enabled}>Connect your X account to share from it.</p>
-                <p :if={!@x_enabled}>X accounts can't be connected right now.</p>
+                <p :if={!@x_enabled}>
+                  [local text to be replaced by: Connect your X account to share from it, and a Connect X button]
+                </p>
                 <Regent.Primitives.button
                   :if={@x_enabled}
                   type="button"
