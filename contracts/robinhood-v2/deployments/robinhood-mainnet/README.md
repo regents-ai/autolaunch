@@ -81,6 +81,16 @@ After the record, the admin Safe on Robinhood Chain, in one transaction batch:
 6. `pauseLaunches()` on the v1 launchpad `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e`, so new
    launches only open on v2. Existing v1 launches keep their bids, claims and withdrawals.
 
+## Gas
+
+Replayed in order on a copy of Robinhood Chain (7 October 2026), every creation landed at its
+predicted address and the launchpad read back its hook, locker, splitter implementation, inbox,
+factory and admin Safe: 34,712,066 gas on Robinhood Chain (launchpad 7,869,818, each route about
+733,750) and about 520,000 on Base. A simulator or local copy without Robinhood Chain's `ArbSys`
+block-number service (`0x…64`) shows the launchpad needing over a billion gas: `BlockNumberish`
+probes that service with all remaining gas, and the probe only fails when the service is missing.
+The copy above stood in for it with the lab's block clock. On the live chain the probe answers.
+
 ## Sending the ceremony by hand
 
 The founder sends each creation from a signer of his own, confirms its receipt (chain, sender,
