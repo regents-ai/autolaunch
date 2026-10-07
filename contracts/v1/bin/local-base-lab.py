@@ -456,9 +456,9 @@ def reserve_port() -> int:
         return int(candidate.getsockname()[1])
 
 
-def build_anvil_command(
-    port: int, upstream_url: str, fork_block: int | None
-) -> list[str]:
+def build_anvil_command(port: int, fork_block: int | None) -> list[str]:
+    # "base" is the foundry.toml alias for the upstream variable, so the address never appears in
+    # the process list; --silent keeps anvil's banner, which prints it, out of every log.
     command = [
         "anvil",
         "--host",
@@ -468,7 +468,7 @@ def build_anvil_command(
         "--chain-id",
         str(LOCAL_CHAIN_ID),
         "--fork-url",
-        upstream_url,
+        "base",
         "--silent",
     ]
     if fork_block is not None:
@@ -478,14 +478,18 @@ def build_anvil_command(
     return command
 
 
-def start_anvil(command: Sequence[str], rpc_url: str) -> subprocess.Popen[bytes]:
+def start_anvil(
+    root: Path, command: Sequence[str], rpc_url: str
+) -> subprocess.Popen[bytes]:
+    # Anvil alone keeps the upstream variable: it resolves the "base" alias from the project's
+    # foundry.toml.
     process = subprocess.Popen(
         list(command),
+        cwd=root,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
-        env=child_environment(),
     )
     client = RpcClient(rpc_url, timeout=1.0)
     try:
@@ -860,7 +864,7 @@ def command_start(args: argparse.Namespace) -> None:
     with termination_unwinds():
         try:
             process = start_anvil(
-                build_anvil_command(port, upstream, args.fork_block), rpc_url
+                root, build_anvil_command(port, args.fork_block), rpc_url
             )
             client = RpcClient(rpc_url)
             accounts = client.read("eth_accounts")

@@ -187,15 +187,17 @@ def require_component_root() -> None:
 
 
 class Chain:
-    """Read-only access to Base through `cast`, by the endpoint under one environment name."""
+    """Read-only access to Base through `cast`, by the foundry.toml alias for one environment name."""
 
     def endpoint(self) -> str:
+        """What `--rpc-url` receives: the alias, so the injected address never appears on a command
+        line or in the process list."""
         value = os.environ.get(RPC_ENV, "")
         if not value:
             raise CeremonyError(f"no read-only endpoint is injected under {RPC_ENV}")
         if not re.match(r"^(https?|wss?)://.+", value):
             raise CeremonyError(f"the value under {RPC_ENV} is not an http(s) or ws(s) endpoint; its value is never printed")
-        return value
+        return "base"
 
     def cast(self, *args: str) -> str:
         return run(["cast", *args, "--rpc-url", self.endpoint()]).strip()

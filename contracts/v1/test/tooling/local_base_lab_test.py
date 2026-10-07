@@ -209,17 +209,18 @@ class BoundaryTests(unittest.TestCase):
             ):
                 lab.validate_loopback_rpc_url(url)
 
-    def test_upstream_is_only_anvil_input_and_forge_children_are_scrubbed(self):
+    def test_anvil_forks_by_alias_and_forge_children_are_scrubbed(self):
         secret = "https://provider.invalid/secret"
-        command = lab.build_anvil_command(9123, secret, 123)
-        self.assertEqual(command[command.index("--fork-url") + 1], secret)
+        command = lab.build_anvil_command(9123, 123)
+        self.assertEqual(command[command.index("--fork-url") + 1], "base")
+        self.assertIn("--silent", command)
         self.assertEqual(command[command.index("--host") + 1], "127.0.0.1")
         self.assertEqual(command[command.index("--chain-id") + 1], "31337")
         self.assertEqual(command[command.index("--fork-block-number") + 1], "123")
         with mock.patch.dict(os.environ, {lab.REGENT_BASE_RPC_ENV: secret}):
-            anvil_environment = lab.child_environment()
+            child = lab.child_environment()
             environment = lab.forge_environment({"EXTRA": "ok"})
-        self.assertNotIn(lab.REGENT_BASE_RPC_ENV, anvil_environment)
+        self.assertNotIn(lab.REGENT_BASE_RPC_ENV, child)
         self.assertNotIn(lab.REGENT_BASE_RPC_ENV, environment)
         self.assertEqual(environment["FOUNDRY_OFFLINE"], "true")
         self.assertEqual(environment["EXTRA"], "ok")

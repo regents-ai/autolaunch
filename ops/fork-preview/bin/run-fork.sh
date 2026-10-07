@@ -52,16 +52,18 @@ else
   log state ",\"action\":\"fresh\",\"file\":\"$STATE_FILE\""
 fi
 
-anvil \
+# "base" is the alias in $APP_DIR/foundry.toml for FORK_UPSTREAM_RPC_URL, so the address stays out of
+# the process list; --silent keeps anvil's banner, which prints it, out of the log.
+(cd "$APP_DIR" && exec anvil \
   --host "$ANVIL_HOST" \
   --port "$ANVIL_PORT" \
   --chain-id 31337 \
-  --fork-url "$FORK_UPSTREAM_RPC_URL" \
+  --fork-url base \
   --fork-block-number "$FORK_BLOCK_NUMBER" \
   --block-time "${FORK_BLOCK_TIME:-2}" \
   --state "$STATE_FILE" \
   --state-interval 60 \
-  --silent &
+  --silent) &
 ANVIL_PID=$!
 
 # Wait (up to five minutes; a large saved state takes a while to load) for Anvil to answer as 31337
