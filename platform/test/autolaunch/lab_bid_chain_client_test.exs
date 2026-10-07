@@ -12,7 +12,11 @@ defmodule Autolaunch.LabBidChainClientTest do
   # auction refuses `checkpoint()` before its start, so answering it here would
   # hide the start-block check behind a chain that looks unreadable.
   defmodule ChainStub do
-    @block %{"number" => "0x96", "hash" => "0x" <> String.duplicate("cd", 32)}
+    @block %{
+      "number" => "0x96",
+      "hash" => "0x" <> String.duplicate("cd", 32),
+      "timestamp" => "0x6700"
+    }
 
     def install do
       previous = Application.get_env(:autolaunch, :autolaunch_lab_http_client)

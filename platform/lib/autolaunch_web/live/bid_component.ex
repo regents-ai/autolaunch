@@ -84,10 +84,13 @@ defmodule AutolaunchWeb.BidComponent do
      )}
   end
 
+  # A price the page's ladder handle set as the limit; nothing is sent from it.
+  @impl true
+  def update(%{use_price: price}, socket), do: {:ok, at_price(socket, price)}
+
   # A review lives on the page until something it depends on changes, and is
   # built again once it is ten minutes old, so its allowance window, deadline
   # and tick hint stay current (`OnchainSteps.refresh_later/1`).
-  @impl true
   def update(%{refresh_review: review_id}, socket) do
     case socket.assigns.review do
       %{id: ^review_id} -> {:ok, rebuilt(socket, nil)}
@@ -331,10 +334,8 @@ defmodule AutolaunchWeb.BidComponent do
   end
 
   # The price to beat, entered from the auction's price panel as the limit.
-  def handle_event("use_price", %{"price" => price}, socket) do
-    form = BidForm.at_price(socket.assigns.form, price)
-    {:noreply, socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()}
-  end
+  def handle_event("use_price", %{"price" => price}, socket),
+    do: {:noreply, at_price(socket, price)}
 
   def handle_event("clear_bid", _params, socket),
     do:
@@ -639,6 +640,13 @@ defmodule AutolaunchWeb.BidComponent do
   end
 
   defp bid_key(_assigns), do: nil
+
+  # A price set as the limit, from the auction's price panel or its ladder
+  # handle; nothing is sent from it.
+  defp at_price(socket, price) do
+    form = BidForm.at_price(socket.assigns.form, price)
+    socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()
+  end
 
   # A page that asked marks the maximum being drafted on its price chart and
   # ladder, so it hears each maximum the form now reads, or nil.

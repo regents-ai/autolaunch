@@ -106,13 +106,22 @@ defmodule Autolaunch.BaseRpcStub do
   defp result("eth_chainId", _params, state), do: Map.get(state, :chain_id, "0x2105")
 
   defp result("eth_getBlockByNumber", ["safe", false], state),
-    do: Map.get(state, :safe_block, %{"number" => "0x20", "hash" => @safe_hash})
+    do:
+      Map.get(state, :safe_block, %{
+        "number" => "0x20",
+        "hash" => @safe_hash,
+        "timestamp" => "0x6700"
+      })
 
   defp result("eth_getBlockByNumber", [number, false], state),
     do:
       state
       |> Map.get(:blocks, %{})
-      |> Map.get(number, %{"number" => number, "hash" => @receipt_block_hash})
+      |> Map.get(number, %{
+        "number" => number,
+        "hash" => @receipt_block_hash,
+        "timestamp" => "0x6700"
+      })
 
   defp result("eth_getTransactionReceipt", [hash], state),
     do: state |> Map.get(:receipts, %{}) |> Map.get(hash)

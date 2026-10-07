@@ -8,7 +8,7 @@ defmodule Autolaunch.Chain.Rpc do
   @timeout 8_000
   @chain_id 8453
 
-  @type block :: %{number: non_neg_integer(), hash: String.t()}
+  @type block :: %{number: non_neg_integer(), hash: String.t(), timestamp: non_neg_integer()}
 
   def verify_base_chain(opts \\ []) do
     verify_chain(@chain_id, opts)
@@ -223,10 +223,11 @@ defmodule Autolaunch.Chain.Rpc do
     _ -> {:error, :invalid_chain_response}
   end
 
-  defp block_identity(%{"number" => number, "hash" => hash}) do
+  defp block_identity(%{"number" => number, "hash" => hash, "timestamp" => timestamp}) do
     with {:ok, number} <- quantity(number),
+         {:ok, timestamp} <- quantity(timestamp),
          true <- valid_hash?(hash) do
-      {:ok, %{number: number, hash: String.downcase(hash)}}
+      {:ok, %{number: number, hash: String.downcase(hash), timestamp: timestamp}}
     else
       _malformed -> {:error, :invalid_block_header}
     end

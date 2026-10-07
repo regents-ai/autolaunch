@@ -17,6 +17,8 @@ defmodule AutolaunchWeb.TokenLive do
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
   alias AutolaunchWeb.SwapComponent
 
+  @reward_assets %{"stock" => :stock, "dollar" => :dollar, "token" => :token}
+
   def mount(_params, _session, socket) do
     LabMarket.subscribe(socket)
     {:ok, LiveListings.subscribe(socket)}
@@ -26,11 +28,15 @@ defmodule AutolaunchWeb.TokenLive do
   # instead of keeping the previous record on screen.
   def handle_params(%{"token_id" => id} = params, _uri, socket) do
     amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
-    socket = assign(socket, :stake_amount, amount)
+    socket = assign(socket, stake_amount: amount, reward_asset: nil)
     {:noreply, socket |> assign(:record_id, id) |> load_page()}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
+
+  def handle_event("reward_asset", %{"asset" => asset}, socket),
+    do: {:noreply, assign(socket, :reward_asset, Map.get(@reward_assets, asset))}
+
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
   # The staking card confirmed something that moved the pool's figures, so the
@@ -103,6 +109,12 @@ defmodule AutolaunchWeb.TokenLive do
             pool={@pool.result}
             supply={@page_record.auction.token_supply}
           />
+          <.reward_history
+            :if={@pool.ok?}
+            id="token-reward-history"
+            pool={@pool.result}
+            asset={@reward_asset}
+          />
         </div>
         <section id="stake" class="token-stake token-next-layout__side" aria-label="Staking">
           <.stake_summary
@@ -156,12 +168,24 @@ defmodule AutolaunchWeb.TokenLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
+      <.live_component
+        :if={@pool.ok? && SwapComponent.entry_symbol(@page_record.auction)}
+        module={AutolaunchWeb.ImpactProbeComponent}
+        id={"token-impact-#{@page_record.id}"}
+        launch={%{chain: :base, auction: @page_record.auction}}
+        pool={@pool.result}
+      />
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
         <.link navigate={Paths.auction(@page_record.auction)}>
           Open the auction this token graduated from
         </.link>
       </p>
       <.liquidity :if={@pool.ok?} id="token-liquidity" pool={@pool.result} />
+      <.treasury_vesting
+        :if={@pool.ok? && @pool.result.kind == :agent}
+        id="token-treasury-vesting"
+        pool={@pool.result}
+      />
       <.launch_trust
         auction={@page_record.auction}
         connections={@creator_connections}

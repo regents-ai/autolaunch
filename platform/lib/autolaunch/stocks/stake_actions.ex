@@ -26,7 +26,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, Rpc}
-  alias Autolaunch.{Lab, LabAbi, Pool}
+  alias Autolaunch.{Lab, LabAbi, Pool, RewardHistory}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
@@ -77,10 +77,10 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   @doc """
   What one wallet has in a launch's splitter, read at the block the pool facts
-  were read at: its token balance, its stake, its allowance to the splitter and
+  were read at: its token balance, its stake, its allowance to the splitter,
   what it can claim in each of the three assets (the dollar, the launch's token
-  and the currency it trades against). A public read of public figures;
-  nothing is bound to it.
+  and the currency it trades against) and what it has already claimed of each
+  since the pool opened. A public read of public figures; nothing is bound to it.
   """
   @spec position(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def position(pool, address) do
@@ -99,7 +99,11 @@ defmodule Autolaunch.Stocks.StakeActions do
            splitter_uint(splitter, abi, "stakedOf(address)", [holder], pool.block, rpc),
          {:ok, dollar_owed} <- claimable(splitter, abi, dollar.address, holder, pool, rpc),
          {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
-         {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc) do
+         {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc),
+         {:ok, claimed} <-
+           chain(RewardHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
+      claimed_of = &Map.get(claimed, String.downcase(&1), 0)
+
       {:ok,
        %{
          balance: amount(balance, @token_decimals),
@@ -109,6 +113,11 @@ defmodule Autolaunch.Stocks.StakeActions do
            dollar: amount(dollar_owed, dollar.decimals),
            token: amount(token, @token_decimals),
            stock: amount(stock, pool.currency.decimals)
+         },
+         claimed: %{
+           dollar: amount(claimed_of.(dollar.address), dollar.decimals),
+           token: amount(claimed_of.(pool.token.address), @token_decimals),
+           stock: amount(claimed_of.(pool.currency.address), pool.currency.decimals)
          }
        }}
     end

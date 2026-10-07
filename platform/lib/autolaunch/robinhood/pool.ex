@@ -14,7 +14,7 @@ defmodule Autolaunch.Robinhood.Pool do
 
   alias Autolaunch.Chain.{Abi, Rpc}
 
-  alias Autolaunch.{LabAbi, PriceHistory}
+  alias Autolaunch.{LabAbi, Pool, PoolRange, PriceHistory, RewardHistory}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Assets, FeeSchedule}
@@ -53,10 +53,21 @@ defmodule Autolaunch.Robinhood.Pool do
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock),
          {:ok, symbol} <-
            Rpc.call_string(launch.new_token, LabAbi.selector("symbol()"), block, opts),
-         {:ok, positions} <- positions(config, launch, stock, block, opts),
+         {:ok, current} <-
+           Pool.pool_state(
+             Lab.address!(config, :pool_manager),
+             launch.pool_id,
+             currency0?(launch.new_token, launch.stock),
+             @token_decimals,
+             stock.decimals,
+             block,
+             opts
+           ),
+         {:ok, positions} <- positions(config, launch, stock, current, block, opts),
          {:ok, fees} <- fees(config, launch, stock, block, opts),
          # The launch's migration block is on the rollup clock, not the block
          # numbers logs carry, so the pool's logs are read from the chain's start.
+         {:ok, rewards} <- RewardHistory.recognized(:memestake, launch.splitter, 0, block, opts),
          {:ok, prices} <-
            PriceHistory.pool(
              %{
@@ -86,8 +97,11 @@ defmodule Autolaunch.Robinhood.Pool do
          hook: launch.contracts.hook,
          locker: launch.contracts.locker,
          pool_manager: Lab.address!(config, :pool_manager),
+         logs_from: 0,
+         current: current,
          positions: positions,
          fees: fees,
+         rewards: rewards,
          prices: prices,
          vesting: launch.vesting
        }}
@@ -147,6 +161,39 @@ defmodule Autolaunch.Robinhood.Pool do
         error -> {:halt, error}
       end
     end)
+  end
+
+  @doc """
+  The REGENT lane of one graduated launch, as `graduated/3` lists it, at
+  `block`: the stock it trades against and the lane's figures, atomic amounts
+  included.
+  """
+  @spec regent_lane(map(), map(), Rpc.block(), keyword()) :: {:ok, map()} | {:error, atom()}
+  def regent_lane(launch, config, block, opts) do
+    with {:ok, record} <-
+           launch_record(
+             %{auction_address: launch.auction, contracts_version: launch.contracts_version},
+             config,
+             block,
+             opts
+           ),
+         {:ok, stock} <- Assets.fetch(Lab.chain_id(), record.stock),
+         {:ok, %{regent: regent}} <-
+           Pool.lanes(
+             record.contracts,
+             record.pool_id,
+             stock.decimals,
+             @usdg_decimals,
+             block,
+             opts
+           ) do
+      {:ok,
+       Map.put(regent, :stock, %{
+         address: String.downcase(record.stock),
+         symbol: stock.symbol,
+         decimals: stock.decimals
+       })}
+    end
   end
 
   defp graduated_on(config, version, block, opts) do
@@ -232,7 +279,7 @@ defmodule Autolaunch.Robinhood.Pool do
   defp creator_vesting(%{version: :v2} = contracts, record, launch_id, block, opts) do
     with {:ok, releasable} <-
            launchpad_uint(contracts, "creatorReleasable(uint256)", [launch_id], block, opts),
-         do: Autolaunch.Pool.vesting(record, releasable)
+         do: Pool.vesting(record, releasable)
   end
 
   # Each launch's second locked position: the first launchpad keeps a
@@ -276,7 +323,7 @@ defmodule Autolaunch.Robinhood.Pool do
   # Every position belongs to the launchpad's locker, which never releases
   # them and forwards the fees it collects to the launch's splitter. Each
   # carries what a collection would deposit right now, simulated on the locker.
-  defp positions(config, launch, stock, block, opts) do
+  defp positions(config, launch, stock, current, block, opts) do
     manager = Lab.address!(config, :position_manager)
     locker = launch.contracts.locker
 
@@ -291,31 +338,32 @@ defmodule Autolaunch.Robinhood.Pool do
     held =
       case launch.second do
         %{key: :stock_only, token_id: token_id, used: used} when token_id != 0 ->
-          [full_range, Autolaunch.Pool.stock_only_position(token_id, used, stock.decimals)]
+          [full_range, Pool.stock_only_position(token_id, used, stock.decimals)]
 
         %{key: :new_only, token_id: token_id, used: used} when token_id != 0 ->
-          [full_range, Autolaunch.Pool.new_only_position(token_id, used)]
+          [full_range, Pool.new_only_position(token_id, used)]
 
         _none ->
           [full_range]
       end
 
-    Enum.reduce_while(held, {:ok, []}, fn position, {:ok, found} ->
-      case owner_of(manager, position.token_id, block, opts) do
-        {:ok, owner} ->
-          {:cont,
-           {:ok,
-            found ++
-              [
-                Map.merge(position, %{
-                  owner: owner,
-                  locked?: Address.equal?(owner, locker),
-                  uncollected: uncollected(launch, position.token_id, stock, block, opts)
-                })
-              ]}}
+    token_is_currency0? = currency0?(launch.new_token, launch.stock)
 
-        error ->
-          {:halt, error}
+    Enum.reduce_while(held, {:ok, []}, fn position, {:ok, found} ->
+      with {:ok, owner} <- owner_of(manager, position.token_id, block, opts),
+           {:ok, range} <- PoolRange.read(manager, position.token_id, block, opts) do
+        held =
+          Map.merge(position, %{
+            owner: owner,
+            locked?: Address.equal?(owner, locker),
+            range: range,
+            holds: Pool.holdings(range, current, token_is_currency0?, stock.decimals),
+            uncollected: uncollected(launch, position.token_id, stock, block, opts)
+          })
+
+        {:cont, {:ok, found ++ [held]}}
+      else
+        error -> {:halt, error}
       end
     end)
   end
@@ -344,40 +392,35 @@ defmodule Autolaunch.Robinhood.Pool do
   end
 
   # The hook's lanes for this pool, read from its own storage right now, every
-  # fee it charged the pool's trades, the wallet the Safe named to convert
-  # Regent's lane, and the splitter the staker lane and the locker's LP fees
-  # flow to. Like the price history, the hook's logs are read from the
-  # chain's start.
+  # fee it charged the pool's trades and every lane it settled, the wallet the
+  # Safe named to convert Regent's lane, and the splitter the staker lane and
+  # the locker's LP fees flow to. Like the price history, the hook's logs are
+  # read from the chain's start.
   defp fees(config, launch, stock, block, opts) do
-    %{hook: hook, abis: %{"hook" => abi}, lanes: lanes} = contracts = launch.contracts
+    %{hook: hook, abis: %{"hook" => abi}} = contracts = launch.contracts
 
-    with {:ok, accrued} <-
-           Rpc.call_words(
-             hook,
-             LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
-             block,
-             length(lanes),
-             opts
-           ),
-         {:ok, settled} <-
-           Rpc.call_words(
-             hook,
-             LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
-             block,
-             length(lanes) + 1,
-             opts
-           ),
+    with {:ok, figures} <-
+           Pool.lanes(contracts, launch.pool_id, stock.decimals, @usdg_decimals, block, opts),
          {:ok, converter} <-
            Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
          {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts),
-         {:ok, accrued_logs} <- accrued_logs(contracts, launch.pool_id, block, opts) do
+         {:ok, logs} <- hook_logs(contracts, launch.pool_id, block, opts) do
+      accrued_topic = LabAbi.topic(contracts.fee_accrued)
+      settled_topics = Map.new(contracts.lane_settled, &{LabAbi.topic(elem(&1, 1)), elem(&1, 0)})
+      accrued_logs = Enum.filter(logs, &(event_topic(&1) == accrued_topic))
+
       {:ok,
-       lanes
-       |> Autolaunch.Pool.lane_figures(accrued, settled, stock.decimals, @usdg_decimals)
+       figures
        |> put_in([:regent, :converter], converter)
        |> Map.merge(%{
-         charged: Enum.map(accrued_logs, &Autolaunch.Pool.charged/1),
-         splitter: splitter
+         charged: Enum.map(accrued_logs, &Pool.charged/1),
+         splitter: splitter,
+         settlements:
+           for(
+             log <- logs,
+             {:ok, lane} <- [Map.fetch(settled_topics, event_topic(log))],
+             do: Pool.settlement(log, lane, stock.decimals)
+           )
        })}
     end
   end
@@ -404,12 +447,12 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  defp accrued_logs(contracts, pool_id, block, opts) do
+  defp hook_logs(contracts, pool_id, block, opts) do
     filter = %{
       address: contracts.hook,
       fromBlock: "0x0",
       toBlock: "0x" <> Integer.to_string(block.number, 16),
-      topics: [LabAbi.topic(contracts.fee_accrued), pool_id]
+      topics: [nil, pool_id]
     }
 
     case Rpc.request("eth_getLogs", [filter], opts) do
@@ -418,6 +461,8 @@ defmodule Autolaunch.Robinhood.Pool do
       error -> error
     end
   end
+
+  defp event_topic(%{"topics" => [topic | _rest]}), do: String.downcase(topic)
 
   defp owner_of(position_manager, token_id, block, opts) do
     Rpc.call_address(

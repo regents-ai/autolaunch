@@ -175,6 +175,75 @@ defmodule Autolaunch.SwapActions do
   end
 
   @doc """
+  Fresh quotes both ways for a trade worth `amount` of the pool's currency at
+  the pool's price now: what buying with that amount gets, what selling that
+  much worth of the token pays, and how far each lands from the pool's price
+  with the pool's and the hook's fees included. Public facts only; nothing is
+  bound to it.
+  """
+  @spec impact(map()) :: {:ok, map()} | {:error, term()}
+  def impact(%{launch: launch, amount: amount}) do
+    with {:ok, pool} <- pool(launch),
+         {:ok, venue} <- venue(pool),
+         {:ok, price} <- pool_price(pool),
+         {:ok, currency_in} <- amount_in(amount, pool.currency.decimals),
+         {:ok, token_in} <- token_worth(currency_in, price, pool),
+         {:ok, bought} <- quote(trade(pool, :buy), currency_in, pool.block, venue),
+         {:ok, sold} <- quote(trade(pool, :sell), token_in, pool.block, venue) do
+      buy_price = unit_price(currency_in, bought, pool)
+      sell_price = unit_price(sold, token_in, pool)
+
+      {:ok,
+       %{
+         block: pool.block.number,
+         price: compact(Decimal.to_string(price, :normal), 6),
+         buy: %{
+           pay: units(currency_in, pool.currency),
+           get: compact(units(bought, pool.token), 8),
+           price: compact(Decimal.to_string(buy_price, :normal), 6),
+           cost: percent(Decimal.sub(Decimal.div(buy_price, price), 1))
+         },
+         sell: %{
+           pay: compact(units(token_in, pool.token), 8),
+           get: compact(units(sold, pool.currency), 8),
+           price: compact(Decimal.to_string(sell_price, :normal), 6),
+           cost: percent(Decimal.sub(1, Decimal.div(sell_price, price)))
+         }
+       }}
+    end
+  end
+
+  defp pool_price(%{current: %{price: %{value: value}}}),
+    do: {:ok, Decimal.new(String.trim_trailing(value, "…"))}
+
+  defp pool_price(_pool), do: unavailable(:chain_unavailable)
+
+  # The token amount worth `currency_in` at the pool's price, cut to a whole
+  # atomic unit.
+  defp token_worth(currency_in, price, pool) do
+    atomic =
+      currency_in
+      |> Decimal.new()
+      |> Decimal.mult(Integer.pow(10, pool.token.decimals))
+      |> Decimal.div(Decimal.mult(price, Integer.pow(10, pool.currency.decimals)))
+      |> Decimal.round(0, :down)
+      |> Decimal.to_integer()
+
+    if atomic > 0, do: {:ok, atomic}, else: unavailable(:amount_required)
+  end
+
+  # Currency per whole token for one side of a trade, in whole units.
+  defp unit_price(currency_atomic, token_atomic, pool),
+    do:
+      Decimal.div(
+        Decimal.div(currency_atomic, Integer.pow(10, pool.currency.decimals)),
+        Decimal.div(token_atomic, Integer.pow(10, pool.token.decimals))
+      )
+
+  defp percent(fraction),
+    do: fraction |> Decimal.mult(100) |> Decimal.round(2) |> Decimal.to_string(:normal)
+
+  @doc """
   What a wallet holds of the pool's two sides, for the form's balance lines.
   A public read of public balances; nothing is bound to it.
   """

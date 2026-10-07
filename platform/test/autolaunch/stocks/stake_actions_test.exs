@@ -34,7 +34,13 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
     BaseRpcStub.install(:autolaunch_lab_http_client, fn data, _state -> answer(data, config) end)
 
     BaseRpcStub.put(%{
-      blocks: %{"latest" => %{"number" => "0x20", "hash" => BaseRpcStub.safe_hash()}}
+      blocks: %{
+        "latest" => %{
+          "number" => "0x20",
+          "hash" => BaseRpcStub.safe_hash(),
+          "timestamp" => "0x6700"
+        }
+      }
     })
 
     request = %{kind: :collect, launch: %{chain: :base, auction: auction}}
@@ -65,7 +71,13 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
       LabAbi.selector("balanceOf(address)") => [0],
       LabAbi.selector("allowance(address,address)") => [0],
       LabAbi.selector("stakedOf(address)") => [0],
-      LabAbi.selector("claimable(address,address)") => [0]
+      LabAbi.selector("claimable(address,address)") => [0],
+      LabAbi.selector("positionInfo(uint256)") => [full_range()],
+      LabAbi.selector("getPositionLiquidity(uint256)") => [0],
+      LabAbi.selector("lifecycle()") => [1],
+      LabAbi.selector("vestingStart()") => [0x6000],
+      LabAbi.selector("VESTING_DURATION()") => [365 * 86_400],
+      LabAbi.selector("totalReleased()") => [0]
     }
 
     "0x" <> Enum.map_join(Map.fetch!(answers, String.slice(data, 0, 10)), &BaseRpcStub.hex_word/1)
@@ -92,6 +104,14 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
       1,
       @lp_token_id
     ]
+  end
+
+  # PositionInfo packs `tickUpper` at bit 32 and `tickLower` at bit 8, each a
+  # 24-bit two's complement tick; full range for a 60 tick spacing.
+  defp full_range do
+    import Bitwise
+    tick = 887_220
+    (tick &&& 0xFFFFFF) <<< 32 ||| (-tick &&& 0xFFFFFF) <<< 8
   end
 
   defp word("0x" <> hex), do: String.to_integer(hex, 16)

@@ -144,3 +144,29 @@
 .auction-next-howto__list { display: grid; gap: 6px; margin: 0; padding-left: 1.1rem; font-size: .875rem; line-height: 1.5; }
 .auction-next-howto__advice { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .auction-next-howto__advice strong { color: var(--color-fg); }
+
+/* What a bidder can do now, beside the stage rail. */
+.auction-next-stage { display: grid; gap: 10px; min-width: 0; }
+.auction-next-facts { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0; }
+.auction-next-facts > div { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 10px; border: 1px solid var(--hairline); border-radius: 999px; font-size: .75rem; }
+.auction-next-facts dt { color: var(--color-fg-muted); }
+.auction-next-facts dd { margin: 0; font-weight: 600; }
+.auction-next-facts > div[data-on="true"] { border-color: color-mix(in srgb, var(--color-success) 50%, var(--hairline)); }
+.auction-next-facts > div[data-on="true"] dd { color: var(--color-success); }
+
+/* Placed bids' maximum prices on the chart. */
+.auction-next-film__bid { stroke: var(--color-fg); stroke-width: 2px; opacity: .55; }
+.auction-next-film__bid[data-above="true"] { stroke-dasharray: 2 2; }
+.auction-next-legend .auction-next-legend__bid::before { width: 8px; border-top: 2px solid var(--color-fg); opacity: .55; }
+
+/* The price-limit handle: drag or arrow keys, one allowed price a step. */
+.auction-next-handle { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px dashed var(--color-link, var(--color-fg)); border-radius: 10px; }
+.auction-next-handle label { font-size: .875rem; font-weight: 600; }
+.auction-next-handle input[type="range"] { width: 100%; accent-color: var(--color-link, var(--brand-accent)); }
+.auction-next-handle input[type="range"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.auction-next-handle__reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.auction-next-handle__reading dt { color: var(--color-fg-muted); font-size: .75rem; }
+.auction-next-handle__reading dd { display: grid; gap: 2px; margin: 2px 0 0; overflow-wrap: anywhere; }
+.auction-next-handle__reading small { color: var(--color-fg-muted); font-size: .6875rem; }
+.auction-next-handle__reading [data-tone="on"] dd { color: var(--color-success); }
+@media (max-width: 480px) { .auction-next-handle__reading { grid-template-columns: minmax(0, 1fr); } }

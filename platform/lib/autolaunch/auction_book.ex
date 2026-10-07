@@ -131,6 +131,8 @@ defmodule Autolaunch.AuctionBook do
          clearing_q96: clearing,
          clearing: BidPrice.decimal(clearing, decimals),
          decimals: decimals,
+         tick_spacing_q96: spacing,
+         max_bid_price_q96: cap,
          price_to_beat_q96: if(to_beat <= cap, do: to_beat),
          price_to_beat: if(to_beat <= cap, do: entered(to_beat, spacing, decimals))
        }}
@@ -139,6 +141,14 @@ defmodule Autolaunch.AuctionBook do
 
   defp uint(address, signature, block, opts),
     do: Rpc.call_uint(address, LabAbi.selector(signature), block, opts)
+
+  @doc """
+  A grid price as the shortest decimal a bidder can type that the bid form
+  turns back into exactly that grid price.
+  """
+  @spec typed(pos_integer(), map()) :: String.t()
+  def typed(q96, %{tick_spacing_q96: spacing, decimals: decimals}),
+    do: entered(q96, spacing, decimals)
 
   # The shortest price a bidder can type that the bid form turns back into
   # exactly this grid price: rounded up, so it never falls to the grid step

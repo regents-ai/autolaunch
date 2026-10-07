@@ -95,3 +95,70 @@
 .token-next-position__head span { font-size: .75rem; }
 .token-next-position .token-next-rows > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 .token-next-position .token-next-rows dd { text-align: left; }
+
+/* The latest time money moved on a step, opening its transaction. */
+.token-next-tx { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+
+/* A choice between assets: fixed size, so choosing never moves the card. */
+.token-next-choice { display: inline-flex; flex: none; gap: 2px; padding: 2px; border: 1px solid var(--hairline-strong); border-radius: 999px; }
+.token-next-choice__option { min-width: 4.5rem; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer; }
+.token-next-choice__option[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); }
+.token-next-choice__option:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* Stakers' rewards over time: a running total in steps. */
+.token-next-stairs { position: relative; aspect-ratio: 600 / 160; min-width: 0; border-bottom: 1px solid var(--hairline); }
+.token-next-stairs svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.token-next-stairs__line { fill: none; stroke: var(--color-success); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.token-next-stairs__step { fill: var(--color-surface); stroke: var(--color-success); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; }
+.token-next-stairs a:hover .token-next-stairs__step, .token-next-stairs a:focus-visible .token-next-stairs__step { fill: var(--color-success); }
+.token-next-stairs a:focus-visible { outline: none; }
+.token-next-stairs__empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; font-size: .875rem; }
+
+/* The treasury's vesting year. */
+.token-next-vesting { display: grid; gap: 8px; min-width: 0; }
+.token-next-vesting__track { position: relative; padding-top: 18px; }
+.token-next-vesting__today { position: absolute; top: 0; bottom: -4px; transform: translateX(-50%); border-left: 2px solid var(--color-fg); padding-left: 4px; font-size: .6875rem; font-weight: 600; line-height: 1; white-space: nowrap; }
+.token-next-vesting__dates { display: flex; justify-content: space-between; gap: 12px; color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.token-next-bar__part--released { background: var(--color-fg); }
+.token-next-bar__part--ready { background: var(--color-success); }
+.token-next-bar__part--locked { background: var(--hairline-strong); }
+.token-next-legend .token-next-legend__released::before { background: var(--color-fg); }
+.token-next-legend .token-next-legend__ready::before { background: var(--color-success); }
+
+/* Each locked position on the price range, with the price now. */
+.token-next-range { display: grid; gap: 6px; min-width: 0; margin: 0; }
+.token-next-range svg { display: block; width: 100%; height: auto; overflow: visible; }
+.token-next-range__bar { fill: var(--hairline-strong); }
+.token-next-range__bar--full_range { fill: var(--color-success); opacity: .55; }
+.token-next-range__bar--stock_only { fill: var(--brand-accent); }
+.token-next-range__bar--new_only { fill: var(--color-fg); opacity: .7; }
+.token-next-range__now { stroke: var(--color-fg); stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.token-next-range__axis { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.token-next-range__axis-now { color: var(--color-fg); font-weight: 600; }
+.token-next-legend .token-next-legend__new_only::before { background: var(--color-fg); opacity: .7; }
+
+/* The wallet's claimed amount under what it can claim now. */
+.token-next-basket__amount { display: grid; justify-items: end; gap: 2px; }
+.token-next-basket__amount small { color: var(--color-fg-muted); font-size: .75rem; font-weight: 400; }
+
+/* Price impact: one size, quoted both ways. */
+.token-next-probe__form { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; min-width: 0; }
+.token-next-probe__form label { font-size: .875rem; font-weight: 600; }
+.token-next-probe__input { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 12px; border: 1px solid var(--hairline-strong); border-radius: 10px; }
+.token-next-probe__input input { flex: 1; min-width: 0; height: 40px; border: 0; background: transparent; color: var(--color-fg); font: inherit; font-variant-numeric: tabular-nums; }
+.token-next-probe__input input:focus { outline: none; }
+.token-next-probe__input:focus-within { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.token-next-probe__input span { color: var(--color-fg-muted); font-size: .8125rem; font-weight: 600; }
+.token-next-probe__again { height: 40px; padding: 0 14px; border: 1px solid var(--hairline-strong); border-radius: 10px; background: transparent; color: var(--color-fg); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+.token-next-probe__again:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.token-next-probe__sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.token-next-probe__side { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 12px; }
+.token-next-probe__side h3 { margin: 0; font-size: .9375rem; }
+.token-next-probe__side .token-next-rows > div { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 480px) {
+  .token-next-probe__form { grid-template-columns: minmax(0, 1fr) auto; }
+  .token-next-probe__form label { grid-column: 1 / -1; }
+  .token-next-probe__sides { grid-template-columns: minmax(0, 1fr); }
+  .token-next-probe__side .token-next-rows > div { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  .token-next-probe__side .token-next-rows dd { text-align: right; }
+}

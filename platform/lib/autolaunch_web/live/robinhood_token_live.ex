@@ -27,6 +27,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard, TokenDisplay}
 
+  @reward_assets %{"stock" => :stock, "dollar" => :dollar, "token" => :token}
+
   def mount(_params, _session, socket),
     do:
       {:ok,
@@ -40,12 +42,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   # instead of keeping the previous launch on screen.
   def handle_params(%{"token" => token} = params, _uri, socket) do
     amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
-    socket = assign(socket, :stake_amount, amount)
+    socket = assign(socket, stake_amount: amount, reward_asset: nil)
 
     {:noreply, socket |> assign(:token_address, token) |> load_page()}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
+
+  def handle_event("reward_asset", %{"asset" => asset}, socket),
+    do: {:noreply, assign(socket, :reward_asset, Map.get(@reward_assets, asset))}
+
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
   # The staking card confirmed something that moved the pool's figures, so the
@@ -106,6 +112,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             id="robinhood-token-reward-trace"
             pool={@pool.result}
             supply={@token.auction.token_supply}
+          />
+          <.reward_history
+            :if={@pool.ok?}
+            id="robinhood-token-reward-history"
+            pool={@pool.result}
+            asset={@reward_asset}
           />
         </div>
         <section id="stake" class="token-stake token-next-layout__side" aria-label="Staking">
@@ -187,6 +199,13 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
+      />
+      <.live_component
+        :if={@swap? && @pool.ok?}
+        module={AutolaunchWeb.ImpactProbeComponent}
+        id={"robinhood-impact-#{@token.auction.auction_address}"}
+        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+        pool={@pool.result}
       />
       <p class="autolaunch-live-market">
         <.link navigate={Paths.auction(@token.auction)}>

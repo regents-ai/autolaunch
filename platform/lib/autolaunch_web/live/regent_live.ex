@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.RegentLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Lab
-  alias Autolaunch.RegentFacts
+  alias Autolaunch.{MemestakeLanes, RegentFacts}
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{RegentNext, TokenLinks}
   alias AutolaunchWeb.TokenDisplay
@@ -28,6 +28,12 @@ defmodule AutolaunchWeb.RegentLive do
          {:ok, facts} -> {:ok, %{facts: facts}}
          {:error, reason} -> {:error, reason}
        end
+     end)
+     |> assign_async(:base_lane, fn ->
+       with {:ok, lane} <- MemestakeLanes.base(), do: {:ok, %{base_lane: lane}}
+     end)
+     |> assign_async(:robinhood_lane, fn ->
+       with {:ok, lane} <- MemestakeLanes.robinhood(), do: {:ok, %{robinhood_lane: lane}}
      end)}
   end
 
@@ -100,7 +106,11 @@ defmodule AutolaunchWeb.RegentLive do
         <RegentNext.next_split facts={@facts.result} />
         <RegentNext.emissions facts={@facts.result} />
         <RegentNext.deposits_by_source facts={@facts.result} />
-        <RegentNext.memestake_sources facts={@facts.result} />
+        <RegentNext.memestake_sources
+          facts={@facts.result}
+          base_lane={@base_lane}
+          robinhood_lane={@robinhood_lane}
+        />
         <section
           id="regent-next-yours"
           class="regent-next-card"

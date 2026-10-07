@@ -76,6 +76,7 @@ defmodule Autolaunch.AuctionFinishTest do
       do: %{
         "number" => quantity(100),
         "hash" => "0x" <> String.duplicate("5a", 32),
+        "timestamp" => quantity(1_800_000_000),
         "baseFeePerGas" => quantity(1_000_000_000)
       }
 

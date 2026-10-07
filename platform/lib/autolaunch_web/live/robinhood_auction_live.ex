@@ -64,6 +64,19 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   def handle_event("scrub_now", _params, socket), do: {:noreply, assign(socket, :scrub_at, nil)}
 
+  # The ladder's handle fills in the bid form's maximum; nothing is sent from it.
+  def handle_event("price_handle", %{"step" => step}, socket) do
+    with %{ok?: true, result: snapshot} <- socket.assigns.snapshot,
+         {:ok, price} <- handle_price(snapshot, step),
+         do:
+           send_update(AutolaunchWeb.RobinhoodStockBidComponent,
+             id: "autolaunch-robinhood-bid",
+             use_price: price
+           )
+
+    {:noreply, socket}
+  end
+
   def handle_event("check_bid", %{"bid" => number}, socket) do
     %{auction: address, launch: launch} = socket.assigns
 
@@ -154,7 +167,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             Try again
           </button>
         </p>
-        <.stage_rail :if={@snapshot.ok?} stage={@snapshot.result.stage.stage} />
+        <.stage_rail
+          :if={@snapshot.ok?}
+          stage={@snapshot.result.stage.stage}
+          facts={@snapshot.result.stage.facts}
+        />
         <.figures
           :if={@snapshot.ok?}
           snapshot={@snapshot.result}
@@ -171,6 +188,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             id="robinhood-auction-film"
             snapshot={@snapshot.result}
             points={@history.result.points}
+            bids={@history.result.bids}
             draft={@draft_price}
             at={@scrub_at}
             symbol={@launch.quote_token_symbol}

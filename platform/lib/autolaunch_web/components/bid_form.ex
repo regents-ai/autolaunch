@@ -264,7 +264,7 @@ defmodule AutolaunchWeb.Components.BidForm do
             <span class="bid-chip">{@amount_unit}</span>
           </div>
         </div>
-        <div :if={@budget_usd? || @balance} class="bid-box__row bid-box__sub">
+        <div class="bid-box__row bid-box__sub">
           <UsdValue.usd :if={@budget_usd?} amount={@form.amount} rate={@budget_rate} />
           <button
             :if={@balance}
@@ -299,14 +299,15 @@ defmodule AutolaunchWeb.Components.BidForm do
           </span>
         </div>
         <input type="hidden" name="fdv_shown" value={@fdv} />
-        <p
-          :if={@fdv_in_price_unit && (@fdv_unit != @price_unit || @rate != :test_network)}
-          class="bid-box__sub"
-        >
-          <span :if={@fdv_unit != @price_unit}>
+        <p class="bid-box__sub">
+          <span :if={@fdv_in_price_unit && @fdv_unit != @price_unit}>
             ≈ <TokenDisplay.written value={figure(@fdv_in_price_unit)} unit={@price_unit} />
           </span>
-          <UsdValue.usd :if={@fdv_unit == @price_unit} amount={@fdv_in_price_unit} rate={@rate} />
+          <UsdValue.usd
+            :if={@fdv_in_price_unit && @fdv_unit == @price_unit && @rate != :test_network}
+            amount={@fdv_in_price_unit}
+            rate={@rate}
+          />
         </p>
 
         <div :if={@first_stop} class="bid-slider" style={"--at: #{@at}"}>

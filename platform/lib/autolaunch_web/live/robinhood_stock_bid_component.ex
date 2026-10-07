@@ -97,6 +97,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   @impl true
   def update(%{refresh_bids: true}, socket), do: {:ok, read_bids(socket)}
 
+  # A price the page's ladder handle set as the limit; nothing is sent from it.
+  def update(%{use_price: price}, socket), do: {:ok, at_price(socket, price)}
+
   # A review holds its quote for fifteen minutes, so it is built again once it
   # is ten minutes old (`OnchainSteps.refresh_later/1`).
   def update(%{refresh_review: review_id}, socket) do
@@ -404,8 +407,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   attr :token_symbol, :string, required: true
   attr :chain_name, :string, default: nil
 
-  # The bid in three lines: what it spends, what it buys and at most what
-  # price, and where.
+  # The bid in five lines: what it spends, the stock that buys for the
+  # auction, what it buys and at most what price, what any refund comes back
+  # in, and where.
   defp summary(assigns) do
     ~H"""
     <dl class="bid-form__summary" aria-label="Your bid" hidden={!@prepared}>
@@ -413,6 +417,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         <div>
           <dt>You pay</dt>
           <dd><TokenDisplay.written value={@prepared.facts.usdg_amount} unit="USDG" /></dd>
+        </div>
+        <div>
+          <dt>Bid budget</dt>
+          <dd>
+            about
+            <TokenDisplay.written
+              value={@prepared.facts.stock_quote}
+              unit={@prepared.facts.stock_symbol}
+            />
+          </dd>
         </div>
         <div>
           <dt>You get</dt>
@@ -426,6 +440,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           </dd>
         </div>
         <div>
+          <dt>Refunds in</dt>
+          <dd><span class="ticker">{@prepared.facts.stock_symbol}</span></dd>
+        </div>
+        <div>
           <dt>Network</dt><dd>{@chain_name}</dd>
         </div>
       <% end %>
@@ -437,7 +455,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         <TokenDisplay.written
           value={@prepared.facts.min_stock_out}
           unit={@prepared.facts.stock_symbol}
-        />, 1% below today's quote, or the bid is not placed.
+        />, 1% below today's quote, or the bid is not placed. Any part the auction does not
+        spend comes back as <span class="ticker">{@prepared.facts.stock_symbol}</span>, not <span class="ticker">USDG</span>.
       <% end %>
     </p>
     <p class="bid-form__note" hidden={!(@prepared && @prepared.facts.max_price_adjusted)}>
@@ -466,10 +485,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   # The price to beat, entered from the auction's price panel as the limit.
-  def handle_event("use_price", %{"price" => price}, socket) do
-    form = BidForm.at_price(socket.assigns.form, price)
-    {:noreply, socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()}
-  end
+  def handle_event("use_price", %{"price" => price}, socket),
+    do: {:noreply, at_price(socket, price)}
 
   # A press made while the form on screen differs from the review the page
   # holds, or before there is one: the bid is prepared for exactly the values
@@ -742,6 +759,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   defp bid_key(_assigns), do: nil
+
+  defp at_price(socket, price) do
+    form = BidForm.at_price(socket.assigns.form, price)
+    socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()
+  end
 
   # A page that asked marks the maximum being drafted on its price chart and
   # ladder, so it hears each maximum the form now reads, or nil.

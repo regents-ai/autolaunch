@@ -11,7 +11,12 @@ defmodule AutolaunchWeb.Components.TokenNext do
       staked tokens in a card of their own;
     * `stake_impact/1` - the wallet's share now and after the amount typed
       in the staking form, as a worked example;
-    * `liquidity/1` - the locked positions the pool opened with.
+    * `reward_history/1` - every reward counted for stakers, per asset, as
+      a running total whose steps open their transactions;
+    * `treasury_vesting/1` - a Revstake treasury's tokens, released, ready
+      to release and still locked over the vesting year;
+    * `liquidity/1` - the locked positions, each placed on the price range
+      with what it holds now.
 
   Every rule is the launch's own contracts', first or second launchpad alike:
   a Memestake splitter keeps 2% for
@@ -31,10 +36,21 @@ defmodule AutolaunchWeb.Components.TokenNext do
 
   import AutolaunchWeb.Components.InfoTip
 
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.{Amounts, FeeSchedule}
+  alias AutolaunchWeb.Components.BidPlaced
   alias AutolaunchWeb.TokenDisplay
 
   @bps 10_000
+  # The rewards chart's drawing box and inset.
+  @stairs_width 600
+  @stairs_height 160
+  @stairs_inset 8
+  # The range picture: a bound this far out is the end of the price scale,
+  # and the window reaches at least this many ticks (about 3x in price)
+  # beyond what it shows.
+  @scale_end 887_000
+  @range_margin 11_000
   # RegentFeeHook's Regent lane on every Revstake trade, beside the stakers' lane.
   @revstake_regent_bps 100
 
@@ -151,6 +167,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
               unit={@pool.currency.symbol}
             /> sent so far
           </p>
+          <.latest_tx chain={@pool.chain} entry={settled(@pool, :stakers)} />
           <p class="token-next-source">Read from the chain at block {@block}.</p>
         </div>
       </li>
@@ -190,6 +207,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
             It reaches the staking contract in the same trade and counts as staking rewards at once.
             Nothing waits in between.
           </p>
+          <.latest_tx chain={@pool.chain} entry={arrived(@pool, @pool.hook)} />
         </div>
       </li>
     </ol>
@@ -286,6 +304,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
           <dd :if={!position.uncollected}>Unavailable: this could not be read just now.</dd>
         </div>
       </dl>
+      <.latest_tx chain={@pool.chain} entry={arrived(@pool, @pool.locker)} label="Latest collection" />
       <p class="token-next-source">
         Read from the chain at block {@block}, as what collecting now would send. Fees already
         collected are not added up here.
@@ -357,6 +376,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
           <dd><TokenDisplay.tokens amount={@pool.fees.regent.settled_usdc} unit="USDG" /></dd>
         </div>
       </dl>
+      <.latest_tx chain={@pool.chain} entry={settled(@pool, :regent)} label="Latest swap" />
       <p class="token-next-source">Read from the chain at block {@block}.</p>
     </section>
     """
@@ -407,10 +427,244 @@ defmodule AutolaunchWeb.Components.TokenNext do
           </dd>
         </div>
       </dl>
+      <.latest_tx chain={@pool.chain} entry={settled(@pool, :creator)} label="Latest payment" />
       <p class="token-next-source">Read from the chain at block {@block}.</p>
     </section>
     """
   end
+
+  attr :id, :string, required: true
+  attr :pool, :map, required: true
+  attr :asset, :atom, default: nil, doc: "the asset chosen: :stock, :dollar or :token"
+
+  @doc """
+  Every reward the staking contract has counted for stakers, in one asset at
+  a time, as a running total since the pool opened. Each step is one arrival
+  and opens its transaction. The figures are everyone's together: a wallet's
+  own claimable and claimed amounts are in the staking card.
+  """
+  def reward_history(assigns) do
+    assets = reward_assets(assigns.pool)
+
+    chosen =
+      Enum.find(assets, &(&1.key == assigns.asset)) || Enum.find(assets, &(&1.steps != [])) ||
+        hd(assets)
+
+    assigns =
+      assign(assigns,
+        assets: assets,
+        chosen: chosen,
+        chart: staircase(chosen, assigns.pool),
+        block: grouped(assigns.pool.block.number)
+      )
+
+    ~H"""
+    <section id={@id} class="token-next-card" aria-labelledby={"#{@id}-title"}>
+      <header class="token-next-card__head">
+        <h2 id={"#{@id}-title"}>
+          <.info_tip
+            id={"#{@id}-tip"}
+            text="Everything the staking contract has counted for all stakers together. Each step is one arrival; select it to open the transaction."
+          >
+            Stakers' rewards over time
+          </.info_tip>
+        </h2>
+        <div class="token-next-choice" role="group" aria-label="Reward asset">
+          <button
+            :for={asset <- @assets}
+            type="button"
+            class="token-next-choice__option"
+            aria-pressed={to_string(asset.key == @chosen.key)}
+            phx-click="reward_asset"
+            phx-value-asset={asset.key}
+          >
+            {asset.symbol}
+          </button>
+        </div>
+      </header>
+      <div class="token-next-stairs">
+        <svg
+          :if={@chart.steps != []}
+          viewBox={"0 0 #{@chart.width} #{@chart.height}"}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={"Running total of #{@chosen.symbol} rewards"}
+        >
+          <path class="token-next-stairs__line" d={@chart.path} />
+          <a
+            :for={step <- @chart.steps}
+            href={BidPlaced.transaction_url(@pool.chain, step.transaction_hash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={"Block #{grouped(step.block)}: #{step.added} #{@chosen.symbol}"}
+          >
+            <circle class="token-next-stairs__step" cx={step.x} cy={step.y} r="5">
+              <title>Block {grouped(step.block)}: +{step.added} {@chosen.symbol}</title>
+            </circle>
+          </a>
+        </svg>
+        <p :if={@chart.steps == []} class="token-next-stairs__empty token-next-muted">
+          No {@chosen.symbol} rewards counted yet.
+        </p>
+      </div>
+      <dl class="token-next-rows">
+        <div>
+          <dt>Counted for stakers so far</dt>
+          <dd><TokenDisplay.tokens amount={@chart.total} unit={@chosen.symbol} /></dd>
+        </div>
+        <div>
+          <dt>Arrivals</dt>
+          <dd>{grouped(length(@chart.steps))}</dd>
+        </div>
+      </dl>
+      <p class="token-next-source">
+        Read from the staking contract's own records, from the pool's opening to block {@block}.
+      </p>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :pool, :map, required: true
+
+  @doc """
+  A Revstake treasury's tokens in the launch's vesting escrow: what has gone
+  to the treasury, what anyone can release to it now, and what is still
+  locked, on the year it vests over.
+  """
+  def treasury_vesting(assigns) do
+    vesting = assigns.pool.treasury_vesting
+
+    assigns =
+      assign(assigns,
+        vesting: vesting,
+        parts: vesting_parts(vesting),
+        today: vesting_elapsed(vesting),
+        block: grouped(assigns.pool.block.number)
+      )
+
+    ~H"""
+    <section id={@id} class="token-next-card" aria-labelledby={"#{@id}-title"}>
+      <header class="token-next-card__head">
+        <h2 id={"#{@id}-title"}>
+          <.info_tip
+            id={"#{@id}-tip"}
+            text="The treasury's tokens are held by the launch's vesting escrow and unlock in a straight line over 365 days from graduation. Anyone can send the unlocked part to the treasury."
+          >
+            The treasury's tokens
+          </.info_tip>
+        </h2>
+        <span class="token-next-tag">Vests over a year</span>
+      </header>
+      <div :if={@vesting.state == :graduated} class="token-next-vesting">
+        <div class="token-next-vesting__track">
+          <div class="token-next-bar" aria-hidden="true">
+            <span
+              :for={part <- @parts}
+              :if={Decimal.gt?(part.share, 0)}
+              class={"token-next-bar__part token-next-bar__part--#{part.key}"}
+              style={"width: #{width(part.share)}%"}
+            ></span>
+          </div>
+          <span class="token-next-vesting__today" style={"left: #{width(@today)}%"}>Today</span>
+        </div>
+        <div class="token-next-vesting__dates">
+          <span>{date(@vesting.starts_at)}</span>
+          <span>{date(@vesting.ends_at)}</span>
+        </div>
+        <ul class="token-next-legend">
+          <li :for={part <- @parts} class={"token-next-legend__#{part.key}"}>
+            {part.label} <strong>{split_percent(part.share)}</strong>
+          </li>
+        </ul>
+      </div>
+      <p :if={@vesting.state == :pending} class="token-next-lead">
+        Vesting starts when the auction graduates.
+      </p>
+      <p :if={@vesting.state == :failed} class="token-next-lead">
+        This launch did not graduate, so nothing vests to the treasury.
+      </p>
+      <dl class="token-next-rows">
+        <div>
+          <dt>Sent to the treasury</dt>
+          <dd>
+            <TokenDisplay.tokens
+              amount={units(@vesting.released, @vesting)}
+              unit={@pool.token.symbol}
+            />
+          </dd>
+        </div>
+        <div>
+          <dt>Ready to send</dt>
+          <dd>
+            <TokenDisplay.tokens
+              amount={units(@vesting.releasable, @vesting)}
+              unit={@pool.token.symbol}
+            />
+          </dd>
+        </div>
+        <div>
+          <dt>Still locked</dt>
+          <dd>
+            <TokenDisplay.tokens amount={units(@vesting.locked, @vesting)} unit={@pool.token.symbol} />
+          </dd>
+        </div>
+        <div>
+          <dt>Held by</dt>
+          <dd>
+            <a
+              href={BidPlaced.address_url(@pool.chain, @vesting.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="token-next-link autolaunch-exact-value"
+            >
+              {@vesting.address} ↗
+            </a>
+          </dd>
+        </div>
+      </dl>
+      <p class="token-next-source">
+        Read from the escrow at block {@block}; the unlocked part is worked out the way the escrow
+        works it out.
+      </p>
+    </section>
+    """
+  end
+
+  attr :chain, :atom, required: true
+
+  attr :entry, :any,
+    required: true,
+    doc: "the latest record with its block and transaction, or nil"
+
+  attr :label, :string, default: "Latest"
+
+  # The most recent time this money moved, opening its transaction.
+  defp latest_tx(assigns) do
+    ~H"""
+    <p class="token-next-tx">
+      <span class="token-next-muted">{@label}:</span>
+      <a
+        :if={@entry}
+        href={BidPlaced.transaction_url(@chain, @entry.transaction_hash)}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="token-next-link"
+      >
+        block {grouped(@entry.block)} ↗
+      </a>
+      <span :if={!@entry} class="token-next-muted">none yet</span>
+    </p>
+    """
+  end
+
+  # The latest lane settlement the pool's hook emitted for `lane`.
+  defp settled(pool, lane),
+    do: pool.fees.settlements |> Enum.filter(&(&1.lane == lane)) |> List.last()
+
+  # The latest reward the staking contract counted from `source`.
+  defp arrived(pool, source),
+    do: pool.rewards |> Enum.filter(&(&1.source == String.downcase(source))) |> List.last()
 
   attr :id, :string, required: true
   attr :pool, :map, required: true
@@ -452,6 +706,9 @@ defmodule AutolaunchWeb.Components.TokenNext do
             </span>
             <span :if={row.amount} class="token-next-basket__amount">
               <TokenDisplay.tokens amount={row.amount} unit={row.symbol} />
+              <small>
+                Claimed so far <TokenDisplay.tokens amount={row.claimed} unit={row.symbol} />
+              </small>
             </span>
             <span :if={!row.amount} class="token-next-basket__amount token-next-muted">
               {@missing}
@@ -592,25 +849,64 @@ defmodule AutolaunchWeb.Components.TokenNext do
   attr :pool, :map, required: true
 
   @doc """
-  The locked positions the pool opened with: what each was given, whether
-  the launch's locker holds it, the share of the currency each took and what
-  its trading fees are waiting to send. What a position holds now changes
-  with every trade and is not read here.
+  The locked positions: each placed on the price range beside the price now,
+  what it was given at opening and what it holds now, whether the price is
+  inside its range so it earns fees, whether the launch's locker holds it,
+  and the share of the currency each took at opening.
   """
   def liquidity(assigns) do
     assigns =
       assign(assigns,
         block: grouped(assigns.pool.block.number),
-        shares: currency_shares(assigns.pool.positions)
+        shares: currency_shares(assigns.pool.positions),
+        picture: range_picture(assigns.pool)
       )
 
     ~H"""
     <section id={@id} class="token-next-card" aria-labelledby={"#{@id}-title"}>
       <header class="token-next-card__head">
         <h2 id={"#{@id}-title"}>The locked liquidity</h2>
-        <span class="token-next-tag">As placed at opening</span>
+        <span class="token-next-tag">Locked forever</span>
       </header>
       <p class="token-next-lead">{positions_lead(@pool.positions)}</p>
+      <figure :if={@picture} class="token-next-range">
+        <svg
+          viewBox={"0 0 #{@picture.width} #{@picture.height}"}
+          role="img"
+          aria-label={"Each position's price range beside the price now, in #{@pool.currency.symbol} per #{@pool.token.symbol}"}
+        >
+          <g :for={row <- @picture.rows}>
+            <rect
+              class={"token-next-range__bar token-next-range__bar--#{row.key}"}
+              x={row.x}
+              y={row.y}
+              width={row.width}
+              height="12"
+              rx={if row.open?, do: "0", else: "3"}
+            >
+              <title>{row.label}</title>
+            </rect>
+          </g>
+          <line
+            class="token-next-range__now"
+            x1={@picture.now}
+            x2={@picture.now}
+            y1="0"
+            y2={@picture.height}
+          />
+        </svg>
+        <figcaption class="token-next-range__axis">
+          <span>{@picture.low}</span>
+          <span class="token-next-range__axis-now">
+            Now
+            <TokenDisplay.price amount={plain(@pool.current.price)} unit={@pool.currency.symbol} />
+          </span>
+          <span>{@picture.high}</span>
+        </figcaption>
+        <ul class="token-next-legend">
+          <li :for={row <- @picture.rows} class={"token-next-legend__#{row.key}"}>{row.label}</li>
+        </ul>
+      </figure>
       <ol class="token-next-positions">
         <li :for={position <- @pool.positions} class="token-next-position">
           <header class="token-next-position__head">
@@ -627,10 +923,35 @@ defmodule AutolaunchWeb.Components.TokenNext do
               </dd>
             </div>
             <div>
-              <dt>Held now</dt>
-              <dd class="token-next-muted">
-                Unavailable: trades change it, and this page reads only what was placed.
+              <dt>
+                <.info_tip
+                  id={"#{@id}-holds-#{position.token_id}"}
+                  text="Worked out from the position's range and liquidity at the price now, the way Uniswap works out a withdrawal."
+                >
+                  Holds now
+                </.info_tip>
+              </dt>
+              <dd :if={position.holds}>
+                <TokenDisplay.tokens amount={position.holds.token_amount} unit={@pool.token.symbol} />
+                ·
+                <TokenDisplay.tokens
+                  amount={position.holds.currency_amount}
+                  unit={@pool.currency.symbol}
+                />
               </dd>
+              <dd :if={!position.holds} class="token-next-muted">
+                Unavailable: the pool's price could not be read just now.
+              </dd>
+            </div>
+            <div>
+              <dt>Earning fees now</dt>
+              <dd :if={position.holds && position.holds.in_range?}>
+                Yes, the price is inside its range
+              </dd>
+              <dd :if={position.holds && !position.holds.in_range?}>
+                No, the price is outside its range
+              </dd>
+              <dd :if={!position.holds} class="token-next-muted">Unavailable</dd>
             </div>
             <div>
               <dt>Locked</dt>
@@ -740,25 +1061,109 @@ defmodule AutolaunchWeb.Components.TokenNext do
 
   defp reward_rows(pool, position) do
     claimable = position && position.claimable
+    claimed = position && position.claimed
 
     [
       %{
         symbol: pool.currency.symbol,
         note: currency_note(pool),
-        amount: claimable && claimable.stock.shown
+        amount: claimable && claimable.stock.shown,
+        claimed: claimed && claimed.stock.shown
       },
       %{
         symbol: pool.fees.splitter.dollar.symbol,
         note: "Dollar rewards",
-        amount: claimable && claimable.dollar.shown
+        amount: claimable && claimable.dollar.shown,
+        claimed: claimed && claimed.dollar.shown
       },
       %{
         symbol: pool.token.symbol,
         note: "Reward tokens, separate from your stake",
-        amount: claimable && claimable.token.shown
+        amount: claimable && claimable.token.shown,
+        claimed: claimed && claimed.token.shown
       }
     ]
   end
+
+  # The three reward assets in the staking card's order, each with its
+  # counted arrivals and the running total after each one.
+  defp reward_assets(pool) do
+    for {key, asset} <- [
+          stock: pool.currency,
+          dollar: pool.fees.splitter.dollar,
+          token: pool.token
+        ] do
+      address = String.downcase(asset.address)
+
+      {steps, _total} =
+        pool.rewards
+        |> Enum.filter(&(&1.asset == address and &1.amount > 0))
+        |> Enum.map_reduce(0, fn reward, total ->
+          {Map.put(reward, :total, total + reward.amount), total + reward.amount}
+        end)
+
+      %{key: key, symbol: asset.symbol, decimals: asset.decimals, steps: steps}
+    end
+  end
+
+  # The running total as steps from the first arrival to the block read.
+  defp staircase(%{steps: []}, _pool),
+    do: %{steps: [], total: "0", width: @stairs_width, height: @stairs_height, path: ""}
+
+  defp staircase(%{steps: [first | _rest] = steps} = asset, pool) do
+    span = max(pool.block.number - first.block, 1)
+    top = List.last(steps).total
+    x = &(@stairs_inset + (&1 - first.block) / span * (@stairs_width - 2 * @stairs_inset))
+    y = &(@stairs_height - @stairs_inset - &1 / top * (@stairs_height - 2 * @stairs_inset))
+
+    marks =
+      for step <- steps do
+        %{
+          x: Float.round(x.(step.block), 2),
+          y: Float.round(y.(step.total), 2),
+          block: step.block,
+          transaction_hash: step.transaction_hash,
+          added: Amounts.compact_decimal(Rpc.format_units(step.amount, asset.decimals), 6)
+        }
+      end
+
+    path =
+      Enum.map_join(marks, " ", &"H #{&1.x} V #{&1.y}") <> " H #{@stairs_width - @stairs_inset}"
+
+    %{
+      steps: marks,
+      total: Rpc.format_units(top, asset.decimals),
+      width: @stairs_width,
+      height: @stairs_height,
+      path: "M #{@stairs_inset} #{@stairs_height - @stairs_inset} " <> path
+    }
+  end
+
+  defp vesting_parts(vesting) do
+    for {key, label, amount} <- [
+          {:released, "Sent", vesting.released},
+          {:ready, "Ready to send", vesting.releasable},
+          {:locked, "Locked", vesting.locked}
+        ] do
+      share =
+        if vesting.total > 0,
+          do: fraction(Decimal.new(amount), Decimal.new(vesting.total)),
+          else: Decimal.new(0)
+
+      %{key: key, label: label, share: share}
+    end
+  end
+
+  # How far through the vesting year the block read is.
+  defp vesting_elapsed(vesting) do
+    duration = vesting.ends_at - vesting.starts_at
+    elapsed = vesting.now |> Kernel.-(vesting.starts_at) |> max(0) |> min(duration)
+    fraction(Decimal.new(elapsed), Decimal.new(duration))
+  end
+
+  defp units(amount, %{decimals: decimals}), do: Rpc.format_units(amount, decimals)
+
+  defp date(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%-d %b %Y")
 
   defp currency_note(%{kind: :stocks}), do: "Stock rewards"
   defp currency_note(%{kind: :agent}), do: "REGENT rewards"
@@ -840,6 +1245,62 @@ defmodule AutolaunchWeb.Components.TokenNext do
         %{key: position.key, label: position_name(position), share: Decimal.div(amount, total)}
       end
     end
+  end
+
+  # Each position's range on a log price scale, rising to the right, with
+  # the price now. Ticks are already a log of the price; a token that is the
+  # pool's second currency reads them the other way round.
+  defp range_picture(%{current: nil}), do: nil
+
+  defp range_picture(pool) do
+    side = if pool.token_is_currency0?, do: 1, else: -1
+    now = side * pool.current.tick
+
+    bounds =
+      for position <- pool.positions do
+        {low, high} = Enum.min_max([side * position.range.lower, side * position.range.upper])
+        %{key: position.key, label: position_name(position), low: low, high: high}
+      end
+
+    shown = bounds |> Enum.flat_map(&[&1.low, &1.high]) |> Enum.filter(&(abs(&1) < @scale_end))
+    {low, high} = Enum.min_max([now | shown])
+    margin = max(div(high - low, 4), @range_margin)
+    {low, high} = {low - margin, high + margin}
+    width = 600
+    x = &Float.round((min(max(&1, low), high) - low) / (high - low) * width, 2)
+
+    rows =
+      bounds
+      |> Enum.with_index()
+      |> Enum.map(fn {bound, index} ->
+        %{
+          key: bound.key,
+          label: bound.label,
+          x: x.(bound.low),
+          y: 8 + index * 22,
+          width: max(x.(bound.high) - x.(bound.low), 2),
+          open?: bound.low < low or bound.high > high
+        }
+      end)
+
+    %{
+      rows: rows,
+      width: width,
+      height: 8 + length(rows) * 22,
+      now: x.(now),
+      low: about_price(low, pool),
+      high: about_price(high, pool)
+    }
+  end
+
+  # The price at a scale position, for the picture's ends.
+  defp about_price(position, pool) do
+    value =
+      :math.pow(1.0001, position) *
+        :math.pow(10, pool.token.decimals - pool.currency.decimals)
+
+    "about " <>
+      Amounts.compact_decimal(Decimal.to_string(Decimal.from_float(value), :normal), 3)
   end
 
   defp positions_lead([_one]), do: "One pool, one locked position."

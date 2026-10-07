@@ -40,7 +40,13 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
     BaseRpcStub.install(:autolaunch_lab_http_client, &answer(&1, &2))
 
     BaseRpcStub.put(%{
-      blocks: %{"latest" => %{"number" => "0x20", "hash" => BaseRpcStub.safe_hash()}},
+      blocks: %{
+        "latest" => %{
+          "number" => "0x20",
+          "hash" => BaseRpcStub.safe_hash(),
+          "timestamp" => "0x6700"
+        }
+      },
       launchpad: launchpad,
       launcher: @launcher
     })

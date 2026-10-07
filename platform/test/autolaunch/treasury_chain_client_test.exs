@@ -13,7 +13,11 @@ defmodule Autolaunch.TreasuryChainClientTest do
   # bytecode, owned 2-of-3, with no modules, guard or fallback handler.
   defmodule SafeStub do
     @fixtures Path.expand("../fixtures/safe", __DIR__)
-    @block %{"number" => "0x96", "hash" => "0x" <> String.duplicate("cd", 32)}
+    @block %{
+      "number" => "0x96",
+      "hash" => "0x" <> String.duplicate("cd", 32),
+      "timestamp" => "0x6700"
+    }
     @owners [
       "0x8c172ca4b5dd9449217c636a953727eacd690e37",
       "0x978bdbecb54c54800d01055df5a8f6af600bface",

@@ -71,7 +71,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Creator allocation", "10,000,000 #{ticker} (1%)"},
       {"Vesting",
        "Released block by block over #{schedule_copy(@creator_vesting_blocks)} from the pool opening; anyone can release it and it always goes to the creator"},
-      {"Treasury", "None"}
+      {"Treasury", "None"},
+      {"Pool pair", "#{ticker} and the stock it was launched against"}
     ] ++
       FeeSchedule.terms(:base) ++
       [

@@ -20,7 +20,7 @@ defmodule Autolaunch.Pool do
 
   alias Autolaunch.Chain.{Abi, Rpc}
 
-  alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PriceHistory}
+  alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PoolRange, PriceHistory, RewardHistory}
   alias Autolaunch.Stocks.FeeSchedule
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
@@ -358,8 +358,24 @@ defmodule Autolaunch.Pool do
              block,
              opts
            ),
+         {:ok, range} <-
+           PoolRange.read(
+             Lab.address!(config, :position_manager),
+             distribution.lp_token_id,
+             block,
+             opts
+           ),
          {:ok, fees} <-
            agent_fees(config, distribution, auction, block, opts),
+         {:ok, rewards} <-
+           RewardHistory.recognized(
+             :revstake,
+             distribution.splitter,
+             distribution.migration_block,
+             block,
+             opts
+           ),
+         {:ok, treasury_vesting} <- treasury_vesting(config, distribution, block, opts),
          {:ok, prices} <-
            PriceHistory.pool(
              %{
@@ -389,7 +405,9 @@ defmodule Autolaunch.Pool do
          pool_fee: fee,
          tick_spacing: spacing,
          hook: Lab.address!(config, :hook),
+         locker: locker,
          pool_manager: Lab.address!(config, :pool_manager),
+         logs_from: distribution.migration_block,
          graduation_price: graduation_price,
          current: current,
          prices: prices,
@@ -402,6 +420,8 @@ defmodule Autolaunch.Pool do
              locked?: Address.equal?(owner, locker),
              token_amount: Rpc.format_units(distribution.lp_subject_used, @token_decimals),
              currency_amount: Rpc.format_units(distribution.lp_regent_used, @regent_decimals),
+             range: range,
+             holds: holdings(range, current, token_is_currency0?, @regent_decimals),
              uncollected:
                uncollected(
                  locker,
@@ -420,7 +440,9 @@ defmodule Autolaunch.Pool do
            address: distribution.escrow
          },
          uniswap_url: uniswap_url(distribution.pool_id),
-         fees: fees
+         fees: fees,
+         rewards: rewards,
+         treasury_vesting: treasury_vesting
        }}
     else
       :error -> {:error, :invalid_chain_response}
@@ -521,6 +543,58 @@ defmodule Autolaunch.Pool do
     end
   end
 
+  # The vesting escrow that holds the treasury's tokens and releases them to
+  # it over a year from graduation. Read the way its own `release()` works:
+  # everything it has held is the escrow's balance plus what it has released,
+  # and the part vested so far grows in a straight line from `vestingStart`.
+  defp treasury_vesting(config, distribution, block, opts) do
+    escrow = distribution.escrow
+    read = &LabRpc.call_uint(config, escrow, "escrow", &1, [], block, opts)
+
+    with {:ok, lifecycle} <- read.("lifecycle()"),
+         {:ok, start} <- read.("vestingStart()"),
+         {:ok, duration} <- read.("VESTING_DURATION()"),
+         {:ok, released} <- read.("totalReleased()"),
+         {:ok, held} <-
+           Rpc.call_uint(
+             distribution.subject,
+             Abi.encode_erc20("balance_of", [escrow]),
+             block,
+             opts
+           ) do
+      {:ok, vesting_schedule(lifecycle, start, duration, released, held, block.timestamp, escrow)}
+    end
+  end
+
+  @doc """
+  A treasury escrow's schedule at `now`: released, ready to release and still
+  locked, in atomic units and whole tokens, with the year it vests over.
+  `lifecycle` is the escrow's own: 0 waiting for the auction, 1 graduated
+  and 2 failed.
+  """
+  def vesting_schedule(lifecycle, start, duration, released, held, now, escrow) do
+    total = held + released
+
+    vested =
+      case lifecycle do
+        1 -> div(total * min(max(now - start, 0), duration), duration)
+        _other -> released
+      end
+
+    %{
+      state: Enum.at([:pending, :graduated, :failed], lifecycle),
+      address: escrow,
+      starts_at: start,
+      ends_at: start + duration,
+      now: now,
+      total: total,
+      released: released,
+      releasable: vested - released,
+      locked: total - vested,
+      decimals: @token_decimals
+    }
+  end
+
   # Stocks
 
   defp read_stocks(auction, config, block, opts) do
@@ -544,8 +618,16 @@ defmodule Autolaunch.Pool do
              block,
              opts
            ),
-         {:ok, positions} <- stocks_positions(config, launch, decimals, block, opts),
+         {:ok, positions} <- stocks_positions(config, launch, current, decimals, block, opts),
          {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts),
+         {:ok, rewards} <-
+           RewardHistory.recognized(
+             :memestake,
+             launch.splitter,
+             launch.migration_block,
+             block,
+             opts
+           ),
          {:ok, prices} <-
            PriceHistory.pool(
              %{
@@ -584,6 +666,7 @@ defmodule Autolaunch.Pool do
          hook: launch.contracts.hook,
          locker: launch.contracts.locker,
          pool_manager: StocksLab.address!(config, :pool_manager),
+         logs_from: launch.migration_block,
          graduation_price: graduation_price,
          current: current,
          prices: prices,
@@ -595,6 +678,7 @@ defmodule Autolaunch.Pool do
          },
          uniswap_url: uniswap_url(launch.pool_id),
          fees: fees,
+         rewards: rewards,
          vesting: launch.vesting
        }}
     else
@@ -632,7 +716,7 @@ defmodule Autolaunch.Pool do
   # Every position belongs to the launchpad's locker, which never releases
   # them and forwards the fees it collects to the launch's splitter. Each
   # carries what a collection would deposit right now, simulated on the locker.
-  defp stocks_positions(config, launch, decimals, block, opts) do
+  defp stocks_positions(config, launch, current, decimals, block, opts) do
     manager = StocksLab.address!(config, :position_manager)
     %{locker: locker, abis: %{"locker" => abi}} = launch.contracts
     token_is_currency0? = currency0?(launch.new_token, launch.stock)
@@ -640,28 +724,29 @@ defmodule Autolaunch.Pool do
     launch
     |> held_positions(decimals)
     |> Enum.reduce_while({:ok, []}, fn position, {:ok, found} ->
-      case owner_of(manager, position.token_id, block, opts) do
-        {:ok, owner} ->
-          held =
-            Map.merge(position, %{
-              owner: owner,
-              locked?: Address.equal?(owner, locker),
-              uncollected:
-                uncollected(
-                  locker,
-                  abi,
-                  position.token_id,
-                  token_is_currency0?,
-                  decimals,
-                  block,
-                  opts
-                )
-            })
+      with {:ok, owner} <- owner_of(manager, position.token_id, block, opts),
+           {:ok, range} <- PoolRange.read(manager, position.token_id, block, opts) do
+        held =
+          Map.merge(position, %{
+            owner: owner,
+            locked?: Address.equal?(owner, locker),
+            range: range,
+            holds: holdings(range, current, token_is_currency0?, decimals),
+            uncollected:
+              uncollected(
+                locker,
+                abi,
+                position.token_id,
+                token_is_currency0?,
+                decimals,
+                block,
+                opts
+              )
+          })
 
-          {:cont, {:ok, found ++ [held]}}
-
-        error ->
-          {:halt, error}
+        {:cont, {:ok, found ++ [held]}}
+      else
+        error -> {:halt, error}
       end
     end)
   end
@@ -689,6 +774,24 @@ defmodule Autolaunch.Pool do
     end
   end
 
+  @doc """
+  What a locked position holds at the pool's current price, worked out from
+  its range and liquidity, and whether that price is inside its range. Nil
+  when the pool's price could not be read.
+  """
+  def holdings(_range, nil, _token_is_currency0?, _currency_decimals), do: nil
+
+  def holdings(range, current, token_is_currency0?, currency_decimals) do
+    {amount0, amount1} = PoolRange.amounts(range, current.sqrt_price_x96)
+    {token, currency} = if token_is_currency0?, do: {amount0, amount1}, else: {amount1, amount0}
+
+    %{
+      token_amount: Rpc.format_units(token, @token_decimals),
+      currency_amount: Rpc.format_units(currency, currency_decimals),
+      in_range?: PoolRange.in_range?(range, current.tick)
+    }
+  end
+
   @doc "A launch's new-token-only position above the opening price, as a pool's positions list it."
   def new_only_position(token_id, used),
     do: %{
@@ -714,24 +817,10 @@ defmodule Autolaunch.Pool do
   # Safe named to convert Regent's lane, and the splitter the staker lane and
   # the locker's LP fees flow to.
   defp stocks_fees(config, launch, decimals, block, opts) do
-    %{hook: hook, abis: %{"hook" => abi}, lanes: lanes} = contracts = launch.contracts
+    %{hook: hook, abis: %{"hook" => abi}} = contracts = launch.contracts
 
-    with {:ok, accrued} <-
-           Rpc.call_words(
-             hook,
-             LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
-             block,
-             length(lanes),
-             opts
-           ),
-         {:ok, settled} <-
-           Rpc.call_words(
-             hook,
-             LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
-             block,
-             length(lanes) + 1,
-             opts
-           ),
+    with {:ok, figures} <-
+           lanes(contracts, launch.pool_id, decimals, @usdc_decimals, block, opts),
          {:ok, converter} <-
            Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
          {:ok, splitter} <-
@@ -748,8 +837,7 @@ defmodule Autolaunch.Pool do
       accrued_logs = Enum.filter(logs, &(topic_at(&1, 0) == accrued_topic))
 
       {:ok,
-       lanes
-       |> lane_figures(accrued, settled, decimals, @usdc_decimals)
+       figures
        |> put_in([:regent, :converter], converter)
        |> Map.merge(%{
          trades: length(accrued_logs),
@@ -761,6 +849,60 @@ defmodule Autolaunch.Pool do
              {:ok, lane} <- [Map.fetch(settled_topics, topic_at(log, 0))],
              do: settlement(log, lane, decimals)
            )
+       })}
+    end
+  end
+
+  @doc """
+  A memestock hook's lanes for one pool, read from its `accrued` and `settled`
+  answers at `block` and keyed by lane as `lane_figures/5` gives them.
+  `contracts` is the launch's hook, its ABI and its lane order.
+  """
+  @spec lanes(map(), String.t(), non_neg_integer(), non_neg_integer(), Rpc.block(), keyword()) ::
+          {:ok, map()} | {:error, atom()}
+  def lanes(
+        %{hook: hook, abis: %{"hook" => abi}, lanes: lanes},
+        pool_id,
+        decimals,
+        dollar_decimals,
+        block,
+        opts
+      ) do
+    with {:ok, accrued} <-
+           Rpc.call_words(
+             hook,
+             LabAbi.encode(abi, "accrued(bytes32)", [pool_id]),
+             block,
+             length(lanes),
+             opts
+           ),
+         {:ok, settled} <-
+           Rpc.call_words(
+             hook,
+             LabAbi.encode(abi, "settled(bytes32)", [pool_id]),
+             block,
+             length(lanes) + 1,
+             opts
+           ),
+         do: {:ok, lane_figures(lanes, accrued, settled, decimals, dollar_decimals)}
+  end
+
+  @doc """
+  The REGENT lane of one graduated Base memestock launch at `block`: the
+  stock it trades against and the lane's figures, atomic amounts included.
+  """
+  @spec regent_lane(map(), map(), Rpc.block(), keyword()) :: {:ok, map()} | {:error, atom()}
+  def regent_lane(auction, config, block, opts) do
+    decimals = auction.quote_token_decimals
+
+    with {:ok, launch} <- stocks_record(auction, config, block, opts),
+         {:ok, %{regent: regent}} <-
+           lanes(launch.contracts, launch.pool_id, decimals, @usdc_decimals, block, opts) do
+      {:ok,
+       Map.put(regent, :stock, %{
+         address: String.downcase(launch.stock),
+         symbol: auction.quote_token_symbol,
+         decimals: decimals
        })}
     end
   end
@@ -782,7 +924,9 @@ defmodule Autolaunch.Pool do
               accrued: Rpc.format_units(held, decimals),
               accrued_atomic: held,
               settled_currency: Rpc.format_units(converted, decimals),
-              settled_usdc: Rpc.format_units(deposited, dollar_decimals)
+              settled_currency_atomic: converted,
+              settled_usdc: Rpc.format_units(deposited, dollar_decimals),
+              settled_usdc_atomic: deposited
             }}, rest}
 
         {lane, held}, [paid | rest] ->
@@ -830,7 +974,12 @@ defmodule Autolaunch.Pool do
     %{block: quantity(log["blockNumber"]), currency: Enum.sum(lanes), token: 0}
   end
 
-  defp settlement(log, :regent, decimals) do
+  @doc """
+  One lane settlement from a memestock hook's log, on Base or Robinhood: the
+  amount sent on, and for Regent's lane the dollars its conversion brought,
+  with the block and transaction it happened in.
+  """
+  def settlement(log, :regent, decimals) do
     [stock_converted, usdc_deposited] = data_words(log)
 
     %{
@@ -842,7 +991,7 @@ defmodule Autolaunch.Pool do
     }
   end
 
-  defp settlement(log, lane, decimals) do
+  def settlement(log, lane, decimals) do
     [amount] = data_words(log)
 
     %{
@@ -877,17 +1026,21 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  # `Pool.State` lives at `keccak256(poolId . POOLS_SLOT)`: word 0 packs
-  # `sqrtPriceX96 | tick | protocolFee | lpFee`, word 3 is the liquidity.
-  defp pool_state(
-         pool_manager,
-         pool_id,
-         token_is_currency0?,
-         token_decimals,
-         decimals,
-         block,
-         opts
-       ) do
+  @doc """
+  A v4 pool's price, tick and liquidity, read from the PoolManager's own
+  storage: `Pool.State` lives at `keccak256(poolId . POOLS_SLOT)`, where word 0
+  packs `sqrtPriceX96 | tick | protocolFee | lpFee` and word 3 is the
+  liquidity. Nil when the pool has no price yet.
+  """
+  def pool_state(
+        pool_manager,
+        pool_id,
+        token_is_currency0?,
+        token_decimals,
+        decimals,
+        block,
+        opts
+      ) do
     state_slot = state_slot(pool_id)
     liquidity_slot = <<:binary.decode_unsigned(state_slot) + @liquidity_offset::256>>
 

@@ -442,6 +442,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         id={"#{@form_id}-advanced-custody"}
         summary="Advanced, high-risk treasury choices"
         open={@path in ["contract", :contract, "eoa", :eoa]}
+        phx-mounted={JS.ignore_attributes(["open"])}
       >
         <label>
           <input

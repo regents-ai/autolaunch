@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   import AutolaunchWeb.Components.InfoTip
 
-  alias Autolaunch.{AuctionSnapshot, BidActions, LaunchChain}
+  alias Autolaunch.{AuctionBook, AuctionSnapshot, BidActions, BidPrice, LaunchChain}
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.TokenDisplay
   alias Phoenix.LiveView.JS
@@ -32,6 +32,9 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   @all_mps 10_000_000
   # The ladder shows this many prices above the price now; the rest are in its table.
   @rungs 8
+  # The chart's height takes in bids' maximum prices up to this many times the
+  # highest recorded or drafted price; higher ones sit on its top edge.
+  @bid_reach Decimal.new(4)
 
   @steps [
     created: "Created",
@@ -42,29 +45,61 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   ]
 
   attr :stage, :atom, required: true
+  attr :facts, :map, required: true, doc: "`Autolaunch.AuctionStage` facts"
 
-  @doc "Where the auction is: each step done, current or still to come."
+  @doc """
+  Where the auction is: each step done, current or still to come, and beside
+  it the three things a bidder acts on, each its own fact: whether refunds are
+  open, whether claims are open, and whether the pool's liquidity is locked.
+  """
   def stage_rail(assigns) do
     assigns = assign(assigns, :steps, rail(assigns.stage))
 
     ~H"""
-    <ol class="auction-next-rail" aria-label="Where this auction is">
-      <li
-        :for={{{_key, label, status}, index} <- Enum.with_index(@steps, 1)}
-        class="auction-next-rail__step"
-        data-status={status}
-        aria-current={status == :current && "step"}
-      >
-        <span class="auction-next-rail__mark" aria-hidden="true">
-          {mark(status, index)}
-        </span>
-        <span class="auction-next-rail__label">
-          {label}<span class="visually-hidden">{status_words(status)}</span>
-        </span>
-      </li>
-    </ol>
+    <div class="auction-next-stage">
+      <ol class="auction-next-rail" aria-label="Where this auction is">
+        <li
+          :for={{{_key, label, status}, index} <- Enum.with_index(@steps, 1)}
+          class="auction-next-rail__step"
+          data-status={status}
+          aria-current={status == :current && "step"}
+        >
+          <span class="auction-next-rail__mark" aria-hidden="true">
+            {mark(status, index)}
+          </span>
+          <span class="auction-next-rail__label">
+            {label}<span class="visually-hidden">{status_words(status)}</span>
+          </span>
+        </li>
+      </ol>
+      <dl class="auction-next-facts" aria-label="What bidders can do now">
+        <div data-on={to_string(@facts.refunds_open == true)}>
+          <dt>Refunds</dt>
+          <dd>{if @facts.refunds_open, do: "Open", else: "Not open"}</dd>
+        </div>
+        <div data-on={to_string(@facts.claims_open == true)}>
+          <dt>Claims</dt>
+          <dd>{if @facts.claims_open, do: "Open", else: "Not yet"}</dd>
+        </div>
+        <div data-on={to_string(@facts.liquidity_locked == true)}>
+          <dt>
+            <.info_tip
+              id="auction-next-locked-tip"
+              text="Whether every position of the auction's pool is held by the locker, so its liquidity cannot be pulled."
+            >
+              Pool liquidity
+            </.info_tip>
+          </dt>
+          <dd>{locked_word(@facts.liquidity_locked)}</dd>
+        </div>
+      </dl>
+    </div>
     """
   end
+
+  defp locked_word(true), do: "Locked"
+  defp locked_word(false), do: "Not locked"
+  defp locked_word(nil), do: "No pool yet"
 
   defp rail(:failed) do
     done = @steps |> Enum.take(3) |> Enum.map(fn {key, label} -> {key, label, :done} end)
@@ -280,6 +315,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   attr :id, :string, required: true
   attr :snapshot, :map, required: true
   attr :points, :list, required: true, doc: "the auction's recorded prices, oldest first"
+  attr :bids, :list, default: [], doc: "the auction's placed bids, each marked at its maximum"
   attr :draft, :string, default: nil, doc: "the maximum price per token being drafted"
   attr :at, :integer, default: nil, doc: "the recorded price being replayed; nil for the latest"
   attr :symbol, :string, required: true
@@ -287,7 +323,8 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   @doc """
   The recorded prices across the whole bidding window, with nothing drawn past
-  now, the release schedule under them, and the drafted maximum as a dashed
+  now, the release schedule under them, each placed bid's maximum price as a
+  short mark at the block it was placed, and the drafted maximum as a dashed
   line. The slider replays the recorded prices one at a time, saying what the
   auction had recorded by then; it sends `scrub` with `checkpoint` and
   `scrub_now` to the page.
@@ -348,6 +385,16 @@ defmodule AutolaunchWeb.Components.AuctionNext do
               :if={@film.line}
               class="auction-next-film__price"
               d={@film.line}
+              vector-effect="non-scaling-stroke"
+            />
+            <line
+              :for={mark <- @film.marks}
+              class="auction-next-film__bid"
+              data-above={to_string(mark.above)}
+              x1={mark.x1}
+              x2={mark.x2}
+              y1={mark.y}
+              y2={mark.y}
               vector-effect="non-scaling-stroke"
             />
             <line
@@ -417,6 +464,14 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       </div>
       <ul class="auction-next-legend" role="list">
         <li class="auction-next-legend__price">Recorded price</li>
+        <li :if={@film.marks != []} class="auction-next-legend__bid">
+          <.info_tip
+            id={"#{@id}-bids-tip"}
+            text="Each mark is one placed bid's maximum price, at the block it was placed. A mark on the top edge is above the chart."
+          >
+            Bids' maximum prices
+          </.info_tip>
+        </li>
         <li :if={@film.draft_y} class="auction-next-legend__draft">Your draft maximum</li>
         <li
           :if={!@film.draft_y && !@ended}
@@ -514,7 +569,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   # Everything the chart draws, on a 600 by 200 box for prices and 600 by 48
   # for the schedule, over the whole bidding window.
-  defp film(%{snapshot: snapshot, points: points, draft: draft, at: at}) do
+  defp film(%{snapshot: snapshot, points: points, bids: bids, draft: draft, at: at}) do
     %{start: start, end: finish} = snapshot.blocks
     span = max(finish - start, 1)
     x = fn block -> Float.round(min(max(block - start, 0), span) * 600 / span, 2) end
@@ -522,10 +577,17 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     steps = Enum.map(points, &{&1.clock_block, &1.clearing_price})
     draft = draft_decimal(draft)
 
-    top =
+    base =
       [exact(snapshot.clearing) | Enum.map(steps, &elem(&1, 1))]
       |> then(&if(draft, do: [draft | &1], else: &1))
       |> Enum.max(Decimal)
+
+    top =
+      bids
+      |> Enum.map(& &1.max_price)
+      |> Enum.filter(&Decimal.lt?(&1, Decimal.mult(base, @bid_reach)))
+      |> Enum.max(Decimal, fn -> base end)
+      |> Decimal.max(base)
       |> Decimal.mult(Decimal.new("1.15"))
       |> then(&if(Decimal.gt?(&1, 0), do: &1, else: Decimal.new(1)))
 
@@ -543,6 +605,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       line: price_line(steps, x, y, now),
       area: price_area(steps, x, y, now),
       draft_y: draft && y.(draft),
+      marks: marks(bids, x, y, top),
       draft_note: draft && draft_note(draft, snapshot),
       bars: bars(snapshot.schedule, x, snapshot.clock, tallest),
       lumps: lumps(snapshot.schedule, tallest),
@@ -550,6 +613,22 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       index: index,
       scrub: scrub(points, index, x, y, snapshot.schedule)
     }
+  end
+
+  # Each placed bid's maximum as a short level mark at its block; a maximum
+  # above the chart sits on its top edge.
+  defp marks(bids, x, y, top) do
+    Enum.map(bids, fn %{clock_block: block, max_price: max_price} ->
+      at = x.(block)
+      above = Decimal.gt?(max_price, top)
+
+      %{
+        x1: Float.round(max(at - 4, 0.0), 2),
+        x2: Float.round(min(at + 4, 600.0), 2),
+        y: if(above, do: 1.0, else: y.(max_price)),
+        above: above
+      }
+    end)
   end
 
   defp price_line([], _x, _y, _now), do: nil
@@ -661,9 +740,15 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   price: the bidding at each, and the further bidding it takes before the
   price reaches it, worked out as the auction's own lens does. The drafted
   maximum sits among them with its own figure.
+
+  Above them, a handle sets the drafted maximum one allowed price at a time,
+  by dragging or with the arrow keys: it sends `price_handle` with `step` to
+  the page, which hands the price to the bid form (`handle_price/2`). It only
+  fills in the form's maximum; nothing is sent from it. Beside it, the allowed
+  price the drafted maximum works out to and the next allowed prices above.
   """
   def ladder(assigns) do
-    assigns = assign(assigns, :view, ladder_view(assigns))
+    assigns = assign(assigns, view: ladder_view(assigns), handle: handle_view(assigns))
 
     ~H"""
     <section id={@id} class="auction-next-card auction-next-ladder" aria-labelledby={"#{@id}-title"}>
@@ -699,6 +784,58 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           Use this price
         </Regent.Primitives.button>
       </div>
+      <form
+        :if={@handle}
+        id={"#{@id}-handle"}
+        class="auction-next-handle"
+        phx-change="price_handle"
+        onsubmit="return false"
+      >
+        <label for={"#{@id}-handle-step"}>Your price limit</label>
+        <input
+          id={"#{@id}-handle-step"}
+          type="range"
+          name="step"
+          min="0"
+          max={@handle.steps}
+          step="1"
+          value={@handle.at}
+          phx-throttle="120"
+          aria-describedby={"#{@id}-handle-reading"}
+          aria-valuetext={@handle.words}
+        />
+        <dl id={"#{@id}-handle-reading"} class="auction-next-handle__reading">
+          <div>
+            <dt>
+              <.info_tip
+                id={"#{@id}-handle-tip"}
+                text="The auction only takes prices on its grid. A maximum between two grid prices counts as the lower one."
+              >
+                Counts as
+              </.info_tip>
+            </dt>
+            <dd>
+              <span :if={@handle.effective}>
+                <TokenDisplay.price amount={per_million(@handle.effective)} unit={@symbol} /> per 1M
+              </span>
+              <span :if={!@handle.effective}>Drag or use the arrow keys</span>
+              <small class="autolaunch-exact-value">{@handle.effective || "—"}</small>
+            </dd>
+          </div>
+          <div>
+            <dt>Next allowed prices</dt>
+            <dd>
+              <span :for={price <- @handle.next} class="auction-next-handle__next">
+                <TokenDisplay.price amount={per_million(price)} unit={@symbol} />
+              </span>
+            </dd>
+          </div>
+          <div data-tone={@handle.buys && "on"}>
+            <dt>At this limit</dt>
+            <dd>{handle_buys(@handle.buys)}</dd>
+          </div>
+        </dl>
+      </form>
       <ol class="auction-next-ladder__rows" role="list">
         <li :if={@view.hidden > 0} class="auction-next-ladder__more">
           {@view.hidden} higher {if @view.hidden == 1, do: "price", else: "prices"} in the table below
@@ -823,6 +960,87 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         |> Enum.map(&Map.put(&1, :width, width(&1.bidding, widest)))
     }
   end
+
+  # The handle steps along the auction's price grid from the lowest price that
+  # buys now, as far as a quarter above the highest of the waiting prices and
+  # the drafted maximum, and never past the auction's highest allowed price.
+  @handle_floor_steps 24
+  @next_prices 3
+
+  defp handle_view(%{snapshot: %{price_to_beat_q96: nil}}), do: nil
+
+  defp handle_view(%{snapshot: snapshot, draft: draft}) do
+    %{price_to_beat_q96: low, tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
+    effective = draft |> draft_q96(snapshot.decimals) |> on_grid(snapshot)
+    steps = handle_steps(snapshot, effective)
+    at = if effective && effective >= low, do: min(div(effective - low, spacing), steps), else: 0
+    above = if effective, do: max(effective + spacing, low), else: low
+    price = effective && BidPrice.decimal(effective, snapshot.decimals)
+
+    %{
+      steps: steps,
+      at: at,
+      effective: price,
+      next:
+        for(
+          n <- 0..(@next_prices - 1),
+          above + n * spacing <= cap,
+          do: BidPrice.decimal(above + n * spacing, snapshot.decimals)
+        ),
+      buys: effective && effective >= low,
+      words: handle_words(price, at, steps)
+    }
+  end
+
+  defp on_grid(nil, _snapshot), do: nil
+
+  defp on_grid(q96, %{tick_spacing_q96: spacing, max_bid_price_q96: cap}),
+    do: div(min(q96, cap), spacing) * spacing
+
+  defp handle_steps(snapshot, effective) do
+    %{price_to_beat_q96: low, tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
+
+    high =
+      snapshot.ladder.rungs
+      |> Enum.map(& &1.price_q96)
+      |> Enum.concat(List.wrap(effective))
+      |> Enum.max(fn -> low end)
+      |> max(low)
+
+    ((high - low) * 5)
+    |> div(4 * spacing)
+    |> max(@handle_floor_steps)
+    |> min(div(cap - low, spacing))
+  end
+
+  defp handle_words(nil, _at, _steps), do: "No limit drafted yet"
+
+  defp handle_words(price, at, steps),
+    do: "#{TokenDisplay.short(per_million(price))} per 1M, step #{at} of #{steps}"
+
+  defp handle_buys(nil), do: "No limit set yet"
+  defp handle_buys(true), do: "Buys while the price is below it"
+  defp handle_buys(false), do: "Would not buy: not above the price now"
+
+  @doc """
+  The price the handle's `step` names, as the bid form takes it: that many
+  grid steps above the lowest price that buys now, never past the auction's
+  highest allowed price.
+  """
+  @spec handle_price(map(), String.t()) :: {:ok, String.t()} | :error
+  def handle_price(%{price_to_beat_q96: low} = snapshot, step) when is_integer(low) do
+    %{tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
+
+    case Integer.parse(step) do
+      {step, ""} when step >= 0 and low + step * spacing <= cap ->
+        {:ok, AuctionBook.typed(low + step * spacing, snapshot)}
+
+      _unreadable ->
+        :error
+    end
+  end
+
+  def handle_price(_snapshot, _step), do: :error
 
   defp width(nil, _widest), do: 0
 

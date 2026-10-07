@@ -88,7 +88,10 @@ defmodule AutolaunchWeb.Components.AuctionPage do
 
   slot :aside, doc: "shown at the end of the tab row, such as a link"
 
-  @doc "Tabs over panels; the first tab is shown first."
+  @doc """
+  Tabs over panels; the first tab is shown first. The panels share one space
+  as tall as the tallest, so choosing a tab never changes the height.
+  """
   def tabs(assigns) do
     assigns = assign(assigns, :tabs, Enum.with_index(assigns.tab))
 
@@ -111,15 +114,17 @@ defmodule AutolaunchWeb.Components.AuctionPage do
         </div>
         {render_slot(@aside)}
       </div>
-      <div
-        :for={{tab, index} <- @tabs}
-        role="tabpanel"
-        id={"#{@id}-panel-#{index}"}
-        class="auction-tabs__panel"
-        aria-labelledby={"#{@id}-tab-#{index}"}
-        hidden={index != 0}
-      >
-        {render_slot(tab)}
+      <div class="auction-tabs__panels">
+        <div
+          :for={{tab, index} <- @tabs}
+          role="tabpanel"
+          id={"#{@id}-panel-#{index}"}
+          class="auction-tabs__panel"
+          aria-labelledby={"#{@id}-tab-#{index}"}
+          hidden={index != 0}
+        >
+          {render_slot(tab)}
+        </div>
       </div>
     </div>
     """

@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
-  alias AutolaunchWeb.DraftMarks
+  alias AutolaunchWeb.{DraftMarks, TokenDisplay}
   alias Phoenix.LiveView.JS
 
   @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
@@ -240,11 +240,25 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                     ({compact_usd(venue.liquidity_usd)} liquidity)
                   </span>
                 </p>
+                <p
+                  :if={!(@stock && @market.venues != [])}
+                  class="create-page__hint create-page__held"
+                  aria-hidden="true"
+                  inert
+                >
+                  Buy the stock at a market
+                </p>
               </div>
             </form>
           </fieldset>
           <div id="stocks-transactions" class="create-page__launch">
-            <p :if={@launch_chain == :robinhood && !@robinhood_open?} role="status">
+            <p
+              :if={!@robinhood_open?}
+              class={@launch_chain != :robinhood && "create-page__held"}
+              role={@launch_chain == :robinhood && "status"}
+              aria-hidden={@launch_chain != :robinhood && "true"}
+              inert={@launch_chain != :robinhood}
+            >
               Robinhood launches are not open yet.
               <span :if={@current_human_id}>
                 Your draft is saved and will be ready to launch here when they open.
@@ -429,6 +443,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp pay_line(:base, stock),
     do: "Bidders pay in #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
 
+  defp pay_line(:robinhood, nil),
+    do: "Bidders pay in USDG, swapped into the stock. Stakers earn it from every trade."
+
   defp pay_line(:robinhood, stock),
     do:
       "Bidders pay in USDG, swapped into #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
@@ -456,7 +473,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp minimum_raise(stock) do
     {:ok, amount} = Amounts.format_units(LaunchActions.minimum_raise(), stock.decimals)
-    "#{amount} #{stock.symbol}"
+    TokenDisplay.zeros("#{TokenDisplay.short(amount, :down)} #{stock.symbol}")
   end
 
   defp fixed_terms(:base, ticker), do: LaunchActions.terms(ticker)

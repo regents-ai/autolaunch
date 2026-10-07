@@ -44,7 +44,9 @@
 .auction-tabs__tab { padding: 4px 12px; border: 1px solid transparent; border-radius: 999px; background: none; color: var(--color-fg-muted); font: inherit; font-weight: 600; cursor: pointer; }
 .auction-tabs__tab[aria-selected="true"] { border-color: var(--hairline-strong); color: var(--color-fg); }
 .auction-tabs--large > .auction-tabs__bar .auction-tabs__tab { padding-inline: 0; margin-inline-end: 16px; border: 0; font-size: 1.5rem; }
-.auction-tabs__panel { min-width: 0; }
+.auction-tabs__panels { display: grid; min-width: 0; }
+.auction-tabs__panel { grid-area: 1 / 1; min-width: 0; }
+.auction-tabs__panel[hidden] { display: block; visibility: hidden; }
 
 /* The full-details window, over a dimmed page. */
 .auction-details-window { width: min(40rem, calc(100vw - 32px)); max-height: min(85vh, 48rem); margin: auto; padding: 20px; overflow: auto; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface); color: var(--color-fg); }

@@ -234,11 +234,14 @@ defmodule AutolaunchWeb.Components.RegentNext do
   end
 
   attr :facts, :map, required: true
+  attr :base_lane, Phoenix.LiveView.AsyncResult, required: true
+  attr :robinhood_lane, Phoenix.LiveView.AsyncResult, required: true
 
   @doc """
   Memestake's lane to REGENT stakers on each chain, stage by stage, each in its
-  own asset. Robinhood Chain's USDG is held there until the transfer to Base
-  is set up, so it is never counted as USDC.
+  own asset, with what each stage holds or has passed on now
+  (`Autolaunch.MemestakeLanes`). Robinhood Chain's USDG is never counted as
+  USDC; it becomes USDC only once it arrives on Base.
   """
   def memestake_sources(assigns) do
     assigns =
@@ -269,13 +272,21 @@ defmodule AutolaunchWeb.Components.RegentNext do
             <li>
               <strong>Charged on each trade</strong>
               <span>{@base_rate} of the stock side waits in the pool as the stock.</span>
-              <span class="regent-next-muted">
-                Each token page shows what is waiting in its own pool.
-              </span>
+              <.lane_line :let={lane} lane={@base_lane}>
+                <.stocks label="Waiting now" amounts={lane.waiting} none="Nothing waiting now." />
+              </.lane_line>
             </li>
             <li>
               <strong>Swapped to USDC and paid into REGENT staking</strong>
               <span>Regent's settling wallet does both in one step.</span>
+              <.lane_line :let={lane} lane={@base_lane}>
+                <.stocks
+                  label="Swapped so far"
+                  amounts={lane.converted}
+                  none="Nothing swapped yet."
+                  dollars={usdc(lane.paid_usdc)}
+                />
+              </.lane_line>
               <span :if={@base_7d}>{usdc(@base_7d)} paid in over the last seven days.</span>
               <span :if={!@base_7d} class="regent-next-muted">
                 Unavailable: the deposit history could not be read just now.
@@ -289,26 +300,48 @@ defmodule AutolaunchWeb.Components.RegentNext do
             <li>
               <strong>Charged on each trade</strong>
               <span>{@robinhood_rate} of the stock side waits in the pool as the stock.</span>
-              <span class="regent-next-muted">
-                Each token page shows what is waiting in its own pool.
-              </span>
+              <.lane_line :let={lane} lane={@robinhood_lane}>
+                <.stocks label="Waiting now" amounts={lane.waiting} none="Nothing waiting now." />
+              </.lane_line>
             </li>
             <li>
               <strong>Swapped to USDG, held on Robinhood Chain</strong>
               <span>
-                It stays there as USDG until the transfer to Base is set up. It is not added to
-                any USDC figure on this page.
+                It is held there as USDG until it moves to Base, and is not added to any USDC
+                figure on this page.
               </span>
-              <span class="regent-next-muted">
-                Amount held: unavailable here, as this page reads only Base.
-              </span>
+              <.lane_line :let={lane} lane={@robinhood_lane}>
+                <.stocks
+                  label="Swapped so far"
+                  amounts={lane.converted}
+                  none="Nothing swapped yet."
+                  dollars={"#{dollars(lane.collected_usdg)} USDG"}
+                />
+              </.lane_line>
+              <.lane_line :let={lane} lane={@robinhood_lane}>
+                Held now: {dollars(lane.held_usdg)} USDG.
+              </.lane_line>
             </li>
             <li>
               <strong>Moved to Base</strong>
-              <span class="regent-next-muted">Not set up yet.</span>
+              <.lane_line :let={lane} lane={@robinhood_lane}>
+                <%= if lane.bridge == :not_set_up do %>
+                  Not set up yet.
+                <% else %>
+                  Sent so far: {dollars(lane.bridge.sent_usdg)} USDG. Arrived, waiting to be paid
+                  in: {usdc(lane.bridge.arrived_usdc)}.
+                <% end %>
+              </.lane_line>
             </li>
             <li>
               <strong>Paid into REGENT staking</strong>
+              <.lane_line :let={lane} lane={@robinhood_lane}>
+                <%= if lane.bridge == :not_set_up do %>
+                  Nothing paid in yet.
+                <% else %>
+                  Paid in so far: {usdc(lane.bridge.paid_usdc)}.
+                <% end %>
+              </.lane_line>
               <span :if={@robinhood_7d}>
                 {usdc(@robinhood_7d)} paid in over the last seven days.
               </span>
@@ -320,10 +353,63 @@ defmodule AutolaunchWeb.Components.RegentNext do
         </section>
       </div>
       <p class="regent-next-source">
-        Rates from the fee schedule every Memestake launch uses. Amounts paid in read from the
-        staking contract's records at Base block {block(@facts)}.
+        Rates from the fee schedule every Memestake launch uses. Amounts paid in over seven days
+        read from the staking contract's records at Base block {block(@facts)}.
+        <.lane_blocks base_lane={@base_lane} robinhood_lane={@robinhood_lane} />
       </p>
     </section>
+    """
+  end
+
+  attr :lane, Phoenix.LiveView.AsyncResult, required: true
+  slot :inner_block, required: true
+
+  # One line of a stage that reads the chain. It holds its place while the
+  # reading is under way or did not answer, so the stages never change height.
+  defp lane_line(assigns) do
+    ~H"""
+    <span :if={@lane.loading} class="regent-next-muted">Reading the chain…</span>
+    <span :if={@lane.failed} class="regent-next-muted">Unavailable just now.</span>
+    <span :if={@lane.ok? && @lane.result}>{render_slot(@inner_block, @lane.result)}</span>
+    <span :if={@lane.ok? && !@lane.result} class="regent-next-muted">Not on this site.</span>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :amounts, :list, required: true
+  attr :none, :string, required: true
+  attr :dollars, :string, default: nil
+
+  defp stocks(%{amounts: []} = assigns) do
+    ~H"""
+    {@none}
+    """
+  end
+
+  defp stocks(assigns) do
+    ~H"""
+    {@label}:
+    <%= for {stock, index} <- Enum.with_index(@amounts) do %>
+      {if index > 0, do: ", "}<TokenDisplay.tokens amount={stock.amount} unit={stock.symbol} />
+    <% end %>
+    {if @dollars, do: ", for #{@dollars}"}.
+    """
+  end
+
+  attr :base_lane, Phoenix.LiveView.AsyncResult, required: true
+  attr :robinhood_lane, Phoenix.LiveView.AsyncResult, required: true
+
+  defp lane_blocks(assigns) do
+    ~H"""
+    <%= case {@base_lane, @robinhood_lane} do %>
+      <% {%{ok?: true, result: %{block: base}}, %{ok?: true, result: %{block: robinhood}}} -> %>
+        Stage amounts read at Base block {grouped(base)} and Robinhood Chain block {grouped(robinhood)}.
+      <% {%{ok?: true, result: %{block: base}}, _robinhood} -> %>
+        Stage amounts on Base read at block {grouped(base)}.
+      <% {_base, %{ok?: true, result: %{block: robinhood}}} -> %>
+        Stage amounts on Robinhood Chain read at block {grouped(robinhood)}.
+      <% _neither -> %>
+    <% end %>
     """
   end
 
@@ -433,10 +519,16 @@ defmodule AutolaunchWeb.Components.RegentNext do
   defp block(facts), do: grouped(facts.block_number)
 
   # A USDC amount to the cent, never rounded up.
-  defp usdc(amount) do
-    cents = amount |> Decimal.new() |> Decimal.round(2, :down) |> Decimal.to_string(:normal)
-    "#{Amounts.grouped(cents)} USDC"
-  end
+  defp usdc(amount), do: "#{dollars(amount)} USDC"
+
+  # A dollar amount, USDC or USDG, to the cent, never rounded up.
+  defp dollars(amount),
+    do:
+      amount
+      |> Decimal.new()
+      |> Decimal.round(2, :down)
+      |> Decimal.to_string(:normal)
+      |> Amounts.grouped()
 
   # A fraction as a percent to two decimal places, so a split's two parts
   # read to the same precision and add up to 100%.
