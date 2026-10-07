@@ -85,8 +85,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"How Autolaunch works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
-    "/profile" => {"Profile", "The accounts you have connected to Autolaunch."},
-    "/settings" => {"Settings", "Your Autolaunch sign-in and account."},
+    "/profile" => {"Profile", "Your Autolaunch sign-in, wallet and connected accounts."},
     "/regent" =>
       {"REGENT",
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},

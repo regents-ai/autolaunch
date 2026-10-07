@@ -89,8 +89,6 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
-    get "/settings", SettingsController, :show
-
     live_session :public_root,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :public_human}] do

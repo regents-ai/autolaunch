@@ -60,9 +60,6 @@ defmodule AutolaunchWeb.Components.AccountControl do
           <.link href="/profile" class="account-menu__item">
             <.menu_icon name={:profile} /> Profile
           </.link>
-          <.link href={@account_control.settings_path} class="account-menu__item">
-            <.menu_icon name={:settings} /> Settings
-          </.link>
           <button
             type="button"
             class="account-menu__item account-menu__item--leave"
@@ -107,10 +104,6 @@ defmodule AutolaunchWeb.Components.AccountControl do
         <circle cx="12" cy="12" r="9" />
         <circle cx="12" cy="10" r="3" />
         <path d="M6.5 18.5a6 6 0 0 1 11 0" />
-      </g>
-      <g :if={@name == :settings}>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.5 1.5M16.5 16.5 18 18M6 18l1.5-1.5M16.5 7.5 18 6" />
       </g>
       <g :if={@name == :log_out}>
         <path d="M10 4H5v16h5" />

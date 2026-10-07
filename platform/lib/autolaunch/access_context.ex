@@ -14,9 +14,7 @@ defmodule Autolaunch.AccessContext do
   def account_control(%__MODULE__{principal: :anonymous}) do
     %AccountControl{
       kind: :sign_in,
-      label: "Sign In",
-      profile_path: nil,
-      settings_path: nil
+      label: "Sign In"
     }
   end
 
@@ -24,8 +22,6 @@ defmodule Autolaunch.AccessContext do
     %AccountControl{
       kind: :signed_in,
       label: PublicIdentity.label(account),
-      profile_path: nil,
-      settings_path: "/settings",
       avatar_data_uri: PublicIdentity.avatar_data_uri(account),
       wallet_address: account.wallet_address
     }
