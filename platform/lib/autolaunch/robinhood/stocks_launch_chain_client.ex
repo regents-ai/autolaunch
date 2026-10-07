@@ -59,8 +59,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
 
   # The launch is confirmed only when the launchpad's event names the reviewed
   # signer and STOCK, and its own record and auction index agree with that
-  # event. The floor and the required raise are the launchpad's fixed preset. The start and end blocks are the launchpad's
-  # own: bidding opens a fixed lead after the block the launch was created in.
+  # event. The floor and the required raise are the launchpad's fixed preset.
+  # The start and end blocks are the launchpad's own: bidding opens a fixed
+  # lead after the block the launch was created in.
   defp settled({:success, logs}, signer, facts, config) do
     opts = Lab.rpc_opts(config)
 

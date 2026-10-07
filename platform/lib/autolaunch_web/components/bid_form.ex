@@ -197,22 +197,17 @@ defmodule AutolaunchWeb.Components.BidForm do
     %{form: form, book: book, supply: supply, rate: rate} = assigns
     {fdv_unit, factor} = fdv_currency(assigns.amount_unit, assigns.price_unit, rate)
     max_price = max_price(form, book, supply, factor)
-    ready = book.ok? && book.result
-    beat = ready && ready.price_to_beat
-    first = beat && first_stop(beat, supply, factor)
-    stop = first && max(shown_stop(form, max_price, supply, factor) || first, first)
+    %{ready: ready} = stops = stops(book, form, max_price, supply, factor)
     budget_rate = budget_rate(assigns.amount_unit, rate)
+    outlook = outlook(ready, max_price, form, assigns)
 
     assigns =
-      assign(assigns,
+      assigns
+      |> assign(stops)
+      |> assign(
         dollars?: fdv_unit in @dollars,
         fdv_unit: fdv_unit,
-        ready: ready,
-        beat: beat,
-        first_stop: first,
-        stop: stop,
         last_stop: @last_stop,
-        at: first && (stop - first) / max(@last_stop - first, 1),
         labels: stop_prices(supply, fdv_unit),
         stop_fdvs: Enum.map(@stops, &figure/1),
         price_label: max_price && factor && price_text(times(max_price, factor), fdv_unit),
@@ -220,7 +215,7 @@ defmodule AutolaunchWeb.Components.BidForm do
         fdv_in_price_unit: max_price && supply && times(max_price, supply),
         budget_rate: budget_rate,
         budget_usd?: form.amount != "" and budget_rate != :test_network,
-        outlook: outlook(ready, max_price, form, assigns)
+        outlook: outlook
       )
 
     ~H"""
@@ -434,6 +429,23 @@ defmodule AutolaunchWeb.Components.BidForm do
   defp budget_rate(_unit, :test_network), do: :test_network
   defp budget_rate(unit, _rate) when unit in @dollars, do: @one
   defp budget_rate(_unit, rate), do: rate
+
+  # The book's price to beat, the first stop a bid can take above it, the stop
+  # on show and where that sits along the slider; nil until the book is read.
+  defp stops(book, form, max_price, supply, factor) do
+    ready = book.ok? && book.result
+    beat = ready && ready.price_to_beat
+    first = beat && first_stop(beat, supply, factor)
+    stop = first && max(shown_stop(form, max_price, supply, factor) || first, first)
+
+    %{
+      ready: ready,
+      beat: beat,
+      first_stop: first,
+      stop: stop,
+      at: first && (stop - first) / max(@last_stop - first, 1)
+    }
+  end
 
   # The stop on show: the one chosen, or the highest at or under a limit set
   # another way; nil leaves the slider on its first stop.

@@ -4,10 +4,10 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias RegentChain.Address
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Token
   alias Autolaunch.TreasurySecurity
+  alias RegentChain.Address
 
   def read_index(reader) do
     case reader.() do

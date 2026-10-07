@@ -22,8 +22,8 @@ defmodule Autolaunch.Pool do
 
   alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PriceHistory}
   alias Autolaunch.Stocks.FeeSchedule
-  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.Address
 
   @dead "0x000000000000000000000000000000000000dead"

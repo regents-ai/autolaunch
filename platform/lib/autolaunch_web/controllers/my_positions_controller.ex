@@ -11,9 +11,9 @@ defmodule AutolaunchWeb.MyPositionsController do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, TokenHoldings}
-  alias RegentChain.Address
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias AutolaunchWeb.{ApiError, BidSettlementComponent, Paths, PublicDocuments}
+  alias RegentChain.Address
 
   @read_ms 30_000
 
