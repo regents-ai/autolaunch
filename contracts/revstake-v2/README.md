@@ -26,9 +26,10 @@ snapshot `contracts/stocks-v2` exports (`../stocks-v2/lib`, pinned by
 
 ## Status
 
-Not deployed. The Base packet must be rebuilt for the 1 October 2026 terms (70/20/10, one fixed
-floor, pool at the final clearing price, half the raise to the pool, 3% hook fee) and its new
-digest approved by the founder; see `deployments/base-mainnet/README.md`. Version 2 changes only
+Deployed on Base mainnet on 6 October 2026 for the 1 October 2026 terms (70/20/10, one fixed
+floor, pool at the final clearing price, half the raise to the pool, 3% hook fee); the factory is
+born paused until the Governance Safe's switch-on batch. See `deployments/base-mainnet/README.md`
+and `deployments/base-mainnet/deployed-manifest.json`. Version 2 changes only
 the sale and graduation terms and the hook's staker lane (founder decisions of 27 September and
 1 October 2026). The hook, splitter, payment receiver and locker are the version 1 sources;
 a version 2 deployment creates new instances bound to the new factory and strategy.

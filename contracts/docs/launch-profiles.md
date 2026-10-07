@@ -2,8 +2,8 @@
 
 **Status (1 October 2026, amended 5 and 6 October): decided for all three launch types. Every value is fixed in the
 contracts, including the floor price: no launch takes a floor or a minimum raise from its creator.
-The v2 contracts are `contracts/revstake-v2`, `contracts/stocks-v2` and `contracts/robinhood-v2`,
-none deployed.**
+The v2 contracts are `contracts/revstake-v2` (deployed on Base on 6 October, paused until
+switch-on), `contracts/stocks-v2` and `contracts/robinhood-v2` (not yet deployed).**
 
 Every timing value is counted in **blocks**. Base makes a block every 2 seconds and Robinhood
 Chain every 0.1 seconds.

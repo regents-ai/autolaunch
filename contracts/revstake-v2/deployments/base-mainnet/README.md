@@ -4,8 +4,10 @@
 founder decision 22 c (1% Regent and 2% to the splitter, no creator lane), against live Base at block 52258768 for deployer
 `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 28 (founder decision 1a, 29 September 2026),
 and rehearsed on a Base node after block 52258789. Its digest is
-`0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862`. Nothing may be sent until the
-founder names that digest. The 5 October packet (digest
+`0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862`. The founder named that digest
+(decision 56, 6 October 2026) and sent the five creations himself at Base blocks 52267808 to
+52268160; `deployed-manifest.json` records them, all eight contracts' code proven against the
+frozen build and the twelve wiring readbacks matched. The 5 October packet (digest
 `0xc006a3afe15d7fa26b88d28c0a6560265a6e390cdfe5cc0d7f82fc82343cdb23`), the 1 October packet (digest
 `0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba`) and the 29 September packet
 (digest `0x78e5…79a2`) were never sent and no longer match the source.
@@ -15,8 +17,8 @@ Two files live in this directory, and keeping them apart is the point.
 - `mainnet-no-go-packet.json` is a **proposal**: the selection (deployer, starting nonce, mined
   hook salt, the eight predicted addresses), the observed external state and the creation
   topology. `render` re-derives it offline and compares it byte for byte.
-- `deployed-manifest.json` is a **record**, empty until `record` fills it from confirmed Base
-  receipts. No simulated fact reaches it.
+- `deployed-manifest.json` is a **record**, filled by `record` from the confirmed Base receipts
+  of 6 October 2026. No simulated fact reaches it.
 
 The tool is the shared one in `contracts/stocks-v2/bin/ceremony.py`, run from this package
 directory (`python3 ../stocks-v2/bin/ceremony.py <mode>`). It refuses to run beside any signing,

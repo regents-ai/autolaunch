@@ -1,12 +1,174 @@
 {
   "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
   "version": 1,
-  "status": "not deployed",
+  "status": "deployed",
   "populated_by": "confirmed receipts, and nothing else",
   "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, rendered from an offline or read-only run. Nothing simulated may be written here. Every field is populated once, by `bin/ceremony.py record` from confirmed receipts, after the founder has named the approved packet digest and sent the ceremony by hand; a human installs the candidate it writes.",
-  "approved_packet_digest": null,
-  "selection": null,
-  "transactions": [],
-  "contracts": [],
-  "readbacks": null
+  "approved_packet_digest": "0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862",
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 28,
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000003b12",
+    "predicted_addresses": {
+      "uerc20_factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+      "escrow_implementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
+      "splitter_implementation": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+      "receiver_implementation": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
+      "factory": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E",
+      "strategy": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9",
+      "lp_locker": "0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120",
+      "hook": "0x72bE4F7FAE670e42048697e010699316318A2044"
+    }
+  },
+  "transactions": [
+    {
+      "index": 0,
+      "chain_id": 8453,
+      "hash": "0x8a774a1d21f353640eb57c4b24c71c589397aa84bc848f5e417fbbefff9d86e4",
+      "block_number": 52267808,
+      "nonce": 28,
+      "contract": "UERC20Factory",
+      "address": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08"
+    },
+    {
+      "index": 1,
+      "chain_id": 8453,
+      "hash": "0x0bc2571f6c304556fec852ce02ef7f3a80228460bcdcd4cd8f4c4ce6b61f4f60",
+      "block_number": 52267922,
+      "nonce": 29,
+      "contract": "ConditionalVestingEscrowV2",
+      "address": "0x8F511153393429468C3861E7cC5341Abb3310871"
+    },
+    {
+      "index": 2,
+      "chain_id": 8453,
+      "hash": "0xeba5e56ff1b07d486c2cfa1842c7fd572615187237a2d14f3d13f33aa6368d06",
+      "block_number": 52268042,
+      "nonce": 30,
+      "contract": "SubjectSplitterV1",
+      "address": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942"
+    },
+    {
+      "index": 3,
+      "chain_id": 8453,
+      "hash": "0x45537550b3c05f728fddf78ef19657b6b3d52117e1d56094d42f54e29fe347e1",
+      "block_number": 52268086,
+      "nonce": 31,
+      "contract": "PaymentReceiverV1",
+      "address": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc"
+    },
+    {
+      "index": 4,
+      "chain_id": 8453,
+      "hash": "0xd913518b942ce622f9eddd3fefe98b5d1baf75deaf617acb3c4995de1bf1c267",
+      "block_number": 52268160,
+      "nonce": 32,
+      "contract": "RegentsAutolaunchFactoryV2",
+      "address": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E"
+    }
+  ],
+  "contracts": [
+    {
+      "contract": "UERC20Factory",
+      "contract_key": "uerc20_factory",
+      "chain_id": 8453,
+      "address": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+      "created_by": "deployer",
+      "block_number": 52267808,
+      "codehash": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f",
+      "runtime_bytes": 12682,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "ConditionalVestingEscrowV2",
+      "contract_key": "escrow_implementation",
+      "chain_id": 8453,
+      "address": "0x8F511153393429468C3861E7cC5341Abb3310871",
+      "created_by": "deployer",
+      "block_number": 52267922,
+      "codehash": "0xeb0532f7a40fb683b1fd1335e26a39a8384d3f10aceb427225bb5c6db2ae137e",
+      "runtime_bytes": 3485,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "SubjectSplitterV1",
+      "contract_key": "splitter_implementation",
+      "chain_id": 8453,
+      "address": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+      "created_by": "deployer",
+      "block_number": 52268042,
+      "codehash": "0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e",
+      "runtime_bytes": 6289,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "PaymentReceiverV1",
+      "contract_key": "receiver_implementation",
+      "chain_id": 8453,
+      "address": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
+      "created_by": "deployer",
+      "block_number": 52268086,
+      "codehash": "0x98088902bc81f8472949dad00e0670d1427cff0ae1bed025120993c9b0c9dfbc",
+      "runtime_bytes": 3804,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "RegentsAutolaunchFactoryV2",
+      "contract_key": "factory",
+      "chain_id": 8453,
+      "address": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E",
+      "created_by": "deployer",
+      "block_number": 52268160,
+      "codehash": "0x99f5e3fa97c511b5cfc001e0ea407eebdbaa66f2cc00631d911a34f2aca01676",
+      "runtime_bytes": 6777,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "RegentLBPStrategyV2",
+      "contract_key": "strategy",
+      "chain_id": 8453,
+      "address": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9",
+      "created_by": "RegentsAutolaunchFactoryV2 constructor",
+      "block_number": 52268160,
+      "codehash": "0x1dcfd811edb76c865fcba2f9381a40fc2d33393f21ee227509258b86bcfb9a08",
+      "runtime_bytes": 19523,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "RevstakeLPLocker",
+      "contract_key": "lp_locker",
+      "chain_id": 8453,
+      "address": "0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120",
+      "created_by": "RegentLBPStrategyV2 constructor",
+      "block_number": 52268160,
+      "codehash": "0x4efb6c839e647803a895facfbb2431323aedcb985e7942c7900ec650cec0369a",
+      "runtime_bytes": 3474,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "RegentFeeHook",
+      "contract_key": "hook",
+      "chain_id": 8453,
+      "address": "0x72bE4F7FAE670e42048697e010699316318A2044",
+      "created_by": "RegentsAutolaunchFactoryV2 constructor",
+      "block_number": 52268160,
+      "codehash": "0x97e9436758e3c1f65e2827a4f6b1682a07e3c3d46f225443412e19018394daac",
+      "runtime_bytes": 5168,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    }
+  ],
+  "readbacks": {
+    "factory.uerc20Factory": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+    "factory.strategy": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9",
+    "factory.hook": "0x72bE4F7FAE670e42048697e010699316318A2044",
+    "factory.launchesPaused": true,
+    "strategy.factory": "0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E",
+    "strategy.escrowImplementation": "0x8F511153393429468C3861E7cC5341Abb3310871",
+    "strategy.splitterImplementation": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+    "strategy.receiverImplementation": "0xb58f2AF6A588414C6ad44280143db9aE7927d5fc",
+    "strategy.lpLocker": "0x5483EfCc207F6233b393AC3Ab3ECE91D19a7C120",
+    "strategy.hook": "0x72bE4F7FAE670e42048697e010699316318A2044",
+    "lpLocker.strategy": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9",
+    "hook.strategy": "0x4dEEd15f650F45900F2e55a44eADe7bD5Fd556d9"
+  }
 }
