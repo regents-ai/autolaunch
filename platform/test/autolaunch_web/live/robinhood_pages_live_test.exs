@@ -6,15 +6,6 @@ defmodule AutolaunchWeb.RobinhoodPagesLiveTest do
 
   @moduletag :capture_log
 
-  setup do
-    previous = Application.get_env(:autolaunch, :autolaunch_robinhood_deployment)
-    Application.put_env(:autolaunch, :autolaunch_robinhood_deployment, "robinhood.json")
-
-    on_exit(fn ->
-      Application.put_env(:autolaunch, :autolaunch_robinhood_deployment, previous)
-    end)
-  end
-
   # Every page that shows live figures hears both networks' feeds, so a Base
   # page must outlive a Robinhood update too.
   test "a Base token page outlives a Robinhood feed update", %{conn: conn} do
