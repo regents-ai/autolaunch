@@ -154,6 +154,20 @@ defmodule Autolaunch.LaunchDraft do
       change Autolaunch.LaunchDraft.Changes.AttachOwnedImage
     end
 
+    # `Autolaunch.LaunchedDrafts`: the account's draft while it still names
+    # the launch just listed.
+    read :naming_listed_launch do
+      get? true
+      argument :human_account_id, :integer, allow_nil?: false
+      argument :name, :string, allow_nil?: false, constraints: [trim?: false]
+      argument :symbol, :string, allow_nil?: false, constraints: [trim?: false]
+
+      filter expr(
+               human_account_id == ^arg(:human_account_id) and name == ^arg(:name) and
+                 symbol == ^arg(:symbol)
+             )
+    end
+
     # A listed launch's draft starts over (`Autolaunch.LaunchedDrafts`), so the
     # form is blank again.
     update :clear do
@@ -184,8 +198,7 @@ defmodule Autolaunch.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
-             :attach_image,
-             :clear
+             :attach_image
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
@@ -197,10 +210,13 @@ defmodule Autolaunch.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
-             :attach_image,
-             :clear
+             :attach_image
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action([:naming_listed_launch, :clear]) do
+      authorize_if Autolaunch.Checks.SystemActor
     end
   end
 

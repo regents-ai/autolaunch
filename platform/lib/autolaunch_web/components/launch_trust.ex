@@ -324,7 +324,8 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       reserve: "497.5 million tokens (49.75%)",
       unused: "is locked in a second position that holds only the token",
       rows: [
-        {"Sold in the auction", "497.5 million (49.75%)", "winning bidders claim what they bought"},
+        {"Sold in the auction", "497.5 million (49.75%)",
+         "winning bidders claim what they bought"},
         {"Reserved for liquidity", "497.5 million (49.75%)",
          "paired with all the stock raised in a permanently locked position; the rest is locked in a second position that holds only the token"},
         {"Creator", "5 million (0.5%)",

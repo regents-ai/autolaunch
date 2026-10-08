@@ -48,6 +48,11 @@ defmodule Autolaunch do
         action: :attach_image,
         args: [:launch_draft_image_id]
 
+      define :get_launch_draft_naming_listed_launch,
+        action: :naming_listed_launch,
+        args: [:human_account_id, :name, :symbol],
+        not_found_error?: false
+
       define :clear_launch_draft, action: :clear
     end
 
@@ -145,7 +150,23 @@ defmodule Autolaunch do
     # The saved Revstake launch review is written only by `LaunchActions` under
     # a session lease and marked confirmed by `LaunchReviews`, so it is
     # registered without a code interface.
-    resource @launch_operation
+    resource @launch_operation do
+      define :get_launch_review_by_action_id,
+        action: :by_action_id,
+        args: [:action_id],
+        not_found_error?: false
+
+      define :list_launch_reviews_for_signer,
+        action: :for_signer_on_chain,
+        args: [:signer, :chain_id]
+
+      define :lock_launch_review,
+        action: :by_id_for_update,
+        args: [:id],
+        not_found_error?: false
+
+      define :verify_launch_review, action: :verify
+    end
 
     # The Stocks launch lane: one private draft per account and the saved
     # launch review `Autolaunch.Stocks.LaunchActions` owns.
@@ -173,6 +194,11 @@ defmodule Autolaunch do
       define :attach_stocks_launch_draft_image,
         action: :attach_image,
         args: [:stock_launch_draft_image_id]
+
+      define :get_stocks_launch_draft_naming_listed_launch,
+        action: :naming_listed_launch,
+        args: [:human_account_id, :name, :symbol],
+        not_found_error?: false
 
       define :clear_stocks_launch_draft, action: :clear
     end
@@ -208,7 +234,23 @@ defmodule Autolaunch do
       define :stock_launch_draft_image_colors, action: :public_colors, args: [:ids]
     end
 
-    resource Autolaunch.Stocks.LaunchOperation
+    resource Autolaunch.Stocks.LaunchOperation do
+      define :get_stocks_launch_review_by_action_id,
+        action: :by_action_id,
+        args: [:action_id],
+        not_found_error?: false
+
+      define :list_stocks_launch_reviews_for_signer,
+        action: :for_signer_on_chain,
+        args: [:signer, :chain_id]
+
+      define :lock_stocks_launch_review,
+        action: :by_id_for_update,
+        args: [:id],
+        not_found_error?: false
+
+      define :verify_stocks_launch_review, action: :verify
+    end
 
     # The test-funds cooldown ledger, written only by `Stocks.Faucet` inside
     # the transaction that sends a grant.

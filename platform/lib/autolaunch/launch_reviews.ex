@@ -13,8 +13,6 @@ defmodule Autolaunch.LaunchReviews do
   a page saw its own press confirm.
   """
 
-  require Ash.Query
-
   alias Autolaunch.Actors.System
   alias Autolaunch.{LabProjection, LaunchChainClient, LaunchedDrafts, LaunchOperation}
   alias Autolaunch.Stocks.LabLaunchChainClient
@@ -47,24 +45,24 @@ defmodule Autolaunch.LaunchReviews do
   @doc "Lists the launch the saved review `action_id` carried out as `hash`."
   @spec confirm(kind(), String.t(), String.t()) :: answer()
   def confirm(kind, action_id, hash) do
-    case resource(kind)
-         |> Ash.Query.filter(action_id == ^action_id)
-         |> Ash.read_one(actor: @system) do
+    case by_action_id(kind, action_id) do
       {:ok, nil} -> {:unlisted, :no_matching_review}
       {:ok, review} -> match(kind, [review], String.downcase(hash), :no_matching_review)
       {:error, reason} -> {:pending, reason}
     end
   end
 
-  defp candidates(kind, chain_id, launcher) do
-    with {:ok, reviews} <-
-           resource(kind)
-           |> Ash.Query.filter(string_downcase(signer) == ^String.downcase(launcher))
-           |> Ash.Query.sort(inserted_at: :desc)
-           |> Ash.read(actor: @system) do
-      {:ok, Enum.filter(reviews, &match?(%{"chain" => %{"chain_id" => ^chain_id}}, &1.review))}
-    end
-  end
+  defp by_action_id(:launch, action_id),
+    do: Autolaunch.get_launch_review_by_action_id(action_id, actor: @system)
+
+  defp by_action_id(:stocks_launch, action_id),
+    do: Autolaunch.get_stocks_launch_review_by_action_id(action_id, actor: @system)
+
+  defp candidates(:launch, chain_id, launcher),
+    do: Autolaunch.list_launch_reviews_for_signer(launcher, chain_id, actor: @system)
+
+  defp candidates(:stocks_launch, chain_id, launcher),
+    do: Autolaunch.list_stocks_launch_reviews_for_signer(launcher, chain_id, actor: @system)
 
   defp match(_kind, [], _hash, :no_matching_review), do: {:unlisted, :no_matching_review}
   defp match(_kind, [], _hash, reason), do: {:pending, reason}
@@ -87,7 +85,7 @@ defmodule Autolaunch.LaunchReviews do
     Ash.transaction(resource(kind), fn ->
       with {:ok, review} <- locked(kind, id),
            {:ok, notifications} <- project(kind, review, result),
-           {:ok, review} <- verified(review, result),
+           {:ok, review} <- verified(kind, review, result),
            :ok <- start_over(kind, review) do
         {review.human_account_id, result, notifications}
       else
@@ -104,22 +102,18 @@ defmodule Autolaunch.LaunchReviews do
     end
   end
 
-  defp locked(kind, id) do
-    resource(kind)
-    |> Ash.Query.filter(id == ^id)
-    |> Ash.Query.lock(:for_update)
-    |> Ash.read_one(actor: @system)
-  end
+  defp locked(:launch, id), do: Autolaunch.lock_launch_review(id, actor: @system)
+  defp locked(:stocks_launch, id), do: Autolaunch.lock_stocks_launch_review(id, actor: @system)
 
   # A review withdrawn before its launch landed stays withdrawn; the launch is
   # still listed.
-  defp verified(%{state: :prepared} = review, result) do
-    review
-    |> Ash.Changeset.for_update(:verify, %{result: result}, actor: @system)
-    |> Ash.update(actor: @system)
-  end
+  defp verified(:launch, %{state: :prepared} = review, result),
+    do: Autolaunch.verify_launch_review(review, %{result: result}, actor: @system)
 
-  defp verified(review, _result), do: {:ok, review}
+  defp verified(:stocks_launch, %{state: :prepared} = review, result),
+    do: Autolaunch.verify_stocks_launch_review(review, %{result: result}, actor: @system)
+
+  defp verified(_kind, review, _result), do: {:ok, review}
 
   defp start_over(kind, %{human_account_id: account_id, review: %{"facts" => facts}}),
     do: LaunchedDrafts.clear(draft_kind(kind), account_id, facts["name"], facts["symbol"])

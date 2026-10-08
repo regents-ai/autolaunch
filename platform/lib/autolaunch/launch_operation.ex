@@ -33,6 +33,34 @@ defmodule Autolaunch.LaunchOperation do
   actions do
     defaults [:read]
 
+    # `Autolaunch.LaunchReviews`: the review a page's own press names,
+    read :by_action_id do
+      get? true
+      argument :action_id, :string, allow_nil?: false
+      filter expr(action_id == ^arg(:action_id))
+    end
+
+    # the reviews a launch the chain shows may have come from, newest first,
+    read :for_signer_on_chain do
+      argument :signer, :string, allow_nil?: false
+      argument :chain_id, :integer, allow_nil?: false
+
+      filter expr(
+               string_downcase(signer) == string_downcase(^arg(:signer)) and
+                 fragment("(?->'chain'->>'chain_id')::bigint = ?", review, ^arg(:chain_id))
+             )
+
+      prepare build(sort: [inserted_at: :desc])
+    end
+
+    # and the one being listed, held until its listing commits.
+    read :by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
+    end
+
     # The chain shows the launch this review's step carried out.
     update :verify do
       accept [:result]

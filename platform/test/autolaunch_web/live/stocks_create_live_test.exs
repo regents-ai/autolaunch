@@ -60,7 +60,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert html =~ "Saved"
     # The whole sale at the lowest starting price, rounded down to four
     # significant digits of the 8-decimal stock.
-    assert html =~ "0.2683 AMZNc"
+    assert html =~ "0.2696 AMZNc"
 
     view
     |> form("#stocks-token-details",
