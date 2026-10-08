@@ -76,7 +76,7 @@ export const OnchainSteps: Hook = {
     this.clicked = event => {
       const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step]")
       const name = button?.dataset.onchainStep
-      if (!button || !name || !this.el.contains(button)) return
+      if (!button || !name || card(button) !== this.el) return
       const release = mark(button)
       const form = formInputs(this.el)
 
@@ -159,7 +159,7 @@ export function formInputs(root: HTMLElement): Record<string, string> {
   const inputs: Record<string, string> = {}
   root.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-onchain-input]").forEach(input => {
     const name = input.dataset.onchainInput
-    if (!name) return
+    if (!name || card(input) !== root) return
     if (input instanceof HTMLInputElement && input.type === "radio") {
       if (input.checked) inputs[name] = input.value
     } else {
@@ -184,4 +184,11 @@ function mark(button: HTMLElement): () => void {
     presses.set(button, left)
     if (left <= 0) delete button.dataset.awaitingWallet
   }
+}
+
+// The wallet card a button or input belongs to: the nearest one around it. A
+// card can sit inside another (Robinhood's refund and claim cards sit in its bid
+// card), and a press or a field belongs only to its own.
+function card(element: Element): Element | null {
+  return element.closest('[phx-hook="OnchainSteps"]')
 }
