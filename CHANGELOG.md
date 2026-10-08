@@ -3,14 +3,19 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v72, 8 October 2026 (3ac7d8d)
+- You can start more than one Revstake auction from the same account.
+- New launches on Base and Robinhood are open on the new contracts; the old contracts take no
+  new launches, and earlier auctions and tokens keep working as before.
+
 ## v71, 8 October 2026 (17f12c3)
 - Robinhood auction pages read their pool again, and Robinhood token pages open again.
 
 ## v70, 8 October 2026 (4c598a3)
 - The new site: fresh Explore, auction, token, Create and profile pages, with a launch timeline
   on both Create pages and one shared look for Memestake and Revstake.
-- New launches use the new contracts. Memestake trading fees split 49.75% to stakers, 49.75% to
-  REGENT stakers and 0.5% to Regent.
+- New launches use the new contracts. A Memestake token's supply splits 49.75% sold at auction,
+  49.75% locked in the pool and 0.5% to its creator over 30 days.
 - Robinhood launches use the new contracts too; earlier auctions keep working on their own.
 - Every account has one profile page; the separate Settings page is gone.
 - You can start a second Memestake auction while another is still live.
