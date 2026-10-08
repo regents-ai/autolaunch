@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.ImpactProbeComponent do
         <h2 id={"#{@id}-title"}>
           <.info_tip
             id={"#{@id}-tip"}
-            text="Fresh quotes from the pool for buying and for selling the same size, run through the pool and its fee hook as a real swap would be. The gap from the pool's price includes every fee."
+            text="Fresh quotes from the pool for buying and for selling the same size, run through the pool and its fee contract as a real swap would be. The gap from the pool's price includes every fee."
           >
             Price impact
           </.info_tip>
