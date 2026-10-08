@@ -424,7 +424,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     with {:ok, snapshot} <- AuctionSnapshot.robinhood(address) do
       pool =
         if launch.state == :graduated,
-          do: RobinhoodPool.read(address),
+          do: RobinhoodPool.read(launch),
           else: {:error, :not_graduated}
 
       required = String.to_integer(launch.required_currency_raised)

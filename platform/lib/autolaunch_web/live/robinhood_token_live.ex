@@ -134,7 +134,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             :if={@pool.ok?}
             module={AutolaunchWeb.StakeComponent}
             id={"robinhood-stake-#{@token.auction.auction_address}"}
-            launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+            launch={%{chain: :robinhood, auction: @token.auction}}
             pool={@pool.result}
             initial_amount={@stake_amount}
             share_url={Paths.token_url(@token.auction)}
@@ -193,7 +193,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         module={AutolaunchWeb.SwapComponent}
         id={"robinhood-trade-#{@token.auction.auction_address}"}
         agent_tools
-        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+        launch={%{chain: :robinhood, auction: @token.auction}}
         symbol={@token.symbol}
         currency={@token.auction.quote_token_symbol}
         authenticated={@account_control.kind == :signed_in}
@@ -204,7 +204,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         :if={@swap? && @pool.ok?}
         module={AutolaunchWeb.ImpactProbeComponent}
         id={"robinhood-impact-#{@token.auction.auction_address}"}
-        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+        launch={%{chain: :robinhood, auction: @token.auction}}
         pool={@pool.result}
       />
       <p class="autolaunch-live-market">
@@ -222,7 +222,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         :if={@pool.ok?}
         module={AutolaunchWeb.ConvertComponent}
         id={"robinhood-convert-#{@token.auction.auction_address}"}
-        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+        launch={%{chain: :robinhood, auction: @token.auction}}
         pool={@pool.result}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
@@ -331,7 +331,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       socket,
       [:pool, :fee_totals, :usd_rate],
       fn ->
-        with {:ok, facts} <- Pool.read(token.auction.auction_address) do
+        with {:ok, facts} <- Pool.read(token.auction) do
           {:ok,
            %{
              pool: facts,
