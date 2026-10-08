@@ -15,8 +15,6 @@ defmodule AutolaunchWeb.TestFundsComponent do
   def available?, do: Faucet.available?()
 
   @impl true
-  def update(%{grant: result}, socket), do: {:ok, assign(socket, outcome: result)}
-
   def update(assigns, socket) do
     socket = assign(socket, assigns)
 
@@ -97,19 +95,26 @@ defmodule AutolaunchWeb.TestFundsComponent do
   end
 
   @impl true
-  # One press, one transaction, started right away; the result lands when the
-  # lab answers, and a second press meanwhile is another transaction.
+  # One press, one transaction, started right away under its own name; the
+  # result lands when the lab answers, and a second press meanwhile is another
+  # transaction.
   def handle_event("grant", %{"kind" => kind} = params, socket) do
     wallet = socket.assigns.signed_in
-    pid = self()
-    id = socket.assigns.id
 
-    Task.start(fn ->
-      send_update(pid, __MODULE__, id: id, grant: grant(kind, wallet, params["stock"]))
-    end)
-
-    {:noreply, assign(socket, outcome: nil)}
+    {:noreply,
+     socket
+     |> assign(outcome: nil)
+     |> start_async({:grant, make_ref()}, fn -> grant(kind, wallet, params["stock"]) end)}
   end
+
+  @impl true
+  def handle_async({:grant, _press}, {:ok, result}, socket),
+    do: {:noreply, assign(socket, outcome: result)}
+
+  def handle_async({:grant, _press}, {:exit, _reason}, socket),
+    do:
+      {:noreply,
+       assign(socket, outcome: {:error, "That did not go through. Try again in a moment."})}
 
   defp grant(_kind, nil, _stock), do: {:error, "Sign in to receive test funds."}
   defp grant("regent", wallet, _stock), do: Faucet.regent(wallet)
