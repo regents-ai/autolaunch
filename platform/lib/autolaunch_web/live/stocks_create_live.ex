@@ -49,7 +49,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
         current_human_id: nil,
         stocks_lab: stocks_lab(),
         market: %{prices: %{}, venues: []},
-        live_memestake?: false,
         reviewing?: false,
         ticker_taken?: false,
         status: :loading
@@ -165,9 +164,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   # What a visitor typed while signed out, handed back by this tab. Signed in,
   # it goes into the account's draft through the same saves as typing it
-  # would; signed out, it refills the unsaved form after a reload. While the
-  # account's live auction keeps the form locked, or the draft could not be
-  # read, nothing is taken and the tab keeps the values for a later visit.
+  # would; signed out, it refills the unsaved form after a reload. When the
+  # draft could not be read, nothing is taken and the tab keeps the values for
+  # a later visit.
   def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values) do
     if taken?(socket),
       do: {:reply, %{taken: true}, restore(socket, values)},
@@ -254,10 +253,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
       socket.assigns.status != :ready ->
         {:error, "The draft could not be loaded. Ask the person to refresh the page.", socket}
 
-      socket.assigns.live_memestake? ->
-        {:error, "This account already has a live Memestake auction, so the form is locked.",
-         socket}
-
       socket.assigns.reviewing? ->
         {:error,
          "The details are locked while the launch review is open on the page. Ask the person to cancel the review to change them.",
@@ -329,9 +324,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp next_step(%{status: status}) when status != :ready,
     do: "The draft could not be loaded. Ask the person to refresh the page."
-
-  defp next_step(%{live_memestake?: true}),
-    do: "This account already has a live Memestake auction, so the form is locked."
 
   defp next_step(%{reviewing?: true}),
     do:
@@ -406,8 +398,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp unsaved_notice(_socket),
     do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
 
-  defp taken?(%{assigns: %{live_memestake?: live?, status: status}}),
-    do: not live? and status != :error
+  defp taken?(%{assigns: %{status: status}}), do: status != :error
 
   defp restore(socket, values) do
     values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
@@ -540,22 +531,14 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
-  # While the account's newest Memestake auction is live the details stay
-  # locked. A listed launch's draft was already started over
+  # A listed launch's draft was already started over
   # (`Autolaunch.LaunchedDrafts`).
-  defp load_draft(socket, %Human{human_account_id: id} = actor) do
-    with {:ok, auction} <- Autolaunch.latest_memestake_auction(id),
-         {:ok, draft} <- current_or_new_draft(actor) do
-      socket
-      |> assign_draft(draft)
-      |> assign(live_memestake?: live?(auction))
-    else
+  defp load_draft(socket, %Human{} = actor) do
+    case current_or_new_draft(actor) do
+      {:ok, draft} -> assign_draft(socket, draft)
       {:error, _error} -> assign(socket, status: :error)
     end
   end
-
-  defp live?(%{state: state}), do: state in [:created, :active]
-  defp live?(nil), do: false
 
   # A link can name the stock (`?token=<symbol or address>`): the choice is
   # made exactly as choosing it in the form would make it, and a name the

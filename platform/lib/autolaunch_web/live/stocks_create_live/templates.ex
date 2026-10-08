@@ -54,7 +54,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
   attr :status, :atom, default: :ready
-  attr :live_memestake?, :boolean, default: false
   attr :reviewing?, :boolean, default: false
   attr :ticker_taken?, :boolean, default: false
 
@@ -91,10 +90,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           phx-hook="AgentTools"
           aria-label="Your memestock"
         >
-          <p :if={@live_memestake?} id="memestock-locked" class="memestock__locked" role="status">
-            Only one Memestake auction can be live per account
-          </p>
-          <fieldset class="create-page__lock" disabled={@live_memestake? || @reviewing?}>
+          <fieldset class="create-page__lock" disabled={@reviewing?}>
             <form
               id="stocks-token-details"
               class="create-page__fields"

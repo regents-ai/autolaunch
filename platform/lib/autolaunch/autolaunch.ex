@@ -448,18 +448,6 @@ defmodule Autolaunch do
   # preparation action can only ever answer the same way.
   defdelegate bid_amount_units(amount, decimals), to: Autolaunch.BidActions, as: :units
 
-  # The account's newest Memestake auction on either chain, read under the
-  # system actor like the Revstake count below.
-  @spec latest_memestake_auction(integer()) ::
-          {:ok, Ash.Resource.record() | nil} | {:error, term()}
-  def latest_memestake_auction(human_account_id) when is_integer(human_account_id) do
-    Autolaunch.Auction
-    |> Ash.Query.for_read(:read, %{}, actor: %Autolaunch.Actors.System{})
-    |> Ash.Query.filter(creator_human_account_id == ^human_account_id and kind == :stocks)
-    |> Ash.Query.sort(inserted_at: :desc)
-    |> Ash.read_first()
-  end
-
   # The site rule: one Revstake auction per account. Queries run under the
   # system actor: LaunchOperation is system-only, and the in-flight window is
   # "chain_verified with no Auction row yet". Lab projection names that address

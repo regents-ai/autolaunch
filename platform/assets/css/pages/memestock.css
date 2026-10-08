@@ -1,10 +1,6 @@
 /* Create a Memestake token: what only the Memestake form has. */
 .memestock { --memestock-base: #0052ff; --memestock-robinhood: #00c805; }
 
-/* While the account has a live Memestake auction the details stay readable
-   but grayed (`.create-page__lock`), under one line saying why. */
-.memestock__locked { margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline-strong); font-weight: 600; }
-
 /* Paired stock: Base or Robinhood, then the chain's stocks in one dropdown. */
 .memestock__paired { display: grid; gap: var(--space-2); }
 .memestock__paired-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
