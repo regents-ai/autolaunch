@@ -134,9 +134,19 @@ defmodule AutolaunchWeb.OnchainSteps do
     Enum.find(Presses.shown(presses), &(&1.name == name and match?(%{id: ^id}, &1.review)))
   end
 
-  @doc "Whether a step sent from `review` is still on its way."
-  def pending?(presses, %{steps: steps} = review),
-    do: Enum.any?(steps, &match?(%{outcome: :pending}, entry(presses, review, &1.step)))
+  @doc """
+  Whether the page is still reading a step sent from `review`. A step the page
+  stopped reading (it offers "Check again") no longer holds the review, so the
+  ten-minute rebuild goes ahead.
+  """
+  def pending?(presses, %{steps: steps} = review) do
+    Enum.any?(steps, fn %{step: name} ->
+      case entry(presses, review, name) do
+        nil -> false
+        entry -> Presses.reading?(entry)
+      end
+    end)
+  end
 
   @doc """
   Asks the panel to look at the review on the page again once it is ten
