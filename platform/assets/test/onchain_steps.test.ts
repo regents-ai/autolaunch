@@ -154,4 +154,16 @@ describe("a wallet button sends only the step the server built", () => {
       ["step_failed", {step: "claim", reason: "step_unknown"}],
     ])
   })
+
+  // A step the chain would refuse once said "Your wallet declined this".
+  it("reports a step the chain would refuse as one that can't be sent as it stands", async () => {
+    const provider = wallet({
+      eth_sendTransaction: () => {
+        throw new Error("estimate failed", {cause: {code: 3, message: "execution reverted"}})
+      },
+    })
+    activate(provider)
+
+    await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "step_unknown"})
+  })
 })

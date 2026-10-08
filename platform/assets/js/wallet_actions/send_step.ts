@@ -47,6 +47,9 @@ export async function sendStep(
 /** Why a press ended without a hash. After `sending`, the wallet may have sent it. */
 export function failure(sending: boolean, error: unknown): Failure {
   if (!sending) return error instanceof NothingSent ? error.reason : "wallet_unavailable"
+  // The wallet priced it and the chain refused it (code 3, or these words): it
+  // can't be sent as it stands, which is not the person declining.
+  if (hasCode(error, 3) || hasMessage(error, /execution reverted/i)) return "step_unknown"
   if (hasCode(error, 4001)) return "wallet_declined"
   // No EIP-1193 code names this; wallets and nodes all say it in these words.
   return hasMessage(error, /insufficient funds/i) ? "insufficient_funds" : "send_unconfirmed"
