@@ -3,6 +3,25 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v71, 8 October 2026 (17f12c3)
+- Robinhood auction pages read their pool again, and Robinhood token pages open again.
+
+## v70, 8 October 2026 (4c598a3)
+- The new site: fresh Explore, auction, token, Create and profile pages, with a launch timeline
+  on both Create pages and one shared look for Memestake and Revstake.
+- New launches use the new contracts. Memestake trading fees split 49.75% to stakers, 49.75% to
+  REGENT stakers and 0.5% to Regent.
+- Robinhood launches use the new contracts too; earlier auctions keep working on their own.
+- Every account has one profile page; the separate Settings page is gone.
+- You can start a second Memestake auction while another is still live.
+- Agents can read, fill and launch from both Create pages.
+- A wallet step the chain would refuse now says it can't be sent as it stands, instead of
+  saying your wallet declined it.
+
+## v69, 7 October 2026 (52806ed)
+- Share pictures are drawn less often and kept, so they load faster.
+- A sign-in now lasts 30 days from the last time you signed in.
+
 ## v68, 7 October 2026 (1a509b0)
 - The site now always opens over a secure connection, and browsers remember to use one.
 - A new browser safety rule watches what each page loads. For now it only reports; pages work as before.
