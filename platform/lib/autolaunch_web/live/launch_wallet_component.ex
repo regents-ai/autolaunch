@@ -5,8 +5,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   The review, the step and its outcomes follow `AutolaunchWeb.LaunchSteps`.
   The review is saved (`Autolaunch.LaunchOperation`) so the launch it carries
-  out is listed for this account: at once when this page sees it confirmed,
-  otherwise when discovery finds it on Base. Off the local lab, the draft's
+  out is listed for this account: as soon as this page sees it confirmed and
+  Base answers for it, otherwise when discovery finds it. Off the local lab, the draft's
   treasury is verified here first.
   """
 
@@ -75,6 +75,12 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       data-agent-tools="autolaunch_launch"
       phx-hook="OnchainSteps"
     >
+      <LaunchSteps.launched_panel
+        id={"#{@id}-launched"}
+        launched={@launched}
+        chain={explorer_chain(@local_lab?)}
+        target={@myself}
+      />
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
       <section
@@ -117,7 +123,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
       </p>
 
-      <div class="launch-wallet-open" hidden={!(@authenticated && !@review)}>
+      <div class="launch-wallet-open" hidden={!(@authenticated && !@review && !@launched)}>
         <p class="launch-wallet-hint">
           Your wallet confirms the launch. You see every value before anything is sent.
         </p>
@@ -217,23 +223,14 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         <% end %>
 
         <LaunchSteps.progress
+          id={"#{@id}-progress"}
           steps={@steps}
           review={@review}
+          chain={explorer_chain(@local_lab?)}
           mismatch={@mismatch}
           press_note={@press_note}
           target={@myself}
         />
-      </section>
-
-      <section :if={@launched} class="launch-wallet-settled" role="status">
-        <p>{launched_copy(@local_lab?)}</p>
-        <p>
-          <.link :if={@launched["path"]} navigate={@launched["path"]}>Open the auction</.link>
-          · Auction <span class="launch-wallet-mono">{@launched["auction"]}</span>
-        </p>
-        <p>
-          Bidding opens at block {@launched["start_block"]} and ends at block {@launched["end_block"]}.
-        </p>
       </section>
     </section>
     """
@@ -304,12 +301,12 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
          socket,
          hash,
          result,
-         &LaunchSteps.list(&1, :launch, &2),
+         &LaunchSteps.launched(&1, &2, :revstake, LaunchSteps.base_page(:launch)),
          &LaunchSteps.reverted(&1, &2, current(socket), fn signer -> prepare(socket, signer) end)
        )}
 
-  def handle_async({:listed, _hash}, answer, socket),
-    do: {:noreply, LaunchSteps.listed(socket, answer)}
+  def handle_async({:launch_page, hash}, answer, socket),
+    do: {:noreply, LaunchSteps.found(socket, hash, answer, LaunchSteps.base_page(:launch))}
 
   defp prepare(socket, signer) do
     case LaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do
@@ -376,12 +373,9 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   # The review
 
-  # What this page says of a launch it saw confirmed and listed. The auction
-  # page follows once the site has read the auction.
-  defp launched_copy(true),
-    do: "The test launch was created and listed. Test assets have no mainnet value."
-
-  defp launched_copy(false), do: "Your launch was created and listed."
+  # A test network has no explorer.
+  defp explorer_chain(true), do: nil
+  defp explorer_chain(false), do: :base
 
   defp allocation_display(terms) do
     "#{share(terms, "auction_allocation")} auction · " <>

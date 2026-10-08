@@ -129,6 +129,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :connections_waived, :boolean, default: false
   attr :no_connections_typed, :string, default: ""
   attr :reviewing?, :boolean, default: false
+  attr :launched?, :boolean, default: false
   attr :ticker_taken?, :boolean, default: false
 
   def create(assigns) do
@@ -266,8 +267,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           />
           <.live_component
             :if={
-              (@launch_ready? || @reviewing?) && @active_draft &&
-                (@has_connections || @connections_waived)
+              @active_draft &&
+                (@launched? ||
+                   ((@launch_ready? || @reviewing?) && (@has_connections || @connections_waived)))
             }
             module={AutolaunchWeb.LaunchWalletComponent}
             id={"autolaunch-launch-wallet-#{@active_draft.id}"}
@@ -277,7 +279,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             session_lease={@session_lease}
           />
           <Regent.Primitives.button
-            :if={@current_human_id && !@launch_ready? && !@reviewing?}
+            :if={@current_human_id && !@launch_ready? && !@reviewing? && !@launched?}
             type="button"
             class="create-page__launch-button"
             disabled

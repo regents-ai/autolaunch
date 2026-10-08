@@ -150,12 +150,13 @@ defmodule AutolaunchWeb.CreateLive do
   # A launch card opened its review: the details lock so the review always
   # matches them, and a saved-draft note no longer describes what this page is
   # doing and comes down. Once the review closes they open again, read anew,
-  # blank when the launch was listed.
+  # blank when the launch was listed. A launch just made keeps its card, which
+  # says so, until the person dismisses it.
   def handle_info({:launch_review, :open}, socket),
     do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
 
-  def handle_info({:launch_review, :closed}, socket) do
-    socket = assign(socket, reviewing?: false)
+  def handle_info({:launch_review, news}, socket) when news in [:closed, :launched] do
+    socket = assign(socket, reviewing?: false, launched?: news == :launched)
 
     case human_actor(socket) do
       nil -> {:noreply, socket}
@@ -460,6 +461,7 @@ defmodule AutolaunchWeb.CreateLive do
       connections_waived: false,
       no_connections_typed: "",
       reviewing?: false,
+      launched?: false,
       ticker_taken?: false,
       current_human_id: actor && actor.human_account_id,
       status: :loading

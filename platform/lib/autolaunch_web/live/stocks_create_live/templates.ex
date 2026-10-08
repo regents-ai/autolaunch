@@ -55,6 +55,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :account_control, :map, required: true
   attr :status, :atom, default: :ready
   attr :reviewing?, :boolean, default: false
+  attr :launched?, :boolean, default: false
   attr :ticker_taken?, :boolean, default: false
 
   def create(assigns) do
@@ -274,7 +275,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               Nothing is saved until you sign in. What you have entered comes with you.
             </p>
             <.live_component
-              :if={@launch_chain == :robinhood && @robinhood_open? && (@launch_ready? || @reviewing?)}
+              :if={
+                @launch_chain == :robinhood && @robinhood_open? &&
+                  (@launch_ready? || @reviewing? || @launched?)
+              }
               module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
               id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
               draft={@draft}
@@ -282,7 +286,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               session_lease={@session_lease}
             />
             <.live_component
-              :if={@launch_chain == :base && (@launch_ready? || @reviewing?)}
+              :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
               module={AutolaunchWeb.StocksLaunchWalletComponent}
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
@@ -293,7 +297,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             <Regent.Primitives.button
               :if={
                 @current_human_id && (@launch_chain == :base || @robinhood_open?) && !@launch_ready? &&
-                  !@reviewing?
+                  !@reviewing? && !@launched?
               }
               type="button"
               class="create-page__launch-button"

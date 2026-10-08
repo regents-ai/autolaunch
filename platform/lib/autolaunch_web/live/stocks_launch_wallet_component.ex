@@ -5,8 +5,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   The review, the step and its outcomes follow `AutolaunchWeb.LaunchSteps`.
   The review is saved (`Autolaunch.Stocks.LaunchOperation`) so the launch it
-  carries out is listed for this account: at once when this page sees it
-  confirmed, otherwise when discovery finds it on Base.
+  carries out is listed for this account: as soon as this page sees it
+  confirmed and Base answers for it, otherwise when discovery finds it.
   """
 
   use AutolaunchWeb, :live_component
@@ -58,9 +58,15 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       data-agent-tools="autolaunch_launch"
       phx-hook="OnchainSteps"
     >
+      <LaunchSteps.launched_panel
+        id={"#{@id}-launched"}
+        launched={@launched}
+        chain={explorer_chain()}
+        target={@myself}
+      />
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <div class="launch-wallet-open" hidden={!!@review}>
+      <div class="launch-wallet-open" hidden={!!@review or !!@launched}>
         <p class="launch-wallet-hint">
           Your wallet confirms the launch. You see every value before anything is sent.
         </p>
@@ -162,24 +168,14 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         <% end %>
 
         <LaunchSteps.progress
+          id={"#{@id}-progress"}
           steps={@steps}
           review={@review}
+          chain={explorer_chain()}
           mismatch={@mismatch}
           press_note={@press_note}
           target={@myself}
         />
-      </section>
-
-      <section :if={@launched} class="launch-wallet-settled" role="status">
-        <p>{launched_copy()}</p>
-        <p>
-          <.link :if={@launched["path"]} navigate={@launched["path"]}>Open the auction</.link>
-          · Token <span class="launch-wallet-mono">{@launched["new_token"]}</span>
-          · Auction <span class="launch-wallet-mono">{@launched["auction"]}</span>
-        </p>
-        <p>
-          Bidding opens at block {@launched["start_block"]} and ends at block {@launched["end_block"]}.
-        </p>
       </section>
     </section>
     """
@@ -223,12 +219,12 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
          socket,
          hash,
          result,
-         &LaunchSteps.list(&1, :stocks_launch, &2),
+         &LaunchSteps.launched(&1, &2, :memestake, LaunchSteps.base_page(:stocks_launch)),
          &LaunchSteps.reverted(&1, &2, current(socket), fn signer -> prepare(socket, signer) end)
        )}
 
-  def handle_async({:listed, _hash}, answer, socket),
-    do: {:noreply, LaunchSteps.listed(socket, answer)}
+  def handle_async({:launch_page, hash}, answer, socket),
+    do: {:noreply, LaunchSteps.found(socket, hash, answer, LaunchSteps.base_page(:stocks_launch))}
 
   defp prepare(socket, signer) do
     case LaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do
@@ -247,11 +243,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp actor(_socket), do: nil
 
-  defp launched_copy do
-    if Lab.test_chain?(),
-      do: "The test launch was created and listed. Test assets have no mainnet value.",
-      else: "Your launch was created and listed."
-  end
+  # A test network has no explorer.
+  defp explorer_chain, do: if(Lab.test_chain?(), do: nil, else: :base)
 
   defp exact_values(facts, review) do
     [

@@ -5,9 +5,10 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   The review, the step and its outcomes follow `AutolaunchWeb.LaunchSteps`.
   Nothing is stored while a launch is on its way: the review lives on this
-  page only. A confirmed launch is read back from the launchpad's own records,
-  and the list under the card is the launchpad's launches for the wallet that
-  may act, or the signed-in one until Privy reports its active wallet.
+  page only. A confirmed launch is read back from the launchpad's own records
+  for its auction page, and the list under the card is the launchpad's
+  launches for the wallet that may act, or the signed-in one until Privy
+  reports its active wallet.
   """
 
   use AutolaunchWeb, :live_component
@@ -15,7 +16,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps, Paths}
-  alias RegentChain.Address
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
@@ -66,9 +66,15 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       data-agent-tools="autolaunch_launch"
       phx-hook="OnchainSteps"
     >
+      <LaunchSteps.launched_panel
+        id={"#{@id}-launched"}
+        launched={@launched}
+        chain={explorer_chain()}
+        target={@myself}
+      />
       <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <div class="launch-wallet-open" hidden={!!@review}>
+      <div class="launch-wallet-open" hidden={!!@review or !!@launched}>
         <p class="launch-wallet-hint">
           Your wallet confirms the launch. You see every value before anything is sent.
         </p>
@@ -157,30 +163,14 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         <% end %>
 
         <LaunchSteps.progress
+          id={"#{@id}-progress"}
           steps={@steps}
           review={@review}
+          chain={explorer_chain()}
           mismatch={@mismatch}
           press_note={@press_note}
           target={@myself}
         />
-      </section>
-
-      <section :if={@launched} class="launch-wallet-settled" role="status">
-        <p>
-          The launch was created and its record was read back from the launchpad.
-          <span :if={Lab.test_chain?()}>Test assets have no real value.</span>
-        </p>
-        <p>
-          Launch #{@launched["launch_id"]} · Token
-          <span class="launch-wallet-mono">{@launched["new_token"]}</span>
-          · Auction <span class="launch-wallet-mono">{@launched["auction"]}</span>
-        </p>
-        <p>
-          Bidding opens at block {@launched["start_block"]} and ends at block {@launched["end_block"]}.
-        </p>
-        <p :if={page = launch_page(@launches, @launched["auction"])}>
-          <.link navigate={page}>Open the auction page</.link>
-        </p>
       </section>
 
       <section :if={@launches != []} class="launch-wallet-settled" aria-label="Your launches">
@@ -240,20 +230,14 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
          &LaunchSteps.reverted(&1, &2, current(socket), fn signer -> prepare(socket, signer) end)
        )}
 
-  def handle_async(
-        {:launch, _hash},
-        {:ok, {:ok, %{outcome: :confirmed, result: result}}},
-        socket
-      ),
-      do: {:noreply, socket |> assign(launched: result) |> assign(listed_for: nil) |> listed()}
-
-  def handle_async({:launch, _hash}, _unread, socket),
+  # Each answer also reads the wallet's launches under the card again.
+  def handle_async({:launch_page, hash}, answer, socket),
     do:
       {:noreply,
-       assign(socket,
-         notice:
-           "Your launch is confirmed. Its record could not be read back just now; it appears in your launches below shortly."
-       )}
+       socket
+       |> LaunchSteps.found(hash, answer, &launch_page/2)
+       |> assign(listed_for: nil)
+       |> listed()}
 
   def handle_async(:launches, {:ok, {wallet, {:ok, %{launches: launches}}}}, socket) do
     if wallet == shown_wallet(socket.assigns),
@@ -270,19 +254,23 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end
   end
 
-  # A confirmed launch is read back from the launchpad against the review it
-  # was sent from.
-  defp confirmed(socket, %{hash: hash} = entry) do
-    case LaunchSteps.prepared(socket, entry) do
-      nil ->
-        socket
+  defp confirmed(socket, entry),
+    do: LaunchSteps.launched(socket, entry, :memestake, &launch_page/2)
 
-      prepared ->
-        start_async(socket, {:launch, hash}, fn ->
-          StocksLaunchActions.confirmed(prepared, hash)
-        end)
+  # A confirmed launch is read back from the launchpad against the review it
+  # was sent from; its page follows once the site lists its auction.
+  defp launch_page(prepared, hash) do
+    with {:ok, %{outcome: :confirmed, result: result}} <-
+           StocksLaunchActions.confirmed(prepared, hash),
+         page when is_binary(page) <- Paths.robinhood_auction_page(result["auction"]) do
+      {:ok, page}
+    else
+      _not_yet -> :not_yet
     end
   end
+
+  # A test network has no explorer.
+  defp explorer_chain, do: if(Lab.test_chain?(), do: nil, else: :robinhood)
 
   # The launchpad's launches for the wallet shown, read in the background
   # whenever that wallet changes or a launch is confirmed.
@@ -307,10 +295,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   # Each launch links to its auction's page once the site lists the auction.
   defp with_pages(launches),
     do: Enum.map(launches, &Map.put(&1, "page", Paths.robinhood_auction_page(&1["auction"])))
-
-  defp launch_page(launches, auction) do
-    Enum.find_value(launches, &(Address.equal?(&1["auction"], auction) && &1["page"]))
-  end
 
   defp current(_socket), do: &StocksLaunchActions.current/1
 

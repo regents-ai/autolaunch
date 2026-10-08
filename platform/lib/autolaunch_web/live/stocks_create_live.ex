@@ -50,6 +50,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         stocks_lab: stocks_lab(),
         market: %{prices: %{}, venues: []},
         reviewing?: false,
+        launched?: false,
         ticker_taken?: false,
         status: :loading
       )
@@ -190,12 +191,13 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # A launch card opened its review: the details lock so the review always
   # matches them, and the saved note no longer describes what this page is
   # doing and comes down. Once the review closes they open again, read anew,
-  # blank when the launch was listed.
+  # blank when the launch was listed. A launch just made keeps its card, which
+  # says so, until the person dismisses it.
   def handle_info({:launch_review, :open}, socket),
     do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
 
-  def handle_info({:launch_review, :closed}, socket) do
-    socket = assign(socket, reviewing?: false)
+  def handle_info({:launch_review, news}, socket) when news in [:closed, :launched] do
+    socket = assign(socket, reviewing?: false, launched?: news == :launched)
 
     case human_actor(socket) do
       nil -> {:noreply, socket}

@@ -1,10 +1,11 @@
 defmodule Autolaunch.LaunchedDrafts do
   @moduledoc """
-  Starts an account's draft over once the launch it described is listed, so
+  Starts an account's draft over once the launch it described is made, so
   the create page opens on a blank form. It runs where the listing is written
   (`Autolaunch.LaunchReviews` on Base, `Autolaunch.Robinhood.MarketFeed` on
-  Robinhood), inside the same transaction, as the system: clearing a listed
-  launch's draft is the site's step, not the account's.
+  Robinhood), inside the same transaction, and as soon as the creator's own
+  page sees its launch confirmed (`AutolaunchWeb.LaunchSteps.launched/4`), as
+  the system: clearing a launched draft is the site's step, not the account's.
 
   Only a draft that still names the listed launch is cleared: a second
   listing of the same launch, or a draft its creator has already rewritten,
