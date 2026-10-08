@@ -26,7 +26,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     launch_preparation_unavailable: "Launching from your wallet is not open yet.",
     launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
     launches_paused: "New launches are paused right now.",
-    auction_limit_reached: "You already have an auction. One auction per account for now.",
     launch_treasury_refused:
       "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     strategy_not_bound:

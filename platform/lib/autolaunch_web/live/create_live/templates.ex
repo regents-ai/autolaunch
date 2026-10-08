@@ -122,7 +122,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :draft_notice, :map, default: nil
   attr :image_notice, :string, default: nil
   attr :launch_image_upload, :map, default: nil
-  attr :auction_limit_reached, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
@@ -143,9 +142,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
 
     ~H"""
-    <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
-      You already have an auction. One auction per account for now.
-    </p>
     <p :if={@status == :error} class="autolaunch-empty">
       Your draft could not be loaded. Refresh and try again.
     </p>

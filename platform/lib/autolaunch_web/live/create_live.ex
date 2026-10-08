@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Limits, Ticker}
+  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Ticker}
   alias AutolaunchWeb.{CreatorConnectionsComponent, DraftMarks}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
@@ -246,9 +246,6 @@ defmodule AutolaunchWeb.CreateLive do
   defp next_step(%{status: status}) when status != :ready,
     do: "The draft could not be loaded. Ask the person to refresh the page."
 
-  defp next_step(%{auction_limit_reached: true}),
-    do: "This account already has an auction. One auction per account for now."
-
   defp next_step(%{reviewing?: true}),
     do:
       "The launch review is open on the page. Call autolaunch_launch to send it to the person's wallet."
@@ -464,7 +461,6 @@ defmodule AutolaunchWeb.CreateLive do
       no_connections_typed: "",
       reviewing?: false,
       ticker_taken?: false,
-      auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor && actor.human_account_id,
       status: :loading
     )
@@ -474,7 +470,6 @@ defmodule AutolaunchWeb.CreateLive do
     assign(socket,
       launch_drafts: [draft],
       draft_values: Templates.draft_values(draft),
-      auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor.human_account_id,
       status: :ready
     )
@@ -519,12 +514,6 @@ defmodule AutolaunchWeb.CreateLive do
       {:error, _error} -> []
     end
   end
-
-  defp auction_limit_reached?(%Human{human_account_id: id}) do
-    Autolaunch.auctions_prepared_by(id) >= Limits.auctions_per_account()
-  end
-
-  defp auction_limit_reached?(_actor), do: false
 
   defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
     params = Templates.draft_field_params()

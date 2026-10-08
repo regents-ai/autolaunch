@@ -42,7 +42,7 @@
 .autolaunch-draft-hint, .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
 .autolaunch-draft-hint { color: var(--color-fg-muted); }
 .autolaunch-draft-error { color: var(--color-error); }
-.launchpad-limit, .autolaunch-draft-notice { padding: var(--space-2); border-left: 3px solid var(--color-border); }
+.autolaunch-draft-notice { padding: var(--space-2); border-left: 3px solid var(--color-border); }
 .autolaunch-draft-notice--error { border-left-color: var(--color-error); }
 .autolaunch-custody-warning, .treasury-security--warning { color: var(--color-warning); }
 /* These are presentation hosts, not wallet admission or pending-state gates. */
