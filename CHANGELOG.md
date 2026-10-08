@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v73, 8 October 2026 (92f9dff)
+- After a launch goes through, its card says "Your token … is launched." with the full
+  transaction, a Copy button, a link to the explorer and, once it is listed, a button to open
+  the auction.
+- The Create form starts over blank as soon as the launch goes through, so the same launch
+  isn't sent twice by mistake.
+
 ## v72, 8 October 2026 (3ac7d8d)
 - You can start more than one Revstake auction from the same account.
 - New launches on Base and Robinhood are open on the new contracts; the old contracts take no
