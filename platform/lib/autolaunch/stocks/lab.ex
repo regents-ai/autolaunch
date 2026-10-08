@@ -30,6 +30,8 @@ defmodule Autolaunch.Stocks.Lab do
   @faucet_keys ~w(regent_holder regent_amount stock_amount_units usdc_holder usdc_amount)
   @stock_keys ~w(symbol address decimals route fixture launch_admission)
   @contract_keys ~w(hook launchpad locker)
+  # A v1 section also names the bid adapter that version's USDC bids went through.
+  @v1_address_keys ~w(bid_adapter hook launchpad locker)
 
   @type stock :: %{
           symbol: String.t(),
@@ -138,9 +140,10 @@ defmodule Autolaunch.Stocks.Lab do
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
 
   @doc """
-  The launchpad, hook and locker a Memestake launch on `version` runs on,
-  their ABIs (keyed `"launchpad"`, `"hook"` and `"locker"`) and the shape of
-  that version's records and hook (`Autolaunch.Stocks.LabAbi.shape/1`).
+  The launchpad, hook, locker and bid adapter a Memestake launch on `version`
+  runs on, the ABIs of the first three (keyed `"launchpad"`, `"hook"` and
+  `"locker"`) and the shape of that version's records and hook
+  (`Autolaunch.Stocks.LabAbi.shape/1`).
   """
   def contracts(config, :v2) do
     {:ok,
@@ -151,6 +154,7 @@ defmodule Autolaunch.Stocks.Lab do
        launchpad: address!(config, :launchpad),
        hook: address!(config, :hook),
        locker: address!(config, :locker),
+       bid_adapter: address!(config, :bid_adapter),
        abis: Map.take(config.abis, @contract_keys)
      })}
   end
@@ -269,7 +273,7 @@ defmodule Autolaunch.Stocks.Lab do
   defp v1_section(nil), do: {:ok, nil}
 
   defp v1_section(%{"addresses" => addresses, "abis" => abis} = v1) when map_size(v1) == 2 do
-    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @contract_keys,
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @v1_address_keys,
          true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
          true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @contract_keys,
          true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
@@ -279,6 +283,7 @@ defmodule Autolaunch.Stocks.Lab do
          launchpad: String.downcase(addresses["launchpad"]),
          hook: String.downcase(addresses["hook"]),
          locker: String.downcase(addresses["locker"]),
+         bid_adapter: String.downcase(addresses["bid_adapter"]),
          abis: abis
        }}
     else

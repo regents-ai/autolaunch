@@ -33,6 +33,8 @@ defmodule Autolaunch.Robinhood.Lab do
   @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
   @stock_keys ~w(symbol name address decimals route pool feed fixture launch_admission)
   @contract_keys ~w(hook launchpad locker)
+  # A v1 section also names the bid adapter that version's USDG bids went through.
+  @v1_address_keys ~w(bid_adapter hook launchpad locker)
   @stock_decimals 18
 
   @type stock :: %{
@@ -156,9 +158,9 @@ defmodule Autolaunch.Robinhood.Lab do
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
 
   @doc """
-  The launchpad, hook and locker a launch on `version` runs on, their ABIs
-  (keyed `"launchpad"`, `"hook"` and `"locker"`) and the shape of that
-  version's hook (`Autolaunch.Robinhood.LabAbi.shape/1`).
+  The launchpad, hook, locker and bid adapter a launch on `version` runs on,
+  the ABIs of the first three (keyed `"launchpad"`, `"hook"` and `"locker"`)
+  and the shape of that version's hook (`Autolaunch.Robinhood.LabAbi.shape/1`).
   """
   def contracts(config, :v2) do
     {:ok,
@@ -169,6 +171,7 @@ defmodule Autolaunch.Robinhood.Lab do
        launchpad: address!(config, :stocks_launchpad),
        hook: address!(config, :stocks_hook),
        locker: address!(config, :stocks_locker),
+       bid_adapter: address!(config, :bid_adapter),
        abis: %{
          "launchpad" => abi!(config, :stocks_launchpad),
          "hook" => abi!(config, :stocks_hook),
@@ -268,7 +271,7 @@ defmodule Autolaunch.Robinhood.Lab do
   defp v1_section(nil), do: {:ok, nil}
 
   defp v1_section(%{"addresses" => addresses, "abis" => abis} = v1) when map_size(v1) == 2 do
-    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @contract_keys,
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @v1_address_keys,
          true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
          true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @contract_keys,
          true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
@@ -278,6 +281,7 @@ defmodule Autolaunch.Robinhood.Lab do
          launchpad: String.downcase(addresses["launchpad"]),
          hook: String.downcase(addresses["hook"]),
          locker: String.downcase(addresses["locker"]),
+         bid_adapter: String.downcase(addresses["bid_adapter"]),
          abis: abis
        }}
     else

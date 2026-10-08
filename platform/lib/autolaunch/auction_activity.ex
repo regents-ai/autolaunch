@@ -134,7 +134,7 @@ defmodule Autolaunch.AuctionActivity do
 
   defp indexed(error, _auction, _bids, _behind), do: error
 
-  defp venue(%{chain_id: chain, kind: kind}) do
+  defp venue(%{chain_id: chain, kind: kind} = auction) do
     {module, network} =
       cond do
         Autolaunch.Robinhood.Lab.chain?(chain) -> {Autolaunch.Robinhood.Lab, :robinhood}
@@ -143,14 +143,23 @@ defmodule Autolaunch.AuctionActivity do
       end
 
     with {:ok, config} <- module.current(),
-         true <- config.chain_id == chain do
+         true <- config.chain_id == chain,
+         {:ok, adapter} <- adapter(module, config, auction) do
       opts =
         if module == Autolaunch.Lab,
           do: Autolaunch.LabRpc.opts(config, "auction activity"),
           else: module.rpc_opts(config)
 
-      {:ok, %{opts: opts, chain: network, adapter: config.addresses["bid_adapter"]}}
+      {:ok, %{opts: opts, chain: network, adapter: adapter}}
     end
+  end
+
+  # A Memestake auction's adapter bids went through the bid adapter of its own
+  # contracts version.
+  defp adapter(Autolaunch.Lab, config, _auction), do: {:ok, config.addresses["bid_adapter"]}
+
+  defp adapter(module, config, %{contracts_version: version}) do
+    with {:ok, contracts} <- module.contracts(config, version), do: {:ok, contracts.bid_adapter}
   end
 
   # When the contract clock reaches the block, estimated from the head's time.
