@@ -71,7 +71,7 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.34 and >= 3.34.3"},
+      {:ash, "~> 3.34 and >= 3.34.6"},
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3"},
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
