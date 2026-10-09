@@ -423,10 +423,10 @@ defmodule AutolaunchWeb.LaunchSteps do
               rel="noopener noreferrer"
               title={step.entry.hash}
             >
-              {RegentFormat.short_hash(step.entry.hash)}
+              {step.entry.hash}
             </a>
             <span :if={!@chain} class="launch-wallet-mono">
-              {RegentFormat.short_hash(step.entry.hash)}
+              {step.entry.hash}
             </span>
             <Regent.Primitives.copy_button
               id={"#{@id}-#{step.name}-hash"}
