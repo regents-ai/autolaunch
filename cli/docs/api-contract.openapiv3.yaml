@@ -195,7 +195,7 @@ paths:
     get:
       operationId: listAuctions
       summary: List auctions
-      description: Public Autolaunch auctions on Base and Robinhood, found and ordered as the website's auction list does. No account or API key is needed.
+      description: 'Public Autolaunch auctions on Base and Robinhood, found and ordered as the website''s auction list does. No account or API key is needed. Besides the default budget, each client address may read this list 6 times per 60 seconds, counted as "auction-list" in RateLimit-Policy and RateLimit; reading it more often than every five seconds returns the same list.'
       security: []
       parameters:
         - {$ref: "#/components/parameters/Search"}
@@ -408,7 +408,7 @@ components:
       name: privy-id-token
   headers:
     RateLimitPolicy:
-      description: 'The budget this request counted against, as "policy";q=requests;w=window seconds. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address. Every answer under /api carries this header.'
+      description: 'The budgets this request counted against, as "policy";q=requests;w=window seconds, comma-separated. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address; GET /api/v1/auctions also counts against "auction-list", 6 per 60 seconds. Every answer under /api carries this header.'
       schema: {type: string}
       example: '"default";q=120;w=60'
     RateLimit:

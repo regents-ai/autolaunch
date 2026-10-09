@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.Endpoint do
               )
 
   # The auction list is answered from a five-second keep, so reading it more
-  # often than every ten seconds learns nothing new.
+  # often than every five seconds returns the same list.
   @list_rate_limit RegentAgentAccess.RateLimit.init(
                      policy: "auction-list",
                      limit: 6,

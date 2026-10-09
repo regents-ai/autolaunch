@@ -21,7 +21,7 @@ type Failure = {
   error: {code: "invalid_input" | "aborted" | "network_error" | "invalid_response"; message: string}
   status?: number
 }
-type Result = {ok: boolean; status: number; body: Json} | Failure
+type Result = {ok: boolean; status: number; body: Json; retry_after?: number} | Failure
 
 type Schema = {
   type: "object"
@@ -172,7 +172,11 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
       }
     }
     if (cancellation.aborted) return cancelled()
-    return {ok: response.ok, status: response.status, body}
+    // Past a rate limit the agent is told how many seconds to wait.
+    const retryAfter = Number(response.headers.get("retry-after"))
+    return response.status === 429 && retryAfter > 0
+      ? {ok: response.ok, status: response.status, body, retry_after: retryAfter}
+      : {ok: response.ok, status: response.status, body}
   } catch {
     return cancellation.aborted
       ? cancelled()
