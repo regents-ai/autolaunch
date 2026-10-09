@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
             Copy to Agent
           </Regent.Primitives.copy_button>
         </div>
-        <p>The auction, supply, trading fees and staking rewards for every Autolaunch token.</p>
+        <p>The auction, supply, trading fees and staking rewards for new v2 launches.</p>
       </header>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-auction">
@@ -142,17 +142,19 @@ defmodule AutolaunchWeb.HowItWorksLive do
                 <strong>70 billion (70%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Released to the launch's treasury over <strong>365 days</strong>, with any of the
-                liquidity reserve the pool did not take. The treasury also receives at least half the
+                Released to the launch's treasury over <strong>365 days from graduation</strong>,
+                with the unpaired reserve and auction rounding leftovers. The treasury also receives at least half the
                 REGENT raised.
               </td>
             </tr>
           </tbody>
         </table>
         <p>
-          Every auction opens at the lowest price it accepts. Its minimum is tiny, about a billionth
-          of a REGENT, so any real bid lets the launch go ahead. If the auction doesn't reach its
-          minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
+          Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale
+          allocation at that floor, rounded up, about a billionth of a REGENT. The launcher chooses
+          neither. A successful auction sells the whole allocation, apart from rounding. If it
+          misses its minimum, every bidder takes back their full bid and all 100 billion tokens
+          are retired to the dead address.
         </p>
         <p>
           The launcher of the revstake token is making an implicit promise to pass all future
@@ -169,8 +171,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
         </h2>
         <p>
           Memestake launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is
-          locked in the trading pool with everything the auction raised, and 0.5% goes to the token's
-          creator over 30 days. Stakers earn the onchain stock from fees.
+          reserved for the locked trading pool, and 0.5% goes to the token's creator over 30 days
+          from graduation. Stakers earn the onchain stock from fees.
         </p>
         <table class="fact-table">
           <thead>
@@ -196,9 +198,10 @@ defmodule AutolaunchWeb.HowItWorksLive do
                 <strong>497.5 million (49.75%)</strong>
               </td>
               <td data-label="After a successful auction">
-                Paired with all the stock raised in a permanently locked trading position. The pool
-                opens at the auction's final clearing price. The rest of the reserve is locked in a
-                second position that holds only the new token.
+                The full-range position pairs the stock raised with the tokens it needs at the
+                auction's final clearing price. Remaining reserve is locked in a token-only position
+                above the opening token price. Both positions are locked forever; stock rounding
+                dust goes to the protocol fee lane.
               </td>
             </tr>
             <tr>
@@ -215,25 +218,30 @@ defmodule AutolaunchWeb.HowItWorksLive do
           </tbody>
         </table>
         <p>
-          Every auction opens at the lowest price it accepts. Its minimum is the whole sale at that
-          price, a small fraction of one share. If the auction doesn't reach it, every bidder takes
-          back their full bid and all 1 billion tokens are burned.
+          Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale
+          allocation at that floor, rounded up; the launcher chooses neither. A successful auction
+          sells the whole allocation, apart from rounding. If it misses its minimum, every bidder
+          takes back their full bid and all 1 billion tokens, including the creator allocation, are
+          retired to the dead address. After graduation, token rounding leftovers are also retired.
         </p>
         <p>
-          The first four Memestake tokens (BITE, JollyB, AGI and RDOG) keep the terms they launched
-          with: 80% sold, 20% in the pool, and a 1% fee each to REGENT stakers and the token's
-          stakers.
+          The four existing v1 Memestake auctions (BITE, JollyB, AGI and RDOG) keep their original
+          terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation,
+          and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused;
+          existing withdrawals, claims, trading and staking remain supported.
         </p>
       </section>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-fees">
         <h2 id="how-it-works-fees">Trading fees</h2>
         <p>
-          The trading fee on revstake tokens benefits the creator's revstaking contract
-          (<strong class="fact-page__hi">2%</strong>) and REGENT stakers (<strong class="fact-page__hi">1%</strong>). Use
+          V2 Revstake trades pay a 3% hook fee: <strong class="fact-page__hi">2%</strong>
+          enters the launch's revenue splitter and <strong class="fact-page__hi">1%</strong>
+          goes to Regent.
+          REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
-          to participate. The trading fee on memestake tokens benefits the memestakers
-          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
+          to participate. V2 Memestake trades pay a 4.3% hook fee on the gross stock side, shared by the memestakers
+          (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it enters the token’s revenue splitter.
         </p>
         <table class="fact-table">
           <thead>
@@ -248,7 +256,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
               <th scope="row">Revstake <span class="fact-table__note">Base</span></th>
               <td data-label="Fee paid in">REGENT or the Revstake token, depending on the trade</td>
               <td data-label="Where it goes">
-                1% sent to Regent. 2% added to the token's staking rewards.
+                1% sent directly to REGENT staking when paid in REGENT, or to the Regent Safe
+                when paid in the launch token. 2% enters the launch's revenue splitter.
               </td>
             </tr>
             <tr>
@@ -272,7 +281,11 @@ defmodule AutolaunchWeb.HowItWorksLive do
             </tr>
           </tbody>
         </table>
-        <p>What each launch's locked liquidity earns is added to its staking rewards.</p>
+        <p>
+          What each launch's locked liquidity earns enters its revenue splitter. Each v2 hook
+          rounds the total fee once and assigns the rounding remainder to the launch's splitter
+          share after calculating the other lanes.
+        </p>
       </section>
 
       <section class="fact-page__section" aria-labelledby="how-it-works-staking">
@@ -325,7 +338,12 @@ defmodule AutolaunchWeb.HowItWorksLive do
             or added to what you pay.
           </li>
           <li>Memestake fees are held in the stock and paid onward after the trade.</li>
+          <li>
+            Anyone can settle Memestake creator and token-staker fees. Protocol conversion requires
+            the authorized executor. Creator fees always pay the original launcher in stock.
+          </li>
           <li>Regent's 2% comes out of staking rewards. It is not another trading fee.</li>
+          <li>Retired tokens remain in reported total supply; they are held at the dead address.</li>
           <li>The rates are fixed in the contracts and cannot be changed.</li>
         </ul>
       </details>
@@ -336,7 +354,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
   # Where each share of a Memestake trading fee goes on `chain`.
   defp memestake_fees(chain, regent_route),
     do:
-      "#{FeeSchedule.lane(chain, :v2, :stakers).rate} added to the token's staking rewards. " <>
+      "#{FeeSchedule.lane(chain, :v2, :stakers).rate} enters the token’s staking splitter. " <>
         "#{FeeSchedule.lane(chain, :v2, :regent).rate} #{regent_route}. " <>
         "#{FeeSchedule.lane(chain, :v2, :creator).rate} paid to the creator."
 end

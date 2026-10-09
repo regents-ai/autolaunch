@@ -4,9 +4,9 @@ defmodule AutolaunchWeb.Components.CreateNext do
   /create/revstake: where the supply goes, where the money goes, how the
   auction runs, when each part of the launch happens, and the terms at a glance.
 
-  Every figure is the launch type's fixed profile from the 1 October contracts:
+  Every figure is the launch type's final v2 profile from the 1 and 5 October terms:
   StocksPreset and RobinhoodPreset (Memestake, on Base and Robinhood Chain
-  alike) and RegentLBPStrategy (Revstake). The creator chooses none of them; the
+  alike) and RegentLBPStrategyV2 (Revstake). The creator chooses none of them; the
   launch review still shows the exact values the wallet signs.
   """
   use AutolaunchWeb, :html
@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "497.5 million",
           share: 49.75,
           note:
-            "Paired with everything the auction raised at its final price. The rest is a second position holding only the token. Both are locked forever."
+            "The stock raised funds a full-range position at the final price; stock rounding dust goes to the protocol fee lane. Remaining reserve sits in a token-only position above the opening token price. Both are locked forever."
         },
         %{
           key: :creator,
@@ -75,7 +75,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "70 billion",
           share: 70,
           note:
-            "Released over 365 days after a successful auction, with any pool tokens the pool did not take."
+            "Released over 365 days from graduation, with the unpaired reserve and auction rounding leftovers."
         }
       ]
     }
@@ -255,8 +255,9 @@ defmodule AutolaunchWeb.Components.CreateNext do
         </div>
       </dl>
       <p class="create-next__note">
-        A successful auction sells every auction token. If bids stay under the minimum, every bidder
-        takes back their whole bid and every token is burned.
+        A successful auction sells the whole sale allocation, apart from rounding. If bids stay
+        under the minimum, every bidder takes back their whole bid and every token is retired to
+        the dead address. Reported total supply stays unchanged.
       </p>
       <p class="create-next__note">
         <.link navigate={~p"/how-it-works#how-it-works-auction"}>How the auction works</.link>
@@ -375,12 +376,18 @@ defmodule AutolaunchWeb.Components.CreateNext do
   # RegentFeeHook's two lanes and the pool key RegentLBPStrategy fixes (POOL_FEE 3000).
   defp fees(:revstake, _chain) do
     with_widths([
-      %{label: "Regent", rate: "1.00%", percent: 1.0, note: "Of every trade, to REGENT staking."},
+      %{
+        label: "Regent",
+        rate: "1.00%",
+        percent: 1.0,
+        note: "REGENT goes directly to REGENT staking; launch tokens go to the Regent Safe."
+      },
       %{
         label: "Token stakers",
         rate: "2.00%",
         percent: 2.0,
-        note: "Of every trade, added to the token's staking rewards."
+        note:
+          "Of every trade, sent to the launch's revenue splitter before its 2% protocol deduction."
       },
       %{
         label: "Pool fee",

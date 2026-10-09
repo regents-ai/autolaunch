@@ -359,7 +359,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           id="revstake-plan"
           kind={:revstake}
           ticker={present_ticker(@draft_values["symbol"])}
-          minimum="Less than one REGENT, so any real bid is enough"
+          minimum="The whole sale at the fixed floor, rounded up: about a billionth of a REGENT"
           chosen={[
             {"Treasury", present(@draft_values["treasury"], "Not set yet")}
           ]}
@@ -387,7 +387,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               <tr>
                 <th scope="row">Minimum raise</th>
                 <td>
-                  Less than one REGENT, so any real bid is enough
+                  The whole sale at the fixed floor, rounded up: about a billionth of a REGENT
                   <br />If bids fall short, bidders get their REGENT back.
                 </td>
               </tr>
@@ -398,13 +398,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               <tr>
                 <th scope="row">Your treasury</th>
                 <td>
-                  At least half the raise at once, and 70% of the tokens, plus any the pool did
-                  not take, over a year
+                  At least half the raise at graduation, and 70% of the tokens, plus unpaired reserve
+                  and auction rounding leftovers, over 365 days from graduation
                 </td>
               </tr>
               <tr>
                 <th scope="row">Trading fees</th>
-                <td>2% to stakers and 1% to Regent, plus the 0.30% pool fee</td>
+                <td>
+                  2% enters the launch’s revenue splitter; 1% goes to REGENT staking when collected in
+                  REGENT, or to the Regent Safe when collected in launch tokens. The 0.30% LP fee is separate
+                </td>
               </tr>
             </tbody>
           </table>

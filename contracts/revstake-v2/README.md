@@ -29,10 +29,13 @@ snapshot `contracts/stocks-v2` exports (`../stocks-v2/lib`, pinned by
 Deployed on Base mainnet on 6 October 2026 for the 1 October 2026 terms (70/20/10, one fixed
 floor, pool at the final clearing price, half the raise to the pool, 3% hook fee). Deployment
 created the factory paused; opening is a separate Governance Safe action. See `deployments/base-mainnet/README.md`
-and `deployments/base-mainnet/deployed-manifest.json`. Version 2 changes only
-the sale and graduation terms and the hook's staker lane (founder decisions of 27 September and
-1 October 2026). The hook, splitter, payment receiver and locker are the version 1 sources;
-a version 2 deployment creates new instances bound to the new factory and strategy.
+and `deployments/base-mainnet/deployed-manifest.json`. New v2 launches are open as checked on
+9 October 2026; the v1 factory is paused for new launches. Version 2 changes the sale and
+graduation terms and the hook: the staker lane rises from 1% to 2%, while the 1% Regent lane
+sends REGENT directly to live REGENT staking and SUBJECT to the Regent Safe. The total hook
+fee is rounded once, with its remainder assigned to the staker lane. The splitter, payment
+receiver and locker retain the version 1 sources; the v2 deployment creates new instances
+bound to the new factory and strategy.
 
 ## Terms
 

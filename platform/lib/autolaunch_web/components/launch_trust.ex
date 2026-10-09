@@ -187,7 +187,8 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     ~H"""
     <p class="launch-trust__status">Not deposited</p>
     <p class="launch-trust__text">
-      The auction did not reach its minimum, so no pool was opened and every token was burned.
+      The auction did not reach its minimum, so no pool was opened and every token was retired
+      to the dead address. Reported total supply stays unchanged.
     </p>
     """
   end
@@ -297,7 +298,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         {"Reserved for liquidity", "Up to 10 billion (10%)",
          "paired with up to half the REGENT raised in a permanently locked position"},
         {"Treasury", "70 billion (70%)",
-         "released over 365 days with any reserve the pool did not take; the treasury also receives at least half the raise"}
+         "released over 365 days from graduation with the unpaired reserve and auction rounding leftovers; the treasury also receives at least half the raise"}
       ]
     }
 
@@ -307,12 +308,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       name: "Memestake",
       about: "stakers earn the onchain stock from trading fees",
       reserve: "Up to 200 million tokens (20%)",
-      unused: "was burned",
+      unused: "was retired to the dead address",
       rows: [
         {"Sold in the auction", "Up to 800 million (80%)",
-         "winning bidders claim what they bought; unsold tokens are burned"},
+         "winning bidders claim what they bought; unsold tokens are retired to the dead address"},
         {"Reserved for liquidity", "Up to 200 million (20%)",
-         "paired with the stock raised in a permanently locked position; any unused reserve is burned"},
+         "paired with the stock raised in a permanently locked position; any unused reserve is retired to the dead address"},
         {"Creator, team or treasury", "0", "no token allocation"}
       ]
     }
@@ -322,12 +323,13 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       name: "Memestake",
       about: "stakers earn the onchain stock from trading fees",
       reserve: "497.5 million tokens (49.75%)",
-      unused: "is locked in a second position that holds only the token",
+      unused:
+        "is locked in a token-only position above the opening token price, apart from retired rounding dust",
       rows: [
         {"Sold in the auction", "497.5 million (49.75%)",
          "winning bidders claim what they bought"},
         {"Reserved for liquidity", "497.5 million (49.75%)",
-         "paired with all the stock raised in a permanently locked position; the rest is locked in a second position that holds only the token"},
+         "the stock raised funds a full-range position, apart from protocol rounding dust; remaining reserve is locked in a token-only position above the opening token price"},
         {"Creator", "5 million (0.5%)",
          "released to the creator block by block over 30 days from when the pool opens; the creator also earns a share of trading fees"}
       ]

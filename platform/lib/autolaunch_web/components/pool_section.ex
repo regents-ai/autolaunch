@@ -161,8 +161,9 @@ defmodule AutolaunchWeb.Components.PoolSection do
     <section id="pool-fees" aria-label="Trading fees">
       <h3>Trading fees</h3>
       <p>
-        Every trade pays 1% to REGENT governance and 2% to this launch's staking contract, straight
-        away. The locked liquidity also earns trading fees; anyone can collect them into the same
+        Every trade pays 1% to Regent and 2% into this launch's revenue splitter, straight away.
+        Regent's 1% goes directly to REGENT staking when paid in REGENT, or to the Regent Safe
+        when paid in this launch's token. The locked liquidity also earns trading fees; anyone can collect them into the same
         staking contract for <span class="ticker">{@facts.token.symbol}</span>
         stakers. These fees are fixed for this pool.
       </p>
@@ -178,7 +179,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
           <dd><span class="figure__value">{@facts.fees.swaps}</span></dd>
         </div>
         <div>
-          <dt>Paid to stakers so far</dt>
+          <dt>Sent to the revenue splitter so far</dt>
           <dd>
             <TokenDisplay.tokens
               amount={@facts.fees.per_lane.currency}

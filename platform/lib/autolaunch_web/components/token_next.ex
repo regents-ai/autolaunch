@@ -281,7 +281,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
       <h3 id={"#{@id}-pool-fee"}>
         <.info_tip
           id={"#{@id}-pool-fee-tip"}
-          text="Uniswap charges this on every trade. The pool's liquidity is locked forever, so what it earns can only go to stakers."
+          text="Uniswap charges this on every trade. The pool's liquidity is locked forever. Collected fees enter the launch's revenue splitter."
         >
           Also for stakers: the {@rate} pool fee
         </.info_tip>
@@ -325,7 +325,8 @@ defmodule AutolaunchWeb.Components.TokenNext do
     <section class="token-next-branch" aria-labelledby={"#{@id}-regent"}>
       <h3 id={"#{@id}-regent"}>Beside it: {@rate} to Regent</h3>
       <p>
-        Another {@rate} of every trade goes to Regent with the trade. It is not part of staking rewards.
+        Another {@rate} of every trade goes to Regent with the trade: REGENT goes directly to
+        REGENT staking, and {@pool.token.symbol} goes to the Regent Safe. It is separate from {@pool.token.symbol} staking rewards.
       </p>
     </section>
     """

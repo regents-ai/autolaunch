@@ -2,16 +2,24 @@
 
 Stocks is a separate launch mode next to Agent: a new token (NEW) auctioned for one admitted Base
 stock token (STOCK) through the pinned CCA, then migrated into the official NEW/STOCK pool.
-Product terms are in the September 8 brief (local planning) and the contract preset in
-`contracts/stocks/README.md`. This page records what the website does, how the local Base-fork
-lab runs it, and the evidence index.
+Current v2 terms are in [the Base v2 package](../../contracts/stocks-v2/README.md) and
+[the Robinhood v2 package](../../contracts/robinhood-v2/README.md): 49.75% sold, 49.75%
+reserved for locked liquidity and 0.5% vested to the creator over 30 days from graduation.
+The floor and minimum are fixed. The pool opens at the final clearing price with a full-range
+position and, when reserve remains, a token-only position above the opening token price.
+The hook charges 4.3% of the gross stock side: 0.3% creator, 1% protocol and 3% staking
+splitter, plus the separate 0.30% LP fee.
+
+The routes table below includes the current six-field launch tuple. The September lab evidence,
+old tuples, deployment addresses and remaining-work notes are historical v1 records; they do
+not describe the current live site. V1 remains supported for its existing auctions only.
 
 ## Routes and surfaces
 
 | Surface | Path | Notes |
 | --- | --- | --- |
 | Stocks create | `/create/stocks` | Signed-in; one private Stocks draft per account (`stock_launch_drafts`), independent of the Agent draft. Two autosaving sections (token details; the paired stock), the fixed-terms list (no launch fee; bidding opens 300 blocks after the launch is created), then the wallet step. The "Create" menu in the rail links here when the site is not read-only. |
-| Wallet step | `/create/stocks` | `Autolaunch.Stocks.LaunchActions` reviews the draft against the fork and saves one review of one step (`stock_launch_operations`, a new one for every Review press): the `launch(LaunchParams)` call, a six-field tuple `(name, symbol, description, website, image, stock)`. There is no launch fee, no REGENT read and no approval step. The snapshot reads `paused()`, the launchpad and hook addresses, the stock's admission (decimals, route) and the latest block. Review shows the preset's fixed floor (2^32+1 rounded up to a multiple of 100, `floorPriceQ96` 4,294,967,300), the minimum raise (the whole 497,500,000 sale at that floor, rounded up: 26,969,530 STOCK base units, asked for plus one unit), and the fixed schedule: bidding opens 300 blocks after the creation block, runs 43,200 blocks, claims open 64 and the pool 128 blocks after the end. Launch verification decodes `StockLaunchCreated` (required raise and floor equal to the review), checks against `launches(id)` and `launchIdOfAuction`, stores `new_token`, `auction`, `launch_id`, `start_block`, `end_block` and projects the `Auction` row (`kind: :stocks`). |
+| Wallet step | `/create/stocks` | `Autolaunch.Stocks.LaunchActions` reviews the draft against the fork and saves one review of one step (`stock_launch_operations`, a new one for every Review press): the `launch(LaunchParams)` call, a six-field tuple `(name, symbol, description, website, image, stock)`. There is no launch fee, no REGENT read and no approval step. The snapshot reads `paused()`, the launchpad and hook addresses, the stock's admission (decimals, route) and the latest block. Review shows the preset's fixed floor (2^32+1 rounded up to a multiple of 100, `floorPriceQ96` 4,294,967,300), the minimum raise (the whole 497,500,000 sale at that floor, rounded up: 26,969,530 STOCK base units, asked for plus one unit), and the fixed schedule: bidding opens 300 blocks after the creation block, runs 43,200 blocks, claims open 64 and the pool 128 blocks after the end. Launch verification decodes `StockLaunchCreated`, verifies the fixed minimum and floor against the auction, checks against `launches(id)` and `launchIdOfAuction`, stores `new_token`, `auction`, `launch_id`, `start_block`, `end_block` and projects the `Auction` row (`kind: :stocks`). |
 | Auction list and detail | `/auctions`, `/auctions/:address`, `/api/v1/auctions` | Shared with Agent. `Auction.kind` is `:agent` or `:stocks`; the quote token fields carry the real currency (address, symbol, decimals) and the detail page states them. |
 | Bid | auction page | Two forms side by side, never auto-switched: "Bid with STOCK" (allowance to Permit2, Permit2 allowance to the auction, `submitBid`) and, on Stocks auctions with the Stocks lab running, "Bid with USDC" (exact USDC allowance to the adapter, then `bidWithUsdc` with `minStockOut` = route estimate less 1% and a 15-minute deadline). Amounts and prices use the auction's own currency decimals. |
 | Market feed | background | `Autolaunch.Stocks.LabMarketFeed` polls the fork every second, projects every `launches(id)` whose launcher is a wallet a site account holds into an `Auction` row, and refreshes state and clearing price of Stocks auctions from the auction contract and the launchpad lifecycle. After an auction's end block both lab feeds (Agent and Stocks) also read every site-held bid position back from the auction's `bids(bidId)` (`Autolaunch.LabPositions`): `returnable` while the bid can be exited, `claimable` once exited with fill and the claim block reached, `returned` when exited with nothing to claim yet, `claimed` once the fill has been taken. |

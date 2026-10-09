@@ -4,6 +4,13 @@ Everything an agent or a program can read from Autolaunch without an account: au
 
 ## Public HTTP API
 
+New launches use v2. The public lists also retain the four existing v1 Memestake
+auctions, whose original terms remain in force. Read each auction's own allocation,
+currency, floor and minimum rather than applying v2 constants to historical records.
+The [mechanics guide]({{origin}}/how-it-works) and
+[contract documentation](https://github.com/regents-ai/autolaunch/blob/main/contracts/README.md)
+explain the versions, pool positions, fee routes and vesting.
+
 Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an exact decimal string.
 
 - `GET /api/v1/auctions`: auctions, found and ordered as the website's auction list does.

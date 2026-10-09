@@ -2,7 +2,7 @@
 
 Autolaunch Stocks creates a new token, **NEW**, sells 49.75% of its initial supply through the
 pinned Uniswap Continuous Clearing Auction denominated in one admitted Base stock token,
-**STOCK**, and after a successful auction gives its bidders that whole 49.75% and opens the official
+**STOCK**, and after a successful auction gives its bidders the sale allocation apart from rounding and opens the official
 **NEW/STOCK** Uniswap v4 pool at the auction's final clearing price. The whole raise and another
 49.75% of the supply are locked forever: one full-range position pairs the whole raise with as much of
 that reserve as it takes at the opening price, and a second position, NEW only, holds the rest of the
@@ -25,14 +25,20 @@ Agent subject splitter, not a change to it.
 Version 2 is deployed on Base. Its receipt-based addresses and verified bindings are recorded in
 `deployments/base-mainnet/deployed-manifest.json`; see `deployments/base-mainnet/README.md`.
 It replaces the Base launchpad in `contracts/stocks`, which stays there for the launches made on it;
-nothing in that folder changes. Version 2 changes only
+nothing in that folder changes. New v2 launches are open as checked on 9 October 2026; the v1
+launchpad is paused for new launches. Version 2 changes
 the sale and graduation terms (founder decisions of 1 and 5 October 2026): 49.75% of the supply is
 sold, 49.75% is the locked pool reserve and 0.5% vests to the launcher over 30 days; every auction uses the
 lowest floor the pinned auction allows and the required raise is the sale allocation at that floor;
-bidders receive the whole sale allocation from the auction itself; the pool opens at the final
+bidders receive the sale allocation from the auction itself, apart from rounding; the pool opens at the final
 clearing price with a full-range position and a NEW-only position above it, and the few crumbs of
-NEW left over after graduation are retired. The hook, splitter, locker, bid adapter and routes are
-the same source; a version 2 deployment creates new instances bound to the new launchpad.
+NEW left over after graduation are retired. The hook changes from two 1% lanes to three lanes:
+0.3% to the creator in STOCK, 1% converted to USDC for REGENT staking and 3% to the launch's
+splitter. The total 4.3% is rounded once; the creator and REGENT lanes are rounded separately,
+and the staker lane takes the remainder. Creator settlement is permissionless and always pays
+the original launcher. The splitter, locker and routes retain the version 1 sources; the bid
+adapter retains its behavior with the v2 launchpad interface. The deployment creates new instances
+bound to the new launchpad.
 
 ## Layout
 
@@ -90,10 +96,10 @@ shared it is because the same pinned dependency imposes it.
 | Launch fee | none: a launch costs nothing beyond gas; no REGENT is pulled and the launchpad never holds REGENT | Founder decision 2026-09-21 |
 | Required raise | the whole sale allocation at the floor price, rounded up: `REQUIRED_STOCK_RAISED` = `ceil(AUCTION_INVENTORY × FLOOR_PRICE_Q96 / 2^96)` = 26,969,530 STOCK base units, never zero, so an auction nobody bid in never graduates; below it the auction fails and bidders are refunded. At the lowest floor it is about 0.27 of a share for an 8-decimal stock | Founder decision 2026-10-01 (derived from the floor only) |
 | Treasury | none | Brief P05 |
-| Leftover NEW after graduation | every unit of the launch's NEW the launchpad still holds once both positions are minted, apart from the creator vesting (the auction's unsold rounding, the planner's rounding, and anything sent to the launchpad) is transferred to `0x…dEaD` in `migrate` and recorded as `retiredNew`; bidders receive the whole sale allocation from the auction itself | Founder decision 2026-10-01 |
+| Leftover NEW after graduation | every unit of the launch's NEW the launchpad still holds once both positions are minted, apart from the creator vesting (the auction's unsold rounding, the planner's rounding, and anything sent to the launchpad) is transferred to `0x…dEaD` in `migrate` and recorded as `retiredNew`; bidders receive the sale allocation from the auction itself, apart from rounding | Founder decision 2026-10-01 |
 | Reserve, inventory and vesting after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decisions 2026-09-09 and 2026-10-01 |
 | Opening price | the auction's final clearing price (`lbpInitializationParams().initialPriceX96`) | Founder decision 2026-10-01 |
-| Locked liquidity | Two positions, both NFTs to the `MemestockLPLocker`: one full-range position pairing the whole raise with the reserve it takes at the opening price, and one NEW-only position holding the rest of the reserve from one pool tick spacing past the opening price out as far as the pinned planner reaches (887,272 ticks, or the last usable tick when nearer); no NEW-only position is minted when the full range takes the whole reserve; nothing burned | Founder decision 2026-10-01 |
+| Locked liquidity | Two positions, both NFTs to the `MemestockLPLocker`: one full-range position pairing the whole raise with the reserve it takes at the opening price, and one NEW-only position holding the rest of the reserve from one pool tick spacing past the opening price out as far as the pinned planner reaches (887,272 ticks, or the last usable tick when nearer); no NEW-only position is minted when the full range takes the whole reserve; remaining NEW rounding dust is retired to the dead address | Founder decision 2026-10-01 |
 | LP rounding remainder (STOCK the position could not pair) | accrued to the REGENT lane of the pool's hook; below one part in a billion of the raise in every test | Founder decision 2026-09-09 (the destination) |
 | LP custody | each position NFT minted to the launchpad's `MemestockLPLocker` and registered to the launch's splitter, once and forever; the locker can only collect fees (a decrease of exactly zero) and deposit them into that splitter; no principal path exists | Brief P13; founder decision 2026-09-18 (fees to stakers) |
 

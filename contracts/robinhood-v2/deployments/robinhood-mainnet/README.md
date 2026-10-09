@@ -1,15 +1,17 @@
 # Robinhood Chain: the Memestake v2 ceremony
 
+Deployment is complete. V2 launches are open, as checked on 9 October 2026. The preparation
+and ceremony instructions below record the original deployment; they do not authorize another one.
+
 `mainnet-no-go-packet.json` was prepared on 7 October 2026 against live Robinhood Chain at block
 82653102 and live Base at block 52302598, for deployer
 `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 31 on Robinhood Chain and nonce 49 on Base,
 and rehearsed against both chains with no signer. It admits the same 25 stocks, pools and feeds as
 the v1 ceremony, in the same order. Its digest is
-`0x50fae25da62216dd4131e5d3e5983317cd7f563b7f12704ea43216c2303075b2`. Nothing may be sent until the
-founder names that digest.
+`0x50fae25da62216dd4131e5d3e5983317cd7f563b7f12704ea43216c2303075b2`. The founder approved and sent this packet; confirmed receipts are recorded below.
 
 The tool is `../stocks-v2/bin/ceremony.py`, run from this package directory (`contracts/robinhood-v2`).
-`deployed-manifest.json` is the record, empty until `record` fills it from confirmed receipts.
+`deployed-manifest.json` is the record, populated from confirmed receipts.
 
 The deployer is also the founder's everyday wallet. Any other transaction it sends on Base before
 the receiver below, or on Robinhood Chain before the last route, moves its nonce and makes this

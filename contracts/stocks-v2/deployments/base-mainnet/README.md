@@ -1,15 +1,17 @@
 # Base mainnet
 
+Deployment is complete. V2 launches are open, as checked on 9 October 2026. The preparation
+and ceremony instructions below record the original deployment; they do not authorize another one.
+
 `mainnet-no-go-packet.json` was prepared on 6 October 2026 for the 5 October Memestake terms
 (49.75% sold, 49.75% pooled, 0.5% vesting to the launcher), against live Base at block 52273288
 for deployer `0x9b2C414614aEE294202c1219520955EF3B596031` at nonce 33, and rehearsed on a Base
 node after block 52273327. It binds the token factory Base Revstake v2 created at nonce 28,
 `0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08`. Its digest is
-`0x94fac84efc322f6ed6fe2a32d61acf51f4215cc78cae51ed01dfa3cea3db2e65`. Nothing may be sent until the
-founder names that digest.
+`0x94fac84efc322f6ed6fe2a32d61acf51f4215cc78cae51ed01dfa3cea3db2e65`. The founder approved and sent this packet; confirmed receipts are recorded below.
 
 The tool is `bin/ceremony.py`, run from this package directory. `deployed-manifest.json` is the
-record, empty until `record` fills it from confirmed Base receipts.
+record, populated from confirmed Base receipts.
 
 ## The whole ceremony
 

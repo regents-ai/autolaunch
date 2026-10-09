@@ -1,5 +1,9 @@
 # Fork preview: the site on a hosted Base fork
 
+This guide describes the historical v1 fork tooling. Its example allocations and
+addresses are not the current launch terms. New launches use v2; see
+[the contract map](../../contracts/README.md) for the deployed systems and mechanics.
+
 `AUTOLAUNCH_CHAIN_MODE=fork` runs a production build of the website against a hosted Anvil
 fork of Base (chain 31337) that carries the lab contract graph, so the public can try the
 create, launch, auction, bid and settlement flows with test assets and no mainnet value. It

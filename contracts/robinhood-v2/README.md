@@ -36,13 +36,19 @@ see `deployments/robinhood-mainnet/README.md`. Version 1 stays live for its exis
 Version 1 (`contracts/robinhood`) was deployed on
 Robinhood Chain and Base on 23–24 September 2026 under the founder-approved packet; its addresses are
 listed in `contracts/robinhood/deployments/robinhood-mainnet/README.md` and it stays there for the
-launches made on it. Version 2 changes only the sale and graduation terms, the same ones
+launches made on it. New v2 launches are open as checked on 9 October 2026; the v1 launchpad is
+paused for new launches. Version 2 changes the sale and graduation terms, the same ones
 `contracts/stocks-v2` changes on Base (founder decisions of 1 and 5 October 2026): 49.75% of the supply
 is sold, 49.75% is the locked pool reserve and 0.5% vests to the launcher over 30 days; every auction uses
 the lowest floor and the required raise is the sale allocation at that floor; bidders receive the
 whole sale allocation; and the pool opens at the final clearing price with a full-range position and
-a NEW-only position. The inbox, Base receiver, hook, splitter, locker, bid adapter and routes are
-the same source; a version 2 deployment creates new instances bound to the new launchpad. The bridge
+a NEW-only position. The hook changes from two 1% lanes to three lanes: 0.3% to the creator in
+STOCK, 1% converted to USDG for the protocol inbox and 3% to the launch's splitter. The total
+4.3% is rounded once; the creator and protocol lanes are rounded separately, and the staker
+lane takes the remainder. Creator settlement is permissionless and always pays the original
+launcher. The inbox, Base receiver, splitter, locker and routes retain the version 1 sources;
+the bid adapter retains its behavior with the v2 launchpad interface. The deployment creates
+new instances bound to the new launchpad. The bridge
 from the inbox to Base is chosen (Across, USDG to native Base USDC) but not built; until the Safe
 names a bridge adapter, protocol USDG stays in the inbox.
 
@@ -143,7 +149,7 @@ decimals, matching cross-bindings). None is known at build time.
 1. Bindings are constructor immutables validated at construction; no bindings library and no hard-coded addresses.
 2. A launch costs nothing beyond gas: no fee is pulled and the launchpad never holds USDG (founder decision 2026-09-21). There is no REGENT on the Robinhood chain.
 3. Every auction opens exactly ten minutes after its creation block (6,000 Robinhood blocks); the opening block is in the launch record and the creation event. The launcher supplies only the token's name, symbol and metadata; every auction uses the fixed lowest floor, and the required raise is the whole sale allocation at that floor, rounded up, so it is never zero and an auction nobody bid in never graduates; there is no governance minimum (founder decisions 2026-09-21, 2026-09-27 and 2026-10-01).
-4. Robinhood is memestake-only (founder decision 2026-09-18): the USDG agent launch and its splitter were removed. The memestake creator vesting (1%, 30 days from graduation) is the Base term scaled to Robinhood blocks (founder decision 2026-10-01).
+4. Robinhood is memestake-only (founder decision 2026-09-18): the USDG agent launch and its splitter were removed. The final creator vesting is 0.5%, released over 30 days from graduation; the Base duration is scaled to Robinhood blocks (founder decisions 2026-10-01 and 2026-10-05).
 5. The splitter is created at graduation as a clone of an implementation the launchpad deploys in its constructor; the launch record's `splitter` is the only splitter provenance, and the hook and the locker accept a splitter only from the launchpad.
 6. There is no payment-receiver clone and no administrator: all three lanes are always on, and the splitter's `depositRecognizedRevenue` and `recognizeSurplusRevenue` are its only revenue surfaces.
 7. The protocol lane settles executor-only (it chooses an amount and a minimum price); the creator lane, the staker lane and the locker's `collect` are permissionless (they choose nothing). The splitter's 2% protocol share goes to the inbox in USDG and to the Robinhood Safe in MEMESTOCK and STOCK (founder decision 2026-09-18).

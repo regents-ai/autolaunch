@@ -12,7 +12,10 @@ defmodule AutolaunchWeb.RegentLive do
   @revenue_sources [
     {"Regents Labs", ["REGENT/ETH pool fees (0.1–0.3% of volume)", "Paid agent services"]},
     {"Autolaunch",
-     ["1% of every Autolaunch token trade", "2% of every Autolaunch token's staking rewards"]},
+     [
+       "Base Memestake’s 1% stock fee, converted to USDC",
+       "2% of recognized USDC revenue in launch splitters"
+     ]},
     {"Techtree", ["5% of paid artifact sales", "Paid agent training environments"]},
     {"Patchbay", ["10% of priority question payments"]}
   ]
@@ -172,6 +175,9 @@ defmodule AutolaunchWeb.RegentLive do
             </tr>
           </tbody>
         </table>
+        <p>
+          Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood protocol USDG stays in its inbox until the bridge to Base is configured.
+        </p>
       </section>
 
       <.circulating :if={@facts.ok?} facts={@facts.result} />

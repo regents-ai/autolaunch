@@ -1,5 +1,9 @@
 # Local Base-fork lab
 
+This guide describes the historical v1 fork tooling. Its example allocations and
+addresses are not the current launch terms. New launches use v2; see
+[the contract map](../../contracts/README.md) for the deployed systems and mechanics.
+
 The lab is the current site running against an isolated Anvil fork of Base (chain 31337)
 that carries a locally deployed copy of the contract graph, so the launch, auction and bid
 flow can be tried with test assets. Launching and bidding need `AUTOLAUNCH_CHAIN_MODE=fork`

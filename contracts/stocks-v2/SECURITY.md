@@ -1,8 +1,10 @@
 # Autolaunch Stocks: security posture and invariant proofs
 
-Status: version 2, unit-proven against fixtures, not deployed. The fork suite is written for it but
-has not been run against Base for version 2. Version 1 in `contracts/stocks` stays live on Base with
-ten stocks admitted through `AerodromeStockRouteV2` routes, which carry no execution price guard.
+Status: version 2 deployed on Base, unit-proven against fixtures. Deployment receipts and code
+checks are in `deployments/base-mainnet/`. The fork suite is written for v2; the verification
+record does not establish a complete v2 launch-to-claim run on Base. Version 1 in
+`contracts/stocks` remains available for existing launches, with new creation paused.
+The `AerodromeStockRouteV2` routes carry no execution price guard.
 
 ## Design rules applied everywhere
 

@@ -1,8 +1,9 @@
 # Autolaunch Revstake version 2: security posture
 
-Status: unit-proven against the hermetic suite, not deployed, not audited. This package carries
-no Base fork suite. On 28 September 2026 a practice run on a copy of Base, using source identical
-to this package, exercised it against the real Permit2, CCA factory, PoolManager and
+Status: deployed on Base on 6 October 2026, unit-proven against the hermetic suite, not externally
+audited. Deployment receipts and code checks are in `deployments/base-mainnet/`. This package
+carries no Base fork suite. On 28 September 2026 a practice run on a copy of Base, using an
+earlier revision, exercised it against the real Permit2, CCA factory, PoolManager and
 PositionManager: bids early, mid-auction and late, the exact minimum and the minimum plus one unit,
 a launcher minimum, refusals before the claim and migration blocks, graduation, bidder claims,
 vesting at half and full term, a failed auction with refunds and retirement of the whole supply,

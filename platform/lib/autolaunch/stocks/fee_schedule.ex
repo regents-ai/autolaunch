@@ -24,7 +24,8 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   @receivers %{
     creator: {"Creator's fee", "the wallet that created the launch"},
     regent: {"REGENT stakers' fee", "REGENT staking"},
-    stakers: {"Token stakers' fee", "the token's stakers"}
+    stakers:
+      {"Token stakers' fee", "the token’s staking splitter before its 2% protocol deduction"}
   }
 
   @type chain :: :base | :robinhood
@@ -55,14 +56,21 @@ defmodule Autolaunch.Stocks.FeeSchedule do
       rate: percent(div(schedule.pool_fee, 100)),
       charged_on: :paid,
       receiver:
-        "the pool's liquidity; what the locked liquidity earns goes to the token's stakers"
+        "the pool’s liquidity; collected fees from locked liquidity enter the token’s staking splitter"
     }
 
     [
       pool
       | Enum.map(schedule.lanes, fn {key, bps} ->
           {label, receiver} = Map.fetch!(@receivers, key)
-          %{key: key, label: label, rate: percent(bps), charged_on: :stock, receiver: receiver}
+
+          %{
+            key: key,
+            label: label,
+            rate: percent(bps),
+            charged_on: :stock,
+            receiver: receiver(key, chain, receiver)
+          }
         end)
     ]
   end
@@ -74,7 +82,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   @doc "What a fee is charged on, in words."
   @spec charged_on(:paid | :stock) :: String.t()
   def charged_on(:paid), do: "the token the trader pays with"
-  def charged_on(:stock), do: "the stock side of every trade"
+  def charged_on(:stock), do: "the gross stock side of every trade"
 
   @doc "A new launch's fees as rows of its fixed terms."
   @spec terms(chain()) :: [{String.t(), String.t()}]
@@ -84,6 +92,13 @@ defmodule Autolaunch.Stocks.FeeSchedule do
         lanes(chain, :v2),
         &{&1.label, "#{&1.rate} of #{charged_on(&1.charged_on)}, to #{&1.receiver}"}
       )
+
+  defp receiver(:regent, :base, _default), do: "REGENT staking after conversion to USDC"
+
+  defp receiver(:regent, :robinhood, _default),
+    do: "the protocol inbox as USDG, held until the bridge to Base is configured"
+
+  defp receiver(_lane, _chain, default), do: default
 
   # Hundredths of a percent as a percent with two decimals: 30 is "0.30%".
   defp percent(hundredths),

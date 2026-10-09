@@ -76,7 +76,7 @@ Ours (this repository):
   `RobinhoodBaseRevenueReceiverV1`, `RobinhoodPositionsLib`, `routes/UniswapV3StockRouteV1`.
 - **Revenue Mesh** (`revenue-mesh/src`): experimental CCTP payment routes, not deployed.
 
-## Deployed addresses
+## Historical v1 deployed addresses
 
 ### Base (8453): Revstake
 
@@ -102,7 +102,7 @@ the v1 factory is now paused for new launches, as checked on 9 October 2026.
 Deployed 23 September 2026 by the same deployer, nonces 5–16, packet digest
 `0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5`. Record:
 [stocks/deployments/base-mainnet/](stocks/deployments/base-mainnet/README.md). `launchesPaused()`
-read `false` at Base block 51,875,928 (27 September 2026): launches are open. `executor()` on the hook reads `0x72E2FB09147d3E6E5c9F44A4E127E6321e022045`.
+read `false` at Base block 51,875,928 (27 September 2026). That reading is historical; new v1 launches are now paused. `executor()` on the hook reads `0x72E2FB09147d3E6E5c9F44A4E127E6321e022045`.
 
 | Contract | Address |
 | --- | --- |
@@ -154,66 +154,49 @@ and its `deployed-manifest.json`; the 25 routes are listed there by stock.
 | `UERC20Factory` | Robinhood Chain | `0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563` |
 | `RobinhoodBaseRevenueReceiverV1` | Base | `0xbF73B915Baf7EBbbBA26cf51eEb64a6A23c81481` |
 
-The launchpad is paused and no stock is admitted yet. The admin Safe names the inbox's Base
+At the original September deployment, the launchpad was paused and no stock was admitted. The original switch-on procedure was for the admin Safe to name the inbox's Base
 destination, admits each stock with its route, names the hook executor, then unpauses launches.
 
-## Which contracts each launch type uses
+## Current v2 launch mechanics
 
-**Base Revstake** (`v1/src`). `RegentsAutolaunchFactoryV1.launch` mints a 100 billion token
-through the pinned `UERC20Factory` and creates a continuous clearing auction through the pinned CCA
-factory. The shared `RegentLBPStrategy` holds the 10% auction inventory and 5% reserve, and anyone
-may call `migrate` once the auction ends. On graduation it opens the REGENT/token pool at the final
-price, mints one full-range position into `RevstakeLPLocker` (created once by the strategy, no
-withdrawal path), clones a `SubjectSplitterV1` (the launch's staking contract) and a canonical
-`PaymentReceiverV1`, and starts the 85% `ConditionalVestingEscrowV1` vesting to the treasury over
-365 days. `RegentFeeHook` charges two 1% lanes on every swap: one to the Regent Safe, one into the
-splitter. Anyone may call `RevstakeLPLocker.collect` to deposit the position's fees into the
-splitter. A failed auction retires the whole supply to the dead address; bidders refund from the
-auction.
+**Base Revstake** (`revstake-v2/src`). A 100 billion token supply is divided into a 20%
+auction, a 10% liquidity reserve and a 70% treasury allocation. The fixed minimum covers the
+whole sale at the fixed floor, rounded up. Graduation sells that allocation apart from rounding,
+opens a full-range REGENT/token position at the final clearing price and locks it forever.
+Half the raise funds liquidity; at least half reaches the treasury. The 70% and unused token
+inventory vest to the treasury over 365 days from graduation. The 3% hook fee sends 1% to
+REGENT staking when collected in REGENT, or to the Regent Safe when collected in the launch
+token, and 2% to the launch's revenue splitter. LP fees enter that same splitter.
 
-**Base Memestake** (`stocks/src`). `StocksLaunchpadV1.launch` mints a 1 billion token through a
-`UERC20Factory` and auctions 80% of it for one admitted stock. On graduation the launchpad locks the
-20% reserve, paired at the clearing price, and every remaining unit of the stock raised into two
-positions owned by `MemestockLPLocker`, clones a `MemestockSplitterV1` for staking, and registers
-the pool with `StocksFeeHookV1`. The hook accrues two 1% lanes of the stock side of every swap:
-`settleRegentLane` (executor only) converts the REGENT lane to USDC through the stock's
-`AerodromeStockRouteV2` and deposits it into live REGENT staking; `settleStakerLane` (anyone)
-deposits the staker lane as stock into the splitter. `StockBidAdapterV1` lets a bidder pay USDC and
-bid the stock in one transaction.
+**Base Memestake** (`stocks-v2/src`). A 1 billion token supply is divided into a 49.75%
+auction, a 49.75% liquidity reserve and a 0.5% creator allocation. The minimum and floor are
+fixed. Graduation sells the auction allocation apart from rounding. All raised stock, apart
+from rounding dust sent to the protocol fee bucket, funds a full-range position with the new
+tokens it needs. Remaining reserve funds a new-token-only position above the opening token
+price. Both positions are locked forever. The creator allocation vests over 30 days from
+graduation; other remaining new tokens are retired to the dead address. The 4.3% gross stock-side
+hook fee accrues 0.3% for the original creator, 1% for the protocol and 3% for the staking
+splitter. Creator and staker settlement are permissionless; protocol settlement is executor-only
+and converts stock to USDC for live REGENT staking. The separate LP fee is 0.30%.
 
-**Robinhood Memestake** (`robinhood/src`). `RobinhoodStocksLaunchpadV1` (over
-`RobinhoodLaunchpadBase`) plays the same Memestake shape on Robinhood Chain: `RobinhoodFeeHookV1`
-(created through `RobinhoodFeeHookFactory`), the same `MemestockLPLocker`, and
-`RobinhoodMemestockSplitterV1` clones. `RobinhoodStockBidAdapterV1` turns USDG into a stock bid
-through the stock's `UniswapV3StockRouteV1`. Protocol dollars stop in
-`RobinhoodProtocolRevenueInboxV1` as USDG. The bridge to Base (Across, USDG to native Base USDC,
-landing in `RobinhoodBaseRevenueReceiverV1` and deposited into live REGENT staking) is chosen but
-not built; until the Robinhood Safe names a bridge adapter, protocol USDG stays in the inbox.
-`RobinhoodPositionsLib` is a linked library that keeps the launchpad under the contract size limit.
+**Robinhood Memestake** (`robinhood-v2/src`) uses the same allocation, vesting, liquidity and
+hook rates. Bidders may use USDG through the adapter. Protocol stock fees convert to USDG and
+stop in the protocol revenue inbox. Across was chosen for the bridge to Base, but the bridge
+is not built; protocol USDG stays in the inbox until it is configured.
 
-### What is shared
+**Shared accounting.** The CCA and UERC20 factory are unchanged. A failed auction refunds
+bidders in full and retires all new tokens, including any creator allocation, to the dead address.
+Retirement does not reduce ERC-20 total supply. Splitters deduct 2% of recognized revenue before
+the remainder is allocated under their staking rules. Revstake pays stakers according to their
+share of total supply and sends the unstaked portion to the treasury. Memestake distributes the
+remainder among current stakers, or sends it to the protocol route when nobody is staked.
 
-- **Dependencies.** `v1/` pins its whole dependency closure as Git submodules, declared in the
-  repository's top-level `.gitmodules` at `contracts/v1/lib/...` (the CCA, the liquidity launcher,
-  the UERC20 factory and forge-std, each with its nested tree). `stocks/` exports the same pinned
-  revisions into its own ignored `lib/` with `bootstrap-deps.py` and never edits `v1/`;
-  `robinhood/` resolves its libraries from `../stocks/lib` and installs nothing of its own;
-  `revenue-mesh/` has no external dependencies.
-- **Base bindings.** `stocks/src/StocksBindings.sol` copies the frozen Base addresses from `v1`
-  (REGENT, USDC, CCA factory, PoolManager, PositionManager, live staking, the Governance and
-  Regent Safe) and adds Permit2. Robinhood takes every binding as a constructor argument instead.
-- **The token factory.** `StocksLaunchpadV1` is constructed with a `UERC20Factory` address and
-  requires its runtime code hash to equal the constant the `v1` factory demands. The Revstake
-  ceremony created that factory on Base, so the Base Memestake launchpad binds it, and the
-  Memestake website file is rendered with the Revstake factory address as well. Robinhood Chain
-  carries no such deployment, so its ceremony creates its own `UERC20Factory`.
-- **Memestake accounting.** `stocks/src/StocksPreset.sol` (the fixed launch terms),
-  `MemestockSplitterCore.sol` (staking and revenue accounting) and `MemestockLPLocker.sol` are
-  compiled into both the Base and the Robinhood launchpads.
-- **Gates.** `stocks/bin/gate.sh` and `robinhood/bin/gate.sh` share one body,
-  `stocks/bin/memestake-gate.sh`, and one ceremony tool, `stocks/bin/ceremony.py`.
+**Dependencies.** `stocks-v2/` exports pinned revisions into its ignored `lib/` with
+`bootstrap-deps.py`; `revstake-v2/` and `robinhood-v2/` resolve libraries from
+`../stocks-v2/lib`. Legacy packages retain their own dependencies and records. No v1 source
+is changed by the v2 release. `revenue-mesh/` remains experimental and outside the launch path.
 
-## Deployment state and order
+## Historical v1 deployment state and order
 
 Every project keeps two files apart: a **packet** (`mainnet-no-go-packet.json`), the proposal that
 describes what a ceremony would do and the only committed ceremony authority, and a **deployed

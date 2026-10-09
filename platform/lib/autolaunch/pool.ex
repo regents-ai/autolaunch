@@ -283,7 +283,7 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  # The second launchpad vests 1% of each launch's supply to its creator.
+  # The second launchpad vests 0.5% of each launch's supply to its creator.
   defp creator_vesting(%{version: :v1}, _record, _launch_id, _block, _opts), do: {:ok, nil}
 
   defp creator_vesting(%{version: :v2} = contracts, record, launch_id, block, opts) do

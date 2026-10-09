@@ -1,7 +1,9 @@
 # Autolaunch on the Robinhood chain: security posture and invariant proofs
 
-Status: version 2, unit-proven against fixtures, not deployed. Version 1 in `contracts/robinhood`
-stays live on Robinhood Chain and Base for the launches made on it. The version 2 terms are the ones
+Status: version 2 deployed on Robinhood Chain, with its receiver on Base, and unit-proven against
+fixtures. Deployment receipts and code checks are in `deployments/robinhood-mainnet/`.
+Version 1 in `contracts/robinhood` remains available for existing launches, with new creation
+paused. The version 2 terms are the ones
 `contracts/stocks-v2` documents in its own `SECURITY.md`; this file names the Robinhood proofs.
 
 ## Design rules applied everywhere
@@ -24,7 +26,7 @@ stays live on Robinhood Chain and Base for the launches made on it. The version 
   an amount, a price or a destination.
 - No function anywhere can move LP principal, the reserve or bidder funds: the launchpad has no
   transfer, sweep, rescue or approve surface for NEW or STOCK beyond `releaseCreatorVesting`, which
-  pays only the launcher and never more than the vested part of the 1%, and graduation retires every
+  pays only the launcher and never more than the vested part of the 0.5%, and graduation retires every
   other unit of the launch's NEW it still holds to the dead address, so it keeps only the vesting;
   both position NFTs are minted to the `MemestockLPLocker`, which has no transfer, approve or burn surface, only ever decreases liquidity
   by exactly zero, and sends what it collects to the splitter registered once for each position;
@@ -52,7 +54,7 @@ stays live on Robinhood Chain and Base for the launches made on it. The version 
 | 8 | The adapter uses invocation deltas only, restores every allowance to zero, bids as `owner = msg.sender` | `bidWithUsdg` | `RobinhoodStockBidAdapterTest.*` |
 | 9 | A launch costs nothing beyond gas and opens exactly 6,000 Robinhood blocks after its creation block | `launch` has no fee path; `_createAuction` binds the start and end blocks | `test_launch_costs_no_usdg_and_needs_no_allowance`, `test_auction_opens_exactly_ten_minutes_after_the_creation_block` |
 | 10 | Protocol USDG is held in the inbox and leaves only through a Safe-configured bridge adapter, in recorded batches; the Base receiver deposits exactly what arrived | `RobinhoodProtocolRevenueInboxV1`, `RobinhoodBaseRevenueReceiverV1` | `RobinhoodInboxTest.*`, `RobinhoodBaseReceiverTest.*` |
-| 11 | The creator vesting is the 1%, released linearly per Robinhood block over 25,920,000 blocks from the graduation block, only to the launcher whoever calls, never more than the vested part, nothing before graduation and nothing for a failed launch | `releaseCreatorVesting`, `creatorReleasable`, `_creatorVested` (debits before the transfer, `nonReentrant`) | `test_creator_vesting_releases_linearly_to_the_launcher_only`, `test_failed_minimum_retires_inventory_reserve_and_vesting_and_refunds_through_the_cca`, `test_every_block_term_is_the_base_term_times_twenty` |
+| 11 | The creator vesting is the 0.5%, released linearly per Robinhood block over 25,920,000 blocks from the graduation block, only to the launcher whoever calls, never more than the vested part, nothing before graduation and nothing for a failed launch | `releaseCreatorVesting`, `creatorReleasable`, `_creatorVested` (debits before the transfer, `nonReentrant`) | `test_creator_vesting_releases_linearly_to_the_launcher_only`, `test_failed_minimum_retires_inventory_reserve_and_vesting_and_refunds_through_the_cca`, `test_every_block_term_is_the_base_term_times_twenty` |
 
 ## Known limits (not defects, but not proofs either)
 

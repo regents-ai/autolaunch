@@ -60,9 +60,9 @@ Revstake supply: 100 billion tokens.
 | --- | --- | --- |
 | Auction | 20 billion (20%) | Winning bidders claim what they bought. |
 | Liquidity reserve | Up to 10 billion (10%) | Paired with up to half the REGENT raised in a permanently locked trading position. The pool opens at the auction's final clearing price. |
-| Treasury | 70 billion (70%) | Released to the launch's treasury over 365 days, with any of the liquidity reserve the pool did not take. The treasury also receives at least half the REGENT raised when the auction succeeds. |
+| Treasury | 70 billion (70%) | Released to the launch's treasury over 365 days from graduation, with the unpaired reserve and auction rounding leftovers. The treasury also receives at least half the REGENT raised at graduation. |
 
-Every auction opens at the lowest price it accepts. Its minimum is tiny, about a billionth of a REGENT, so any real bid lets the launch go ahead. If the auction doesn't reach its minimum, every bidder takes back their full bid and all 100 billion tokens are burned.
+Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up, about a billionth of a REGENT. The launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 100 billion tokens are retired to the dead address.
 
 The launcher of the revstake token is making an implicit promise to pass all future revenue through the revstake contract, where stakers receive a pro rata slice. You buy the token, stake it, and then always receive a portion of the USDC made by the agent or service.
 
@@ -79,27 +79,29 @@ Memestake supply: 1 billion tokens.
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
 | Auction | 497.5 million (49.75%) | Winning bidders claim what they bought. |
-| Liquidity reserve | 497.5 million (49.75%) | Paired with all the stock raised in a permanently locked trading position. The pool opens at the auction's final clearing price. The rest of the reserve is locked in a second position that holds only the new token. |
+| Liquidity reserve | 497.5 million (49.75%) | A full-range position pairs the stock raised with the tokens it needs at the final clearing price. Remaining reserve is locked in a token-only position above the opening token price, available as that price rises. Both positions are locked forever; stock rounding dust goes to the protocol fee lane. |
 | Creator | 5 million (0.5%) | Released to the token's creator block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
-Every auction opens at the lowest price it accepts. Its minimum is the whole sale at that price, a small fraction of one share. If the auction doesn't reach it, every bidder takes back their full bid and all 1 billion tokens are burned.
+Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
 
-The first four Memestake tokens (BITE, JollyB, AGI and RDOG) keep the terms they launched with: 80% sold, 20% in the pool, and a 1% fee each to REGENT stakers and the token's stakers.
+The four existing v1 Memestake auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
 
 ## Trading fees
 
-The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract (2%) and Regents Labs revstakers (1%). Use https://regents.sh/stake to participate. The hook fee on memestake tokens benefits the memestakers (3%), Regents Labs revstakers (1%) and the token's creator (0.3%). The Uni v4 pool also charges the standard 0.3%, and what the locked liquidity earns from it is added to the token's staking rewards.
+V2 Revstake trades pay a 3% hook fee: 2% enters the launch's revenue splitter and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. V2 Memestake trades pay a 4.3% hook fee on the gross stock side: 3% enters the launch's staking splitter, 1% follows the protocol route and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% LP fee, and what the locked liquidity earns enters the launch's revenue splitter.
 
 | Launch | Fee paid in | Where it goes |
 | --- | --- | --- |
-| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent to Regent. 2% added to the token's staking rewards. |
-| Memestake (Base) | The paired stock, buying or selling | 3% added to the token's staking rewards. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
-| Memestake (Robinhood Chain) | The paired stock, buying or selling | 3% added to the token's staking rewards. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
+| Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent directly to REGENT staking when paid in REGENT, or to the Regent Safe when paid in the launch token. 2% enters the launch's revenue splitter. |
+| Memestake (Base) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
+| Memestake (Robinhood Chain) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 
 - Revstake fees come from the side of the trade you did not set: out of what you receive, or added to what you pay.
 - Memestake fees are held in the stock and paid onward after the trade.
+- Anyone can settle Memestake creator and token-staker fees. Protocol conversion requires the authorized executor. Creator fees always pay the original launcher in stock.
+- Each v2 hook rounds the total fee once and assigns the rounding remainder to the launch's splitter share after calculating the other lanes.
 - The rates are fixed in the contracts and cannot be changed.
 
 ## Staking rewards
@@ -133,9 +135,11 @@ Where the USDC comes from:
 | Product | Revenue |
 | --- | --- |
 | Regents Labs | REGENT/ETH pool fees (0.1–0.3% of volume); x402 service payments |
-| Autolaunch | 1% of every Autolaunch token trade; 2% of every Autolaunch token's staking rewards |
+| Autolaunch | Base Memestake's 1% stock fee, converted to USDC; 2% of recognized USDC revenue in launch splitters |
 | Techtree | 5% of paid artifact sales; environment revenue |
 | Patchbay | 10% of priority question payments |
+
+Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood protocol USDG stays in its inbox until the bridge to Base is configured.
 
 REGENT that does not circulate yet:
 

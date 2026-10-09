@@ -63,7 +63,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Sold at auction", "497,500,000 #{ticker} (49.75%)"},
       {"Pool reserve", "497,500,000 #{ticker} (49.75%)"},
       {"Starting price", "The lowest the auction accepts"},
-      {"Minimum raise", "The whole sale at the starting price, a small fraction of one share"},
+      {"Minimum raise", "The whole sale at the fixed floor, rounded up"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
@@ -76,11 +76,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     ] ++
       FeeSchedule.terms(:base) ++
       [
-        {"Unsold tokens", "Burned"},
+        {"Unsold tokens",
+         "Rounding leftovers retired to the dead address; total supply stays unchanged"},
         {"Pool liquidity",
-         "Opens at the auction's final price with the whole raise and the reserve it matches; the rest of the reserve is a second position holding only #{ticker}. Both are locked forever and their trading fees go to stakers"},
+         "Opens at the auction's final price with a full-range position; stock rounding dust goes to the protocol fee lane. Remaining reserve is locked in a #{ticker}-only position above the opening token price. Collected LP fees enter the staking splitter"},
         {"If the minimum raise is not reached",
-         "Every bidder takes back their full bid and every token is burned"}
+         "Every bidder takes back their full bid and every token, including the creator allocation, is retired to the dead address"}
       ]
   end
 
