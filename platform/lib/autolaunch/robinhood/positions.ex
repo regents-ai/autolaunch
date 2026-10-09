@@ -22,6 +22,7 @@ defmodule Autolaunch.Robinhood.Positions do
   event distinguishes a claimed bid from one returned with nothing filled.
   """
 
+  alias Autolaunch.Actors.System
   alias Autolaunch.{AuctionBook, LabAbi}
   alias Autolaunch.Chain.{Abi, CcaSettlement, Rpc}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
@@ -77,14 +78,15 @@ defmodule Autolaunch.Robinhood.Positions do
     if Lab.configured?(), do: read_positions(wallet), else: {:ok, []}
   end
 
-  # The site's listing of each auction the positions are in and its launched
-  # token, each nil where the site lists none.
+  # The site's listing of each auction the positions are in, hidden ones
+  # included so their bids can still be settled, and its launched token, each
+  # nil where the site lists none or the auction is hidden.
   defp listings(positions) do
     positions
     |> Enum.map(& &1.auction)
     |> Enum.uniq()
     |> Enum.reduce_while({:ok, %{}}, fn auction, {:ok, found} ->
-      with {:ok, listing} <- Autolaunch.get_robinhood_auction(auction, actor: nil),
+      with {:ok, listing} <- Autolaunch.get_held_robinhood_auction(auction, actor: %System{}),
            {:ok, token} <- listed_token(listing) do
         {:cont, {:ok, Map.put(found, auction, %{listing: listing, token: token})}}
       else

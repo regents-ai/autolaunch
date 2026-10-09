@@ -496,7 +496,8 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   # One Robinhood bid: its list row, whose name opens its page and whose
   # action is what its auction admits. A bid on an auction this site does not
-  # list has no page and no action here.
+  # list has no page and no action here; one on a hidden auction keeps its
+  # Withdraw or Claim but has no page and no further bids.
   defp robinhood_bid(assigns) do
     %{position: position} = assigns
     listing = position.listing
@@ -545,7 +546,7 @@ defmodule AutolaunchWeb.PortfolioLive do
               Withdraw
             </Regent.Primitives.button>
             <Regent.Primitives.button
-              :if={@listing && @listing.state == :active}
+              :if={@listing && @listing.state == :active && !@listing.hidden}
               variant="secondary"
               phx-click="open_robinhood"
               phx-value-id={@listing.id}
@@ -742,6 +743,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   end
 
   # The page of an auction the bid is in: its token's once it has graduated.
+  defp robinhood_path(%{listing: %{hidden: true}}), do: nil
   defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
   defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
   defp robinhood_path(_position), do: nil
