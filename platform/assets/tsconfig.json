@@ -7,9 +7,19 @@
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["vitest/globals"],
-    "noEmit": true
+    "types": [
+      "vitest/globals"
+    ],
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["js/**/*.ts", "js/**/*.tsx", "js/**/*.d.ts", "test/**/*.ts"],
-  "exclude": ["js/optics/**"]
+  "include": [
+    "js/**/*.ts",
+    "js/**/*.tsx",
+    "js/**/*.d.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": [
+    "js/optics/**"
+  ]
 }

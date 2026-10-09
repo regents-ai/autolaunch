@@ -18,7 +18,7 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["json"]
   end
 
-  # The signed-in person's own reads, for the page tools in their browser.
+  # The signed-in person's own session API; never agent authority.
   pipeline :session_api do
     plug :accepts, ["json"]
     plug :fetch_session
@@ -54,6 +54,8 @@ defmodule AutolaunchWeb.Router do
     get "/robinhood/tokens/:token", OldLinkController, :robinhood_token
 
     get "/llms.txt", PublicPagesController, :agent_guide
+    get "/agents.md", PublicPagesController, :signed_agent_guide
+    get "/skill.md", PublicPagesController, :signed_agent_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/openapi.json", PublicPagesController, :openapi
     get "/robots.txt", PublicPagesController, :robots
@@ -63,6 +65,21 @@ defmodule AutolaunchWeb.Router do
 
     # The developer guide's earlier address; links to it were shared.
     get "/developers", PublicPagesController, :developers
+  end
+
+  scope "/api/agents" do
+    pipe_through :api
+    forward "/v1", RegentAgents.HTTP
+  end
+
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through :api
+    get "/drafts/:kind", AgentAccountController, :draft
+    patch "/drafts/:kind", AgentAccountController, :save_draft
+    get "/positions", AgentAccountController, :positions
+    get "/account/balances", AgentAccountController, :balances
+    post "/account/credits/history", AgentAccountController, :history
+    get "/account/points", AgentAccountController, :points
   end
 
   scope "/api/v1" do

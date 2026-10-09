@@ -17,6 +17,8 @@ defmodule Autolaunch.Release do
     Application.put_env(@app, Autolaunch.Repo, migration_config!())
 
     Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
+      RegentAgents.Migrator.require_pairing_history!(repo)
+      RegentCredits.Migrator.require_pairing_grants!(repo)
       ensure_schema!(repo)
       Ecto.Migrator.run(repo, migrations_path(), :up, all: true, prefix: repo.default_prefix())
     end)

@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "0b4496ece5359ff93288cf695715e703b7c25a87"
+  @elixir_utils_ref "1564d79eb3b653f06ab11b6c422bd4d6283ea199"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "4da6db2bfe3559a8f8a761018dc099a28ab5f6a3"
   @regents "https://github.com/regents-ai/regents.git"
@@ -77,7 +77,7 @@ defmodule Autolaunch.MixProject do
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
       # repo's prefix that picks Autolaunch's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
-      {:ash_oban, "~> 0.8.14"},
+      {:ash_oban, "~> 0.9.0"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
@@ -94,8 +94,13 @@ defmodule Autolaunch.MixProject do
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      {:regent_agents,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
+      {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
+      {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
       {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
-      {:regent_chain, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain"},
+      {:regent_chain,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
       {:mdex, "== 0.13.3"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
@@ -163,6 +168,7 @@ defmodule Autolaunch.MixProject do
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
+        "regent_agent_access.assets",
         "esbuild autolaunch",
         "esbuild autolaunch_crown"
       ],
@@ -170,6 +176,7 @@ defmodule Autolaunch.MixProject do
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
+        "regent_agent_access.assets",
         "esbuild autolaunch --minify",
         "esbuild autolaunch_crown --minify",
         "phx.digest"

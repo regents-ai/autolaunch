@@ -2,9 +2,12 @@
 // HTTP responses remain authoritative; these tools only read and never use wallet
 // hooks (the wallet tools are agent_wallet_tools.ts). Every tool the page
 // registers is described once, in priv/tool_manifest.json; this file only adds
-// the request each read makes. Public reads send no cookies; the one read of the
-// person's own bids and tokens sends the site's sign-in.
+// each HTTP request. All requests omit browser credentials.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
+
+import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools.ts"
+
+function signedTransport() { return signedTools({origin: window.location.origin, trustedOrigins: [document.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')?.content ?? ""], audience: manifest.audience, proofHeaders: manifest.proof_headers, operations: manifest.tools.map(entry => ({...entry, input_schema: "operation_input_schema" in entry ? entry.operation_input_schema : entry.input_schema})) as unknown as SignedOperation[]}) }
 
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
 type Input = Record<string, string | number | boolean>
@@ -15,7 +18,7 @@ type Property = {
   minimum?: number
   maximum?: number
 }
-type Request = {path: string; body?: Input; session?: true}
+type Request = {path: string; body?: Input}
 type Failure = {
   ok: false
   error: {code: "invalid_input" | "aborted" | "network_error" | "invalid_response"; message: string}
@@ -37,6 +40,7 @@ type Entry = {
   input_schema: Schema
   annotations: Annotations
   scope: string
+  authentication?: string
 }
 
 export type PublicTool = {
@@ -45,7 +49,7 @@ export type PublicTool = {
   description: string
   inputSchema: Schema
   annotations: Annotations
-  execute(input: unknown, client?: unknown): Promise<Result>
+  execute(input: unknown, client?: unknown): Promise<unknown>
 }
 
 // What a host's cancellation signal must offer; a polyfilled signal qualifies.
@@ -128,7 +132,17 @@ function tool(entry: Entry, request: (input: Input) => Request, lifetime: AbortS
     async execute(input, client) {
       const {signal, release} = executionSignal(lifetime, client)
       try {
+        if (entry.name === "prepare_agent_request") {
+          const args = input as {operation: string; input: Record<string, unknown>}
+          return {ok: true, request: signedTransport().prepare(args.operation, args.input)}
+        }
+        if (entry.authentication === "siwa_per_request") {
+          const response = await signedTransport().execute(entry.name, input as SignedInput, signal)
+          return {ok: response.ok, status: response.status, body: await response.json()}
+        }
         return await read({properties, required, request}, input, signal)
+      } catch (error) {
+        return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "Read back a draft after an unanswered save before retrying with fresh proof."}}
       } finally {
         release()
       }
@@ -155,7 +169,7 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
         ...(target.body ? {"Content-Type": "application/json"} : {}),
       },
       body: target.body ? JSON.stringify(target.body) : undefined,
-      credentials: target.session ? "same-origin" : "omit",
+      credentials: "omit",
       mode: "same-origin",
       redirect: "error",
       cache: "no-store",
@@ -202,15 +216,13 @@ const requests: Record<string, (input: Input) => Request> = {
     path: `/api/v1/auctions/${pathValue(input.id)}/bid-quote`,
     body: {amount: input.amount, max_price: input.max_price},
   }),
-  autolaunch_my_positions: () => ({path: "/api/v1/me/positions", session: true}),
 }
 
-// The manifest's profile_* tools register through the shared identity package
-// (shared_profile.ts), so only the entries with a request here register below.
+// Public requests and explicitly signed manifest operations register here.
 function publicTools(signal: AbortSignal): PublicTool[] {
   return (manifest.tools as unknown as Entry[])
-    .filter(entry => entry.scope === "site" && Object.hasOwn(requests, entry.name))
-    .map(entry => tool(entry, requests[entry.name], signal))
+    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
+    .map(entry => tool(entry, requests[entry.name] ?? (() => { throw new Error("Signed request required") }), signal))
 }
 
 let installed = false

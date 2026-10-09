@@ -27,6 +27,33 @@ config :autolaunch, Oban,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(10)}
   ]
 
+config :regent_agents,
+  repo: Autolaunch.Repo,
+  pubsub: Autolaunch.PubSub,
+  account: {Autolaunch.Agents, :paired_account},
+  ash_domains: [RegentAgents],
+  siwa: [url: "https://siwa.regents.sh", audience: "autolaunch"]
+
+config :regent_credits,
+  repo: Autolaunch.Repo,
+  ash_domains: [RegentCredits],
+  admins: [],
+  agent_grants_enabled: false
+
+config :ex_money,
+  custom_currencies: [{:XRC, name: "Credits", digits: 6}],
+  auto_start_exchange_rate_service: false
+
+config :regent_points,
+  repo: Autolaunch.Repo,
+  accounts: Autolaunch.Points.Accounts,
+  ash_domains: [RegentPoints],
+  program_id: "regents-points-v1",
+  starts_at: nil,
+  unified_activity_starts_at: nil,
+  approved_rules: [],
+  adapters: %{}
+
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
 
 # Every Autolaunch table lives in this schema, in every environment.
@@ -161,3 +188,19 @@ config :phoenix, :json_library, Jason
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
+
+# Private signed inputs must not be included in Phoenix request parameter logs.
+config :phoenix, :filter_parameters, [
+  "password",
+  "token",
+  "secret",
+  "code",
+  "proof",
+  "name",
+  "description",
+  "website",
+  "telegram",
+  "discord",
+  "other_link",
+  "body"
+]

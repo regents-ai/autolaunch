@@ -2,6 +2,17 @@ defmodule Autolaunch.Accounts do
   use Ash.Domain
 
   resources do
+    resource Autolaunch.Accounts.CanonicalAccount do
+      define :canonical_by_privy_id,
+        action: :by_privy_id,
+        args: [:privy_user_id],
+        not_found_error?: false
+
+      define :canonical_by_id, action: :by_id, args: [:id], not_found_error?: false
+      define :register_canonical_verified, action: :register_verified
+      define :refresh_canonical_verified, action: :refresh_verified
+    end
+
     resource Autolaunch.Accounts.HumanAccount do
       define :get_by_privy_did,
         action: :by_privy_did,

@@ -83,3 +83,7 @@ See the [product directory](https://github.com/regents-ai/autolaunch#related-pro
 ## Shared personal profile
 
 Private `profile get`, `profile sync`, and `profile update` are available with paired Privy proof from an approved credential provider. See [the private profile contract](docs/private-profile.md). They use the same API as browser WebMCP and do not obtain a session or grant payment authority.
+
+## Signed agent access
+
+`commands.json` contains typed, private-stdin descriptions for the unified Regents CLI. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing. Browser profile credentials do not authorize an agent.

@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content={@theme || "dark light"} />
     <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="agent-request-origin" content={AutolaunchWeb.Endpoint.url()} />
     <meta name="privy-app-id" content={Autolaunch.Privy.app_id()} />
     <meta
       name="privy-bridge-src"

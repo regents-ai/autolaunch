@@ -1,0 +1,242 @@
+{
+  "$schema": "https://raw.githubusercontent.com/regents-ai/regents-cli/main/src/regents_cli/schemas/commands.v1.json",
+  "format": "regents.commands.v1",
+  "platform": "autolaunch",
+  "base_url": "https://autolaunch.sh",
+  "notes": [
+    "Signed source descriptions require coordinated unified CLI adoption.",
+    "No wallet, launch, treasury, spending or profile mutation commands. Private inputs are JSON stdin."
+  ],
+  "commands": [
+    {
+      "command": "agents whoami",
+      "description": "Read my signed identity and current pairing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "agent_whoami",
+      "method": "GET",
+      "path": "/api/agents/v1/whoami",
+      "authority": "wallet-proof",
+      "effect": "read"
+    },
+    {
+      "command": "agents pair",
+      "description": "Redeem an owner pairing code with my chosen name. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "agent_pair",
+      "method": "POST",
+      "path": "/api/agents/v1/pair",
+      "authority": "wallet-proof",
+      "effect": "write",
+      "stdin_fields": [
+        {
+          "field": "code",
+          "type": "string",
+          "required": true,
+          "description": "Private code; read from JSON stdin."
+        },
+        {
+          "field": "name",
+          "type": "string",
+          "required": true,
+          "description": "Private name; read from JSON stdin."
+        },
+        {
+          "field": "harness",
+          "type": "string",
+          "required": true,
+          "description": "Private harness; read from JSON stdin."
+        }
+      ]
+    },
+    {
+      "command": "drafts revstake",
+      "description": "Read my revstake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "autolaunch_revstake_draft",
+      "method": "GET",
+      "path": "/api/agent/v1/drafts/revstake",
+      "authority": "wallet-proof",
+      "effect": "read"
+    },
+    {
+      "command": "drafts revstake save",
+      "description": "Save my revstake token metadata; no treasury, chain, launch terms or wallet actions. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
+      "operation_id": "autolaunch_revstake_draft_save",
+      "method": "PATCH",
+      "path": "/api/agent/v1/drafts/revstake",
+      "authority": "wallet-proof",
+      "effect": "write",
+      "stdin_fields": [
+        {
+          "field": "name",
+          "type": "string",
+          "required": false,
+          "description": "Private name; read from JSON stdin."
+        },
+        {
+          "field": "symbol",
+          "type": "string",
+          "required": false,
+          "description": "Private symbol; read from JSON stdin."
+        },
+        {
+          "field": "description",
+          "type": "string",
+          "required": false,
+          "description": "Private description; read from JSON stdin."
+        },
+        {
+          "field": "website",
+          "type": "string",
+          "required": false,
+          "description": "Private website; read from JSON stdin."
+        },
+        {
+          "field": "telegram",
+          "type": "string",
+          "required": false,
+          "description": "Private telegram; read from JSON stdin."
+        },
+        {
+          "field": "discord",
+          "type": "string",
+          "required": false,
+          "description": "Private discord; read from JSON stdin."
+        },
+        {
+          "field": "other_link_1",
+          "type": "string",
+          "required": false,
+          "description": "Private other_link_1; read from JSON stdin."
+        },
+        {
+          "field": "other_link_2",
+          "type": "string",
+          "required": false,
+          "description": "Private other_link_2; read from JSON stdin."
+        },
+        {
+          "field": "other_link_3",
+          "type": "string",
+          "required": false,
+          "description": "Private other_link_3; read from JSON stdin."
+        }
+      ]
+    },
+    {
+      "command": "drafts memestake",
+      "description": "Read my memestake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "autolaunch_memestake_draft",
+      "method": "GET",
+      "path": "/api/agent/v1/drafts/memestake",
+      "authority": "wallet-proof",
+      "effect": "read"
+    },
+    {
+      "command": "drafts memestake save",
+      "description": "Save my memestake token metadata; no treasury, chain, launch terms or wallet actions. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
+      "operation_id": "autolaunch_memestake_draft_save",
+      "method": "PATCH",
+      "path": "/api/agent/v1/drafts/memestake",
+      "authority": "wallet-proof",
+      "effect": "write",
+      "stdin_fields": [
+        {
+          "field": "name",
+          "type": "string",
+          "required": false,
+          "description": "Private name; read from JSON stdin."
+        },
+        {
+          "field": "symbol",
+          "type": "string",
+          "required": false,
+          "description": "Private symbol; read from JSON stdin."
+        },
+        {
+          "field": "description",
+          "type": "string",
+          "required": false,
+          "description": "Private description; read from JSON stdin."
+        },
+        {
+          "field": "website",
+          "type": "string",
+          "required": false,
+          "description": "Private website; read from JSON stdin."
+        },
+        {
+          "field": "telegram",
+          "type": "string",
+          "required": false,
+          "description": "Private telegram; read from JSON stdin."
+        },
+        {
+          "field": "discord",
+          "type": "string",
+          "required": false,
+          "description": "Private discord; read from JSON stdin."
+        },
+        {
+          "field": "other_link_1",
+          "type": "string",
+          "required": false,
+          "description": "Private other_link_1; read from JSON stdin."
+        },
+        {
+          "field": "other_link_2",
+          "type": "string",
+          "required": false,
+          "description": "Private other_link_2; read from JSON stdin."
+        },
+        {
+          "field": "other_link_3",
+          "type": "string",
+          "required": false,
+          "description": "Private other_link_3; read from JSON stdin."
+        }
+      ]
+    },
+    {
+      "command": "positions",
+      "description": "Read the owner verified wallet bids and holdings; chain availability required. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "autolaunch_my_positions",
+      "method": "GET",
+      "path": "/api/agent/v1/positions",
+      "authority": "wallet-proof",
+      "effect": "read"
+    },
+    {
+      "command": "account balances",
+      "description": "Read canonical Credits balance and current budget. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "account_balances",
+      "method": "GET",
+      "path": "/api/agent/v1/account/balances",
+      "authority": "wallet-proof",
+      "effect": "read"
+    },
+    {
+      "command": "credits history",
+      "description": "Read canonical Credits history. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "credits_history",
+      "method": "POST",
+      "path": "/api/agent/v1/account/credits/history",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "stdin_fields": [
+        {
+          "field": "after",
+          "type": "string",
+          "required": false,
+          "description": "Private after; read from JSON stdin."
+        }
+      ]
+    },
+    {
+      "command": "points balance",
+      "description": "Read canonical Points without creating an account or earning rewards. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "operation_id": "points_balance",
+      "method": "GET",
+      "path": "/api/agent/v1/account/points",
+      "authority": "wallet-proof",
+      "effect": "read"
+    }
+  ]
+}

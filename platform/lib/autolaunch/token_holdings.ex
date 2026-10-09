@@ -43,7 +43,8 @@ defmodule Autolaunch.TokenHoldings do
   first. The caller reads the wallet from the verified session.
   """
   @spec read_wallet(Human.t(), String.t()) :: {:ok, [holding()]} | {:error, :unavailable}
-  def read_wallet(%Human{} = actor, wallet) when is_binary(wallet) do
+  def read_wallet(%kind{} = actor, wallet)
+      when kind in [Human, Autolaunch.Actors.Agent] and is_binary(wallet) do
     with {:ok, tokens} <- Autolaunch.list_tokens(actor: actor),
          {:ok, base} <- base_holdings(tokens, wallet),
          {:ok, robinhood} <- robinhood_holdings(wallet) do

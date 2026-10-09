@@ -393,8 +393,270 @@ paths:
               schema: {$ref: "#/components/schemas/ApiError"}
         "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
+  /api/agents/v1/whoami:
+    "get":
+      "operationId": "agent_whoami"
+      "summary": "Read my signed identity and current pairing"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+  /api/agents/v1/pair:
+    "post":
+      "operationId": "agent_pair"
+      "summary": "Redeem an owner pairing code with my chosen name"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+        "201":
+          "description": "Success"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "code":
+                  "type": "string"
+                "name":
+                  "type": "string"
+                "harness":
+                  "type": "string"
+              "required":
+                - "code"
+                - "name"
+                - "harness"
+              "additionalProperties": false
+  /api/agent/v1/drafts/revstake:
+    "get":
+      "operationId": "autolaunch_revstake_draft"
+      "summary": "Read my revstake token metadata draft"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+    "patch":
+      "operationId": "autolaunch_revstake_draft_save"
+      "summary": "Save my revstake token metadata; no treasury, chain, launch terms or wallet actions"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Prelaunch read-only gate or dependency unavailable"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "name":
+                  "type": "string"
+                "symbol":
+                  "type": "string"
+                "description":
+                  "type": "string"
+                "website":
+                  "type": "string"
+                "telegram":
+                  "type": "string"
+                "discord":
+                  "type": "string"
+                "other_link_1":
+                  "type": "string"
+                "other_link_2":
+                  "type": "string"
+                "other_link_3":
+                  "type": "string"
+              "required": []
+              "additionalProperties": false
+  /api/agent/v1/drafts/memestake:
+    "get":
+      "operationId": "autolaunch_memestake_draft"
+      "summary": "Read my memestake token metadata draft"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+    "patch":
+      "operationId": "autolaunch_memestake_draft_save"
+      "summary": "Save my memestake token metadata; no treasury, chain, launch terms or wallet actions"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Prelaunch read-only gate or dependency unavailable"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "name":
+                  "type": "string"
+                "symbol":
+                  "type": "string"
+                "description":
+                  "type": "string"
+                "website":
+                  "type": "string"
+                "telegram":
+                  "type": "string"
+                "discord":
+                  "type": "string"
+                "other_link_1":
+                  "type": "string"
+                "other_link_2":
+                  "type": "string"
+                "other_link_3":
+                  "type": "string"
+              "required": []
+              "additionalProperties": false
+  /api/agent/v1/positions:
+    "get":
+      "operationId": "autolaunch_my_positions"
+      "summary": "Read the owner verified wallet bids and holdings; chain availability required"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+  /api/agent/v1/account/balances:
+    "get":
+      "operationId": "account_balances"
+      "summary": "Read canonical Credits balance and current budget"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+  /api/agent/v1/account/credits/history:
+    "post":
+      "operationId": "credits_history"
+      "summary": "Read canonical Credits history"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "after":
+                  "type": "string"
+              "required": []
+              "additionalProperties": false
+  /api/agent/v1/account/points:
+    "get":
+      "operationId": "points_balance"
+      "summary": "Read canonical Points without creating an account or earning rewards"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "Pairing or local identity required"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
 components:
   securitySchemes:
+    SiwaProof: {"type": "apiKey", "in": "header", "name": "x-siwa-signature", "description": "Complete per-request SIWA proof headers; exact URL, method and body. Audience autolaunch."}
     SiteSession:
       type: apiKey
       in: cookie

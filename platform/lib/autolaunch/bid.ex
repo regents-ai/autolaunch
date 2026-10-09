@@ -31,6 +31,12 @@ defmodule Autolaunch.Bid do
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
+    read :agent_mine_by_wallet do
+      argument :wallet_address, :string, allow_nil?: false
+      filter expr(string_downcase(owner_address) == ^arg(:wallet_address))
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
     read :owned_by_bid_id do
       get? true
       argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
@@ -131,6 +137,14 @@ defmodule Autolaunch.Bid do
   end
 
   policies do
+    policy action(:agent_mine_by_wallet) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
+    end
+
+    policy action(:agent_mine_by_wallet) do
+      authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
+    end
+
     policy action([:mine, :mine_by_wallet, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end

@@ -66,6 +66,10 @@ defmodule Autolaunch.Accounts.HumanAccount do
     end
 
     policy action([:read_self, :set_display_name, :set_avatar]) do
+      authorize_if Autolaunch.Accounts.Checks.HumanActor
+    end
+
+    policy action([:read_self, :set_display_name, :set_avatar]) do
       authorize_if expr(id == ^actor(:human_account_id))
     end
   end
