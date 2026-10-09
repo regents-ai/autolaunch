@@ -146,6 +146,10 @@ config :esbuild,
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]
 
+# The engine's own measurements (memory, run queues, process counts), taken every
+# 10 seconds by telemetry_poller's default poller and exported as `vm.*` metrics.
+config :telemetry_poller, :default, period: 10_000
+
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

@@ -50,7 +50,6 @@ defmodule AutolaunchWeb.Telemetry do
   def init(_arg) do
     children = [
       {TelemetryMetricsPrometheus.Core, metrics: metrics(), name: reporter(), start_async: false},
-      {:telemetry_poller, measurements: [], period: 10_000},
       metrics_listener(Application.get_env(:autolaunch, :metrics_port))
     ]
 
@@ -62,7 +61,7 @@ defmodule AutolaunchWeb.Telemetry do
   @doc "The Prometheus reporter the metrics port scrapes."
   def reporter, do: :autolaunch_prometheus
 
-  @doc "The site health set, as Prometheus series."
+  @doc "The site health set and the engine's own measurements, as Prometheus series."
   def metrics do
     [
       distribution("health.chain_event.delay.seconds",
@@ -108,7 +107,21 @@ defmodule AutolaunchWeb.Telemetry do
         event_name: [:autolaunch, :wallet, :failure],
         tags: [:flow, :reason],
         description: "Wallet sends the browser reported as not made or not confirmed"
-      )
+      ),
+      last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
+      last_value("vm.memory.processes.bytes",
+        event_name: [:vm, :memory],
+        measurement: :processes
+      ),
+      last_value("vm.memory.binary.bytes", event_name: [:vm, :memory], measurement: :binary),
+      last_value("vm.memory.ets.bytes", event_name: [:vm, :memory], measurement: :ets),
+      last_value("vm.memory.code.bytes", event_name: [:vm, :memory], measurement: :code),
+      last_value("vm.memory.atom.bytes", event_name: [:vm, :memory], measurement: :atom),
+      last_value("vm.total_run_queue_lengths.total"),
+      last_value("vm.total_run_queue_lengths.cpu"),
+      last_value("vm.system_counts.process_count"),
+      last_value("vm.system_counts.atom_count"),
+      last_value("vm.system_counts.port_count")
     ]
   end
 
