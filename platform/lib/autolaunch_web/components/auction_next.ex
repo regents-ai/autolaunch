@@ -1111,10 +1111,22 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             </dd>
           </div>
         </dl>
+        <p :if={@receipt.outcome == :open} class="auction-next-note">
+          This counts only if the auction reaches its minimum. If it doesn't, the whole bid comes
+          back.
+        </p>
       </div>
+      <p :if={@receipt.state == :sharing} class="auction-next-note">
+        This bid's maximum is the price now, so it shares what higher bids leave. Its exact split
+        is settled when it is withdrawn.
+      </p>
       <p :if={@receipt.state == :stopped} class="auction-next-note" data-tone="below">
-        This bid's maximum is at or below the price now, so it has stopped buying. How much of it
-        was used is settled when it is withdrawn.
+        This bid's maximum is below the price now, so it has stopped buying. How much of it was
+        used is settled when it is withdrawn.
+      </p>
+      <p :if={@receipt.state == :refund} class="auction-next-note">
+        The auction ended below its minimum, so this bid bought no tokens. All of it comes back
+        when it is withdrawn.
       </p>
       <p :if={@receipt.state == :withdrawn} class="auction-next-note">
         This bid was withdrawn at block {grouped(@receipt.exited_block)}.
@@ -1129,7 +1141,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           <dt>Maximum price per 1M</dt>
           <dd><TokenDisplay.price amount={per_million(@receipt.max_price)} unit={@symbol} /></dd>
         </div>
-        <div>
+        <div :if={@receipt.outcome != :failed}>
           <dt>Standing</dt>
           <dd>{standing(@receipt.standing)}</dd>
         </div>
@@ -1140,11 +1152,11 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             <small>{owner_note(@receipt.owner, @wallet)}</small>
           </dd>
         </div>
-        <div>
+        <div :if={@receipt.outcome != :failed}>
           <dt>Claiming tokens</dt>
-          <dd>Once the pool is ready, from block {grouped(@claim_block)}</dd>
+          <dd>{claiming(@receipt.outcome, @claim_block)}</dd>
         </div>
-        <div>
+        <div :if={@receipt.outcome != :failed}>
           <dt>Getting unspent money back</dt>
           <dd>
             When the bid is withdrawn: after bidding ends, or earlier once the price passes
@@ -1172,6 +1184,11 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   end
 
   defp used_share(_receipt), do: 0
+
+  defp claiming(:open, block),
+    do: "If the minimum is reached, once the pool is ready, from block #{grouped(block)}"
+
+  defp claiming(_graduated, block), do: "Once the pool is ready, from block #{grouped(block)}"
 
   defp standing(:in), do: "Above the price: buying at the price every block"
   defp standing(:sharing), do: "At the price: shares what higher bids leave"

@@ -6,9 +6,15 @@ defmodule Autolaunch.BidReceipt do
   A bid whose maximum is above the clearing price has bought at every block
   since it was placed, so its use is exact: the auction's own `calculateFill`
   over the checkpoints from the bid's first block to the one `checkpoint()`
-  would record now. A bid at or below the clearing price stopped buying fully
-  at some earlier checkpoint; its split is worked out when it is withdrawn,
-  so it is left unstated here rather than guessed.
+  would record now. A bid at the clearing price shares what higher bids leave
+  and one below it stopped buying fully at some earlier checkpoint; either
+  split is worked out when the bid is withdrawn, so it is left unstated here
+  rather than guessed.
+
+  Every fill counts only if the auction graduates (`CcaSettlement.graduated/3`
+  on the same block). Until it has, `outcome` is `:open`; once bidding has
+  ended below the minimum it is `:failed`, and the auction returns every bid
+  in full with no tokens, whatever the price did.
 
   Unspent money is never called withdrawable: it comes back when the bid is
   withdrawn, which the auction allows only once bidding has ended, or earlier
@@ -16,7 +22,7 @@ defmodule Autolaunch.BidReceipt do
   """
 
   alias Autolaunch.{AuctionBook, BidPrice, LabAbi}
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, CcaSettlement, Rpc}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
 
   @q96 Integer.pow(2, 96)
@@ -49,20 +55,28 @@ defmodule Autolaunch.BidReceipt do
          {:ok, bid} <- bid(address, bid_id, block, opts),
          {:ok, now} <- checkpoint(address, "checkpoint()", block, opts),
          {:ok, start} <- stored_checkpoint(address, bid.start_block, block, opts),
-         {:ok, finish} <- uint(address, "endBlock()", block, opts) do
+         {:ok, finish} <- uint(address, "endBlock()", block, opts),
+         {:ok, graduated?} <- CcaSettlement.graduated(address, block, opts) do
+      outcome = outcome(graduated?, block.number >= finish)
+
       {:ok,
        bid
        |> Map.merge(%{
          id: bid_id,
          block: block.number,
          bidding_ended?: block.number >= finish,
+         outcome: outcome,
          deposited: Rpc.format_units(div(bid.amount_q96, @q96), decimals),
          max_price: BidPrice.decimal(bid.max_price_q96, decimals),
          standing: AuctionBook.standing(bid.max_price_q96, %{clearing_q96: now.clearing})
        })
-       |> Map.merge(use(bid, start, now, decimals))}
+       |> Map.merge(use(bid, outcome, start, now, decimals))}
     end
   end
+
+  defp outcome(true, _ended?), do: :graduated
+  defp outcome(false, true), do: :failed
+  defp outcome(false, false), do: :open
 
   defp placed(bid_id, next_id) when bid_id < next_id, do: :ok
   defp placed(_bid_id, _next_id), do: {:error, :bid_not_found}
@@ -103,11 +117,14 @@ defmodule Autolaunch.BidReceipt do
   end
 
   # A withdrawn bid's amounts are the auction's own, from its exit.
-  defp use(%{exited_block: exited}, _start, _now, _decimals) when is_integer(exited),
+  defp use(%{exited_block: exited}, _outcome, _start, _now, _decimals) when is_integer(exited),
     do: %{state: :withdrawn}
 
+  # Ended below the minimum: `exitBid` returns the whole deposit and no tokens.
+  defp use(_bid, :failed, _start, _now, _decimals), do: %{state: :refund}
+
   # Still above the price: `calculateFill` from the bid's first checkpoint to now.
-  defp use(%{max_price_q96: max} = bid, start, %{clearing: clearing} = now, decimals)
+  defp use(%{max_price_q96: max} = bid, _outcome, start, %{clearing: clearing} = now, decimals)
        when max > clearing do
     remaining = @mps - bid.start_mps
     spent_q96 = ceil_div(bid.amount_q96 * (now.cumulative_mps - start.cumulative_mps), remaining)
@@ -123,7 +140,10 @@ defmodule Autolaunch.BidReceipt do
     }
   end
 
-  defp use(_bid, _start, _now, _decimals), do: %{state: :stopped}
+  defp use(%{max_price_q96: max}, _outcome, _start, %{clearing: max}, _decimals),
+    do: %{state: :sharing}
+
+  defp use(_bid, _outcome, _start, _now, _decimals), do: %{state: :stopped}
 
   defp ceil_div(a, b), do: div(a + b - 1, b)
 

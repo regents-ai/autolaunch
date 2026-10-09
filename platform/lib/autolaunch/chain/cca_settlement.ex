@@ -110,6 +110,27 @@ defmodule Autolaunch.Chain.CcaSettlement do
   end
 
   @doc """
+  Whether the auction has graduated as its next checkpoint settles it: its
+  own `checkpoint()` then `isGraduated()`, in one simulated block on top of
+  `block`, the order `exitBid` runs them in. Once bidding has ended that
+  checkpoint is the final one, so `false` means every bid comes back in full;
+  while bidding is open only `true` is final, since the raise only grows.
+  """
+  @spec graduated(String.t(), %{number: non_neg_integer()}, keyword()) ::
+          {:ok, boolean()} | {:error, atom()}
+  def graduated(auction, block, opts) do
+    venue = %{rpc_url: opts[:rpc_url], client_key: opts[:client_key], block: block}
+
+    calls = [
+      %{to: auction, data: LabAbi.selector("checkpoint()")},
+      %{to: auction, data: LabAbi.selector("isGraduated()")}
+    ]
+
+    with {:ok, [_checkpoint, graduated]} <- simulate_calls(venue, calls),
+         do: returned_bool(graduated)
+  end
+
+  @doc """
   What the auction would do for this bid right now: whether it graduated, its
   final clearing price, the exit step (`exitBid`, or `exitPartiallyFilledBid`
   with hints) or why it is refused, and the claim step or why it is refused.
