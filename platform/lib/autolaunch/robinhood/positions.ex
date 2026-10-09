@@ -95,6 +95,8 @@ defmodule Autolaunch.Robinhood.Positions do
     end)
   end
 
+  defp listed_token(%{hidden: true}), do: {:ok, nil}
+
   defp listed_token(%{state: :graduated, token_address: token}),
     do: Autolaunch.get_robinhood_token(token, actor: nil)
 
