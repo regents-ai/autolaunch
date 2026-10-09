@@ -52,6 +52,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
      |> assign(assigns)
      |> OnchainSteps.adopt()
      |> LaunchSteps.followed()
+     |> LaunchSteps.relisted(socket.assigns.listings)
      |> listed()}
   end
 
@@ -235,7 +236,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     do:
       {:noreply,
        socket
-       |> LaunchSteps.found(hash, answer, &launch_page/2)
+       |> LaunchSteps.found(hash, answer)
        |> assign(listed_for: nil)
        |> listed()}
 

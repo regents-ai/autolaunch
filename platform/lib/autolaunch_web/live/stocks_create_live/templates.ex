@@ -282,6 +282,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
               id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
               draft={@draft}
+              listings={@listings}
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
@@ -291,6 +292,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
               authenticated
+              listings={@listings}
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />

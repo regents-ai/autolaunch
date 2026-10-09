@@ -61,7 +61,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
      |> assign(assigns)
      |> assign(local_lab?: Lab.test_chain?(), treasury_report: current_report(assigns.draft))
      |> OnchainSteps.adopt()
-     |> LaunchSteps.followed()}
+     |> LaunchSteps.followed()
+     |> LaunchSteps.relisted(socket.assigns.listings)}
   end
 
   @impl true
@@ -306,7 +307,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
        )}
 
   def handle_async({:launch_page, hash}, answer, socket),
-    do: {:noreply, LaunchSteps.found(socket, hash, answer, LaunchSteps.base_page(:launch))}
+    do: {:noreply, LaunchSteps.found(socket, hash, answer)}
 
   defp prepare(socket, signer) do
     case LaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do

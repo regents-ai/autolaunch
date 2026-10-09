@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{Lab, LaunchDraft, LaunchDraftImageStorage, Ticker, TreasurySecurity}
+  alias Autolaunch.{Lab, LaunchDraft, LaunchDraftImageStorage, Listings, Ticker, TreasurySecurity}
   alias AutolaunchWeb.{CreatorConnectionsComponent, DraftMarks}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
@@ -59,6 +59,8 @@ defmodule AutolaunchWeb.CreateLive do
 
         {:ok,
          if connected?(socket) do
+           Listings.subscribe()
+
            socket
            |> load_create(actor)
            |> assign_ticker_taken()
@@ -163,6 +165,11 @@ defmodule AutolaunchWeb.CreateLive do
       actor -> {:noreply, socket |> load_create(actor) |> assign_ticker_taken()}
     end
   end
+
+  # Something new is listed: a launch card still looking for the auction page
+  # of a launch made here looks again (`AutolaunchWeb.LaunchSteps.relisted/2`).
+  def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
+    do: {:noreply, update(socket, :listings, &(&1 + 1))}
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
@@ -470,6 +477,7 @@ defmodule AutolaunchWeb.CreateLive do
       no_connections_typed: "",
       reviewing?: false,
       launched?: false,
+      listings: 0,
       ticker_taken?: false,
       treasury_check: nil,
       current_human_id: actor && actor.human_account_id,

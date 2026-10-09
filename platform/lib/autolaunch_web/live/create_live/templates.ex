@@ -304,6 +304,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             id={"autolaunch-launch-wallet-#{@active_draft.id}"}
             draft={@active_draft}
             authenticated
+            listings={@listings}
             current_human_id={@current_human_id}
             session_lease={@session_lease}
           />
