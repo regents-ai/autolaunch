@@ -304,6 +304,21 @@ defmodule Autolaunch.Auction do
       end
     end
 
+    # A listed Robinhood auction a wallet holds a bid in, hidden or not: the
+    # portfolio reads it from the wallet's own chain positions so the bid can
+    # still be withdrawn or claimed after an operator hides the auction.
+    read :robinhood_held_by_address do
+      get? true
+      argument :auction_address, :string, allow_nil?: false
+      filter expr(auction_address == ^arg(:auction_address))
+      prepare Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:path_tail])
+
+      prepare fn query, _context ->
+        Ash.Query.filter(query, chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
+      end
+    end
+
     read :by_chain_address do
       get? true
       argument :chain_id, :integer, allow_nil?: false
@@ -447,6 +462,7 @@ defmodule Autolaunch.Auction do
 
     policy action([
              :record_launch,
+             :robinhood_held_by_address,
              :market_watch,
              :lab_by_id_for_update,
              :refresh_lab_market

@@ -107,6 +107,11 @@ defmodule Autolaunch do
         args: [:auction_address],
         not_found_error?: false
 
+      define :get_held_robinhood_auction,
+        action: :robinhood_held_by_address,
+        args: [:auction_address],
+        not_found_error?: false
+
       define :list_auctions_by_path, action: :by_path, args: [:symbol, :tail]
       define :list_path_peers, action: :path_peers, args: [:symbols]
 
