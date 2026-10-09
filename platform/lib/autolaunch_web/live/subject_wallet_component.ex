@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); its balances show, or the signed-in
-  wallet's until Privy reports the active one, and a note names both while the
+  wallet's while Privy's active wallet is not one of the account's, and a note asks the person to switch while the
   wallet app has another wallet open. The review is prepared on the server and
   lives on this page only: an exact approval when one is missing, then the
   payment. Every press reaches the wallet, and every outcome is the server's
@@ -407,9 +407,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
-  defp shown_wallet(%{signer: signer}) when is_binary(signer), do: signer
-  defp shown_wallet(%{active: nil, signed_in: signed_in}), do: signed_in
-  defp shown_wallet(_assigns), do: nil
+  defp shown_wallet(%{linked: linked, signed_in: signed_in, active: active}),
+    do: OnchainSteps.shown_wallet(linked, signed_in, active)
 
   # The balances of the wallet shown, read in the background whenever that
   # wallet changes and after a payment.

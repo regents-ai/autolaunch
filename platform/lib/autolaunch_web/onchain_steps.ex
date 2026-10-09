@@ -81,6 +81,14 @@ defmodule AutolaunchWeb.OnchainSteps do
     if active in Enum.map(linked, &String.downcase/1), do: active
   end
 
+  @doc """
+  The wallet whose figures a panel shows: the wallet that may act, or the
+  account's own wallet `own` (`signed_in`) while the active one is not linked or
+  none is active. Signed out there is none, since a panel reads only a wallet
+  the session owns.
+  """
+  def shown_wallet(linked, own, active), do: signer(linked, active) || own
+
   @doc "Privy's active wallet as the page reported it, or `nil`."
   def active_wallet(%{"address" => address}) do
     case Address.normalize(address) do
@@ -250,11 +258,11 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   @doc """
   The note beside the buttons while the wallet app has open a wallet the
-  signed-in account does not link, naming both.
+  signed-in account does not link, naming both and asking the person to switch.
   """
   def mismatch_note(linked, active) when is_list(linked) and is_binary(active) do
     if signer(linked, active) == nil do
-      "You're signed in with #{Enum.map_join(linked, " and ", &short/1)}, but your wallet app has #{short(active)} open."
+      "Your wallet is on #{short(active)}, which isn't linked to this account. Switch to #{Enum.map_join(linked, " or ", &short/1)}."
     end
   end
 

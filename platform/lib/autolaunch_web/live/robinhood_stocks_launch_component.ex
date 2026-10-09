@@ -7,8 +7,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   Nothing is stored while a launch is on its way: the review lives on this
   page only. A confirmed launch is read back from the launchpad's own records
   for its auction page, and the list under the card is the launchpad's
-  launches for the wallet that may act, or the signed-in one until Privy
-  reports its active wallet.
+  launches for the wallet that may act, or the signed-in one while Privy's
+  active wallet is not one of the account's.
   """
 
   use AutolaunchWeb, :live_component
@@ -288,9 +288,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end
   end
 
-  defp shown_wallet(%{signer: signer}) when is_binary(signer), do: signer
-  defp shown_wallet(%{active: nil, signed_in: signed_in}), do: signed_in
-  defp shown_wallet(_assigns), do: nil
+  defp shown_wallet(%{linked: linked, signed_in: signed_in, active: active}),
+    do: OnchainSteps.shown_wallet(linked, signed_in, active)
 
   # Each launch links to its auction's page once the site lists the auction.
   defp with_pages(launches),

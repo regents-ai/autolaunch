@@ -6,8 +6,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); the bids listed are that wallet's,
-  or the signed-in wallet's until Privy reports one, and a note names both
-  while the wallet app has another one open. Nothing is stored: the review
+  or the signed-in wallet's while Privy's active wallet is not one of the account's, and a note asks the
+  person to switch while the wallet app has another one open. Nothing is stored: the review
   lives on this page only, the browser reports a hash and stops, and every
   outcome on screen is the server's own read of that hash against the review
   it was sent from. A wallet's bids are the auction's own records. Once the
@@ -154,11 +154,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # The panel follows the wallet that may act. A review is built for one
   # signer, so another one withdraws it; the bids listed are that signer's, or
-  # the signed-in wallet's while no wallet on the account is active.
+  # the signed-in wallet's while the active wallet is not one of the account's.
   defp followed(socket) do
     %{linked: linked, active: active, signed_in: signed_in} = socket.assigns
     signer = OnchainSteps.signer(linked, active)
-    wallet = signer || signed_in
+    wallet = OnchainSteps.shown_wallet(linked, signed_in, active)
 
     socket =
       socket

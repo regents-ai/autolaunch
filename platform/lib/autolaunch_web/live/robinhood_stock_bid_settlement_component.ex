@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`), and only the wallet that placed the
-  bid can settle it; a note names both while the wallet app has another one
+  bid can settle it; a note asks the person to switch while the wallet app has another one
   open. Nothing is stored: the review lives on this page only, the browser
   reports a hash and stops, and every outcome on screen is the server's own
   read of that hash against the review it was sent from. A confirmed return or

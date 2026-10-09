@@ -8,8 +8,8 @@ defmodule AutolaunchWeb.ConvertComponent do
 
   Only a wallet of the signed-in account, and only when the hook names it as its
   executor, sees the form: Privy's active wallet when the account links it
-  (`AutolaunchWeb.OnchainSteps`), or the signed-in wallet until Privy reports
-  one. The Safe can name another executor at any time, and the pool read
+  (`AutolaunchWeb.OnchainSteps`), or the signed-in wallet while Privy's active
+  wallet is not one of the account's. The Safe can name another executor at any time, and the pool read
   carries whichever it names now. Every other visitor sees nothing.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
@@ -89,7 +89,7 @@ defmodule AutolaunchWeb.ConvertComponent do
     socket =
       assign(socket,
         signer: signer,
-        wallet: signer || signed_in,
+        wallet: OnchainSteps.shown_wallet(linked, signed_in, active),
         mismatch: OnchainSteps.mismatch_note(linked, active)
       )
 

@@ -18,8 +18,8 @@ defmodule AutolaunchWeb.StakeComponent do
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); the card shows that wallet's
-  figures, or the signed-in wallet's until Privy reports one, and a note names
-  both while the wallet app has another one open.
+  figures, or the signed-in wallet's while Privy's active wallet is not one of the account's, and a note asks
+  the person to switch while the wallet app has another one open.
 
   Nothing is stored. The figures are public reads; the review lives on this
   page only, the browser reports a hash and stops, and every outcome on
@@ -123,12 +123,12 @@ defmodule AutolaunchWeb.StakeComponent do
 
   # The card follows the wallet that may act. A review is built for one
   # signer, so another one closes it; the figures on the card are that
-  # signer's, or the signed-in wallet's while no wallet on the account is
-  # active, and a pool read at a new block reads them again.
+  # signer's, or the signed-in wallet's while the active wallet is not one
+  # of the account's, and a pool read at a new block reads them again.
   defp followed(socket) do
     %{linked: linked, active: active, signed_in: signed_in} = socket.assigns
     signer = OnchainSteps.signer(linked, active)
-    wallet = signer || signed_in
+    wallet = OnchainSteps.shown_wallet(linked, signed_in, active)
 
     socket =
       socket

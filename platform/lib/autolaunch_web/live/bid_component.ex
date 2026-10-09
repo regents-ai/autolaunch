@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); the balance is that wallet's, or the
-  signed-in wallet's until Privy reports one, and a note names both while the
+  signed-in wallet's while Privy's active wallet is not one of the account's, and a note asks the person to switch while the
   wallet app has another one open.
 
   With `agent_tools`, the panel also answers the page tool that bids
@@ -122,11 +122,11 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The panel follows the wallet that may act. A review is built for one
   # signer, so another one withdraws it; the balance is that signer's, or the
-  # signed-in wallet's while no wallet on the account is active.
+  # signed-in wallet's while the active wallet is not one of the account's.
   defp followed(socket) do
     %{linked: linked, active: active, signed_in: signed_in} = socket.assigns
     signer = OnchainSteps.signer(linked, active)
-    wallet = signer || signed_in
+    wallet = OnchainSteps.shown_wallet(linked, signed_in, active)
 
     socket =
       socket
