@@ -8,8 +8,8 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   The card reads the launch at the latest block when it appears, and once
   more when a finish sent from it is confirmed. While the migration block is
   still ahead, or the chain could not be read, it reads again whenever the
-  page's market feeds take a new reading of the chain: the page passes their
-  generation as `observed`.
+  page's market feed accepts a new block on the auction's own chain: the page
+  passes that feed's head as `observed`.
 
   The wallet that sends is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); any of the account's wallets may
@@ -33,20 +33,20 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
     {:ok,
      socket
      |> OnchainSteps.init()
-     |> assign(signer: nil, mismatch: nil, launch: nil, unread: false, observed: nil)}
+     |> assign(signer: nil, mismatch: nil, launch: nil, unread: false)}
   end
 
   @impl true
   def update(assigns, socket) do
-    seen = socket.assigns.observed
+    seen = Map.fetch(socket.assigns, :observed)
     socket = socket |> assign(assigns) |> OnchainSteps.adopt() |> followed()
     {:ok, if(read_again?(seen, socket.assigns), do: read(socket), else: socket)}
   end
 
-  # The first update reads; after that, a new feed reading is a reason to read
-  # again only while the answer could still change to "ready".
-  defp read_again?(seen, %{observed: seen}), do: false
-  defp read_again?(nil, _assigns), do: true
+  # The first update reads; after that, a new head is a reason to read again
+  # only while the answer could still change to "ready".
+  defp read_again?(:error, _assigns), do: true
+  defp read_again?({:ok, seen}, %{observed: seen}), do: false
   defp read_again?(_seen, %{unread: true}), do: true
   defp read_again?(_seen, %{launch: launch}), do: waiting?(launch)
 

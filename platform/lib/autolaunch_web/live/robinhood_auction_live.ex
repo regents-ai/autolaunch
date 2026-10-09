@@ -286,7 +286,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       module={AutolaunchWeb.FinishAuctionComponent}
       id="autolaunch-robinhood-finish"
       auction={@launch}
-      observed={@market.generation}
+      observed={@market.robinhood_head}
       current_human_id={current_human_id(@access_context)}
       session_lease={@session_lease}
     />

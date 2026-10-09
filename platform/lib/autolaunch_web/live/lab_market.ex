@@ -5,7 +5,14 @@ defmodule AutolaunchWeb.LabMarket do
   alias Autolaunch.Robinhood.MarketFeed, as: RobinhoodMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
 
-  @empty %{generation: 0, head: nil, degraded?: false, robinhood_stale?: false, auctions: %{}}
+  @empty %{
+    generation: 0,
+    head: nil,
+    degraded?: false,
+    robinhood_head: nil,
+    robinhood_stale?: false,
+    auctions: %{}
+  }
 
   @doc """
   Subscribes the connected page to the Base market topic and the Robinhood
@@ -28,8 +35,8 @@ defmodule AutolaunchWeb.LabMarket do
   @doc """
   Every running feed's per-auction readings by lowercase auction address, with
   one generation counter that moves whenever any of them does. The head and
-  `degraded?` are the Base feed's; `robinhood_stale?` says the Robinhood feed's
-  last read of its chain failed.
+  `degraded?` are the Base feed's; `robinhood_head` is the Robinhood feed's
+  latest block and `robinhood_stale?` says its last read of its chain failed.
   """
   def snapshot do
     @empty
@@ -65,7 +72,7 @@ defmodule AutolaunchWeb.LabMarket do
   defp join_robinhood(market, false), do: market
 
   defp join_robinhood(market, feed),
-    do: join_readings(%{market | robinhood_stale?: feed.stale?}, feed)
+    do: join_readings(%{market | robinhood_head: feed.head, robinhood_stale?: feed.stale?}, feed)
 
   defp running?(feed), do: is_pid(Process.whereis(feed))
 end
