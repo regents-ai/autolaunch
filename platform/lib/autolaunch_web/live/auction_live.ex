@@ -245,6 +245,7 @@ defmodule AutolaunchWeb.AuctionLive do
             my_positions={@my_positions}
             positions_unread={@positions_unread}
             market_snapshot={@market_snapshot}
+            observed={@market.head}
             account_control={@account_control}
             access_context={@access_context}
             session_lease={@session_lease}
@@ -325,6 +326,7 @@ defmodule AutolaunchWeb.AuctionLive do
   attr :my_positions, :list, required: true
   attr :positions_unread, :boolean, required: true
   attr :market_snapshot, :map, default: nil
+  attr :observed, :any, required: true
   attr :account_control, :map, required: true
   attr :access_context, :map, required: true
   attr :session_lease, :map, default: nil
@@ -392,7 +394,7 @@ defmodule AutolaunchWeb.AuctionLive do
         module={AutolaunchWeb.FinishAuctionComponent}
         id="autolaunch-finish"
         auction={@page_record}
-        observed={@market.head}
+        observed={@observed}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />

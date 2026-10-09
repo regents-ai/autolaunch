@@ -200,6 +200,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             auction={@auction}
             launch={@launch}
             book={@book}
+            observed={@market.robinhood_head}
             account_control={@account_control}
             access_context={@access_context}
             session_lease={@session_lease}
@@ -257,6 +258,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   attr :auction, :string, required: true
   attr :launch, :map, required: true
   attr :book, Phoenix.LiveView.AsyncResult, required: true
+  attr :observed, :any, required: true
   attr :account_control, :map, required: true
   attr :access_context, :map, required: true
   attr :session_lease, :map, default: nil
@@ -286,7 +288,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       module={AutolaunchWeb.FinishAuctionComponent}
       id="autolaunch-robinhood-finish"
       auction={@launch}
-      observed={@market.robinhood_head}
+      observed={@observed}
       current_human_id={current_human_id(@access_context)}
       session_lease={@session_lease}
     />
