@@ -39,7 +39,6 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   import AutolaunchWeb.Components.SwapModal
 
-  alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.AuctionBook
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
@@ -866,30 +865,19 @@ defmodule AutolaunchWeb.PortfolioLive do
     )
   end
 
-  # The signed-in wallet's bids and tokens, while its session holds; the
-  # account's other wallets are not read. A session that has lapsed since the
-  # page opened shows nothing of it and opens the page again as the session
-  # now stands.
+  # The signed-in wallet's bids and tokens; the account's other wallets are not
+  # read. `AutolaunchWeb.Live.Session` re-reads the session before every event,
+  # message and result reaches the page, so a lapsed one never gets here.
   defp read_holdings(socket) do
-    actor = human_actor(socket.assigns.access_context)
-
-    cond do
-      is_nil(actor) ->
+    case human_actor(socket.assigns.access_context) do
+      nil ->
         clear_wallet_state(socket)
 
-      connected?(socket) and not leased?(socket.assigns) ->
-        socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
-
-      true ->
+      actor ->
         wallet = signed_in_wallet(socket.assigns.access_context)
         socket |> read_bids(actor, wallet) |> read_chain(actor, wallet)
     end
   end
-
-  defp leased?(%{session_lease: %{lineage: lineage, account_id: account_id}}),
-    do: SessionAuthority.leased_account(lineage, account_id) != nil
-
-  defp leased?(_assigns), do: false
 
   defp read_bids(socket, actor, wallet) do
     case Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
