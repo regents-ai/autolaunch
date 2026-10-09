@@ -92,3 +92,5 @@ Bidding, claiming, launching, trading and staking happen on the website with the
 - The `autolaunch` command-line tool is not published yet.
 
 Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
+
+Unified CLI descriptions name the draft reads `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestake show`. Metadata writes use `save` instead of `show`, reading private JSON stdin. These descriptions need a coordinated CLI release; saves remain refused while prelaunch read-only mode is enabled.

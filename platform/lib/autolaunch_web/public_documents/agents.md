@@ -30,3 +30,12 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. Native signed browser success must be verified by the actual host; registration alone is not proof of success.
 
 The unified Regents CLI supports signed requests and private JSON on stdin. The site's committed `cli/commands.json` describes these operations; a coordinated CLI release must include those descriptions before named commands can be claimed available. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
+
+| Unified CLI command | Operation |
+| --- | --- |
+| `regents autolaunch drafts revstake show` | Read my Revstake metadata draft. |
+| `regents autolaunch drafts revstake save` | Save Revstake metadata from private JSON stdin. |
+| `regents autolaunch drafts memestake show` | Read my Memestake metadata draft. |
+| `regents autolaunch drafts memestake save` | Save Memestake metadata from private JSON stdin. |
+
+`show` and `save` are separate commands; the bare `drafts revstake` and `drafts memestake` names are help groups. Both saves remain refused while prelaunch read-only mode is enabled. Read the installed command's `--help` for its signer and request preparation options.

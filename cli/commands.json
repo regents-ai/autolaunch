@@ -47,7 +47,7 @@
       ]
     },
     {
-      "command": "drafts revstake",
+      "command": "drafts revstake show",
       "description": "Read my revstake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_revstake_draft",
       "method": "GET",
@@ -121,7 +121,7 @@
       ]
     },
     {
-      "command": "drafts memestake",
+      "command": "drafts memestake show",
       "description": "Read my memestake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_memestake_draft",
       "method": "GET",
