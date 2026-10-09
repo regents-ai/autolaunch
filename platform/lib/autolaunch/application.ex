@@ -23,6 +23,13 @@ defmodule Autolaunch.Application do
       {Autolaunch.Accounts.RequestRateLimiter, []},
       AutolaunchWeb.ShareCard.Cache,
       public_auctions_child(),
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.DexScreener.cache(),
+         expiration: expiration(default: :timer.minutes(1), interval: :timer.seconds(10)),
+         hooks: [hook(module: Cachex.Limit.Scheduled, args: {1_000, [], []})]},
+        id: Autolaunch.DexScreener.cache()
+      ),
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.

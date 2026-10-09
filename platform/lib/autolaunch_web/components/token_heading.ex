@@ -45,15 +45,13 @@ defmodule AutolaunchWeb.Components.TokenHeading do
       >
         <.uniswap_icon /> Uniswap Pool
       </a>
-      <a
+      <.live_component
         :if={@network}
-        class="rg-button rg-button--secondary token-heading__link"
-        href={"https://dexscreener.com/#{@network}/#{@pool.pool_id}"}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <span class="token-heading__dexscreener" aria-hidden="true"></span> View Chart
-      </a>
+        module={AutolaunchWeb.ChartLinkComponent}
+        id={"token-chart-#{@network}-#{@pool.pool_id}"}
+        network={@network}
+        pool_id={@pool.pool_id}
+      />
     </div>
     """
   end

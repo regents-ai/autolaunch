@@ -5,6 +5,8 @@
 .token-heading__copy .rg-copy__idle { display: inline-flex; align-items: center; gap: .4rem; }
 .token-heading__copy:is(:hover, [data-copy-state]) .regent-token-menu__copy-icon { opacity: 1; }
 .token-heading__link { display: inline-flex; align-items: center; gap: .45rem; }
+.token-heading__chart { display: inline-flex; width: 11rem; }
+.token-heading__chart .token-heading__link { width: 100%; justify-content: center; }
 .token-heading__icon { width: 1.15em; height: 1.15em; flex: none; }
 .token-heading__dexscreener {
   display: inline-block;
