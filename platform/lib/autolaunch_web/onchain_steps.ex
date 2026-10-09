@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.OnchainSteps do
   import Phoenix.LiveView, only: [push_event: 3, send_update_after: 4, start_async: 3]
 
   alias Autolaunch.Accounts.SessionAuthority
+  alias AutolaunchWeb.Live.Session
   alias Autolaunch.Chain.Client
   alias RegentChain.{Address, Outcome, Presses}
 
@@ -28,9 +29,17 @@ defmodule AutolaunchWeb.OnchainSteps do
   # is built again once it is ten minutes old.
   @stale_ms 10 * 60_000
 
-  @doc "The assigns a wallet panel starts with."
-  def init(socket),
-    do: assign(socket, presses: Presses.new(), review: nil, press_note: nil, active: nil)
+  @doc """
+  The assigns a wallet panel starts with, and the sign-in check before each of
+  its events and results (`AutolaunchWeb.Live.Session.check_component_lease/2`).
+  `follow` is the panel's own function that rebuilds what follows the wallet
+  that may act, as its `update/2` runs it after `adopt/1`.
+  """
+  def init(socket, follow) do
+    socket
+    |> assign(presses: Presses.new(), review: nil, press_note: nil, active: nil)
+    |> Session.check_component_lease(&take(&1, &2, follow))
+  end
 
   @doc """
   Reads the signed-in account's wallets once for each session lease the panel
@@ -52,13 +61,30 @@ defmodule AutolaunchWeb.OnchainSteps do
   defp account_wallets(assigns) do
     with %{lineage: lineage, account_id: id} <- assigns[:session_lease],
          true <- assigns[:current_human_id] == id,
-         %{wallet_addresses: wallets, wallet_address: primary} <-
-           SessionAuthority.leased_account(lineage, id) do
-      linked = wallets |> Enum.flat_map(&normalized/1) |> Enum.uniq()
-      {linked, primary |> normalized() |> List.first()}
+         %{} = account <- SessionAuthority.leased_account(lineage, id) do
+      wallets(account)
     else
       _signed_out -> {nil, nil}
     end
+  end
+
+  @doc """
+  Takes the account as it reads now, before each of the panel's events and
+  results. When its
+  wallets changed, the panel takes them and `follow` rebuilds what follows the
+  wallet that may act, as its `update/2` does after `adopt/1`.
+  """
+  def take(socket, account, follow) do
+    {linked, signed_in} = wallets(account)
+
+    if {linked, signed_in} == {socket.assigns[:linked], socket.assigns[:signed_in]},
+      do: socket,
+      else: socket |> assign(linked: linked, signed_in: signed_in) |> follow.()
+  end
+
+  defp wallets(%{wallet_addresses: wallets, wallet_address: primary}) do
+    linked = wallets |> Enum.flat_map(&normalized/1) |> Enum.uniq()
+    {linked, primary |> normalized() |> List.first()}
   end
 
   defp normalized(wallet) do

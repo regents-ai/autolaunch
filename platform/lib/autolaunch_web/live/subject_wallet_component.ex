@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   def mount(socket) do
     {:ok,
      socket
-     |> OnchainSteps.init()
+     |> OnchainSteps.init(&followed/1)
      |> assign(
        signer: nil,
        mismatch: nil,

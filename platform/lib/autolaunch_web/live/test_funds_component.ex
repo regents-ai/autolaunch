@@ -10,9 +10,16 @@ defmodule AutolaunchWeb.TestFundsComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Stocks.Faucet
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.OnchainSteps
 
   def available?, do: Faucet.available?()
+
+  # Each press and each answer first checks the sign-in, and the wallet the
+  # funds go to is the account's as it reads now.
+  @impl true
+  def mount(socket),
+    do: {:ok, Session.check_component_lease(socket, &OnchainSteps.take(&1, &2, fn s -> s end))}
 
   @impl true
   def update(assigns, socket) do

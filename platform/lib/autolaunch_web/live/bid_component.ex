@@ -66,7 +66,7 @@ defmodule AutolaunchWeb.BidComponent do
   def mount(socket) do
     {:ok,
      socket
-     |> OnchainSteps.init()
+     |> OnchainSteps.init(&followed/1)
      |> assign(
        wallet: nil,
        signer: nil,

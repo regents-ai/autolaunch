@@ -4,7 +4,12 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
   import AutolaunchWeb.Components.XConnections
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.Human
+  alias AutolaunchWeb.Live.Session
   alias Phoenix.LiveView.JS
+
+  # The ENS press and its answer first check the sign-in; the account they act
+  # for is the page's own, so there is nothing to take from it.
+  def mount(socket), do: {:ok, Session.check_component_lease(socket, fn s, _account -> s end)}
 
   def update(assigns, socket) do
     socket = assign_scope(socket, assigns)

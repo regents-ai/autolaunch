@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   @doc "The assigns a launch card starts with."
   def init(socket) do
     socket
-    |> OnchainSteps.init()
+    |> OnchainSteps.init(&followed/1)
     |> assign(signer: nil, mismatch: nil, prepared: nil, reviews: %{}, launched: nil, notice: nil)
   end
 

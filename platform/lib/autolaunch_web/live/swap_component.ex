@@ -60,7 +60,7 @@ defmodule AutolaunchWeb.SwapComponent do
   def mount(socket) do
     {:ok,
      socket
-     |> OnchainSteps.init()
+     |> OnchainSteps.init(&followed/1)
      |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
   end
 
