@@ -7,9 +7,10 @@ defmodule Autolaunch.LaunchedDrafts do
   page sees its launch confirmed (`AutolaunchWeb.LaunchSteps.launched/4`), as
   the system: clearing a launched draft is the site's step, not the account's.
 
-  Only a draft that still names the listed launch is cleared: a second
-  listing of the same launch, or a draft its creator has already rewritten,
-  is left as it is.
+  Only a draft that still names the listed launch is cleared, matched by the
+  same statement that blanks it: a second listing of the same launch, or a
+  draft its creator has already rewritten (even from another tab a moment
+  before), is left as it is.
   """
 
   alias Autolaunch.Actors.System
@@ -20,31 +21,21 @@ defmodule Autolaunch.LaunchedDrafts do
 
   @spec clear(kind(), integer(), String.t(), String.t()) :: :ok | {:error, term()}
   def clear(kind, account_id, name, symbol) do
-    case naming(kind, account_id, name, symbol) do
-      {:ok, nil} -> :ok
-      {:ok, draft} -> cleared(kind, draft)
-      {:error, error} -> {:error, error}
+    case cleared(kind, account_id, name, symbol) do
+      %Ash.BulkResult{status: :success} -> :ok
+      %Ash.BulkResult{errors: errors} -> {:error, Ash.Error.to_error_class(errors)}
     end
   end
 
-  defp naming(:revstake, account_id, name, symbol),
-    do: Autolaunch.get_launch_draft_naming_listed_launch(account_id, name, symbol, actor: @system)
-
-  defp naming(:memestake, account_id, name, symbol),
-    do:
-      Autolaunch.get_stocks_launch_draft_naming_listed_launch(account_id, name, symbol,
-        actor: @system
-      )
-
-  defp cleared(kind, draft) do
-    case clear_draft(kind, draft) do
-      {:ok, _draft} -> :ok
-      {:error, error} -> {:error, error}
-    end
+  defp cleared(:revstake, account_id, name, symbol) do
+    account_id
+    |> Autolaunch.query_to_launch_draft_naming_listed_launch(name, symbol, actor: @system)
+    |> Autolaunch.clear_launch_draft(actor: @system)
   end
 
-  defp clear_draft(:revstake, draft), do: Autolaunch.clear_launch_draft(draft, actor: @system)
-
-  defp clear_draft(:memestake, draft),
-    do: Autolaunch.clear_stocks_launch_draft(draft, actor: @system)
+  defp cleared(:memestake, account_id, name, symbol) do
+    account_id
+    |> Autolaunch.query_to_stocks_launch_draft_naming_listed_launch(name, symbol, actor: @system)
+    |> Autolaunch.clear_stocks_launch_draft(actor: @system)
+  end
 end

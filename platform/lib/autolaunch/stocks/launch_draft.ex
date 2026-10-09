@@ -169,9 +169,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     end
 
     # `Autolaunch.LaunchedDrafts`: the account's draft while it still names
-    # the launch just listed.
+    # the launch just listed, which `:clear` blanks in the same statement.
     read :naming_listed_launch do
-      get? true
       argument :human_account_id, :integer, allow_nil?: false
       argument :name, :string, allow_nil?: false, constraints: [trim?: false]
       argument :symbol, :string, allow_nil?: false, constraints: [trim?: false]
@@ -185,7 +184,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     # A listed launch's draft starts over (`Autolaunch.LaunchedDrafts`), so the
     # next memestock begins from a blank form on the same chain.
     update :clear do
-      require_atomic? false
       change set_attribute(:name, "")
       change set_attribute(:symbol, "")
       change set_attribute(:description, nil)

@@ -48,12 +48,16 @@ defmodule Autolaunch do
         action: :attach_image,
         args: [:launch_draft_image_id]
 
-      define :get_launch_draft_naming_listed_launch,
+      define :launch_draft_naming_listed_launch,
         action: :naming_listed_launch,
         args: [:human_account_id, :name, :symbol],
-        not_found_error?: false
+        functions: [:subject]
 
-      define :clear_launch_draft, action: :clear
+      # One UPDATE ... WHERE over that query: the match and the clear are a
+      # single statement, so a draft rewritten meanwhile is left as it is.
+      define :clear_launch_draft,
+        action: :clear,
+        default_options: [bulk_options: [strategy: :atomic, return_errors?: true]]
     end
 
     # Keep this registration dynamic like the operation-only resources below;
@@ -197,12 +201,16 @@ defmodule Autolaunch do
         action: :attach_image,
         args: [:stock_launch_draft_image_id]
 
-      define :get_stocks_launch_draft_naming_listed_launch,
+      define :stocks_launch_draft_naming_listed_launch,
         action: :naming_listed_launch,
         args: [:human_account_id, :name, :symbol],
-        not_found_error?: false
+        functions: [:subject]
 
-      define :clear_stocks_launch_draft, action: :clear
+      # One UPDATE ... WHERE over that query: the match and the clear are a
+      # single statement, so a draft rewritten meanwhile is left as it is.
+      define :clear_stocks_launch_draft,
+        action: :clear,
+        default_options: [bulk_options: [strategy: :atomic, return_errors?: true]]
     end
 
     # The Stocks image lane mirrors the Agent one: immutable uploaded bytes the
