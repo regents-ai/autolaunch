@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v75, 9 October 2026 (7371b81)
+- An auction whose bidding has ended now has a Finish button on its page. Anyone signed
+  in can press it once the auction's finish block has passed: it opens the pool, or opens
+  refunds if the minimum wasn't met, for the network fee. Before that block the button
+  says when finishing opens.
+
 ## v74, 9 October 2026 (cd69683)
 - Autolaunch can now take an auction off the site: it leaves every list, its page and its
   links, while anyone who bid on it still sees it in their own portfolio. The two test
