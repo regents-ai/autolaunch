@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v76, 9 October 2026 (6d93209)
+- On the Revstake Create page, a Safe treasury address is now read on Base as it is
+  pasted, and a line under the box says what is there: "2-of-3 Safe found", "This is a
+  wallet, not a Safe", "No Safe at this address", "Safe, but not 2 of 3" or "Base could
+  not be read just now". The treasury step only counts as done for a 2-of-3 Safe.
+
 ## v75, 9 October 2026 (7371b81)
 - An auction whose bidding has ended now has a Finish button on its page. Anyone signed
   in can press it once the auction's finish block has passed: it opens the pool, or opens
