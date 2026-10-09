@@ -43,9 +43,12 @@ defmodule AutolaunchWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  plug :refuse_blocked
+
   # One budget per client address, shared by the health check, every /api
   # address and the share pictures, answered or not. Every answer says what is left of it; past it the
-  # answer is 429 with Retry-After.
+  # answer is 429 with Retry-After. The auction list has a second, smaller
+  # budget of its own.
   plug :limit_rate
 
   plug AutolaunchWeb.Prelaunch
@@ -75,6 +78,42 @@ defmodule AutolaunchWeb.Endpoint do
                 admit: &Autolaunch.Accounts.RequestRateLimiter.admit/3,
                 key: &AutolaunchWeb.ClientAddress.key/1
               )
+
+  # The auction list is answered from a five-second keep, so reading it more
+  # often than every ten seconds learns nothing new.
+  @list_rate_limit RegentAgentAccess.RateLimit.init(
+                     policy: "auction-list",
+                     limit: 6,
+                     window: 60,
+                     admit: &Autolaunch.Accounts.RequestRateLimiter.admit/3,
+                     key: &AutolaunchWeb.ClientAddress.key/1
+                   )
+
+  # Addresses refused outright. 43.160.222.210 read the auction list every
+  # 2.3 seconds around the clock (founder decision, 9 October 2026).
+  @blocked [{43, 160, 222, 210}]
+
+  defp refuse_blocked(conn, _opts) do
+    {address, _source} = AutolaunchWeb.ClientAddress.key(conn)
+
+    if address in @blocked do
+      conn
+      |> put_status(:forbidden)
+      |> Phoenix.Controller.json(
+        RegentAgentAccess.Recovery.json("Forbidden", "This address may not use this site.")
+      )
+      |> halt()
+    else
+      conn
+    end
+  end
+
+  defp limit_rate(%Plug.Conn{method: "GET", path_info: ["api", "v1", "auctions"]} = conn, _opts) do
+    case RegentAgentAccess.RateLimit.call(conn, @rate_limit) do
+      %Plug.Conn{halted: true} = limited -> limited
+      counted -> RegentAgentAccess.RateLimit.call(counted, @list_rate_limit)
+    end
+  end
 
   defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)

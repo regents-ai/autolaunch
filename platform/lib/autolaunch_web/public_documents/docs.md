@@ -55,6 +55,8 @@ RateLimit-Policy: "default";q=120;w=60
 RateLimit: "default";r=119;t=42
 ```
 
+`GET /api/v1/auctions` also has a budget of its own, 6 requests per 60 seconds, named `"auction-list"` in the same headers beside `"default"`. The list changes at most every five seconds, so reading it every ten seconds or less often misses nothing.
+
 `q` is the number of requests allowed in a window of `w` seconds, `r` is how many remain and `t` is the number of seconds until the window resets. Past the limit the answer is `429` with the code `too_many_requests` and a `Retry-After` header in seconds; wait that long, then send the request again. Pages, sign-in and wallet steps on the website do not count against this budget.
 
 ## Versioning and deprecation
