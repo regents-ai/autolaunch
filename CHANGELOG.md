@@ -3,6 +3,17 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v79, 9 October 2026 (29af631)
+- The public auction list (`GET /api/v1/auctions`) answers each address 6 times a
+  minute; past that it says how many seconds to wait. One address that read it every
+  2.3 seconds is refused. The developer guide and API description say so, and the
+  browser tools pass the wait on to agents.
+- The site's engine measurements (memory, run queues, process counts) now reach the
+  monitoring dashboard.
+
+## v78, 9 October 2026 (98c7f73, same build as v77)
+- Auctions finish automatically once their finish block has passed.
+
 ## v77, 9 October 2026 (98c7f73)
 - The public auction list (`GET /api/v1/auctions`) is kept for five seconds, so callers
   asking for the same list again share one answer. The site now runs on a shared
