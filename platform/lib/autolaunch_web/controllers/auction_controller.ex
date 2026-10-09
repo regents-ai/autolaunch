@@ -8,20 +8,33 @@ defmodule AutolaunchWeb.AuctionController do
   alias AutolaunchWeb.{ApiError, LabMarket, MarketPage, Paths}
   alias RegentChain.Address
 
+  @cache :autolaunch_public_auctions
+
+  @doc "The cache that keeps each public auction list for a few seconds (`Autolaunch.Application`)."
+  def cache, do: @cache
+
+  # The same list asked for again within a few seconds is answered from the
+  # cache; a refused or failed read is never kept.
   def index(conn, params) do
+    case Cachex.fetch(@cache, params, &auctions/1) do
+      {kept, body} when kept in [:ok, :commit] -> json(conn, body)
+      {:ignore, {:error, :invalid_query}} -> invalid_request(conn)
+      {:ignore, {:error, _error}} -> internal_error(conn)
+    end
+  end
+
+  defp auctions(params) do
     case MarketPage.read(params, "auctions") do
       {:ok, page} ->
-        json(conn, %{
-          data: Enum.map(page.records, &public_auction(&1, page.robinhood_unavailable)),
-          pagination: page.pagination,
-          robinhood_unavailable: page.robinhood_unavailable
-        })
+        {:commit,
+         %{
+           data: Enum.map(page.records, &public_auction(&1, page.robinhood_unavailable)),
+           pagination: page.pagination,
+           robinhood_unavailable: page.robinhood_unavailable
+         }}
 
-      {:error, :invalid_query} ->
-        invalid_request(conn)
-
-      {:error, _error} ->
-        internal_error(conn)
+      error ->
+        {:ignore, error}
     end
   end
 

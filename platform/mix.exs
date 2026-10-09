@@ -116,6 +116,8 @@ defmodule Autolaunch.MixProject do
       # IANA zones for the Stocks auction start; compiled in, nothing fetched at runtime.
       {:tz, "~> 0.28"},
       {:req, "== 0.7.4"},
+      # Keeps the public auction list for a few seconds, so repeat callers share one read.
+      {:cachex, "~> 4.1"},
       {:yaml_elixir, "== 2.12.2"},
       {:vix, "== 0.41.0"},
       {:bandit, "~> 1.12.1"},

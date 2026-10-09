@@ -42,8 +42,8 @@ primary_region = "iad"
 
 # Keep the production capacity when the next image is deployed.
 [[vm]]
-  size = "performance-2x"
-  memory_mb = 4096
+  size = "shared-cpu-2x"
+  memory_mb = 2048
 
 [[http_service.checks]]
   grace_period = "30s"

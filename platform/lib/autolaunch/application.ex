@@ -5,6 +5,8 @@ defmodule Autolaunch.Application do
 
   use Application
 
+  import Cachex.Spec, only: [expiration: 1, hook: 1]
+
   @impl true
   def start(_type, _args) do
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -20,6 +22,7 @@ defmodule Autolaunch.Application do
       {Autolaunch.Accounts.BootstrapRateLimiter, []},
       {Autolaunch.Accounts.RequestRateLimiter, []},
       AutolaunchWeb.ShareCard.Cache,
+      public_auctions_child(),
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.
@@ -42,6 +45,15 @@ defmodule Autolaunch.Application do
     ]
     |> List.flatten()
     |> Enum.reject(&is_nil/1)
+  end
+
+  # The public auction list, each answer kept for five seconds (at most a
+  # thousand different lists), so callers asking again and again share one read.
+  defp public_auctions_child do
+    {Cachex,
+     name: AutolaunchWeb.AuctionController.cache(),
+     expiration: expiration(default: :timer.seconds(5), interval: :timer.seconds(1)),
+     hooks: [hook(module: Cachex.Limit.Scheduled, args: {1_000, [], []})]}
   end
 
   # The log ledger is optional and starts after the repository it writes to and
