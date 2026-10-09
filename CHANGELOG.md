@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v74, 9 October 2026 (cd69683)
+- Autolaunch can now take an auction off the site: it leaves every list, its page and its
+  links, while anyone who bid on it still sees it in their own portfolio. The two test
+  auctions, which had no bids, are off the site.
+
 ## v73, 8 October 2026 (92f9dff)
 - After a launch goes through, its card says "Your token … is launched." with the full
   transaction, a Copy button, a link to the explorer and, once it is listed, a button to open
