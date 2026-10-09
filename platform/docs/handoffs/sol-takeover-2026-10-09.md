@@ -118,8 +118,10 @@ Sean subsequently approved push and deployment. Candidate `b75c693` is on main
 and `claude/vibrant-knuth-1td9ig`, and is live as **v80** on `autolaunch.sh`.
 The x86 Linux image passed its native-library and launch-card checks; the isolated
 read-only database check found no migration differences. Production health,
-Create, all four auction pages, graduated tokens, the browser-agent auction list
-and opening Privy's sign-in modal passed. Chain reads confirm v1 launch entry
+Create, HTTP responses for all four auction pages and graduated tokens, the
+browser-agent auction list and opening Privy's sign-in modal passed. Those HTTP
+checks did not establish that every auction's connected page finished loading.
+Chain reads confirm v1 launch entry
 points paused, v2 entry points open and existing v1 bindings loaded.
 
 Runtime settings and contract descriptions were preserved. The actual release
@@ -128,3 +130,20 @@ is in `CHANGELOG.md`; its image and evidence are recorded in
 Real sign-in completion and wallet acceptance remain founder checks. Session
 expiry still requires template-first adoption; wallet wording and the launch film
 remain separate work.
+
+### AGI loading correction
+
+Sean reported AGI stuck on Loading after v80. The connected page crashed because
+the bid section tried to read a market value its parent had not passed. Commit
+`409523b` passes the Base or Robinhood block reading explicitly to that section
+and its Finish card. It is pushed to main and the working branch and deployed as
+**v81**, image `sha256:299e0ad9d5f541b387bec5cd1ce0a98a652915ef7e8fbc1bd1aaa9c7aa7340cb`.
+
+The isolated local browser displayed AGI's ended state and Finish card. The live
+browser now displays Artificial Grok Investor, Waiting to finish, and Ready to
+finish, with its page connected. JollyB, BITE and RDOG auction and token pages
+also render and remain connected. `make check-platform` passed. Production
+runtime settings, contract descriptions, capacity and services match the prior
+release. No auction finish or wallet transaction was sent. Evidence is in
+workspace `artifacts/autolaunch-sol-1009/agi-production-fixed.png` and
+`agi-v81-legacy-pages.json`.

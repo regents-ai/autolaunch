@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v81, 9 October 2026 (409523b)
+- Ended auction pages load correctly again. The Finish card receives its network's
+  latest block reading on Base and Robinhood, fixing AGI's stuck Loading screen.
+
 ## v80, 9 October 2026 (b75c693)
 - A launch shows its full transaction hash while waiting for confirmation, with Copy and
   an explorer link. Pending and confirmed hashes wrap on mobile.
