@@ -42,9 +42,9 @@ import {StocksPreset} from "./StocksPreset.sol";
 
 /// @title StocksLaunchpadV2
 /// @notice Admission, creation, custody and migration of Autolaunch Stocks.
-/// @dev One launch mints exactly `S0` of a new UERC20 (NEW) to this contract, sells 49.5% as the sale
+/// @dev One launch mints exactly `S0` of a new UERC20 (NEW) to this contract, sells 49.75% as the sale
 ///      allocation through a pinned Continuous Clearing Auction denominated in one admitted STOCK,
-///      custodies 49.5% as the reserve and 1% as the launcher's vesting, and after the auction either
+///      custodies 49.75% as the reserve and 0.5% as the launcher's vesting, and after the auction either
 ///      graduates or retires the inventory. Every economic term comes from `StocksPreset`; a launcher
 ///      supplies metadata and the STOCK, nothing else, and keeps no authority over the launch
 ///      afterwards. Every auction opens at the one fixed floor, and the required raise is the whole
@@ -64,7 +64,7 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      afterwards (rounding crumbs and anything sent here) is retired to the dead address. No
 ///      principal path exists.
 ///
-///      The launcher's 1% vests linearly per block over `CREATOR_VESTING_BLOCKS` from the graduation
+///      The launcher's 0.5% vests linearly per block over `CREATOR_VESTING_BLOCKS` from the graduation
 ///      block; anyone may release what has vested, and it only ever goes to the recorded launcher.
 ///
 ///      The CCA creation, `_graduate`, `_mintLockedPositions` and `_exactlyFundedPlan` mirror the

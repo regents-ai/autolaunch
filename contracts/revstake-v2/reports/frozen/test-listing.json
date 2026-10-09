@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 199,
+  "total": 201,
   "tests": {
     "test/escrow/ConditionalVestingEscrowV2.t.sol": {
       "ConditionalVestingEscrowV2Test": [
@@ -149,6 +149,12 @@
       "AutolaunchPauseScopeTest": [
         "test_FAC_019_PauseNeverBlocksExistingLifecycleOperations",
         "test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause"
+      ]
+    },
+    "test/integration/AutolaunchSelloutSweep.t.sol": {
+      "AutolaunchSelloutSweepTest": [
+        "testFuzz_AL03_BidsAddingUpToTheMinimumGraduateOnlyOnTheCountedRaise",
+        "testFuzz_AL03_GraduationIsExactlyTheMinimumAndAGraduatedSaleSellsOut"
       ]
     },
     "test/integration/AutolaunchTerminalCustody.t.sol": {

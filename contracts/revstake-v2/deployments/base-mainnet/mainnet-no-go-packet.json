@@ -22,7 +22,7 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "61f244288955c472156fc2bcc80e309b392d79bf"
+    "src_tree": "3c56033719130f61f7b5d72961bacc75bef808d5"
   },
   "frozen_manifest_sha256": "7cc268562f3bd83b2f21b183bbd00bf49baa297e02c412382c3b49284327f36d",
   "code_identity": [
@@ -156,7 +156,7 @@
     }
   },
   "external_observation": {
-    "observed_at_block": 52059675,
+    "observed_at_block": 52258768,
     "bindings": {
       "regent": {
         "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
@@ -298,6 +298,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xea59e17dfba46987fd75b3d9f8d937783a4324234e03bbbabf01bc47d124cfba"
+    "value": "0xf6c2bcac6100455da994e5822ec6f40777b26f3885a1e9c1cd525cc9ba5ec862"
   }
 }

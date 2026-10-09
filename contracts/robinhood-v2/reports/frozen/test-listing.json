@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 109,
+  "total": 111,
   "tests": {
     "test/RobinhoodBaseReceiver.t.sol": {
       "RobinhoodBaseReceiverTest": [
@@ -99,6 +99,12 @@
         "test_each_scheduled_step_is_the_base_step_stretched_twentyfold",
         "test_every_block_term_is_the_base_term_times_twenty",
         "test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps"
+      ]
+    },
+    "test/RobinhoodSelloutSweep.t.sol": {
+      "RobinhoodSelloutSweepTest": [
+        "testFuzz_AL03_BidsAddingUpToTheMinimumGraduateOnlyOnTheCountedRaise",
+        "testFuzz_AL03_GraduationIsExactlyTheMinimumAndAGraduatedSaleSellsOut"
       ]
     },
     "test/RobinhoodStockBidAdapter.t.sol": {

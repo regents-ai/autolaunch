@@ -17,9 +17,9 @@ import {SubjectSplitterV1} from "../revenue/SubjectSplitterV1.sol";
 
 /// @title RegentFeeHook
 /// @notice The one shared Uniswap v4 hook every official Autolaunch pool carries. After every swap,
-///         it charges 2% of the actual realized unspecified currency in two lanes: 1% to Regent (in
+///         it charges 3% of the actual realized unspecified currency in two lanes: 1% to Regent (in
 ///         REGENT straight into REGENT staking's reward pool, in the launch's token straight to the
-///         Regent Safe) and 1% through the launch's splitter to its stakers.
+///         Regent Safe) and 2% through the launch's splitter to its stakers.
 /// @dev Two immutables — the PoolManager and the strategy — are fixed at construction and never
 ///      change. There is no initializer, upgrade, replacement, setter, flush, threshold, keeper,
 ///      pause, router allowlist, recovery, or fee mutation of any kind, and registration is
@@ -186,7 +186,7 @@ contract RegentFeeHook is BaseHook {
         if (splitter == address(0)) revert PoolNotRegistered(poolId);
     }
 
-    /// @dev Floors the 2% fee once and the 1% Regent lane once; the staker lane is the rest. Settles
+    /// @dev Floors the 3% fee once and the 1% Regent lane once; the staker lane is the rest. Settles
     ///      both lanes synchronously: the Regent lane taken straight to REGENT staking when the fee is in
     ///      REGENT (a plain transfer into its reward pool, so a paused staking contract never stops a
     ///      swap) and straight to the Regent Safe when it is in the launch's token; the staker lane

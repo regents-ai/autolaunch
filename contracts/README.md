@@ -8,7 +8,17 @@ our contracts sweep the raise, open the Uniswap v4 pool at the CCA's final price
 liquidity forever in a fee-only locker, and route the pool's hook fees to a per-launch staking
 splitter. When it does not graduate, the token supply is retired and bidders refund from the CCA.
 
-Four Foundry projects, one per directory. Each is built and verified from its own directory.
+Seven Foundry projects, one per directory. Each is built and verified from its own directory.
+
+New launches use version 2. The four existing version 1 Memestake auctions remain supported;
+keeping their bindings permits claims, withdrawals, staking and fee collection without reopening
+the old launchpads. The legacy packages and deployment records below are historical.
+
+| Current project | Chain | Deployment record | Verify |
+| --- | --- | --- | --- |
+| [revstake-v2/](revstake-v2/README.md) | Base (8453) | [Revstake v2 receipts](revstake-v2/deployments/base-mainnet/README.md) | `cd revstake-v2 && bin/gate.sh`, with `../stocks-v2/lib` in place |
+| [stocks-v2/](stocks-v2/README.md) | Base (8453) | [Memestake v2 receipts](stocks-v2/deployments/base-mainnet/README.md) | `cd stocks-v2 && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` |
+| [robinhood-v2/](robinhood-v2/README.md) | Robinhood Chain (4663), receiver on Base | [Robinhood v2 receipts](robinhood-v2/deployments/robinhood-mainnet/README.md) | `cd robinhood-v2 && bin/gate.sh`, with `../stocks-v2/lib` in place |
 
 For Uniswap CCA engineers, [CCA-INTEGRATION.md](CCA-INTEGRATION.md) lists every CCA parameter our
 contracts set and every one the launcher chooses.
@@ -73,7 +83,8 @@ Ours (this repository):
 Deployed 22 September 2026 by deployer `0x9b2C414614aEE294202c1219520955EF3B596031`, nonces 0–4,
 packet digest `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`. Record:
 [v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md). `launchesPaused()` read
-`false` at Base block 51,875,928 (27 September 2026): launches are open.
+`false` at Base block 51,875,928 (27 September 2026). This is a historical reading;
+the v1 factory is now paused for new launches, as checked on 9 October 2026.
 
 | Contract | Address |
 | --- | --- |

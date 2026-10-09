@@ -44,6 +44,7 @@ RUN apt-get update \
 
 COPY --from=foundry /foundry/anvil /usr/local/bin/anvil
 COPY proxy/server.mjs proxy/server.mjs
+COPY foundry.toml foundry.toml
 COPY bin/run-fork.sh bin/upstream-check.mjs bin/
 RUN chmod 0755 bin/run-fork.sh
 

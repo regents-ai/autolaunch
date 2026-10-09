@@ -229,13 +229,15 @@ class Chain:
         return Chain(self.alias, self.env_name, self.chain_id, url)
 
     def endpoint(self) -> str:
+        """What `--rpc-url` receives: the endpoint the caller passed, or else the foundry.toml alias, so
+        the injected address never appears on a command line or in the process list."""
         source = "--rpc-url" if self.url else self.env_name
         value = self.url or os.environ.get(self.env_name, "")
         if not value:
             raise CeremonyError(f"no read-only endpoint is injected under {source}")
         if not re.match(r"^(https?|wss?)://.+", value):
             raise CeremonyError(f"the value under {source} is not an http(s) or ws(s) endpoint; its value is never printed")
-        return value
+        return self.url or self.alias
 
     def cast(self, *args: str) -> str:
         return run(["cast", *args, "--rpc-url", self.endpoint()]).strip()
