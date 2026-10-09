@@ -97,6 +97,9 @@ defmodule Autolaunch.TestAutolaunchTreasuryChainClient do
     end
   end
 
+  @impl true
+  def observe_latest(address), do: observe(address, %{usdc: nil, regent: nil, outbound: nil})
+
   defp fixture(@browser_eoa) do
     %{
       runtime_code: "0x",

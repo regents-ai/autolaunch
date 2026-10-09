@@ -16,6 +16,8 @@
 .create-page__hint { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 /* A line that holds its place while another choice is shown, so choices never change the height. */
 .create-page__held { visibility: hidden; }
+/* What Base shows at the treasury address: one line, kept while there is nothing to say. */
+.create-page__check { min-block-size: 1.5em; }
 .create-page__hint a { color: var(--color-link, var(--brand-accent)); }
 .create-page .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
 .create-page__more { border-block-end: 0; }

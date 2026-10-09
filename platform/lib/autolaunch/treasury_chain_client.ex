@@ -53,12 +53,24 @@ defmodule Autolaunch.TreasuryChainClient do
         }
 
   @callback observe(String.t(), evidence_hashes()) :: {:ok, map()} | {:error, atom()}
+  @callback observe_latest(String.t()) :: {:ok, map()} | {:error, atom()}
   @callback canonical?(non_neg_integer(), String.t()) :: boolean()
 
   def observe(address, evidence) do
     case module() do
       __MODULE__ -> read_observation(address, evidence)
       module -> module.observe(address, evidence)
+    end
+  end
+
+  @doc """
+  The address's code and Safe configuration at the latest Base block, without
+  evidence: what the create form says beside the treasury box.
+  """
+  def observe_latest(address) do
+    case module() do
+      __MODULE__ -> read_latest(address)
+      module -> module.observe_latest(address)
     end
   end
 
@@ -85,6 +97,12 @@ defmodule Autolaunch.TreasuryChainClient do
          {:ok, observation} <- classify(address, runtime, block) do
       attach_evidence(address, observation, evidence)
     end
+  end
+
+  defp read_latest(address) do
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
+         {:ok, runtime} <- code(address, block),
+         do: classify(address, runtime, block)
   end
 
   defp classify(_address, "0x" = runtime, block), do: {:ok, base(runtime, block)}

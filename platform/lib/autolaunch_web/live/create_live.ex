@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Ticker}
+  alias Autolaunch.{Lab, LaunchDraft, LaunchDraftImageStorage, Ticker, TreasurySecurity}
   alias AutolaunchWeb.{CreatorConnectionsComponent, DraftMarks}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
@@ -167,6 +167,9 @@ defmodule AutolaunchWeb.CreateLive do
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
 
+  def handle_async(:treasury_check, result, socket),
+    do: {:noreply, assign(socket, treasury_check: checked(socket.assigns.treasury_check, result))}
+
   defp render_revshare(assigns) do
     assigns = assign(assigns, launch_image_upload: assigns[:uploads][:launch_image])
 
@@ -191,7 +194,7 @@ defmodule AutolaunchWeb.CreateLive do
           )
       end
 
-    socket |> assign_ticker_taken() |> keep()
+    socket |> assign_ticker_taken() |> check_treasury() |> keep()
   end
 
   # An agent's fill: the token details, then the treasury, each saved as
@@ -256,7 +259,7 @@ defmodule AutolaunchWeb.CreateLive do
       "The person is not signed in. What you fill stays in this browser tab and is saved to their account once they sign in on the page. Launching needs them signed in."
 
   defp next_step(%{launch_drafts: [draft | _rest]} = assigns) do
-    case still_needed(draft) do
+    case still_needed(draft, assigns.treasury_check) do
       [] ->
         if assigns.has_connections or assigns.connections_waived,
           do: "Ready. Call autolaunch_launch to review the launch and open the person's wallet.",
@@ -268,7 +271,7 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  defp still_needed(draft) do
+  defp still_needed(draft, check) do
     details =
       case LaunchDraft.missing_token_details(draft) -- [:image] do
         [] -> []
@@ -280,13 +283,16 @@ defmodule AutolaunchWeb.CreateLive do
         do: [],
         else: ["the picture, which the person chooses on the page"]
 
-    details ++ picture ++ treasury_needed(draft)
+    details ++ picture ++ treasury_needed(draft, check)
   end
 
-  defp treasury_needed(draft) do
+  defp treasury_needed(draft, check) do
     cond do
-      LaunchDraft.treasury_complete?(draft) ->
+      Templates.treasury_ready?(draft, check) ->
         []
+
+      LaunchDraft.treasury_complete?(draft) ->
+        ["a treasury address that is a 2-of-3 Safe on Base"]
 
       LaunchDraft.treasury_address?(draft.treasury) ->
         ["the single-key warning, which the person types on the page"]
@@ -341,6 +347,7 @@ defmodule AutolaunchWeb.CreateLive do
       draft_notice: if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket))
     )
     |> assign_ticker_taken()
+    |> check_treasury()
   end
 
   # A section that cannot be saved stays on the form as typed, marked.
@@ -444,6 +451,7 @@ defmodule AutolaunchWeb.CreateLive do
         |> assign_loaded_draft(draft, actor)
         |> assign(status: :ready)
         |> assign_connections()
+        |> check_treasury()
 
       {:error, _error} ->
         assign(socket, status: :error)
@@ -463,6 +471,7 @@ defmodule AutolaunchWeb.CreateLive do
       reviewing?: false,
       launched?: false,
       ticker_taken?: false,
+      treasury_check: nil,
       current_human_id: actor && actor.human_account_id,
       status: :loading
     )
@@ -479,6 +488,46 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp assign_ticker_taken(socket),
     do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
+
+  # The line beside the treasury box. On the Safe path a whole address is read
+  # on Base at the latest block, away from this process, and read again only
+  # once the address changes or the last read failed. An answer for an address
+  # the box no longer holds is dropped. The local test chain is a Base fork its
+  # launch review does not check either, so nothing is read there.
+  defp check_treasury(socket) do
+    case {safe_address(socket.assigns.draft_values), socket.assigns.treasury_check} do
+      {nil, _check} ->
+        assign(socket, treasury_check: nil)
+
+      {address, %{address: address, state: state}} when state != :unread ->
+        socket
+
+      {address, _check} ->
+        socket
+        |> assign(treasury_check: %{address: address, state: :checking})
+        |> start_async(:treasury_check, fn -> {address, safe_check(address)} end)
+    end
+  end
+
+  defp safe_address(%{"treasury_path" => "safe", "treasury" => treasury}) do
+    if LaunchDraft.treasury_address?(treasury) and not Lab.test_chain?(),
+      do: String.downcase(treasury)
+  end
+
+  defp safe_address(_values), do: nil
+
+  defp safe_check(address) do
+    case TreasurySecurity.safe_check(address) do
+      {:ok, answer} -> answer
+      {:error, _unread} -> :unread
+    end
+  end
+
+  defp checked(%{address: address, state: :checking} = check, {:ok, {address, answer}}),
+    do: %{check | state: answer}
+
+  defp checked(%{state: :checking} = check, {:exit, _reason}), do: %{check | state: :unread}
+  defp checked(check, _stale), do: check
 
   defp current_or_new_draft(actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do

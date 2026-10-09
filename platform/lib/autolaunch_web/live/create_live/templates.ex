@@ -6,8 +6,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
 
-  alias Autolaunch.LaunchDraft
+  alias Autolaunch.{Lab, LaunchDraft}
   alias AutolaunchWeb.DraftMarks
+  alias RegentChain.Address
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
@@ -94,6 +95,21 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   def treasury_params, do: ["treasury", "treasury_path", "eoa_acknowledgement"]
   def draft_field_params, do: @stored_params
 
+  @doc """
+  Whether the saved treasury step is done. A Safe treasury is done only once
+  Base shows it is a 2-of-3 Safe; the local test chain is not read, as its
+  launch review does not check the treasury either.
+  """
+  def treasury_ready?(draft, check) do
+    LaunchDraft.treasury_complete?(draft) and
+      (draft.treasury_path != :safe or Lab.test_chain?() or safe_found?(draft.treasury, check))
+  end
+
+  defp safe_found?(treasury, %{address: address, state: :two_of_three_safe}),
+    do: Address.equal?(treasury, address)
+
+  defp safe_found?(_treasury, _check), do: false
+
   def blank_draft_fields,
     do:
       @stored_params
@@ -131,6 +147,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :reviewing?, :boolean, default: false
   attr :launched?, :boolean, default: false
   attr :ticker_taken?, :boolean, default: false
+  attr :treasury_check, :map, default: nil
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -138,7 +155,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     assigns =
       assigns
       |> assign(:active_draft, draft)
-      |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
+      |> assign(
+        :launch_ready?,
+        draft && LaunchDraft.token_details_complete?(draft) &&
+          treasury_ready?(draft, assigns.treasury_check)
+      )
       |> assign(:marks, marks(assigns.draft_errors, assigns.draft_values))
       |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
 
@@ -253,7 +274,15 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               note={custody_note(@draft_values["treasury_path"])}
               value={@draft_values["treasury"]}
               error={@marks["treasury"]}
-            />
+            >
+              <p
+                id="launch-treasury-details-check"
+                class="create-page__hint create-page__check"
+                role="status"
+              >
+                {safe_line(@treasury_check)}
+              </p>
+            </.draft_field>
           </form>
         </fieldset>
 
@@ -399,6 +428,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   defp custody_note(path) when path in ["eoa", :eoa],
     do: "Treasury type: single-key EOA. Never verified."
+
+  # What Base shows at the Safe address, once it has answered.
+  defp safe_line(%{state: :two_of_three_safe}), do: "2-of-3 Safe found"
+  defp safe_line(%{state: :wallet}), do: "This is a wallet, not a Safe"
+  defp safe_line(%{state: :no_safe}), do: "No Safe at this address"
+  defp safe_line(%{state: :other_safe}), do: "Safe, but not 2 of 3"
+  defp safe_line(%{state: :unread}), do: "Base could not be read just now"
+  defp safe_line(_nothing_yet), do: nil
 
   attr :form_id, :string, required: true
   attr :path, :string, default: "safe"
@@ -553,6 +590,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :value, :string, default: nil
   attr :error, :string, default: nil
   attr :warning, :string, default: nil
+  slot :inner_block
 
   def draft_field(assigns) do
     id = "#{assigns.form_id}-#{assigns.field.param}"
@@ -591,6 +629,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         aria-describedby={@described_by}
         phx-debounce="400"
       />
+      {render_slot(@inner_block)}
       <p :if={@field.hint} id={"#{@id}-hint"} class="create-page__hint">{@field.hint}</p>
       <p :if={@warning} id={"#{@id}-warning"} class="create-page__hint" role="status">{@warning}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>

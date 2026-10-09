@@ -1,6 +1,7 @@
 defmodule Autolaunch.TreasurySecurity do
   @moduledoc """
-  The one custody-classification boundary used by launch and bid reviews.
+  The one custody-classification boundary used by launch and bid reviews and
+  by the line beside the create form's treasury box.
 
   Callers supply only an address and transaction hashes. Every persisted fact is
   derived from one canonical Base observation and is written through the
@@ -120,6 +121,44 @@ defmodule Autolaunch.TreasurySecurity do
       }
     }
   end
+
+  @doc """
+  What one address is on Base at the latest block, for the line beside the
+  create form's treasury box. Nothing is saved: the launch review still
+  observes and verifies the treasury itself.
+
+  A Safe proxy whose singleton or setup the evidence manifest does not admit
+  is no Safe this site launches to, so it reads as `:no_safe` rather than as
+  a failed read.
+  """
+  @spec safe_check(String.t()) ::
+          {:ok, :two_of_three_safe | :other_safe | :wallet | :no_safe} | {:error, atom()}
+  def safe_check(address) do
+    case TreasuryChainClient.observe_latest(address) do
+      {:ok, observation} ->
+        {:ok, safe_check_answer(classification(observation), observation)}
+
+      {:error, reason}
+      when reason in [:treasury_safe_evidence_mismatch, :treasury_observation_incomplete] ->
+        {:ok, :no_safe}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp safe_check_answer(classification, _observation)
+       when classification in [:eoa, :delegated_eoa],
+       do: :wallet
+
+  defp safe_check_answer(:safe_1_of_1, _observation), do: :other_safe
+
+  defp safe_check_answer(:supported_safe, %{owners: owners, threshold: 2}) do
+    if owners_reason(owners) == :ok, do: :two_of_three_safe, else: :other_safe
+  end
+
+  defp safe_check_answer(:supported_safe, _observation), do: :other_safe
+  defp safe_check_answer(_contract, _observation), do: :no_safe
 
   defp report_attrs(address, observation) do
     classification = classification(observation)

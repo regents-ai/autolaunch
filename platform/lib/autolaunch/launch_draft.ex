@@ -63,9 +63,6 @@ defmodule Autolaunch.LaunchDraft do
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
 
-  @doc "Whether both persisted preparation stages are complete."
-  def launch_ready?(draft), do: token_details_complete?(draft) and treasury_complete?(draft)
-
   @doc "Whether this draft carries the only image shape its provenance permits."
   def image_complete?(%{
         id: draft_id,
