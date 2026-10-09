@@ -3,6 +3,18 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v80, 9 October 2026 (b75c693)
+- A launch shows its full transaction hash while waiting for confirmation, with Copy and
+  an explorer link. Pending and confirmed hashes wrap on mobile.
+- A confirmed launch keeps finding its auction page as new listings arrive. Its draft
+  clears only if it still describes that launch, preserving edits in another tab.
+- Finish refreshes on a new block from the auction's own network.
+- Hidden Robinhood auctions keep withdrawal and claim controls without public token links.
+  Failed auctions show full refunds, and receipts handle bids exactly at the clearing price.
+- Release source includes the final deployed v2 contracts, deployment records and
+  5 October fee terms. New launches use v2; the four existing v1 auctions keep working.
+- Ash is updated to the patched 3.34.6 version.
+
 ## v79, 9 October 2026 (29af631)
 - The public auction list (`GET /api/v1/auctions`) answers each address 6 times a
   minute; past that it says how many seconds to wait. One address that read it every

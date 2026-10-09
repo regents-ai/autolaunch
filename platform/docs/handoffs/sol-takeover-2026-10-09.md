@@ -111,3 +111,20 @@ existing review database. PID 4060, exec session 21863; launcher
 `http://localhost:4061/assets/sol-launch-preview.html`. Browser copy, mobile wrapping,
 WebMCP listing and opening Privy's modal were verified. Real wallet acceptance and
 release authority remain with Sean. No push, deployment or money movement occurred.
+
+### Release follow-up
+
+Sean subsequently approved push and deployment. Candidate `b75c693` is on main
+and `claude/vibrant-knuth-1td9ig`, and is live as **v80** on `autolaunch.sh`.
+The x86 Linux image passed its native-library and launch-card checks; the isolated
+read-only database check found no migration differences. Production health,
+Create, all four auction pages, graduated tokens, the browser-agent auction list
+and opening Privy's sign-in modal passed. Chain reads confirm v1 launch entry
+points paused, v2 entry points open and existing v1 bindings loaded.
+
+Runtime settings and contract descriptions were preserved. The actual release
+is in `CHANGELOG.md`; its image and evidence are recorded in
+`v2-release-review-2026-10-09.md` and workspace `artifacts/autolaunch-sol-1009/`.
+Real sign-in completion and wallet acceptance remain founder checks. Session
+expiry still requires template-first adoption; wallet wording and the launch film
+remain separate work.

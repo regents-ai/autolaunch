@@ -210,3 +210,30 @@ Use these in the changelog only when the actual deployed version and build are k
   the 5 October fee terms and accurate package status summaries. Existing v1 auctions
   keep their own interaction bindings; new launches use v2.
 - Ash is updated to the patched 3.34.6 version.
+
+### Published release
+
+Sean approved push and deployment on 9 October. Candidate `b75c693` was pushed
+to main and `claude/vibrant-knuth-1td9ig`, then deployed to `autolaunch-sh` as
+**v80**. Fly records its creation at `2026-10-09T18:26:54Z` with status complete.
+Its exact image is
+`registry.fly.io/autolaunch-sh@sha256:6c7759a873b1b21760356b8d20d6f13a47ef46e5ad3925cf5aae349e89b4cd40`.
+
+The x86 Linux image was built on Fly's native builder after local Docker
+emulation failed. Its source context included only tracked platform and blog
+files. The exact image passed crypto, ES256 verification, Markdown, image-library
+and pending/stalled/confirmed launch-card checks. Local preview files were absent.
+The isolated migration app's read-only check reported no pending or missing
+migrations; no migrations were applied, and its temporary machine was removed.
+
+After rollout, Fly health and the public home, Create, token list and all four
+existing auction pages passed. The browser-agent listing returned AGI, JollyB,
+BITE and RDOG, and the production Privy sign-in modal opened. Read-only chain
+checks confirmed all three v1 launch entry points paused and all three v2 entry
+points open. Base and Robinhood v1 interaction bindings loaded. Runtime
+descriptions, environment and machine capacity matched their pre-release values.
+
+The v80 changelog records the actual build. Verification receipts and browser
+evidence are under workspace `artifacts/autolaunch-sol-1009/`. Real sign-in
+completion and wallet acceptance remain founder checks. Template-first session
+expiry, wallet wording and the launch film remain separate work.
