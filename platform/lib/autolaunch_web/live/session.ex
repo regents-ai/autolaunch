@@ -8,6 +8,11 @@ defmodule AutolaunchWeb.Live.Session do
   alias Autolaunch.Accounts.SessionAuthority
 
   @public_root "/"
+  @market_news [
+    :autolaunch_market_updated,
+    :robinhood_market_updated,
+    :autolaunch_listings_changed
+  ]
 
   @doc """
   What the render knew, signed into the static LiveView token.
@@ -122,7 +127,12 @@ defmodule AutolaunchWeb.Live.Session do
   # after the sign-in has outlived its lifetime with no navigation or event
   # between. A lapsed lease withdraws the principal, drops what arrived and
   # sends the page to the public root, which ends the page's process and with
-  # it every private figure, subscription and read still running.
+  # it every private figure, subscription and read still running. The market
+  # feeds' news, a saved change to the listings and the grouped re-read it
+  # schedules alone go straight through: they reach every open market page,
+  # read nothing of the person's and act for nobody, and a page that reads the
+  # person's own bids or holdings on them does so through a message of its
+  # own, which is checked.
   defp hold(socket, lineage, generation, account) do
     lease = %{lineage: lineage, account_id: account.id, generation_at_mount: generation}
 
@@ -135,8 +145,10 @@ defmodule AutolaunchWeb.Live.Session do
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
       recheck(socket, lease)
     end)
-    |> attach_hook(:session_authority_info, :handle_info, fn _message, socket ->
-      recheck(socket, lease)
+    |> attach_hook(:session_authority_info, :handle_info, fn
+      {news, _update}, socket when news in @market_news -> {:cont, socket}
+      :reread_listings, socket -> {:cont, socket}
+      _message, socket -> recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_async, :handle_async, fn _name, _result, socket ->
       recheck(socket, lease)

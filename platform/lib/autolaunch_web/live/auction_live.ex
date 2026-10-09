@@ -94,23 +94,28 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   # Either feed may have moved; the combined reading decides whether the page
-  # has anything new to show.
+  # has anything new to show. The new reading includes the viewer's own bids,
+  # so it is read through a message the sign-in check sees.
   def handle_info({:autolaunch_market_updated, _update}, socket) do
     market = market_snapshot()
 
     if market.generation > socket.assigns.market.generation do
+      send(self(), :market_moved)
+      {:noreply, assign(socket, :market, market)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(:market_moved, socket),
+    do:
       {:noreply,
        socket
-       |> assign(:market, market)
        |> assign_positions()
        |> load_page(reset: false)
        |> load_book(reset: false)
        |> load_snapshot(reset: false)
        |> load_history(reset: false)}
-    else
-      {:noreply, socket}
-    end
-  end
 
   # This auction's saved record changed (its state, bids, minimum, bid terms or
   # treasury report), so the page reads it again in place, with the viewer's own
@@ -121,14 +126,18 @@ defmodule AutolaunchWeb.AuctionLive do
       else: {:noreply, socket}
   end
 
-  def handle_info(:reread_listings, socket),
-    do:
-      {:noreply,
-       socket
-       |> LiveListings.taken()
-       |> assign_positions()
-       |> load_page(reset: false)
-       |> load_history(reset: false)}
+  # The viewer's own bids are read through a message the sign-in check sees.
+  def handle_info(:reread_listings, socket) do
+    send(self(), :read_own_bids)
+
+    {:noreply,
+     socket
+     |> LiveListings.taken()
+     |> load_page(reset: false)
+     |> load_history(reset: false)}
+  end
+
+  def handle_info(:read_own_bids, socket), do: {:noreply, assign_positions(socket)}
 
   # A settlement card verified a step, so the bidder's stored positions changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),

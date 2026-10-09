@@ -107,15 +107,21 @@ defmodule AutolaunchWeb.PortfolioLive do
   end
 
   # The lab feeds moved: positions may have become returnable or claimable,
-  # and a trade may have changed what the wallets hold.
+  # and a trade may have changed what the wallets hold. Those are the person's
+  # own, so they are read through a message the sign-in check sees.
   def handle_info({event, _update}, socket)
       when event in [:autolaunch_market_updated, :robinhood_market_updated] do
     market = LabMarket.snapshot()
 
-    if market.generation > socket.assigns.market.generation,
-      do: {:noreply, socket |> assign(:market, market) |> request_reads()},
-      else: {:noreply, socket}
+    if market.generation > socket.assigns.market.generation do
+      send(self(), :market_moved)
+      {:noreply, assign(socket, :market, market)}
+    else
+      {:noreply, socket}
+    end
   end
+
+  def handle_info(:market_moved, socket), do: {:noreply, request_reads(socket)}
 
   # A settlement card verified a step, so the stored position changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
