@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v83, 9 October 2026 (1d355d4)
+- Site copy, creator reviews, token and pool explanations, public agent guidance and
+  contract docs match the final v2 allocations, fees and destinations, liquidity positions,
+  fixed auction minimums, vesting from graduation and token retirement.
+- Deployment guides identify completed v2 deployments. Historical v1 terms and lab records
+  are labelled clearly; the four existing v1 auctions keep their original terms.
+- The Robinhood-to-Base bridge remains unbuilt; protocol USDG stays in its inbox.
+
 ## v82, 9 October 2026 (a09044f)
 - Token pages show View Chart only when DexScreener lists their exact pool.
   Otherwise they show Chart unavailable, including when the listing cannot be checked.

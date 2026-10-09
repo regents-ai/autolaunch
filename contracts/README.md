@@ -60,7 +60,7 @@ address, so no protocol fee is ever taken from a raise. The auction contracts th
 upstream `ContinuousClearingAuction` instances created by `ContinuousClearingAuctionFactory.create`;
 we never deploy a modified auction.
 
-Ours (this repository):
+Legacy package source map (the current v2 packages are listed above):
 
 - **Base Revstake** (`v1/src`): `RegentsAutolaunchFactoryV1`, `RegentLBPStrategy` (a hard-cut fork
   of the Liquidity Launcher's `LBPStrategy` with every configurable input removed; the CCA creation,

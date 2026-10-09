@@ -90,9 +90,8 @@ recipients and checks them.
 
 The minimum is `ceil(auctionSupply × floorPriceQ96 / 2^96)`: 1,084,202,174 REGENT base
 units for Revstake and 26,969,530 stock base units for Memestake. The lowest permitted floor
-is rounded up to the 100-tick grid. Neither value is chosen by the launcher. A Memestake bid
-submitted after the first auction block can be counted one base unit short by CCA rounding;
-the website asks for the minimum plus one unit.
+is rounded up to the 100-tick grid. Neither value is chosen by the launcher. A bid submitted after the first auction block can be counted one currency base unit short
+by CCA rounding on both launch types; the website asks for the minimum plus one unit.
 
 | Input | Base Revstake | Base Memestake | Robinhood Memestake |
 |---|---|---|---|
