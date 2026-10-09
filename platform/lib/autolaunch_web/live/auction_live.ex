@@ -392,6 +392,7 @@ defmodule AutolaunchWeb.AuctionLive do
         module={AutolaunchWeb.FinishAuctionComponent}
         id="autolaunch-finish"
         auction={@page_record}
+        observed={@market.generation}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />

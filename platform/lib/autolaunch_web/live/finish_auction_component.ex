@@ -5,9 +5,11 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   Once bidding has ended, an auction waits for someone to finish it: the
   launch's `migrate`, open to anyone from its migration block on, which opens
   the pool or, below the minimum, opens refunds (`Autolaunch.FinishActions`).
-  The card reads the launch at the latest block when it appears, again every
-  half minute while the migration block is still ahead or the chain could not
-  be read, and once more when a finish sent from it is confirmed.
+  The card reads the launch at the latest block when it appears, and once
+  more when a finish sent from it is confirmed. While the migration block is
+  still ahead, or the chain could not be read, it reads again whenever the
+  page's market feeds take a new reading of the chain: the page passes their
+  generation as `observed`.
 
   The wallet that sends is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); any of the account's wallets may
@@ -26,23 +28,27 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   alias AutolaunchWeb.OnchainSteps
   alias RegentChain.{Presses, Review}
 
-  @recheck_ms 30_000
-
   @impl true
   def mount(socket) do
     {:ok,
      socket
      |> OnchainSteps.init()
-     |> assign(signer: nil, mismatch: nil, launch: nil, unread: false, asked: false, timer: nil)}
+     |> assign(signer: nil, mismatch: nil, launch: nil, unread: false, observed: nil)}
   end
 
   @impl true
-  def update(%{reread: true}, socket), do: {:ok, socket |> assign(timer: nil) |> read()}
-
   def update(assigns, socket) do
+    seen = socket.assigns.observed
     socket = socket |> assign(assigns) |> OnchainSteps.adopt() |> followed()
-    {:ok, if(socket.assigns.asked, do: socket, else: read(socket))}
+    {:ok, if(read_again?(seen, socket.assigns), do: read(socket), else: socket)}
   end
+
+  # The first update reads; after that, a new feed reading is a reason to read
+  # again only while the answer could still change to "ready".
+  defp read_again?(seen, %{observed: seen}), do: false
+  defp read_again?(nil, _assigns), do: true
+  defp read_again?(_seen, %{unread: true}), do: true
+  defp read_again?(_seen, %{launch: launch}), do: waiting?(launch)
 
   # The card follows the wallet that may act; a review is built for one signer.
   defp followed(socket) do
@@ -137,13 +143,10 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
   @impl true
-  def handle_async(:launch, {:ok, {:ok, launch}}, socket) do
-    socket = socket |> assign(launch: launch, unread: false) |> reviewed()
-    if waiting?(launch), do: {:noreply, recheck_later(socket)}, else: {:noreply, socket}
-  end
+  def handle_async(:launch, {:ok, {:ok, launch}}, socket),
+    do: {:noreply, socket |> assign(launch: launch, unread: false) |> reviewed()}
 
-  def handle_async(:launch, _unread, socket),
-    do: {:noreply, socket |> assign(unread: true) |> recheck_later()}
+  def handle_async(:launch, _unread, socket), do: {:noreply, assign(socket, unread: true)}
 
   # A finish that lands is read back at once: confirmed, the button turns to
   # finished; reverted, the launch may have been finished by someone else.
@@ -154,22 +157,10 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
 
   defp read(socket) do
     auction = socket.assigns.auction
-
-    socket
-    |> assign(asked: true)
-    |> start_async(:launch, fn -> FinishActions.read(auction) end)
+    start_async(socket, :launch, fn -> FinishActions.read(auction) end)
   end
 
   defp reread(socket, _entry), do: read(socket)
-
-  defp recheck_later(socket) do
-    if socket.assigns.timer, do: Process.cancel_timer(socket.assigns.timer)
-
-    timer =
-      send_update_after(self(), __MODULE__, [id: socket.assigns.id, reread: true], @recheck_ms)
-
-    assign(socket, timer: timer)
-  end
 
   defp waiting?(%{state: :running, clock: clock, migration_block: migration_block}),
     do: clock < migration_block
