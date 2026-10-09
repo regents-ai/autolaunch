@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v77, 9 October 2026 (98c7f73)
+- The public auction list (`GET /api/v1/auctions`) is kept for five seconds, so callers
+  asking for the same list again share one answer. The site now runs on a shared
+  2 CPU / 2 GB machine.
+
 ## v76, 9 October 2026 (6d93209)
 - On the Revstake Create page, a Safe treasury address is now read on Base as it is
   pasted, and a line under the box says what is there: "2-of-3 Safe found", "This is a
