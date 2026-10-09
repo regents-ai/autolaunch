@@ -44,8 +44,14 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   def update(%{refresh_review: review_id}, socket),
     do: {:ok, LaunchSteps.refreshed(socket, review_id, current(socket), &prepare(socket, &1))}
 
-  def update(assigns, socket),
-    do: {:ok, socket |> assign(assigns) |> OnchainSteps.adopt() |> LaunchSteps.followed()}
+  def update(assigns, socket) do
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> OnchainSteps.adopt()
+     |> LaunchSteps.followed()
+     |> LaunchSteps.relisted(socket.assigns.listings)}
+  end
 
   @impl true
   def render(assigns) do
@@ -224,7 +230,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
        )}
 
   def handle_async({:launch_page, hash}, answer, socket),
-    do: {:noreply, LaunchSteps.found(socket, hash, answer, LaunchSteps.base_page(:stocks_launch))}
+    do: {:noreply, LaunchSteps.found(socket, hash, answer)}
 
   defp prepare(socket, signer) do
     case LaunchActions.prepare(socket.assigns.draft.id, signer, opts(socket)) do

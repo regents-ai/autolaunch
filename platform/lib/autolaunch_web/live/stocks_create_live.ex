@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchChain, Stocks, Ticker}
+  alias Autolaunch.{LaunchChain, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.DraftMarks
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
@@ -51,6 +51,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         market: %{prices: %{}, venues: []},
         reviewing?: false,
         launched?: false,
+        listings: 0,
         ticker_taken?: false,
         status: :loading
       )
@@ -82,6 +83,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
         {:ok,
          if connected?(socket) do
+           Listings.subscribe()
+
            socket
            |> load_draft(actor)
            |> choose_linked_stock()
@@ -204,6 +207,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
       actor -> {:noreply, socket |> load_draft(actor) |> assign_ticker_taken()}
     end
   end
+
+  # Something new is listed: a launch card still looking for the auction page
+  # of a launch made here looks again (`AutolaunchWeb.LaunchSteps.relisted/2`).
+  def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
+    do: {:noreply, update(socket, :listings, &(&1 + 1))}
 
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}

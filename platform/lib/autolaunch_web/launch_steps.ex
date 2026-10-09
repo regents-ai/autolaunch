@@ -24,6 +24,8 @@ defmodule AutolaunchWeb.LaunchSteps do
   Once the page sees its launch confirmed, the review comes off the page, the
   form starts over blank, and the card says the launch is made, with its
   transaction and, once the site has it, its auction page (`launched/4`).
+  The page is looked for once at once, and again each time the site lists
+  something new while the card is showing (`relisted/2`).
   """
 
   use Phoenix.Component
@@ -42,16 +44,19 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   @launched "Sent. The page shows the launch once the network confirms it, with a link to its auction page, and autolaunch_auctions lists it within a minute."
 
-  # The auction page of a confirmed launch is asked for every two seconds for
-  # a minute; Explore lists the launch within a minute either way.
-  @page_reads 30
-  @page_read_ms 2_000
-
   @doc "The assigns a launch card starts with."
   def init(socket) do
     socket
     |> OnchainSteps.init()
-    |> assign(signer: nil, mismatch: nil, prepared: nil, reviews: %{}, launched: nil, notice: nil)
+    |> assign(
+      signer: nil,
+      mismatch: nil,
+      prepared: nil,
+      reviews: %{},
+      launched: nil,
+      notice: nil,
+      listings: nil
+    )
   end
 
   @doc """
@@ -240,7 +245,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   or `:memestake`. `find` answers in the background, with what the review was
   prepared with and the hash, `{:ok, path}` for the auction page or `:not_yet`;
   the answer arrives as `handle_async({:launch_page, hash}, ...)`, for
-  `found/4`.
+  `found/3`. Until it finds the page, `relisted/2` asks `find` again.
   """
   def launched(socket, entry, draft_kind, find) do
     case prepared(socket, entry) do
@@ -263,36 +268,38 @@ defmodule AutolaunchWeb.LaunchSteps do
             hash: entry.hash,
             symbol: prepared.facts["symbol"],
             prepared: prepared,
+            find: find,
             path: nil,
             finding?: true
           }
         )
         |> off_page(:launched)
-        |> find_page(find, 0)
+        |> find_page()
     end
   end
 
   @doc "One answer of `find` for the launch on the card, as `launched/4` describes."
-  def found(%{assigns: %{launched: %{hash: hash} = launched}} = socket, hash, answer, find) do
+  def found(%{assigns: %{launched: %{hash: hash} = launched}} = socket, hash, answer) do
     case answer do
-      {:ok, {_reads, {:ok, path}}} ->
-        assign(socket, launched: %{launched | path: path, finding?: false})
-
-      {:ok, {reads, :not_yet}} when reads + 1 < @page_reads ->
-        find_page(socket, find, reads + 1)
-
-      _no_page ->
-        assign(socket, launched: %{launched | finding?: false})
+      {:ok, {:ok, path}} -> assign(socket, launched: %{launched | path: path, finding?: false})
+      _not_yet -> assign(socket, launched: %{launched | finding?: false})
     end
   end
 
-  def found(socket, _earlier_hash, _answer, _find), do: socket
+  def found(socket, _earlier_hash, _answer), do: socket
 
-  defp find_page(%{assigns: %{launched: %{hash: hash, prepared: prepared}}} = socket, find, reads) do
-    start_async(socket, {:launch_page, hash}, fn ->
-      if reads > 0, do: Process.sleep(@page_read_ms)
-      {reads, find.(prepared, hash)}
-    end)
+  @doc """
+  The card's `listings`, the page's count of what the site has newly listed
+  since a launch was made here, against `seen`, the count before this update:
+  a new count looks for the launch's auction page again until it is found.
+  """
+  def relisted(%{assigns: %{listings: seen}} = socket, seen), do: socket
+  def relisted(%{assigns: %{launched: %{path: nil}}} = socket, _seen), do: find_page(socket)
+  def relisted(socket, _seen), do: socket
+
+  defp find_page(%{assigns: %{launched: launched}} = socket) do
+    %{hash: hash, prepared: prepared, find: find} = launched
+    start_async(socket, {:launch_page, hash}, fn -> find.(prepared, hash) end)
   end
 
   @doc """
