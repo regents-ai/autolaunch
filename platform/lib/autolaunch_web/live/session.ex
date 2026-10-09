@@ -117,12 +117,12 @@ defmodule AutolaunchWeb.Live.Session do
   # provider evidence are re-read every time, and the principal is rebuilt from
   # that read rather than from the struct the mount captured.
   #
-  # Every message and every background result is re-read the same way before
-  # the page sees it, because a notification or a read can arrive after the
-  # sign-in has outlived its lifetime with no navigation or event between. A
-  # lapsed lease then drops it and sends the page to the public root, which
-  # ends the page's process and with it every private figure, subscription and
-  # read still running.
+  # Every navigation, event, message and background result is re-read the same
+  # way before the page sees it, because a notification or a read can arrive
+  # after the sign-in has outlived its lifetime with no navigation or event
+  # between. A lapsed lease withdraws the principal, drops what arrived and
+  # sends the page to the public root, which ends the page's process and with
+  # it every private figure, subscription and read still running.
   defp hold(socket, lineage, generation, account) do
     lease = %{lineage: lineage, account_id: account.id, generation_at_mount: generation}
 
@@ -130,27 +130,25 @@ defmodule AutolaunchWeb.Live.Session do
     |> assign_principal(account)
     |> Phoenix.Component.assign(:session_lease, lease)
     |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
-      recheck(socket, lease, &to_public_root/1)
+      recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
-      recheck(socket, lease, &Function.identity/1)
+      recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_info, :handle_info, fn _message, socket ->
-      recheck(socket, lease, &to_public_root/1)
+      recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_async, :handle_async, fn _name, _result, socket ->
-      recheck(socket, lease, &to_public_root/1)
+      recheck(socket, lease)
     end)
   end
 
-  defp recheck(socket, lease, after_lapse) do
+  defp recheck(socket, lease) do
     case leased(lease) do
-      nil -> {:halt, socket |> lapsed() |> after_lapse.()}
+      nil -> {:halt, socket |> lapsed() |> redirect(to: @public_root)}
       account -> {:cont, assign_principal(socket, account)}
     end
   end
-
-  defp to_public_root(socket), do: redirect(socket, to: @public_root)
 
   # A lapsed lease is withdrawn along with the principal, so nothing downstream
   # can still present it as authority for a write.
