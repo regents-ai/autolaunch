@@ -281,6 +281,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       current_human_id={current_human_id(@access_context)}
       session_lease={@session_lease}
     />
+    <.live_component
+      :if={@launch.state == :ended}
+      module={AutolaunchWeb.FinishAuctionComponent}
+      id="autolaunch-robinhood-finish"
+      auction={@launch}
+      current_human_id={current_human_id(@access_context)}
+      session_lease={@session_lease}
+    />
     """
   end
 

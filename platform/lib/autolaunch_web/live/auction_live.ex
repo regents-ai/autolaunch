@@ -387,6 +387,14 @@ defmodule AutolaunchWeb.AuctionLive do
         title="Bidding has ended"
       />
       <p class="bid-ended">{ended_copy(@page_record)}</p>
+      <.live_component
+        :if={@page_record.state not in [:graduated, :failed]}
+        module={AutolaunchWeb.FinishAuctionComponent}
+        id="autolaunch-finish"
+        auction={@page_record}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
       <p :if={@account_control.kind != :signed_in} class="bid-empty">
         <Regent.Primitives.button type="button" data-account-target="sign-in">
           Sign in to see your bids

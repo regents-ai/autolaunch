@@ -80,6 +80,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
       f: {"launchIdOfToken(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
+      f: {"migrate(uint256)", "nonpayable", []},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f: {"creatorReleasable(uint256)", "view", ["uint256"]},
@@ -178,6 +179,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"launches(uint256)", "view", [@v1_launch_record]},
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
+      f: {"migrate(uint256)", "nonpayable", []},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f: {"stockRecords(uint256)", "view", ["(uint256,uint128)"]}
     ],

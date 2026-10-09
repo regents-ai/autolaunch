@@ -82,6 +82,7 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
       f: {"launchIdOfToken(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
+      f: {"migrate(uint256)", "nonpayable", []},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f: {"creatorReleasable(uint256)", "view", ["uint256"]},
@@ -179,6 +180,7 @@ defmodule Autolaunch.Stocks.LabAbi do
     "launchpad" => [
       f: {"launches(uint256)", "view", [@v1_launch_record]},
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
+      f: {"migrate(uint256)", "nonpayable", []},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]}
     ],
     "hook" => [

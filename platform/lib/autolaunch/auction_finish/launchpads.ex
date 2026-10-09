@@ -1,8 +1,10 @@
 defmodule Autolaunch.AuctionFinish.Launchpads do
   @moduledoc """
-  The launchpads this site describes, and what the finisher needs from each:
-  how many launches it has, one launch's auction, migration block and state,
-  and the `migrate` call that finishes it.
+  The launchpads this site describes, and what finishing a launch needs from
+  each: how many launches it has, one launch's auction, migration block and
+  state, and the `migrate` call that finishes it. The finisher drives the
+  second launchpads (`configured/0`); an auction page's Finish button reaches
+  the launchpad its own auction runs on, first or second (`for_auction/1`).
 
   - Base Revstake: the factory numbers the launches and the strategy holds
     each auction's distribution and finishes it with `migrate(address auction)`.
@@ -13,7 +15,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   the deployed contracts' field order.
   """
 
-  alias Autolaunch.Chain.Rpc
+  alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.Lab
   alias Autolaunch.LabAbi
   alias Autolaunch.LabRpc
@@ -28,14 +30,30 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   @scope "auction finisher"
 
-  @doc "Every launchpad the loaded deployment descriptions name."
+  @doc "Every second launchpad the loaded deployment descriptions name."
   def configured do
     [
-      Lab.configured?() && revstake(Lab.current!()),
-      StocksLab.configured?() && memestake(StocksLab.current!()),
-      RobinhoodLab.configured?() && robinhood(RobinhoodLab.current())
+      Lab.configured?() && {:ok, revstake(Lab.current!())},
+      StocksLab.configured?() && memestake(StocksLab.current(), :v2),
+      RobinhoodLab.configured?() && robinhood(RobinhoodLab.current(), :v2)
     ]
-    |> Enum.filter(& &1)
+    |> Enum.flat_map(fn
+      false -> []
+      {:ok, pad} -> [pad]
+    end)
+  end
+
+  @doc """
+  The launchpad a listed auction runs on: the Robinhood one on Robinhood's
+  chain, otherwise Revstake for an agent auction and Memestake for a stocks
+  one, each of the auction's own contracts version.
+  """
+  def for_auction(%{chain_id: chain_id, kind: kind, contracts_version: version}) do
+    cond do
+      RobinhoodLab.chain?(chain_id) -> robinhood(RobinhoodLab.current(), version)
+      kind == :agent -> with {:ok, config} <- Lab.current(), do: {:ok, revstake(config)}
+      true -> memestake(StocksLab.current(), version)
+    end
   end
 
   @doc "The configured launchpad a recorded launch belongs to."
@@ -67,8 +85,53 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   def launch(%{launchpad: :base_revstake} = pad, launch_id, block) do
     with {:ok, launch} <-
            words(pad.contract, pad.abi, "launches(uint256)", [launch_id], 5, block, pad),
-         auction = address(Enum.at(launch, 2)),
-         {:ok, distribution} <-
+         do: distribution(pad, address(Enum.at(launch, 2)), block)
+  end
+
+  def launch(pad, launch_id, block) do
+    with {:ok, words} <-
+           words(
+             pad.contract,
+             pad.abi,
+             "launches(uint256)",
+             [launch_id],
+             pad.shape.record_words,
+             block,
+             pad
+           ) do
+      launch = pad.records.record(pad.shape, words)
+
+      {:ok,
+       %{
+         auction: address(launch.auction),
+         migration_block: launch.migration_block,
+         state: Map.fetch!(@states, launch.lifecycle)
+       }}
+    end
+  end
+
+  @doc """
+  The launch of the auction at `auction`, as `launch/3` reads it, with the
+  launch id `migrate_call/2` names on a Memestake launchpad.
+  """
+  def launch_of_auction(%{launchpad: :base_revstake} = pad, auction, block),
+    do: distribution(pad, auction, block)
+
+  def launch_of_auction(pad, auction, block) do
+    with {:ok, launch_id} <-
+           Rpc.call_uint(
+             pad.contract,
+             LabAbi.encode(pad.abi, "launchIdOfAuction(address)", [auction]),
+             block,
+             pad.opts
+           ),
+         {:ok, launch} <- launch(pad, launch_id, block),
+         do: {:ok, Map.put(launch, :launch_id, launch_id)}
+  end
+
+  # The strategy holds each Revstake auction's lifecycle and migration block.
+  defp distribution(pad, auction, block) do
+    with {:ok, distribution} <-
            words(
              pad.strategy,
              pad.strategy_abi,
@@ -89,30 +152,6 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     end
   end
 
-  def launch(pad, launch_id, block) do
-    {abi_module, shape} = layout(pad.launchpad)
-
-    with {:ok, words} <-
-           words(
-             pad.contract,
-             pad.abi,
-             "launches(uint256)",
-             [launch_id],
-             shape.record_words,
-             block,
-             pad
-           ) do
-      launch = abi_module.record(shape, words)
-
-      {:ok,
-       %{
-         auction: address(launch.auction),
-         migration_block: launch.migration_block,
-         state: Map.fetch!(@states, launch.lifecycle)
-       }}
-    end
-  end
-
   @doc "The contract and calldata that finish a recorded launch."
   def migrate_call(%{launchpad: :base_revstake} = pad, launch),
     do: %{
@@ -127,6 +166,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     %{
       launchpad: :base_revstake,
       chain_id: config.chain_id,
+      chain: Client.chain(config),
       contract: Lab.address!(config, :factory),
       abi: Lab.abi!(config, :factory),
       strategy: Lab.address!(config, :strategy),
@@ -135,29 +175,41 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     }
   end
 
-  defp memestake(config) do
-    %{
-      launchpad: :base_memestake,
-      chain_id: config.chain_id,
-      contract: StocksLab.address!(config, :launchpad),
-      abi: StocksLab.abi!(config, :launchpad),
-      opts: StocksLab.rpc_opts(config, @scope)
-    }
+  defp memestake({:ok, config}, version) do
+    with {:ok, contracts} <- StocksLab.contracts(config, version) do
+      {:ok,
+       %{
+         launchpad: :base_memestake,
+         chain_id: config.chain_id,
+         chain: Client.chain(config),
+         contract: contracts.launchpad,
+         abi: contracts.abis["launchpad"],
+         shape: contracts,
+         records: StocksLabAbi,
+         opts: StocksLab.rpc_opts(config, @scope)
+       }}
+    end
   end
 
-  defp robinhood({:ok, config}) do
-    %{
-      launchpad: :robinhood_memestake,
-      chain_id: config.chain_id,
-      contract: RobinhoodLab.address!(config, :stocks_launchpad),
-      abi: RobinhoodLab.abi!(config, :stocks_launchpad),
-      opts: RobinhoodLab.rpc_opts(config)
-    }
+  defp memestake(error, _version), do: error
+
+  defp robinhood({:ok, config}, version) do
+    with {:ok, contracts} <- RobinhoodLab.contracts(config, version) do
+      {:ok,
+       %{
+         launchpad: :robinhood_memestake,
+         chain_id: config.chain_id,
+         chain: Client.chain(config),
+         contract: contracts.launchpad,
+         abi: contracts.abis["launchpad"],
+         shape: contracts,
+         records: RobinhoodLabAbi,
+         opts: RobinhoodLab.rpc_opts(config)
+       }}
+    end
   end
 
-  # The finisher drives only the second launchpads.
-  defp layout(:base_memestake), do: {StocksLabAbi, StocksLabAbi.shape(:v2)}
-  defp layout(:robinhood_memestake), do: {RobinhoodLabAbi, RobinhoodLabAbi.shape(:v2)}
+  defp robinhood(error, _version), do: error
 
   defp words(to, abi, signature, arguments, count, block, pad),
     do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, pad.opts)
