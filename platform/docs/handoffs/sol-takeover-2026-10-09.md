@@ -147,3 +147,24 @@ runtime settings, contract descriptions, capacity and services match the prior
 release. No auction finish or wallet transaction was sent. Evidence is in
 workspace `artifacts/autolaunch-sol-1009/agi-production-fixed.png` and
 `agi-v81-legacy-pages.json`.
+
+### Chart availability correction
+
+Sean approved the chart correction, push and deployment. Commit `a09044f` is on
+main and the working branch and is live as **v82**, image
+`sha256:e0d38a1ff31f6ae33be2538c91720e97aa96ca43780bc55cf1e887b84460a267`.
+Base and Robinhood token pages show View Chart only after DexScreener confirms
+the exact pool. Loading, missing listings and failed checks show Chart unavailable.
+Checks run when the control mounts; results are kept for one minute.
+
+The complete platform gate passed. Separate checks covered listed and missing
+pools, wrong pools and networks, malformed replies, timeouts and the short cache.
+All control states fit desktop and 320-pixel phone layouts. Production lookup
+confirmed BITE unavailable and REGENT listed. Connected live BITE and RDOG token
+pages show Chart unavailable with no chart link. Evidence is in workspace
+`artifacts/autolaunch-sol-1009/chart-lookup-proof.txt`,
+`chart-preview-mobile.png` and `chart-bite-production.png`.
+
+Production health passed; runtime settings, contract descriptions, capacity and
+services match v81. No contract, secret, production database or wallet action was
+taken for this correction.

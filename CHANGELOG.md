@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v82, 9 October 2026 (a09044f)
+- Token pages show View Chart only when DexScreener lists their exact pool.
+  Otherwise they show Chart unavailable, including when the listing cannot be checked.
+  This applies on Base and Robinhood; listing results are kept for one minute.
+
 ## v81, 9 October 2026 (409523b)
 - Ended auction pages load correctly again. The Finish card receives its network's
   latest block reading on Base and Robinhood, fixing AGI's stuck Loading screen.
