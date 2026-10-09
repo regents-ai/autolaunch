@@ -106,6 +106,7 @@ defmodule Autolaunch.Auction do
     # The auction pages the sitemap lists, newest first, bounded.
     read :sitemap do
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare Autolaunch.Auction.Preparations.Shown
       prepare build(sort: [inserted_at: :desc, id: :asc], limit: 5_000, load: [:path_tail])
     end
 
@@ -141,6 +142,7 @@ defmodule Autolaunch.Auction do
 
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 50
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare Autolaunch.Auction.Preparations.Shown
 
       # A query with a value the list does not know is refused as it stands.
       prepare fn
@@ -244,6 +246,7 @@ defmodule Autolaunch.Auction do
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.Shown
       prepare build(load: [:treasury_security_report, :path_tail])
     end
 
@@ -253,6 +256,7 @@ defmodule Autolaunch.Auction do
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare Autolaunch.Auction.Preparations.Shown
       prepare build(load: [:treasury_security_report, :path_tail])
     end
 
@@ -268,6 +272,7 @@ defmodule Autolaunch.Auction do
 
       filter expr(string_downcase(token_symbol) == string_downcase(^arg(:symbol)))
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare Autolaunch.Auction.Preparations.Shown
       prepare build(load: [:path_tail], limit: 2)
 
       prepare fn query, _context ->
@@ -282,6 +287,7 @@ defmodule Autolaunch.Auction do
       argument :symbols, {:array, :string}, allow_nil?: false
       filter expr(string_downcase(token_symbol) in ^arg(:symbols))
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare Autolaunch.Auction.Preparations.Shown
     end
 
     # A listed Robinhood auction, which its address names on the site.
@@ -290,6 +296,7 @@ defmodule Autolaunch.Auction do
       argument :auction_address, :string, allow_nil?: false
       filter expr(auction_address == ^arg(:auction_address))
       prepare Autolaunch.Auction.Preparations.Listed
+      prepare Autolaunch.Auction.Preparations.Shown
       prepare build(load: [:path_tail])
 
       prepare fn query, _context ->
@@ -386,6 +393,19 @@ defmodule Autolaunch.Auction do
       ]
     end
 
+    # Takes an auction off every public list and page, or puts it back; an
+    # operator's switch for test launches and unlawful or abusive text. Its
+    # bidders' records, activity and portfolio rows go on as before.
+    update :hide do
+      accept []
+      change set_attribute(:hidden, true)
+    end
+
+    update :show do
+      accept []
+      change set_attribute(:hidden, false)
+    end
+
     update :set_treasury_security_report do
       require_atomic? false
       accept [:treasury_security_report_id]
@@ -438,6 +458,10 @@ defmodule Autolaunch.Auction do
       authorize_if Autolaunch.Checks.SystemActor
     end
 
+    policy action([:hide, :show]) do
+      authorize_if Autolaunch.Checks.SystemActor
+    end
+
     policy action(:set_treasury_security_report) do
       authorize_if Autolaunch.Checks.SystemActor
     end
@@ -459,6 +483,8 @@ defmodule Autolaunch.Auction do
     publish :refresh_activity, "listings"
     publish :set_bid_terms, "listings"
     publish :set_treasury_security_report, "listings"
+    publish :hide, "listings"
+    publish :show, "listings"
 
     publish :refresh_lab_market, "listings",
       filter: fn %{changeset: %{data: before}, data: after_refresh} ->
@@ -530,6 +556,12 @@ defmodule Autolaunch.Auction do
     attribute :featured, :boolean do
       allow_nil? false
       public? true
+      default false
+    end
+
+    # Off every public list and page while true; see `:hide`.
+    attribute :hidden, :boolean do
+      allow_nil? false
       default false
     end
 

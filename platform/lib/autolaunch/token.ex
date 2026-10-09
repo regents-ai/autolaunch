@@ -37,6 +37,7 @@ defmodule Autolaunch.Token do
     # The token pages the sitemap lists, newest graduation first, bounded.
     read :sitemap do
       prepare Autolaunch.Token.Preparations.ListedAuction
+      prepare Autolaunch.Token.Preparations.ShownAuction
 
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
@@ -67,6 +68,7 @@ defmodule Autolaunch.Token do
 
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 100
       prepare Autolaunch.Token.Preparations.ListedAuction
+      prepare Autolaunch.Token.Preparations.ShownAuction
 
       # A query with a value the list does not know is refused as it stands.
       prepare fn
@@ -148,6 +150,7 @@ defmodule Autolaunch.Token do
 
       filter expr(subject_id == ^arg(:subject_id))
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.ShownAuction
 
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
@@ -178,6 +181,7 @@ defmodule Autolaunch.Token do
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.ShownAuction
       prepare build(load: [:treasury_security_report, :auction])
     end
 

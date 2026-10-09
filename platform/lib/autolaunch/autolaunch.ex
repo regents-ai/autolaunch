@@ -145,6 +145,8 @@ defmodule Autolaunch do
         args: [:state, :current_clearing_price]
 
       define :bid_position, action: :bid_position, args: [:auction_id, :expected_signer]
+      define :hide_auction, action: :hide
+      define :show_auction, action: :show
     end
 
     # The saved Revstake launch review is written only by `LaunchActions` under

@@ -19,6 +19,9 @@ defmodule AutolaunchWeb.ConvertLive do
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Paths
 
+  # Leaves out a token whose auction an operator hid.
+  @shown [filter: [auction: [hidden: false]]]
+
   @concurrency 4
   @read_timeout 30_000
 
@@ -130,7 +133,11 @@ defmodule AutolaunchWeb.ConvertLive do
 
   defp base_rows do
     if StocksLab.configured?(),
-      do: with({:ok, tokens} <- Autolaunch.list_tokens(actor: nil), do: base_rows(tokens)),
+      do:
+        with(
+          {:ok, tokens} <- Autolaunch.list_tokens(actor: nil, query: @shown),
+          do: base_rows(tokens)
+        ),
       else: {:ok, %{base: []}}
   end
 
@@ -159,7 +166,7 @@ defmodule AutolaunchWeb.ConvertLive do
     if RobinhoodLab.configured?(),
       do:
         with(
-          {:ok, tokens} <- Autolaunch.list_listed_tokens(actor: nil),
+          {:ok, tokens} <- Autolaunch.list_listed_tokens(actor: nil, query: @shown),
           do: robinhood_rows(tokens)
         ),
       else: {:ok, %{robinhood: []}}

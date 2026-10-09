@@ -449,7 +449,11 @@ defmodule Autolaunch.AuctionActivity do
     Repo.transaction(fn ->
       current =
         Auction
-        |> Ash.Query.for_read(:listed_by_id, %{id: auction.id}, actor: @actor)
+        |> Ash.Query.for_read(
+          :by_chain_address,
+          %{chain_id: auction.chain_id, auction_address: auction.auction_address},
+          actor: @actor
+        )
         |> Ash.Query.lock(:for_update)
         |> Ash.read_one!()
 
@@ -546,7 +550,11 @@ defmodule Autolaunch.AuctionActivity do
     Repo.transaction(fn ->
       current =
         Auction
-        |> Ash.Query.for_read(:listed_by_id, %{id: auction.id}, actor: @actor)
+        |> Ash.Query.for_read(
+          :by_chain_address,
+          %{chain_id: auction.chain_id, auction_address: auction.auction_address},
+          actor: @actor
+        )
         |> Ash.Query.lock(:for_update)
         |> Ash.read_one!()
 
