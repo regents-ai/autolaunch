@@ -300,7 +300,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
 
     # The public list carries the site's Robinhood launch as last stored,
     # beside Base; the launch seen only on chain is stored but not listed.
-    {:ok, listed} = Autolaunch.HomeMarket.read(Autolaunch.HomeMarket.options(%{}))
+    {:ok, listed} = Autolaunch.HomeMarket.read(Autolaunch.HomeMarket.options(%{"state" => "all"}))
     site = Enum.find(rows, &(&1.auction_address == @site_auction))
 
     assert Enum.sort(Enum.map(listed.records, & &1.id)) == Enum.sort([base.id, site.id])
@@ -470,7 +470,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert %{origin: :chain, creator_human_account_id: nil} = row(@graduated_auction)
     assert %{origin: :site} = row(@site_auction)
 
-    {:ok, listed} = Autolaunch.HomeMarket.read(Autolaunch.HomeMarket.options(%{}))
+    {:ok, listed} = Autolaunch.HomeMarket.read(Autolaunch.HomeMarket.options(%{"state" => "all"}))
     assert Enum.map(listed.records, & &1.auction_address) == [@site_auction]
   end
 
