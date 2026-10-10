@@ -144,7 +144,7 @@ defmodule AutolaunchWeb.AuctionsLive do
   defp pill(options) do
     cond do
       options.state == "graduated" -> :graduated
-      options.state == "active" and options.sort == "newest" -> :new
+      options.state == "active" and options.sort == "newest" -> :live
       options.state == "all" and not (options.x or options.ens or options.github) -> :all
       true -> nil
     end
@@ -187,8 +187,8 @@ defmodule AutolaunchWeb.AuctionsLive do
         <.link patch={list_path(@options, @all)} aria-current={if @pill == :all, do: "page"}>All</.link>
         <.link
           patch={list_path(@options, %{state: "active", sort: "newest"})}
-          aria-current={if @pill == :new, do: "page"}
-        >New</.link>
+          aria-current={if @pill == :live, do: "page"}
+        >Live</.link>
         <.link
           patch={list_path(@options, %{state: "graduated"})}
           aria-current={if @pill == :graduated, do: "page"}
@@ -223,7 +223,13 @@ defmodule AutolaunchWeb.AuctionsLive do
         </Regent.Primitives.notice>
 
         <div :if={!@loading && !@failed && @records == []} class="market-list__empty" role="status">
-          <h2>{if filtered?(@options), do: "No matching auctions", else: "No auctions yet"}</h2>
+          <h2>
+            {cond do
+              @options.state == "active" -> "No live auctions"
+              filtered?(@options) -> "No matching auctions"
+              true -> "No auctions yet"
+            end}
+          </h2>
           <p :if={filtered?(@options)}>Try a different search, or clear your filters.</p>
           <.link
             :if={filtered?(@options)}
