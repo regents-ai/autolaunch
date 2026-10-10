@@ -37,11 +37,12 @@ defmodule AutolaunchWeb.ProfileLive do
 
   def handle_async({Read, _, _} = name, result, socket) do
     with %{lineage: lineage, account_id: id} <- socket.assigns.session_lease,
-         account when not is_nil(account) <- SessionAuthority.leased_account(lineage, id),
+         {:ok, account} when not is_nil(account) <- read_leased_account(lineage, id),
          {:human, current} <- socket.assigns.access_context.principal,
          true <- account.privy_user_id == current.privy_user_id do
       {:noreply, Read.settle(socket, name, result)}
     else
+      {:error, :session_unavailable} -> {:noreply, unavailable_reads(socket)}
       _ -> {:noreply, socket |> clear_reads() |> assign(current_human_id: nil)}
     end
   end
@@ -210,6 +211,28 @@ defmodule AutolaunchWeb.ProfileLive do
       _ ->
         clear_reads(socket)
     end
+  end
+
+  # The authority's bang read raises database failures directly or as an Ash
+  # unknown-read error. Without current authority, discard even saved figures.
+  defp read_leased_account(lineage, id) do
+    {:ok, SessionAuthority.leased_account(lineage, id)}
+  rescue
+    _failure in [Postgrex.Error, DBConnection.ConnectionError, Ash.Error.Unknown] ->
+      {:error, :session_unavailable}
+  end
+
+  defp unavailable_reads(socket) do
+    Enum.reduce(@reads, socket, fn name, socket ->
+      read = Map.fetch!(socket.assigns, name)
+
+      assign(socket, name, %Read{
+        state: :error,
+        owner: read.owner,
+        generation: read.generation + 1,
+        error: :session_unavailable
+      })
+    end)
   end
 
   defp clear_reads(socket), do: Enum.reduce(@reads, socket, &Read.clear(&2, &1))

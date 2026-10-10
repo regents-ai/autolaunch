@@ -71,7 +71,7 @@ defmodule AutolaunchWeb.AgentAccountController do
           account_id: conn.assigns.actor.human_account_id,
           pairing_id: actor.pairing_id,
           credits: RegentCredits.balance(actor.privy_user_id),
-          spending_grant: Map.delete(budget, :grant_approvals_available),
+          spending_grant: budget,
           grant_approvals_available: budget.grant_approvals_available
         })
 

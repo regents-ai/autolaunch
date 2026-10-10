@@ -1,6 +1,6 @@
 # Credits and Points adoption
 
-Read-only summaries and activity live on `/profile`. Credits use the verified Privy identifier. Points resolve the shared account by that same identifier, never a local product account number. Missing accounts and failed reads are unavailable. Sign-out discards late private results. Signed agent balances use the shared `agent_budget` action while preserving the response envelope and separate grant-approval flag.
+Read-only summaries and activity live on `/profile`. Credits use the verified Privy identifier. Points resolve the shared account by that same identifier, never a local product account number. Missing accounts and failed reads are unavailable. Sign-out discards late private results. If session authority cannot be read while a result arrives, all private figures become unavailable; the page does not claim sign-out or retain an earlier balance. Signed agent balances use the shared `agent_budget` action and return its full result as `spending_grant`, including `grant_approvals_available`. The existing top-level `grant_approvals_available` also remains for compatibility.
 
 Pins: elixir-utils `96fe9d3f386742ce93b04c6dfca183d99cc00787`; design-system `fe81f0b10a43690e556e8f8fb313e685b35ec0b3`; template reference `4c35436`.
 
