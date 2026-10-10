@@ -249,7 +249,7 @@ defmodule AutolaunchWeb.PrivySessionController do
       account_control: %{
         kind: :sign_in,
         label: "Sign In",
-        avatar_data_uri: nil
+        avatar_src: nil
       }
     }
 
@@ -262,7 +262,7 @@ defmodule AutolaunchWeb.PrivySessionController do
       account_control: %{
         kind: control.kind,
         label: control.label,
-        avatar_data_uri: control.avatar_data_uri
+        avatar_src: control.avatar_src
       }
     }
   end

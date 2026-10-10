@@ -27,8 +27,8 @@ defmodule AutolaunchWeb.Components.AccountControl do
         >
           <span class="account-menu__avatar">
             <img
-              :if={@account_control.avatar_data_uri}
-              src={@account_control.avatar_data_uri}
+              :if={@account_control.avatar_src}
+              src={@account_control.avatar_src}
               alt=""
               width="36"
               height="36"

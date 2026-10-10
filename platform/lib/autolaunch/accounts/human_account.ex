@@ -28,6 +28,7 @@ defmodule Autolaunch.Accounts.HumanAccount do
       get? true
       argument :id, :integer, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare build(load: [:ens_name, :ens_avatar_url])
     end
 
     create :register_verified do
@@ -81,6 +82,32 @@ defmodule Autolaunch.Accounts.HumanAccount do
     attribute :avatar, :map
     create_timestamp :created_at
     update_timestamp :updated_at
+  end
+
+  relationships do
+    has_one :ens_identity, Autolaunch.Accounts.EnsIdentity do
+      destination_attribute :human_account_id
+    end
+  end
+
+  # The ENS name and picture, only while they were read for the account's
+  # current wallet.
+  calculations do
+    calculate :ens_name,
+              :string,
+              expr(
+                if ens_identity.wallet_address == wallet_address do
+                  ens_identity.ens_name
+                end
+              )
+
+    calculate :ens_avatar_url,
+              :string,
+              expr(
+                if ens_identity.wallet_address == wallet_address do
+                  ens_identity.ens_avatar_url
+                end
+              )
   end
 
   identities do

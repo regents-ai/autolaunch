@@ -1,5 +1,5 @@
 defmodule Autolaunch.PublicIdentity do
-  @moduledoc "Resolves the public label for a signed human without exposing its private identity."
+  @moduledoc "Resolves the public label and picture for a signed human without exposing its private identity."
 
   @wallet ~r/\A0x[0-9a-fA-F]{40}\z/
 
@@ -19,14 +19,13 @@ defmodule Autolaunch.PublicIdentity do
 
   def label(_identity), do: "Account"
 
-  def avatar_data_uri(identity) when is_map(identity) do
-    case normalize_wallet(Map.get(identity, :wallet_address)) do
-      nil -> nil
-      wallet -> wallet_avatar(wallet)
-    end
+  # The ENS name's picture, else one generated from the wallet address.
+  def avatar_src(identity) when is_map(identity) do
+    present_label(Map.get(identity, :ens_avatar_url)) ||
+      identity |> Map.get(:wallet_address) |> normalize_wallet() |> wallet_avatar()
   end
 
-  def avatar_data_uri(_identity), do: nil
+  def avatar_src(_identity), do: nil
 
   defp preferred_labels(identity) do
     [
@@ -50,6 +49,8 @@ defmodule Autolaunch.PublicIdentity do
   end
 
   defp normalize_wallet(_wallet), do: nil
+
+  defp wallet_avatar(nil), do: nil
 
   defp wallet_avatar(wallet) do
     digest = :crypto.hash(:sha256, wallet)

@@ -206,6 +206,18 @@ if finisher_on do
   config :autolaunch, Oban, queues: [auction_finishing: [limit: 1, paused: false]]
 end
 
+# ENS names and pictures are read from Ethereum mainnet through this endpoint:
+# each sign-in's lookup (Autolaunch.Accounts.EnsIdentity) and Connect ENS.
+if ethereum_read_rpc_url = System.get_env("ETHEREUM_READ_RPC_URL") do
+  case URI.new(ethereum_read_rpc_url) do
+    {:ok, %URI{scheme: "https", host: host}} when host not in [nil, ""] ->
+      config :autolaunch, :ethereum_read_rpc_url, ethereum_read_rpc_url
+
+    _invalid ->
+      raise "ETHEREUM_READ_RPC_URL must be an https address"
+  end
+end
+
 if config_env() == :prod do
   config :autolaunch, :session_options, secure: true, http_only: true
 

@@ -26,6 +26,12 @@ defmodule Autolaunch.Accounts do
       define :set_avatar, action: :set_avatar
     end
 
+    resource Autolaunch.Accounts.EnsIdentity do
+      define :request_ens_lookup,
+        action: :request_lookup,
+        args: [:human_account_id, :wallet_address]
+    end
+
     resource Autolaunch.Accounts.SessionAuthority
 
     resource Autolaunch.Accounts.LinkedIdentity do

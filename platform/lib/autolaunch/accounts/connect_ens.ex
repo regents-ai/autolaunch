@@ -1,7 +1,7 @@
 defmodule Autolaunch.Accounts.ConnectEns do
   @moduledoc "Verifies a creator-controlled ENS name before publishing its connection."
   alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.SessionAuthority
+  alias Autolaunch.Accounts.{EnsIdentity, SessionAuthority}
   alias Autolaunch.Actors.{Human, System}
   alias RegentChain.Address
 
@@ -49,7 +49,7 @@ defmodule Autolaunch.Accounts.ConnectEns do
     AgentEns.read_name(%{
       ens_name: name,
       chain_id: 1,
-      rpc_url: Application.get_env(:autolaunch, :ens_rpc_url, "https://ethereum.publicnode.com"),
+      rpc_url: EnsIdentity.rpc_url(),
       include_contenthash?: false
     })
   end

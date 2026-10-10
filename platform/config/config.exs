@@ -20,7 +20,7 @@ config :autolaunch, Oban,
   notifier: Oban.Notifiers.PG,
   repo: Autolaunch.Repo,
   prefix: "autolaunch_app",
-  queues: [auction_finishing: [limit: 1, paused: true], launch_listing: 1],
+  queues: [auction_finishing: [limit: 1, paused: true], launch_listing: 1, outside_calls: 3],
   plugins: [
     {Oban.Plugins.Cron, []},
     {Oban.Plugins.Pruner, max_age: 86_400},

@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Live.Session do
     only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
 
   alias Autolaunch.AccessContext
-  alias Autolaunch.Accounts.SessionAuthority
+  alias Autolaunch.Accounts.{EnsIdentity, SessionAuthority}
 
   @public_root "/"
 
@@ -115,9 +115,13 @@ defmodule AutolaunchWeb.Live.Session do
   # deliberately does not re-require: a same-account refresh advances it beneath
   # a live socket. Lineage, account binding, revocation and the account's own
   # provider evidence are re-read every time, and the principal is rebuilt from
-  # that read rather than from the struct the mount captured.
+  # that read rather than from the struct the mount captured. A finished ENS
+  # lookup reads the account again, so the header shows the name and picture it
+  # found.
   defp hold(socket, lineage, generation, account) do
     lease = %{lineage: lineage, account_id: account.id, generation_at_mount: generation}
+    ens_topic = EnsIdentity.topic(account.id)
+    Phoenix.PubSub.subscribe(Autolaunch.PubSub, ens_topic)
 
     socket
     |> assign_principal(account)
@@ -133,6 +137,16 @@ defmodule AutolaunchWeb.Live.Session do
         nil -> {:halt, lapsed(socket)}
         account -> {:cont, assign_principal(socket, account)}
       end
+    end)
+    |> attach_hook(:ens_identity, :handle_info, fn
+      %{topic: ^ens_topic}, socket ->
+        case leased(lease) do
+          nil -> {:halt, lapsed(socket)}
+          account -> {:halt, assign_principal(socket, account)}
+        end
+
+      _message, socket ->
+        {:cont, socket}
     end)
   end
 

@@ -36,6 +36,7 @@ defmodule AutolaunchWeb.ContentSecurityPolicy do
        "blob:",
        "https://regents.sh",
        "https://pbs.twimg.com",
+       "https://metadata.ens.domains",
        "https://explorer-api.walletconnect.com",
        "https://api.web3modal.org"
      ]},

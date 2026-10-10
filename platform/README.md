@@ -189,7 +189,7 @@ fly deploy --app autolaunch-sh --config fly.toml \
 
 `autolaunch-sh-migrations` has no service or standing machine and holds only
 `DATABASE_DIRECT_URL`. `autolaunch-sh` must not hold that secret. The serving app holds
-`DATABASE_URL`, `BASE_READ_RPC_URL`, `PHX_HOST`, and `SECRET_KEY_BASE`; the migration app
+`DATABASE_URL`, `BASE_READ_RPC_URL`, `ETHEREUM_READ_RPC_URL`, `PHX_HOST`, and `SECRET_KEY_BASE`; the migration app
 does not.
 
 The image is built from `Dockerfile` with the repository root as its context. Docker
@@ -246,6 +246,7 @@ verification and the remaining release checks.
 | `SECRET_KEY_BASE` | Serving app only | At least 64 bytes. |
 | `PHX_HOST` | Serving app only | The public hostname the site generates URLs for. |
 | `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
+| `ETHEREUM_READ_RPC_URL` | Serving app | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `AUTOLAUNCH_CHAIN_MODE` | Optional | `base` (default) or `fork`; see "Chain mode" above and [docs/fork-preview.md](docs/fork-preview.md) for the variables fork mode adds. |
 

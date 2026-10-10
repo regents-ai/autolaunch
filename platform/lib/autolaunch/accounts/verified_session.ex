@@ -2,6 +2,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
   @moduledoc "Exchanges verified Privy evidence for the canonical human account."
 
   alias Autolaunch.Accounts
+  alias Autolaunch.Accounts.EnsIdentity
   alias Autolaunch.Actors.System
 
   @social_providers [:x, :github, :farcaster]
@@ -17,7 +18,8 @@ defmodule Autolaunch.Accounts.VerifiedSession do
              {:ok, account} <-
                Accounts.refresh_verified(account, primary, addresses, actor: actor),
              {:ok, conflicts} <-
-               reconcile_linked_identities(account, verified.linked_socials, actor) do
+               reconcile_linked_identities(account, verified.linked_socials, actor),
+             :ok <- request_ens_lookup(account, actor) do
           {:ok, account, conflicts}
         end
 
@@ -34,6 +36,17 @@ defmodule Autolaunch.Accounts.VerifiedSession do
   end
 
   def current?(_account), do: false
+
+  # Each sign-in asks Ethereum for the wallet's ENS name and picture again.
+  defp request_ens_lookup(account, actor) do
+    if EnsIdentity.looking_up?() do
+      with {:ok, _identity} <-
+             Accounts.request_ens_lookup(account.id, account.wallet_address, actor: actor),
+           do: :ok
+    else
+      :ok
+    end
+  end
 
   defp reconcile_linked_identities(account, linked_socials, actor)
        when is_list(linked_socials) do
