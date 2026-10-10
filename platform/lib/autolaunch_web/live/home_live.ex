@@ -269,7 +269,7 @@ defmodule AutolaunchWeb.HomeLive do
       <.welcome :if={Autolaunch.Prelaunch.read_only?()} />
       <div class="home-autolaunch">
         <a href="https://autolaunch.sh/create" class="rg-button rg-button--primary">
-          <span class="rg-button__label">Memestock Autolaunch</span>
+          <span class="rg-button__label">Create Memestock</span>
         </a>
       </div>
       <header class="home-heading">
