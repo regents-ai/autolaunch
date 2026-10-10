@@ -23,7 +23,6 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.Opening, only: [welcome: 1]
   import AutolaunchWeb.Components.SwapModal
-  import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
   alias AutolaunchWeb.{LabMarket, LiveListings}
 
@@ -48,7 +47,6 @@ defmodule AutolaunchWeb.HomeLive do
        local_lab: Autolaunch.Lab.test_chain?()
      )
      |> LiveListings.subscribe()
-     |> assign_auction_stats()
      |> assign_figure_rates()}
   end
 
@@ -136,7 +134,7 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info(:reload_pool, socket), do: {:noreply, LiveListings.schedule(socket)}
 
   def handle_info(:reread_listings, socket),
-    do: {:noreply, socket |> LiveListings.taken() |> reread_market() |> assign_auction_stats()}
+    do: {:noreply, socket |> LiveListings.taken() |> reread_market()}
 
   # The cards already shown stay until the new listing arrives and replaces
   # them, so changing a setting never blanks the gallery.
@@ -269,7 +267,6 @@ defmodule AutolaunchWeb.HomeLive do
     ~H"""
     <main class="home-page home-explore-page" id="home-explore">
       <.welcome :if={Autolaunch.Prelaunch.read_only?()} />
-      <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
       <div class="home-autolaunch">
         <a href="https://autolaunch.sh/create" class="rg-button rg-button--primary">
           <span class="rg-button__label">Memestock Autolaunch</span>
