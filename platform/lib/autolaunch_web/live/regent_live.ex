@@ -76,8 +76,10 @@ defmodule AutolaunchWeb.RegentLive do
           class="rg-button rg-button--secondary"
           id="regent-next-stake"
           href="https://regents.sh/stake"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Stake REGENT
+          Stake REGENT <span aria-hidden="true">↗</span>
         </.link>
         <a
           id="regent-next-chart"
@@ -92,8 +94,10 @@ defmodule AutolaunchWeb.RegentLive do
           class="rg-button rg-button--secondary"
           id="regent-next-redeem"
           href="https://regents.sh/redeem"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Redeem
+          Redeem <span aria-hidden="true">↗</span>
         </.link>
       </nav>
 
