@@ -61,3 +61,12 @@
 .autolaunch-account__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .autolaunch-error { min-height: 60dvh; display: grid; align-content: center; gap: var(--space-4); }
 .autolaunch-error .rg-button { justify-self: start; }
+
+/* Real routes retain one section heading and sibling navigation. No tab or entrance motion. */
+.learn-navigation { max-width: 1040px; margin-block-end: var(--space-4); border-bottom: 1px solid var(--rg-page-rule); }
+.learn-navigation__title { margin: 0 0 var(--space-1); font-family: var(--font-family-title); font-size: 1.25rem; }
+.learn-navigation nav { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); }
+.learn-navigation a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-fg-muted); text-decoration: none; }
+.learn-navigation a[aria-current="page"] { color: var(--color-fg); text-decoration: underline; text-underline-offset: .4em; }
+.learn-navigation a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
+.shell-content:has(> .learn-navigation) > :is(main, article) { max-width: 1040px; }

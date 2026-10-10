@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.Components.Rail do
   use Phoenix.Component
 
   # Four destinations. Explore also covers the auction and token lists and
-  # their pages; Learn also covers the REGENT page it links to.
+  # their pages; Learn covers its persistent information-page navigation.
   @items [
     %{
       label: "Explore",
@@ -12,7 +12,11 @@ defmodule AutolaunchWeb.Components.Rail do
     },
     %{label: "Portfolio", path: "/portfolio", covers: []},
     %{label: "Create", path: "/create", covers: []},
-    %{label: "Learn", path: "/how-it-works", covers: ["/regent"]}
+    %{
+      label: "Learn",
+      path: "/how-it-works",
+      covers: []
+    }
   ]
 
   attr :current_path, :string, required: true
@@ -48,6 +52,9 @@ defmodule AutolaunchWeb.Components.Rail do
     </nav>
     """
   end
+
+  defp current?(path, %{label: "Learn"}),
+    do: Enum.any?(AutolaunchWeb.Components.LearnNavigation.paths(), &under?(path, &1))
 
   defp current?(path, %{path: own, covers: covers}),
     do: Enum.any?([own | covers], &under?(path, &1))

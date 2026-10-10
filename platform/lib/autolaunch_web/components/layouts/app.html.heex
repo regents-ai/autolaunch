@@ -5,6 +5,7 @@
     <div class="shell-main">
       <.top_bar account_control={@account_control} />
       <div id="shell-content" class="shell-content" tabindex="-1">
+        <AutolaunchWeb.Components.LearnNavigation.navigation current_path={@current_path} />
         {@inner_content}
       </div>
       <.product_links />
