@@ -128,7 +128,7 @@ defmodule Autolaunch.Auction do
 
       argument :state, :string,
         default: "all",
-        constraints: [match: ~r/\A(all|created|active|ended|failed|graduated)\z/]
+        constraints: [match: ~r/\A(all|created|active|ended|failed|graduated|finished)\z/]
 
       argument :sort, :string,
         default: "newest",
@@ -158,7 +158,8 @@ defmodule Autolaunch.Auction do
           states =
             Enum.filter(
               states,
-              &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state)
+              &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state or
+                  (query.arguments.state == "finished" and &1 in [:graduated, :failed]))
             )
 
           query =

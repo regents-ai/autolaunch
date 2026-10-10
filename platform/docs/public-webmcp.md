@@ -36,7 +36,7 @@ the API, the CLI and these tools:
 | Option | Values | Lists |
 | --- | --- | --- |
 | `q` | The website search: every word in a name, ticker, stock, description, address or verified account; a leading `$` is ignored; the API collapses spaces and keeps the first 80 characters | auctions, tokens |
-| `state` | `all`, `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched) | auctions |
+| `state` | `all`, `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched), `finished` (graduated or failed) | auctions |
 | `sort` | `newest` (most recently listed), `ending` (live only, closing soonest; the website's Closing), `volume` (highest dollar bid volume, unrecorded last; the website's Highest) | auctions |
 | `chain` | `all`, `base`, `robinhood` | auctions, tokens |
 | `kind` | `all`, `revstake`, `memestake` | auctions, tokens |

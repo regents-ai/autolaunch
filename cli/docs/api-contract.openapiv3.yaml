@@ -201,10 +201,10 @@ paths:
         - {$ref: "#/components/parameters/Search"}
         - name: state
           in: query
-          description: "Auctions in one state: created (opening soon), active (live), ended (bidding closed, waiting to be finished), failed, graduated (launched)."
+          description: "Filter auctions: created (opening soon), active (live), ended (bidding closed, waiting to be finished), failed, graduated (launched), or finished (graduated and failed together)."
           schema:
             type: string
-            enum: [all, created, active, ended, failed, graduated]
+            enum: [all, created, active, ended, failed, graduated, finished]
             default: all
         - name: sort
           in: query

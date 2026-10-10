@@ -52,9 +52,10 @@
               "active",
               "ended",
               "failed",
-              "graduated"
+              "graduated",
+              "finished"
             ],
-            "description": "created: opening soon; active: live; ended: bidding closed, waiting to be finished; failed; graduated: launched."
+            "description": "created: opening soon; active: live; ended: bidding closed, waiting to be finished; failed; graduated: launched; finished: graduated or failed."
           },
           "sort": {
             "type": "string",

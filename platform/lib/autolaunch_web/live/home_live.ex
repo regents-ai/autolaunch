@@ -313,10 +313,23 @@ defmodule AutolaunchWeb.HomeLive do
                 {"volume", "Bid volume"}
               ]
             }
-            patch={HomeMarket.path(@market_options, %{sort: value})}
+            patch={
+              HomeMarket.path(@market_options, %{
+                sort: value,
+                state:
+                  if(@market_options.state == "finished", do: "active", else: @market_options.state)
+              })
+            }
             data-squish
-            aria-current={if @market_options.sort == value, do: "page"}
+            aria-current={
+              if @market_options.state != "finished" && @market_options.sort == value, do: "page"
+            }
           >{label}</.link>
+          <.link
+            patch={HomeMarket.path(@market_options, %{state: "finished", sort: "newest"})}
+            data-squish
+            aria-current={if @market_options.state == "finished", do: "page"}
+          >Finished</.link>
         </nav>
         <nav class="home-display" aria-label="Display">
           <.link
@@ -386,12 +399,18 @@ defmodule AutolaunchWeb.HomeLive do
                     {"all", "All"},
                     {"created", "Opening soon"},
                     {"active", "Live"},
+                    {"finished", "Finished"},
                     {"ended", "Waiting to finish"},
                     {"failed", "Failed"},
                     {"graduated", "Graduated"}
                   ]
                 }
-                patch={HomeMarket.path(@market_options, %{state: value})}
+                patch={
+                  HomeMarket.path(@market_options, %{
+                    state: value,
+                    sort: if(value == "finished", do: "newest", else: @market_options.sort)
+                  })
+                }
                 selected={@market_options.state == value}
               >
                 {label}
@@ -555,6 +574,9 @@ defmodule AutolaunchWeb.HomeLive do
             {cond do
               @kind == :auction && @market_options.state == "active" ->
                 "No live auctions"
+
+              @kind == :auction && @market_options.state == "finished" ->
+                "No finished auctions"
 
               @market_options.q != "" or
                   (@market_options.state != "all" or @market_options.chain != "all" or
