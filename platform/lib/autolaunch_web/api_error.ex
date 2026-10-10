@@ -33,6 +33,17 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "Send max_price as digits with at most one decimal point, no sign, exponent or thousands separator: the most you would pay per token, in the auction's quote token. Sending the same value again will not help."
 
+  defp hint(code) when code in ["signed_proof_required", "siwa_unavailable"],
+    do:
+      "Use your existing signer following https://siwa.regents.sh/skill.md and sign the exact Autolaunch request."
+
+  defp hint("agent_not_paired"),
+    do:
+      "Ask the owner for a code from https://regents.sh/account, then redeem it with POST /api/agents/v1/pair."
+
+  defp hint("owner_not_local"),
+    do: "The owner must sign in at https://autolaunch.sh/profile using the same Privy account."
+
   defp hint("authentication_required"),
     do:
       "Ask the person to sign in at #{PublicDocuments.url("/")} in this browser, then call again."

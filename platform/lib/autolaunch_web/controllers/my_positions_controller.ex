@@ -28,10 +28,17 @@ defmodule AutolaunchWeb.MyPositionsController do
 
   def show(%{assigns: %{current_human_account: account}} = conn, _params) do
     actor = %Human{human_account_id: account.id}
+    respond(conn, actor, account)
+  end
+
+  def signed(conn, _params),
+    do: respond(conn, conn.assigns.actor, conn.assigns.agent_owner_account)
+
+  defp respond(conn, actor, account) do
     {:ok, wallet} = Address.normalize(account.wallet_address)
 
     reads = [
-      fn -> Autolaunch.list_wallet_bid_positions(wallet, actor: actor) end,
+      fn -> read_bids(actor, wallet) end,
       fn -> RobinhoodPositions.read_wallet(wallet) end,
       fn -> TokenHoldings.read_wallet(actor, wallet) end
     ]
@@ -64,6 +71,14 @@ defmodule AutolaunchWeb.MyPositionsController do
         )
     end
   end
+
+  defp read_bids(%Autolaunch.Actors.Agent{} = actor, wallet) do
+    Autolaunch.Bid
+    |> Ash.Query.for_read(:agent_mine_by_wallet, %{wallet_address: wallet}, actor: actor)
+    |> Ash.read()
+  end
+
+  defp read_bids(actor, wallet), do: Autolaunch.list_wallet_bid_positions(wallet, actor: actor)
 
   # The price books of the auctions still taking bids that the Base bids are
   # in; a book that cannot be read leaves its bids' standing unread.

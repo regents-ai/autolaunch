@@ -28,6 +28,9 @@ defmodule AutolaunchWeb.PublicPagesController do
 
   def agent_guide(conn, _params), do: text_document(conn, PublicDocuments.agent_guide())
 
+  def signed_agent_guide(conn, _params),
+    do: text_document(conn, PublicDocuments.signed_agent_guide())
+
   def openapi(conn, _params), do: json_document(conn, PublicDocuments.openapi())
 
   def capabilities(conn, _params), do: json_document(conn, PublicDocuments.capabilities())

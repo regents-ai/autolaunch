@@ -57,10 +57,10 @@ defmodule AutolaunchWeb.Endpoint do
   # in JSON like every other API error.
   plug RegentAgentAccess.Plug,
     documents: &AutolaunchWeb.PublicDocuments.document/1,
-    guide: "/llms.txt"
+    guide: "/agents.md"
 
   plug AutolaunchWeb.Plugs.Parsers,
-    body_reader: {RegentIdentity.BodyReader, :read_body, []},
+    body_reader: {AutolaunchWeb.Plugs.BodyReader, :read_body, []},
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
