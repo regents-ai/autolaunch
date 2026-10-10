@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v84, 9 October 2026 (08dd63e)
+- Explore defaults to Live auctions. All still shows historical auctions.
+- Create Memestock sits in its own container above Explore and opens the Memestake form.
+- The homepage introduction, Revstake and Memestake panels, divider and auction counts are removed.
+
 ## v83, 9 October 2026 (1d355d4)
 - Site copy, creator reviews, token and pool explanations, public agent guidance and
   contract docs match the final v2 allocations, fees and destinations, liquidity positions,
