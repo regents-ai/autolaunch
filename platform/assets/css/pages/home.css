@@ -19,7 +19,7 @@
 #home-explore .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 /* Sort and display are segmented toggles; Filter opens a menu as wide as its choices. */
 #home-explore .home-toolbar { gap: 8px; }
-#home-explore .home-sort { margin-right: auto; }
+#home-explore .home-sort { margin-right: auto; flex-wrap: wrap; }
 #home-explore .home-sort, #home-explore .home-display { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline); border-radius: 8px; }
 #home-explore .home-sort a, #home-explore .home-display a { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 12px; border-radius: 5px; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; white-space: nowrap; }
 #home-explore .home-display a { padding: 0 9px; }

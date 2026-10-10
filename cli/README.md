@@ -31,7 +31,7 @@ autolaunch tokens list --chain base --github
 | Option | Values | Lists |
 | --- | --- | --- |
 | `--q` | The website search: every word must appear in a name, ticker, stock, description, address or verified account; a leading `$` is ignored; the first 80 characters count | auctions, tokens |
-| `--state` | `all` (default), `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched) | auctions |
+| `--state` | `all` (default), `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched), `finished` (graduated or failed) | auctions |
 | `--sort` | `newest` (default, most recently listed), `ending` (live only, closing soonest), `volume` (highest dollar bid volume) | auctions |
 | `--chain` | `all` (default), `base`, `robinhood` | auctions, tokens |
 | `--kind` | `all` (default), `revstake`, `memestock` | auctions, tokens |
