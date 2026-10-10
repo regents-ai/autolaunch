@@ -270,6 +270,11 @@ defmodule AutolaunchWeb.HomeLive do
     <main class="home-page home-explore-page" id="home-explore">
       <.welcome :if={Autolaunch.Prelaunch.read_only?()} />
       <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
+      <div class="home-autolaunch">
+        <a href="https://autolaunch.sh/create" class="rg-button rg-button--primary">
+          <span class="rg-button__label">Memestock Autolaunch</span>
+        </a>
+      </div>
       <header class="home-heading">
         <div class="home-heading__discovery">
           <h1 id="home-explore-title">Explore</h1>
