@@ -40,15 +40,9 @@
   #home-top .account-control[data-account-kind="sign_in"] { flex: 1 1 auto; box-sizing: border-box; }
   #home-top .account-control__sign-in { width: 100%; }
 }
-.opening-welcome { display: grid; gap: 12px; margin: 0 0 32px; padding: 8px 0 32px; border-bottom: 1px solid var(--rg-page-rule); }
+.opening-welcome { margin: 0 0 32px; padding-top: 8px; }
 .opening-welcome__title { margin: 0; font-family: var(--font-family-title); font-size: clamp(1.75rem, 4.5vw, 3.25rem); line-height: 1.1; }
 .opening-welcome__accent { color: var(--product-autolaunch); }
-.opening-welcome__lede { margin: 0; max-width: 40rem; font-size: 1.0625rem; color: var(--color-fg-muted); }
-.opening-welcome__kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 12px; max-width: 56rem; margin: 8px 0 0; }
-.opening-welcome__kind { padding: 16px; border: 1px solid var(--hairline); background: var(--color-surface); }
-.opening-welcome__kind dt { margin: 0 0 6px; font-family: var(--font-family-title); font-size: 1.125rem; color: var(--product-autolaunch); }
-.opening-welcome__kind dd { margin: 0; font-size: .875rem; line-height: 1.5; color: var(--color-fg-muted); }
-.opening-welcome__kind ul { display: grid; gap: 4px; margin: 0; padding-left: 1.1rem; }
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
 .prelaunch-actions p { color: var(--color-fg-muted); font-size: .875rem; }
