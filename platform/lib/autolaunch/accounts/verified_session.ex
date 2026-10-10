@@ -24,7 +24,9 @@ defmodule Autolaunch.Accounts.VerifiedSession do
              {:ok, _canonical} <-
                Accounts.refresh_canonical_verified(
                  canonical,
-                 %{wallet_address: primary, wallet_addresses: addresses}, actor: actor),
+                 %{wallet_address: primary, wallet_addresses: addresses},
+                 actor: actor
+               ),
              {:ok, account} <-
                Accounts.register_verified(did, primary, addresses, actor: actor),
              {:ok, account} <-

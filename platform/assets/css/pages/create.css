@@ -70,3 +70,7 @@
 .stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
 .stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-mono); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }
+
+.autolaunch-account-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.autolaunch-account-balances > section { min-width: 0; }
+@media (max-width: 42rem) { .autolaunch-account-balances { grid-template-columns: minmax(0, 1fr); } }

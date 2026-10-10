@@ -1,6 +1,7 @@
 @import "../vendor/regent_ui/design_system_tokens.css";
 @import "../vendor/regent_ui/primitives.css";
 @import "../vendor/regent_ui/ratio.css";
+@import "../vendor/regent_ui/account.css";
 @import "./tokens/autolaunch.css";
 @import "./base.css";
 @import "./components/image_upload.css";
