@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v85, 10 October 2026 (39383ca)
+- Nine Learn pages keep the same navigation and content position, with the current page marked.
+  Docs, About, Blog, Contact, Fees, Privacy and Terms also select Learn in the main menu.
+- Learn links work with keyboard navigation, direct links, refresh and browser Back/Forward.
+- REGENT's Stake and Redeem links are marked as external and open separately.
+
 ## v84, 9 October 2026 (08dd63e)
 - Explore defaults to Live auctions. All still shows historical auctions.
 - Create Memestock sits in its own container above Explore and opens the Memestake form.
