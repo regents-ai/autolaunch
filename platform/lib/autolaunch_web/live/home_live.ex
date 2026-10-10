@@ -275,7 +275,7 @@ defmodule AutolaunchWeb.HomeLive do
           <h1 id="home-explore-title">Explore</h1>
           <nav class="home-kind-toggle" aria-label="Explore auctions or graduated tokens">
             <.link
-              patch={HomeMarket.path(@market_options, %{view: "auctions", state: "all"})}
+              patch={HomeMarket.path(@market_options, %{view: "auctions", state: "active"})}
               aria-current={if @kind == :auction, do: "page"}
             >Auctions</.link>
             <span aria-hidden="true">|</span>
@@ -288,7 +288,7 @@ defmodule AutolaunchWeb.HomeLive do
             :if={@kind == :auction}
             navigate={~p"/auctions"}
             class="home-heading__all"
-          >Search all auctions</.link>
+          >Search auctions</.link>
           <.link :if={@kind == :token} navigate={~p"/tokens"} class="home-heading__all">
             Search all tokens
           </.link>
@@ -550,12 +550,19 @@ defmodule AutolaunchWeb.HomeLive do
           role="status"
         >
           <h2>
-            {if @market_options.q != "" or
+            {cond do
+              @kind == :auction && @market_options.state == "active" ->
+                "No live auctions"
+
+              @market_options.q != "" or
                   (@market_options.state != "all" or @market_options.chain != "all" or
                      @market_options.kind != "all" or @market_options.x or @market_options.ens or
-                     @market_options.github),
-                do: "No matching coins",
-                else: "No coins in this category yet"}
+                     @market_options.github) ->
+                "No matching coins"
+
+              true ->
+                "No coins in this category yet"
+            end}
           </h2>
           <p>
             {if @market_options.q != "" or
