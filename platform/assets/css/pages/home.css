@@ -10,6 +10,7 @@
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */
 #home-explore { display: block; min-width: 0; }
+#home-explore .home-autolaunch { margin-bottom: 24px; }
 #home-explore .home-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 24px; }
 #home-explore h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 #home-explore .home-network { display: inline-flex; align-items: center; gap: 7px; color: var(--color-fg-muted); font-size: .75rem; }
