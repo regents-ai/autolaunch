@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "96fe9d3f386742ce93b04c6dfca183d99cc00787"
+  @elixir_utils_ref "fd0719c3a1bcbb8906aea69302ede09d51b7e6ee"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "fe81f0b10a43690e556e8f8fb313e685b35ec0b3"
   @regents "https://github.com/regents-ai/regents.git"
