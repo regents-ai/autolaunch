@@ -14,7 +14,7 @@ defmodule Autolaunch.AccessContext do
   def account_control(%__MODULE__{principal: :anonymous}) do
     %AccountControl{
       kind: :sign_in,
-      label: "Sign In"
+      label: "Sign in"
     }
   end
 

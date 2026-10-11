@@ -60,16 +60,9 @@ html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button) {
 html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::before,
 html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::after { display: none; }
 /* Both Create buttons stay closed until opening, on a gray plate, but keep the
-   corner marks and the hover outline of the header buttons. */
+   corner marks of the header buttons. Closed, they show no hover change. */
 .rg-button.create-button:disabled { cursor: not-allowed; }
 :root .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--rg-button-active-border); }
 /* Dark shows when chosen, or with no choice on a device that does not ask for light. */
 :root[data-theme="dark"] .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
 @media not all and (prefers-color-scheme: light) { :root:not([data-theme]) .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); } }
-:root .rg-button.create-button:disabled:hover::after {
-  --rg-button-edge-ink: var(--rg-button-active-border); --rg-button-cut-ink: var(--rg-button-active-border); --rg-button-cut-gap: 0px;
-  background-size:
-    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
-    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
-    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
-}

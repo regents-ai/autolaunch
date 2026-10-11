@@ -109,7 +109,7 @@ indexer stays off.
 Without further configuration a lab site is for public browsing: the test environment
 verifies sessions with `Autolaunch.TestPrivyVerifier`, which has no interactive login, so the
 notice line ends in "sign-in unavailable". Pressing Sign in with a placeholder app id reports
-"Sign in couldn't start" and `/profile` offers its Sign in button; neither waits forever.
+"Sign in couldn't start" and `/account` offers its Sign in button; neither waits forever.
 
 Real Privy sign-in is switched on explicitly, with three more inputs, none of them secret:
 
@@ -127,7 +127,7 @@ PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-key.pem)" \
 | `PRIVY_VERIFICATION_KEY` | The application's current public ES256 verification key as one PEM block. The Privy dashboard shows it, and Privy publishes it at `https://auth.privy.io/api/v1/apps/<app id>/jwks.json`. Sign-in and the shared profile API (`/api/v1/profile`) both verify each token against this key through `RegentPrivy` |
 
 Open the site at `http://localhost:4050`, the origin the Privy application allows, not at
-`127.0.0.1`. Sign in, `/profile`, the shared profile API and sign out then run through the
+`127.0.0.1`. Sign in, `/account`, the shared profile API and sign out then run through the
 production verifier and session boundaries exactly as on the public site: the browser's
 Privy state never establishes a session by itself, a session is written only after the
 token pair verifies on the server, and a provider that is not ready or cannot load never

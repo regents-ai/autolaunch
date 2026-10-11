@@ -13,7 +13,9 @@ import {nope, squish} from "../hooks/motion/press"
 import {closeDialog, openPanel} from "./panels"
 
 // Buttons, links drawn as buttons or marked `data-squish`, and the button that
-// opens a menu.
+// opens a menu. A wallet button squishes only its `data-press-label`, so the
+// button itself never shrinks and a quick second press near its edge still
+// lands on it.
 const PRESSABLE = "button, .rg-button, [role='button'], [data-squish], details:has(> [data-panel]) > summary"
 
 export function installMotion(doc: Document = document): void {
@@ -40,7 +42,7 @@ function press(event: MouseEvent): void {
   const el = event.target instanceof Element ? event.target.closest(PRESSABLE) : null
   if (el === null || !byPointer(event) || still(el)) return
   if (el.getAttribute("aria-disabled") === "true") nope(el)
-  else squish(el)
+  else squish(el.querySelector("[data-press-label]") ?? el)
 }
 
 // A dialog or menu opening sets `open` on it, and a list that opens shows

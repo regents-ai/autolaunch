@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Autolaunch.Identity.Migrate do
   @shortdoc "Migrates the shared Regent identity schema into the Autolaunch database"
   @moduledoc """
-  The profile page reads the shared `regent_identity` schema, which the product's
+  The account page reads the shared `regent_identity` schema, which the product's
   own migrations never create. Releases run `RegentIdentity.Migrator` from
   `Autolaunch.Release`; this task does the same for a local or test database.
   """

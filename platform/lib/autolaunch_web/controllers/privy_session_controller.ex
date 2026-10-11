@@ -248,7 +248,7 @@ defmodule AutolaunchWeb.PrivySessionController do
       authenticated: false,
       account_control: %{
         kind: :sign_in,
-        label: "Sign In",
+        label: "Sign in",
         avatar_data_uri: nil
       }
     }

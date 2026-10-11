@@ -29,7 +29,7 @@ defmodule Autolaunch.Agents do
   def paired_account(privy_id) do
     case Accounts.get_by_privy_did(privy_id, actor: %System{}) do
       {:ok, nil} ->
-        %{local_account: false, sign_in: "https://autolaunch.sh/profile"}
+        %{local_account: false, sign_in: "https://autolaunch.sh/account"}
 
       {:ok, account} ->
         case Accounts.canonical_by_privy_id(privy_id, actor: %System{}) do
@@ -40,7 +40,7 @@ defmodule Autolaunch.Agents do
             }
 
           _ ->
-            %{local_account: false, sign_in: "https://autolaunch.sh/profile"}
+            %{local_account: false, sign_in: "https://autolaunch.sh/account"}
         end
 
       _ ->
