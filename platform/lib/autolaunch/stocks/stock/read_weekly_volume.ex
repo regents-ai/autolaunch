@@ -62,8 +62,8 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
              &add_pool(&1, &2, network, first, through)
            ),
          usd = Decimal.round(sum, 2),
-         # Pools that answer with no trade all week, or under a cent, give no
-         # figure, not $0.
+         # Pools that answer with no trade all week, or with less than half a
+         # cent, give no figure, not $0.00.
          true <- Decimal.gt?(usd, 0) || {:error, :no_trade_in_week} do
       {:ok, usd, complete?}
     end

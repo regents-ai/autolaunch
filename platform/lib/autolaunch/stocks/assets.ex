@@ -12,6 +12,8 @@ defmodule Autolaunch.Stocks.Assets do
   Neither list is proof of executable contract admission: the launchpad's own
   `stockAdmission` is read again before every launch and bid.
   Preserve supplied address spelling; resolve identities by chain and address.
+  Every address lookup here goes through `RegentChain.Address.equal?/2`: lowercase
+  and uppercase match, and mixed case must be a valid checksum.
   """
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -83,22 +85,19 @@ defmodule Autolaunch.Stocks.Assets do
     end
   end
 
-  @doc "The founder-selected Base catalog entry for an address, however it is spelled."
+  @doc "The founder-selected Base catalog entry for an address."
   @spec catalogued(String.t()) ::
           {:ok, %{symbol: String.t(), name: String.t(), address: String.t()}} | :error
   def catalogued(address) when is_binary(address) do
     case Enum.find(@catalog, fn {_symbol, _name, listed, _robinhood} ->
-           String.downcase(listed) == String.downcase(address)
+           Address.equal?(listed, address)
          end) do
       {symbol, name, listed, _robinhood} -> {:ok, %{symbol: symbol, name: name, address: listed}}
       nil -> :error
     end
   end
 
-  @doc """
-  The same company's stock token on the other launch chain, from the catalog's
-  pairs. A mixed-case address must carry a valid checksum to match.
-  """
+  @doc "The same company's stock token on the other launch chain, from the catalog's pairs."
   @spec counterpart(:base | :robinhood, String.t()) :: {:ok, String.t()} | :error
   def counterpart(:base, address) when is_binary(address) do
     case Enum.find(@catalog, fn {_symbol, _name, base, _robinhood} ->
@@ -118,14 +117,15 @@ defmodule Autolaunch.Stocks.Assets do
     end
   end
 
-  @doc "The listed stock a link names by symbol or address, however it is spelled."
+  @doc "The listed stock a link names by symbol, in any case, or by address."
   @spec named(:base | :robinhood, String.t()) :: {:ok, map()} | :error
   def named(chain, token) when is_binary(token) do
-    wanted = token |> String.trim() |> String.downcase()
+    wanted = String.trim(token)
 
     case Enum.find(
            all(chain),
-           &(wanted in [String.downcase(&1.symbol), String.downcase(&1.address)])
+           &(String.downcase(&1.symbol) == String.downcase(wanted) or
+               Address.equal?(&1.address, wanted))
          ) do
       nil -> :error
       asset -> {:ok, asset}
@@ -181,13 +181,15 @@ defmodule Autolaunch.Stocks.Assets do
   end
 
   defp find(chain, address) do
-    if Regex.match?(~r/\A0x[0-9a-fA-F]{40}\z/, address) do
-      case Enum.find(all(chain), &(String.downcase(&1.address) == String.downcase(address))) do
-        nil -> {:error, :unsupported_stock}
-        asset -> {:ok, asset}
-      end
-    else
-      {:error, :invalid_address}
+    case Address.decode(address) do
+      {:ok, _bytes} ->
+        case Enum.find(all(chain), &Address.equal?(&1.address, address)) do
+          nil -> {:error, :unsupported_stock}
+          asset -> {:ok, asset}
+        end
+
+      :error ->
+        {:error, :invalid_address}
     end
   end
 end
