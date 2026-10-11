@@ -6,8 +6,8 @@ defmodule Autolaunch.Stocks.LaunchDraft.Changes.CarryStock do
   alias RegentChain.Address
 
   # The stock list is per chain: a new chain keeps the paired company when the
-  # catalog pairs its stock with one the new chain offers, and starts without a
-  # paired stock otherwise.
+  # old chain still offers the stock and the catalog pairs it with one the new
+  # chain offers, and starts without a stock otherwise.
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.force_change_attribute(changeset, :stock_address, carried(changeset))
@@ -17,7 +17,8 @@ defmodule Autolaunch.Stocks.LaunchDraft.Changes.CarryStock do
        when is_binary(address) do
     to = Ash.Changeset.get_attribute(changeset, :chain)
 
-    with {:ok, counterpart} <- Assets.counterpart(from, address),
+    with %{address: listed} <- Enum.find(Assets.all(from), &Address.equal?(&1.address, address)),
+         {:ok, counterpart} <- Assets.counterpart(from, listed),
          %{address: carried} <-
            Enum.find(Assets.all(to), &Address.equal?(&1.address, counterpart)) do
       carried

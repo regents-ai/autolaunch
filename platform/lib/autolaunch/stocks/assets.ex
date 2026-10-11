@@ -17,6 +17,7 @@ defmodule Autolaunch.Stocks.Assets do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.PriceFeeds
+  alias RegentChain.Address
 
   @base_chain_id 8453
   @oracle_registry "0x3f3E8cf41cdd3b1D118c16471aB0113DfDDd5CaD"
@@ -94,10 +95,15 @@ defmodule Autolaunch.Stocks.Assets do
     end
   end
 
-  @doc "The same company's stock token on the other launch chain, from the catalog's pairs."
+  @doc """
+  The same company's stock token on the other launch chain, from the catalog's
+  pairs. A mixed-case address must carry a valid checksum to match.
+  """
   @spec counterpart(:base | :robinhood, String.t()) :: {:ok, String.t()} | :error
   def counterpart(:base, address) when is_binary(address) do
-    case Enum.find(@catalog, fn {_symbol, _name, base, _robinhood} -> same?(base, address) end) do
+    case Enum.find(@catalog, fn {_symbol, _name, base, _robinhood} ->
+           Address.equal?(base, address)
+         end) do
       {_symbol, _name, _base, robinhood} -> {:ok, robinhood}
       nil -> :error
     end
@@ -105,7 +111,7 @@ defmodule Autolaunch.Stocks.Assets do
 
   def counterpart(:robinhood, address) when is_binary(address) do
     case Enum.find(@catalog, fn {_symbol, _name, _base, robinhood} ->
-           same?(robinhood, address)
+           Address.equal?(robinhood, address)
          end) do
       {_symbol, _name, base, _robinhood} -> {:ok, base}
       nil -> :error
@@ -173,8 +179,6 @@ defmodule Autolaunch.Stocks.Assets do
       launch_admission: launch_admission
     }
   end
-
-  defp same?(listed, address), do: String.downcase(listed) == String.downcase(address)
 
   defp find(chain, address) do
     if Regex.match?(~r/\A0x[0-9a-fA-F]{40}\z/, address) do
