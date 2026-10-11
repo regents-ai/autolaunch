@@ -7,13 +7,13 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   (USDC on Base, USDG on Robinhood), summed from each pool's daily candles: a
   pool against another token is mostly that token's trading, not the stock's.
   GeckoTerminal lists a token's pools twenty to a page, busiest first, and its
-  free service shows the first ten pages. When the list ends within them the
-  sum is complete; when it runs on past them the sum counts the 200 busiest
-  pools and is stored as a floor.
+  free service shows the first ten pages. Pages are offsets into a list that
+  can reorder while it is read, so only a list that ends on its first page is
+  known whole; a longer read counts the pools it saw and is stored as a floor.
 
-  A read that finds no dollar pool, or any answer that is refused or not in
-  the expected shape, fails the action and stores nothing; the trigger's next
-  run tries again.
+  A read that finds no dollar pool or no trade in the week, or any answer that
+  is refused or not in the expected shape, fails the action and stores
+  nothing; the trigger's next run tries again.
   """
 
   use Ash.Resource.Change
@@ -60,20 +60,24 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
              pools,
              {:ok, Decimal.new(0)},
              &add_pool(&1, &2, network, first, through)
-           ) do
+           ),
+         # Pools that answer with no trade all week give no figure, not $0.
+         true <- Decimal.gt?(sum, 0) || {:error, :no_trade_in_week} do
       {:ok, Decimal.round(sum, 2), complete?}
     end
   end
 
   # The list's pages in turn, until one comes back short or the last free one
-  # is read. A pool that moves between pages while they are read counts once.
+  # is read. A pool that moves between pages while they are read counts once,
+  # and one that moves onto a page already read is missed: only a short first
+  # page lists every pool.
   defp dollar_pools(network, token, dollar, page, found) do
     case get("/networks/#{network}/tokens/#{token}/pools?page=#{page}") do
       {:ok, %{"data" => pools}} when is_list(pools) ->
         found = found ++ Enum.filter(pools, &dollar_pool?(&1, network, token, dollar))
 
         cond do
-          length(pools) < @page_size -> listed(found, true)
+          length(pools) < @page_size -> listed(found, page == 1)
           page == @last_free_page -> listed(found, false)
           true -> dollar_pools(network, token, dollar, page + 1, found)
         end
@@ -149,8 +153,8 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   defp to_decimal(value) when is_integer(value), do: Decimal.new(value)
 
   # GeckoTerminal's free service allows about ten reads a minute, so a refusal
-  # waits half a minute, then a minute. A stock's twenty or so reads stay
-  # inside the ten minutes after which a running job counts as stuck.
+  # waits half a minute, then a minute. A read still going after the trigger's
+  # fifteen minutes is stopped and stores nothing.
   defp get(path) do
     case Req.get(@api <> path,
            headers: [accept: "application/json"],

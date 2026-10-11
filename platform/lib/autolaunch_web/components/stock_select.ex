@@ -265,8 +265,8 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   defp ordered(stocks, "alphabetical"), do: Enum.sort_by(stocks, & &1.symbol)
 
-  # A floor, from a stock with more pools than GeckoTerminal's free service
-  # lists, reads as at least that much.
+  # A floor, from a stock whose pools GeckoTerminal lists over more than one
+  # page, reads as at least that much.
   defp volume_line(nil), do: "Volume unavailable"
 
   defp volume_line(%{usd: usd, complete?: complete?, through: through}) do

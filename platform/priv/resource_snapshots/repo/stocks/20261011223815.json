@@ -88,8 +88,8 @@
       "type": "decimal"
     },
     {
-      "allow_nil?": true,
-      "default": "nil",
+      "allow_nil?": false,
+      "default": "false",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -154,7 +154,7 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "1E99BB79FD15AF08E1A08EA1C95CFED414CE63BFAC0BC5A773E34EBA6C31758F",
+  "hash": "09DBF9D01CB4282463C0951EBD856216FF0FEFFE104908CFBA5F91239D4D0761",
   "identities": [
     {
       "all_tenants?": false,

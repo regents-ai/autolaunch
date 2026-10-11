@@ -9,7 +9,7 @@ defmodule Autolaunch.Repo.Migrations.StockWeeklyVolumeComplete do
 
   def up do
     alter table(:stocks) do
-      add :weekly_volume_complete, :boolean
+      add :weekly_volume_complete, :boolean, null: false, default: false
     end
   end
 

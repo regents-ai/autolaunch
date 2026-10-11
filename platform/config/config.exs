@@ -29,9 +29,13 @@ config :autolaunch, Oban,
   ],
   plugins: [
     {Oban.Plugins.Cron, []},
-    {Oban.Plugins.Pruner, max_age: 86_400},
-    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(10)}
-  ]
+    {Oban.Plugins.Pruner, max_age: 86_400}
+  ],
+  # A job still executing after this long is taken for one whose machine
+  # stopped. It sits above the volume reads' fifteen-minute limit, so a read
+  # still running is never taken over; a finishing check orphaned by a stopped
+  # machine holds that launch's next check back until then.
+  lifeline: [rescue_after: {20, :minutes}]
 
 config :regent_agents,
   repo: Autolaunch.Repo,

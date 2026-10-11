@@ -60,6 +60,9 @@ defmodule Autolaunch.Stocks.Stock do
         queue :stock_volume
         scheduler_cron "*/30 * * * *"
         max_attempts 1
+        # Twice the longest read seen (7.7 minutes), and under the twenty
+        # minutes after which a running job counts as orphaned (config.exs).
+        timeout :timer.minutes(15)
 
         where expr(
                 chain_id in ^Autolaunch.Stocks.Stock.ReadWeeklyVolume.chain_ids() and
@@ -159,9 +162,9 @@ defmodule Autolaunch.Stocks.Stock do
 
     # The USD traded in the stock's dollar-token pools over the seven UTC days
     # ending on `weekly_volume_through`; a floor when not complete, because
-    # GeckoTerminal listed more pools than its free service shows.
+    # GeckoTerminal listed the stock's pools over more than one page.
     attribute :weekly_volume_usd, :decimal, public?: true, constraints: [min: 0]
-    attribute :weekly_volume_complete, :boolean, public?: true
+    attribute :weekly_volume_complete, :boolean, allow_nil?: false, default: false, public?: true
     attribute :weekly_volume_through, :date, public?: true
 
     # When this site first listed the stock: the start that wrote its row.
