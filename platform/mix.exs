@@ -112,7 +112,7 @@ defmodule Autolaunch.MixProject do
       {:jose, "~> 1.11.12"},
       # Signs the transaction that finishes an ended auction.
       {:ex_secp256k1, "~> 0.8.0"},
-      {:decimal, "== 3.1.1"},
+      {:decimal, "== 3.1.2"},
       # IANA zones for the Stocks auction start; compiled in, nothing fetched at runtime.
       {:tz, "~> 0.28"},
       {:req, "== 0.7.4"},
