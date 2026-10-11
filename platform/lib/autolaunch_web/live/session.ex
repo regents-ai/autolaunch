@@ -49,7 +49,7 @@ defmodule AutolaunchWeb.Live.Session do
   # connected mount that proved its claim, so a disconnected render can read but
   # can never reach a protected write.
   def on_mount(:load_human, _params, session, socket) do
-    socket = Phoenix.Component.assign(socket, :session_lease, nil)
+    socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
 
     if connected?(socket),
       do: connected(socket, session, get_connect_info(socket, :session)),
@@ -61,7 +61,7 @@ defmodule AutolaunchWeb.Live.Session do
   # current claim for the lineage the page was rendered for is a guest, so a
   # handshake refused elsewhere can always land here.
   def on_mount(:public_human, _params, session, socket) do
-    socket = Phoenix.Component.assign(socket, :session_lease, nil)
+    socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
 
     if connected?(socket),
       do: {:cont, admit_or_guest(socket, session, get_connect_info(socket, :session))},
@@ -128,20 +128,20 @@ defmodule AutolaunchWeb.Live.Session do
     |> Phoenix.Component.assign(:session_lease, lease)
     |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
       case leased(lease) do
-        nil -> {:halt, redirect(lapsed(socket), to: @public_root)}
+        nil -> {:halt, redirect(lapse(socket), to: @public_root)}
         account -> {:cont, assign_principal(socket, account)}
       end
     end)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
       case leased(lease) do
-        nil -> {:halt, lapsed(socket)}
+        nil -> {:halt, lapse(socket)}
         account -> {:cont, assign_principal(socket, account)}
       end
     end)
     |> attach_hook(:ens_identity, :handle_info, fn
       %{topic: ^ens_topic}, socket ->
         case leased(lease) do
-          nil -> {:halt, lapsed(socket)}
+          nil -> {:halt, lapse(socket)}
           account -> {:halt, assign_principal(socket, account)}
         end
 
@@ -150,10 +150,17 @@ defmodule AutolaunchWeb.Live.Session do
     end)
   end
 
-  # A lapsed lease is withdrawn along with the principal, so nothing downstream
-  # can still present it as authority for a write.
-  defp lapsed(socket),
-    do: socket |> assign_principal(nil) |> Phoenix.Component.assign(:session_lease, nil)
+  @doc """
+  Withdraws a lapsed lease along with the principal, so nothing downstream can
+  still present it as authority for a write, and a page that stays open says
+  the sign-in ended (`signed_out_reason: :expired`) rather than that no one
+  signed in. A page whose own read finds the lease lapsed calls it too.
+  """
+  def lapse(socket) do
+    socket
+    |> assign_principal(nil)
+    |> Phoenix.Component.assign(session_lease: nil, signed_out_reason: :expired)
+  end
 
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)

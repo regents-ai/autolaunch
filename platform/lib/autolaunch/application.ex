@@ -32,6 +32,10 @@ defmodule Autolaunch.Application do
       ),
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
+      # After the repository and PubSub: a Credits balance changed, or an agent
+      # paired or unpaired, on any Regent site reaches the Account page.
+      RegentCredits.Listener,
+      RegentAgents.Listener,
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.
       {Task.Supervisor, name: Autolaunch.TaskSupervisor},
       Autolaunch.Stocks.MarketData,

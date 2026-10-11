@@ -36,6 +36,7 @@ config :regent_agents,
 
 config :regent_credits,
   repo: Autolaunch.Repo,
+  pubsub: Autolaunch.PubSub,
   ash_domains: [RegentCredits],
   admins: [],
   agent_grants_enabled: false
