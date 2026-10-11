@@ -179,12 +179,11 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
     end
 
-    # The stock list is per chain, so a new chain starts without a paired stock.
     update :choose_chain do
       accept [:chain]
       require_atomic? false
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
-      change set_attribute(:stock_address, nil), where: [changing(:chain)]
+      change Autolaunch.Stocks.LaunchDraft.Changes.CarryStock, where: [changing(:chain)]
     end
 
     update :attach_image do
