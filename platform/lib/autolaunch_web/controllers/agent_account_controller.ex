@@ -65,27 +65,14 @@ defmodule AutolaunchWeb.AgentAccountController do
   def balances(conn, _params) do
     actor = credit_actor(conn)
 
-    case RegentCredits.agent_permissions(actor: actor) do
-      {:ok, grants} ->
-        grant =
-          Enum.find(
-            grants,
-            &(&1.agent_address == actor.agent_address and &1.pairing_id == actor.pairing_id)
-          )
-
-        budget =
-          if grant,
-            do: Map.take(grant, [:enabled, :sites, :max_per_spend, :daily_limit]),
-            else: %{enabled: false}
-
-        budget = Map.put(budget, :used_24h, RegentCredits.AgentSpending.spent_today(actor))
-
+    case RegentCredits.agent_budget(actor: actor) do
+      {:ok, budget} ->
         json(conn, %{
           account_id: conn.assigns.actor.human_account_id,
           pairing_id: actor.pairing_id,
           credits: RegentCredits.balance(actor.privy_user_id),
           spending_grant: budget,
-          grant_approvals_available: RegentCredits.agent_grants_enabled?()
+          grant_approvals_available: budget.grant_approvals_available
         })
 
       _ ->
