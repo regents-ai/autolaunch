@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v86, 11 October 2026 (2ec5eb4)
+- The header shows the signed-in wallet's ENS name and picture when the wallet has a primary
+  ENS name that points back to it. Each sign-in reads it again from Ethereum mainnet.
+- decimal 3.1.2 (security fix EEF-CVE-2026-97853).
+
 ## v85, 10 October 2026 (39383ca)
 - Nine Learn pages keep the same navigation and content position, with the current page marked.
   Docs, About, Blog, Contact, Fees, Privacy and Terms also select Learn in the main menu.
