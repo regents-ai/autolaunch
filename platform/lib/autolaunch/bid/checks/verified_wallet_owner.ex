@@ -23,6 +23,18 @@ defmodule Autolaunch.Bid.Checks.VerifiedWalletOwner do
     end
   end
 
+  def filter(%Autolaunch.Actors.Agent{} = actor, _context, _opts) do
+    with {:ok, account} when not is_nil(account) <-
+           Accounts.get_by_privy_did(actor.privy_user_id, actor: %Autolaunch.Actors.System{}),
+         true <- account.id == actor.local_human_account_id,
+         true <- VerifiedSession.current?(account),
+         wallets when wallets != [] <- verified_wallets(account) do
+      expr(string_downcase(owner_address) in ^wallets)
+    else
+      _ -> false
+    end
+  end
+
   def filter(_actor, _context, _opts), do: false
 
   defp verified_wallets(account) do

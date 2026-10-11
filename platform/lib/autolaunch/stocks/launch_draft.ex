@@ -111,6 +111,31 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   end
 
   actions do
+    read :agent_read do
+      get? true
+      filter expr(human_account_id == ^actor(:local_human_account_id))
+    end
+
+    create :agent_create do
+      accept []
+      change set_attribute(:human_account_id, actor(:local_human_account_id))
+      change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+      change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+      upsert? true
+      upsert_identity :one_stocks_draft_per_human
+      upsert_fields []
+      return_skipped_upsert? true
+    end
+
+    update :agent_save do
+      accept @token_fields
+      require_atomic? false
+      change Autolaunch.LaunchDraft.Changes.UpcaseTicker
+      validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+      change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
     create :create_for_owner do
       change Autolaunch.LaunchDraft.Changes.AssignOwner
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
@@ -200,6 +225,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   end
 
   policies do
+    policy action([:agent_read, :agent_create, :agent_save]) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
+    end
+
+    policy action(:agent_save) do
+      authorize_if expr(human_account_id == ^actor(:local_human_account_id))
+    end
+
     policy action([
              :create_for_owner,
              :mine_account_owned,
@@ -231,6 +264,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   end
 
   attributes do
+    attribute :last_agent_pairing_id, :uuid
     uuid_primary_key :id
 
     attribute :chain, :atom do

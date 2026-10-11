@@ -20,6 +20,10 @@
       calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
   }
 }
+/* Forced colours: the page you are on has a thicker, link-coloured border. */
+@media (forced-colors: active) {
+  .rg-button.shell-rail__link[aria-current="page"] { border: 2px solid LinkText; }
+}
 /* Narrow screens: the four links stay in one row under the wordmark. */
 @media (max-width: 63.99rem) {
   .shell-rail { padding: var(--rg-panel-padding); gap: var(--space-2); }

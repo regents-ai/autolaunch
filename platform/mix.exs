@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "0b4496ece5359ff93288cf695715e703b7c25a87"
+  @elixir_utils_ref "1564d79eb3b653f06ab11b6c422bd4d6283ea199"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "4da6db2bfe3559a8f8a761018dc099a28ab5f6a3"
+  @design_system_ref "9faee245bad741a40e0dcd232dddb29e244b8c2e"
   @regents "https://github.com/regents-ai/regents.git"
   @regents_ref "004307e65ffcf9cc9b3034d7cc2b015dcd45011b"
 
@@ -77,7 +77,7 @@ defmodule Autolaunch.MixProject do
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
       # repo's prefix that picks Autolaunch's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
-      {:ash_oban, "~> 0.8.14"},
+      {:ash_oban, "~> 0.9.0"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
@@ -94,8 +94,13 @@ defmodule Autolaunch.MixProject do
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      {:regent_agents,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
+      {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
+      {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
       {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
-      {:regent_chain, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain"},
+      {:regent_chain,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
       {:mdex, "== 0.13.3"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
@@ -163,6 +168,7 @@ defmodule Autolaunch.MixProject do
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
+        "regent_agent_access.assets",
         "esbuild autolaunch",
         "esbuild autolaunch_crown"
       ],
@@ -170,6 +176,7 @@ defmodule Autolaunch.MixProject do
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
+        "regent_agent_access.assets",
         "esbuild autolaunch --minify",
         "esbuild autolaunch_crown --minify",
         "phx.digest"
@@ -181,14 +188,15 @@ defmodule Autolaunch.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # Two kinds of compile-connected edge are permitted: a domain naming
-        # its compile-time resources, and each resource naming the policy check
-        # modules its policies use, which Ash 3.32 resolves at compile time.
-        # Nothing else is permitted. The ceiling is twenty-nine domain-to-resource
-        # edges (Accounts four, Autolaunch twenty-five) plus thirty-eight
-        # resource-to-check edges, and it is re-based per unit when a domain,
-        # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 68",
+        # Three kinds of compile-connected edge are permitted: a domain naming
+        # its compile-time resources, each resource naming the policy check
+        # modules its policies use, which Ash 3.32 resolves at compile time, and
+        # the endpoint naming the public documents its agent-access plug serves.
+        # Nothing else is permitted. The ceiling is thirty domain-to-resource
+        # edges (Accounts six, Autolaunch twenty-four), thirty-nine
+        # resource-to-check edges and the one endpoint edge, and it is re-based
+        # per unit when a domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 70",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"

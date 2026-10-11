@@ -54,7 +54,9 @@
    margin leaves the same space before the prism as between the icons themselves. */
 .regent-header-links .theme-control { margin-inline-start: -.25rem; }
 @media (pointer: coarse) { .regent-header-links .theme-control { margin-inline-start: .125rem; } }
-.autolaunch-profile-page { display: grid; gap: var(--space-4); }
+.autolaunch-account-page { display: grid; gap: var(--space-4); }
+.autolaunch-account-profile { display: grid; gap: var(--space-3); }
+.autolaunch-account-profile > * { margin: 0; }
 .autolaunch-account { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; }
 .autolaunch-account dt { color: var(--color-fg-muted); }
 .autolaunch-account dd { margin: 0; overflow-wrap: anywhere; }

@@ -284,7 +284,7 @@ Fly Sentinel reads them from Prometheus under its site health set.
 
 ## Shared private profile
 
-`/profile` uses the shared Regent UI and Regents-owned Ash identity domain.
+`/account` uses the shared Regent UI and Regents-owned Ash identity domain.
 The private `/api/v1/profile` contract provides `GET`, `PATCH`, and `POST /sync`;
 the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,

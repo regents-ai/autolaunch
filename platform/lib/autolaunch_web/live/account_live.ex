@@ -1,10 +1,12 @@
-defmodule AutolaunchWeb.ProfileLive do
+defmodule AutolaunchWeb.AccountLive do
   @moduledoc """
-  `/profile`: the signed-in person's account on Autolaunch: who is signed in,
-  with which wallet, their connected accounts and a way to log out, plus the
-  way to their Regents account, where pairings with agents are managed. The
-  connected accounts reuse the Create page's connections component, so an
-  account connected here is the same one Create shows.
+  `/account`: the signed-in person's Account on Autolaunch. Signed out, it shows
+  the shared signed-out section with the site's own Sign in button. Signed in,
+  its Profile section says who is signed in, with which wallet, links to their
+  Regents account, where pairings with agents are managed, and offers Sign out;
+  their connected accounts follow. The connected accounts reuse the Create
+  page's connections component, so an account connected here is the same one
+  Create shows.
   """
   use AutolaunchWeb, :live_view
 
@@ -17,7 +19,7 @@ defmodule AutolaunchWeb.ProfileLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/profile"))
+     |> assign(AutolaunchWeb.PublicDocuments.page("/account"))
      |> assign(
        current_human_id: current_human_id(socket.assigns.access_context),
        account: AccessContext.account_control(socket.assigns.access_context),
@@ -29,7 +31,7 @@ defmodule AutolaunchWeb.ProfileLive do
 
   def handle_event("refresh_x_connections", _params, socket) do
     send_update(AutolaunchWeb.CreatorConnectionsComponent,
-      id: "profile-connections",
+      id: "account-connections",
       current_human_id: socket.assigns.current_human_id,
       session_lease: socket.assigns.session_lease
     )
@@ -39,52 +41,57 @@ defmodule AutolaunchWeb.ProfileLive do
 
   def render(assigns) do
     ~H"""
-    <section class="autolaunch-profile-page">
-      <section class="market-profile-panel autolaunch-heading" aria-label="Profile">
-        <h1>Profile</h1>
-        <p :if={!@current_human_id}>Sign in to see your account.</p>
-        <Regent.Primitives.button
-          :if={!@current_human_id}
-          type="button"
-          class="autolaunch-profile-page__sign-in"
-          data-account-target="sign-in"
-        >
-          Sign in
-        </Regent.Primitives.button>
-        <dl :if={@current_human_id} class="autolaunch-account">
+    <article class="autolaunch-account-page">
+      <header class="autolaunch-heading">
+        <h1>Account</h1>
+      </header>
+      <Regent.Account.signed_out :if={!@current_human_id} id="account-signed-out">
+        <:sign_in>
+          <Regent.Primitives.button type="button" data-account-target="sign-in">
+            Sign in
+          </Regent.Primitives.button>
+        </:sign_in>
+      </Regent.Account.signed_out>
+      <section
+        :if={@current_human_id}
+        class="market-profile-panel autolaunch-account-profile"
+        aria-labelledby="account-profile-title"
+      >
+        <h2 id="account-profile-title">Profile</h2>
+        <dl class="autolaunch-account">
           <dt>Signed in as</dt>
           <dd>{@account.label}</dd>
           <dt>Wallet</dt>
           <dd>{@account.wallet_address}</dd>
         </dl>
-        <p :if={@current_human_id}>Manage your account and agent pairings on regents.sh</p>
-        <div :if={@current_human_id} class="autolaunch-account__actions">
+        <p>Manage your account and agent pairings on regents.sh</p>
+        <div class="autolaunch-account__actions">
           <a
             class="rg-button rg-button--primary"
             href={@regents_account_url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Go to Account on regents.sh, opens in a new tab"
+            aria-label="Open regents.sh in a new tab"
           >
-            Go to Account <span aria-hidden="true">↗</span>
+            Open regents.sh <span aria-hidden="true">↗</span>
           </a>
           <Regent.Primitives.button
             type="button"
             variant="secondary"
             data-account-target="sign-out"
           >
-            Log out
+            Sign out
           </Regent.Primitives.button>
         </div>
       </section>
       <.live_component
         :if={@current_human_id}
         module={AutolaunchWeb.CreatorConnectionsComponent}
-        id="profile-connections"
+        id="account-connections"
         current_human_id={@current_human_id}
         session_lease={@session_lease}
       />
-    </section>
+    </article>
     """
   end
 end

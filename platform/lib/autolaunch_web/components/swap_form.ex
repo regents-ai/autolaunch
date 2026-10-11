@@ -427,9 +427,11 @@ defmodule AutolaunchWeb.Components.SwapForm do
       hidden={!@shown}
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-awaiting-wallet"])}
     >
-      <span class="token-swap__wallet-step-label">{@shown && button_label(@shown, @next_step)}</span>
-      <span class="token-swap__wallet-step-wait">
-        <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
+      <span class="token-swap__wallet-step-text" data-press-label>
+        <span class="token-swap__wallet-step-label">{@shown && button_label(@shown, @next_step)}</span>
+        <span class="token-swap__wallet-step-wait">
+          <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
+        </span>
       </span>
     </Regent.Primitives.button>
     <Regent.Primitives.button

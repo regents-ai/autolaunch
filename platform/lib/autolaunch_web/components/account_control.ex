@@ -57,15 +57,15 @@ defmodule AutolaunchWeb.Components.AccountControl do
         </summary>
         <div class="account-menu__panel" {AutolaunchWeb.Motion.panel("menu")}>
           <p class="account-menu__label">{@account_control.label}</p>
-          <.link href="/profile" class="account-menu__item">
-            <.menu_icon name={:profile} /> Profile
+          <.link href="/account" class="account-menu__item">
+            <.menu_icon name={:account} /> Account
           </.link>
           <button
             type="button"
             class="account-menu__item account-menu__item--leave"
             data-account-target="sign-out"
           >
-            <.menu_icon name={:log_out} /> Log out
+            <.menu_icon name={:sign_out} /> Sign out
           </button>
         </div>
       </details>
@@ -100,12 +100,12 @@ defmodule AutolaunchWeb.Components.AccountControl do
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <g :if={@name == :profile}>
+      <g :if={@name == :account}>
         <circle cx="12" cy="12" r="9" />
         <circle cx="12" cy="10" r="3" />
         <path d="M6.5 18.5a6 6 0 0 1 11 0" />
       </g>
-      <g :if={@name == :log_out}>
+      <g :if={@name == :sign_out}>
         <path d="M10 4H5v16h5" />
         <path d="M14 8l5 4-5 4M19 12H9" />
       </g>

@@ -89,3 +89,5 @@ Thumbs.db
 
 # Deployment descriptions carry the private RPC door; fly.toml places them on the machine.
 /deployment/
+
+/assets/vendor/regent_agent_access/

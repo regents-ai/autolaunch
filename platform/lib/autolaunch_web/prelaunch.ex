@@ -25,6 +25,7 @@ defmodule AutolaunchWeb.Prelaunch do
       not Prelaunch.read_only?() -> conn
       match?(["create" | _], path) -> refuse(conn, 404)
       account_path?(path) -> conn
+      signed_account_request?(conn.method, path) -> conn
       conn.method in ["GET", "HEAD"] -> conn
       public_quote?(conn.method, path) -> conn
       true -> refuse(conn, 503)
@@ -35,6 +36,15 @@ defmodule AutolaunchWeb.Prelaunch do
   defp account_path?(["auth" | _]), do: true
   defp account_path?(["api", "v1", "profile" | _]), do: true
   defp account_path?(_), do: false
+
+  # Pairing is account access; history is a private read despite its JSON body.
+  # Metadata and all launch/wallet writes retain the prelaunch refusal.
+  defp signed_account_request?("POST", ["api", "agents", "v1", "pair"]), do: true
+
+  defp signed_account_request?("POST", ["api", "agent", "v1", "account", "credits", "history"]),
+    do: true
+
+  defp signed_account_request?(_, _), do: false
 
   # This existing POST only calculates a quote from stored public data.
   defp public_quote?("POST", ["api", "v1", "auctions", _id, "bid-quote"]), do: true

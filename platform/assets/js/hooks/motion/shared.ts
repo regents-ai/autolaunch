@@ -29,9 +29,12 @@ export const lastInputByPointer = () => pointer
 
 export function watchInput(doc: Document) {
   const byHand = () => { pointer = true }
+  const byKey = () => { pointer = false }
   doc.addEventListener("pointerdown", byHand, true)
   doc.addEventListener("pointermove", byHand, true)
-  doc.addEventListener("keydown", () => { pointer = false }, true)
+  doc.addEventListener("keydown", byKey, true)
+  doc.defaultView?.addEventListener("popstate", byKey)
+  doc.defaultView?.addEventListener("pageshow", event => { if (event.persisted) byKey() })
 }
 
 // Anime.js hands an element back to its stylesheet by restoring the inline
