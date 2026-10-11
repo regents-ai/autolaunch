@@ -48,8 +48,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     authentication_required: "Sign in to settle this bid.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
-    invalid_address: "Connect your wallet, then press again.",
+    wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     not_your_bid:
       "This bid was placed from a different wallet. Switch to that wallet to settle it.",
     position_not_on_chain: "This bid has no on-chain record to settle.",
@@ -912,8 +912,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(%{active: nil}), do: "Connect your wallet, then press again."
-  defp no_signer(_assigns), do: copy(:wrong_signer)
+  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   # The line under the bid, from the auction's answer; the minimum still to
   # raise is the auction's own minimum less what it has raised.

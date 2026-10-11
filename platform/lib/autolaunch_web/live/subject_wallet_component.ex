@@ -34,8 +34,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     authentication_required: "Sign in to use your wallet here.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
-    invalid_address: "Connect your wallet, then press again.",
+    wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     subject_not_found: "Payments are not open on this token yet.",
     subject_unavailable: "This token could not be read just now.",
@@ -444,14 +444,17 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # Reviews
 
-  # With no wallet that may act nothing is prepared: with no active wallet
-  # Privy's connect step opens, and with another wallet open the note beside
-  # the button names both.
-  defp review(%{assigns: %{signer: nil, active: nil}} = socket, _kind, _params),
-    do: socket |> assign(notice: nil) |> OnchainSteps.connect()
+  # With no wallet that may act nothing is prepared, and the note names the
+  # account's wallets.
+  defp review(%{assigns: %{signer: nil, linked: nil}} = socket, _kind, _params),
+    do: assign(socket, notice: copy(:authentication_required))
 
-  defp review(%{assigns: %{signer: nil}} = socket, _kind, _params),
-    do: assign(socket, notice: copy(:wrong_signer))
+  defp review(%{assigns: %{signer: nil} = assigns} = socket, _kind, _params),
+    do:
+      assign(socket,
+        notice:
+          OnchainSteps.failure_note("wallet_unavailable", assigns.linked, assigns.active, nil)
+      )
 
   defp review(%{assigns: %{signer: signer}} = socket, kind, params) do
     case SubjectWalletActions.prepare(

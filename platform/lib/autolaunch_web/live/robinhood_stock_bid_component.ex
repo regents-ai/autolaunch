@@ -43,8 +43,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     authentication_required: "Sign in to bid from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
-    invalid_address: "Connect your wallet, then press again.",
+    wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     chain_unavailable: "Robinhood could not be read just now. Try again in a moment.",
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
     invalid_block_header: "Robinhood gave an incomplete answer. Try again in a moment.",
@@ -711,8 +711,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp sending(review, step), do: AgentPress.sending(review, step, &step_label/1)
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(%{active: nil}), do: "Connect your wallet, then press again."
-  defp no_signer(_assigns), do: copy(:wrong_signer)
+  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   # The form as it was on screen when pressed: a max FDV that differs from the
   # one shown was typed, so the bid follows it.

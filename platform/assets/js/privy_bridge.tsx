@@ -4,7 +4,6 @@ import {
   type PrivyEvents,
   getIdentityToken,
   useActiveWallet,
-  useConnectWallet,
   useLogin,
   useLinkAccount,
   usePrivy,
@@ -502,7 +501,6 @@ export type PrivyBridgeProviderState = {
   activeWallet?: ReturnType<typeof useActiveWallet>["wallet"]
   linkedWallets?: string[]
   setActiveWallet?: ReturnType<typeof useActiveWallet>["setActiveWallet"]
-  connectWallet?: ReturnType<typeof useConnectWallet>["connectWallet"]
 }
 
 function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}: AccountBridgeProps) {
@@ -516,13 +514,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const wallets = providerState?.wallets ?? providerWallets.wallets
   const activeWallet = providerState?.activeWallet ?? providerActiveWallet.wallet
   const setActiveWallet = providerState?.setActiveWallet ?? providerActiveWallet.setActiveWallet
-  // A wallet the customer connects in Privy's window becomes this tab's wallet.
-  const providerWalletConnector = useConnectWallet({
-    onSuccess: ({wallet}) => {
-      if (isAvailable() && wallet.type === "ethereum") setActiveWallet(wallet)
-    },
-  })
-  const connectWallet = providerState?.connectWallet ?? providerWalletConnector.connectWallet
   // The Ethereum wallets the signed-in account is linked to, joined so a render
   // with the same accounts leaves the wallet sync below alone.
   const linkedWallets = (
@@ -738,15 +729,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
       walletSyncGeneration.current += 1
     }
   }, [signOutOnly, synchronizeWallets])
-
-  // A press with no wallet in this tab opens Privy's connect window, for a
-  // wallet this tab does not have yet or for a choice between wallets.
-  React.useEffect(() => {
-    const openChooser = () =>
-      void Promise.resolve(connectWallet({walletChainType: "ethereum-only"})).catch(() => undefined)
-    window.addEventListener("autolaunch:wallet-connect", openChooser)
-    return () => window.removeEventListener("autolaunch:wallet-connect", openChooser)
-  }, [connectWallet])
 
   const markSignOutTerminal = React.useCallback(() => {
     signOutOnlyState.current = "terminal"

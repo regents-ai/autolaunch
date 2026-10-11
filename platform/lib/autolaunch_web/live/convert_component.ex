@@ -30,8 +30,8 @@ defmodule AutolaunchWeb.ConvertComponent do
     authentication_required: "Sign in to convert from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then review again.",
-    invalid_address: "Connect your wallet, then review again.",
+    wrong_signer: "Your wallet changed during the review, so nothing was prepared. Review again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then review again.",
     chain_unavailable: "The fee contract could not be read just now. Try again in a moment.",
     invalid_chain_response: "The fee contract gave an incomplete answer. Try again in a moment.",
     lab_config_changed: "The network changed while this was prepared. Try again.",
@@ -249,6 +249,9 @@ defmodule AutolaunchWeb.ConvertComponent do
          |> assign(prepared: prepared, notice: nil, press_note: nil, done: nil)
          |> OnchainSteps.put_review(review)}
 
+      {:error, :no_signer} ->
+        {:noreply, assign(socket, notice: no_signer(socket.assigns))}
+
       {:error, error} ->
         {:noreply, assign(socket, notice: copy(refusal(error)))}
     end
@@ -295,7 +298,7 @@ defmodule AutolaunchWeb.ConvertComponent do
     end
   end
 
-  defp prepare(%{assigns: %{signer: nil}}, _request), do: {:error, :invalid_address}
+  defp prepare(%{assigns: %{signer: nil}}, _request), do: {:error, :no_signer}
 
   defp prepare(socket, request),
     do: StakeActions.prepare(request, socket.assigns.signer, opts(socket))
@@ -344,6 +347,9 @@ defmodule AutolaunchWeb.ConvertComponent do
     |> assign(prepared: nil, press_note: nil, revision: socket.assigns.revision + 1)
     |> OnchainSteps.put_review(nil)
   end
+
+  defp no_signer(%{linked: nil}), do: copy(:authentication_required)
+  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   defp failure_note(%{review: review} = assigns, reason) do
     chain_name = if review, do: review.chain.name, else: "this network"

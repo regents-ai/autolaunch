@@ -36,8 +36,8 @@ defmodule AutolaunchWeb.BidComponent do
     authentication_required: "Sign in to bid from your wallet.",
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
-    invalid_address: "Connect your wallet, then press again.",
+    wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
     auction_currency_changed:
@@ -593,8 +593,7 @@ defmodule AutolaunchWeb.BidComponent do
     do: AgentPress.sending(review, step, &step_label(&1, prepared))
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(%{active: nil}), do: "Connect your wallet, then press again."
-  defp no_signer(_assigns), do: copy(:wrong_signer)
+  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   defp agent_pay_with(nil, %{auction: auction}), do: {:ok, auction.quote_token_symbol}
   defp agent_pay_with("USDC", %{usdc_bids?: true}), do: {:ok, "USDC"}

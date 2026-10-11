@@ -59,14 +59,6 @@ export const OnchainSteps: Hook = {
       if (component_id === this.el.id) this.review = review ?? undefined
     })
 
-    // The server asks for Privy's connect step when a review needs a wallet
-    // and none is active in this tab.
-    this.handleEvent("onchain-steps:connect", payload => {
-      if ((payload as {component_id: string}).component_id === this.el.id) {
-        window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
-      }
-    })
-
     this.agent = agentCard(this, (review, name) => press(review, name, push))
 
     // Every press runs on its own and reaches the wallet, even while an earlier
@@ -118,7 +110,7 @@ export const OnchainSteps: Hook = {
 /**
  * Sends the named step from Privy's active wallet, the only wallet that acts,
  * when it is the signer the server built the review for. With no wallet
- * active, the press opens the connect step and sends nothing. Reports only what
+ * active, or another one, the press sends nothing. Reports only what
  * the wallet answered, against the review it sent from: the hash, or why
  * nothing was sent. The server decides what the hash did.
  */
@@ -130,10 +122,7 @@ export async function press(review: Review | undefined, name: string, push: Push
   }
 
   try {
-    if (!activeEthereumWallet()) {
-      window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
-      throw new NothingSent("wallet_unavailable")
-    }
+    if (!activeEthereumWallet()) throw new NothingSent("wallet_unavailable")
     if (!review || !step) throw new NothingSent("step_unknown")
     const wallet = () => {
       const active = activeEthereumWallet()

@@ -39,8 +39,8 @@ defmodule AutolaunchWeb.StakeComponent do
     authentication_required: "Sign in to stake from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then review again.",
-    invalid_address: "Connect your wallet, then review again.",
+    wrong_signer: "Your wallet changed during the review, so nothing was prepared. Review again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then review again.",
     chain_unavailable: "The staking contract could not be read just now. Try again in a moment.",
     invalid_chain_response:
       "The staking contract gave an incomplete answer. Try again in a moment.",
@@ -519,11 +519,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp reviewed(%{assigns: %{signer: nil}} = socket, _name, params) do
     socket = entered(socket, params)
-    socket = assign(socket, notice: no_signer(socket.assigns))
-
-    if socket.assigns.linked && is_nil(socket.assigns.active),
-      do: {:error, OnchainSteps.connect(socket)},
-      else: {:error, socket}
+    {:error, assign(socket, notice: no_signer(socket.assigns))}
   end
 
   defp reviewed(socket, name, params) do
@@ -553,10 +549,7 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(%{active: nil}), do: "Connect your wallet, then review again."
-
-  defp no_signer(_assigns),
-    do: "Switch to a wallet on your account in your wallet app, then review again."
+  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   # The step the open review's button would send, when that review is for the
   # same action and amount; a claim takes no amount.

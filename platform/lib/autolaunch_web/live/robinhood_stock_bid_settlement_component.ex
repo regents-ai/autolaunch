@@ -48,8 +48,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     authentication_required: "Sign in to settle this bid.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then press again.",
-    invalid_address: "Connect your wallet, then press again.",
+    wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     not_your_bid:
       "This bid was placed from a different wallet. Switch to that wallet to settle it.",
     bid_not_found: "The auction has no record of this bid.",
@@ -864,8 +864,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
   end
 
-  defp no_signer(%{active: nil}), do: "Connect your wallet, then press again."
-  defp no_signer(_assigns), do: copy(:wrong_signer)
+  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   # The bid as the page tool names it: its auction and its id.
   defp agent_bid(%{auction: auction, bid: %{"bid_id" => bid_id}}),

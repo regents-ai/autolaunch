@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   "Review launch" prepares the review on the server for Privy's active wallet
   when the signed-in account links it (`AutolaunchWeb.OnchainSteps`); with no
-  active wallet it opens Privy's connect step instead. The review lives on the
+  such wallet open it names the account's wallets instead. The review lives on the
   page. The step's button has no server round trip: the `OnchainSteps` hook
   sends it, every press reaches the wallet, and every outcome is the server's
   own read of the hash against the review it was sent from. A review nothing
@@ -90,8 +90,8 @@ defmodule AutolaunchWeb.LaunchSteps do
   @doc """
   "Review launch": `prepare` is called with the wallet that may act and answers
   `{:ok, prepared}` or `{:error, message}`. With no such wallet nothing is
-  prepared: signed out the card says so, with no active wallet Privy's connect
-  step opens, and with another wallet open the note beside the button names both.
+  prepared: signed out the card says so, and otherwise it names the account's
+  wallets and asks for one of them.
   """
   def review(socket, prepare) do
     %{linked: linked, active: active, signer: signer} = socket.assigns
@@ -100,12 +100,9 @@ defmodule AutolaunchWeb.LaunchSteps do
       is_nil(linked) ->
         assign(socket, notice: "Sign in to launch from your wallet.")
 
-      is_nil(active) ->
-        socket |> assign(notice: nil) |> OnchainSteps.connect()
-
       is_nil(signer) ->
         assign(socket,
-          notice: "Switch to a wallet on your account in your wallet app, then press again."
+          notice: OnchainSteps.failure_note("wallet_unavailable", linked, active, nil)
         )
 
       true ->

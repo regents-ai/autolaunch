@@ -36,8 +36,8 @@ defmodule AutolaunchWeb.SwapComponent do
     authentication_required: "Sign in to swap from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch to a wallet on your account in your wallet app, then review again.",
-    invalid_address: "Connect your wallet, then review again.",
+    wrong_signer: "Your wallet changed during the review, so nothing was prepared. Review again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then review again.",
     chain_unavailable: "The pool could not be read just now. Try again in a moment.",
     invalid_chain_response: "The pool gave an incomplete answer. Try again in a moment.",
     lab_config_changed: "The network changed while this was prepared. Try again.",
@@ -427,22 +427,13 @@ defmodule AutolaunchWeb.SwapComponent do
   defp prepare(socket, request),
     do: SwapActions.prepare(request, socket.assigns.signer, opts(socket))
 
-  # With no wallet on the account active, the review asks for one; with none
-  # connected in this tab, it opens Privy's connect step too.
+  # With no wallet on the account active, the review names the account's
+  # wallets and asks for one of them.
   defp no_signer(%{assigns: %{linked: nil}} = socket),
     do: assign(socket, notice: copy(:authentication_required))
 
-  defp no_signer(%{assigns: %{active: nil}} = socket),
-    do:
-      socket
-      |> assign(notice: "Connect your wallet, then review again.")
-      |> OnchainSteps.connect()
-
   defp no_signer(socket),
-    do:
-      assign(socket,
-        notice: "Switch to a wallet on your account in your wallet app, then review again."
-      )
+    do: assign(socket, notice: failure_note(socket.assigns, "wallet_unavailable"))
 
   defp agent_reviewed(socket, direction, fields) do
     socket = assign(socket, direction: direction, revision: socket.assigns.revision + 1)
