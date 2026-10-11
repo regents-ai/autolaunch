@@ -158,8 +158,10 @@ defmodule Autolaunch.Stocks.Stock do
       constraints: [items: [max_length: 80]]
 
     # The USD traded in the stock's dollar-token pools over the seven UTC days
-    # ending on `weekly_volume_through`.
+    # ending on `weekly_volume_through`; a floor when not complete, because
+    # GeckoTerminal listed more pools than its free service shows.
     attribute :weekly_volume_usd, :decimal, public?: true, constraints: [min: 0]
+    attribute :weekly_volume_complete, :boolean, public?: true
     attribute :weekly_volume_through, :date, public?: true
 
     # When this site first listed the stock: the start that wrote its row.

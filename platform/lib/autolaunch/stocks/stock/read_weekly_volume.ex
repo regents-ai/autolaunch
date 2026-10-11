@@ -6,14 +6,21 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   The volume is that of the stock's pools against the chain's dollar token
   (USDC on Base, USDG on Robinhood), summed from each pool's daily candles: a
   pool against another token is mostly that token's trading, not the stock's.
-  The pools are the first page GeckoTerminal lists for the token, which holds
-  its deepest ones. A failed read fails the action, and the trigger's next run
-  tries again.
+  GeckoTerminal lists a token's pools twenty to a page, busiest first, and its
+  free service shows the first ten pages. When the list ends within them the
+  sum is complete; when it runs on past them the sum counts the 200 busiest
+  pools and is stored as a floor.
+
+  A read that finds no dollar pool, or any answer that is refused or not in
+  the expected shape, fails the action and stores nothing; the trigger's next
+  run tries again.
   """
 
   use Ash.Resource.Change
 
   @api "https://api.geckoterminal.com/api/v2"
+  @page_size 20
+  @last_free_page 10
 
   # GeckoTerminal's network name and the launchpad's dollar token, by chain.
   @networks %{
@@ -31,9 +38,10 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
       through = Date.add(Date.utc_today(), -1)
 
       case volume(stock.chain_id, String.downcase(stock.address), through) do
-        {:ok, usd} ->
+        {:ok, usd, complete?} ->
           changeset
           |> Ash.Changeset.force_change_attribute(:weekly_volume_usd, usd)
+          |> Ash.Changeset.force_change_attribute(:weekly_volume_complete, complete?)
           |> Ash.Changeset.force_change_attribute(:weekly_volume_through, through)
 
         {:error, reason} ->
@@ -46,14 +54,43 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
     {network, dollar} = Map.fetch!(@networks, chain_id)
     first = Date.add(through, -6)
 
-    with {:ok, %{"data" => pools}} <- get("/networks/#{network}/tokens/#{token}/pools?page=1"),
+    with {:ok, pools, complete?} <- dollar_pools(network, token, dollar, 1, []),
          {:ok, sum} <-
-           pools
-           |> Enum.filter(&dollar_pool?(&1, network, token, dollar))
-           |> Enum.reduce_while({:ok, Decimal.new(0)}, &add_pool(&1, &2, network, first, through)) do
-      {:ok, Decimal.round(sum, 2)}
+           Enum.reduce_while(
+             pools,
+             {:ok, Decimal.new(0)},
+             &add_pool(&1, &2, network, first, through)
+           ) do
+      {:ok, Decimal.round(sum, 2), complete?}
     end
   end
+
+  # The list's pages in turn, until one comes back short or the last free one
+  # is read. A pool that moves between pages while they are read counts once.
+  defp dollar_pools(network, token, dollar, page, found) do
+    case get("/networks/#{network}/tokens/#{token}/pools?page=#{page}") do
+      {:ok, %{"data" => pools}} when is_list(pools) ->
+        found = found ++ Enum.filter(pools, &dollar_pool?(&1, network, token, dollar))
+
+        cond do
+          length(pools) < @page_size -> listed(found, true)
+          page == @last_free_page -> listed(found, false)
+          true -> dollar_pools(network, token, dollar, page + 1, found)
+        end
+
+      {:ok, _body} ->
+        {:error, {:unexpected_answer, page}}
+
+      error ->
+        error
+    end
+  end
+
+  # No dollar pool listed means no figure, not a week without trades.
+  defp listed([], _complete?), do: {:error, :no_dollar_pool}
+
+  defp listed(pools, complete?),
+    do: {:ok, Enum.uniq_by(pools, &get_in(&1, ["attributes", "address"])), complete?}
 
   # Every pool must answer: a sum missing one is not the stock's volume.
   defp add_pool(pool, {:ok, sum}, network, first, through) do
@@ -76,18 +113,35 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   defp dollar_pool?(_pool, _network, _token, _dollar), do: false
 
   # Each candle is [start, open, high, low, close, volume in USD]; a day with
-  # no trades has no candle.
+  # no trades has no candle. One candle of any other shape fails the read.
   defp pool_volume(network, pool, first, through) do
     path = "/networks/#{network}/pools/#{pool}/ohlcv/day?aggregate=1&limit=8&currency=usd"
 
-    with {:ok, %{"data" => %{"attributes" => %{"ohlcv_list" => candles}}}} <- get(path) do
-      {:ok,
-       for [start | rest] <- candles,
-           day = start |> DateTime.from_unix!() |> DateTime.to_date(),
-           Date.compare(day, first) != :lt and Date.compare(day, through) != :gt,
-           reduce: Decimal.new(0) do
-         sum -> rest |> List.last() |> to_decimal() |> Decimal.add(sum)
-       end}
+    case get(path) do
+      {:ok, %{"data" => %{"attributes" => %{"ohlcv_list" => candles}}}} when is_list(candles) ->
+        if Enum.all?(candles, &candle?/1),
+          do: {:ok, week_volume(candles, first, through)},
+          else: {:error, {:malformed_candles, pool}}
+
+      {:ok, _body} ->
+        {:error, {:unexpected_answer, pool}}
+
+      error ->
+        error
+    end
+  end
+
+  defp candle?([start, open, high, low, close, usd]) when is_integer(start),
+    do: Enum.all?([open, high, low, close, usd], &(is_number(&1) and &1 >= 0))
+
+  defp candle?(_candle), do: false
+
+  defp week_volume(candles, first, through) do
+    for [start, _open, _high, _low, _close, usd] <- candles,
+        day = start |> DateTime.from_unix!() |> DateTime.to_date(),
+        Date.compare(day, first) != :lt and Date.compare(day, through) != :gt,
+        reduce: Decimal.new(0) do
+      sum -> usd |> to_decimal() |> Decimal.add(sum)
     end
   end
 
@@ -95,8 +149,8 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   defp to_decimal(value) when is_integer(value), do: Decimal.new(value)
 
   # GeckoTerminal's free service allows about ten reads a minute, so a refusal
-  # waits half a minute, then a minute. A stock's few reads stay well inside
-  # the ten minutes after which a running job counts as stuck.
+  # waits half a minute, then a minute. A stock's twenty or so reads stay
+  # inside the ten minutes after which a running job counts as stuck.
   defp get(path) do
     case Req.get(@api <> path,
            headers: [accept: "application/json"],

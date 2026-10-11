@@ -234,15 +234,23 @@ defmodule AutolaunchWeb.Components.StockSelect do
     })
   end
 
-  # A count that ends more than two days ago is no longer the past week's.
-  defp weekly_volume(%{weekly_volume_usd: %Decimal{} = usd, weekly_volume_through: through}) do
-    if Date.diff(Date.utc_today(), through) <= 2, do: Decimal.to_float(usd)
+  # The past week is the seven whole UTC days up to yesterday. Each morning's
+  # reads take a few hours, so until a stock's lands its count to the day
+  # before shows with that week named; an older count shows none.
+  defp weekly_volume(%{
+         weekly_volume_usd: %Decimal{} = usd,
+         weekly_volume_complete: complete?,
+         weekly_volume_through: through
+       }) do
+    if Date.diff(Date.utc_today(), through) <= 2,
+      do: %{usd: Decimal.to_float(usd), complete?: complete?, through: through}
   end
 
   defp weekly_volume(_record), do: nil
 
   defp ordered(stocks, "volume"),
-    do: Enum.sort_by(stocks, &{is_nil(&1.volume), -(&1.volume || 0), &1.symbol})
+    do:
+      Enum.sort_by(stocks, &{is_nil(&1.volume), -((&1.volume && &1.volume.usd) || 0), &1.symbol})
 
   # By the day each was first offered: stocks recorded the same day were added
   # together, so they keep alphabetical order among themselves.
@@ -257,8 +265,20 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   defp ordered(stocks, "alphabetical"), do: Enum.sort_by(stocks, & &1.symbol)
 
+  # A floor, from a stock with more pools than GeckoTerminal's free service
+  # lists, reads as at least that much.
   defp volume_line(nil), do: "Volume unavailable"
-  defp volume_line(volume), do: "#{compact_usd(volume)} past week"
+
+  defp volume_line(%{usd: usd, complete?: complete?, through: through}) do
+    floor = if complete?, do: "", else: "+"
+
+    week =
+      if through == Date.add(Date.utc_today(), -1),
+        do: "past week",
+        else: "week to #{Calendar.strftime(through, "%-d %b")}"
+
+    "#{compact_usd(usd)}#{floor} #{week}"
+  end
 
   attr :stock, :map, required: true
 
