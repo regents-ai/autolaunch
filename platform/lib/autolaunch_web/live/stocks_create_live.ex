@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.Actors.Human
   alias Autolaunch.{LaunchChain, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
+  alias AutolaunchWeb.Components.StockSelect
   alias AutolaunchWeb.DraftMarks
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
   alias RegentChain.Address
@@ -49,6 +50,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
         current_human_id: nil,
         stocks_lab: stocks_lab(),
         market: %{prices: %{}, venues: []},
+        stock_sort: "alphabetical",
+        stock_records: stock_records(),
         reviewing?: false,
         launched?: false,
         listings: 0,
@@ -106,6 +109,17 @@ defmodule AutolaunchWeb.StocksCreateLive do
     start_async(socket, :market, fn -> Stocks.MarketData.overview(chain, stock) end)
   end
 
+  # Each chain's stock rows, for the gallery's added times and search names. A
+  # chain with no id configured offers no stocks.
+  defp stock_records do
+    Map.new(LaunchChain.chains(), fn chain ->
+      case Stocks.Assets.chain_id(chain) do
+        nil -> {chain, []}
+        chain_id -> {chain, Autolaunch.chain_stocks!(chain_id)}
+      end
+    end)
+  end
+
   defp chosen_stock(_chain, ""), do: nil
 
   defp chosen_stock(chain, address) do
@@ -125,6 +139,12 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_event(event, params, socket) when event in @autosave_events do
     values = Map.take(params["stock_draft"] || %{}, Templates.section_params(event))
     {:noreply, autosaved(socket, event, values)}
+  end
+
+  def handle_event("sort_stocks", %{"by" => by}, socket) do
+    if by in StockSelect.sorts(),
+      do: {:noreply, assign(socket, :stock_sort, by)},
+      else: {:noreply, socket}
   end
 
   def handle_event("choose_chain", %{"chain" => chain}, socket) when is_map_key(@chains, chain) do

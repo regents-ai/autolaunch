@@ -50,6 +50,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :stocks_lab, :map, default: nil
   attr :market, :map, default: %{prices: %{}, venues: []}
   attr :launch_chain, :atom, required: true
+  attr :stock_sort, :string, required: true
+  attr :stock_records, :map, required: true
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
@@ -222,6 +224,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   name="stock_draft[stock_address]"
                   value={@draft_values["stock_address"]}
                   chain={@launch_chain}
+                  sort={@stock_sort}
+                  sort_event="sort_stocks"
+                  records={@stock_records[@launch_chain]}
                 />
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
                   {@draft_errors["stock_address"]}

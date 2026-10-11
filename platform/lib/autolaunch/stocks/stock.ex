@@ -54,6 +54,14 @@ defmodule Autolaunch.Stocks.Stock do
   actions do
     defaults [:read]
 
+    # One chain's rows, for the stock gallery: when each was first offered
+    # here and every name it goes by.
+    read :on_chain do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id))
+      prepare build(load: [:search_text])
+    end
+
     # Recorded again on every start; the search words set when the row was
     # first written are left alone.
     create :record_supported do

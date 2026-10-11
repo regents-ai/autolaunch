@@ -33,13 +33,32 @@
 .stock-select__name { flex: 1; min-width: 0; overflow: hidden; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
 .stock-select__chevron { flex: none; color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
 .stock-select__button[aria-expanded="true"] .stock-select__chevron { transform: rotate(180deg); }
-.stock-select__list { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); display: grid; max-height: 18rem; margin: 0; padding: 4px; overflow-y: auto; border: 1px solid var(--hairline-strong); border-radius: 10px; background: var(--color-surface-elevated); box-shadow: 0 12px 32px color-mix(in srgb, #000 22%, transparent); transform-origin: top center; }
+.stock-select__list { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); border-radius: 10px; background: var(--color-surface-elevated); box-shadow: 0 12px 32px color-mix(in srgb, #000 22%, transparent); transform-origin: top center; }
 .stock-select__list[hidden] { display: none; }
-.stock-select__option { position: relative; display: flex; align-items: center; gap: var(--space-2); min-height: 2.75rem; padding: 0 var(--space-2); border-radius: 6px; cursor: pointer; }
-.stock-select__option:hover { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
-.stock-select__option:has(input:checked) { background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
-.stock-select__option:has(input:focus-visible) { outline: 2px solid var(--color-fg); outline-offset: -2px; }
-.stock-select__option input { position: absolute; opacity: 0; pointer-events: none; }
+
+/* The gallery: search, three sorts, then the cards, which scroll on their own. */
+.stock-gallery__body { display: grid; gap: var(--space-2); min-width: 0; }
+.stock-gallery__search { width: 100%; min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--hairline-strong); border-radius: 8px; background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .875rem; }
+.stock-gallery__search:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+.stock-gallery__sorts { display: flex; flex-wrap: wrap; gap: 4px; }
+.stock-gallery__sort { min-height: 2rem; padding: 0 var(--space-2); border: 1px solid var(--hairline); border-radius: 999px; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .75rem; cursor: pointer; }
+.stock-gallery__sort[aria-pressed="true"] { border-color: var(--color-fg); background: var(--color-fg); color: var(--color-bg); }
+.stock-gallery__sort:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.stock-gallery__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 6px; max-height: min(22rem, 55vh); margin: 0; padding: 2px; overflow-y: auto; border: 0; overscroll-behavior: contain; }
+.stock-gallery__empty { margin: 0; padding: var(--space-3) var(--space-2); color: var(--color-fg-muted); font-size: .8125rem; text-align: center; }
+.stock-gallery__empty[hidden] { display: none; }
+
+.stock-card { position: relative; display: grid; min-width: 0; border: 1px solid var(--hairline); border-radius: 8px; }
+.stock-card[hidden] { display: none; }
+.stock-card:hover { border-color: var(--hairline-strong); }
+.stock-card:has(input:checked) { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 8%, transparent); }
+.stock-card:has(input:focus-visible) { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+.stock-card__choice { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px var(--space-2); padding: var(--space-2) var(--space-2) 0; cursor: pointer; }
+.stock-card__choice input { position: absolute; opacity: 0; pointer-events: none; }
+.stock-card__names { display: grid; min-width: 0; }
+.stock-card__volume { grid-column: 1 / -1; color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .6875rem; }
+.stock-card__site { justify-self: start; padding: 2px var(--space-2) var(--space-2); overflow: hidden; color: var(--color-fg-muted); font-size: .6875rem; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.stock-card__site:hover { color: var(--color-fg); }
 /* Logos sit on a white chip so dark marks read in dark mode too. */
 .stock-logo { display: inline-grid; flex: none; place-items: center; width: 1.75rem; height: 1.75rem; overflow: hidden; border: 1px solid var(--hairline); border-radius: 50%; background: #fff; color: #111; font-family: var(--font-family-mono); font-size: .625rem; font-weight: 600; }
 .stock-logo img { width: 72%; height: 72%; object-fit: contain; }

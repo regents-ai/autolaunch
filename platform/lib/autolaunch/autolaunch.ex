@@ -272,7 +272,9 @@ defmodule Autolaunch do
     resource Autolaunch.Stocks.FaucetGrant
 
     # The stocks the site lists as launch currencies, kept for search.
-    resource Autolaunch.Stocks.Stock
+    resource Autolaunch.Stocks.Stock do
+      define :chain_stocks, action: :on_chain, args: [:chain_id]
+    end
 
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
