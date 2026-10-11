@@ -71,9 +71,9 @@ defmodule AutolaunchWeb.AccountLive do
             href={@regents_account_url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Go to Account on regents.sh, opens in a new tab"
+            aria-label="Open regents.sh in a new tab"
           >
-            Go to Account <span aria-hidden="true">↗</span>
+            Open regents.sh <span aria-hidden="true">↗</span>
           </a>
           <Regent.Primitives.button
             type="button"
