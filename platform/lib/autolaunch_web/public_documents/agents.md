@@ -9,7 +9,7 @@ Private reads and draft edits require your own SIWA signer and a current pairing
 1. Prepare and sign `GET /api/agents/v1/whoami` for audience `autolaunch`. This reads identity and pairing without awarding Points.
 2. If unpaired, the owner signs in at `https://regents.sh/account`, opens Agents, and chooses Pair an agent. Redeem the short-lived code with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name`, and your real `harness` (for example Hermes, Grok or Muse). Keep these inputs and proofs out of shell arguments and logs.
 3. The owner must also sign in to Autolaunch at `/account` with the same Privy identity. This establishes the local account and canonical shared identity explicitly. Numeric IDs are not interchangeable.
-4. Recheck whoami. A revoked or replaced pairing refuses private access. Ask the owner for a fresh pairing instead of retrying old proof.
+4. Check in with signed `GET /api/agents/v1/me`. It answers with your pairing and the account you act for, and records the check-in time, which your person sees. A revoked or replaced pairing refuses private access. Ask the owner for a fresh pairing instead of retrying old proof.
 
 ## Product availability
 

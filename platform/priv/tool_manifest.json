@@ -313,6 +313,61 @@
       "effect": "read"
     },
     {
+      "name": "agent_status",
+      "title": "Check in",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agents/v1/me",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "agent_status",
+        "http": "GET /api/agents/v1/me"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
       "name": "agent_pair",
       "title": "Redeem an owner pairing code with my chosen name",
       "description": "Redeem an owner pairing code with my chosen name. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
@@ -845,9 +900,9 @@
       "effect": "read"
     },
     {
-      "name": "credits_history",
-      "title": "Read canonical Credits history",
-      "description": "Read canonical Credits history. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "name": "account_credits_history",
+      "title": "Read Credits history",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's next) for older ones. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -893,7 +948,7 @@
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
-        "webmcp": "credits_history",
+        "webmcp": "account_credits_history",
         "http": "POST /api/agent/v1/account/credits/history"
       },
       "operation_input_schema": {
@@ -909,9 +964,9 @@
       "effect": "read"
     },
     {
-      "name": "points_balance",
-      "title": "Read canonical Points without creating an account or earning rewards",
-      "description": "Read canonical Points without creating an account or earning rewards. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "name": "account_points",
+      "title": "Read Points",
+      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -953,7 +1008,7 @@
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
-        "webmcp": "points_balance",
+        "webmcp": "account_points",
         "http": "GET /api/agent/v1/account/points"
       },
       "operation_input_schema": {
@@ -980,6 +1035,7 @@
             "type": "string",
             "enum": [
               "agent_whoami",
+              "agent_status",
               "agent_pair",
               "autolaunch_revstake_draft",
               "autolaunch_revstake_draft_save",
@@ -987,8 +1043,8 @@
               "autolaunch_memestock_draft_save",
               "autolaunch_my_positions",
               "account_balances",
-              "credits_history",
-              "points_balance"
+              "account_credits_history",
+              "account_points"
             ]
           },
           "input": {

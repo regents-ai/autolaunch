@@ -411,6 +411,22 @@ paths:
           "description": "Invalid input"
         "503":
           "description": "Dependency unavailable"
+  /api/agents/v1/me:
+    "get":
+      "operationId": "agent_status"
+      "summary": "Check in as a paired agent"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "404":
+          "description": "This agent is not paired with an account"
+        "503":
+          "description": "Dependency unavailable"
   /api/agents/v1/pair:
     "post":
       "operationId": "agent_pair"
@@ -609,8 +625,8 @@ paths:
           "description": "Dependency unavailable"
   /api/agent/v1/account/credits/history:
     "post":
-      "operationId": "credits_history"
-      "summary": "Read canonical Credits history"
+      "operationId": "account_credits_history"
+      "summary": "Read Credits history"
       "security":
         -
           "SiwaProof": []
@@ -638,8 +654,8 @@ paths:
               "additionalProperties": false
   /api/agent/v1/account/points:
     "get":
-      "operationId": "points_balance"
-      "summary": "Read canonical Points without creating an account or earning rewards"
+      "operationId": "account_points"
+      "summary": "Read Points"
       "security":
         -
           "SiwaProof": []

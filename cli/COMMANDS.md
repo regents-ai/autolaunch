@@ -26,6 +26,16 @@ Server: verify exact SIWA request → read signed identity and current pairing �
 the shared identity/pairing response. Requires the shared SIWA broker and Agents
 schema. Invalid or unavailable proof refuses access; browser sign-in is no fallback.
 
+## `agents status`
+
+Check in as a paired agent. Route: `GET /api/agents/v1/me`; no body inputs. Returns
+the pairing and the Autolaunch account the agent acts for, and records the check-in
+time, which the owner sees on their account page. An unpaired agent gets `not_paired`.
+
+Server: verify exact SIWA request → check in the current pairing → return the shared
+pairing response with the account as Autolaunch's pages name it. Requires the shared
+SIWA broker and Agents schema. Awards no Points and changes no account data.
+
 ## `agents pair`
 
 Redeem the owner's short-lived pairing code with the agent's chosen name and actual
@@ -109,7 +119,7 @@ Server: admit paired actor → use shared Credits identity → read current gran
 schema and pairing. Missing/revoked authority refuses; unavailable data returns
 `account_unavailable`. Does not create a balance, approve a grant or spend anything.
 
-## `credits history`
+## `account credits-history`
 
 Read canonical Credits history. Route:
 `POST /api/agent/v1/account/credits/history`; stdin is `{}` or optional string `after`.
@@ -120,7 +130,7 @@ action → return page. Requires shared Credits schema. Extra fields or a non-st
 cursor return `invalid_request`; unavailable data returns `account_unavailable`.
 Missing/revoked authority refuses. Creates no account or ledger entry.
 
-## `points balance`
+## `account points`
 
 Read canonical Points without earning rewards. Route:
 `GET /api/agent/v1/account/points`; no body inputs. Returns balance, today's earnings,
@@ -141,3 +151,9 @@ CLI change note: Autolaunch; renamed the two draft reads as above; no other comm
 added or removed. Import the tested main commit with these descriptions. Source is
 prepared for coordinated rollout; this correction performs no deployment and makes
 no claim of native-agent success or successful writes under closed prelaunch.
+
+11 October 2026: `credits history` is now `account credits-history`
+(`account_credits_history`) and `points balance` is now `account points`
+(`account_points`), the names every Regent site uses. `agents status`
+(`agent_status`, `GET /api/agents/v1/me`) is added. Routes, inputs and responses of
+the renamed commands are unchanged; the old names are not aliases.

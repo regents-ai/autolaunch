@@ -18,6 +18,15 @@
       "effect": "read"
     },
     {
+      "command": "agents status",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "operation_id": "agent_status",
+      "method": "GET",
+      "path": "/api/agents/v1/me",
+      "authority": "wallet-proof",
+      "effect": "read"
+    },
+    {
       "command": "agents pair",
       "description": "Redeem an owner pairing code with my chosen name. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "agent_pair",
@@ -213,9 +222,9 @@
       "effect": "read"
     },
     {
-      "command": "credits history",
-      "description": "Read canonical Credits history. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
-      "operation_id": "credits_history",
+      "command": "account credits-history",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's next) for older ones. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "operation_id": "account_credits_history",
       "method": "POST",
       "path": "/api/agent/v1/account/credits/history",
       "authority": "wallet-proof",
@@ -230,9 +239,9 @@
       ]
     },
     {
-      "command": "points balance",
-      "description": "Read canonical Points without creating an account or earning rewards. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
-      "operation_id": "points_balance",
+      "command": "account points",
+      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "operation_id": "account_points",
       "method": "GET",
       "path": "/api/agent/v1/account/points",
       "authority": "wallet-proof",
