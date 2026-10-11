@@ -10,9 +10,10 @@ import Config
 config :ash_oban, pro?: false
 
 # Background jobs: the launch listing's and the auction finisher's
-# minute-by-minute checks, one job at a time on each queue. The finishing queue
-# stays paused unless the site has the finisher switched on (runtime.exs); its
-# jobs are unique, so a paused queue holds at most one of each.
+# minute-by-minute checks and the stocks' half-hourly volume reads, one job at
+# a time on each queue. The finishing queue stays paused unless the site has
+# the finisher switched on (runtime.exs); its jobs are unique, so a paused
+# queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
 # jobs are announced between processes instead of through PostgreSQL.
 config :autolaunch, Oban,
@@ -20,7 +21,12 @@ config :autolaunch, Oban,
   notifier: Oban.Notifiers.PG,
   repo: Autolaunch.Repo,
   prefix: "autolaunch_app",
-  queues: [auction_finishing: [limit: 1, paused: true], launch_listing: 1, outside_calls: 3],
+  queues: [
+    auction_finishing: [limit: 1, paused: true],
+    launch_listing: 1,
+    outside_calls: 3,
+    stock_volume: 1
+  ],
   plugins: [
     {Oban.Plugins.Cron, []},
     {Oban.Plugins.Pruner, max_age: 86_400},

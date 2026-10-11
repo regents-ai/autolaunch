@@ -8,11 +8,16 @@ defmodule Autolaunch.Stocks.Stock do
   its search words start from a set kept here and are ours to change after
   that with `:set_search_words`. A stock that leaves the lists keeps its row,
   so auctions already trading in it stay findable by its name.
+
+  Every half hour, each stock on a chain GeckoTerminal reports on whose
+  volume has not been counted through yesterday is read again
+  (`Autolaunch.Stocks.Stock.ReadWeeklyVolume`), one stock at a time.
   """
 
   use Ash.Resource,
     otp_app: :autolaunch,
     domain: Autolaunch,
+    extensions: [AshOban],
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
@@ -46,13 +51,38 @@ defmodule Autolaunch.Stocks.Stock do
     "USO" => ["Oil", "United States Oil Fund"]
   }
 
+  oban do
+    triggers do
+      trigger :read_weekly_volume do
+        action :read_weekly_volume
+        read_action :read
+        worker_read_action :read
+        queue :stock_volume
+        scheduler_cron "*/30 * * * *"
+        max_attempts 1
+
+        where expr(
+                chain_id in ^Autolaunch.Stocks.Stock.ReadWeeklyVolume.chain_ids() and
+                  (is_nil(weekly_volume_through) or
+                     weekly_volume_through < fragment("(now() AT TIME ZONE 'UTC')::date - 1"))
+              )
+
+        worker_module_name Autolaunch.Stocks.Stock.Workers.ReadWeeklyVolume
+        scheduler_module_name Autolaunch.Stocks.Stock.Schedulers.ReadWeeklyVolume
+      end
+    end
+  end
+
   postgres do
     table "stocks"
     repo Autolaunch.Repo
   end
 
   actions do
-    defaults [:read]
+    read :read do
+      primary? true
+      pagination keyset?: true, required?: false
+    end
 
     # One chain's rows, for the stock gallery: when each was first offered
     # here and every name it goes by.
@@ -83,14 +113,26 @@ defmodule Autolaunch.Stocks.Stock do
     update :set_search_words do
       accept [:search_words]
     end
+
+    # Reads GeckoTerminal, then writes the answer, so no database transaction
+    # is held open around the reads.
+    update :read_weekly_volume do
+      require_atomic? false
+      transaction? false
+      change Autolaunch.Stocks.Stock.ReadWeeklyVolume
+    end
   end
 
   policies do
+    bypass AshOban.Checks.AshObanInteraction do
+      authorize_if always()
+    end
+
     policy action_type(:read) do
       authorize_if always()
     end
 
-    policy action([:record_supported, :set_search_words]) do
+    policy action([:record_supported, :set_search_words, :read_weekly_volume]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -113,6 +155,11 @@ defmodule Autolaunch.Stocks.Stock do
       default: [],
       public?: true,
       constraints: [items: [max_length: 80]]
+
+    # The USD traded in the stock's dollar-token pools over the seven UTC days
+    # ending on `weekly_volume_through`.
+    attribute :weekly_volume_usd, :decimal, public?: true, constraints: [min: 0]
+    attribute :weekly_volume_through, :date, public?: true
 
     timestamps()
   end

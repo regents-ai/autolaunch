@@ -46,17 +46,13 @@ defmodule AutolaunchWeb.Components.StockSelect do
     default: [],
     doc: "the chain's `Autolaunch.Stocks.Stock` rows, with `search_text` loaded"
 
-  attr :volumes, :map,
-    default: %{},
-    doc: "past week's USD volume by lowercase token address; a missing stock was not read"
-
   def stock_select(assigns) do
     records = Map.new(assigns.records, &{String.downcase(&1.address), &1})
 
     stocks =
       assigns.chain
       |> Assets.all()
-      |> Enum.map(&card(&1, records[String.downcase(&1.address)], assigns.volumes))
+      |> Enum.map(&card(&1, records[String.downcase(&1.address)]))
       |> ordered(assigns.sort)
 
     assigns =
@@ -219,7 +215,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
 
   # A card's facts: the added time is when this site first offered the stock;
   # a stock with no row yet has none and sorts after those that do.
-  defp card(asset, record, volumes) do
+  defp card(asset, record) do
     ticker = PriceFeeds.ticker(asset.symbol)
     company = company(asset)
 
@@ -227,7 +223,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
       ticker: ticker,
       company: company,
       website: Companies.website(ticker),
-      volume: Map.get(volumes, String.downcase(asset.address)),
+      volume: weekly_volume(record),
       added_at: record && record.inserted_at,
       search:
         [asset.symbol, company, record && record.search_text]
@@ -236,6 +232,13 @@ defmodule AutolaunchWeb.Components.StockSelect do
         |> String.downcase()
     })
   end
+
+  # A count that ends more than two days ago is no longer the past week's.
+  defp weekly_volume(%{weekly_volume_usd: %Decimal{} = usd, weekly_volume_through: through}) do
+    if Date.diff(Date.utc_today(), through) <= 2, do: Decimal.to_float(usd)
+  end
+
+  defp weekly_volume(_record), do: nil
 
   defp ordered(stocks, "volume"),
     do: Enum.sort_by(stocks, &{is_nil(&1.volume), -(&1.volume || 0), &1.symbol})
