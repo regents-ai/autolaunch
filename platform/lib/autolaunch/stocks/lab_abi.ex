@@ -45,7 +45,7 @@ defmodule Autolaunch.Stocks.LabAbi do
   @unstaked "Unstaked(address,uint256)"
   @claimed "Claimed(address,address,uint256)"
 
-  # The first Memestake launchpad (BITE, JollyB and AGI): a launch record that
+  # The first Memestock launchpad (BITE, JollyB and AGI): a launch record that
   # carries its required raise and floor and ends in the stock-only position,
   # and a hook with only REGENT's and the stakers' lanes.
   @v1_launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint128)"
@@ -197,7 +197,7 @@ defmodule Autolaunch.Stocks.LabAbi do
   }
 
   @doc """
-  The shape of one Memestake launchpad version's records and hook: the fields
+  The shape of one Memestock launchpad version's records and hook: the fields
   of a launch record in word order, the hook's lanes in the order `accrued`
   returns them, its fee event, and the event each lane's settlement emits.
   """

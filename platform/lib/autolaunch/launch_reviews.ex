@@ -2,7 +2,7 @@ defmodule Autolaunch.LaunchReviews do
   @moduledoc """
   Lists a launch the chain shows for the account whose saved review it carried
   out: a Revstake launch (`:launch`, `Autolaunch.LaunchOperation`) or a
-  Memestake launch (`:stocks_launch`, `Autolaunch.Stocks.LaunchOperation`).
+  Memestock launch (`:stocks_launch`, `Autolaunch.Stocks.LaunchOperation`).
 
   A review carried out a launch when the launch's transaction is its signer's,
   sent to its step's target with its step's exact calldata, and the launch the
@@ -119,7 +119,7 @@ defmodule Autolaunch.LaunchReviews do
     do: LaunchedDrafts.clear(draft_kind(kind), account_id, facts["name"], facts["symbol"])
 
   defp draft_kind(:launch), do: :revstake
-  defp draft_kind(:stocks_launch), do: :memestake
+  defp draft_kind(:stocks_launch), do: :memestock
 
   defp project(:launch, review, result), do: LabProjection.project_launch(review, result)
 

@@ -4,7 +4,7 @@ Everything an agent or a program can read from Autolaunch without an account: au
 
 ## Public HTTP API
 
-New launches use v2. The public lists also retain the four existing v1 Memestake
+New launches use v2. The public lists also retain the four existing v1 Memestock
 auctions, whose original terms remain in force. Read each auction's own allocation,
 currency, floor and minimum rather than applying v2 constants to historical records.
 The [mechanics guide]({{origin}}/how-it-works) and
@@ -37,7 +37,7 @@ curl -X POST "{{origin}}/api/v1/auctions/AUCTION_ID/bid-quote" -H "Content-Type:
 
 ### Lists and pages
 
-The two lists take the website's filters as query parameters: `q` (search), `state`, `sort`, `chain` (`all`, `base`, `robinhood`), `kind` (`all`, `revstake`, `memestake`), `x`, `ens` and `github` (true keeps creators verified on that account), and `limit`. A page ends with `pagination.next_cursor`; pass it back as `after`, with the same filters, for the next page. A cursor lasts 24 hours.
+The two lists take the website's filters as query parameters: `q` (search), `state`, `sort`, `chain` (`all`, `base`, `robinhood`), `kind` (`all`, `revstake`, `memestock`), `x`, `ens` and `github` (true keeps creators verified on that account), and `limit`. A page ends with `pagination.next_cursor`; pass it back as `after`, with the same filters, for the next page. A cursor lasts 24 hours.
 
 ## Errors
 

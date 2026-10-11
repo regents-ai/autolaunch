@@ -1,9 +1,9 @@
 defmodule Autolaunch.Stocks.FeeSchedule do
   @moduledoc """
-  The trading fees every Memestake pool charges, on Base and on Robinhood
+  The trading fees every Memestock pool charges, on Base and on Robinhood
   Chain: the pool fee on the token the trader pays with, and the creator's,
   REGENT stakers' and token stakers' fees on the stock side of every trade.
-  The first four Memestake tokens (`:v1`) charge no creator's fee and 1% to
+  The first four Memestock tokens (`:v1`) charge no creator's fee and 1% to
   their stakers. Every page that states these fees reads them here.
   """
 
@@ -43,7 +43,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
   def pool_fee(chain, version), do: Map.fetch!(@schedules, {chain, version}).pool_fee
 
   @doc """
-  Each fee a Memestake trade on `chain` pays on a launch of `version`: its
+  Each fee a Memestock trade on `chain` pays on a launch of `version`: its
   rate, what it is charged on and who receives it.
   """
   @spec lanes(chain(), version()) :: [lane()]
@@ -75,7 +75,7 @@ defmodule Autolaunch.Stocks.FeeSchedule do
     ]
   end
 
-  @doc "One of the fees a Memestake trade on `chain` pays on a launch of `version`."
+  @doc "One of the fees a Memestock trade on `chain` pays on a launch of `version`."
   @spec lane(chain(), version(), :pool | :creator | :regent | :stakers) :: lane() | nil
   def lane(chain, version, key), do: Enum.find(lanes(chain, version), &(&1.key == key))
 

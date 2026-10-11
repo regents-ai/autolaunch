@@ -302,10 +302,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       ]
     }
 
-  # The first four Memestake launches keep their original split.
+  # The first four Memestock launches keep their original split.
   defp split(%{kind: :stocks, contracts_version: :v1}),
     do: %{
-      name: "Memestake",
+      name: "Memestock",
       about: "stakers earn the onchain stock from trading fees",
       reserve: "Up to 200 million tokens (20%)",
       unused: "was retired to the dead address",
@@ -320,7 +320,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   defp split(%{kind: :stocks, contracts_version: :v2}),
     do: %{
-      name: "Memestake",
+      name: "Memestock",
       about: "stakers earn the onchain stock from trading fees",
       reserve: "497.5 million tokens (49.75%)",
       unused:

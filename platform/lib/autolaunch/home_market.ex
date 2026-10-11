@@ -17,7 +17,7 @@ defmodule Autolaunch.HomeMarket do
       display: choice(params["display"], ~w(grid table), "grid"),
       state: if(view == "tokens", do: "all", else: choice(params["state"], states, "active")),
       chain: choice(params["chain"], ~w(all base robinhood), "all"),
-      kind: choice(params["kind"], ~w(all revstake memestake), "all"),
+      kind: choice(params["kind"], ~w(all revstake memestock), "all"),
       x: params["x"] in [true, "true"],
       ens: params["ens"] in [true, "true"],
       github: params["github"] in [true, "true"],

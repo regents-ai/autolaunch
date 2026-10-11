@@ -2,7 +2,7 @@ defmodule Autolaunch.RewardHistory do
   @moduledoc """
   A launch splitter's own record of its rewards, read from its events: every
   arrival it recognized with the stakers' part of it, and what one wallet has
-  claimed. Revstake and Memestake splitters, first and second launchpad and
+  claimed. Revstake and Memestock splitters, first and second launchpad and
   Robinhood alike, emit the same `Claimed` event; their `RevenueRecognized`
   events differ only in where the stakers' part sits in the data.
 
@@ -15,11 +15,11 @@ defmodule Autolaunch.RewardHistory do
   @recognized %{
     revstake:
       "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
-    memestake: "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256)"
+    memestock: "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256)"
   }
   # The stakers' part in each event's data: [gross, skim, net, stakerShare,
-  # treasuryShare] for Revstake, [gross, protocolShare, stakerShare] for Memestake.
-  @staker_word %{revstake: 3, memestake: 2}
+  # treasuryShare] for Revstake, [gross, protocolShare, stakerShare] for Memestock.
+  @staker_word %{revstake: 3, memestock: 2}
   @claimed "Claimed(address,address,uint256)"
 
   @doc """
@@ -27,7 +27,7 @@ defmodule Autolaunch.RewardHistory do
   first: the asset, the address that sent it, the stakers' part in atomic
   units, and the block and transaction it arrived in.
   """
-  @spec recognized(:revstake | :memestake, String.t(), non_neg_integer(), Rpc.block(), keyword()) ::
+  @spec recognized(:revstake | :memestock, String.t(), non_neg_integer(), Rpc.block(), keyword()) ::
           {:ok, [map()]} | {:error, atom()}
   def recognized(kind, splitter, from_block, block, opts) do
     topic = LabAbi.topic(Map.fetch!(@recognized, kind))

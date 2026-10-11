@@ -29,9 +29,9 @@ defmodule Autolaunch.MarketFeedTest do
 
   defmodule ChainStub do
     @moduledoc """
-    The Base lab chain for the Revstake and Memestake feeds: every auction is
+    The Base lab chain for the Revstake and Memestock feeds: every auction is
     live and has met its minimum, and any auction named in `:broken` refuses
-    every read. Memestake launch records are Active unless `:lifecycle` says
+    every read. Memestock launch records are Active unless `:lifecycle` says
     otherwise; a migrated launch's pool has no price yet.
     """
     @block %{
@@ -89,7 +89,7 @@ defmodule Autolaunch.MarketFeedTest do
           LabAbi.selector("distribution(address)") => [
             1 | List.duplicate(0, LabAbi.distribution_words() - 1)
           ],
-          # The Memestake launchpad: every auction's record at `lifecycle`
+          # The Memestock launchpad: every auction's record at `lifecycle`
           # (word 9). It is asked nothing else.
           LabAbi.selector("launchIdOfAuction(address)") => [1],
           # Its token, stock and splitter are words 1, 2 and 4.
@@ -194,7 +194,7 @@ defmodule Autolaunch.MarketFeedTest do
     end
   end
 
-  describe "one Memestake auction that cannot be read" do
+  describe "one Memestock auction that cannot be read" do
     test "is skipped and every other auction is still read and written" do
       creator = TestSupport.register_creator!().id
       auctions = for _n <- 1..3, do: stocks_auction(creator)
@@ -212,7 +212,7 @@ defmodule Autolaunch.MarketFeedTest do
     end
   end
 
-  describe "the Memestake feed" do
+  describe "the Memestock feed" do
     test "writes only a row's market fields and never creates a row" do
       creator = TestSupport.register_creator!().id
       auction = stocks_auction(creator, :created)
@@ -241,7 +241,7 @@ defmodule Autolaunch.MarketFeedTest do
     end
   end
 
-  describe "a Memestake graduation whose token cannot be written" do
+  describe "a Memestock graduation whose token cannot be written" do
     test "saves nothing, and the next pass graduates it with its token" do
       auction = stocks_auction(TestSupport.register_creator!().id, :ended)
       ChainStub.install(%{broken: MapSet.new(), lifecycle: 2})
@@ -268,7 +268,7 @@ defmodule Autolaunch.MarketFeedTest do
       assert changed == auction.id
       assert %{state: :graduated} = reload(auction)
 
-      assert {:ok, %{name: "Memestake"}} =
+      assert {:ok, %{name: "Memestock"}} =
                Autolaunch.get_token_for_projection(auction.id, actor: %System{})
     end
   end
@@ -363,7 +363,7 @@ defmodule Autolaunch.MarketFeedTest do
                |> String.pad_leading(40, "0")),
           creator_human_account_id: creator,
           creator_address: "0x1414141414141414141414141414141414141414",
-          title: "Memestake",
+          title: "Memestock",
           summary: "A launch discovery listed",
           token_symbol: "MEME",
           website: "https://example.com",

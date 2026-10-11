@@ -2,7 +2,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   @moduledoc """
   The one boundary between a wallet and a graduated launch's staking contract:
   a Revstake launch's revenue splitter with its LP locker on Base, or a
-  memestock launch's memestake splitter with its fee hook and LP locker, on
+  memestock launch's memestock splitter with its fee hook and LP locker, on
   Base or on Robinhood.
 
   Seven actions, each one review of the steps the wallet sends in turn: stake

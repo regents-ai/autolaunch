@@ -8,7 +8,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   - Base Revstake: the factory numbers the launches and the strategy holds
     each auction's distribution and finishes it with `migrate(address auction)`.
-  - Base Memestake and Robinhood Memestake: the launchpad numbers the launches,
+  - Base Memestock and Robinhood Memestock: the launchpad numbers the launches,
     holds them and finishes one with `migrate(uint256 launchId)`.
 
   Every record read here is a fixed tuple of words; the positions below are
@@ -34,7 +34,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   def configured do
     [
       Lab.configured?() && {:ok, revstake(Lab.current!())},
-      StocksLab.configured?() && memestake(StocksLab.current(), :v2),
+      StocksLab.configured?() && memestock(StocksLab.current(), :v2),
       RobinhoodLab.configured?() && robinhood(RobinhoodLab.current(), :v2)
     ]
     |> Enum.flat_map(fn
@@ -45,14 +45,14 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   @doc """
   The launchpad a listed auction runs on: the Robinhood one on Robinhood's
-  chain, otherwise Revstake for an agent auction and Memestake for a stocks
+  chain, otherwise Revstake for an agent auction and Memestock for a stocks
   one, each of the auction's own contracts version.
   """
   def for_auction(%{chain_id: chain_id, kind: kind, contracts_version: version}) do
     cond do
       RobinhoodLab.chain?(chain_id) -> robinhood(RobinhoodLab.current(), version)
       kind == :agent -> with {:ok, config} <- Lab.current(), do: {:ok, revstake(config)}
-      true -> memestake(StocksLab.current(), version)
+      true -> memestock(StocksLab.current(), version)
     end
   end
 
@@ -66,7 +66,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
   The block a launchpad keeps time by at a read block: the rollup block on
   Robinhood (`Autolaunch.Robinhood.BlockClock`), the block itself on Base.
   """
-  def clock(%{launchpad: :robinhood_memestake} = pad, block), do: BlockClock.read(block, pad.opts)
+  def clock(%{launchpad: :robinhood_memestock} = pad, block), do: BlockClock.read(block, pad.opts)
   def clock(_pad, block), do: {:ok, block.number}
 
   @doc "The highest launch id so far: `nextLaunchId` less one."
@@ -112,7 +112,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
 
   @doc """
   The launch of the auction at `auction`, as `launch/3` reads it, with the
-  launch id `migrate_call/2` names on a Memestake launchpad.
+  launch id `migrate_call/2` names on a Memestock launchpad.
   """
   def launch_of_auction(%{launchpad: :base_revstake} = pad, auction, block),
     do: distribution(pad, auction, block)
@@ -175,11 +175,11 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     }
   end
 
-  defp memestake({:ok, config}, version) do
+  defp memestock({:ok, config}, version) do
     with {:ok, contracts} <- StocksLab.contracts(config, version) do
       {:ok,
        %{
-         launchpad: :base_memestake,
+         launchpad: :base_memestock,
          chain_id: config.chain_id,
          chain: Client.chain(config),
          contract: contracts.launchpad,
@@ -191,13 +191,13 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
     end
   end
 
-  defp memestake(error, _version), do: error
+  defp memestock(error, _version), do: error
 
   defp robinhood({:ok, config}, version) do
     with {:ok, contracts} <- RobinhoodLab.contracts(config, version) do
       {:ok,
        %{
-         launchpad: :robinhood_memestake,
+         launchpad: :robinhood_memestock,
          chain_id: config.chain_id,
          chain: Client.chain(config),
          contract: contracts.launchpad,

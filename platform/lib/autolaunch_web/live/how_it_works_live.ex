@@ -6,8 +6,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
   alias AutolaunchWeb.ShareCard
 
   # Every figure here is a fixed contract rule: RegentLBPStrategyV2 and
-  # ConditionalVestingEscrowV2 (Revstake supply), StocksPreset (Memestake
-  # supply), RegentFeeHook and the Memestake fee hooks (fees), SubjectSplitterV1
+  # ConditionalVestingEscrowV2 (Revstake supply), StocksPreset (Memestock
+  # supply), RegentFeeHook and the Memestock fee hooks (fees), SubjectSplitterV1
   # and MemestockSplitterCore (staking rewards).
   def mount(_params, _session, socket),
     do:
@@ -165,12 +165,12 @@ defmodule AutolaunchWeb.HowItWorksLive do
         </p>
       </section>
 
-      <section class="fact-page__section" aria-labelledby="how-it-works-memestake">
-        <h2 id="how-it-works-memestake">
-          Memestake supply <span class="fact-page__total">1 billion</span>
+      <section class="fact-page__section" aria-labelledby="how-it-works-memestock">
+        <h2 id="how-it-works-memestock">
+          Memestock supply <span class="fact-page__total">1 billion</span>
         </h2>
         <p>
-          Memestake launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is
+          Memestock launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is
           reserved for the locked trading pool, and 0.5% goes to the token's creator over 30 days
           from graduation. Stakers earn the onchain stock from fees.
         </p>
@@ -225,7 +225,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
           retired to the dead address. After graduation, token rounding leftovers are also retired.
         </p>
         <p>
-          The four existing v1 Memestake auctions (BITE, JollyB, AGI and RDOG) keep their original
+          The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original
           terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation,
           and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused;
           existing withdrawals, claims, trading and staking remain supported.
@@ -240,7 +240,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
           goes to Regent.
           REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
-          to participate. V2 Memestake trades pay a 4.3% hook fee on the gross stock side, shared by the memestakers
+          to participate. V2 Memestock trades pay a 4.3% hook fee on the gross stock side, shared by Memestock stakers
           (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :stakers).rate}</strong>), REGENT stakers (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :regent).rate}</strong>) and the token's creator (<strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :creator).rate}</strong>). The trading pool also charges the standard <strong class="fact-page__hi">{FeeSchedule.lane(:base, :v2, :pool).rate}</strong>, and what the locked liquidity earns from it enters the token’s revenue splitter.
         </p>
         <table class="fact-table">
@@ -261,19 +261,19 @@ defmodule AutolaunchWeb.HowItWorksLive do
               </td>
             </tr>
             <tr>
-              <th scope="row">Memestake <span class="fact-table__note">Base</span></th>
+              <th scope="row">Memestock <span class="fact-table__note">Base</span></th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
               <td data-label="Where it goes">
-                {memestake_fees(:base, "swapped to USDC and paid into REGENT staking")}
+                {memestock_fees(:base, "swapped to USDC and paid into REGENT staking")}
               </td>
             </tr>
             <tr>
               <th scope="row">
-                Memestake <span class="fact-table__note">Robinhood Chain</span>
+                Memestock <span class="fact-table__note">Robinhood Chain</span>
               </th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
               <td data-label="Where it goes">
-                {memestake_fees(
+                {memestock_fees(
                   :robinhood,
                   "swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up"
                 )}
@@ -310,7 +310,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
               </td>
             </tr>
             <tr>
-              <th scope="row">Memestake</th>
+              <th scope="row">Memestock</th>
               <td data-label="Regent" class="fact-table__amount">
                 <strong>2%</strong>
               </td>
@@ -337,9 +337,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
             Revstake fees come from the side of the trade you did not set: out of what you receive,
             or added to what you pay.
           </li>
-          <li>Memestake fees are held in the stock and paid onward after the trade.</li>
+          <li>Memestock fees are held in the stock and paid onward after the trade.</li>
           <li>
-            Anyone can settle Memestake creator and token-staker fees. Protocol conversion requires
+            Anyone can settle Memestock creator and token-staker fees. Protocol conversion requires
             the authorized executor. Creator fees always pay the original launcher in stock.
           </li>
           <li>Regent's 2% comes out of staking rewards. It is not another trading fee.</li>
@@ -351,8 +351,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
     """
   end
 
-  # Where each share of a Memestake trading fee goes on `chain`.
-  defp memestake_fees(chain, regent_route),
+  # Where each share of a Memestock trading fee goes on `chain`.
+  defp memestock_fees(chain, regent_route),
     do:
       "#{FeeSchedule.lane(chain, :v2, :stakers).rate} enters the token’s staking splitter. " <>
         "#{FeeSchedule.lane(chain, :v2, :regent).rate} #{regent_route}. " <>

@@ -8,7 +8,7 @@ defmodule Autolaunch.Pool do
   and locked in the strategy's `RevstakeLPLocker`, whose collected fees flow to
   that same splitter; Stocks launches graduate into a NEW/STOCK pool recorded
   by the launchpad (`launches(id)`), charged by `StocksFeeHookV1` and locked in
-  the launchpad's LP locker, whose fees flow to the launch's memestake
+  the launchpad's LP locker, whose fees flow to the launch's memestock
   splitter. Both are read at one latest block: the pool key and id, the price
   at graduation, the current pool price and liquidity from the PoolManager's
   own storage, the locked positions with their owner and the fees a collection
@@ -131,8 +131,8 @@ defmodule Autolaunch.Pool do
   end
 
   @doc """
-  A Memestake pool's current price, in its stock per launched token, from the
-  pool manager's slot0 at a pinned block: the Base Memestake and Robinhood
+  A Memestock pool's current price, in its stock per launched token, from the
+  pool manager's slot0 at a pinned block: the Base Memestock and Robinhood
   launchpads' pools are both Uniswap v4 pools of an 18-decimal token and its stock.
   """
   @spec pool_price_quote(map(), Rpc.block(), keyword()) ::
@@ -622,7 +622,7 @@ defmodule Autolaunch.Pool do
          {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts),
          {:ok, rewards} <-
            RewardHistory.recognized(
-             :memestake,
+             :memestock,
              launch.splitter,
              launch.migration_block,
              block,
@@ -941,7 +941,7 @@ defmodule Autolaunch.Pool do
     Map.new(figures)
   end
 
-  # The memestake splitter of a graduated launch: what is staked in it, the
+  # The memestock splitter of a graduated launch: what is staked in it, the
   # skim it keeps from every unstake, and the dollar it pays out in.
   # A launch's splitter as the staking card shows it. Both splitters name
   # their dollar asset, the Revstake one as `usdc()` and the memestock one as

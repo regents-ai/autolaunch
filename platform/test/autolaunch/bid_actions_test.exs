@@ -96,17 +96,17 @@ defmodule Autolaunch.BidActionsTest do
     assert {:ok, %{steps: _steps}} = prepare(launched.id, wallet, "1", "3", opts)
   end
 
-  test "a Base Memestake auction is bid on against the launchpad its deployment admits, and no other",
+  test "a Base Memestock auction is bid on against the launchpad its deployment admits, and no other",
        %{wallet: wallet, opts: opts} do
     install()
     # The launchpad the fixture Base Stocks deployment description admits.
     launchpad = "0x0f8955a7f09ec713bb71c30e07b512ecee69a044"
 
-    admitted = memestake_auction!("0x5555555555555555555555555555555555555555", launchpad)
+    admitted = memestock_auction!("0x5555555555555555555555555555555555555555", launchpad)
 
     assert {:ok, %{steps: _steps}} = prepare(admitted.id, wallet, "1", "3", opts)
 
-    elsewhere = memestake_auction!("0x6666666666666666666666666666666666666666", @other)
+    elsewhere = memestock_auction!("0x6666666666666666666666666666666666666666", @other)
     assert {:error, error} = prepare(elsewhere.id, wallet, "1", "3", opts)
     assert refusal(error) == :treasury_security_changed
   end
@@ -222,13 +222,13 @@ defmodule Autolaunch.BidActionsTest do
         opts
       )
 
-  defp memestake_auction!(address, launchpad) do
+  defp memestock_auction!(address, launchpad) do
     %{
       kind: :stocks,
       origin: :site,
       chain_id: 8453,
       auction_address: address,
-      title: "Memestake auction",
+      title: "Memestock auction",
       creator_human_account_id: Autolaunch.TestSupport.register_creator!().id,
       creator_address: "0x1414141414141414141414141414141414141414",
       featured: false,

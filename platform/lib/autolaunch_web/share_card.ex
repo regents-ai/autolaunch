@@ -79,11 +79,11 @@ defmodule AutolaunchWeb.ShareCard do
     %{
       title: "How Autolaunch works",
       description:
-        "Supply, trading fees and staking rewards for every Autolaunch token, Revstake and Memestake.",
+        "Supply, trading fees and staking rewards for every Autolaunch token, Revstake and Memestock.",
       url: url(~p"/how-it-works"),
       image: url(~p"/images/og-how-it-works.png"),
       image_alt:
-        "How Autolaunch works: Revstake has 100 billion tokens and a 48 hour auction; Memestake has 1 billion tokens and a 24 hour auction."
+        "How Autolaunch works: Revstake has 100 billion tokens and a 48 hour auction; Memestock has 1 billion tokens and a 24 hour auction."
     }
   end
 
@@ -169,7 +169,7 @@ defmodule AutolaunchWeb.ShareCard do
       description: assigns.description,
       url: PublicDocuments.url(assigns.path),
       image: url(~p"/images/og-image.png"),
-      image_alt: "where agents launch. Auctions for agents, with Revstake and Memestake."
+      image_alt: "where agents launch. Auctions for agents, with Revstake and Memestock."
     }
   end
 

@@ -1,6 +1,6 @@
 defmodule Autolaunch.Stocks.LaunchOperation do
   @moduledoc """
-  One Memestake launch review this site built for an account, saved so the
+  One Memestock launch review this site built for an account, saved so the
   launch it carries out is known as this site's whether or not the page is
   still open.
 

@@ -1,6 +1,6 @@
-defmodule Autolaunch.MemestakeLanes do
+defmodule Autolaunch.MemestockLanes do
   @moduledoc """
-  Memestake's REGENT lane on each chain, stage by stage, as the REGENT page
+  Memestock's REGENT lane on each chain, stage by stage, as the REGENT page
   shows it: every amount read from the chain at that chain's latest block.
 
   On Base, every graduated memestock pool's hook holds the lane's stock until

@@ -24,14 +24,14 @@ Autolaunch is built and run by Regents Labs, an agentic product lab whose produc
 | Founder | Sean Brennan |
 | Website | {{origin}} |
 | Core offering | Fair-price token auctions for agents, services and communities, with staking for backers |
-| Pricing | Launching is free apart from the network fee. V2 Revstake pools charge a 3% hook fee: 2% enters the launch's revenue splitter and 1% goes to Regent. V2 Memestake pools charge 4.3% of the gross stock side: 3% enters the launch's staking splitter, 1% goes to the protocol lane and 0.3% pays the creator in stock. Both add a separate 0.30% LP fee; splitters deduct a separate 2% protocol share from recognized revenue |
-| Networks | Base (Revstake and Memestake) and Robinhood Chain (Memestake) |
-| Services | Revstake launches, Memestake launches, auctions, token staking |
+| Pricing | Launching is free apart from the network fee. V2 Revstake pools charge a 3% hook fee: 2% enters the launch's revenue splitter and 1% goes to Regent. V2 Memestock pools charge 4.3% of the gross stock side: 3% enters the launch's staking splitter, 1% goes to the protocol lane and 0.3% pays the creator in stock. Both add a separate 0.30% LP fee; splitters deduct a separate 2% protocol share from recognized revenue |
+| Networks | Base (Revstake and Memestock) and Robinhood Chain (Memestock) |
+| Services | Revstake launches, Memestock launches, auctions, token staking |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub](https://github.com/regents-ai/autolaunch) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base. Revstake auctions are priced in REGENT |
 | Token contract | `0x6f89bcA4eA5931EdFCB09786267b251DeE752b07` |
-| Staking | Base Memestake's protocol stock fee converts to USDC for REGENT staking. Revstake's protocol fee goes directly to REGENT staking when collected in REGENT, or to the Regent Safe when collected in the launch token. Robinhood protocol USDG waits in its inbox for the bridge to Base |
+| Staking | Base Memestock's protocol stock fee converts to USDC for REGENT staking. Revstake's protocol fee goes directly to REGENT staking when collected in REGENT, or to the Regent Safe when collected in the launch token. Robinhood protocol USDG waits in its inbox for the bridge to Base |
 
 Bidding, trading and staking involve contract, network and financial risk. No return is guaranteed.
 
@@ -41,11 +41,11 @@ Bidding, trading and staking involve contract, network and financial risk. No re
 
 An agent, or any service that earns stablecoins, raises early backing in a 48-hour auction priced in REGENT, on Base. The launcher promises to pass the revenue it earns through the token's staking contract, where stakers receive a share; that promise is a trust assumption. Whatever is sent is shared out automatically: stakers receive a share in line with how much of the supply is staked, and the rest goes to the token's treasury.
 
-### Memestake tokens
+### Memestock tokens
 
 A memecoin paired with a real onchain stock, on Base or Robinhood Chain. A v2 auction runs for 24 hours and sells 49.75% of the supply; another 49.75% is reserved for permanently locked liquidity. A full-range position pairs the stock raised with the tokens it needs, and any remaining reserve goes into a token-only position above the opening token price. Stock rounding dust goes to the protocol fee lane. The creator receives 0.5% of the supply over 30 days from graduation and earns 0.3% of the gross stock side of trades.
 
-New launches use v2. The four existing v1 Memestake auctions retain their original allocations and fees, with withdrawals, claims, trading and staking supported.
+New launches use v2. The four existing v1 Memestock auctions retain their original allocations and fees, with withdrawals, claims, trading and staking supported.
 
 ### Token staking
 
@@ -82,9 +82,9 @@ Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is s
 
 ## Frequently asked questions
 
-### What's the difference between Revstake and Memestake?
+### What's the difference between Revstake and Memestock?
 
-Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestake pairs a memecoin with an onchain stock: 49.75% is sold in a 24-hour auction, and 0.5% goes to the creator over 30 days from graduation.
+Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in a 48-hour auction priced in REGENT, and stakers share the revenue the launcher sends. Memestock pairs a memecoin with an onchain stock: 49.75% is sold in a 24-hour auction, and 0.5% goes to the creator over 30 days from graduation.
 
 ### Why does everyone pay the same price?
 
@@ -92,7 +92,7 @@ The auction has one clearing price at any moment, set by the bids competing for 
 
 ### What happens if an auction doesn't reach its minimum?
 
-It fails: every bidder takes back their full bid, and every token, including a Memestake creator allocation, is retired to the dead address. Retirement does not reduce reported total supply. The Uniswap auction contract pays the refunds directly.
+It fails: every bidder takes back their full bid, and every token, including a Memestock creator allocation, is retired to the dead address. Retirement does not reduce reported total supply. The Uniswap auction contract pays the refunds directly.
 
 ### What does it cost to launch?
 

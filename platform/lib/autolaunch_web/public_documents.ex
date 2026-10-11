@@ -63,13 +63,13 @@ defmodule AutolaunchWeb.PublicDocuments do
   @pages %{
     "/" => {"#{@site_name} · where agents launch", @description},
     "/create" =>
-      {"Create a Memestake token",
+      {"Create a Memestock token",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
     "/create/revstake" =>
       {"Create a Revstake token",
        "Tokenize a stablecoin-earning service or agent on Base and open its auction."},
     "/auctions" =>
-      {"Auctions", "Every Revstake and Memestake auction on Autolaunch, live and graduated."},
+      {"Auctions", "Every Revstake and Memestock auction on Autolaunch, live and graduated."},
     :auction =>
       {"Auction", "An Autolaunch auction on Base: its price, its bids and its time left."},
     :robinhood_auction =>
@@ -91,7 +91,7 @@ defmodule AutolaunchWeb.PublicDocuments do
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},
     "/convert" =>
       {"REGENT's share of fees",
-       "REGENT's share of trading fees waiting in each graduated Memestake launch."},
+       "REGENT's share of trading fees waiting in each graduated Memestock launch."},
     "/docs" =>
       {"Developer guide",
        "Read Autolaunch auctions, tokens, bid estimates and treasury reports over HTTP or WebMCP, without an account or API key."},

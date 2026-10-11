@@ -1,6 +1,6 @@
-defmodule Autolaunch.MemestakeDiscoveryTest do
+defmodule Autolaunch.MemestockDiscoveryTest do
   @moduledoc """
-  A Base Memestake launch is listed from the launchpad's own record and the
+  A Base Memestock launch is listed from the launchpad's own record and the
   transaction that created it, with no browser report: once, for the account
   whose review sent it, never for a launch this site did not review, and not
   until the chain can answer for it.
@@ -61,7 +61,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
 
     account =
       Accounts.register_verified!(
-        "did:privy:memestake-#{Elixir.System.unique_integer([:positive])}",
+        "did:privy:memestock-#{Elixir.System.unique_integer([:positive])}",
         @launcher,
         [@launcher],
         actor: @actor
@@ -169,7 +169,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
   defp confirm_in_browser(operation),
     do: LaunchReviews.confirm(:stocks_launch, operation.action_id, @hash)
 
-  # One reviewed Memestake launch for `account`, as `prepare` stores it.
+  # One reviewed Memestock launch for `account`, as `prepare` stores it.
   defp review!(account, config) do
     draft =
       Autolaunch.create_stocks_launch_draft!(%{}, actor: %Human{human_account_id: account.id})
@@ -190,7 +190,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
           "draft_id" => draft.id,
           "name" => "Mint Research",
           "symbol" => "MINT",
-          "description" => "A Memestake launch awaiting review.",
+          "description" => "A Memestock launch awaiting review.",
           "website" => "https://example.test/mint",
           "links" => [],
           "image" => nil,
@@ -302,7 +302,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
 
   defp discover do
     LaunchDiscovery
-    |> Ash.ActionInput.for_action(:discover_memestake, %{}, actor: @actor)
+    |> Ash.ActionInput.for_action(:discover_memestock, %{}, actor: @actor)
     |> Ash.run_action!()
   end
 

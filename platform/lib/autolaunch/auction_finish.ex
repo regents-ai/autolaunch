@@ -103,12 +103,12 @@ defmodule Autolaunch.AuctionFinish do
 
     attribute :launchpad, :atom,
       allow_nil?: false,
-      constraints: [one_of: [:base_revstake, :base_memestake, :robinhood_memestake]]
+      constraints: [one_of: [:base_revstake, :base_memestock, :robinhood_memestock]]
 
     attribute :chain_id, :integer, allow_nil?: false, constraints: [min: 1]
 
     # The contract that numbers the launches: the Revstake factory, or the
-    # Memestake launchpad.
+    # Memestock launchpad.
     attribute :contract, :string,
       allow_nil?: false,
       constraints: [min_length: 42, max_length: 42]

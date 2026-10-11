@@ -154,7 +154,7 @@ defmodule Autolaunch.AuctionActivity do
     end
   end
 
-  # A Memestake auction's adapter bids went through the bid adapter of its own
+  # A Memestock auction's adapter bids went through the bid adapter of its own
   # contracts version.
   defp adapter(Autolaunch.Lab, config, _auction), do: {:ok, config.addresses["bid_adapter"]}
 

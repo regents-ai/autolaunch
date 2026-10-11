@@ -20,7 +20,7 @@ autolaunch.sh is made by Regents Labs ([@regents_sh](https://x.com/regents_sh)).
 Use Autolaunch when you want to:
 
 - raise early funds for an agent, or for a service that earns stablecoins, by launching a Revstake token through a 48-hour auction on Base;
-- launch a memestock (a memecoin paired with a real onchain stock) through a 24-hour Memestake auction on Base or Robinhood Chain;
+- launch a memestock (a memecoin paired with a real onchain stock) through a 24-hour Memestock auction on Base or Robinhood Chain;
 - back an agent early by bidding in its auction, then stake the token for a share of what it earns;
 - look up auctions, launched tokens, bid estimates or a launch treasury's security report.
 
@@ -28,7 +28,7 @@ First steps for an agent:
 
 1. Read live auctions with `GET https://autolaunch.sh/api/v1/auctions?state=active&sort=ending`, or launched tokens with `GET https://autolaunch.sh/api/v1/tokens`. No account or API key is needed.
 2. Estimate a bid with `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote`; it does not place one.
-3. To bid, trade or stake, use the tools on the auction's or token's `url` in the person's browser, or send them there. To launch, use the tools on https://autolaunch.sh/create for a Memestake token or https://autolaunch.sh/create/revstake for a Revstake token in the person's browser: read the form, fill it, then press launch. The person signs in, chooses the picture and types any warning the page asks for. Every step is confirmed in their own wallet.
+3. To bid, trade or stake, use the tools on the auction's or token's `url` in the person's browser, or send them there. To launch, use the tools on https://autolaunch.sh/create for a Memestock token or https://autolaunch.sh/create/revstake for a Revstake token in the person's browser: read the form, fill it, then press launch. The person signs in, chooses the picture and types any warning the page asks for. Every step is confirmed in their own wallet.
 
 Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, including when an agent starts them with the page tools.
 
@@ -70,11 +70,11 @@ Yes, there is a trust assumption here: a person or agent can launch a revstake t
 
 That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x402 services can become more trustless. Revstake is a foundation for a community to grow around a successful agent or stablecoin business.
 
-## Memestake: onchain stocks
+## Memestock: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestock launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
 
-Memestake supply: 1 billion tokens.
+Memestock supply: 1 billion tokens.
 
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
@@ -84,23 +84,23 @@ Memestake supply: 1 billion tokens.
 
 Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
 
-The four existing v1 Memestake auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
+The four existing v1 Memestock auctions (BITE, JollyB, AGI and RDOG) keep their original terms: 80% offered in the auction, 20% reserved for liquidity, no creator allocation, and a 1% hook fee each to Regent and the token's staking contract. New v1 launches are paused; existing withdrawals, claims, trading and staking remain supported.
 
 ## Trading fees
 
-V2 Revstake trades pay a 3% hook fee: 2% enters the launch's revenue splitter and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. V2 Memestake trades pay a 4.3% hook fee on the gross stock side: 3% enters the launch's staking splitter, 1% follows the protocol route and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% LP fee, and what the locked liquidity earns enters the launch's revenue splitter.
+V2 Revstake trades pay a 3% hook fee: 2% enters the launch's revenue splitter and 1% goes to Regent. REGENT collected in that 1% goes directly to REGENT staking; launch tokens go to the Regent Safe. Use https://regents.sh/stake to participate. V2 Memestock trades pay a 4.3% hook fee on the gross stock side: 3% enters the launch's staking splitter, 1% follows the protocol route and 0.3% pays the creator in stock. Both pools also charge a separate 0.30% LP fee, and what the locked liquidity earns enters the launch's revenue splitter.
 
 | Launch | Fee paid in | Where it goes |
 | --- | --- | --- |
 | Revstake (Base) | REGENT or the Revstake token, depending on the trade | 1% sent directly to REGENT staking when paid in REGENT, or to the Regent Safe when paid in the launch token. 2% enters the launch's revenue splitter. |
-| Memestake (Base) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
-| Memestake (Robinhood Chain) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
+| Memestock (Base) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDC and paid into REGENT staking. 0.3% paid to the creator. |
+| Memestock (Robinhood Chain) | The paired stock, buying or selling | 3% enters the token's staking splitter. 1% swapped to USDG for REGENT staking, held on Robinhood Chain until the transfer to Base is set up. 0.3% paid to the creator. |
 
 What each launch's locked liquidity earns is added to its staking rewards.
 
 - Revstake fees come from the side of the trade you did not set: out of what you receive, or added to what you pay.
-- Memestake fees are held in the stock and paid onward after the trade.
-- Anyone can settle Memestake creator and token-staker fees. Protocol conversion requires the authorized executor. Creator fees always pay the original launcher in stock.
+- Memestock fees are held in the stock and paid onward after the trade.
+- Anyone can settle Memestock creator and token-staker fees. Protocol conversion requires the authorized executor. Creator fees always pay the original launcher in stock.
 - Each v2 hook rounds the total fee once and assigns the rounding remainder to the launch's splitter share after calculating the other lanes.
 - The rates are fixed in the contracts and cannot be changed.
 
@@ -109,7 +109,7 @@ What each launch's locked liquidity earns is added to its staking rewards.
 | Launch | Regent | Stakers |
 | --- | --- | --- |
 | Revstake | 2% | The other 98%, in line with the share of supply staked. The rest goes to the token's treasury. |
-| Memestake | 2% | The other 98%, split by stake. With nobody staking, all of it goes to Regent. |
+| Memestock | 2% | The other 98%, split by stake. With nobody staking, all of it goes to Regent. |
 
 Regent's 2% comes out of staking rewards. It is not another trading fee.
 
@@ -135,7 +135,7 @@ Where the USDC comes from:
 | Product | Revenue |
 | --- | --- |
 | Regents Labs | REGENT/ETH pool fees (0.1–0.3% of volume); x402 service payments |
-| Autolaunch | Base Memestake's 1% stock fee, converted to USDC; 2% of recognized USDC revenue in launch splitters |
+| Autolaunch | Base Memestock's 1% stock fee, converted to USDC; 2% of recognized USDC revenue in launch splitters |
 | Techtree | 5% of paid artifact sales; environment revenue |
 | Patchbay | 10% of priority question payments |
 

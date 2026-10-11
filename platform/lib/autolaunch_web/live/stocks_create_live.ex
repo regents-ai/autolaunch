@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.StocksCreateLive do
   @moduledoc """
-  Create a Memestake token, at /create: one form for the account's one Memestake
+  Create a Memestock token, at /create: one form for the account's one Memestock
   draft. The Base and Robinhood switch moves the draft between chains; every
   field autosaves.
 
@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   once they sign in it is saved into their account's draft.
 
   An agent reads the form with `autolaunch_launch_form` and fills it with
-  `autolaunch_fill_memestake`, through the same saves as typing
+  `autolaunch_fill_memestock`, through the same saves as typing
   (`assets/js/hooks/agent_tools.ts`); the picture stays with the person.
   """
 
@@ -145,7 +145,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_event(
         "agent_call",
-        %{"tool" => "autolaunch_fill_memestake", "input" => input},
+        %{"tool" => "autolaunch_fill_memestock", "input" => input},
         socket
       )
       when is_map(input) do
@@ -320,7 +320,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     stock = chosen_stock(chain, assigns.draft_values["stock_address"])
 
     %{
-      launch: "memestake",
+      launch: "memestock",
       chain: Atom.to_string(chain),
       signed_in: is_integer(assigns.current_human_id),
       fields: Map.take(assigns.draft_values, @detail_params),

@@ -9,7 +9,7 @@ defmodule Autolaunch.LaunchDiscovery.Resolve do
 
   alias Autolaunch.LaunchReviews
 
-  @kinds %{base_revstake: :launch, base_memestake: :stocks_launch}
+  @kinds %{base_revstake: :launch, base_memestock: :stocks_launch}
 
   @impl true
   def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &resolve/1)

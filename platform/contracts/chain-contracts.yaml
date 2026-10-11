@@ -261,7 +261,7 @@ contracts:
           and nothing else. The floor is the fixed StocksPreset.FLOOR_PRICE_Q96, 4,294,967,300, and
           the required raise is the fixed StocksPreset.REQUIRED_STOCK_RAISED. No launch fee. One percent of the
           supply vests to the launcher over 30 days from graduation (releaseCreatorVesting, callable
-          by anyone, pays the launcher). Graduation clones a memestake splitter per launch
+          by anyone, pays the launcher). Graduation clones a memestock splitter per launch
           (MemestockSplitterCreated) and locks a full-range position and a new-token-only position
           in the launchpad's locker.
         confirmation_event_signatures:

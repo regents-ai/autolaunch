@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.Components.AuctionStats do
   @moduledoc """
-  The thin band of Revstake and Memestake auction counts shown on the
+  The thin band of Revstake and Memestock auction counts shown on the
   auctions and create pages. Each group loads on its own, so a slow or failed
   Robinhood read leaves the Revstake counts in place. A failed re-read keeps
   the last counts and says they are the last ones read.
@@ -16,19 +16,19 @@ defmodule AutolaunchWeb.Components.AuctionStats do
     |> LiveView.assign_async(:revstake_stats, fn ->
       with {:ok, counts} <- AuctionStats.revstake(), do: {:ok, %{revstake_stats: counts}}
     end)
-    |> LiveView.assign_async(:memestake_stats, fn ->
-      with {:ok, counts} <- AuctionStats.memestake(), do: {:ok, %{memestake_stats: counts}}
+    |> LiveView.assign_async(:memestock_stats, fn ->
+      with {:ok, counts} <- AuctionStats.memestock(), do: {:ok, %{memestock_stats: counts}}
     end)
   end
 
   attr :revstake, LiveView.AsyncResult, required: true
-  attr :memestake, LiveView.AsyncResult, required: true
+  attr :memestock, LiveView.AsyncResult, required: true
 
   def auction_stats(assigns) do
     ~H"""
     <section id="auction-stats" class="auction-stats rg-support-band" aria-label="Auction counts">
       <.group id="auction-stats-revstake" title="Revstake Auctions" stats={@revstake} />
-      <.group id="auction-stats-memestake" title="Memestake Auctions" stats={@memestake} />
+      <.group id="auction-stats-memestock" title="Memestock Auctions" stats={@memestock} />
     </section>
     """
   end

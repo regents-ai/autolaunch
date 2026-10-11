@@ -10,7 +10,7 @@ defmodule Autolaunch.Stocks.Lab do
   chain through the same RPC doors (`Autolaunch.LabRpcUrl`), and declares
   every function and event the site prepares against.
 
-  A deployment with launches on the first Memestake launchpad (BITE, JollyB and
+  A deployment with launches on the first Memestock launchpad (BITE, JollyB and
   AGI on Base) names that launchpad, its hook and its locker in a `v1`
   section with their ABIs; those launches read only those contracts.
   """
@@ -140,7 +140,7 @@ defmodule Autolaunch.Stocks.Lab do
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
 
   @doc """
-  The launchpad, hook, locker and bid adapter a Memestake launch on `version`
+  The launchpad, hook, locker and bid adapter a Memestock launch on `version`
   runs on, the ABIs of the first three (keyed `"launchpad"`, `"hook"` and
   `"locker"`) and the shape of that version's records and hook
   (`Autolaunch.Stocks.LabAbi.shape/1`).

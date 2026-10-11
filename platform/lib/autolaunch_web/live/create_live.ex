@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.CreateLive do
   @moduledoc """
   Create a Revstake token, at /create/revstake: the Revstake launch form on
-  Base. Memestake launches have their own page at /create.
+  Base. Memestock launches have their own page at /create.
 
   A signed-out visitor explores the same form against an unsaved draft that
   follows the saved draft's rules. This browser tab keeps what they typed, and

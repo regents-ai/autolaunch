@@ -525,7 +525,7 @@ defmodule Autolaunch.SwapActions do
     }
   end
 
-  # The fees already inside the quote, one line each. A Memestake pool's come
+  # The fees already inside the quote, one line each. A Memestock pool's come
   # from its fee schedule; a Revstake pool names the pool fee it read.
   defp fees(%{kind: :stocks, chain: chain, version: version, currency: stock}, trade) do
     Enum.map(FeeSchedule.lanes(chain, version), fn

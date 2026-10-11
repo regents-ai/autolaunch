@@ -9,7 +9,7 @@ primary_region = "iad"
   PHX_HOST = "autolaunch.sh"
   AUTOLAUNCH_DEPLOYMENT_ROLE = "production"
   AUTOLAUNCH_BASE_DEPLOYMENT = "/app/deployment/base-revstake.json"
-  AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT = "/app/deployment/base-memestake.json"
+  AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT = "/app/deployment/base-memestock.json"
   AUTOLAUNCH_BASE_DEPLOYMENT_ID = "base-mainnet"
   AUTOLAUNCH_ROBINHOOD_DEPLOYMENT = "/app/deployment/robinhood.json"
   AUTOLAUNCH_LAUNCHES_OPEN = "true"
@@ -23,8 +23,8 @@ primary_region = "iad"
   local_path = "deployment/base-revstake.json"
 
 [[files]]
-  guest_path = "/app/deployment/base-memestake.json"
-  local_path = "deployment/base-memestake.json"
+  guest_path = "/app/deployment/base-memestock.json"
+  local_path = "deployment/base-memestock.json"
 
 [[files]]
   guest_path = "/app/deployment/robinhood.json"

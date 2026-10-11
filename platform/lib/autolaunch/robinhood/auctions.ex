@@ -6,7 +6,7 @@ defmodule Autolaunch.Robinhood.Auctions do
   the Robinhood market feed keeps (`Autolaunch.Robinhood.MarketFeed`).
 
   At that block it reads every launchpad's launch records, the current one's
-  first and then the first Memestake launchpad's (ids run from 1 to
+  first and then the first Memestock launchpad's (ids run from 1 to
   `nextLaunchId() - 1` on each), each token's own name and symbol, the metadata the
   launch wrote into it (description, website and image), the stock the
   auction is denominated in, the minimum it must raise, and the auction's

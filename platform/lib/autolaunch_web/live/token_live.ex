@@ -122,7 +122,7 @@ defmodule AutolaunchWeb.TokenLive do
             id="token-staked"
             pool={@pool.result}
             supply={@page_record.auction.token_supply}
-            label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestake"}
+            label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestock"}
             fees={@fee_totals.result}
             rate={@usd_rate.result}
           />

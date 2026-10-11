@@ -125,7 +125,7 @@ defmodule AutolaunchWeb.AuctionController do
 
   # The launch type by its public name; the stored kind keeps its original name.
   defp launch_type(:agent), do: "revstake"
-  defp launch_type(:stocks), do: "memestake"
+  defp launch_type(:stocks), do: "memestock"
 
   # Why each missing figure is missing. The site's chain readers record the
   # bid history (volume and end time) and the amount raised; until they have,

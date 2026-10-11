@@ -956,7 +956,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp stake_path(_auction), do: nil
   defp stake_label(%{kind: :agent}), do: "Revstake"
-  defp stake_label(_auction), do: "Memestake"
+  defp stake_label(_auction), do: "Memestock"
 
   # The tokens just claimed here, or those the position records as claimed.
   defp claimed(%{"tokens_claimed_units" => tokens}, _position), do: tokens

@@ -3,7 +3,7 @@ defmodule Autolaunch.TokenTrade do
   Confirmed trades in a launched token's pool, one row per `Swap` log, written
   by `Autolaunch.TokenTrades`. A buy took the token out of the pool and a sell
   put it in. The currency amount is the pool's other side, in its own
-  currency: REGENT for a Revstake token, the paired stock for a Memestake one.
+  currency: REGENT for a Revstake token, the paired stock for a Memestock one.
   """
   use Ash.Resource,
     otp_app: :autolaunch,

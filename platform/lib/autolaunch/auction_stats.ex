@@ -2,7 +2,7 @@ defmodule Autolaunch.AuctionStats do
   @moduledoc """
   Live and graduated auction counts for the two launch types, over the
   auctions the public lists carry. Revstake auctions are the Base agent
-  auctions. Memestake auctions are the stock auctions on both chains. Live
+  auctions. Memestock auctions are the stock auctions on both chains. Live
   means open for bidding, the same as the market's live filter.
   """
 
@@ -15,8 +15,8 @@ defmodule Autolaunch.AuctionStats do
   @spec revstake() :: {:ok, counts()} | {:error, term()}
   def revstake, do: counts(:agent)
 
-  @spec memestake() :: {:ok, counts()} | {:error, term()}
-  def memestake, do: counts(:stocks)
+  @spec memestock() :: {:ok, counts()} | {:error, term()}
+  def memestock, do: counts(:stocks)
 
   defp counts(kind) do
     with {:ok, live} <- count(kind, :active),

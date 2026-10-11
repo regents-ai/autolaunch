@@ -1,6 +1,6 @@
 defmodule Autolaunch.Stocks.LabProjection do
   @moduledoc """
-  Projects verified Base Memestake launches into `Auction` rows.
+  Projects verified Base Memestock launches into `Auction` rows.
 
   The row identity is the chain and auction address, exactly as for Agent
   launches, so the creator's own confirmation and launch discovery recovering

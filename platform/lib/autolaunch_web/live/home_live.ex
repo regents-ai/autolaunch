@@ -423,7 +423,7 @@ defmodule AutolaunchWeb.HomeLive do
                     {value, label} <- [
                       {"all", "All"},
                       {"revstake", "Revstake"},
-                      {"memestake", "Memestake"}
+                      {"memestock", "Memestock"}
                     ]
                   }
                   patch={HomeMarket.path(@market_options, %{kind: value})}

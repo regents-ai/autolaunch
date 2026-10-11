@@ -2,7 +2,7 @@ defmodule Autolaunch.StoredImage do
   @moduledoc """
   The launch images the site stores, named by the address it gave each one:
   `/images/<id>/<digest>` for a Revstake draft's image and
-  `/stock-images/<id>/<digest>` for a Memestake draft's, on any host.
+  `/stock-images/<id>/<digest>` for a Memestock draft's, on any host.
   """
 
   @digest ~r/\A[0-9a-f]{64}\z/

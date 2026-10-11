@@ -17,13 +17,13 @@ trading fees on the token flow to the people who stake it.
 their project. Stakers share the token's trading fees and any payments the project routes to them.
 Revstake launches run on Base.
 
-**Memestake** tokens are memecoins paired with a tokenised stock, such as Tesla or Apple. Bids are
+**Memestock** tokens are memecoins paired with a tokenised stock, such as Tesla or Apple. Bids are
 paid in that stock. Nobody keeps what the auction raises: every unit goes into the token's locked
 trading pool, apart from a rounding remainder routed to the protocol fee lane. The creator receives
-0.5% of the token supply over 30 days and 0.3% of the stock side of trades. There is no team treasury. Memestake
+0.5% of the token supply over 30 days and 0.3% of the stock side of trades. There is no team treasury. Memestock
 launches run on Base and on Robinhood Chain.
 
-| | Revstake | Memestake |
+| | Revstake | Memestock |
 | --- | --- | --- |
 | Where | Base | Base and Robinhood Chain |
 | You bid with | REGENT | a tokenised stock. You can also pay in dollars (USDC on Base, USDG on Robinhood Chain), converted into the stock in the same transaction |
@@ -37,7 +37,7 @@ launches run on Base and on Robinhood Chain.
 
 Launching is free apart from the network fee.
 
-These are the terms for new v2 launches. The four existing v1 Memestake auctions
+These are the terms for new v2 launches. The four existing v1 Memestock auctions
 (AGI, JollyB, BITE and RDOG) keep their 80% auction / 20% reserve allocation, no creator
 allocation, and two 1% hook fees. New v1 launches are paused; existing withdrawals,
 claims, trading and staking remain supported.
@@ -76,11 +76,11 @@ Trades in a v2 token's official pool pay hook fees on top of the pool's **0.30% 
 | Launch | Hook fee | Destinations |
 | --- | --- | --- |
 | Revstake on Base | 3% | 2% enters the launch's revenue splitter; 1% goes directly to REGENT staking when collected in REGENT, or to the Regent Safe when collected in the launch token |
-| Memestake on Base | 4.3% of the gross stock side | 3% enters the launch's staking splitter; 1% converts to USDC for REGENT staking; 0.3% pays the creator in stock |
-| Memestake on Robinhood Chain | 4.3% of the gross stock side | 3% enters the launch's staking splitter; 1% converts to USDG held in the protocol inbox; 0.3% pays the creator in stock |
+| Memestock on Base | 4.3% of the gross stock side | 3% enters the launch's staking splitter; 1% converts to USDC for REGENT staking; 0.3% pays the creator in stock |
+| Memestock on Robinhood Chain | 4.3% of the gross stock side | 3% enters the launch's staking splitter; 1% converts to USDG held in the protocol inbox; 0.3% pays the creator in stock |
 
 The Robinhood-to-Base bridge is not built; protocol USDG stays in the inbox until a
-bridge adapter is configured. Memestake fees wait in the hook until settlement;
+bridge adapter is configured. Memestock fees wait in the hook until settlement;
 anyone can settle creator and token-staker fees, while protocol conversion requires
 the authorized executor. Revstake hook fees are routed during the swap.
 
@@ -91,7 +91,7 @@ The pool's liquidity is locked in a contract that can only collect trading fees.
 "collect", and the fees always go into the token's staking pot.
 
 Both pool types open at the auction's final clearing price. Revstake locks one
-full-range position. Memestake locks a full-range position funded by the stock
+full-range position. Memestock locks a full-range position funded by the stock
 raise and the tokens it pairs, plus a token-only position above the opening token
 price when reserve remains. Those tokens become available as the price rises.
 
@@ -106,7 +106,7 @@ came in: the token itself, the stock or REGENT it trades against, and dollars.
 
 - **Regent keeps 2%** of everything that arrives. On Base, dollars from that 2% go to people who
   stake REGENT.
-- **Memestake:** stakers share the other 98% in proportion to their stake. If nobody is staked, it
+- **Memestock:** stakers share the other 98% in proportion to their stake. If nobody is staked, it
   goes to Regent instead.
 - **Revstake:** stakers earn according to how much of the *whole supply* they stake. For example,
   if you stake 1% of all tokens, you earn 1% of the 98%, however many other people are staking. The
@@ -132,9 +132,9 @@ Autolaunch's contracts are built so that the promises above do not depend on tru
 
 - pause or reopen *new* launches. A pause never touches auctions already running, refunds,
   claims, trading, staking or payments;
-- for Memestake, choose which stocks new launches can use. Removing a stock stops only new
+- for Memestock, choose which stocks new launches can use. Removing a stock stops only new
   launches with it;
-- for Memestake, choose who converts Regent's 1% share of the fees into dollars. The contracts do
+- for Memestock, choose who converts Regent's 1% share of the fees into dollars. The contracts do
   not check the conversion price: whoever converts sets the least they will accept, and the website
   offers 95% of the stock's Chainlink price as that minimum.
 
@@ -147,7 +147,7 @@ every bid, trade, stake and claim is a transaction you approve in your own walle
   lose.
 - Revstake treasuries receive 70% of the supply plus leftover tokens over 365 days, and at least
   half the raise at graduation. What they do with it is up to them.
-- Memestake bids and earnings are in tokenised stocks. Their value moves with the stock market, and
+- Memestock bids and earnings are in tokenised stocks. Their value moves with the stock market, and
   each stock token follows its issuer's rules.
 - Staking earnings depend on trading and payments. They are not guaranteed.
 - The contracts are new. No outside firm has audited them. They were reviewed by AI (GPT 6 Astra)
@@ -160,8 +160,8 @@ every bid, trade, stake and claim is a transaction you approve in your own walle
 | | |
 | --- | --- |
 | Revstake on Base | V2 deployed and open for new launches ([deployment records](contracts/revstake-v2/deployments/base-mainnet/README.md)) |
-| Memestake on Base | V2 deployed and open, with ten admitted stocks ([deployment records](contracts/stocks-v2/deployments/base-mainnet/README.md)) |
-| Memestake on Robinhood Chain | V2 deployed and open, with 25 admitted stocks ([deployment records](contracts/robinhood-v2/deployments/robinhood-mainnet/README.md)) |
+| Memestock on Base | V2 deployed and open, with ten admitted stocks ([deployment records](contracts/stocks-v2/deployments/base-mainnet/README.md)) |
+| Memestock on Robinhood Chain | V2 deployed and open, with 25 admitted stocks ([deployment records](contracts/robinhood-v2/deployments/robinhood-mainnet/README.md)) |
 | autolaunch.sh | Live. Launching, bidding and trading opened on 24 September 2026, 15:00 UTC. What changed in each release is in [CHANGELOG.md](CHANGELOG.md) |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
 

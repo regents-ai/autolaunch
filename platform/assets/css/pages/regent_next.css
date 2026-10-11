@@ -1,11 +1,11 @@
 /* The REGENT page: where the USDC went, the last seven days
-   by source, how the next deposit splits, Memestake's two chains and REGENT
+   by source, how the next deposit splits, Memestock's two chains and REGENT
    emissions, each in its own card. */
 
 .regent-next-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
 @media (min-width: 64rem) {
   .regent-next-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-  .regent-next-layout > :is(#regent-next-allocation, #regent-next-sources, #regent-next-memestake, #regent-next-yours) { grid-column: 1 / -1; }
+  .regent-next-layout > :is(#regent-next-allocation, #regent-next-sources, #regent-next-memestock, #regent-next-yours) { grid-column: 1 / -1; }
 }
 
 .regent-next-card { display: grid; gap: 12px; min-width: 0; padding: 18px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--color-surface); }
@@ -59,7 +59,7 @@
   .regent-next-table .regent-next-table__amount { text-align: right; white-space: normal; }
 }
 
-/* Memestake's two chains, side by side. */
+/* Memestock's two chains, side by side. */
 .regent-next-lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 12px; }
 .regent-next-lane { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px dashed var(--hairline-strong); border-radius: 12px; }
 .regent-next-lane h3 { margin: 0; font-size: 1rem; }

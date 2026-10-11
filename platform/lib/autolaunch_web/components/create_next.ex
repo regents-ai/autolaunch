@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
   auction runs, when each part of the launch happens, and the terms at a glance.
 
   Every figure is the launch type's final v2 profile from the 1 and 5 October terms:
-  StocksPreset and RobinhoodPreset (Memestake, on Base and Robinhood Chain
+  StocksPreset and RobinhoodPreset (Memestock, on Base and Robinhood Chain
   alike) and RegentLBPStrategyV2 (Revstake). The creator chooses none of them; the
   launch review still shows the exact values the wallet signs.
   """
@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
   @revstake_schedule %{opens: 300, length: 86_401, claim: 64, pool: 128}
 
   @supply %{
-    memestake: %{
+    memestock: %{
       words: "1 billion",
       parts: [
         %{
@@ -82,7 +82,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
   }
 
   attr :id, :string, required: true
-  attr :kind, :atom, required: true, values: [:memestake, :revstake]
+  attr :kind, :atom, required: true, values: [:memestock, :revstake]
   attr :chain, :atom, default: :base
   attr :ticker, :string, required: true
   attr :currency, :string, default: nil, doc: "the stock's symbol, or nil before one is chosen"
@@ -168,7 +168,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           <span>Everything the auction raises</span>
           <strong>{@unit}</strong>
         </div>
-        <ul :if={@kind == :memestake} class="create-next__parts">
+        <ul :if={@kind == :memestock} class="create-next__parts">
           <li class="create-next__part create-next__part--pool">
             <span class="create-next__part-head">
               <span>Trading pool, locked forever</span>
@@ -358,7 +358,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
     """
   end
 
-  defp fees(:memestake, chain) do
+  defp fees(:memestock, chain) do
     lanes = FeeSchedule.lanes(chain, :v2)
 
     lanes
@@ -410,8 +410,8 @@ defmodule AutolaunchWeb.Components.CreateNext do
   end
 
   defp schedule(:revstake, _chain), do: @revstake_schedule
-  defp schedule(:memestake, :base), do: LaunchActions.schedule()
-  defp schedule(:memestake, :robinhood), do: RobinhoodLaunchActions.schedule()
+  defp schedule(:memestock, :base), do: LaunchActions.schedule()
+  defp schedule(:memestock, :robinhood), do: RobinhoodLaunchActions.schedule()
 
   # Each milestone at its block after the launch, as a time after it.
   defp milestones(chain, %{opens: opens, length: length, claim: claim, pool: pool}) do
@@ -461,12 +461,12 @@ defmodule AutolaunchWeb.Components.CreateNext do
     |> Kernel.<>(" after launch")
   end
 
-  defp default_unit(:memestake), do: "the stock"
+  defp default_unit(:memestock), do: "the stock"
   defp default_unit(:revstake), do: "REGENT"
 
-  defp kind_label(:memestake), do: "Memestake"
+  defp kind_label(:memestock), do: "Memestock"
   defp kind_label(:revstake), do: "Revstake"
 
-  defp creator_label(:memestake), do: "creator"
+  defp creator_label(:memestock), do: "creator"
   defp creator_label(:revstake), do: "treasury"
 end

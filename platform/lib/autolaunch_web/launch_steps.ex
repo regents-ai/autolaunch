@@ -242,7 +242,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   account's draft starts over (`Autolaunch.LaunchedDrafts`), so the form below
   opens blank and the same launch can't be sent again by mistake; the card
   says the launch is made, with its transaction. `draft_kind` is `:revstake`
-  or `:memestake`. `find` answers in the background, with what the review was
+  or `:memestock`. `find` answers in the background, with what the review was
   prepared with and the hash, `{:ok, path}` for the auction page or `:not_yet`;
   the answer arrives as `handle_async({:launch_page, hash}, ...)`, for
   `found/3`. Until it finds the page, `relisted/2` asks `find` again.

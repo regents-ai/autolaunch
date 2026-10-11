@@ -436,8 +436,8 @@ components:
     Kind:
       name: kind
       in: query
-      description: "Launch type: revstake or memestake."
-      schema: {type: string, enum: [all, revstake, memestake], default: all}
+      description: "Launch type: revstake or memestock."
+      schema: {type: string, enum: [all, revstake, memestock], default: all}
     X:
       name: x
       in: query
@@ -545,7 +545,7 @@ components:
             estimated_tokens_if_end_now: {type: string}
             warnings: {type: array, items: {type: string}}
     QuoteToken:
-      description: The token bids are paid in. REGENT for revstake auctions; the auction's stock token (on Base or Robinhood) for memestake auctions.
+      description: The token bids are paid in. REGENT for revstake auctions; the auction's stock token (on Base or Robinhood) for memestock auctions.
       type: object
       additionalProperties: false
       required: [address, symbol, decimals]
@@ -596,13 +596,13 @@ components:
         token_symbol: {type: [string, "null"]}
         summary: {type: [string, "null"]}
         featured: {type: boolean}
-        kind: {type: string, enum: [revstake, memestake], description: "The launch type: a Revstake or a Memestake launch."}
+        kind: {type: string, enum: [revstake, memestock], description: "The launch type: a Revstake or a Memestock launch."}
         state: {type: string, enum: [created, active, ended, graduated, failed], description: "ended: bidding has closed and the auction is waiting to be finished; graduated and failed are final."}
         opened_at: {type: [string, "null"], format: date-time}
         estimated_end_at: {type: [string, "null"], format: date-time, description: "When bidding closes, estimated from the auction's end block and the chain's block times."}
         quote_token: {$ref: "#/components/schemas/QuoteToken"}
         clearing_price: {type: [string, "null"], description: "The auction's current clearing price in the quote token, as a decimal string."}
-        token_allocation: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "Whole tokens the auction sells, fixed by its launch type: 10 billion of a Revstake token's 100 billion, 800 million of a Memestake token's 1 billion."}
+        token_allocation: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "Whole tokens the auction sells, fixed by its launch type: 10 billion of a Revstake token's 100 billion, 800 million of a Memestock token's 1 billion."}
         bid_volume:
           description: Everything bid so far, in whole quote-token units.
           oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]

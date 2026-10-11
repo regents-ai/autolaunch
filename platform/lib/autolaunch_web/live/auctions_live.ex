@@ -166,7 +166,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
     ~H"""
     <main class="autolaunch-page market-list-page" id="auctions-list">
-      <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
+      <.auction_stats revstake={@revstake_stats} memestock={@memestock_stats} />
       <header class="market-list__header">
         <h1 id="auctions-list-title">Auctions</h1>
         <Regent.Primitives.button

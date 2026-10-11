@@ -20,7 +20,7 @@ defmodule Autolaunch.AuctionFinishTest do
 
   defmodule Chain do
     @moduledoc """
-    One scripted chain: a Memestake launchpad whose launches are all running
+    One scripted chain: a Memestock launchpad whose launches are all running
     and past their migration block, and a network that holds, mines or forgets
     the transactions broadcast to it.
     """
@@ -266,7 +266,7 @@ defmodule Autolaunch.AuctionFinishTest do
   defp running_launch(config, launch_id) do
     Autolaunch.record_auction_finish!(
       %{
-        launchpad: :base_memestake,
+        launchpad: :base_memestock,
         chain_id: config.chain_id,
         contract: StocksLab.address!(config, :launchpad),
         launch_id: launch_id,

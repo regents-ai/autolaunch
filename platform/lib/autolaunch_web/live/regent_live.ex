@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.RegentLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Lab
-  alias Autolaunch.{MemestakeLanes, RegentFacts}
+  alias Autolaunch.{MemestockLanes, RegentFacts}
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{RegentNext, TokenLinks}
   alias AutolaunchWeb.TokenDisplay
@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.RegentLive do
     {"Regents Labs", ["REGENT/ETH pool fees (0.1–0.3% of volume)", "Paid agent services"]},
     {"Autolaunch",
      [
-       "Base Memestake’s 1% stock fee, converted to USDC",
+       "Base Memestock’s 1% stock fee, converted to USDC",
        "2% of recognized USDC revenue in launch splitters"
      ]},
     {"Techtree", ["5% of paid artifact sales", "Paid agent training environments"]},
@@ -33,15 +33,15 @@ defmodule AutolaunchWeb.RegentLive do
        end
      end)
      |> assign_async(:base_lane, fn ->
-       with {:ok, lane} <- MemestakeLanes.base(), do: {:ok, %{base_lane: lane}}
+       with {:ok, lane} <- MemestockLanes.base(), do: {:ok, %{base_lane: lane}}
      end)
      |> assign_async(:robinhood_lane, fn ->
-       with {:ok, lane} <- MemestakeLanes.robinhood(), do: {:ok, %{robinhood_lane: lane}}
+       with {:ok, lane} <- MemestockLanes.robinhood(), do: {:ok, %{robinhood_lane: lane}}
      end)}
   end
 
   # Where the USDC went, deposit by deposit and source by source, how the next
-  # one would split, Memestake's two chains kept apart, and REGENT emissions as
+  # one would split, Memestock's two chains kept apart, and REGENT emissions as
   # a stream of their own. Every figure and link is public Base mainnet; a
   # local-fork site says so, because the fork carries its own test REGENT that
   # none of this reaches. Its links carry their own ids: the top bar's REGENT
@@ -113,7 +113,7 @@ defmodule AutolaunchWeb.RegentLive do
         <RegentNext.next_split facts={@facts.result} />
         <RegentNext.emissions facts={@facts.result} />
         <RegentNext.deposits_by_source facts={@facts.result} />
-        <RegentNext.memestake_sources
+        <RegentNext.memestock_sources
           facts={@facts.result}
           base_lane={@base_lane}
           robinhood_lane={@robinhood_lane}

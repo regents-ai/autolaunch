@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
       the source each depositor recorded;
     * `next_split/1` - how the next deposit would split with the stake as it
       is now;
-    * `memestake_sources/1` - Memestake's two lanes to REGENT stakers, each
+    * `memestock_sources/1` - Memestock's two lanes to REGENT stakers, each
       stage in its own asset, the Robinhood Chain USDG never added to USDC;
     * `emissions/1` - REGENT emissions, a stream apart from the USDC.
 
@@ -238,31 +238,31 @@ defmodule AutolaunchWeb.Components.RegentNext do
   attr :robinhood_lane, Phoenix.LiveView.AsyncResult, required: true
 
   @doc """
-  Memestake's lane to REGENT stakers on each chain, stage by stage, each in its
+  Memestock's lane to REGENT stakers on each chain, stage by stage, each in its
   own asset, with what each stage holds or has passed on now
-  (`Autolaunch.MemestakeLanes`). Robinhood Chain's USDG is never counted as
+  (`Autolaunch.MemestockLanes`). Robinhood Chain's USDG is never counted as
   USDC; it becomes USDC only once it arrives on Base.
   """
-  def memestake_sources(assigns) do
+  def memestock_sources(assigns) do
     assigns =
       assign(assigns,
         base_rate: FeeSchedule.lane(:base, :v2, :regent).rate,
         robinhood_rate: FeeSchedule.lane(:robinhood, :v2, :regent).rate,
-        base_7d: source_received(assigns.facts, :memestake_base),
+        base_7d: source_received(assigns.facts, :memestock_base),
         robinhood_7d: source_received(assigns.facts, :robinhood)
       )
 
     ~H"""
     <section
-      id="regent-next-memestake"
+      id="regent-next-memestock"
       class="regent-next-card"
-      aria-labelledby="regent-next-memestake-title"
+      aria-labelledby="regent-next-memestock-title"
     >
       <header class="regent-next-card__head">
-        <h2 id="regent-next-memestake-title">Memestake's share, chain by chain</h2>
+        <h2 id="regent-next-memestock-title">Memestock's share, chain by chain</h2>
       </header>
       <p class="regent-next-lead">
-        Every Memestake trade pays a share of its stock side for REGENT stakers. Each chain's share
+        Every Memestock trade pays a share of its stock side for REGENT stakers. Each chain's share
         moves through its own stages, in its own asset.
       </p>
       <div class="regent-next-lanes">
@@ -353,7 +353,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
         </section>
       </div>
       <p class="regent-next-source">
-        Rates from the fee schedule every Memestake launch uses. Amounts paid in over seven days
+        Rates from the fee schedule every Memestock launch uses. Amounts paid in over seven days
         read from the staking contract's records at Base block {block(@facts)}.
         <.lane_blocks base_lane={@base_lane} robinhood_lane={@robinhood_lane} />
       </p>
@@ -492,18 +492,18 @@ defmodule AutolaunchWeb.Components.RegentNext do
   defp source_received(%{deposits_7d: %{sources: sources}}, source),
     do: sources |> Map.new() |> Map.fetch!(source) |> Map.fetch!(:received)
 
-  defp source_name(:memestake_base), do: "Memestake trades on Base"
+  defp source_name(:memestock_base), do: "Memestock trades on Base"
   defp source_name(:token_splitters), do: "Regent's 2% of token staking rewards"
-  defp source_name(:robinhood), do: "Memestake trades on Robinhood Chain"
+  defp source_name(:robinhood), do: "Memestock trades on Robinhood Chain"
   defp source_name({:tag, text}), do: "Tagged “#{text}”"
   defp source_name(:unattributed), do: "Unattributed"
 
-  defp source_note(:memestake_base),
+  defp source_note(:memestock_base),
     do: "The stock-side share, swapped to USDC. Recorded as autolaunch-stocks."
 
   defp source_note(:token_splitters),
     do:
-      "The USDC part of Memestake and Revstake staking rewards. Recorded with the token's address."
+      "The USDC part of Memestock and Revstake staking rewards. Recorded with the token's address."
 
   defp source_note(:robinhood),
     do: "Arrives once the transfer to Base is set up. Recorded as autolaunch-robinhood."

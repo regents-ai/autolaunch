@@ -1,9 +1,9 @@
 defmodule Autolaunch.Stocks.LabMarketFeed do
   @moduledoc """
-  Keeps the Base Memestake auctions current: every second on a lab, every
+  Keeps the Base Memestock auctions current: every second on a lab, every
   fifteen seconds on mainnet.
 
-  Each poll reads a bounded page of the Memestake auction rows that already
+  Each poll reads a bounded page of the Memestock auction rows that already
   exist (`Autolaunch.MarketWatch`) from their own contracts and the lifecycle
   of the launchpad their contracts version names, and writes back only their state, minimum reached,
   clearing price, bidders' positions and a graduated token's pool price.
@@ -108,14 +108,14 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
-    Logger.warning("memestake market feed skipped a poll: #{inspect(reason)}")
+    Logger.warning("memestock market feed skipped a poll: #{inspect(reason)}")
     {:noreply, schedule(%{state | in_flight: false}, interval())}
   end
 
   defp interval,
     do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
 
-  # One poll: this pass's page of Memestake auctions (`Autolaunch.MarketWatch`).
+  # One poll: this pass's page of Memestock auctions (`Autolaunch.MarketWatch`).
   @doc false
   def refresh(watch) do
     with {:ok, config} <- Lab.current(),
@@ -148,7 +148,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
 
   defp collect_reading({:error, reason}, auction, collected) do
     Logger.warning(
-      "memestake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+      "memestock market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
     )
 
     collected

@@ -126,7 +126,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             id="robinhood-token-staked"
             pool={@pool.result}
             supply={@token.auction.token_supply}
-            label="Memestake"
+            label="Memestock"
             fees={@fee_totals.result}
             rate={@usd_rate.result}
           />
@@ -351,9 +351,9 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   end
 
   defp network_copy(true),
-    do: "A Memestake token on the Robinhood test network. Test assets have no real value."
+    do: "A Memestock token on the Robinhood test network. Test assets have no real value."
 
-  defp network_copy(false), do: "A Memestake token on Robinhood Chain."
+  defp network_copy(false), do: "A Memestock token on Robinhood Chain."
 
   defp unreadable?(%{failed: nil}), do: false
   defp unreadable?(%{failed: {:error, :not_graduated}}), do: false

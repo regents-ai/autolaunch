@@ -134,7 +134,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   attr :minimum, :string,
     default: nil,
-    doc: "a Revstake auction's minimum in whole currency; a Memestake auction shows none"
+    doc: "a Revstake auction's minimum in whole currency; a Memestock auction shows none"
 
   attr :raised, :string,
     default: nil,

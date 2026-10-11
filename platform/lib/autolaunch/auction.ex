@@ -138,7 +138,7 @@ defmodule Autolaunch.Auction do
 
       argument :kind, :string,
         default: "all",
-        constraints: [match: ~r/\A(all|revstake|memestake)\z/]
+        constraints: [match: ~r/\A(all|revstake|memestock)\z/]
 
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 50
       prepare Autolaunch.Auction.Preparations.Listed
@@ -176,7 +176,7 @@ defmodule Autolaunch.Auction do
           query =
             case query.arguments.kind do
               "revstake" -> Ash.Query.filter(query, kind == :agent)
-              "memestake" -> Ash.Query.filter(query, kind == :stocks)
+              "memestock" -> Ash.Query.filter(query, kind == :stocks)
               "all" -> query
             end
 
@@ -591,7 +591,7 @@ defmodule Autolaunch.Auction do
       constraints one_of: [:agent, :stocks]
     end
 
-    # The Memestake contracts a launch runs on. The first four Memestake
+    # The Memestock contracts a launch runs on. The first four Memestock
     # launches (BITE, JollyB and AGI on Base, RDOG on Robinhood) are `:v1` and
     # read only their original launchpad, hook and locker; every later launch
     # is `:v2`.

@@ -7,7 +7,7 @@ defmodule Autolaunch.LaunchDiscovery do
   report its hash, and nothing here waits for it:
 
   - the Base ledger records every Revstake factory `LaunchCreated` it stores;
-  - every minute `:discover_memestake` records each new Memestake launchpad
+  - every minute `:discover_memestock` records each new Memestock launchpad
     launch and the transaction that created it.
 
   Every minute the `:resolve` trigger takes each launch still `pending` and
@@ -41,10 +41,10 @@ defmodule Autolaunch.LaunchDiscovery do
     end
 
     scheduled_actions do
-      schedule :discover_memestake, "* * * * *" do
-        action :discover_memestake
+      schedule :discover_memestock, "* * * * *" do
+        action :discover_memestock
         queue :launch_listing
-        worker_module_name Autolaunch.LaunchDiscovery.Workers.DiscoverMemestake
+        worker_module_name Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock
       end
     end
   end
@@ -88,9 +88,9 @@ defmodule Autolaunch.LaunchDiscovery do
       upsert_fields []
     end
 
-    action :discover_memestake do
+    action :discover_memestock do
       run fn input, context ->
-        Autolaunch.LaunchDiscovery.DiscoverMemestake.run(input, context)
+        Autolaunch.LaunchDiscovery.DiscoverMemestock.run(input, context)
       end
     end
 
@@ -118,12 +118,12 @@ defmodule Autolaunch.LaunchDiscovery do
 
     attribute :launchpad, :atom,
       allow_nil?: false,
-      constraints: [one_of: [:base_revstake, :base_memestake]]
+      constraints: [one_of: [:base_revstake, :base_memestock]]
 
     attribute :chain_id, :integer, allow_nil?: false, constraints: [min: 1]
 
     # The contract that numbers the launches: the Revstake factory, or the
-    # Memestake launchpad.
+    # Memestock launchpad.
     attribute :contract, :string,
       allow_nil?: false,
       constraints: [min_length: 42, max_length: 42]

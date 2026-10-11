@@ -42,8 +42,8 @@ defmodule Autolaunch.AuctionFigures do
 
   @doc """
   The tokens the auction sells, fixed by its launch type: a Revstake auction
-  sells 20 billion of its 100 billion tokens, a Memestake auction 497.5 million
-  of its 1 billion, on either chain; the first four Memestake auctions sold
+  sells 20 billion of its 100 billion tokens, a Memestock auction 497.5 million
+  of its 1 billion, on either chain; the first four Memestock auctions sold
   up to 800 million.
   """
   @spec token_allocation(map()) :: Decimal.t()

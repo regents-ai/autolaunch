@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   @moduledoc """
   The "Pool" section of a graduated token's page: the pool a launch graduated
   into, its locked positions, its price, and its fee lanes and revenue, read from
-  Base by `Autolaunch.Pool`. The locked positions and the Memestake fee totals
+  Base by `Autolaunch.Pool`. The locked positions and the Memestock fee totals
   are left to the token page's own locked-liquidity section and reward trace;
   the settlements stay here.
   """

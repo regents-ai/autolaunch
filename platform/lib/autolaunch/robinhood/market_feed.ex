@@ -23,7 +23,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     launch's token takes its pool's price; raised amount,
     schedule and a graduated launch's pool, splitter and locker are kept as
     per-auction readings. A launch seen graduated gets its `Token` row
-    (`Autolaunch.LabProjection.project_graduated_token/1`, as a Base Memestake
+    (`Autolaunch.LabProjection.project_graduated_token/1`, as a Base Memestock
     launch does) in the same transaction as its row.
 
   This process is its own failure boundary. A Robinhood outage marks its
@@ -268,7 +268,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   defp start_over({:site, account_id, _links}, launch),
-    do: LaunchedDrafts.clear(:memestake, account_id, launch.name, launch.symbol)
+    do: LaunchedDrafts.clear(:memestock, account_id, launch.name, launch.symbol)
 
   defp start_over({:chain, nil, _links}, _launch), do: :ok
 
@@ -358,7 +358,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   # A graduated launch's token takes its pool's price on every reading, as a
-  # Base Memestake token does. A price that cannot be read is logged and left
+  # Base Memestock token does. A price that cannot be read is logged and left
   # as it was; the auction's own reading still stands.
   defp price(_reader, _head, _auction, %{pool: nil}), do: []
 
@@ -390,7 +390,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   # A launch the feed sees graduate becomes a listed token in the same
-  # transaction, as a Base Memestake launch does, so the row never says
+  # transaction, as a Base Memestock launch does, so the row never says
   # graduated without its token.
   defp refresh_row(auction, reading) do
     with {:ok, row} <-

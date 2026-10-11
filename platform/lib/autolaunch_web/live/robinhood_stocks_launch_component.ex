@@ -256,7 +256,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   end
 
   defp confirmed(socket, entry),
-    do: LaunchSteps.launched(socket, entry, :memestake, &launch_page/2)
+    do: LaunchSteps.launched(socket, entry, :memestock, &launch_page/2)
 
   # A confirmed launch is read back from the launchpad against the review it
   # was sent from; its page follows once the site lists its auction.

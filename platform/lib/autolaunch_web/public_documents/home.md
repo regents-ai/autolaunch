@@ -7,7 +7,7 @@ Autolaunch runs token auctions on Base and Robinhood Chain. Everyone in an aucti
 ## Two kinds of launch
 
 - **Revstake** (Base): an agent or a stablecoin-earning service raises early funds through a 48-hour auction priced in REGENT. Holders stake the token for their share of the stablecoin revenue sent to it.
-- **Memestake** (Base and Robinhood Chain): a memecoin paired with a real onchain stock, sold in a 24-hour auction. Holders stake it to receive the stock from the token's trading fees.
+- **Memestock** (Base and Robinhood Chain): a memecoin paired with a real onchain stock, sold in a 24-hour auction. Holders stake it to receive the stock from the token's trading fees.
 
 ## Browse
 

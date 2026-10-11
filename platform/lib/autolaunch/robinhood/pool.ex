@@ -67,7 +67,7 @@ defmodule Autolaunch.Robinhood.Pool do
          {:ok, fees} <- fees(config, launch, stock, block, opts),
          # The launch's migration block is on the rollup clock, not the block
          # numbers logs carry, so the pool's logs are read from the chain's start.
-         {:ok, rewards} <- RewardHistory.recognized(:memestake, launch.splitter, 0, block, opts),
+         {:ok, rewards} <- RewardHistory.recognized(:memestock, launch.splitter, 0, block, opts),
          {:ok, prices} <-
            PriceHistory.pool(
              %{

@@ -34,9 +34,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   @doc "The choice between the two launches, then the page title."
   def header(assigns) do
     ~H"""
-    <.launch_kind_choice current={:memestake} />
+    <.launch_kind_choice current={:memestock} />
     <header class="create-page__header">
-      <h1>Create a Memestake token</h1>
+      <h1>Create a Memestock token</h1>
     </header>
     """
   end
@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           id="memestock-form"
           class="create-page__form memestock rg-panel rg-panel--surface"
           data-chain={@launch_chain}
-          data-agent-tools="autolaunch_launch_form autolaunch_fill_memestake"
+          data-agent-tools="autolaunch_launch_form autolaunch_fill_memestock"
           phx-hook="AgentTools"
           aria-label="Your memestock"
         >
@@ -348,7 +348,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           </div>
           <.launch_plan
             id="memestock-plan"
-            kind={:memestake}
+            kind={:memestock}
             chain={@launch_chain}
             ticker={ticker(@draft_values["symbol"])}
             currency={@stock && @stock.symbol}

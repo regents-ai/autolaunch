@@ -17,7 +17,7 @@ defmodule Autolaunch.LaunchedDrafts do
 
   @system %System{}
 
-  @type kind :: :revstake | :memestake
+  @type kind :: :revstake | :memestock
 
   @spec clear(kind(), integer(), String.t(), String.t()) :: :ok | {:error, term()}
   def clear(kind, account_id, name, symbol) do
@@ -33,7 +33,7 @@ defmodule Autolaunch.LaunchedDrafts do
     |> Autolaunch.clear_launch_draft(actor: @system)
   end
 
-  defp cleared(:memestake, account_id, name, symbol) do
+  defp cleared(:memestock, account_id, name, symbol) do
     account_id
     |> Autolaunch.query_to_stocks_launch_draft_naming_listed_launch(name, symbol, actor: @system)
     |> Autolaunch.clear_stocks_launch_draft(actor: @system)

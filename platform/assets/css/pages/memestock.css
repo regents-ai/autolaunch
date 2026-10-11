@@ -1,4 +1,4 @@
-/* Create a Memestake token: what only the Memestake form has. */
+/* Create a Memestock token: what only the Memestock form has. */
 .memestock { --memestock-base: #0052ff; --memestock-robinhood: #00c805; }
 
 /* Paired stock: Base or Robinhood, then the chain's stocks in one dropdown. */

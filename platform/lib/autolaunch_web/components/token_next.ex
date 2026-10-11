@@ -19,13 +19,13 @@ defmodule AutolaunchWeb.Components.TokenNext do
       with what it holds now.
 
   Every rule is the launch's own contracts', first or second launchpad alike:
-  a Memestake splitter keeps 2% for
+  a Memestock splitter keeps 2% for
   Regent and splits the rest by stake between everyone staked when rewards
   arrive, or gives all of it to Regent while nothing is staked; a Revstake
   splitter keeps 2% for Regent, gives stakers the rest in line with the
   share of the whole supply staked, and sends what is left to the token's
   treasury. Regent's 2% is read from the splitter itself (`SKIM_BPS`). A
-  second-launchpad Memestake also pays its creator a lane of every trade and
+  second-launchpad Memestock also pays its creator a lane of every trade and
   vests the creator's tokens; a Revstake trade pays 1% to Regent beside the
   stakers' 2%. Every
   figure says where it comes from: read from the chain at a block, worked out
@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
       <p class="token-next-lead">
         Each step is the same money moving on. The steps are not separate amounts to add up.
       </p>
-      <.memestake_steps :if={@pool.kind == :stocks} id={@id} pool={@pool} block={@block} />
+      <.memestock_steps :if={@pool.kind == :stocks} id={@id} pool={@pool} block={@block} />
       <.revstake_steps :if={@pool.kind == :agent} id={@id} pool={@pool} block={@block} />
       <.split_step
         id={@id}
@@ -116,7 +116,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
   attr :pool, :map, required: true
   attr :block, :string, required: true
 
-  defp memestake_steps(assigns) do
+  defp memestock_steps(assigns) do
     assigns =
       assign(assigns,
         rate: FeeSchedule.lane(assigns.pool.chain, assigns.pool.version, :stakers).rate,
@@ -777,7 +777,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
   @doc """
   What staking the typed amount would change: the wallet's share now and
   after, and what that share would be of each 1 of rewards counted later.
-  A Memestake share is of everything staked; a Revstake share is of the
+  A Memestock share is of everything staked; a Revstake share is of the
   whole supply. It is an example on today's figures, not a forecast.
   """
   def stake_impact(assigns) do
@@ -1328,7 +1328,7 @@ defmodule AutolaunchWeb.Components.TokenNext do
   defp pool_rate(pool), do: FeeSchedule.lane(pool.chain, pool.version, :pool).rate
 
   defp kind_label(%{kind: :agent}), do: "Revstake"
-  defp kind_label(_pool), do: "Memestake"
+  defp kind_label(_pool), do: "Memestock"
 
   defp split_step_number(%{kind: :agent}), do: 3
   defp split_step_number(_pool), do: 4

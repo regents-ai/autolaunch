@@ -225,7 +225,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
          socket,
          hash,
          result,
-         &LaunchSteps.launched(&1, &2, :memestake, LaunchSteps.base_page(:stocks_launch)),
+         &LaunchSteps.launched(&1, &2, :memestock, LaunchSteps.base_page(:stocks_launch)),
          &LaunchSteps.reverted(&1, &2, current(socket), fn signer -> prepare(socket, signer) end)
        )}
 

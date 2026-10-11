@@ -5,7 +5,7 @@ defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
 
   `snapshot/1` pins one block on Robinhood, reads the auction's schedule, its
   STOCK and that STOCK's admitted decimals from the launchpad that made the
-  auction (the current one, or the first Memestake launchpad), the bid's own
+  auction (the current one, or the first Memestock launchpad), the bid's own
   record, and asks the auction what settling would do through
   `Autolaunch.Chain.CcaSettlement`: the exit that returns unspent STOCK (a
   plain exit, or a partial exit with checkpoint hints when the bid was only

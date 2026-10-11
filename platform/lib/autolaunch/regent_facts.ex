@@ -16,7 +16,7 @@ defmodule Autolaunch.RegentFacts do
 
   The seven days of deposits are also kept as each deposit's own split, as
   the staking contract recorded it (to stakers, to the treasury), grouped by
-  the source tag the depositor gave it: the Memestake REGENT lane on Base
+  the source tag the depositor gave it: the Memestock REGENT lane on Base
   (`autolaunch-stocks`), the Robinhood Chain lane once it reaches Base
   (`autolaunch-robinhood`), a token splitter's 2% (the tag is the token's
   address), another tag written as text (kept as written, such as
@@ -232,7 +232,7 @@ defmodule Autolaunch.RegentFacts do
     tags = found |> Enum.filter(&match?({:tag, _text}, &1)) |> Enum.sort()
     unattributed = Enum.filter(found, &(&1 == :unattributed))
 
-    [:memestake_base, :token_splitters, :robinhood] ++ tags ++ unattributed
+    [:memestock_base, :token_splitters, :robinhood] ++ tags ++ unattributed
   end
 
   defp allocation(deposits) do
@@ -281,13 +281,13 @@ defmodule Autolaunch.RegentFacts do
     end)
   end
 
-  @memestake_base_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-stocks", 32, <<0>>))
+  @memestock_base_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-stocks", 32, <<0>>))
   @robinhood_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-robinhood", 32, <<0>>))
 
   # The source a deposit's tag records. A token splitter tags its 2% with the
   # token's address. Any other tag written as short plain text is kept as
   # written; a tag that is neither stays unattributed.
-  defp source(@memestake_base_tag), do: :memestake_base
+  defp source(@memestock_base_tag), do: :memestock_base
   defp source(@robinhood_tag), do: :robinhood
 
   defp source(tag) do

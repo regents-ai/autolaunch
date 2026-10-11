@@ -1,6 +1,6 @@
-defmodule Autolaunch.LaunchDiscovery.DiscoverMemestake do
+defmodule Autolaunch.LaunchDiscovery.DiscoverMemestock do
   @moduledoc """
-  Records every Base Memestake launch created since the last run, with the
+  Records every Base Memestock launch created since the last run, with the
   transaction that created it.
 
   The launchpad numbers its launches, and each record names its launcher and
@@ -20,7 +20,7 @@ defmodule Autolaunch.LaunchDiscovery.DiscoverMemestake do
 
   def run(_input, _context) do
     Launchpads.configured()
-    |> Enum.filter(&(&1.launchpad == :base_memestake))
+    |> Enum.filter(&(&1.launchpad == :base_memestock))
     |> Enum.reduce_while(:ok, fn pad, :ok ->
       case discover(pad) do
         :ok -> {:cont, :ok}

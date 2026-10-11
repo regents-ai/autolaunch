@@ -39,7 +39,7 @@ the API, the CLI and these tools:
 | `state` | `all`, `created` (opening soon), `active` (live), `ended` (waiting to be finished), `failed`, `graduated` (launched) | auctions |
 | `sort` | `newest` (most recently listed), `ending` (live only, closing soonest; the website's Closing), `volume` (highest dollar bid volume, unrecorded last; the website's Highest) | auctions |
 | `chain` | `all`, `base`, `robinhood` | auctions, tokens |
-| `kind` | `all`, `revstake`, `memestake` | auctions, tokens |
+| `kind` | `all`, `revstake`, `memestock` | auctions, tokens |
 | `x`, `ens`, `github` | `true` keeps only creators verified on that account; several must all hold | auctions, tokens |
 
 The API refuses an unknown parameter, a list-shaped one (`kind[]=`), or a value outside
@@ -136,13 +136,13 @@ Paying an agent's revenue and the public upkeep buttons are not tools yet.
 
 ## Launch tools
 
-An agent launches a Memestake token on `/create` or a Revstake token on
+An agent launches a Memestock token on `/create` or a Revstake token on
 `/create/revstake` with the page open in the person's browser:
 
 1. `autolaunch_launch_form` reads the form: every field as saved, whether a
-   picture is chosen, the stocks on offer (Memestake), the problems with any
+   picture is chosen, the stocks on offer (Memestock), the problems with any
    field, and `next`, what is left and who does it.
-2. `autolaunch_fill_memestake` or `autolaunch_fill_revstake` saves the given
+2. `autolaunch_fill_memestock` or `autolaunch_fill_revstake` saves the given
    fields through the same saves as typing them (`AutolaunchWeb.StocksCreateLive`,
    `AutolaunchWeb.CreateLive`): to the account's draft when signed in, otherwise
    in this browser tab until the person signs in. The result is
@@ -160,7 +160,7 @@ An agent launches a Memestake token on `/create` or a Revstake token on
 The form element (`#memestock-form`, `#autolaunch-create`) and the treasury
 check carry the `AgentTools` hook (`assets/js/hooks/agent_tools.ts`); a call
 pushes `agent_call` to their LiveView or component, and the reply is the tool's
-result. While the launch review is open, or the account's Memestake auction is
+result. While the launch review is open, or the account's Memestock auction is
 live, the form is locked for the agent as it is for the person.
 
 Some steps stay with the person: signing in, choosing the picture, typing the
@@ -183,7 +183,7 @@ show, from the same stored record and the same code:
 
 - `url`: the auction's page on the site.
 - `estimated_end_at`: when bidding is expected to close, from the end block.
-- `token_allocation`: whole tokens sold (10 billion for a Revstake, 800 million for a Memestake).
+- `token_allocation`: whole tokens sold (10 billion for a Revstake, 800 million for a Memestock).
 - `bid_volume`, `bid_volume_usd`: everything bid so far, in quote-token units and in dollars.
 - `minimum_raise`, `currency_raised`, `percent_met`: the launch threshold, what is raised, and
   the whole percent met (rounded down, capped at 100).

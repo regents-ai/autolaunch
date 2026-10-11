@@ -852,7 +852,7 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   defp stake_name(%{kind: :agent}), do: "Revstake"
-  defp stake_name(_pool), do: "Memestake"
+  defp stake_name(_pool), do: "Memestock"
 
   defp share(%{share_url: url, share_image: image, pool: pool, launch: launch})
        when is_binary(url) and is_binary(image) do

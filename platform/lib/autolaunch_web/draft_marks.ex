@@ -38,7 +38,7 @@ defmodule AutolaunchWeb.DraftMarks do
     stock_address: "paired stock"
   }
 
-  @doc "What a draft still needs, as the Memestake page's Still needed button names it."
+  @doc "What a draft still needs, as the Memestock page's Still needed button names it."
   @spec still_needed([atom()]) :: String.t()
   def still_needed(fields) do
     labels = Enum.map(fields, &Map.fetch!(@missing_labels, &1))

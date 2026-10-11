@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.RobinhoodAuctionLive do
   @moduledoc """
-  One Robinhood Memestake auction, read by its contract address, which
+  One Robinhood Memestock auction, read by its contract address, which
   `AutolaunchWeb.MarketPageLive` hands it from the page address. The page shows the
   auction as the Robinhood market feed stored it (its token's name,
   description, website and image, its state and minimum) with the feed's
@@ -549,7 +549,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
 
   defp network_copy(true),
-    do: "A Memestake auction on the Robinhood test network. Test assets have no real value."
+    do: "A Memestock auction on the Robinhood test network. Test assets have no real value."
 
-  defp network_copy(false), do: "A Memestake auction on Robinhood Chain."
+  defp network_copy(false), do: "A Memestock auction on Robinhood Chain."
 end

@@ -2,9 +2,9 @@ defmodule AutolaunchWeb.Components.LaunchKindChoice do
   @moduledoc "The choice between the two launches, at the top of both Create pages."
   use AutolaunchWeb, :html
 
-  attr :current, :atom, required: true, values: [:memestake, :revstake]
+  attr :current, :atom, required: true, values: [:memestock, :revstake]
 
-  @doc "Memestake or Revstake, as links to each Create page, with the open one marked."
+  @doc "Memestock or Revstake, as links to each Create page, with the open one marked."
   def launch_kind_choice(assigns) do
     ~H"""
     <nav class="launch-kind" aria-label="Launch type">
@@ -12,9 +12,9 @@ defmodule AutolaunchWeb.Components.LaunchKindChoice do
         navigate={~p"/create"}
         class="launch-kind__option"
         data-squish
-        aria-current={@current == :memestake && "page"}
+        aria-current={@current == :memestock && "page"}
       >
-        <strong>Memestake</strong>
+        <strong>Memestock</strong>
         <span>Pairing a memecoin with a real stock is called a memestock.</span>
       </.link>
       <.link
