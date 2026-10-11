@@ -44,6 +44,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
     <form
       id={@id}
       class="token-swap__form"
+      phx-hook="MotionPanels"
       aria-label={"Swap #{@sell_symbol} for #{@buy_symbol}"}
       phx-change={@change_event}
       phx-submit={@submit_event}
@@ -96,6 +97,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
             id={@id <> "-protection-error"}
             class="token-swap__error"
             role="alert"
+            phx-hook="MotionRefusal"
+            data-refused
           >
             {@protection_error}
           </p>
@@ -214,7 +217,16 @@ defmodule AutolaunchWeb.Components.SwapForm do
         Trading opens after launch
       </Regent.Primitives.button>
 
-      <p :if={@error} class="token-swap__error" role="alert">{@error}</p>
+      <p
+        :if={@error}
+        id={@id <> "-error"}
+        class="token-swap__error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
+      >
+        {@error}
+      </p>
       <p :if={@rate} class="token-swap__rate">{@rate}</p>
     </form>
     """
@@ -345,7 +357,16 @@ defmodule AutolaunchWeb.Components.SwapForm do
         target={@target}
       />
 
-      <p :if={@notice} class="token-swap__error" role="alert">{@notice}</p>
+      <p
+        :if={@notice}
+        id={@id <> "-notice"}
+        class="token-swap__error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
+      >
+        {@notice}
+      </p>
     </section>
     """
   end

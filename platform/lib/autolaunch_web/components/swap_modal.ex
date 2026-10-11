@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       data-record-id={@token.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"
@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       data-record-id={@auction.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"
@@ -128,7 +128,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       data-record-id={@auction.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"
@@ -172,7 +172,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       id={@id}
       class="token-swap-modal"
       phx-hook="AutolaunchSwapDialog"
-      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       data-record-id={@position.id}
       aria-labelledby={@id <> "-title"}
       aria-modal="true"

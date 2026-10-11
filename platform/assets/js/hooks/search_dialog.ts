@@ -1,4 +1,3 @@
-import {closeDialog} from "../motion/panels"
 
 type SearchDialogHook = {
   el: HTMLDialogElement
@@ -71,7 +70,7 @@ export const SearchDialog = {
       const target = event.target
       if (!(target instanceof Element)) return
       if (target.closest("[data-close-search]")) {
-        closeDialog(dialog)
+        dialog.close()
       } else if (target.closest("[data-clear-recent]")) {
         writeRecent([])
         this.pushEvent("recent", {recent: []})
@@ -81,7 +80,7 @@ export const SearchDialog = {
       } else if (target === dialog) {
         const box = dialog.getBoundingClientRect()
         if (event.clientX < box.left || event.clientX > box.right ||
-            event.clientY < box.top || event.clientY > box.bottom) closeDialog(dialog)
+            event.clientY < box.top || event.clientY > box.bottom) dialog.close()
       }
     }
     // Up and Down move between the search field and the results.
@@ -106,10 +105,6 @@ export const SearchDialog = {
       }
     }
     const onInput = () => { waiting = false }
-    const onCancel = (event: Event) => {
-      event.preventDefault()
-      closeDialog(dialog)
-    }
     const onClose = () => {
       waiting = false
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({preventScroll: true})
@@ -121,7 +116,6 @@ export const SearchDialog = {
     dialog.addEventListener("keydown", onKey)
     dialog.addEventListener("submit", onSubmit)
     dialog.addEventListener("input", onInput)
-    dialog.addEventListener("cancel", onCancel)
     dialog.addEventListener("close", onClose)
     this.pick = () => { if (waiting && shown()) pick() }
     this.cleanup = () => {
@@ -131,7 +125,6 @@ export const SearchDialog = {
       dialog.removeEventListener("keydown", onKey)
       dialog.removeEventListener("submit", onSubmit)
       dialog.removeEventListener("input", onInput)
-      dialog.removeEventListener("cancel", onCancel)
       dialog.removeEventListener("close", onClose)
       if (dialog.open) dialog.close()
     }

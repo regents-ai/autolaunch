@@ -11,6 +11,13 @@ export const SLOW = 280
 export const EASE_OUT = cubicBezier(0.23, 1, 0.32, 1)
 export const EASE_IN_OUT = cubicBezier(0.77, 0, 0.175, 1)
 
+// Words and digits that rise into view each sit inside a box that clips them,
+// `.split-clip` in components/motion.css. The box is named by a class because a
+// page's security policy may refuse styles written into markup, which is what
+// splitText's own `wrap` writes.
+export const CLIPPED_WORD = "<span class='split-clip'><span data-word='{i}'>{value}</span></span>"
+export const CLIPPED_CHAR = "<span class='split-clip'><span data-char='{i}'>{value}</span></span>"
+
 // The reader asked for less motion, in their system settings or with a
 // switch on the page around the element.
 export const still = (el: Element) =>
@@ -22,7 +29,9 @@ export const byPointer = (event: MouseEvent) => event.detail > 0
 
 // Menus and dialogs can open without a click of their own, from a hover or
 // from the server. They move only when the reader was last using a mouse or a
-// finger.
+// finger. Going back or forward starts afresh, as a key press does, so what
+// that reopens is simply there; so does a page the browser kept and shows
+// again on Back.
 let pointer = false
 
 export const lastInputByPointer = () => pointer

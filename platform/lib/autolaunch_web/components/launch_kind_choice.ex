@@ -11,7 +11,6 @@ defmodule AutolaunchWeb.Components.LaunchKindChoice do
       <.link
         navigate={~p"/create"}
         class="launch-kind__option"
-        data-squish
         aria-current={@current == :memestock && "page"}
       >
         <strong>Memestock</strong>
@@ -20,7 +19,6 @@ defmodule AutolaunchWeb.Components.LaunchKindChoice do
       <.link
         navigate={~p"/create/revstake"}
         class="launch-kind__option"
-        data-squish
         aria-current={@current == :revstake && "page"}
       >
         <strong>Revstake</strong>

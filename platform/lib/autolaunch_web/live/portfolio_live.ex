@@ -590,7 +590,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       )
 
     ~H"""
-    <tbody id={@id}>
+    <tbody id={@id} phx-hook="MotionCount" data-variant="flash">
       <tr class="market-list__row">
         <.list_token
           name={@holding.name}

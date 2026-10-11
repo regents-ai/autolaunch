@@ -221,7 +221,7 @@ defmodule AutolaunchWeb.TokenDisplay do
   # assistive technology and on hover.
   defp figure(%{exact: same, shown: same} = assigns) do
     ~H"""
-    <span class="figure"><span class="figure__value">{@shown}</span><.unit unit={@unit} /></span>
+    <span class="figure"><span class="figure__value" data-count>{@shown}</span><.unit unit={@unit} /></span>
     """
   end
 
@@ -229,7 +229,7 @@ defmodule AutolaunchWeb.TokenDisplay do
     assigns = assign(assigns, :label, Enum.join([assigns.exact, assigns.unit] -- [nil], " "))
 
     ~H"""
-    <span class="figure" aria-hidden="true" title={@label}><span class="figure__value">{@shown}</span><.unit unit={
+    <span class="figure" aria-hidden="true" title={@label}><span class="figure__value" data-count>{@shown}</span><.unit unit={
       @unit
     } /></span><span class="visually-hidden">{@label}</span>
     """

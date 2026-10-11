@@ -22,7 +22,10 @@ import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
-import {installMotion} from "./motion/page"
+import {mountMotion} from "./motion"
+import {MotionCascade} from "./hooks/motion/reveals"
+import {MotionCount, MotionRefusal} from "./hooks/motion/moments"
+import {MotionPanels} from "./hooks/motion/slides"
 import {Toast} from "./motion/toast"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
@@ -40,6 +43,10 @@ const hooks = {
   CreatorConnections,
   SearchDialog,
   Toast,
+  MotionCascade,
+  MotionCount,
+  MotionPanels,
+  MotionRefusal,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 
@@ -56,7 +63,14 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // this application calls, so the transport entry point is named at the cast.
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
-installMotion()
+mountMotion(document)
+// A press dispatches these to open or close the dialog it names.
+document.addEventListener("autolaunch:open-dialog", event => {
+  if (event.target instanceof HTMLDialogElement) event.target.showModal()
+})
+document.addEventListener("autolaunch:close-dialog", event => {
+  if (event.target instanceof HTMLDialogElement) event.target.close()
+})
 installRegentTokenMenu()
 installCopyButtons()
 installTheme()

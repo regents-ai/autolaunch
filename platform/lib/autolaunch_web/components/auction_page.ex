@@ -154,7 +154,7 @@ defmodule AutolaunchWeb.Components.AuctionPage do
       id={@id}
       popover
       class="auction-details-window"
-      {AutolaunchWeb.Motion.panel("dialog")}
+      {AutolaunchWeb.Motion.panel("sheet")}
       role="dialog"
       aria-modal="true"
       aria-label="Full auction details"

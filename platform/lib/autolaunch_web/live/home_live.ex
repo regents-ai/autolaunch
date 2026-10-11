@@ -238,7 +238,6 @@ defmodule AutolaunchWeb.HomeLive do
     <.link
       patch={@patch}
       class="home-filter__option"
-      data-squish
       aria-current={if @selected, do: "true"}
       aria-label={@label}
       title={@label}
@@ -320,21 +319,18 @@ defmodule AutolaunchWeb.HomeLive do
                   if(@market_options.state == "finished", do: "active", else: @market_options.state)
               })
             }
-            data-squish
             aria-current={
               if @market_options.state != "finished" && @market_options.sort == value, do: "page"
             }
           >{label}</.link>
           <.link
             patch={HomeMarket.path(@market_options, %{state: "finished", sort: "newest"})}
-            data-squish
             aria-current={if @market_options.state == "finished", do: "page"}
           >Finished</.link>
         </nav>
         <nav class="home-display" aria-label="Display">
           <.link
             patch={HomeMarket.path(@market_options, %{display: "grid"})}
-            data-squish
             aria-current={if @market_options.display == "grid", do: "page"}
             aria-label="Grid"
             title="Grid"
@@ -357,7 +353,6 @@ defmodule AutolaunchWeb.HomeLive do
           </.link>
           <.link
             patch={HomeMarket.path(@market_options, %{display: "table"})}
-            data-squish
             aria-current={if @market_options.display == "table", do: "page"}
             aria-label="Table"
             title="Table"
@@ -534,7 +529,13 @@ defmodule AutolaunchWeb.HomeLive do
               else: "Robinhood could not be read just now, so its auctions show what was last read."}
           </p>
         </Regent.Primitives.notice>
-        <div :if={@listed? && @market_options.display == "grid"} class="home-coin-grid">
+        <div
+          :if={@listed? && @market_options.display == "grid"}
+          id="home-coin-grid"
+          class="home-coin-grid"
+          phx-hook="MotionCascade"
+          data-variant={AutolaunchWeb.Motion.standard("grid")}
+        >
           <.explore_card
             :for={record <- @records}
             kind={@records_kind}

@@ -336,7 +336,14 @@ defmodule AutolaunchWeb.StakeComponent do
             Staking opens after launch
           </Regent.Primitives.button>
 
-          <p :if={@error || (is_nil(@review) && @notice)} class="token-swap__error" role="alert">
+          <p
+            :if={@error || (is_nil(@review) && @notice)}
+            id={"#{@id}-refusal"}
+            class="token-swap__error"
+            role="alert"
+            phx-hook="MotionRefusal"
+            data-refused
+          >
             {@error || @notice}
           </p>
         </form>
@@ -807,7 +814,16 @@ defmodule AutolaunchWeb.StakeComponent do
         target={@target}
       />
 
-      <p :if={@notice} class="token-swap__error" role="alert">{@notice}</p>
+      <p
+        :if={@notice}
+        id={"#{@id}-notice"}
+        class="token-swap__error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
+      >
+        {@notice}
+      </p>
     </section>
     """
   end

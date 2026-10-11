@@ -520,7 +520,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         <p :if={@acknowledged?} class="autolaunch-custody-ack-matched" role="status">
           <span aria-hidden="true">✓</span> Warning typed exactly. Risk acknowledged.
         </p>
-        <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">
+        <p
+          :if={@error}
+          id={"#{@id}-error"}
+          class="autolaunch-draft-error"
+          role="alert"
+          phx-hook="MotionRefusal"
+          data-refused
+        >
           {@error}
         </p>
       </Regent.Primitives.disclosure>
@@ -556,7 +563,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         id="launch-no-connections-dialog"
         class="no-connections__dialog"
         aria-labelledby="launch-no-connections-title"
-        {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+        {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       >
         <form class="rg-field" phx-change="no_connections_typed" phx-submit="no_connections_confirmed">
           <h2 id="launch-no-connections-title">Launch without connections</h2>
@@ -636,7 +643,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       {render_slot(@inner_block)}
       <p :if={@field.hint} id={"#{@id}-hint"} class="create-page__hint">{@field.hint}</p>
       <p :if={@warning} id={"#{@id}-warning"} class="create-page__hint" role="status">{@warning}</p>
-      <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>
+      <p
+        :if={@error}
+        id={"#{@id}-error"}
+        class="autolaunch-draft-error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
+      >
+        {@error}
+      </p>
     </div>
     """
   end

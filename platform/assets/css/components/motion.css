@@ -1,6 +1,7 @@
-/* The dim behind a dialog fades in while the dialog pops open and out while it
-   sinks away; the dialog itself moves from `assets/js/motion/panels.ts`. */
-[data-panel="dialog"][data-opening]::backdrop { animation: backdrop-in 200ms var(--ease-out) both; }
-[data-panel="dialog"][data-closing]::backdrop { animation: backdrop-out 200ms var(--ease-out) forwards; }
-@keyframes backdrop-in { from { opacity: 0; } }
-@keyframes backdrop-out { to { opacity: 0; } }
+/* The box each rising word or digit sits in (CLIPPED_WORD and CLIPPED_CHAR in the
+   motion kit), hiding it until it reaches its place. */
+.split-clip { display: inline-block; overflow: clip; }
+
+/* What a wallet button squishes when pressed, so the button itself keeps its size
+   and a quick second press near its edge still lands on it. A transform needs a box. */
+[data-press-label] { display: inline-block; }

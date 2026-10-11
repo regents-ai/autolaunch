@@ -114,7 +114,7 @@ defmodule AutolaunchWeb.SearchLive do
       phx-hook="SearchDialog"
       aria-label="Search"
       data-query={@results_q}
-      {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+      {AutolaunchWeb.Motion.panel("sheet", ["open"])}
     >
       <%!-- The field, not the form, sends the typing: with a change binding on
            the form, LiveView would send the whole form on Enter. Enter opens

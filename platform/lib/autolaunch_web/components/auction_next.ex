@@ -171,7 +171,12 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           </.info_tip>
         </dt>
         <dd>
-          <strong class="auction-next-figure__value">
+          <strong
+            id="auction-next-price"
+            class="auction-next-figure__value"
+            phx-hook="MotionCount"
+            data-variant="flash"
+          >
             <TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} />
           </strong>
           <span class="auction-next-figure__note">
@@ -183,7 +188,12 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       <div :if={@minimum} class="auction-next-figure">
         <dt>Minimum to graduate</dt>
         <dd>
-          <strong class="auction-next-figure__value">
+          <strong
+            id="auction-next-raised"
+            class="auction-next-figure__value"
+            phx-hook="MotionCount"
+            data-variant="flash"
+          >
             <TokenDisplay.price amount={@raised} unit={@symbol} />
           </strong>
           <span

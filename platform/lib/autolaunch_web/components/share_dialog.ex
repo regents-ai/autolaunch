@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
         id={"#{@id}-dialog"}
         class="share-x__dialog"
         aria-labelledby={"#{@id}-title"}
-        {AutolaunchWeb.Motion.panel("dialog", ["open"])}
+        {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       >
         <div class="share-x__box">
           <h2 id={"#{@id}-title"} class="share-x__title">Share on X</h2>
@@ -79,21 +79,11 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const message = dialog.querySelector("[data-share-message]")
           const post = dialog.querySelector("[data-share-post]")
 
-          // The page's motion closes the window, after its closing motion when
-          // it was closed with a mouse or finger. Opening X closes it at once,
-          // as the reader is leaving for X's tab.
-          const close = () => dialog.dispatchEvent(new CustomEvent("autolaunch:close-dialog", {bubbles: true}))
-
           this.el.addEventListener("click", (event) => {
             if (event.target.closest("[data-share-open]")) dialog.showModal()
           })
-          dialog.addEventListener("cancel", (event) => {
-            event.preventDefault()
-            close()
-          })
           dialog.addEventListener("click", (event) => {
-            if (event.target.closest("[data-share-post]")) dialog.close()
-            else if (event.target === dialog || event.target.closest("[data-share-close]")) close()
+            if (event.target.closest("[data-share-post], [data-share-close]") || event.target === dialog) dialog.close()
           })
           message.addEventListener("input", () => {
             post.href = "https://x.com/intent/post?" + new URLSearchParams({text: message.value})

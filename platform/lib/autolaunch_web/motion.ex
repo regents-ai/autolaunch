@@ -1,10 +1,10 @@
 defmodule AutolaunchWeb.Motion do
   @moduledoc """
-  Autolaunch's standard motion, the same as Patchbay's: the version of each
-  kind of movement the pages use. Presses move the same way on every page from
-  `assets/js/motion/page.ts`; a menu, dialog or toast names its version from
-  here. Parts Autolaunch has no place for yet keep their standard version
-  here, so a new one starts from it.
+  Autolaunch's standard motion: the version of each kind of movement, the same
+  on every Regent site and kept in the template's motion lab. The shared kit in
+  `assets/js/motion.ts` and `assets/js/hooks/motion/` moves presses, menus and
+  dialogs on every page; a live part names its version from here in
+  `data-variant`.
   """
 
   alias Phoenix.LiveView.JS
@@ -13,7 +13,6 @@ defmodule AutolaunchWeb.Motion do
     "drawer" => "spring",
     "sheet" => "spring",
     "menu" => "pop",
-    "dialog" => "pop",
     "note" => "peel",
     "toast" => "pop",
     "list" => "bounce",
@@ -28,15 +27,15 @@ defmodule AutolaunchWeb.Motion do
   def standard(part), do: Map.fetch!(@standard, part)
 
   @doc """
-  The attributes that make an element open as a panel of `kind`, `"menu"` or
-  `"dialog"`. A live page leaves the motion's own attributes alone while it
-  plays, along with any in `keep`, such as a dialog's `open`.
+  The attributes that make an element open as a panel of `kind`: a `"menu"`
+  under its button, or a `"sheet"`, a dialog rising from below. A live page
+  leaves the style the motion writes alone while it plays, along with any
+  attributes in `keep`, such as a dialog's `open`.
   """
-  def panel(kind, keep \\ []) when kind in ["menu", "dialog"] do
+  def panel(kind, keep \\ []) when kind in ["menu", "sheet"] do
     %{
       "data-panel" => kind,
-      "data-variant" => standard(kind),
-      "phx-mounted" => JS.ignore_attributes(keep ++ ["style", "data-opening", "data-closing"])
+      "phx-mounted" => JS.ignore_attributes(keep ++ ["style"])
     }
   end
 end

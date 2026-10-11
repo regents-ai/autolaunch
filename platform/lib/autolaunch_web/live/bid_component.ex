@@ -226,7 +226,16 @@ defmodule AutolaunchWeb.BidComponent do
             <p class="bid-form__note" role="status" hidden={@balance != :unread}>
               Your balance can't be read right now.
             </p>
-            <p class="bid-notice" role="alert" hidden={!@notice}>{@notice}</p>
+            <p
+              id={"#{@id}-notice"}
+              class="bid-notice"
+              role="alert"
+              phx-hook="MotionRefusal"
+              data-refused
+              hidden={!@notice}
+            >
+              {@notice}
+            </p>
             <.summary prepared={@prepared} rate={@rate} chain_name={@review && @review.chain.name} />
             <p class="bid-form__note" hidden={signatures_left(@steps, @next_step) < 2}>
               Your wallet asks {times(signatures_left(@steps, @next_step))}: first to let the auction use your <span class="ticker">{approval_currency(@prepared)}</span>, last to place the bid.

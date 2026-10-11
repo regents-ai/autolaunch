@@ -39,6 +39,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
     <div
       id={@id}
       class="stock-select"
+      phx-hook="MotionPanels"
       phx-click-away={close(@id)}
       phx-window-keydown={close(@id)}
       phx-key="Escape"

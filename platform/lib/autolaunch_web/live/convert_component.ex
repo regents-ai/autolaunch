@@ -170,7 +170,14 @@ defmodule AutolaunchWeb.ConvertComponent do
           <Regent.Primitives.button type="submit" class="token-swap__submit">
             Convert
           </Regent.Primitives.button>
-          <p :if={@error || (is_nil(@review) && @notice)} class="token-swap__error" role="alert">
+          <p
+            :if={@error || (is_nil(@review) && @notice)}
+            id={"#{@id}-refusal"}
+            class="token-swap__error"
+            role="alert"
+            phx-hook="MotionRefusal"
+            data-refused
+          >
             {@error || @notice}
           </p>
         </form>
