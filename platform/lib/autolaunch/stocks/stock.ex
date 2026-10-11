@@ -92,13 +92,14 @@ defmodule Autolaunch.Stocks.Stock do
       prepare build(load: [:search_text])
     end
 
-    # Recorded again on every start; the search words set when the row was
-    # first written are left alone.
+    # Recorded again on every start; the search words and offered time set
+    # when the row was first written are left alone.
     create :record_supported do
       accept [:chain_id, :address, :symbol, :name]
       upsert? true
       upsert_identity :chain_address
       upsert_fields [:symbol, :name]
+      change set_attribute(:offered_at, &DateTime.utc_now/0)
 
       change fn changeset, _context ->
         ticker =
@@ -160,6 +161,10 @@ defmodule Autolaunch.Stocks.Stock do
     # ending on `weekly_volume_through`.
     attribute :weekly_volume_usd, :decimal, public?: true, constraints: [min: 0]
     attribute :weekly_volume_through, :date, public?: true
+
+    # When this site first listed the stock: the start that wrote its row.
+    # Stocks it listed before it kept this record have none.
+    attribute :offered_at, :utc_datetime_usec, public?: true
 
     timestamps()
   end

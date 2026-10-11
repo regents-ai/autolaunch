@@ -214,7 +214,8 @@ defmodule AutolaunchWeb.Components.StockSelect do
   end
 
   # A card's facts: the added time is when this site first offered the stock;
-  # a stock with no row yet has none and sorts after those that do.
+  # a stock offered before the site kept that record has none and sorts after
+  # those that do.
   defp card(asset, record) do
     ticker = PriceFeeds.ticker(asset.symbol)
     company = company(asset)
@@ -224,7 +225,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
       company: company,
       website: Companies.website(ticker),
       volume: weekly_volume(record),
-      added_at: record && record.inserted_at,
+      added_at: record && record.offered_at,
       search:
         [asset.symbol, company, record && record.search_text]
         |> Enum.reject(&is_nil/1)
