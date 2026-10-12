@@ -40,6 +40,12 @@ defmodule AutolaunchWeb.Router do
     plug AutolaunchWeb.ErrorsAdmin
   end
 
+  pipeline :motion_lab do
+    plug :admit_motion_lab
+  end
+
+  def admit_motion_lab(conn, _opts), do: AutolaunchWeb.Showcase.admit(conn, :motion_lab)
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -160,6 +166,20 @@ defmodule AutolaunchWeb.Router do
       live "/account", AccountLive, :account
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
+    end
+  end
+
+  # The motion lab, unless the showcase setting is off (AutolaunchWeb.Showcase).
+  scope "/", AutolaunchWeb do
+    pipe_through [:motion_lab, :browser]
+
+    live_session :motion_lab,
+      session: {AutolaunchWeb.Live.Session, :render_context, []},
+      on_mount: [
+        {AutolaunchWeb.Showcase, :motion_lab},
+        {AutolaunchWeb.Live.Session, :load_human}
+      ] do
+      live "/animations", AnimationsLive, :index
     end
   end
 

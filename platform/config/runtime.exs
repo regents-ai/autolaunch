@@ -70,6 +70,19 @@ if chain_mode == :fork do
   config :autolaunch, :prelaunch_read_only, false
 end
 
+# The motion lab at /animations (AutolaunchWeb.Showcase). Unset, it is off in
+# production and public elsewhere; any value but "public" or "off" stops the boot.
+showcase =
+  case {config_env(), System.get_env("AUTOLAUNCH_SHOWCASE")} do
+    {_env, "public"} -> :public
+    {_env, "off"} -> :off
+    {:prod, nil} -> :off
+    {_env, nil} -> :public
+    {_env, _setting} -> raise ~s(AUTOLAUNCH_SHOWCASE must be "public" or "off")
+  end
+
+config :autolaunch, :showcase, showcase
+
 # Opening: the site leaves read-only mode only when this is exactly `true`.
 # Unset keeps the fail-closed default; anything else stops the boot.
 case System.get_env("AUTOLAUNCH_LAUNCHES_OPEN") do

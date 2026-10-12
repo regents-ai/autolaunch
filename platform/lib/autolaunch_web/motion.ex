@@ -1,7 +1,8 @@
 defmodule AutolaunchWeb.Motion do
   @moduledoc """
   Autolaunch's standard motion: the version of each kind of movement, the same
-  on every Regent site and kept in the template's motion lab. The shared kit in
+  on every Regent site and shown beside the others in the motion lab at
+  `/animations`. The shared kit in
   `assets/js/motion.ts` and `assets/js/hooks/motion/` moves presses, menus and
   dialogs on every page; a live part names its version from here in
   `data-variant`.
@@ -22,6 +23,9 @@ defmodule AutolaunchWeb.Motion do
     "headline" => "rise",
     "grid" => "cascade"
   }
+
+  @doc "Every part's standard version."
+  def standard, do: @standard
 
   @doc "The standard version of one part, such as `\"toast\"`."
   def standard(part), do: Map.fetch!(@standard, part)

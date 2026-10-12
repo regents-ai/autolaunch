@@ -32,6 +32,7 @@
 @import "./pages/portfolio.css";
 @import "./pages/home.css";
 @import "./pages/facts.css";
+@import "./pages/animations.css";
 
 /* Phones: the search fills a row, then the $REGENT crown with Sign in (or the account
    menu) beside it. Create leaves the header; Buy and Follow on X move into the crown menu. */

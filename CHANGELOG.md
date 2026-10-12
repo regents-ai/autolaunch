@@ -8,6 +8,9 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   way the template does it; Sentry is no longer used. Credits admins (named in
   REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets the ordinary
   not-found page.
+- The motion lab at /animations shows every version of each movement the site uses, side
+  by side, the same page as the template's. AUTOLAUNCH_SHOWCASE="public" opens it; on the
+  live site it stays off until that is set.
 
 ## Not yet live, 12 October 2026: Portfolio refresh, create page layout, shared dropdowns
 - On Portfolio, the time the figures were read sits under Refresh. While a refresh runs the

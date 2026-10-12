@@ -30,7 +30,11 @@ import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
 import {installTheme} from "./theme"
 
+// The motion lab's own hooks load only on its page.
+const labHooks = window.location.pathname === "/animations"
+  ? (await import("./motion_lab")).hooks : {}
 const hooks = {
+  ...labHooks,
   ...colocatedHooks,
   AutolaunchSwapDialog,
   ImageGradient,
