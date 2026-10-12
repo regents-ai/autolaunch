@@ -4,10 +4,10 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 (`autolaunch-sh`) and the commit it was built from.
 
 ## Not yet live (after the release above), 12 October 2026: errors kept on the site
-- Errors the site meets are saved in Autolaunch's own database and kept for a week, the
-  way the template does it; Sentry is no longer used. Credits admins (named in
-  REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets the ordinary
-  not-found page.
+- Errors the site meets are saved in Autolaunch's own database and cleared a week after
+  they were last seen, the way the template does it; Sentry is no longer used. Credits
+  admins (named in REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets
+  the ordinary not-found page.
 - The motion lab at /animations shows every version of each movement the site uses, side
   by side, the same page as the template's. AUTOLAUNCH_SHOWCASE="public" opens it; on the
   live site it stays off until that is set.

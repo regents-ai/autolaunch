@@ -10,8 +10,9 @@ import Config
 config :ash_oban, pro?: false
 
 # Background jobs: the launch listing's and the auction finisher's
-# minute-by-minute checks and the stocks' half-hourly volume reads, one job at
-# a time on each queue. The finishing queue stays paused unless the site has
+# minute-by-minute checks, the stocks' half-hourly volume reads and the daily
+# clearing of saved errors (Autolaunch.ErrorPruner), one job at a time on each
+# queue. The finishing queue stays paused unless the site has
 # the finisher switched on (runtime.exs); its jobs are unique, so a paused
 # queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
@@ -25,10 +26,11 @@ config :autolaunch, Oban,
     auction_finishing: [limit: 1, paused: true],
     launch_listing: 1,
     outside_calls: 3,
-    stock_volume: 1
+    stock_volume: 1,
+    default: 1
   ],
   plugins: [
-    {Oban.Plugins.Cron, []},
+    {Oban.Plugins.Cron, crontab: [{"17 4 * * *", Autolaunch.ErrorPruner}]},
     {Oban.Plugins.Pruner, max_age: 86_400}
   ],
   # A job still executing after this long is taken for one whose machine
@@ -200,14 +202,14 @@ config :logger, :default_formatter,
 # Failed requests, pages and jobs are saved in the site's own schema and shown
 # to Credits admins at /admin/errors. Only server faults are saved
 # (Autolaunch.ErrorIgnorer), only where each one happened is kept
-# (Autolaunch.ErrorFilter), and a resolved error is cleared after a week.
+# (Autolaunch.ErrorFilter), and Autolaunch.ErrorPruner clears each one a week
+# after it was last seen.
 config :error_tracker,
   repo: Autolaunch.Repo,
   otp_app: :autolaunch,
   prefix: "autolaunch_app",
   ignorer: Autolaunch.ErrorIgnorer,
-  filter: Autolaunch.ErrorFilter,
-  plugins: [{ErrorTracker.Plugins.Pruner, max_age: :timer.hours(24 * 7)}]
+  filter: Autolaunch.ErrorFilter
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
