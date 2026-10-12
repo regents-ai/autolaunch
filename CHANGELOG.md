@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## Not yet live, 12 October 2026: cards settle in on sight; Sentry reports carry less
+- Lists of cards settle in once, the first time they scroll into view; one already in view
+  when the page opens is simply there (Sean, 45 a).
+- An error report sent to Sentry leaves without the values the failing code was handling
+  and without a crashed process's saved state or last message.
+
 ## Not yet live, 12 October 2026: sign-in re-checked before every update
 - An open page re-checks the sign-in before every update it receives and every background
   result, not only on a click or a page change. When the sign-in has ended, the update is
