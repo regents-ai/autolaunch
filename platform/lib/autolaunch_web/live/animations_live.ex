@@ -120,8 +120,13 @@ defmodule AutolaunchWeb.AnimationsLive do
     end
   end
 
-  def handle_event("dismiss", %{"id" => id}, socket),
-    do: {:noreply, leave(socket, :toasts, String.to_integer(id))}
+  # Only a note on screen can be dismissed; any other id changes nothing.
+  def handle_event("dismiss", %{"id" => id}, socket) do
+    case Enum.find(socket.assigns.toasts, &(Integer.to_string(&1.id) == id)) do
+      nil -> {:noreply, socket}
+      toast -> {:noreply, leave(socket, :toasts, toast.id)}
+    end
+  end
 
   def handle_event("shuffle", _, socket), do: {:noreply, update(socket, :items, &Enum.shuffle/1)}
 
