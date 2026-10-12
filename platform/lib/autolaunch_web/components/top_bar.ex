@@ -49,6 +49,7 @@ defmodule AutolaunchWeb.Components.TopBar do
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
         <.account_control account_control={@account_control} />
+        <AutolaunchWeb.Components.SidePanel.button />
       </div>
     </header>
     """

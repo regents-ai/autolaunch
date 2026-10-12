@@ -28,6 +28,7 @@ import {MotionPanels} from "./hooks/motion/slides"
 import {Toast} from "./motion/toast"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
+import {installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
 
 // The motion lab's own hooks load only on its page.
@@ -74,6 +75,9 @@ document.addEventListener("autolaunch:close-dialog", event => {
   if (event.target instanceof HTMLDialogElement) event.target.close()
 })
 installRegentTokenMenu()
+// A page drawn after navigation starts with its panel toggles closed; they follow the panel.
+const shellPanels = installShellPanels()
+window.addEventListener("phx:page-loading-stop", shellPanels.sync)
 installCopyButtons()
 installTheme()
 installAccountAuthLazyLoader()

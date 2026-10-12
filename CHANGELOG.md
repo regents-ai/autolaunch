@@ -11,6 +11,10 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - The motion lab at /animations shows every version of each movement the site uses, side
   by side, the same page as the template's. AUTOLAUNCH_SHOWCASE="public" opens it; on the
   live site it stays off until that is set.
+- The account dropdown in the header is gone. A side panel button sits beside your name,
+  and either one opens the side panel: your name with Account and Sign out at the top,
+  then Help. It stays open or closed as you left it. On the narrowest phones only the
+  panel button shows.
 
 ## Not yet live, 12 October 2026: Portfolio refresh, create page layout, shared dropdowns
 - On Portfolio, the time the figures were read sits under Refresh. While a refresh runs the

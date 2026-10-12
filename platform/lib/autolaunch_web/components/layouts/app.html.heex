@@ -11,6 +11,7 @@
       <.product_links />
     </div>
   </Regent.Structure.row>
+  <AutolaunchWeb.Components.SidePanel.panel account_control={@account_control} />
 </Regent.Structure.frame>
 
 {Phoenix.Component.live_render(assigns[:socket] || assigns[:conn], AutolaunchWeb.MarketTickerLive,

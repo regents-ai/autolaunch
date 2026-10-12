@@ -326,25 +326,8 @@ export function createProviderSessionReconciler({
   }
 }
 
-const showsSignOutControl = () =>
-  document.querySelector("#account-control [data-account-target='sign-out']") !== null
-
-// The header avatar carries the selected wallet's own logo, the way a
-// marketplace shows which extension is signed in. Only a URL logo is shown;
-// a wallet without one leaves the badge hidden.
-const showWalletBadge = (meta: {name: string; icon?: unknown} | undefined) => {
-  const badge = document.querySelector<HTMLImageElement>("#account-control [data-account-wallet-badge]")
-  if (!badge) return
-  const icon = typeof meta?.icon === "string" ? meta.icon : null
-  if (icon) {
-    badge.src = icon
-    badge.title = meta?.name ?? ""
-  } else {
-    badge.removeAttribute("src")
-    badge.title = ""
-  }
-  badge.hidden = icon === null
-}
+const showsSignedInAccount = () =>
+  document.querySelector("#account-control [data-account-target='profile']") !== null
 
 type PrivySessionCompletionOptions = {
   acquireTokens: () => Promise<PrivyTokenPair>
@@ -619,7 +602,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
         clearSession: () => browserSessionMutations.signOut(clearLocalSession),
         providerAuthenticated: () => authenticated,
         reload: () => { if (isAvailable()) reloadDocumentOnce(document, () => window.location.reload()) },
-        signedIn: () => isAvailable() && showsSignOutControl(),
+        signedIn: () => isAvailable() && showsSignedInAccount(),
       }),
     [authenticated, isAvailable],
   )
@@ -671,7 +654,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     if (!isAvailable() || walletSyncGeneration.current !== generation) return
 
     replaceActiveEthereumWallet(selected && provider ? {address: selected.address, provider} : null)
-    showWalletBadge(selected && provider ? selected.meta : undefined)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
   }, [activeWallet, linkedWallets, ready, reconcileProviderSession, setActiveWallet, wallets, walletsReady, isAvailable])
 

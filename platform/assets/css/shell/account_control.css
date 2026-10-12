@@ -1,22 +1,40 @@
-.account-control { position: relative; min-width: 0; max-width: 100%; flex: 0 1 auto; }
+.account-control { position: relative; display: flex; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; flex: 0 1 auto; }
 .account-control__status { position: relative; z-index: 5; width: 100%; max-width: 34rem; margin: var(--space-2) 0 0; padding: var(--space-2); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-fg); overflow-wrap: anywhere; }
 
 .x-oauth-result { min-height: 100dvh; margin: 0; padding-block: var(--space-4); background: var(--color-bg); color: var(--color-fg); font-family: var(--font-family-ui); }
 .x-oauth-sheet { max-inline-size: 42rem; margin-block: var(--space-6); }
 .x-oauth-result a:not(.rg-button) { color: var(--color-link); }
 
-.account-menu { position: relative; }
-.account-menu__trigger { display: flex; align-items: center; gap: var(--space-1); min-height: 2.75rem; padding: 2px; cursor: pointer; list-style: none; color: var(--color-fg); }
-.account-menu__trigger::-webkit-details-marker { display: none; }
-.account-menu__trigger:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
-.account-menu__avatar { position: relative; display: block; width: 36px; height: 36px; }
-.account-menu__avatar > img:first-child { display: block; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--color-border); object-fit: cover; }
-.account-menu__wallet { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--color-surface); background: var(--color-surface); }
-.account-menu__chevron { color: var(--color-fg-muted); transition: transform .15s ease; }
-.account-menu[open] .account-menu__chevron { transform: rotate(180deg); }
-.account-menu__panel { position: absolute; top: calc(100% + 6px); right: 0; transform-origin: top right; z-index: 6; display: grid; min-width: 14rem; padding: var(--space-1) 0; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-elevated, var(--color-surface)); box-shadow: var(--shadow-md); }
-.account-menu__label { margin: 0; padding: var(--space-1) var(--space-2) var(--space-2); border-bottom: 1px solid var(--color-border); color: var(--color-fg-muted); font-size: .8125rem; overflow-wrap: anywhere; }
-.account-menu__item { display: flex; align-items: center; gap: var(--space-2); min-height: 2.75rem; padding: var(--space-1) var(--space-2); border: 0; background: transparent; color: var(--color-fg); font: inherit; font-weight: 600; text-decoration: none; text-align: left; cursor: pointer; }
-.account-menu__item:hover, .account-menu__item:focus-visible { background: var(--color-bg); outline: none; }
-.account-menu__item--leave { color: var(--color-error); }
-.account-menu__icon { flex-shrink: 0; }
+/* The signed-in name opens the side panel, as its own button beside it does. */
+.account-chip { display: flex; align-items: center; gap: .55rem; min-width: 0; max-width: 14rem; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--color-border); border-radius: 0; background: transparent; color: var(--color-fg); font: inherit; font-weight: 600; cursor: pointer; user-select: none; }
+.account-avatar { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; border: 1px solid var(--color-border); object-fit: cover; }
+.account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell-tool { position: relative; display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-fg-muted); cursor: pointer; }
+.shell-icon { width: 1.3rem; height: 1.3rem; }
+@media (hover: hover) { .account-chip:hover, .shell-tool:hover { background: color-mix(in oklch, var(--color-fg) 6%, transparent); color: var(--color-fg); } }
+[data-aside-toggle][aria-expanded="true"] { background: color-mix(in oklch, var(--color-fg) 10%, transparent); color: var(--color-fg); }
+:is(.account-chip, .shell-tool):focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+
+/* The side panel covers the page's right edge, below everything that opens over it. */
+#shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; display: grid; align-content: start; width: min(22rem, 100%); overflow: auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); }
+:root:not([data-aside="open"]) #shell-aside { display: none; }
+#shell-aside:focus { outline: none; }
+.shell-aside__head { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding-inline-start: 1rem; border-block-end: 1px solid var(--color-border); }
+.shell-aside__head h2 { margin: 0; font-family: var(--font-family-ui); font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+#shell-aside section { display: grid; gap: .6rem; padding: 1rem; border-block-end: 1px solid var(--color-border); }
+#shell-aside h3 { margin: 0; font-size: .95rem; }
+#shell-aside p { margin: 0; }
+#shell-aside ul { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+#shell-aside ul a { color: var(--color-link, inherit); }
+.shell-account__name { display: flex; align-items: center; gap: .6rem; min-width: 0; font-weight: 600; }
+.shell-account__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.shell-account__actions .rg-button { width: 100%; justify-content: center; }
+
+/* On phones the name gives way to its picture, and with no picture it shortens. */
+@media (max-width: 47.99rem) {
+  .account-chip { max-width: 6rem; padding-inline: .5rem; }
+  .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #shell-aside { width: 100%; border-inline-start: 0; }
+}
+/* The narrowest phones: the side panel button beside it opens the same panel, so the name gives way to it. */
+@media (max-width: 23.75rem) { .account-chip { display: none; } }
