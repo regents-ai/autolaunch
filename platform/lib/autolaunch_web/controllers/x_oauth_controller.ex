@@ -48,7 +48,6 @@ defmodule AutolaunchWeb.XOAuthController do
 
     conn
     |> no_store()
-    |> delete_resp_header("content-security-policy-report-only")
     |> put_resp_header(
       "content-security-policy",
       "default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'"

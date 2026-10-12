@@ -1,9 +1,6 @@
 defmodule AutolaunchWeb.ContentSecurityPolicy do
   @moduledoc """
-  The content security policy the site's pages are served under, sent as
-  `content-security-policy-report-only` while wallet flows are walked with it:
-  the browser runs every page as before and names in its console each request
-  the policy would have refused.
+  The content security policy every browser page is served under.
 
   Scripts, styles, fonts and pictures come from this site, requests and the live
   connection go back to it, no page is framed by another site, and forms submit

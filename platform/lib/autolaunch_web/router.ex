@@ -29,9 +29,11 @@ defmodule AutolaunchWeb.Router do
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
+  # Replaces the default policy put_secure_browser_headers sets, so each page
+  # carries one.
   def put_content_security_policy(conn, _opts) do
     policy = AutolaunchWeb.ContentSecurityPolicy.policy()
-    put_resp_header(conn, "content-security-policy-report-only", policy)
+    put_resp_header(conn, "content-security-policy", policy)
   end
 
   scope "/", AutolaunchWeb do
