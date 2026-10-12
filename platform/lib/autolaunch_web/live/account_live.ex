@@ -18,9 +18,7 @@ defmodule AutolaunchWeb.AccountLive do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
-  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.Read
   alias RegentAgents.{Harness, Person}
 
@@ -39,20 +37,10 @@ defmodule AutolaunchWeb.AccountLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, read_account(socket)}
 
-  # A result lands only while the lease that asked for it still names the same
-  # person. A lapsed lease withdraws the sign-in; an unreadable one shows every
-  # private figure as could-not-be-read rather than keep an earlier one.
-  def handle_async({Read, _, _} = name, result, socket) do
-    with %{lineage: lineage, account_id: id} <- socket.assigns.session_lease,
-         {:ok, account} when not is_nil(account) <- read_leased_account(lineage, id),
-         {:human, current} <- socket.assigns.access_context.principal,
-         true <- account.privy_user_id == current.privy_user_id do
-      {:noreply, Read.settle(socket, name, result)}
-    else
-      {:error, :session_unavailable} -> {:noreply, unavailable_reads(socket)}
-      _lapsed -> {:noreply, socket |> clear_reads() |> Session.lapse()}
-    end
-  end
+  # The session hook re-reads the lease before a result lands here, and a
+  # lapsed one never reaches this page (`AutolaunchWeb.Live.Session`).
+  def handle_async({Read, _, _} = name, result, socket),
+    do: {:noreply, Read.settle(socket, name, result)}
 
   def handle_info(:credits_changed, socket),
     do: {:noreply, socket |> read_credits() |> read_history("")}
@@ -274,28 +262,6 @@ defmodule AutolaunchWeb.AccountLive do
       _missing ->
         {:error, :account_unavailable}
     end
-  end
-
-  # The authority's bang read raises database failures directly or as an Ash
-  # unknown-read error. Without current authority, discard even saved figures.
-  defp read_leased_account(lineage, id) do
-    {:ok, SessionAuthority.leased_account(lineage, id)}
-  rescue
-    _failure in [Postgrex.Error, DBConnection.ConnectionError, Ash.Error.Unknown] ->
-      {:error, :session_unavailable}
-  end
-
-  defp unavailable_reads(socket) do
-    Enum.reduce(@reads, socket, fn name, socket ->
-      read = Map.fetch!(socket.assigns, name)
-
-      assign(socket, name, %Read{
-        state: :error,
-        owner: read.owner,
-        generation: read.generation + 1,
-        error: :session_unavailable
-      })
-    end)
   end
 
   defp clear_reads(socket), do: Enum.reduce(@reads, socket, &Read.clear(&2, &1))
