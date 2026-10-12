@@ -18,6 +18,8 @@ defmodule AutolaunchWeb.PublicPagesController do
     render(conn, :show, [document: PublicDocuments.html(markdown)] ++ PublicDocuments.page(path))
   end
 
+  def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
+
   def sitemap(conn, _params) do
     conn
     |> put_resp_content_type("application/xml")

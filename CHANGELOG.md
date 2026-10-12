@@ -18,7 +18,6 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - The Revstake token panel and the Robinhood launch card keep showing the account's own
   wallet when the open wallet isn't linked to the account, instead of going empty.
 - Agents are offered only the signed tools as signed operations, each with its own inputs.
-- The old /developers address is gone; the developer guide is at /docs.
 
 ## v90, 12 October 2026 (9cabd3a)
 - Site errors can be reported to Sentry. Nothing is sent until a Sentry project is set.
