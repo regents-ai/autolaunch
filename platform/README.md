@@ -248,7 +248,7 @@ verification and the remaining release checks.
 | `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
 | `ETHEREUM_READ_RPC_URL` | Serving app | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
-| `SENTRY_DSN`, `SENTRY_RELEASE`, `SENTRY_ENVIRONMENT` | Optional | Error reporting: crashed processes and failed requests go to this Sentry project. Unset means no reporting. |
+| `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_CHAIN_MODE` | Optional | `base` (default) or `fork`; see "Chain mode" above and [docs/fork-preview.md](docs/fork-preview.md) for the variables fork mode adds. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production

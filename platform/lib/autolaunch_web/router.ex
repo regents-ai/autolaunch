@@ -1,5 +1,6 @@
 defmodule AutolaunchWeb.Router do
   use AutolaunchWeb, :router
+  use ErrorTracker.Web, :router
 
   pipeline :browser do
     plug :accepts, ["html", "json"]
@@ -24,6 +25,19 @@ defmodule AutolaunchWeb.Router do
     plug :fetch_session
     plug :enforce_session_authority
     plug :protect_from_forgery
+  end
+
+  # The saved errors: Credits admins only. Anyone else gets the not-found page;
+  # an admin's page carries its own policy with this request's nonce
+  # (AutolaunchWeb.ErrorsAdmin).
+  pipeline :errors_admin do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers, %{"referrer-policy" => "no-referrer"}
+    plug :put_content_security_policy
+    plug AutolaunchWeb.ErrorsAdmin
   end
 
   def enforce_session_authority(conn, _opts),
@@ -147,5 +161,14 @@ defmodule AutolaunchWeb.Router do
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
     end
+  end
+
+  scope "/admin" do
+    pipe_through :errors_admin
+
+    error_tracker_dashboard("/errors",
+      on_mount: [AutolaunchWeb.ErrorsAdmin],
+      csp_nonce_assign_key: %{script: :csp_nonce, style: :csp_nonce}
+    )
   end
 end

@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## Not yet live (after the release above), 12 October 2026: errors kept on the site
+- Errors the site meets are saved in Autolaunch's own database and kept for a week, the
+  way the template does it; Sentry is no longer used. Credits admins (named in
+  REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets the ordinary
+  not-found page.
+
 ## Not yet live, 12 October 2026: Portfolio refresh, create page layout, shared dropdowns
 - On Portfolio, the time the figures were read sits under Refresh. While a refresh runs the
   button reads "Refreshing…" and can't be pressed again until it finishes.

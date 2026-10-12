@@ -14,7 +14,8 @@ defmodule AutolaunchWeb.ContentSecurityPolicy do
   elements. Connected X accounts show their X profile picture.
 
   A page that loads anything else adds each origin to the one directive that
-  needs it.
+  needs it. `errors/1` is the same policy plus one request's nonce, for the one
+  script element the saved-errors page writes inline.
   """
 
   # The development code reloader runs in a frame from this site.
@@ -71,4 +72,16 @@ defmodule AutolaunchWeb.ContentSecurityPolicy do
 
   @doc "The policy every browser page is served under."
   def policy, do: @policy
+
+  @doc """
+  The policy plus the script element the saved-errors page writes inline,
+  admitted by this request's nonce (`AutolaunchWeb.ErrorsAdmin`). Its inline
+  style is already admitted.
+  """
+  def errors(nonce) do
+    Enum.map_join(@directives, "; ", fn
+      {"script-src", sources} -> Enum.join(["script-src" | sources] ++ ["'nonce-#{nonce}'"], " ")
+      {directive, sources} -> Enum.join([directive | sources], " ")
+    end)
+  end
 end

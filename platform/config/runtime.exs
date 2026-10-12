@@ -6,10 +6,12 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 
-config :sentry,
-  dsn: System.get_env("SENTRY_DSN"),
-  release: System.get_env("SENTRY_RELEASE"),
-  environment_name: System.get_env("SENTRY_ENVIRONMENT", to_string(config_env()))
+# The Privy accounts that may give Credits, handle refunds and read the saved
+# errors at /admin/errors, comma separated.
+if admins = System.get_env("REGENT_CREDITS_ADMINS") do
+  config :regent_credits,
+    admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+end
 
 # The Privy application's public verification key, as one PEM block. The
 # session boundary and the shared identity API both verify against it; it is

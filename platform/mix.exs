@@ -113,7 +113,7 @@ defmodule Autolaunch.MixProject do
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:telemetry_poller, "~> 1.3"},
       {:jason, "~> 1.2"},
-      {:sentry, "~> 13.0"},
+      {:error_tracker, "~> 0.9"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
       # Signs the transaction that finishes an ended auction.
@@ -197,7 +197,7 @@ defmodule Autolaunch.MixProject do
         # edges (Accounts six, Autolaunch twenty-four), thirty-nine
         # resource-to-check edges and the one endpoint edge, and it is re-based
         # per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 70",
+        "xref graph --label compile-connected --fail-above 71",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"
