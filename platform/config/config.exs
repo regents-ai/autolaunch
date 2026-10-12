@@ -32,7 +32,7 @@ config :autolaunch, Oban,
     regent_credits: 3
   ],
   cron: [crontab: [{"17 4 * * *", Autolaunch.ErrorPruner}]],
-  pruner: [max_age: {1, :day}],
+  pruner: [max_age: {7, :days}],
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
   # still running is never taken over; a finishing check orphaned by a stopped
