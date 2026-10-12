@@ -238,6 +238,20 @@ if ethereum_read_rpc_url = System.get_env("ETHEREUM_READ_RPC_URL") do
   end
 end
 
+# The shared libraries read Base and Ethereum through the site's own nodes when it
+# has them (Autolaunch.Chain.NodeClient), the same ones its launch reads and ENS use.
+if config_env() == :prod and not migrating? do
+  node_overrides =
+    for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}, {1, "ETHEREUM_READ_RPC_URL"}],
+        node_url = System.get_env(setting),
+        into: %{},
+        do: {chain_id, node_url}
+
+  config :autolaunch,
+         :chain_nodes,
+         Map.merge(Application.fetch_env!(:autolaunch, :chain_nodes), node_overrides)
+end
+
 if config_env() == :prod do
   config :autolaunch, :session_options, secure: true, http_only: true
 

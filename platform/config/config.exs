@@ -59,7 +59,9 @@ config :ex_money,
 
 config :regent_points,
   repo: Autolaunch.Repo,
+  pubsub: Autolaunch.PubSub,
   accounts: Autolaunch.Points.Accounts,
+  chain_client: Autolaunch.Chain.NodeClient,
   ash_domains: [RegentPoints],
   program_id: "regents-points-v1",
   starts_at: nil,
@@ -135,6 +137,15 @@ config :autolaunch,
   generators: [timestamp_type: :utc_datetime]
 
 config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+
+# The node the shared libraries read each chain through, by chain id
+# (Autolaunch.Chain.NodeClient): the Points bonus reads Base. A wallet adds a
+# chain with its public address; this one never reaches the browser.
+config :autolaunch, :chain_nodes, %{
+  8453 => "https://mainnet.base.org",
+  1 => "https://ethereum-rpc.publicnode.com"
+}
+
 # Robinhood Chain mainnet, read for the stock prices the create page shows.
 config :autolaunch, :robinhood_read_rpc_url, "https://rpc.mainnet.chain.robinhood.com"
 config :autolaunch, :autolaunch_indexer_chains, []

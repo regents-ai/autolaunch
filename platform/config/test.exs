@@ -109,6 +109,12 @@ unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
          Autolaunch.TestAutolaunchIndexerChainClient
 end
 
+# ExUnit reads no chain for the shared libraries; a browser or lab server reads
+# Base and Ethereum for real (Autolaunch.Chain.NodeClient).
+unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+  config :autolaunch, :chain_nodes, %{}
+end
+
 # Stock prices and venues are unavailable to ExUnit, so the create page renders
 # without them; a review server reads them from the real chains and DexScreener.
 unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do

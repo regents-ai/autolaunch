@@ -1,0 +1,160 @@
+/* The Points page (/account/points), the template's: hairline panels beside the
+   shared Points card, then what earns points as plain tables. */
+
+.account-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.account-page h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.account-page p {
+  margin: 0;
+}
+
+.account-details dt {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.account-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.account-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.account-details dl {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.account-details dl > div {
+  display: grid;
+  gap: 0.35rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.account-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* What earns points: the catalog as plain tables, then limits and bonus tiers. */
+.points-earn h3 {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.points-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.points-table th,
+.points-table td {
+  padding: 0.6rem 0;
+  border-block-start: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: baseline;
+}
+
+.points-table thead th {
+  border-block-start: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The action takes the width; points and limits sit right-aligned. */
+.points-table tbody th {
+  width: 100%;
+  font-weight: 400;
+}
+
+.points-table td,
+.points-table thead th + th {
+  padding-inline-start: 1rem;
+  text-align: end;
+}
+
+/* In a wide panel, points and limits stay on one line and the action's words
+   wrap instead; a phone-width panel wraps them all to fit. */
+.points-earn {
+  container-type: inline-size;
+}
+
+@container (min-width: 30rem) {
+  .points-table td {
+    white-space: nowrap;
+  }
+}
+
+/* A narrow screen wraps the tables' words rather than widening the panel. */
+.points-earn > * {
+  min-width: 0;
+}
+
+/* Before earning opens, the ways to earn are listed with no amounts. */
+.points-ways {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.points-ways li {
+  padding: 0.6rem 0;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.points-earn__soon {
+  margin-inline-start: 0.5rem;
+  color: var(--color-fg-muted);
+  font-size: 0.85em;
+}
+
+.points-earn__notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1.5rem;
+}
+
+.points-earn__notes > div {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}

@@ -15,6 +15,9 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   and either one opens the side panel: your name with Account and Sign out at the top,
   then Help. It stays open or closed as you left it. On the narrowest phones only the
   panel button shows.
+- A Points page at /account/points, the template's: your balance, your NFT bonus, recent
+  activity and what earns points. Earning hasn't opened on Autolaunch, so it says so.
+  The Account page links to it.
 
 ## Not yet live, 12 October 2026: Portfolio refresh, create page layout, shared dropdowns
 - On Portfolio, the time the figures were read sits under Refresh. While a refresh runs the

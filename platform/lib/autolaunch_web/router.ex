@@ -165,6 +165,7 @@ defmodule AutolaunchWeb.Router do
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/account", AccountLive, :account
+      live "/account/points", PointsLive, :points
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
     end

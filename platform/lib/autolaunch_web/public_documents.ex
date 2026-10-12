@@ -89,6 +89,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
+    "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
     "/regent" =>
       {"REGENT",
        "$REGENT is the value token for all Regents Labs products. Stake it to earn USDC and REGENT."},

@@ -178,6 +178,7 @@ defmodule AutolaunchWeb.AccountLive do
           />
           <p :if={@points_read.value && @points_read.value.more?}>Showing the latest 50 entries.</p>
           <p>Earning hasn’t opened on Autolaunch yet.</p>
+          <.link navigate="/account/points">Your bonus and what earns points</.link>
         </section>
       </div>
       <.live_component
