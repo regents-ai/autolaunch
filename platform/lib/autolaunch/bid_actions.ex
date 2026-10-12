@@ -61,7 +61,8 @@ defmodule Autolaunch.BidActions do
          {:ok, max_price} <- positive_decimal(max_price, :invalid_max_price) do
       current_price = nonnegative_decimal_or_zero(auction.current_clearing_price)
       projected_price = if Decimal.gt?(current_price, 0), do: current_price, else: max_price
-      active? = Decimal.compare(max_price, current_price) != :lt
+      price_reaches? = Decimal.compare(max_price, current_price) != :lt
+      active? = auction.state == :active and price_reaches?
 
       estimated_tokens =
         if active? and Decimal.gt?(projected_price, 0),
@@ -83,7 +84,7 @@ defmodule Autolaunch.BidActions do
          would_be_active_now: active?,
          status_band: status_band(active?, max_price, projected_price),
          estimated_tokens_if_end_now: decimal_string(estimated_tokens),
-         warnings: quote_warnings(auction, active?)
+         warnings: quote_warnings(auction, price_reaches?)
        }}
     end
   end
@@ -656,9 +657,9 @@ defmodule Autolaunch.BidActions do
     if Decimal.equal?(max_price, projected_price), do: "borderline", else: "active"
   end
 
-  defp quote_warnings(auction, active?) do
+  defp quote_warnings(auction, price_reaches?) do
     []
-    |> maybe_warning(not active?, "max_price_below_current_clearing_price")
+    |> maybe_warning(not price_reaches?, "max_price_below_current_clearing_price")
     |> maybe_warning(auction.state != :active, "auction_not_biddable")
   end
 

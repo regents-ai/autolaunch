@@ -15,7 +15,7 @@ Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an 
 
 - `GET /api/v1/auctions`: auctions, found and ordered as the website's auction list does.
 - `GET /api/v1/auctions/{id}`: one auction, with its treasury report when there is one.
-- `POST /api/v1/auctions/{id}/bid-quote`: an estimate for a bid. It does not place a bid.
+- `POST /api/v1/auctions/{id}/bid-quote`: an estimate for a bid. It does not place a bid. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
 - `GET /api/v1/tokens`: tokens whose auctions succeeded, newest first.
 - `GET /api/v1/treasury-security/{address}`: the stored treasury report for a treasury address.
 

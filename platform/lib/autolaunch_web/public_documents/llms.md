@@ -166,7 +166,7 @@ The same reads, as JSON, with amounts as exact decimal strings:
 
 - `GET https://autolaunch.sh/api/v1/auctions`
 - `GET https://autolaunch.sh/api/v1/auctions/{id}`
-- `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`
+- `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`: an estimate only. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
 - `GET https://autolaunch.sh/api/v1/tokens`
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
 - `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.

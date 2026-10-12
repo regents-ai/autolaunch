@@ -818,10 +818,15 @@ components:
             quote_token: {$ref: "#/components/schemas/QuoteToken"}
             current_clearing_price: {type: string}
             projected_clearing_price: {type: string}
-            would_be_active_now: {type: boolean}
+            would_be_active_now:
+              type: boolean
+              description: True only when the auction is taking bids and the max price reaches the current clearing price.
             status_band: {type: string, enum: [active, borderline, inactive]}
             estimated_tokens_if_end_now: {type: string}
-            warnings: {type: array, items: {type: string}}
+            warnings:
+              type: array
+              items: {type: string}
+              description: "auction_not_biddable: the auction is not taking bids, so no bid can be placed. max_price_below_current_clearing_price: a bid at this max price would not be filled now."
     QuoteToken:
       description: The token bids are paid in. REGENT for revstake auctions; the auction's stock token (on Base or Robinhood) for memestock auctions.
       type: object

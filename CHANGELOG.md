@@ -3,7 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Next release: agent reads and a steadier volume schedule
+## Next release: bid estimates on finished auctions
+- A bid estimate on an auction that has finished or failed no longer says the bid would be
+  active. It says no bid can be placed there and estimates no tokens.
+
+## v96, 12 October 2026 (1db2f96): agent reads and a steadier volume schedule
 - The Regents command-line tool can read Autolaunch's auctions, one auction, a bid estimate,
   launched tokens and a treasury's security report without signing in, once the tool's next
   version picks them up. None of them places a bid or changes anything.
