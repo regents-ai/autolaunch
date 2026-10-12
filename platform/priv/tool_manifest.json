@@ -368,90 +368,6 @@
       "effect": "read"
     },
     {
-      "name": "agent_pair",
-      "title": "Redeem an owner pairing code with my chosen name",
-      "description": "Redeem an owner pairing code with my chosen name. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
-      "input_schema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "harness": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "code",
-              "name",
-              "harness"
-            ],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "untrustedContentHint": true
-      },
-      "requires": "siwa",
-      "state_changing": true,
-      "payment": "none",
-      "route": "POST /api/agents/v1/pair",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": false,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "agent_pair",
-        "http": "POST /api/agents/v1/pair"
-      },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "harness": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "name",
-          "harness"
-        ],
-        "additionalProperties": false
-      },
-      "effect": "write"
-    },
-    {
       "name": "autolaunch_revstake_draft",
       "title": "Read my revstake token metadata draft",
       "description": "Read my revstake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
@@ -1036,7 +952,6 @@
             "enum": [
               "agent_whoami",
               "agent_status",
-              "agent_pair",
               "autolaunch_revstake_draft",
               "autolaunch_revstake_draft_save",
               "autolaunch_memestock_draft",
