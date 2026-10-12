@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Not yet live, 12 October 2026: errors kept on the site, side panel, Points, Credits
+## v94, 12 October 2026 (5a93551): errors kept on the site, side panel, Points, Credits
 - Errors the site meets are saved in Autolaunch's own database and cleared a week after
   they were last seen, the way the template does it; Sentry is no longer used. Credits
   admins (named in REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets
