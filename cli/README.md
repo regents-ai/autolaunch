@@ -86,7 +86,7 @@ Private `profile get`, `profile sync`, and `profile update` are available with p
 
 ## Signed agent access
 
-`commands.json` contains typed, private-stdin descriptions for the unified Regents CLI. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing. Browser profile credentials do not authorize an agent.
+`commands.json` contains typed descriptions for the unified Regents CLI: five public reads that need no sign-in, and signed commands that take private JSON on stdin. These require coordinated CLI adoption; this older Autolaunch-specific CLI does not implement the signed commands. Follow the site’s `/agents.md` for current availability and pairing. Browser profile credentials do not authorize an agent.
 
 The unified command names are `regents autolaunch drafts revstake show`, `regents autolaunch drafts revstake save`, `regents autolaunch drafts memestock show`, and `regents autolaunch drafts memestock save`. Saves take metadata as private JSON stdin and remain refused while prelaunch read-only mode is enabled. See [COMMANDS.md](COMMANDS.md) for every signed command, its route, inputs, answers and refusals.
 
