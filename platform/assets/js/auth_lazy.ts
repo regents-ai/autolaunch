@@ -38,13 +38,12 @@ type AccountAuthInstallOptions = {
   clearSession?: () => Promise<void>
   handoffStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
   now?: () => number
-  providerSignOutTimeoutMs?: number
   reload?: () => void
   sessionMutations?: SessionMutationCoordinator
   signedInStartupTimeoutMs?: number
 }
 
-const defaultProviderSignOutTimeoutMs = 1_500
+const providerSignOutWaitMs = 15_000
 const defaultSignedInStartupTimeoutMs = 5_000
 const signOutHandoffKey = "autolaunch:privy-sign-out-handoff:v1"
 const signOutHandoffMaxAgeMs = 30_000
@@ -704,7 +703,6 @@ export function installAccountAuthLazyLoader(
     clearSession = clearLocalSession,
     handoffStorage,
     now = () => Date.now(),
-    providerSignOutTimeoutMs = defaultProviderSignOutTimeoutMs,
     reload = () => window.location.reload(),
     sessionMutations = browserSessionMutations,
     signedInStartupTimeoutMs = defaultSignedInStartupTimeoutMs,
@@ -740,10 +738,8 @@ export function installAccountAuthLazyLoader(
     if (signOutInFlight) return
     clearStatus()
 
-    if (!writeSignOutHandoff(storage, now())) {
-      showLoadFailure("sign-out")
-      return
-    }
+    // Until Privy's logout lands, the next page owes it.
+    writeSignOutHandoff(storage, now())
 
     const attempt = (async () => {
       try {
@@ -753,6 +749,13 @@ export function installAccountAuthLazyLoader(
         showLoadFailure("sign-out")
         return
       }
+      // Privy is logged out here, on the page where Sign out was pressed and
+      // its bridge is usually already running. A logout that could not finish
+      // in time is handed on, freshly dated, so the next page still owes it.
+      const providerSignedOut = await withinWindow(loader.request("sign-out"), providerSignOutWaitMs,
+        "Provider sign out did not settle.").then(() => true, () => false)
+      if (providerSignedOut) clearSignOutHandoff(storage)
+      else writeSignOutHandoff(storage, now())
       clearStatus()
       reloadDocumentOnce(documentRoot, reload)
     })()
@@ -801,23 +804,11 @@ export function installAccountAuthLazyLoader(
   documentRoot.addEventListener("click", onClick)
   documentRoot.addEventListener("autolaunch:identity-request", onIdentityRequest)
   if (consumedHandoff) {
+    // The page that signed out could not finish Privy's logout. It is waited
+    // for here, never cut short, before this page acts on anything else.
     void proveAnonymousSession().then(async anonymous => {
-      if (!anonymous) {
-        loader.finishHandoff()
-        return
-      }
-
-      try {
-        await withinWindow(
-          loader.request("sign-out"),
-          providerSignOutTimeoutMs,
-          "Provider sign out did not become ready.",
-        )
-      } catch {
-        // Provider cleanup is best-effort background work.
-      } finally {
-        loader.finishHandoff()
-      }
+      if (anonymous) await loader.request("sign-out").catch(() => undefined)
+      loader.finishHandoff()
     })
   } else if (documentRoot.querySelector("#account-control [data-account-target='sign-out']")) {
     reconcileSignedInStartup()

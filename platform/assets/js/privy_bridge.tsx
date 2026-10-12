@@ -62,74 +62,33 @@ export function createAccountRequestHandler({
   }
 }
 
-// Both refusals carry the same message. This type is never exported, so only a
-// sign in inside this module can tell the one refusal the server marked as
-// recoverable apart from every other one, which stays generic and final.
-class StaleProviderSessionError extends Error {
-  constructor() {
-    super("Sign in could not be completed.")
-  }
-}
-
-function refusal(response: Response): Error {
-  return response.status === 401 &&
-    response.headers.get("x-autolaunch-provider-relogin") === "allowed"
-    ? new StaleProviderSessionError()
-    : new Error("Sign in could not be completed.")
-}
-
 type SignInRequestOptions = {
   isAvailable?: () => boolean
   authenticated: () => boolean
-  completeLogin: () => Promise<void>
   providerLogout: () => Promise<void>
   openLogin: () => void
   loginOpen: {current: boolean}
-  recoveryAvailable: {current: boolean}
 }
 
-// The recovery cap is spent before the logout is awaited, and the logout
-// completes before anything may be sent again, so the pair the server just
-// refused can never be offered a second time and a later refusal simply stops.
+// Sign in is only offered on a signed-out page, and it always goes through
+// Privy's window, so the wallet the visitor proves is the one their wallet app
+// is on now. A Privy session this browser still remembers belongs to whoever
+// signed in before; it is logged out first, never reused.
 export function createSignInRequest({
   isAvailable = () => true,
   authenticated,
-  completeLogin,
   providerLogout,
   openLogin,
   loginOpen,
-  recoveryAvailable,
-}: SignInRequestOptions): {signIn: () => Promise<void>; recovering: () => boolean} {
-  let recovering = false
-
-  const openLoginOnce = () => {
-    if (!isAvailable()) return
+}: SignInRequestOptions): () => Promise<void> {
+  return async () => {
+    if (!isAvailable()) throw new Error("Privy provider is unavailable")
+    if (loginOpen.current) return
+    if (authenticated()) await providerLogout()
+    if (!isAvailable()) throw new Error("Privy provider is unavailable")
     if (loginOpen.current) return
     loginOpen.current = true
     openLogin()
-  }
-
-  return {
-    recovering: () => recovering,
-    async signIn() {
-      if (!isAvailable()) throw new Error("Privy provider is unavailable")
-      if (!authenticated()) return openLoginOnce()
-
-      try {
-        await completeLogin()
-      } catch (refused) {
-        if (!isAvailable() || !(refused instanceof StaleProviderSessionError) || !recoveryAvailable.current) {
-          throw refused
-        }
-
-        recoveryAvailable.current = false
-        recovering = true
-        await providerLogout().finally(() => {
-          recovering = false
-        })
-        openLoginOnce()
-      }
-    },
   }
 }
 
@@ -316,7 +275,7 @@ async function establishLocalSession(
       : response.ok || response.status === 401
   if (wroteSession) renewed()
   if (lifecycle) throw lifecycle
-  if (!response.ok) throw refusal(response)
+  if (!response.ok) throw new Error("Sign in could not be completed.")
   const sessionChanged = response.headers.get("x-autolaunch-session-changed")
   if (sessionChanged !== "true" && sessionChanged !== "false") {
     throw new Error("Sign in could not be completed.")
@@ -443,11 +402,9 @@ type PrivyLoginCallbackOptions = {
 // Privy runs this for its own provider bootstrap too, for a modal this page
 // never opened, and that entry shares the one in-flight completion with a
 // deliberate click. Only a modal this page opened may speak for it, so a
-// bootstrap refusal stays silent while the click recovers behind it, and a
-// completion this page asked for — including one Privy runs synchronously for
-// an already-authenticated customer, after the click that opened login has
-// settled — says so rather than rejecting into nothing. Both outcomes close
-// the modal, so both release the guard for the next click.
+// bootstrap refusal stays silent, and a completion this page asked for says so
+// rather than rejecting into nothing. Both outcomes close the modal, so both
+// release the guard for the next click.
 export function createPrivyLoginCallbacks({
   isAvailable = () => true,
   allowAutomatic = true,
@@ -549,7 +506,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     [signOutOnly, isAvailable],
   )
   const loginOpen = React.useRef(false)
-  const recoveryAvailable = React.useRef(true)
   const loginCallbacks = React.useMemo(
     () =>
       createPrivyLoginCallbacks({
@@ -577,27 +533,24 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     provider.current = {authenticated, login, logout, ready, subject}
     if (changed) profileGeneration.current += 1
   }, [authenticated, login, logout, ready, subject])
-  const signInRequest = React.useMemo(
+  const signIn = React.useMemo(
     () =>
       createSignInRequest({
         isAvailable,
         authenticated: () => provider.current.authenticated,
-        completeLogin: completeExplicitLogin,
         providerLogout: () => provider.current.logout(),
         openLogin: () => provider.current.login(),
         loginOpen,
-        recoveryAvailable,
       }),
-    [completeExplicitLogin, isAvailable],
+    [isAvailable],
   )
-  // Adoption only ever asks the server, and it stands aside entirely while an
-  // explicit recovery still holds the pair the server refused.
+  // Adoption only ever asks the server.
   const completeAutomaticLogin = React.useCallback(
     () => completeExplicitLogin(() =>
       provider.current.ready && provider.current.authenticated &&
-      !signOutOnly && mode !== "profile-only" && !signInRequest.recovering(),
+      !signOutOnly && mode !== "profile-only",
     ),
-    [completeExplicitLogin, signInRequest, signOutOnly, mode],
+    [completeExplicitLogin, signOutOnly, mode],
   )
   const tokenCallbacks = React.useMemo(
     () => createPrivyTokenCallbacks(completeAutomaticLogin),
@@ -738,11 +691,11 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const ordinaryRequestHandler = React.useMemo(
     () =>
       createAccountRequestHandler({
-        signIn: signInRequest.signIn,
+        signIn,
         providerLogout: () => provider.current.logout(),
         synchronizeWallets,
       }),
-    [signInRequest, synchronizeWallets],
+    [signIn, synchronizeWallets],
   )
 
   const ordinaryIdentityHandler = React.useMemo(
