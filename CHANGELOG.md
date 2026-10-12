@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Not yet live, 12 October 2026: wallet allowance; Revstake panel signed out
+## v92, 12 October 2026 (5649093)
 - The Account page relies on the sign-in check every Regent site shares (Sean, 66 a).
 - Wallet balance reads count against an allowance of 30 a minute: the account's when signed
   in, the visitor's address when signed out. Past it, figures already shown stay
