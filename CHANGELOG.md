@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v89, 12 October 2026 (0cad4ad)
+- The site connects to its database only through the direct connection, which its live
+  updates and database upgrades need.
+- New versions start beside the running one and take over once healthy.
+
+## v88, 12 October 2026 (60a0dd9)
+- Each page carries one security policy, the site's own.
+- Shared design-system and library pins match ash-template 7e8f73e.
+
 ## v87, 12 October 2026 (fa57c44)
 - Memestake is now called Memestock everywhere on the site, in its links and in stored launches.
 - Create Memestock picks the paired stock from a searchable gallery, sorted Alphabetical,
