@@ -119,8 +119,17 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   defp dollar_pool?(_pool, _network, _token, _dollar), do: false
 
   # Each candle is [start, open, high, low, close, volume in USD]; a day with
-  # no trades has no candle. One candle of any other shape fails the read.
-  defp pool_volume(network, pool, first, through) do
+  # no trades has no candle. One candle of any other shape fails the read, and
+  # so does a pool address that is not one (20 bytes, or a 32-byte pool id).
+  defp pool_volume(network, pool, first, through) when is_binary(pool) do
+    if pool =~ ~r/\A0x[0-9a-f]{40}([0-9a-f]{24})?\z/i,
+      do: pool_candles(network, pool, first, through),
+      else: {:error, :malformed_pool}
+  end
+
+  defp pool_volume(_network, _pool, _first, _through), do: {:error, :malformed_pool}
+
+  defp pool_candles(network, pool, first, through) do
     path = "/networks/#{network}/pools/#{pool}/ohlcv/day?aggregate=1&limit=8&currency=usd"
 
     case get(path) do
@@ -160,6 +169,7 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   defp get(path) do
     case Req.get(@api <> path,
            headers: [accept: "application/json"],
+           redirect: false,
            connect_options: [timeout: 5_000],
            receive_timeout: 15_000,
            retry: :transient,
