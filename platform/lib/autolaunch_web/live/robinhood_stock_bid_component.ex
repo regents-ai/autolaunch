@@ -33,6 +33,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
   alias RegentChain.{Presses, Review}
@@ -72,6 +73,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
        wallet: nil,
@@ -148,6 +150,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       "Bidding has ended. If the final count stays below the minimum, every bidder can withdraw their whole bid in #{symbol}; if it reached the minimum, the trading pool opens once the auction is finished."
 
   def ended_copy(_launch), do: nil
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # panel onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &(&1 |> followed() |> prepare_when_ready()))
 
   # The panel follows the wallet that may act. A review is built for one
   # signer, so another one withdraws it; the bids listed are that signer's, or

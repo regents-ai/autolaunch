@@ -41,25 +41,41 @@ defmodule AutolaunchWeb.OnchainSteps do
   def adopt(%{assigns: assigns} = socket) do
     lease = {assigns[:session_lease], assigns[:current_human_id]}
 
-    if Map.get(assigns, :linked_for) == lease do
-      socket
+    if Map.get(assigns, :linked_for) == lease,
+      do: socket,
+      else: socket |> assign(linked_for: lease) |> assign_wallets(leased_account(assigns))
+  end
+
+  @doc """
+  The account as it reads now, before each of the panel's events and
+  background results (`AutolaunchWeb.Live.Session.check_component_lease/2`).
+  When its wallets differ from the ones the panel holds, the panel takes them
+  and `follow` moves it onto them; otherwise nothing is built again.
+  """
+  def take_account(socket, account, follow) do
+    before = Map.take(socket.assigns, [:linked, :signed_in])
+    socket = assign_wallets(socket, account)
+
+    if Map.take(socket.assigns, [:linked, :signed_in]) == before,
+      do: socket,
+      else: follow.(socket)
+  end
+
+  defp leased_account(assigns) do
+    with %{lineage: lineage, account_id: id} <- assigns[:session_lease],
+         true <- assigns[:current_human_id] == id do
+      SessionAuthority.leased_account(lineage, id)
     else
-      {linked, signed_in} = account_wallets(assigns)
-      assign(socket, linked_for: lease, linked: linked, signed_in: signed_in)
+      _signed_out -> nil
     end
   end
 
-  defp account_wallets(assigns) do
-    with %{lineage: lineage, account_id: id} <- assigns[:session_lease],
-         true <- assigns[:current_human_id] == id,
-         %{wallet_addresses: wallets, wallet_address: primary} <-
-           SessionAuthority.leased_account(lineage, id) do
-      linked = wallets |> Enum.flat_map(&normalized/1) |> Enum.uniq()
-      {linked, primary |> normalized() |> List.first()}
-    else
-      _signed_out -> {nil, nil}
-    end
+  defp assign_wallets(socket, %{wallet_addresses: wallets, wallet_address: primary}) do
+    linked = wallets |> Enum.flat_map(&normalized/1) |> Enum.uniq()
+    assign(socket, linked: linked, signed_in: primary |> normalized() |> List.first())
   end
+
+  defp assign_wallets(socket, nil), do: assign(socket, linked: nil, signed_in: nil)
 
   defp normalized(wallet) do
     case Address.normalize(wallet) do
@@ -80,6 +96,14 @@ defmodule AutolaunchWeb.OnchainSteps do
     active = String.downcase(active)
     if active in Enum.map(linked, &String.downcase/1), do: active
   end
+
+  @doc """
+  The wallet a panel shows figures for. Signed in, the wallet that may act, or
+  with none the account's own wallet (`own`), so a wrong or missing active wallet
+  never empties the panel. Signed out (`linked` is `nil`), Privy's active wallet.
+  """
+  def shown_wallet(nil, _own, active), do: active
+  def shown_wallet(linked, own, active), do: signer(linked, active) || own
 
   @doc "Privy's active wallet as the page reported it, or `nil`."
   def active_wallet(%{"address" => address}) do

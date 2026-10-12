@@ -10,9 +10,13 @@ defmodule AutolaunchWeb.TestFundsComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Stocks.Faucet
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.OnchainSteps
 
   def available?, do: Faucet.available?()
+
+  @impl true
+  def mount(socket), do: {:ok, Session.check_component_lease(socket, &take_account/2)}
 
   @impl true
   def update(assigns, socket) do
@@ -24,6 +28,11 @@ defmodule AutolaunchWeb.TestFundsComponent do
      |> assign_new(:outcome, fn -> nil end)
      |> assign(:stocks, Faucet.stocks())}
   end
+
+  # The account as it reads now, before each press and each lab answer
+  # (`Session.check_component_lease/2`): funds go to the wallet it signed in
+  # with.
+  defp take_account(socket, account), do: OnchainSteps.take_account(socket, account, & &1)
 
   @impl true
   def render(assigns) do

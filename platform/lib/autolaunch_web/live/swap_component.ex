@@ -26,6 +26,7 @@ defmodule AutolaunchWeb.SwapComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias Autolaunch.SwapActions
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths}
   alias RegentChain.{Presses, Review}
 
@@ -58,6 +59,7 @@ defmodule AutolaunchWeb.SwapComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
   end
@@ -108,6 +110,12 @@ defmodule AutolaunchWeb.SwapComponent do
     )
     |> closed()
   end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # form onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &followed/1)
 
   # The form follows the wallet that may act. A review is built for one
   # signer, so another one closes it; the balances are that signer's, or the

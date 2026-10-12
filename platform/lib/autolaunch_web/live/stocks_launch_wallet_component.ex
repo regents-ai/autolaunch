@@ -15,6 +15,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   alias Autolaunch.Lab
   alias Autolaunch.Stocks.{Amounts, LaunchActions}
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps}
+  alias AutolaunchWeb.Live.Session
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
@@ -36,7 +37,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   @generic "That did not go through. Try again in a moment."
 
   @impl true
-  def mount(socket), do: {:ok, LaunchSteps.init(socket)}
+  def mount(socket),
+    do: {:ok, socket |> Session.check_component_lease(&take_account/2) |> LaunchSteps.init()}
 
   # The review on the page, checked against the chain again once it is ten
   # minutes old (`AutolaunchWeb.LaunchSteps.rechecked/4`).
@@ -52,6 +54,12 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      |> LaunchSteps.followed()
      |> LaunchSteps.relisted(socket.assigns.listings)}
   end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &LaunchSteps.followed/1)
 
   @impl true
   def render(assigns) do

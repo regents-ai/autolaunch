@@ -3,6 +3,17 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## Not yet live, 12 October 2026: sign-in re-checked before every update
+- An open page re-checks the sign-in before every update it receives and every background
+  result, not only on a click or a page change. When the sign-in has ended, the update is
+  dropped and the page shows that the sign-in ended.
+- Wallet panels re-check it before each press and each result of their own, and act with
+  the wallets the account links at that moment.
+- The Revstake token panel and the Robinhood launch card keep showing the account's own
+  wallet when the open wallet isn't linked to the account, instead of going empty.
+- Agents are offered only the signed tools as signed operations, each with its own inputs.
+- The old /developers address is gone; the developer guide is at /docs.
+
 ## v90, 12 October 2026 (9cabd3a)
 - Site errors can be reported to Sentry. Nothing is sent until a Sentry project is set.
 

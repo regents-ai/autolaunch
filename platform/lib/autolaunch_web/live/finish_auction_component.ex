@@ -25,6 +25,7 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   alias Autolaunch.Chain.Client
   alias Autolaunch.FinishActions
   alias AutolaunchWeb.Components.SwapForm
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.OnchainSteps
   alias RegentChain.{Presses, Review}
 
@@ -32,6 +33,7 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(signer: nil, mismatch: nil, launch: nil, unread: false)}
   end
@@ -49,6 +51,12 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   defp read_again?({:ok, seen}, %{observed: seen}), do: false
   defp read_again?(_seen, %{unread: true}), do: true
   defp read_again?(_seen, %{launch: launch}), do: waiting?(launch)
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &followed/1)
 
   # The card follows the wallet that may act; a review is built for one signer.
   defp followed(socket) do

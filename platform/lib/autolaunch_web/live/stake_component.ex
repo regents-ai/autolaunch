@@ -32,6 +32,7 @@ defmodule AutolaunchWeb.StakeComponent do
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.{FeeSchedule, StakeActions}
   alias AutolaunchWeb.Components.{ShareDialog, SwapForm, TokenNext}
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
   alias RegentChain.{Presses, Review}
 
@@ -68,6 +69,7 @@ defmodule AutolaunchWeb.StakeComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
   end
@@ -114,6 +116,12 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   defp launch_key(%{auction: %{id: id}}), do: id
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &followed/1)
 
   # The card follows the wallet that may act. A review is built for one
   # signer, so another one closes it; the figures on the card are that

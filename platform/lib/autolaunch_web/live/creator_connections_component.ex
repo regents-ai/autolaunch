@@ -4,7 +4,10 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
   import AutolaunchWeb.Components.XConnections
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.Human
+  alias AutolaunchWeb.Live.Session
   alias Phoenix.LiveView.JS
+
+  def mount(socket), do: {:ok, Session.check_component_lease(socket, &take_account/2)}
 
   def update(assigns, socket) do
     socket = assign_scope(socket, assigns)
@@ -30,6 +33,10 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
      |> assign_new(:resolving, fn -> false end)
      |> assign_ens()}
   end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): the connections are its own.
+  defp take_account(socket, account), do: assign(socket, current_human_id: account.id)
 
   @doc "The accounts other than X that a person has linked, by provider."
   def identities(actor) do

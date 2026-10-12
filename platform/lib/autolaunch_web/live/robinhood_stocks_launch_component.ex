@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
   alias AutolaunchWeb.{LaunchSteps, OnchainSteps, Paths}
+  alias AutolaunchWeb.Live.Session
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
@@ -38,7 +39,12 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   @impl true
   def mount(socket),
-    do: {:ok, socket |> LaunchSteps.init() |> assign(launches: [], listed_for: nil)}
+    do:
+      {:ok,
+       socket
+       |> Session.check_component_lease(&take_account/2)
+       |> LaunchSteps.init()
+       |> assign(launches: [], listed_for: nil)}
 
   # The review on the page, checked against the chain again once it is ten
   # minutes old (`AutolaunchWeb.LaunchSteps.rechecked/4`).
@@ -55,6 +61,12 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
      |> LaunchSteps.relisted(socket.assigns.listings)
      |> listed()}
   end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &(&1 |> LaunchSteps.followed() |> listed()))
 
   @impl true
   def render(assigns) do
@@ -283,9 +295,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end
   end
 
-  defp shown_wallet(%{signer: signer}) when is_binary(signer), do: signer
-  defp shown_wallet(%{active: nil, signed_in: signed_in}), do: signed_in
-  defp shown_wallet(_assigns), do: nil
+  defp shown_wallet(%{linked: linked, signed_in: own, active: active}),
+    do: OnchainSteps.shown_wallet(linked, own, active)
 
   # Each launch links to its auction's page once the site lists the auction.
   defp with_pages(launches),

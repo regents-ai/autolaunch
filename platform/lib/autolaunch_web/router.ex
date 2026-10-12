@@ -64,9 +64,6 @@ defmodule AutolaunchWeb.Router do
     get "/capabilities", PublicPagesController, :capabilities
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/.well-known/api-catalog", PublicPagesController, :api_catalog
-
-    # The developer guide's earlier address; links to it were shared.
-    get "/developers", PublicPagesController, :developers
   end
 
   scope "/api/agents" do

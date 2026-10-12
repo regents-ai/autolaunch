@@ -37,6 +37,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{AuctionBook, SwapForm}
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, RobinhoodStockBidComponent, TokenDisplay}
   alias AutolaunchWeb.UsdValue
   alias RegentChain.{Address, Presses, Review}
@@ -81,6 +82,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
        signer: nil,
@@ -122,6 +124,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
      |> followed()
      |> offer()}
   end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # row onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &(&1 |> followed() |> offer()))
 
   # The row follows the wallet that may act. A review is built for one
   # signer, so another one withdraws it, and an early row asks again.

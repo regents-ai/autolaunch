@@ -26,6 +26,7 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.AsyncResult
   alias RegentChain.{Presses, Review}
@@ -64,6 +65,7 @@ defmodule AutolaunchWeb.BidComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
        wallet: nil,
@@ -116,6 +118,12 @@ defmodule AutolaunchWeb.BidComponent do
      |> followed()
      |> prepare_when_ready()}
   end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # panel onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &(&1 |> followed() |> prepare_when_ready()))
 
   # The panel follows the wallet that may act. A review is built for one
   # signer, so another one withdraws it; the balance is that signer's, or the

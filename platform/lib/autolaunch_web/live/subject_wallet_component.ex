@@ -21,6 +21,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   alias Autolaunch.Chain.Client
   alias Autolaunch.SubjectWalletActions
   alias AutolaunchWeb.Components.SwapForm
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
   alias RegentChain.{Presses, Review}
 
@@ -67,6 +68,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   def mount(socket) do
     {:ok,
      socket
+     |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
        signer: nil,
@@ -392,6 +394,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # The wallet that may act, and the balances the card shows.
 
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &(&1 |> followed() |> read_state()))
+
   # A review is built for one signer, so an unsent review for another one is
   # dropped.
   defp followed(socket) do
@@ -407,9 +415,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
-  defp shown_wallet(%{signer: signer}) when is_binary(signer), do: signer
-  defp shown_wallet(%{active: nil, signed_in: signed_in}), do: signed_in
-  defp shown_wallet(_assigns), do: nil
+  defp shown_wallet(%{linked: linked, signed_in: own, active: active}),
+    do: OnchainSteps.shown_wallet(linked, own, active)
 
   # The balances of the wallet shown, read in the background whenever that
   # wallet changes and after a payment.
