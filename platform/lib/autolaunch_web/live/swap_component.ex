@@ -5,8 +5,7 @@ defmodule AutolaunchWeb.SwapComponent do
   does, `symbol` and `image` present its token, `currency` names what the pool
   is entered with (`nil` where the token cannot be swapped here), and
   `start_direction` the side the form opens on (buying unless it says
-  `:sell`). With `agent_tools`, the form also answers the page tools that buy
-  and sell the page's token (`AutolaunchWeb.AgentPress`). Everything happens on the one form: an amount, a live quote, a
+  `:sell`). Everything happens on the one form: an amount, a live quote, a
   max-slippage setting behind the gear, then a panel over the form that walks
   the wallet through the swap and closes itself when the swap lands.
 
@@ -27,7 +26,7 @@ defmodule AutolaunchWeb.SwapComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias Autolaunch.SwapActions
-  alias AutolaunchWeb.{AgentPress, OnchainSteps, Paths}
+  alias AutolaunchWeb.{OnchainSteps, Paths}
   alias RegentChain.{Presses, Review}
 
   @default_protection "1"
@@ -54,7 +53,6 @@ defmodule AutolaunchWeb.SwapComponent do
   }
 
   @generic "That did not go through. Try again in a moment."
-  @agent_directions %{"autolaunch_buy" => :buy, "autolaunch_sell" => :sell}
 
   @impl true
   def mount(socket) do
@@ -82,7 +80,6 @@ defmodule AutolaunchWeb.SwapComponent do
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
       |> assign_new(:image, fn -> nil end)
-      |> assign_new(:agent_tools, fn -> false end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> OnchainSteps.adopt()
 
@@ -143,7 +140,6 @@ defmodule AutolaunchWeb.SwapComponent do
     <div
       id={@id}
       class="token-swap"
-      data-agent-tools={@agent_tools && @currency && "autolaunch_buy autolaunch_sell"}
       phx-hook="OnchainSteps"
     >
       <.swap_done
@@ -269,30 +265,6 @@ defmodule AutolaunchWeb.SwapComponent do
     case reviewed(socket, params) do
       {:ok, socket} -> {:noreply, socket}
       {:error, socket} -> {:noreply, socket}
-    end
-  end
-
-  # An agent's press: the next step of the swap open for the same side, amount
-  # and slippage, or the first step of a new one, sent at once as the button
-  # would.
-  def handle_event("agent_press", %{"tool" => tool} = params, socket)
-      when is_map_key(@agent_directions, tool) do
-    direction = Map.fetch!(@agent_directions, tool)
-    input = if is_map(params["input"]), do: params["input"], else: %{}
-    fields = %{"amount" => input["amount"], "protection" => input["max_slippage"]}
-
-    case socket.assigns do
-      %{read_only?: true} ->
-        {:reply, AgentPress.refused("Trading is not open on this site yet."), socket}
-
-      %{authenticated: false} ->
-        {:reply, AgentPress.refused(copy(:authentication_required)), socket}
-
-      assigns ->
-        case open_step(assigns, direction, fields) do
-          %{name: step} -> {:reply, sending(socket, step), socket}
-          nil -> agent_reviewed(socket, direction, fields)
-        end
     end
   end
 
@@ -434,44 +406,6 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp no_signer(socket),
     do: assign(socket, notice: failure_note(socket.assigns, "wallet_unavailable"))
-
-  defp agent_reviewed(socket, direction, fields) do
-    socket = assign(socket, direction: direction, revision: socket.assigns.revision + 1)
-    fields = Map.update!(fields, "protection", &(&1 || socket.assigns.protection))
-
-    case reviewed(socket, fields) do
-      {:ok, socket} ->
-        [%{step: first} | _rest] = socket.assigns.review.steps
-        {:reply, sending(socket, first), socket}
-
-      {:error, socket} ->
-        {:reply, AgentPress.refused(agent_refusal(socket.assigns)), socket}
-    end
-  end
-
-  defp sending(%{assigns: %{review: review, prepared: prepared}}, step),
-    do: AgentPress.sending(review, step, &step_label(&1, prepared))
-
-  # The step the open swap's button would send, when it is for the same side,
-  # amount and slippage (as the form would round it).
-  defp open_step(%{review: %{}, prepared: prepared} = assigns, direction, fields) do
-    protection =
-      case SwapActions.protection(fields["protection"] || assigns.protection) do
-        {:ok, bps} -> SwapActions.protection_percent(bps)
-        {:error, _out_of_range} -> nil
-      end
-
-    same? =
-      prepared.context.direction == direction and fields["amount"] == assigns.amount and
-        protection == assigns.protection
-
-    if same?, do: pressable(next_step(assigns), steps(assigns))
-  end
-
-  defp open_step(_assigns, _direction, _fields), do: nil
-
-  defp agent_refusal(%{protection_error: error}) when is_binary(error), do: error
-  defp agent_refusal(%{notice: notice}), do: notice
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()

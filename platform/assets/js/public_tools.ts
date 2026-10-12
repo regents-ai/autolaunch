@@ -1,8 +1,7 @@
 // WebMCP Draft Community Group Report, 4 September 2026: document.modelContext.
-// HTTP responses remain authoritative; these tools only read and never use wallet
-// hooks (the wallet tools are agent_wallet_tools.ts). Every tool the page
-// registers is described once, in priv/tool_manifest.json; this file only adds
-// each HTTP request. All requests omit browser credentials.
+// HTTP responses remain authoritative; these tools never use wallet hooks. Every
+// tool the page registers is described once, in priv/tool_manifest.json; this
+// file only adds each HTTP request. All requests omit browser credentials.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 
 import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools.ts"

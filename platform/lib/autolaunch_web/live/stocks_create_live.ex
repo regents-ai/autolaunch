@@ -7,10 +7,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
   A signed-out visitor explores the same form against an unsaved draft that
   follows the saved draft's rules. This browser tab keeps what they typed, and
   once they sign in it is saved into their account's draft.
-
-  An agent reads the form with `autolaunch_launch_form` and fills it with
-  `autolaunch_fill_memestock`, through the same saves as typing
-  (`assets/js/hooks/agent_tools.ts`); the picture stays with the person.
   """
 
   use AutolaunchWeb, :live_view
@@ -19,7 +15,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.{LaunchChain, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.StockSelect
-  alias AutolaunchWeb.DraftMarks
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
   alias RegentChain.Address
 
@@ -31,7 +26,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
     "autosave_stocks_terms" => :autosave_terms
   }
   @chains %{"base" => :base, "robinhood" => :robinhood}
-  @detail_params ~w(name symbol description website telegram discord other_link_1 other_link_2 other_link_3)
 
   # A completed sign-in reloads this route, so a signed-out visitor comes back
   # to the same page, now with their account's draft.
@@ -160,32 +154,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
-  def handle_event("agent_call", %{"tool" => "autolaunch_launch_form"}, socket),
-    do: {:reply, form_state(socket), socket}
-
-  def handle_event(
-        "agent_call",
-        %{"tool" => "autolaunch_fill_memestock", "input" => input},
-        socket
-      )
-      when is_map(input) do
-    case agent_filled(socket, input) do
-      {:ok, %{assigns: %{draft_errors: errors}} = socket} when errors == %{} ->
-        {:reply, %{outcome: "saved", form: form_state(socket)}, socket}
-
-      {:ok, socket} ->
-        {:reply,
-         %{
-           outcome: "not_saved",
-           message: "The fields named in problems were not saved; the rest were.",
-           form: form_state(socket)
-         }, socket}
-
-      {:error, message, socket} ->
-        {:reply, %{outcome: "not_saved", message: message, form: form_state(socket)}, socket}
-    end
-  end
-
   # What a visitor typed while signed out, handed back by this tab. Signed in,
   # it goes into the account's draft through the same saves as typing it
   # would; signed out, it refills the unsaved form after a reload. When the
@@ -272,115 +240,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
        |> assign(draft_errors: %{}, draft_notice: nil, market: %{prices: %{}, venues: []})
        |> assign_market()
        |> keep()}
-    end
-  end
-
-  # An agent's fill: the chain, then the stock on it, then the token details,
-  # each saved as choosing or typing it on the page would save it. A section
-  # that is not saved stays marked while the next one saves.
-  defp agent_filled(socket, input) do
-    cond do
-      socket.assigns.status != :ready ->
-        {:error, "The draft could not be loaded. Ask the person to refresh the page.", socket}
-
-      socket.assigns.reviewing? ->
-        {:error,
-         "The details are locked while the launch review is open on the page. Ask the person to cancel the review to change them.",
-         socket}
-
-      true ->
-        with {:ok, socket} <- agent_chain(socket, input["chain"]),
-             {:ok, socket, errors} <- agent_stock(socket, input["stock"]) do
-          {:ok, agent_details(socket, Map.take(input, @detail_params), errors)}
-        end
-    end
-  end
-
-  defp agent_chain(socket, nil), do: {:ok, socket}
-
-  defp agent_chain(socket, chain) do
-    with {:ok, chain} <- Map.fetch(@chains, chain),
-         {:ok, socket} <- chosen_chain(socket, chain) do
-      {:ok, socket}
-    else
-      :error -> {:error, "The chain could not be changed. Try again.", socket}
-    end
-  end
-
-  defp agent_stock(socket, nil), do: {:ok, socket, %{}}
-
-  defp agent_stock(socket, token) do
-    chain = socket.assigns.launch_chain
-
-    case Stocks.Assets.named(chain, token) do
-      {:ok, stock} ->
-        socket = autosaved(socket, "autosave_stocks_terms", %{"stock_address" => stock.address})
-        {:ok, socket, socket.assigns.draft_errors}
-
-      :error ->
-        {:error,
-         "No stock listed on #{LaunchChain.label(chain)} is named #{token}. autolaunch_launch_form lists the stocks on offer.",
-         socket}
-    end
-  end
-
-  defp agent_details(socket, values, errors) when values == %{},
-    do: assign(socket, draft_errors: errors)
-
-  defp agent_details(socket, values, errors) do
-    socket = autosaved(socket, "autosave_stocks_token_details", values)
-    errors = Map.merge(errors, socket.assigns.draft_errors)
-    notice = if errors == %{}, do: saved_notice(socket), else: unsaved_notice(socket)
-    assign(socket, draft_errors: errors, draft_notice: notice)
-  end
-
-  # The form as an agent reads it. The fields are what a person typed.
-  defp form_state(%{assigns: assigns}) do
-    chain = assigns.launch_chain
-    stock = chosen_stock(chain, assigns.draft_values["stock_address"])
-
-    %{
-      launch: "memestock",
-      chain: Atom.to_string(chain),
-      signed_in: is_integer(assigns.current_human_id),
-      fields: Map.take(assigns.draft_values, @detail_params),
-      picture: assigns.draft_values["image"] != "",
-      stock: stock && Map.take(stock, [:symbol, :name, :address]),
-      stocks: Enum.map(Stocks.Assets.all(chain), &Map.take(&1, [:symbol, :name, :address])),
-      problems: assigns.draft_errors,
-      next: next_step(assigns)
-    }
-  end
-
-  defp next_step(%{status: status}) when status != :ready,
-    do: "The draft could not be loaded. Ask the person to refresh the page."
-
-  defp next_step(%{reviewing?: true}),
-    do:
-      "The launch review is open on the page. Call autolaunch_launch to send it to the person's wallet."
-
-  defp next_step(%{current_human_id: nil}),
-    do:
-      "The person is not signed in. What you fill stays in this browser tab and is saved to their account once they sign in on the page. Launching needs them signed in."
-
-  defp next_step(%{launch_chain: :robinhood} = assigns) do
-    if Autolaunch.Robinhood.Lab.configured?(),
-      do: ready_or_missing(assigns.draft),
-      else: "Robinhood launches are not open yet. The draft is saved for when they open."
-  end
-
-  defp next_step(assigns), do: ready_or_missing(assigns.draft)
-
-  defp ready_or_missing(draft) do
-    case LaunchDraft.missing(draft) do
-      [] ->
-        "Ready. Call autolaunch_launch to review the launch and open the person's wallet."
-
-      missing ->
-        picture =
-          if :image in missing, do: " The person chooses the picture on the page.", else: ""
-
-        "Still needed: #{DraftMarks.still_needed(missing)}.#{picture}"
     end
   end
 

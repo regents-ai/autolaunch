@@ -1,7 +1,6 @@
 import type {Address} from "viem"
 
 import type {Hook} from "../hook_composition"
-import {agentCard, type AgentCardHandle} from "../agent_wallet_tools"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {failure, NothingSent, sendStep, type Failure, type Step, type StepChain} from "../wallet_actions/send_step"
 
@@ -29,7 +28,6 @@ type OnchainStepsHook = Hook & {
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload?: unknown): Promise<PromiseSettledResult<{reply: unknown}>[]>
   review?: Review
-  agent?: AgentCardHandle
   clicked?: (event: Event) => void
   walletChanged?: () => void
 }
@@ -42,7 +40,6 @@ const presses = new WeakMap<HTMLElement, number>()
  * The wallet buttons of one server component. The component's root carries the
  * hook and a DOM id; each button names its step with `data-onchain-step`, and
  * each form field the review depends on is marked `data-onchain-input="name"`.
- * A card that answers agent tools names them in `data-agent-tools`.
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
@@ -58,8 +55,6 @@ export const OnchainSteps: Hook = {
       const {component_id, review} = payload as {component_id: string; review: Review | null}
       if (component_id === this.el.id) this.review = review ?? undefined
     })
-
-    this.agent = agentCard(this, (review, name) => press(review, name, push))
 
     // Every press runs on its own and reaches the wallet, even while an earlier
     // one is still there. On a card with review inputs, a press with no review
@@ -96,14 +91,9 @@ export const OnchainSteps: Hook = {
     this.walletChanged()
   },
 
-  disconnected(this: OnchainStepsHook) {
-    this.agent?.disconnected()
-  },
-
   destroyed(this: OnchainStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     if (this.walletChanged) window.removeEventListener("autolaunch:wallet-state", this.walletChanged)
-    this.agent?.dispose()
   },
 }
 

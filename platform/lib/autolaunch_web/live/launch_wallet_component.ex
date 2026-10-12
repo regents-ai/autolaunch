@@ -73,7 +73,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     <section
       id={@id}
       class="launch-wallet"
-      data-agent-tools="autolaunch_launch"
       phx-hook="OnchainSteps"
     >
       <LaunchSteps.launched_panel
@@ -89,8 +88,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         id={"#{@id}-treasury"}
         class="treasury-verification"
         aria-label="Treasury verification"
-        data-agent-tools="autolaunch_verify_treasury"
-        phx-hook="AgentTools"
       >
         <h4>Verify immutable treasury</h4>
         <p class="launch-wallet-mono">{RegentFormat.short_address(@draft.treasury)}</p>
@@ -244,11 +241,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   def handle_event("review_launch", _params, socket),
     do: {:noreply, LaunchSteps.review(socket, &prepare(socket, &1))}
 
-  def handle_event("agent_press", %{"tool" => "autolaunch_launch"}, socket) do
-    {reply, socket} = LaunchSteps.agent_press(socket, &prepare(socket, &1))
-    {:reply, reply, socket}
-  end
-
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -273,25 +265,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     else
       {:noreply, verify_treasury(hashes, socket)}
     end
-  end
-
-  def handle_event(
-        "agent_call",
-        %{"tool" => "autolaunch_verify_treasury", "input" => input},
-        socket
-      )
-      when is_map(input) do
-    socket = verify_treasury(input, socket)
-
-    outcome =
-      if freshly_verified?(
-           socket.assigns.treasury_report,
-           socket.assigns.fresh_treasury_report_id
-         ),
-         do: "verified",
-         else: "not_verified"
-
-    {:reply, %{outcome: outcome, message: socket.assigns.notice}, socket}
   end
 
   @impl true

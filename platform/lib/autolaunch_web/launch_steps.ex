@@ -34,15 +34,13 @@ defmodule AutolaunchWeb.LaunchSteps do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias Autolaunch.{LaunchedDrafts, LaunchReviews}
-  alias AutolaunchWeb.{AgentPress, OnchainSteps, Paths, Telemetry}
   alias AutolaunchWeb.Components.{BidPlaced, MarketCard, SwapForm}
+  alias AutolaunchWeb.{OnchainSteps, Paths, Telemetry}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
 
   @reverted "That launch did not go through, so nothing was created. Only the network fee was spent. Press again."
   @rebuilt "That launch did not go through, so nothing was created. Only the network fee was spent. The review now matches the network as it is: press again."
-
-  @launched "Sent. The page shows the launch once the network confirms it, with a link to its auction page, and autolaunch_auctions lists it within a minute."
 
   @doc "The assigns a launch card starts with."
   def init(socket) do
@@ -112,47 +110,6 @@ defmodule AutolaunchWeb.LaunchSteps do
         end
     end
   end
-
-  @doc """
-  An agent's press of the card's launch button (`autolaunch_launch`): the step
-  the card's own wallet button sends, from the review on the page; with no
-  review yet, the review "Review launch" would open, then its step. Answers
-  `{reply, socket}`; a reply without a step says why in the card's own words.
-  """
-  def agent_press(%{assigns: %{review: %{} = review}} = socket, _prepare) do
-    case SwapForm.pressable(nil, steps(socket.assigns)) do
-      %{name: step} ->
-        {sending(review, step), socket}
-
-      nil ->
-        {AgentPress.refused(
-           "This launch is already created. Its auction page is linked on the page."
-         ), socket}
-    end
-  end
-
-  def agent_press(socket, prepare) do
-    socket = review(socket, prepare)
-
-    case socket.assigns do
-      %{review: %{steps: [%{step: step} | _rest]} = review} ->
-        {sending(review, step), socket}
-
-      %{notice: notice} when is_binary(notice) ->
-        {AgentPress.refused(notice), socket}
-
-      _no_wallet ->
-        {AgentPress.refused(
-           "No wallet is connected in this tab, so the page asked the person to connect one. Call again once they have."
-         ), socket}
-    end
-  end
-
-  defp sending(review, step),
-    do:
-      review
-      |> AgentPress.sending(step, fn _step -> "Create the launch" end)
-      |> Map.put(:landed, @launched)
 
   # The review on the page, and what each review was prepared with, so an
   # outcome is read against the launch it belongs to.

@@ -12,7 +12,6 @@ import {
   installCrossTabCsrf,
   type PinnedSocket,
 } from "./auth_lazy"
-import {AgentTools} from "./hooks/agent_tools"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {ImageGradient} from "./hooks/image_gradient"
 import {OnchainSteps} from "./hooks/onchain_steps"
@@ -33,7 +32,6 @@ import {installTheme} from "./theme"
 
 const hooks = {
   ...colocatedHooks,
-  AgentTools,
   AutolaunchSwapDialog,
   ImageGradient,
   OnchainSteps,

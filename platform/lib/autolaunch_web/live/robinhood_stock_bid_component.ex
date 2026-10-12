@@ -21,9 +21,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   come back, and the early return is offered once it can (`launch`, the
   auction's listing, gives the minimum and the end time). With
   `outbid_banner`, the page is told whenever a bid is outbid, so it can say so
-  at the top. With `agent_tools`, the panel also answers the page tool that
-  bids (`AutolaunchWeb.AgentPress`): the call is pressed exactly as the button
-  would be. With `draft_marker`, the page hears `{:bid_draft_price, price}`
+  at the top. With `draft_marker`, the page hears `{:bid_draft_price, price}`
   whenever the form's maximum price changes, so it can mark it on the chart.
   """
 
@@ -33,9 +31,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias Autolaunch.{AuctionBook, BidPrice}
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
   alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.{AgentPress, OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
+  alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.{AsyncResult, JS}
   alias RegentChain.{Presses, Review}
 
@@ -116,7 +114,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:ended, fn -> nil end)
      |> assign_new(:stake_path, fn -> nil end)
      |> assign_new(:outbid_banner, fn -> false end)
-     |> assign_new(:agent_tools, fn -> false end)
      |> assign_new(:authenticated, fn -> false end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
@@ -197,7 +194,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       id={@id}
       class="bid-panel"
       phx-hook="OnchainSteps"
-      data-agent-tools={@agent_tools && "autolaunch_bid"}
     >
       <BidForm.title id={@id} title={if @ended, do: "Bidding has ended", else: "Place a bid"}>
         <:help :if={!@ended}>
@@ -503,33 +499,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end
   end
 
-  # An agent's press, for exactly the values it names: the step on screen when
-  # the panel already holds that bid, otherwise the first step of the bid
-  # prepared for them. The form shows the values, as if typed.
-  def handle_event("agent_press", %{"tool" => "autolaunch_bid"} = params, socket) do
-    input = if is_map(params["input"]), do: params["input"], else: %{}
-
-    cond do
-      socket.assigns.ended ->
-        {:reply, AgentPress.refused("Bidding has ended on this auction."), socket}
-
-      Map.has_key?(input, "pay_with") ->
-        {:reply, AgentPress.refused("Robinhood bids are paid in USDG; leave pay_with out."),
-         socket}
-
-      !socket.assigns.authenticated ->
-        {:reply, AgentPress.refused(copy(:authentication_required)), socket}
-
-      true ->
-        form = %{
-          BidForm.at_price(socket.assigns.form, input["max_price"])
-          | amount: input["amount"] || ""
-        }
-
-        socket |> assign(form: form, notice: nil, placed: nil) |> agent_bid()
-    end
-  end
-
   # A new bid for an outbid one: about the same money, at the current price.
   def handle_event("raise_bid", %{"bid_id" => bid_id}, socket) do
     %{usd_prices: prices, reading: reading} = socket.assigns
@@ -678,40 +647,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       do: OnchainSteps.refresh_later(socket),
       else: socket |> assign(prepared_for: nil, carried_note: note) |> prepare_when_ready()
   end
-
-  defp agent_bid(%{assigns: %{signer: nil} = assigns} = socket),
-    do: {:reply, AgentPress.refused(no_signer(assigns)), socket}
-
-  defp agent_bid(%{assigns: assigns} = socket) do
-    case current_step(assigns) do
-      %{name: name} -> {:reply, sending(assigns.review, name), socket}
-      nil -> agent_prepared(socket)
-    end
-  end
-
-  defp agent_prepared(socket) do
-    case prepared_now(socket) do
-      {:ok, socket} ->
-        [%{step: first} | _rest] = socket.assigns.review.steps
-        {:reply, sending(socket.assigns.review, first), socket}
-
-      {:error, socket} ->
-        {:reply, AgentPress.refused(socket.assigns.notice || @generic), socket}
-    end
-  end
-
-  # The step the button sends, while the review on the page is for the form as it is now.
-  defp current_step(assigns) do
-    key = bid_key(assigns)
-
-    if key && assigns.prepared_for == key && assigns.review,
-      do: SwapForm.pressable(next_step(assigns), steps(assigns))
-  end
-
-  defp sending(review, step), do: AgentPress.sending(review, step, &step_label/1)
-
-  defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
 
   # The form as it was on screen when pressed: a max FDV that differs from the
   # one shown was typed, so the bid follows it.

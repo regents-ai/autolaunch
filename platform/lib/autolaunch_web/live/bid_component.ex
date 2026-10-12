@@ -8,8 +8,6 @@ defmodule AutolaunchWeb.BidComponent do
   signed-in wallet's until Privy reports one, and a note names both while the
   wallet app has another one open.
 
-  With `agent_tools`, the panel also answers the page tool that bids
-  (`AutolaunchWeb.AgentPress`): the call is pressed exactly as the button would be.
   With `draft_marker`, the page hears `{:bid_draft_price, price}` whenever the
   form's maximum price changes, so it can mark it on the auction's chart.
 
@@ -27,8 +25,8 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.{AuctionBook, BidActions, Lab, LabProjection}
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.Lab, as: StocksLab
-  alias AutolaunchWeb.{AgentPress, OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
+  alias AutolaunchWeb.{OnchainSteps, Paths, ShareCard, TokenDisplay, UsdValue}
   alias Phoenix.LiveView.AsyncResult
   alias RegentChain.{Presses, Review}
 
@@ -103,7 +101,6 @@ defmodule AutolaunchWeb.BidComponent do
      socket
      |> assign(assigns)
      |> assign_new(:heading, fn -> "Place a bid" end)
-     |> assign_new(:agent_tools, fn -> false end)
      |> assign_new(:authenticated, fn -> false end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
@@ -159,7 +156,6 @@ defmodule AutolaunchWeb.BidComponent do
       id={@id}
       class="bid-panel"
       phx-hook="OnchainSteps"
-      data-agent-tools={@agent_tools && "autolaunch_bid"}
     >
       <BidForm.title id={@id} title={@heading}>
         <:help>
@@ -306,26 +302,6 @@ defmodule AutolaunchWeb.BidComponent do
 
       {:error, socket} ->
         {:reply, %{}, socket}
-    end
-  end
-
-  # An agent's press, for exactly the values it names: the step on screen when
-  # the panel already holds that bid, otherwise the first step of the bid
-  # prepared for them. The form shows the values, as if typed.
-  def handle_event("agent_press", %{"tool" => "autolaunch_bid"} = params, socket) do
-    input = if is_map(params["input"]), do: params["input"], else: %{}
-
-    with true <- socket.assigns.authenticated || {:error, :authentication_required},
-         {:ok, pay_with} <- agent_pay_with(input["pay_with"], socket.assigns) do
-      form = %{
-        BidForm.at_price(socket.assigns.form, input["max_price"])
-        | amount: input["amount"] || "",
-          pay_with: pay_with
-      }
-
-      socket |> assign(form: form, notice: nil, placed: nil) |> agent_bid()
-    else
-      {:error, reason} -> {:reply, AgentPress.refused(copy(reason)), socket}
     end
   end
 
@@ -559,48 +535,6 @@ defmodule AutolaunchWeb.BidComponent do
       do: OnchainSteps.refresh_later(socket),
       else: socket |> assign(prepared_for: nil, carried_note: note) |> prepare_when_ready()
   end
-
-  defp agent_bid(%{assigns: %{signer: nil} = assigns} = socket),
-    do: {:reply, AgentPress.refused(no_signer(assigns)), socket}
-
-  defp agent_bid(%{assigns: assigns} = socket) do
-    case current_step(assigns) do
-      %{name: name} -> {:reply, sending(assigns, name), socket}
-      nil -> agent_prepared(socket)
-    end
-  end
-
-  defp agent_prepared(socket) do
-    case prepared_now(socket) do
-      {:ok, socket} ->
-        [%{step: first} | _rest] = socket.assigns.review.steps
-        {:reply, sending(socket.assigns, first), socket}
-
-      {:error, socket} ->
-        {:reply, AgentPress.refused(socket.assigns.notice || @generic), socket}
-    end
-  end
-
-  # The step the button sends, while the review on the page is for the form as it is now.
-  defp current_step(assigns) do
-    key = bid_key(assigns)
-
-    if key && assigns.prepared_for == key && assigns.review,
-      do: SwapForm.pressable(next_step(assigns), steps(assigns))
-  end
-
-  defp sending(%{review: review, prepared: prepared}, step),
-    do: AgentPress.sending(review, step, &step_label(&1, prepared))
-
-  defp no_signer(%{linked: nil}), do: copy(:authentication_required)
-  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
-
-  defp agent_pay_with(nil, %{auction: auction}), do: {:ok, auction.quote_token_symbol}
-  defp agent_pay_with("USDC", %{usdc_bids?: true}), do: {:ok, "USDC"}
-  defp agent_pay_with("USDC", _assigns), do: {:error, :usdc_bids_unavailable}
-
-  defp agent_pay_with(symbol, %{auction: %{quote_token_symbol: symbol}}), do: {:ok, symbol}
-  defp agent_pay_with(_other, _assigns), do: {:error, :usdc_bids_unavailable}
 
   # The form as it was on screen when pressed: a max FDV that differs from the
   # one shown was typed, so the bid follows it.

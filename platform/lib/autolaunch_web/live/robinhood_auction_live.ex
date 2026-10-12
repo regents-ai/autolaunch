@@ -270,7 +270,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       module={AutolaunchWeb.RobinhoodStockBidComponent}
       id="autolaunch-robinhood-bid"
       outbid_banner
-      agent_tools
       draft_marker={@draft_marker}
       auction={@auction}
       launch={@launch}

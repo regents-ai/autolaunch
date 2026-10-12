@@ -26,9 +26,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   reports a hash and stops, and every outcome on screen is the server's own
   read of that hash against the review it was sent from. A confirmed return or
   claim asks the bid panel to read the wallet's bids again.
-
-  Both rows answer the page tool that settles a bid, named `auction:bid id`
-  (`AutolaunchWeb.AgentPress`): the call presses what the row offers now.
   """
 
   use AutolaunchWeb, :live_component
@@ -39,8 +36,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias Autolaunch.Stocks.Amounts
-  alias AutolaunchWeb.{AgentPress, OnchainSteps, RobinhoodStockBidComponent, TokenDisplay}
   alias AutolaunchWeb.Components.{AuctionBook, SwapForm}
+  alias AutolaunchWeb.{OnchainSteps, RobinhoodStockBidComponent, TokenDisplay}
   alias AutolaunchWeb.UsdValue
   alias RegentChain.{Address, Presses, Review}
 
@@ -165,8 +162,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       id={@id}
       class="bid-early-return"
       phx-hook="OnchainSteps"
-      data-agent-tools="autolaunch_settle_bid"
-      data-agent-bid={agent_bid(assigns)}
     >
       <div hidden={!@line}>
         <AuctionBook.return_line
@@ -246,8 +241,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       id={@id}
       class="bid-settlement-row"
       phx-hook="OnchainSteps"
-      data-agent-tools="autolaunch_settle_bid"
-      data-agent-bid={agent_bid(assigns)}
     >
       <p class="launch-wallet-settled" role="status" hidden={!@returned}>
         {copy(:failed_bid_returned)}
@@ -396,36 +389,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     {:noreply, socket |> followed() |> offer()}
   end
 
-  # An agent's press: the step the row's button would send now, or, after the
-  # auction, the settlement the row offers, prepared and sent at once.
-  def handle_event("agent_press", %{"tool" => "autolaunch_settle_bid"}, socket) do
-    assigns = socket.assigns
-
-    cond do
-      is_nil(assigns.linked) ->
-        {:reply, AgentPress.refused(copy(:authentication_required)), socket}
-
-      is_nil(assigns.signer) ->
-        {:reply, AgentPress.refused(no_signer(assigns)), socket}
-
-      !owner?(assigns) ->
-        {:reply, AgentPress.refused(copy(:not_your_bid)), socket}
-
-      step = assigns.review && reviewed_next(steps(assigns)) ->
-        {:reply, AgentPress.sending(assigns.review, step.name, &label(&1, assigns.prepared)),
-         socket}
-
-      assigns.early ->
-        {:reply, AgentPress.refused(early_refusal(assigns)), socket}
-
-      settle_key(assigns) ->
-        agent_settle(socket)
-
-      true ->
-        {:reply, AgentPress.refused(settled_refusal(assigns)), socket}
-    end
-  end
-
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -541,21 +504,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp request(%{auction: auction, bid: %{"bid_id" => bid_id}}),
     do: %{auction: auction, bid_id: bid_id}
-
-  # An agent waits for this one: it is prepared at once.
-  defp agent_settle(%{assigns: assigns} = socket) do
-    {signer, _bid_id, _exited, _filled} = key = settle_key(assigns)
-    result = StockBidSettlementActions.prepare(request(assigns), signer, opts(socket))
-    socket = reviewed(socket, key, result)
-
-    case {result, socket.assigns.review} do
-      {{:ok, prepared}, %{steps: [%{step: first} | _rest]} = review} ->
-        {:reply, AgentPress.sending(review, first, &label(&1, prepared)), socket}
-
-      _refused ->
-        {:reply, AgentPress.refused(socket.assigns.notice || @generic), socket}
-    end
-  end
 
   defp reviewed(socket, key, {:ok, prepared}) do
     review = Review.new(socket.assigns.id, elem(key, 0), prepared.chain, prepared.steps)
@@ -864,12 +812,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     OnchainSteps.failure_note(reason, assigns.linked, assigns.active, chain_name)
   end
 
-  defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
-
-  # The bid as the page tool names it: its auction and its id.
-  defp agent_bid(%{auction: auction, bid: %{"bid_id" => bid_id}}),
-    do: String.downcase("#{auction}:#{bid_id}")
-
   # The one line under the bid, from the auction's answer; the minimum still
   # to raise is the auction's own minimum less what it has raised.
   defp line({:minimum, raised}, launch) do
@@ -879,24 +821,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp line(status, _launch) when status in [:now, :record, :buying], do: status
   defp line(_status, _launch), do: nil
-
-  # Why an early row has nothing to send, in the words of its line.
-  defp early_refusal(%{settled: %{}}), do: "This bid's unspent stock has already come back."
-  defp early_refusal(%{notice: message}) when is_binary(message), do: message
-
-  defp early_refusal(%{status: :buying}),
-    do: "This bid is still buying at the current price, so none of its stock is unspent yet."
-
-  defp early_refusal(%{status: {:minimum, _raised}}),
-    do: "The unspent stock can come back once the auction raises its minimum."
-
-  defp early_refusal(_assigns),
-    do: "The page is still asking the auction about this bid. Call again in a moment."
-
-  # Why a row after the auction has nothing to offer.
-  defp settled_refusal(%{ended: false}), do: copy(:auction_not_ended)
-  defp settled_refusal(%{notice: message}) when is_binary(message), do: message
-  defp settled_refusal(_assigns), do: "Nothing is left to settle on this bid."
 
   # A bid with nothing left: returned in full, or returned and its tokens
   # claimed (claiming zeroes the fill the auction records).

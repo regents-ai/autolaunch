@@ -61,7 +61,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     <section
       id={@id}
       class="launch-wallet"
-      data-agent-tools="autolaunch_launch"
       phx-hook="OnchainSteps"
     >
       <LaunchSteps.launched_panel
@@ -193,11 +192,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   def handle_event("review_launch", _params, socket),
     do: {:noreply, LaunchSteps.review(socket, &prepare(socket, &1))}
-
-  def handle_event("agent_press", %{"tool" => "autolaunch_launch"}, socket) do
-    {reply, socket} = LaunchSteps.agent_press(socket, &prepare(socket, &1))
-    {:reply, reply, socket}
-  end
 
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}

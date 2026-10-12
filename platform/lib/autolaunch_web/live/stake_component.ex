@@ -31,8 +31,8 @@ defmodule AutolaunchWeb.StakeComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.{FeeSchedule, StakeActions}
-  alias AutolaunchWeb.{AgentPress, OnchainSteps, TokenDisplay}
   alias AutolaunchWeb.Components.{ShareDialog, SwapForm, TokenNext}
+  alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
   alias RegentChain.{Presses, Review}
 
   @copy %{
@@ -62,12 +62,6 @@ defmodule AutolaunchWeb.StakeComponent do
     "settle" => :settle,
     "collect" => :collect,
     "release" => :release
-  }
-  # The page tools an agent presses this card with, and the kind each reviews.
-  @agent_kinds %{
-    "autolaunch_stake" => "stake",
-    "autolaunch_unstake" => "unstake",
-    "autolaunch_claim_rewards" => "claim"
   }
 
   @impl true
@@ -158,7 +152,6 @@ defmodule AutolaunchWeb.StakeComponent do
       id={@id}
       class="token-swap token-stake"
       data-stake-panel
-      data-agent-tools={agent_tools()}
       phx-hook="OnchainSteps"
       aria-labelledby={@id <> "-title"}
     >
@@ -430,35 +423,6 @@ defmodule AutolaunchWeb.StakeComponent do
     end
   end
 
-  # An agent's press: the next step of the review open for the same action,
-  # or the first step of a new one, sent at once as the button would send it.
-  def handle_event("agent_press", %{"tool" => tool} = params, socket)
-      when is_map_key(@agent_kinds, tool) do
-    name = Map.fetch!(@agent_kinds, tool)
-    input = agent_input(params["input"])
-
-    case {action(socket.assigns), open_step(socket.assigns, name, input)} do
-      {:sign_in, _step} ->
-        {:reply, AgentPress.refused(copy(:authentication_required)), socket}
-
-      {:closed, _step} ->
-        {:reply, AgentPress.refused("Staking is not open on this site yet."), socket}
-
-      {:act, %{name: step}} ->
-        {:reply, sending(socket, step), socket}
-
-      {:act, nil} ->
-        case reviewed(socket, name, input) do
-          {:ok, socket} ->
-            [%{step: first} | _rest] = socket.assigns.review.steps
-            {:reply, sending(socket, first), socket}
-
-          {:error, socket} ->
-            {:reply, AgentPress.refused(socket.assigns.notice), socket}
-        end
-    end
-  end
-
   def handle_event("step_sent", params, socket),
     do: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
 
@@ -550,25 +514,6 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp no_signer(%{linked: nil}), do: copy(:authentication_required)
   defp no_signer(assigns), do: failure_note(assigns, "wallet_unavailable")
-
-  # The step the open review's button would send, when that review is for the
-  # same action and amount; a claim takes no amount.
-  defp open_step(%{prepared: %{kind: kind}, review: %{}} = assigns, name, input) do
-    same_amount? = name == "claim" or Map.get(input, "amount") == assigns.amount
-
-    if kind == Map.fetch!(@kinds, name) and same_amount?,
-      do: SwapForm.pressable(next_step(assigns), steps(assigns))
-  end
-
-  defp open_step(_assigns, _name, _input), do: nil
-
-  defp agent_input(%{} = input), do: Map.take(input, ["amount"])
-  defp agent_input(_input), do: %{}
-
-  defp sending(%{assigns: %{review: review, prepared: prepared}}, step),
-    do: AgentPress.sending(review, step, &step_label(&1, prepared))
-
-  defp agent_tools, do: @agent_kinds |> Map.keys() |> Enum.join(" ")
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()

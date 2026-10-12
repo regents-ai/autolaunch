@@ -89,8 +89,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           id="memestock-form"
           class="create-page__form memestock rg-panel rg-panel--surface"
           data-chain={@launch_chain}
-          data-agent-tools="autolaunch_launch_form autolaunch_fill_memestock"
-          phx-hook="AgentTools"
           aria-label="Your memestock"
         >
           <fieldset class="create-page__lock" disabled={@reviewing?}>
