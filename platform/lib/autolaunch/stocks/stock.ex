@@ -58,6 +58,9 @@ defmodule Autolaunch.Stocks.Stock do
         read_action :read
         worker_read_action :read
         queue :stock_volume
+        # The scheduler only picks the stocks to read; on the default queue it
+        # never waits behind a read that takes minutes.
+        scheduler_queue :default
         scheduler_cron "*/30 * * * *"
         max_attempts 1
         # Twice the longest read seen (7.7 minutes), and under the twenty

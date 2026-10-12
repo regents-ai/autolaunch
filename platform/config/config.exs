@@ -10,12 +10,13 @@ import Config
 config :ash_oban, pro?: false
 
 # Background jobs: the launch listing's and the auction finisher's
-# minute-by-minute checks, the stocks' half-hourly volume reads, the daily
-# clearing of saved errors (Autolaunch.ErrorPruner), one job at a time on each
-# of those queues, and Regent Credits' minute-by-minute checks of purchases and
-# Base deposits (application.ex adds the RegentCredits domain). The finishing queue stays paused unless the site has
-# the finisher switched on (runtime.exs); its jobs are unique, so a paused
-# queue holds at most one of each.
+# minute-by-minute checks, the stocks' half-hourly volume reads, one job at a
+# time on each of those queues; the default queue's quick jobs, the daily
+# clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
+# to read; and Regent Credits' minute-by-minute checks of purchases and Base
+# deposits (application.ex adds the RegentCredits domain). The finishing queue
+# stays paused unless the site has the finisher switched on (runtime.exs); its
+# jobs are unique, so a paused queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
 # jobs are announced between processes instead of through PostgreSQL.
 config :autolaunch, Oban,
