@@ -24,6 +24,8 @@
 .create-page__more > summary { min-height: 2.75rem; }
 .create-page__more .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
 .create-page__more .rg-disclosure-body { display: grid; gap: var(--space-3); }
+/* Community Links and Connect Socials: each dropdown in a box of its own. */
+.create-page .rg-disclosure.create-page__box { padding-inline: var(--space-3); border: 1px solid var(--hairline-strong); border-radius: 10px; }
 /* Creator connections sit inside the form, without a card of their own. */
 .create-page .creator-connections { padding: 0; border: 0; border-radius: 0; }
 .create-page .creator-connections::before, .create-page .creator-connections::after { display: none; }

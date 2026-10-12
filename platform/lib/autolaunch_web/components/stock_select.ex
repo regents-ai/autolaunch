@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   The paired stock as a gallery: the chosen stock's logo, ticker and name on a
   button, and under it every stock the chain offers as a card with its logo,
   company website and past week's trading volume. Each card is a radio choice,
-  so the choice saves with its form like any other field.
+  so the choice saves with the form it names like any other field.
 
   Search narrows the cards in the browser as it is typed. Sorting is the
   page's: it puts the cards in order, so keyboard and screen-reader order
@@ -41,6 +41,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   attr :chain, :atom, required: true
   attr :sort, :string, default: "alphabetical"
   attr :sort_event, :string, required: true
+  attr :form, :string, required: true, doc: "the id of the form the choice saves with"
 
   attr :records, :list,
     default: [],
@@ -139,6 +140,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
                 <input
                   type="radio"
                   name={@name}
+                  form={@form}
                   value={stock.address}
                   checked={Address.equal?(@value, stock.address)}
                 />

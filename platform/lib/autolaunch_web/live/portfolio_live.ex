@@ -182,29 +182,31 @@ defmodule AutolaunchWeb.PortfolioLive do
     ~H"""
     <section id="autolaunch-holdings" class="portfolio">
       <header class="portfolio__header">
-        <h1>Portfolio</h1>
-        <Regent.Primitives.button
-          :if={@account_control.kind != :sign_in}
-          id="portfolio-refresh"
-          variant="secondary"
-          phx-click="refresh"
-        >
-          Refresh
-        </Regent.Primitives.button>
+        <div class="portfolio__intro">
+          <h1>Portfolio</h1>
+          <p class="portfolio__hint">
+            Bids and tokens from the wallet you signed in with.
+            <span :if={@opens && @account_control.kind != :sign_in}>
+              Bidding and trading open {@opens}.
+            </span>
+          </p>
+        </div>
+        <div :if={@account_control.kind != :sign_in} class="portfolio__refresh">
+          <Regent.Primitives.button
+            id="portfolio-refresh"
+            variant="secondary"
+            phx-click="refresh"
+            phx-disable-with="Refreshing…"
+            disabled={@refreshing?}
+          >
+            {if @refreshing?, do: "Refreshing…", else: "Refresh"}
+          </Regent.Primitives.button>
+          <p class="portfolio__hint portfolio__updated" role="status">
+            <span :if={@updated_at}>Updated {Calendar.strftime(@updated_at, "%H:%M UTC")}.</span>
+            <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
+          </p>
+        </div>
       </header>
-      <p class="portfolio__hint portfolio__lede">
-        Bids and tokens from the wallet you signed in with.<span
-          :if={@account_control.kind != :sign_in}
-          role="status"
-        >
-          <span :if={@refreshing?}>Refreshing.</span>
-          <span :if={@updated_at}>Updated {Calendar.strftime(@updated_at, "%H:%M UTC")}.</span>
-          <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
-        </span>
-        <span :if={@opens && @account_control.kind != :sign_in}>
-          Bidding and trading open {@opens}.
-        </span>
-      </p>
 
       <section
         :if={@account_control.kind == :sign_in}

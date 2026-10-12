@@ -230,8 +230,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             />
             <Regent.Primitives.disclosure
               id="launch-token-links"
-              summary="More links"
-              class="create-page__more"
+              summary="Community Links"
+              class="create-page__more create-page__box"
               open={@links_given?}
               phx-mounted={JS.ignore_attributes(["open"])}
             >

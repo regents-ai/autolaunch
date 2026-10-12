@@ -115,15 +115,62 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   errors={@detail_errors}
                 />
               </div>
-              <.draft_field
-                form_id="stocks-token-details"
-                param="description"
-                label="Description"
-                kind={:long_text}
-                placeholder="What is this token about?"
-                values={@draft_values}
-                errors={@detail_errors}
-              />
+              <div class="memestock__paired">
+                <div class="memestock__paired-head">
+                  <span class="create-page__label" id="stocks-terms-stock-label">Paired stock</span>
+                  <div class="chain-switch" role="group" aria-label="Chain">
+                    <button
+                      :for={chain <- LaunchChain.chains()}
+                      type="button"
+                      class={"chain-switch__option chain-switch__option--#{chain}"}
+                      aria-pressed={to_string(@launch_chain == chain)}
+                      phx-click={
+                        JS.push("choose_chain", value: %{chain: chain})
+                        |> JS.transition("memestock__form--to-#{chain}",
+                          to: "#memestock-form",
+                          time: 700
+                        )
+                      }
+                    >
+                      {LaunchChain.label(chain)}
+                    </button>
+                  </div>
+                </div>
+                <.stock_select
+                  id="stocks-terms-stock_address"
+                  name="stock_draft[stock_address]"
+                  value={@draft_values["stock_address"]}
+                  chain={@launch_chain}
+                  sort={@stock_sort}
+                  sort_event="sort_stocks"
+                  records={@stock_records[@launch_chain]}
+                  form="stocks-terms"
+                />
+                <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
+                  {@draft_errors["stock_address"]}
+                </p>
+                <p class="create-page__hint">{pay_line(@launch_chain, @stock)}</p>
+                <p
+                  :if={@stock && @market.venues != []}
+                  id="stocks-terms-buy-at"
+                  class="create-page__hint"
+                >
+                  Buy {@stock.symbol} at
+                  <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
+                    <span :if={index > 0}>or</span>
+                    <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
+                    ({compact_usd(venue.liquidity_usd)} liquidity)
+                  </span>
+                </p>
+                <p
+                  :if={!(@stock && @market.venues != [])}
+                  class="create-page__hint create-page__held"
+                  aria-hidden="true"
+                  inert
+                >
+                  Buy the stock at a market
+                </p>
+              </div>
               <.image_upload
                 upload={@stocks_image_upload}
                 image={@draft_values["image"]}
@@ -140,8 +187,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               />
               <Regent.Primitives.disclosure
                 id="stocks-token-links"
-                summary="More links"
-                class="create-page__more"
+                summary="Community Links"
+                class="create-page__more create-page__box"
                 open={@links_given?}
                 phx-mounted={JS.ignore_attributes(["open"])}
               >
@@ -190,67 +237,23 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               After you sign in, you can connect X, GitHub or ENS to show on your auction and token.
             </p>
 
+            <.draft_field
+              form_id="stocks-token-details"
+              param="description"
+              label="Description"
+              kind={:long_text}
+              placeholder="What is this token about?"
+              values={@draft_values}
+              errors={@detail_errors}
+            />
+            <%!-- The paired stock sits up with the name, inside the details
+                 form, and saves with this one through its fields' form
+                 attribute; the description below saves with the details. --%>
             <form
               id="stocks-terms"
-              class="create-page__fields"
               phx-change="autosave_stocks_terms"
               phx-submit="autosave_stocks_terms"
             >
-              <div class="memestock__paired">
-                <div class="memestock__paired-head">
-                  <span class="create-page__label" id="stocks-terms-stock-label">Paired stock</span>
-                  <div class="chain-switch" role="group" aria-label="Chain">
-                    <button
-                      :for={chain <- LaunchChain.chains()}
-                      type="button"
-                      class={"chain-switch__option chain-switch__option--#{chain}"}
-                      aria-pressed={to_string(@launch_chain == chain)}
-                      phx-click={
-                        JS.push("choose_chain", value: %{chain: chain})
-                        |> JS.transition("memestock__form--to-#{chain}",
-                          to: "#memestock-form",
-                          time: 700
-                        )
-                      }
-                    >
-                      {LaunchChain.label(chain)}
-                    </button>
-                  </div>
-                </div>
-                <.stock_select
-                  id="stocks-terms-stock_address"
-                  name="stock_draft[stock_address]"
-                  value={@draft_values["stock_address"]}
-                  chain={@launch_chain}
-                  sort={@stock_sort}
-                  sort_event="sort_stocks"
-                  records={@stock_records[@launch_chain]}
-                />
-                <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
-                  {@draft_errors["stock_address"]}
-                </p>
-                <p class="create-page__hint">{pay_line(@launch_chain, @stock)}</p>
-                <p
-                  :if={@stock && @market.venues != []}
-                  id="stocks-terms-buy-at"
-                  class="create-page__hint"
-                >
-                  Buy {@stock.symbol} at
-                  <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
-                    <span :if={index > 0}>or</span>
-                    <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
-                    ({compact_usd(venue.liquidity_usd)} liquidity)
-                  </span>
-                </p>
-                <p
-                  :if={!(@stock && @market.venues != [])}
-                  class="create-page__hint create-page__held"
-                  aria-hidden="true"
-                  inert
-                >
-                  Buy the stock at a market
-                </p>
-              </div>
             </form>
           </fieldset>
           <div id="stocks-transactions" class="create-page__launch">
@@ -423,6 +426,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         :if={@kind == :long_text}
         id={@id}
         name={"stock_draft[#{@param}]"}
+        form={@form_id}
         rows="3"
         placeholder={@placeholder}
         aria-invalid={@error && "true"}
@@ -434,6 +438,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         type="text"
         id={@id}
         name={"stock_draft[#{@param}]"}
+        form={@form_id}
         value={@value}
         placeholder={@placeholder}
         autocomplete="off"
