@@ -38,7 +38,11 @@ defmodule AutolaunchWeb.PrivySessionController do
     end
   end
 
-  def show(conn, _params), do: json(conn, session_payload(conn.assigns.current_human_account))
+  def show(conn, _params) do
+    conn
+    |> put_resp_header("cache-control", "no-store")
+    |> json(session_payload(conn.assigns.current_human_account))
+  end
 
   def delete(conn, _params) do
     topic = SessionAuthority.revoke(claim(conn))

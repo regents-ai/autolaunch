@@ -14,6 +14,8 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   is logged out first, so you sign in with the wallet your wallet app is on now (Sean, 71 a).
 - Sign out finishes Privy's logout on the page where you pressed it. One that can't finish
   in time is finished by the next page, never dropped (Sean, 71 a).
+- Whether you're signed in is never kept by your browser or a network cache, so a page
+  always asks fresh.
 
 ## v91, 12 October 2026 (df4a9e7)
 - Lists of cards settle in once, the first time they scroll into view; one already in view
