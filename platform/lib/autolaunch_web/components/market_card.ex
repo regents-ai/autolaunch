@@ -338,7 +338,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         phx-change="filter"
         phx-submit="filter"
       >
-        <label>
+        <label class="rg-pill-select">
           <span class="visually-hidden">Chain</span>
           <select name="chain" aria-label="Chain">
             <option
@@ -356,7 +356,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             </option>
           </select>
         </label>
-        <label :if={@kind == "auctions"}>
+        <label :if={@kind == "auctions"} class="rg-pill-select">
           <span class="visually-hidden">Status</span>
           <select name="state" aria-label="Status">
             <option
@@ -379,7 +379,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </label>
         <details
           id={"#{@kind}-verified"}
-          class={["market-list__verified-menu", @verified && "is-active"]}
+          class={["rg-pill-select market-list__verified-menu", @verified && "is-active"]}
           phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
         >
           <summary>Verified</summary>

@@ -4,15 +4,9 @@
 .market-list__header h1 { margin: 0; font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 650; letter-spacing: -.02em; }
 .market-list__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .market-list__filters { display: flex; flex-wrap: wrap; gap: 8px; }
-.market-list__filters select, .market-list__verified-menu summary, .market-list__search input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .8125rem; }
-/* The dropdowns are pills: the arrow sits well inside the right edge, in the text's colour. */
-.market-list__filters select, .market-list__verified-menu summary { padding: 8px 40px 8px 18px; border-radius: 999px; cursor: pointer; }
-.market-list__filters select { appearance: none; -webkit-appearance: none; }
-.market-list__filters > label { position: relative; display: inline-flex; }
-.market-list__filters > label::after, .market-list__verified-menu summary::after { content: ""; position: absolute; top: 50%; right: 16px; width: 12px; height: 8px; margin-top: -4px; background: currentColor; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23000' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; pointer-events: none; }
-.market-list__verified-menu { position: relative; }
-.market-list__verified-menu summary { position: relative; display: inline-flex; align-items: center; list-style: none; }
-.market-list__verified-menu summary::-webkit-details-marker { display: none; }
+.market-list__search input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .8125rem; }
+/* The dropdowns are the shared pills (rg-pill-select), at the list's smaller type. */
+.market-list__filters .rg-pill-select > :is(select, summary) { font-size: .8125rem; }
 .market-list__verified-menu.is-active summary { border-color: var(--color-fg); }
 .market-list__verified-menu fieldset { position: absolute; left: 0; top: calc(100% + 8px); transform-origin: top left; z-index: 3; display: grid; gap: 10px; width: 240px; margin: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; }
 .market-list__verified-menu legend { float: left; margin-bottom: 2px; color: var(--color-fg-muted); font-size: .75rem; }

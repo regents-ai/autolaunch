@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Not yet live, 12 October 2026: Portfolio refresh and create page layout
+## Not yet live, 12 October 2026: Portfolio refresh, create page layout, shared dropdowns
 - On Portfolio, the time the figures were read sits under Refresh. While a refresh runs the
   button reads "Refreshing…" and can't be pressed again until it finishes.
 - On the Memestock create page, Paired stock comes right after Name and Ticker, and
@@ -11,6 +11,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - "More links" is now "Community Links" and "Socials (optional)" is now "Connect Socials",
   each in a bordered box. Community Links changes on the Revstake create page too.
 - The token image hint reads "400x400 optimal".
+- The list dropdowns use the rounded style every Regent site now shares (Sean, 89 a).
 
 ## v92, 12 October 2026 (5649093)
 - The Account page relies on the sign-in check every Regent site shares (Sean, 66 a).
