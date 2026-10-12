@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.BidComponent do
   import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{AuctionBook, BidActions, Lab, LabProjection}
+  alias Autolaunch.{AuctionBook, BidActions, Lab, LabProjection, Limits}
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias AutolaunchWeb.Components.{BidForm, BidPlaced, SwapForm}
@@ -652,13 +652,22 @@ defmodule AutolaunchWeb.BidComponent do
   defp project(_context, nil), do: :ok
   defp project(context, result), do: LabProjection.project_bid(context, result)
 
+  # Each read counts against the account's wallet-read allowance. Past it, the
+  # balance already shown stays, and one not read yet reads as unavailable.
   defp read_balance(%{assigns: %{wallet: wallet, auction: auction}} = socket)
        when is_binary(wallet) do
+    %{current_human_id: human_id, balance: balance} = socket.assigns
     opts = opts(socket)
 
-    start_async(socket, :balance, fn ->
-      {wallet, Autolaunch.bid_position(auction.id, wallet, opts)}
-    end)
+    case Limits.spend(:wallet_read, {:human, human_id}) do
+      :ok ->
+        start_async(socket, :balance, fn ->
+          {wallet, Autolaunch.bid_position(auction.id, wallet, opts)}
+        end)
+
+      :limited ->
+        assign(socket, balance: balance || :unread)
+    end
   end
 
   defp read_balance(socket), do: socket

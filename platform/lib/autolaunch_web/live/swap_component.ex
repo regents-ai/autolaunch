@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
-  alias Autolaunch.SwapActions
+  alias Autolaunch.{Limits, SwapActions}
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths}
   alias RegentChain.{Presses, Review}
@@ -469,10 +469,19 @@ defmodule AutolaunchWeb.SwapComponent do
       revision: socket.assigns.revision
     }
 
+  # Each read counts against the account's wallet-read allowance. Past it, the
+  # balances already shown stay, and ones not read yet read as unavailable.
   defp balanced(%{assigns: %{wallet: wallet, currency: currency}} = socket)
        when is_binary(wallet) and is_binary(currency) do
-    launch = socket.assigns.launch
-    start_async(socket, :balances, fn -> {wallet, SwapActions.balances(launch, wallet)} end)
+    %{launch: launch, current_human_id: human_id, balances: balances} = socket.assigns
+
+    case Limits.spend(:wallet_read, {:human, human_id}) do
+      :ok ->
+        start_async(socket, :balances, fn -> {wallet, SwapActions.balances(launch, wallet)} end)
+
+      :limited ->
+        assign(socket, balances: balances || :unread)
+    end
   end
 
   defp balanced(socket), do: assign(socket, balances: nil)

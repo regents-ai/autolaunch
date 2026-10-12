@@ -139,6 +139,10 @@ config :autolaunch, :autolaunch_indexer_chains, []
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
+# How often one account's wallet figures may be read from the chain each window
+# (Autolaunch.Limits).
+config :autolaunch, :limits, wallet_read: [limit: 30, window_seconds: 60]
+
 # The API and health check budgets key on the direct peer. Production turns on
 # Fly's client header.
 config :autolaunch, :behind_fly_proxy, false
