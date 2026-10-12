@@ -120,9 +120,10 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
 
   # Each candle is [start, open, high, low, close, volume in USD]; a day with
   # no trades has no candle. One candle of any other shape fails the read, and
-  # so does a pool address that is not one (20 bytes, or a 32-byte pool id).
+  # so does a pool address that is not one: 20 bytes, a 32-byte pool id, or
+  # Ekubo's core contract and 32-byte pool id joined by a dash.
   defp pool_volume(network, pool, first, through) when is_binary(pool) do
-    if pool =~ ~r/\A0x[0-9a-f]{40}([0-9a-f]{24})?\z/i,
+    if pool =~ ~r/\A0x[0-9a-f]{40}([0-9a-f]{24}|-0x[0-9a-f]{64})?\z/i,
       do: pool_candles(network, pool, first, through),
       else: {:error, :malformed_pool}
   end
