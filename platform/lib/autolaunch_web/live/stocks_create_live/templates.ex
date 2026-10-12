@@ -251,6 +251,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                  attribute; the description below saves with the details. --%>
             <form
               id="stocks-terms"
+              hidden
               phx-change="autosave_stocks_terms"
               phx-submit="autosave_stocks_terms"
             >

@@ -202,6 +202,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             {if @refreshing?, do: "Refreshing…", else: "Refresh"}
           </Regent.Primitives.button>
           <p class="portfolio__hint portfolio__updated" role="status">
+            <span :if={@refreshing?} class="visually-hidden">Refreshing.</span>
             <span :if={@updated_at}>Updated {Calendar.strftime(@updated_at, "%H:%M UTC")}.</span>
             <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
           </p>
