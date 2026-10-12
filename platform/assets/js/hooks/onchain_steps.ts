@@ -30,6 +30,7 @@ type OnchainStepsHook = Hook & {
   review?: Review
   clicked?: (event: Event) => void
   walletChanged?: () => void
+  refresh?: () => void
 }
 
 // How many of a button's presses the wallet still has. The mark comes off when
@@ -40,6 +41,11 @@ const presses = new WeakMap<HTMLElement, number>()
  * The wallet buttons of one server component. The component's root carries the
  * hook and a DOM id; each button names its step with `data-onchain-step`, and
  * each form field the review depends on is marked `data-onchain-input="name"`.
+ *
+ * A root marked `data-refresh-funds` also asks the server to read its funds
+ * again (`refresh_funds`) when the wallet changes, when the page comes back
+ * into view, when the window holding it opens (`autolaunch:refresh-funds` on
+ * the root) and after each press.
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
@@ -64,19 +70,26 @@ export const OnchainSteps: Hook = {
       const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step]")
       const name = button?.dataset.onchainStep
       if (!button || !name || card(button) !== this.el) return
-      const release = mark(button)
+      const marked = mark(button)
+      // The press may have spent funds or changed what the wallet allows.
+      const release = () => {
+        marked()
+        this.refresh?.()
+      }
       const form = formInputs(this.el)
+      lost(this.el, false)
 
       const asks = Object.keys(form).length > 0 && (!this.review || !sameInputs(this.review.inputs, form))
       if (activeEthereumWallet() && asks) {
         void this.pushEventTo(this.el, "prepare_and_send", {form, step: name})
-          .then(([result]) => {
-            const reply = result?.status === "fulfilled" ? result.value.reply as {review?: Review; send?: string} : {}
-            if (reply.review && reply.send) return press(reply.review, reply.send, push)
-            push("step_failed", {step: name, reason: "step_unknown"})
+          .then(async ([result]) => {
+            // The server never heard the press, so it cannot say why; the page does.
+            if (result?.status !== "fulfilled") return lost(this.el, true)
+            const reply = result.value.reply as {review?: Review; send?: string}
+            if (reply.review && reply.send) await press(reply.review, reply.send, push)
+            else push("step_failed", {step: name, reason: "step_unknown"})
           })
-          // A lost connection drops the question; the button comes back to press again.
-          .catch(() => {})
+          .catch(() => lost(this.el, true))
           .finally(release)
       } else {
         void press(this.review, name, push).finally(release)
@@ -88,12 +101,26 @@ export const OnchainSteps: Hook = {
     // wallet Privy has active and pushes a new review, or none.
     this.walletChanged = () => push("onchain_active_wallet", {address: activeEthereumWallet()?.address ?? null})
     window.addEventListener("autolaunch:wallet-state", this.walletChanged)
+
+    if (this.el.hasAttribute("data-refresh-funds")) {
+      this.refresh = () => push("refresh_funds", {})
+      window.addEventListener("autolaunch:wallet-state", this.refresh)
+      window.addEventListener("focus", this.refresh)
+      this.el.addEventListener("autolaunch:refresh-funds", this.refresh)
+    }
+
     this.walletChanged()
+    this.refresh?.()
   },
 
   destroyed(this: OnchainStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     if (this.walletChanged) window.removeEventListener("autolaunch:wallet-state", this.walletChanged)
+    if (this.refresh) {
+      window.removeEventListener("autolaunch:wallet-state", this.refresh)
+      window.removeEventListener("focus", this.refresh)
+      this.el.removeEventListener("autolaunch:refresh-funds", this.refresh)
+    }
   },
 }
 
@@ -151,6 +178,13 @@ export function formInputs(root: HTMLElement): Record<string, string> {
 function sameInputs(review: Record<string, string>, form: Record<string, string>): boolean {
   const names = new Set([...Object.keys(review), ...Object.keys(form)])
   return [...names].every(name => review[name] === form[name])
+}
+
+// The component's `data-onchain-lost` line, shown when a press could not reach
+// the server. The next render from the server hides it again.
+function lost(root: HTMLElement, shown: boolean): void {
+  const line = root.querySelector<HTMLElement>("[data-onchain-lost]")
+  if (line) line.hidden = !shown
 }
 
 // Marked with a data attribute and CSS only: the button keeps taking presses.

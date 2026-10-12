@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.Components.TopBar do
   import AutolaunchWeb.Components.AccountControl
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
+  attr :credits, :map, required: true, doc: "As for `AutolaunchWeb.Components.Credits.button/1`."
 
   def top_bar(assigns) do
     ~H"""
@@ -48,6 +49,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         <:trail><.theme_toggle /></:trail>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
+        <AutolaunchWeb.Components.Credits.button credits={@credits} />
         <.account_control account_control={@account_control} />
         <AutolaunchWeb.Components.SidePanel.button />
       </div>

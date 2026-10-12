@@ -5,24 +5,27 @@ defmodule AutolaunchWeb.AccountLive do
   the sign-in ended when it lapsed while the page was open. Signed in, its
   Profile section says who is signed in, with which wallet, links to their
   Regents account and offers Sign out. The agents they paired follow, read-only:
-  pairing is managed on regents.sh. Then their Credits and Points, read-only:
-  Autolaunch charges no Credits and Points earning has not opened here. Their
+  pairing is managed on regents.sh. Then their Credits, bought from the header's
+  Credits button and managed on regents.sh, and their Points: Autolaunch charges
+  no Credits and Points earning has not opened here. Their
   connected accounts come last, through the Create page's connections
   component, so an account connected here is the same one Create shows.
 
   Each section is read on its own and shows its own loading and could-not-be-read
-  states. A Credits change or a pairing made on any Regent site reads again.
+  states. The Credits balance is the one every page reads
+  (`AutolaunchWeb.Live.Credits`); a Credits change or a pairing made on any
+  Regent site reads again.
   """
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
-  alias Autolaunch.Accounts
+  alias Autolaunch.{Accounts, Credits}
   alias Autolaunch.Actors.{Human, System}
   alias AutolaunchWeb.Read
   alias RegentAgents.{Harness, Person}
 
-  @reads [:agents_read, :credits_read, :history_read, :points_read]
+  @reads [:agents_read, :history_read, :points_read]
 
   @regents_account_url "https://regents.sh/account"
 
@@ -42,8 +45,8 @@ defmodule AutolaunchWeb.AccountLive do
   def handle_async({Read, _, _} = name, result, socket),
     do: {:noreply, Read.settle(socket, name, result)}
 
-  def handle_info(:credits_changed, socket),
-    do: {:noreply, socket |> read_credits() |> read_history("")}
+  @doc "The Credits activity follows a change to the balance (`AutolaunchWeb.Live.Credits`)."
+  def credits_changed(socket), do: read_history(socket, "")
 
   def handle_info(:agents_changed, socket), do: {:noreply, read_agents(socket)}
 
@@ -135,7 +138,9 @@ defmodule AutolaunchWeb.AccountLive do
           }
           held={@credits_read.value && RegentCredits.Amount.format(@credits_read.value.held)}
           state={read_state(@credits_read)}
-        />
+        >
+          <a href="https://regents.sh/account">Manage Credits on regents.sh</a>
+        </Regent.Account.credits_summary>
         <Regent.Account.points_summary
           id="account-points"
           confirmed={
@@ -195,7 +200,6 @@ defmodule AutolaunchWeb.AccountLive do
   defp listen(socket) do
     with true <- connected?(socket),
          {:human, account} <- socket.assigns.access_context.principal do
-      Phoenix.PubSub.subscribe(Autolaunch.PubSub, RegentCredits.topic(account.privy_user_id))
       Phoenix.PubSub.subscribe(Autolaunch.PubSub, RegentAgents.topic(account.privy_user_id))
     end
 
@@ -203,21 +207,13 @@ defmodule AutolaunchWeb.AccountLive do
   end
 
   defp read_account(socket) do
-    socket |> read_agents() |> read_credits() |> read_history("") |> read_points()
+    socket |> read_agents() |> read_history("") |> read_points()
   end
 
   defp read_agents(socket) do
     with_person(socket, fn account ->
       Read.start(socket, :agents_read, account.privy_user_id, fn ->
         RegentAgents.list_my_agents(actor: %Person{privy_user_id: account.privy_user_id})
-      end)
-    end)
-  end
-
-  defp read_credits(socket) do
-    with_person(socket, fn account ->
-      Read.start(socket, :credits_read, account.privy_user_id, fn ->
-        {:ok, RegentCredits.balance(account.privy_user_id)}
       end)
     end)
   end
@@ -232,13 +228,7 @@ defmodule AutolaunchWeb.AccountLive do
 
   defp read_history(socket, cursor) do
     with_person(socket, fn account ->
-      actor =
-        RegentCredits.Actor.person(
-          account.privy_user_id,
-          account.wallet_addresses,
-          "autolaunch"
-        )
-
+      actor = Credits.person(account)
       args = if cursor == "", do: %{}, else: %{after: cursor}
 
       Read.start(socket, :history_read, {account.privy_user_id, cursor}, fn ->

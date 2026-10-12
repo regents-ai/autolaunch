@@ -14,6 +14,7 @@
 @import "./components/stake_summary.css";
 @import "./components/figures.css";
 @import "./components/motion.css";
+@import "./components/credits.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";
 @import "./shell/top_bar.css";

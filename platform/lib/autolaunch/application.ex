@@ -127,15 +127,17 @@ defmodule Autolaunch.Application do
     )
   end
 
-  # Background jobs, which finish ended auctions, run once launches are open,
-  # with the poller that measures how long their oldest job has waited.
+  # Background jobs, which finish ended auctions and check Credits purchases, run
+  # once launches are open, with the poller that measures how long their oldest
+  # job has waited. AshOban adds a sweep for every trigger in the site's domains
+  # and in Regent Credits, whose purchase checks run on this site's Oban.
   defp autolaunch_jobs_child do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do
       [
         {Oban,
          AshOban.config(
-           Application.fetch_env!(:autolaunch, :ash_domains),
+           Application.fetch_env!(:autolaunch, :ash_domains) ++ [RegentCredits],
            Application.fetch_env!(:autolaunch, Oban)
          )},
         AutolaunchWeb.Telemetry.jobs_poller()

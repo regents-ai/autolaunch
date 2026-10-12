@@ -1,7 +1,8 @@
-// The side panel, which the browser alone opens and closes, as the template's
-// shell does. Its state lives on <html data-aside>, which the server first draws
-// from the cookie written here (AutolaunchWeb.Plugs.Panels), so LiveView never
-// patches it away.
+// The side panel and the Buy Credits window, which the browser alone opens and
+// closes, as the template's shell does. The side panel's state lives on
+// <html data-aside>, which the server first draws from the cookie written here
+// (AutolaunchWeb.Plugs.Panels), so LiveView never patches it away; the window's
+// is its own `open`, which LiveView leaves alone.
 
 const yearInSeconds = 60 * 60 * 24 * 365
 const cookie = "autolaunch_aside"
@@ -16,10 +17,11 @@ function remember(value: string) {
 const root = () => document.documentElement
 export const asideOpen = () => root().dataset.aside === "open"
 
-/** Wires the side panel inside `scope`. Returns `sync`, to run after every page update, and `cleanup`. */
+/** Wires the side panel and the Buy Credits window inside `scope`. Returns `sync`, to run after every page update, and `cleanup`. */
 export function installShellPanels(scope: Document | HTMLElement = document) {
   const aside = () => scope.querySelector<HTMLElement>("#shell-aside")
   const asideButton = () => scope.querySelector<HTMLButtonElement>("#shell-aside-button")
+  const credits = () => scope.querySelector<HTMLDialogElement>("#shell-credits")
   const phone = () => window.matchMedia("(max-width: 47.99rem)").matches
 
   // The side panel's own button and the account name in the header both open it.
@@ -39,6 +41,19 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     }
   }
 
+  // Opening Buy Credits reads the wallet's funds again, so Buy is held back
+  // only by what the chain says now.
+  const openCredits = () => {
+    const dialog = credits()
+    if (!dialog || dialog.open) return
+    dialog.showModal()
+    dialog
+      .querySelectorAll("[data-refresh-funds]")
+      .forEach(panel => panel.dispatchEvent(new CustomEvent("autolaunch:refresh-funds")))
+  }
+
+  const closeCredits = () => credits()?.close()
+
   const onClick = (event: Event) => {
     const target = event.target instanceof Element ? event.target : null
     if (!target) return
@@ -48,6 +63,10 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
       setAside(false)
       return asideButton()?.focus()
     }
+    if (target.closest("#shell-credits-button")) return openCredits()
+    if (target.closest("[data-credits-close]")) return closeCredits()
+    // A press on the window's own backdrop lands on the dialog itself.
+    if (target === credits()) return closeCredits()
     // On a phone the side bar covers the page, so a page link inside it closes it.
     if (phone() && target.closest("#shell-aside a")) setAside(false)
   }

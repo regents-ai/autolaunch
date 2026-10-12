@@ -131,7 +131,10 @@ defmodule AutolaunchWeb.Router do
 
     live_session :public_root,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
-      on_mount: [{AutolaunchWeb.Live.Session, :public_human}] do
+      on_mount: [
+        {AutolaunchWeb.Live.Session, :public_human},
+        {AutolaunchWeb.Live.Credits, :credits}
+      ] do
       live "/", HomeLive, :home
     end
 
@@ -155,7 +158,10 @@ defmodule AutolaunchWeb.Router do
 
     live_session :product_shell,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
-      on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
+      on_mount: [
+        {AutolaunchWeb.Live.Session, :load_human},
+        {AutolaunchWeb.Live.Credits, :credits}
+      ] do
       live "/create", StocksCreateLive, :create
       live "/create/revstake", CreateLive, :create
       live "/auctions", AuctionsLive, :index
@@ -179,7 +185,8 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Showcase, :motion_lab},
-        {AutolaunchWeb.Live.Session, :load_human}
+        {AutolaunchWeb.Live.Session, :load_human},
+        {AutolaunchWeb.Live.Credits, :credits}
       ] do
       live "/animations", AnimationsLive, :index
     end

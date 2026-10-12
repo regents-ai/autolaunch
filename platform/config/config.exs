@@ -10,9 +10,10 @@ import Config
 config :ash_oban, pro?: false
 
 # Background jobs: the launch listing's and the auction finisher's
-# minute-by-minute checks, the stocks' half-hourly volume reads and the daily
+# minute-by-minute checks, the stocks' half-hourly volume reads, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner), one job at a time on each
-# queue. The finishing queue stays paused unless the site has
+# of those queues, and Regent Credits' minute-by-minute checks of purchases and
+# Base deposits (application.ex adds the RegentCredits domain). The finishing queue stays paused unless the site has
 # the finisher switched on (runtime.exs); its jobs are unique, so a paused
 # queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
@@ -27,7 +28,8 @@ config :autolaunch, Oban,
     launch_listing: 1,
     outside_calls: 3,
     stock_volume: 1,
-    default: 1
+    default: 1,
+    regent_credits: 3
   ],
   plugins: [
     {Oban.Plugins.Cron, crontab: [{"17 4 * * *", Autolaunch.ErrorPruner}]},
@@ -51,7 +53,13 @@ config :regent_credits,
   pubsub: Autolaunch.PubSub,
   ash_domains: [RegentCredits],
   admins: [],
-  agent_grants_enabled: false
+  agent_grants_enabled: false,
+  chain_client: Autolaunch.Chain.NodeClient,
+  on_credited: Autolaunch.Credits.Credited,
+  chains: %{
+    base: %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"},
+    ethereum: %{chain_id: 1, name: "Ethereum", rpc_url: "https://ethereum-rpc.publicnode.com"}
+  }
 
 config :ex_money,
   custom_currencies: [{:XRC, name: "Credits", digits: 6}],
@@ -152,9 +160,11 @@ config :autolaunch, :autolaunch_indexer_chains, []
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
-# How often one account's wallet figures may be read from the chain each window
-# (Autolaunch.Limits).
-config :autolaunch, :limits, wallet_read: [limit: 30, window_seconds: 60]
+# How often one account's wallet figures may be read from the chain, and how
+# often it may report a Credits purchase, each window (Autolaunch.Limits).
+config :autolaunch, :limits,
+  wallet_read: [limit: 30, window_seconds: 60],
+  credits_report: [limit: 120, window_seconds: 60]
 
 # The API and health check budgets key on the direct peer. Production turns on
 # Fly's client header.

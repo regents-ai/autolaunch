@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Not yet live (after the release above), 12 October 2026: errors kept on the site
+## Not yet live, 12 October 2026: errors kept on the site, side panel, Points, Credits
 - Errors the site meets are saved in Autolaunch's own database and cleared a week after
   they were last seen, the way the template does it; Sentry is no longer used. Credits
   admins (named in REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets
@@ -18,8 +18,11 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - A Points page at /account/points, the template's: your balance, your NFT bonus, recent
   activity and what earns points. Earning hasn't opened on Autolaunch, so it says so.
   The Account page links to it.
+- A Credits button in the header on every page shows your Regents Credits balance and
+  opens Buy Credits: pay USDC on Base from your wallet and the Credits count across every
+  Regent site. The Account page's Credits card links to regents.sh to manage them.
 
-## Not yet live, 12 October 2026: Portfolio refresh, create page layout, shared dropdowns
+## v93, 12 October 2026 (a82c114): Portfolio refresh, create page layout, shared dropdowns
 - On Portfolio, the time the figures were read sits under Refresh. While a refresh runs the
   button reads "Refreshing…" and can't be pressed again until it finishes.
 - On the Memestock create page, Paired stock comes right after Name and Ticker, and
