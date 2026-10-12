@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v90, 12 October 2026 (9cabd3a)
+- Site errors can be reported to Sentry. Nothing is sent until a Sentry project is set.
+
 ## v89, 12 October 2026 (0cad4ad)
 - The site connects to its database only through the direct connection, which its live
   updates and database upgrades need.
