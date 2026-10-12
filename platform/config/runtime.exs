@@ -6,6 +6,11 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN"),
+  release: System.get_env("SENTRY_RELEASE"),
+  environment_name: System.get_env("SENTRY_ENVIRONMENT", to_string(config_env()))
+
 # The Privy application's public verification key, as one PEM block. The
 # session boundary and the shared identity API both verify against it; it is
 # read only from this variable, never from a URL or from a token.

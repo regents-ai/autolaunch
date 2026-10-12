@@ -113,6 +113,7 @@ defmodule Autolaunch.MixProject do
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:telemetry_poller, "~> 1.3"},
       {:jason, "~> 1.2"},
+      {:sentry, "~> 13.0"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
       # Signs the transaction that finishes an ended auction.

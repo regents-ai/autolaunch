@@ -9,6 +9,8 @@ defmodule Autolaunch.Application do
 
   @impl true
   def start(_type, _args) do
+    :ok = Logger.add_handlers(:autolaunch)
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Autolaunch.Supervisor]
