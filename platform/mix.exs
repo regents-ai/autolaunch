@@ -4,11 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "1f6ce01364ad3da8f0593f21a620e9fe1c199145"
+  @elixir_utils_ref "99cff81501c644287245b31065920e178b8d0946"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "d3408b5757732e05aaf208d829f65f1bb12147c0"
-  @regents "https://github.com/regents-ai/regents.git"
-  @regents_ref "004307e65ffcf9cc9b3034d7cc2b015dcd45011b"
 
   def project do
     [
@@ -88,9 +86,11 @@ defmodule Autolaunch.MixProject do
        ref: @elixir_utils_ref,
        sparse: "siwa/siwa-elixir/apps/siwa",
        override: true},
+      # regent_identity pins its own elixir-utils commit; this pin replaces it.
       {:regent_privy,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy", override: true},
-      {:regent_identity, git: @regents, ref: @regents_ref, sparse: "identity"},
+      {:regent_identity,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/identity"},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
