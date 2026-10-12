@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Not yet live, 12 October 2026: stock trading volumes
+## v95, 12 October 2026 (372881a): stock trading volumes
 - Trading volumes for Robinhood stocks update again. Since early on 12 October, 16 of them
   had stopped updating after a new exchange's pools began to be listed.
 
