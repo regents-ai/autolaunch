@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## Next release: agent reads and a steadier volume schedule
+- The Regents command-line tool can read Autolaunch's auctions, one auction, a bid estimate,
+  launched tokens and a treasury's security report without signing in, once the tool's next
+  version picks them up. None of them places a bid or changes anything.
+- Choosing which stocks' volumes to read next no longer waits behind a slow read.
+
 ## v95, 12 October 2026 (372881a): stock trading volumes
 - Trading volumes for Robinhood stocks update again. Since early on 12 October, 16 of them
   had stopped updating after a new exchange's pools began to be listed.
