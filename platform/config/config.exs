@@ -31,10 +31,8 @@ config :autolaunch, Oban,
     default: 1,
     regent_credits: 3
   ],
-  plugins: [
-    {Oban.Plugins.Cron, crontab: [{"17 4 * * *", Autolaunch.ErrorPruner}]},
-    {Oban.Plugins.Pruner, max_age: 86_400}
-  ],
+  cron: [crontab: [{"17 4 * * *", Autolaunch.ErrorPruner}]],
+  pruner: [max_age: {1, :day}],
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
   # still running is never taken over; a finishing check orphaned by a stopped
