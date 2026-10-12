@@ -3,6 +3,21 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v87, 12 October 2026 (fa57c44)
+- Memestake is now called Memestock everywhere on the site, in its links and in stored launches.
+- Create Memestock picks the paired stock from a searchable gallery, sorted Alphabetical,
+  by Trading Volume or Recently Added. Each stock shows its past week of trading volume;
+  a figure ending in "+" is at least that much. A picked stock carries over to the other
+  chain when that chain lists the same company's stock.
+- Explore has a Finished tab for graduated and failed launches.
+- The account page lives at /account. It shows paired agents, Credits and Points, links
+  out to regents.sh, and says when a session has ended.
+- When the open wallet isn't linked to the account, a note beside the button names both
+  wallets and asks for a switch.
+- Agents pair and act over signed requests only. The in-page wallet tools for bidding,
+  trading, staking and launching are removed; the page's read tools stay.
+- Shared motion, design-system and library pins match the other Regent sites.
+
 ## v86, 11 October 2026 (2ec5eb4)
 - The header shows the signed-in wallet's ENS name and picture when the wallet has a primary
   ENS name that points back to it. Each sign-in reads it again from Ethereum mainnet.
