@@ -367,7 +367,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
                   {"active", "Live"},
                   {"ended", "Waiting to finish"},
                   {"graduated", "Graduated"},
-                  {"failed", "Failed"}
+                  {"failed", "Minimum unmet"}
                 ]
               }
               value={value}
@@ -560,6 +560,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <.list_token
         name={@view.name}
         symbol={@view.symbol}
+        unit={@view.metric.unit}
         image={@view.image}
         chain={@view.chain}
         path={@view.path}
@@ -853,7 +854,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     do: time_left(max(DateTime.diff(end_at, DateTime.utc_now()), 0))
 
   defp figure_status(%{state: :graduated} = auction), do: ended("Graduated", auction)
-  defp figure_status(%{state: :failed} = auction), do: ended("Failed", auction)
+  defp figure_status(%{state: :failed} = auction), do: ended("Minimum unmet", auction)
   defp figure_status(%{state: state}), do: state_label(state)
 
   # Days, hours and minutes, never seconds; the last minute reads "Ending".
@@ -1249,7 +1250,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def state_label(:active), do: "Live"
   def state_label(:ended), do: "Waiting to finish"
   def state_label(:graduated), do: "Graduated"
-  def state_label(:failed), do: "Failed"
+  def state_label(:failed), do: "Minimum unmet"
 
   # An auction past its end block takes no bids, so its card offers none.
   defp auction_bid(%{state: state}) when state in [:ended, :graduated, :failed], do: nil
@@ -1271,7 +1272,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   # failure reads as an error, every other state stays plain.
   defp state_tone("Live"), do: "info"
   defp state_tone("Graduated"), do: "success"
-  defp state_tone("Failed"), do: "error"
+  defp state_tone("Minimum unmet"), do: "error"
   defp state_tone(_status), do: "neutral"
 
   # `empty` is what the card shows while there is no figure.

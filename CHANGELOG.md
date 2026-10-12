@@ -16,6 +16,10 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   in time is finished by the next page, never dropped (Sean, 71 a).
 - Whether you're signed in is never kept by your browser or a network cache, so a page
   always asks fresh.
+- The Tokens list shows each ticker with the currency it trades against, such as RDOG / SPCX.
+- A token's picture always fits its circle in the lists, however tall or wide the picture is.
+- An auction that ended below its minimum reads "Minimum unmet" instead of "Failed".
+- The list dropdowns are rounded, with the arrow set in from the edge.
 
 ## v91, 12 October 2026 (df4a9e7)
 - Lists of cards settle in once, the first time they scroll into view; one already in view

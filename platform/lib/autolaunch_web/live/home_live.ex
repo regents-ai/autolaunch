@@ -396,7 +396,7 @@ defmodule AutolaunchWeb.HomeLive do
                     {"active", "Live"},
                     {"finished", "Finished"},
                     {"ended", "Waiting to finish"},
-                    {"failed", "Failed"},
+                    {"failed", "Minimum unmet"},
                     {"graduated", "Graduated"}
                   ]
                 }
