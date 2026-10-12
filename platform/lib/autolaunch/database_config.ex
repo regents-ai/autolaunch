@@ -3,10 +3,7 @@ defmodule Autolaunch.DatabaseConfig do
 
   @deployment_role_variable "AUTOLAUNCH_DEPLOYMENT_ROLE"
   @deployment_role_error ~s(AUTOLAUNCH_DEPLOYMENT_ROLE must be set to "production" or "staging")
-  @production_hosts [
-    "direct.dzx6qo6xqzvojpv5.flympg.net",
-    "pgbouncer.dzx6qo6xqzvojpv5.flympg.net"
-  ]
+  @production_host "direct.dzx6qo6xqzvojpv5.flympg.net"
 
   def runtime_config!(environment, getenv \\ &System.get_env/1)
 
@@ -20,6 +17,9 @@ defmodule Autolaunch.DatabaseConfig do
     end
 
     database_url!(getenv, "DATABASE_URL")
+    |> require_direct!(
+      "DATABASE_URL must use the direct endpoint: the site listens for shared changes on it"
+    )
     |> require_runtime_target!(getenv)
     |> put_web_parameters()
     |> Keyword.merge(
@@ -38,13 +38,17 @@ defmodule Autolaunch.DatabaseConfig do
 
   def release_config!(getenv \\ &System.get_env/1) do
     require_deployment_role!(getenv)
-    options = database_url!(getenv, "DATABASE_DIRECT_URL")
-    host = URI.parse(options[:url]).host
 
-    if fly_mpg_pgbouncer_host?(host) do
-      raise "DATABASE_DIRECT_URL must use the direct endpoint for migration session locks"
-    end
+    database_url!(getenv, "DATABASE_DIRECT_URL")
+    |> require_direct!(
+      "DATABASE_DIRECT_URL must use the direct endpoint for migration session locks"
+    )
+  end
 
+  # PgBouncer's transaction pooling keeps neither LISTEN nor session advisory
+  # locks, so neither the site nor its migrations connect through it.
+  defp require_direct!(options, message) do
+    if fly_mpg_pgbouncer_host?(URI.parse(options[:url]).host), do: raise(message)
     options
   end
 
@@ -52,7 +56,7 @@ defmodule Autolaunch.DatabaseConfig do
     if getenv.(@deployment_role_variable) == "production" do
       parsed = Ecto.Repo.Supervisor.parse_url(options[:url])
 
-      unless String.downcase(parsed[:hostname]) in @production_hosts and
+      unless String.downcase(parsed[:hostname]) == @production_host and
                parsed[:database] == "regents_prod" and
                parsed[:username] == "autolaunch-runtime" do
         raise "Autolaunch production must use regents_prod on its approved cluster with the runtime login"
@@ -62,25 +66,13 @@ defmodule Autolaunch.DatabaseConfig do
     options
   end
 
-  # PgBouncer does not generally accept arbitrary PostgreSQL startup GUCs or
-  # preserve them across transaction-pooled server assignments. Keep those
-  # session limits on the direct connection; do not change shared pooler policy.
   defp put_web_parameters(options) do
-    parameters = [application_name: "autolaunch-web"]
-
-    parameters =
-      if fly_mpg_pgbouncer_host?(URI.parse(options[:url]).host) do
-        parameters
-      else
-        parameters ++
-          [
-            statement_timeout: "15000",
-            lock_timeout: "5000",
-            idle_in_transaction_session_timeout: "15000"
-          ]
-      end
-
-    Keyword.put(options, :parameters, parameters)
+    Keyword.put(options, :parameters,
+      application_name: "autolaunch-web",
+      statement_timeout: "15000",
+      lock_timeout: "5000",
+      idle_in_transaction_session_timeout: "15000"
+    )
   end
 
   # Deployments say which venue they are. There is no default: an unset or
@@ -126,8 +118,8 @@ defmodule Autolaunch.DatabaseConfig do
 
   # Ecto turns every URL query key into an atom and merges parsed URL options
   # after the explicit Repo configuration. A managed Postgres URL therefore
-  # admits no query options: even encoded or future aliases cannot weaken TLS,
-  # replace the endpoint, or restore named prepares after this module's checks.
+  # admits no query options: even encoded or future aliases cannot weaken TLS
+  # or replace the endpoint after this module's checks.
   defp safe_query?(%URI{host: host, query: query}) do
     not bound_host?(host) or query in [nil, ""]
   end
@@ -145,14 +137,9 @@ defmodule Autolaunch.DatabaseConfig do
     options = [url: value, socket_options: [:inet6]]
 
     if fly_mpg_host?(host) do
-      options =
-        options
-        |> Keyword.put(:port, 5432)
-        |> Keyword.put(:ssl, fly_mpg_tls_options(host))
-
-      if fly_mpg_pgbouncer_host?(host),
-        do: Keyword.put(options, :prepare, :unnamed),
-        else: options
+      options
+      |> Keyword.put(:port, 5432)
+      |> Keyword.put(:ssl, fly_mpg_tls_options(host))
     else
       options
     end

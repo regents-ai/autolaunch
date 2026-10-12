@@ -254,18 +254,17 @@ verification and the remaining release checks.
 serving credentials must target `regents_prod` on `regents-platform-prod`, using
 `autolaunch-runtime`; wrong-cluster, wrong-database and administrative runtime logins
 fail before connecting. `DATABASE_DIRECT_URL` on the serving process is also a boot
-error. Migration execution remains separate and rejects the PgBouncer endpoint,
-because migrations use session-level advisory locks.
+error. Serving and migration both refuse the PgBouncer endpoint, because
+transaction pooling keeps neither the site's listeners for shared Credits and agent
+changes nor the session-level advisory locks migrations take.
 
-The serving connection currently uses the direct endpoint with Ecto's bounded
-client pool. TLS verifies both the certificate chain and hostname. Connections
-rotate after a randomized 8–9 minute lifetime once idle, with 15-second idle
-checks, exponential reconnect backoff, and bounded TCP/TLS handshakes. Serving
+The serving connection uses the direct endpoint with Ecto's bounded client pool.
+TLS verifies both the certificate chain and hostname. Connections rotate after a
+randomized 8–9 minute lifetime once idle, with 15-second idle checks, exponential
+reconnect backoff, and bounded TCP/TLS handshakes. Serving
 sessions identify themselves as `autolaunch-web`; statement, lock and
 idle-in-transaction timeouts are separate from migration settings. These limits
-do not authorize retrying an interrupted write transaction. PgBouncer connections
-do not send these arbitrary startup session settings: transaction-pooled server
-settings require a separate provider/pooler review before switching endpoints.
+do not authorize retrying an interrupted write transaction.
 
 `/healthz` is database readiness, not a process-only heartbeat: it checks access
 to the configured auction relation without reading rows. An unavailable database,
