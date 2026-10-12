@@ -36,6 +36,11 @@ primary_region = "iad"
   port = 9091
   path = "/metrics"
 
+# Start the new image beside the old one and move traffic once its /healthz
+# check is green, so a release never leaves the site without a running machine.
+[deploy]
+  strategy = "bluegreen"
+
 [http_service]
   internal_port = 4000
   force_https = true
