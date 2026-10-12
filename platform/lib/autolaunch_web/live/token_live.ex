@@ -203,6 +203,7 @@ defmodule AutolaunchWeb.TokenLive do
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
+        client_key={@client_key}
       />
       <.live_component
         :if={@pool.ok? && @pool.result.kind == :stocks}

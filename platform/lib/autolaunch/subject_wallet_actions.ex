@@ -8,8 +8,9 @@ defmodule Autolaunch.SubjectWalletActions do
   facts the page shows. The page keeps it; nothing is stored. `result/2` reads
   what a confirmed payment or sweep routed from its receipt.
 
-  The wallet is one of the signed-in account's own, proved against the account
-  the mounted lease resolves to before any private fact is read.
+  A wallet's balances are Base's public record, so `wallet_state/2` answers for
+  any address. A review is only for one of the signed-in account's own wallets,
+  proved against the account the mounted lease resolves to.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -44,16 +45,12 @@ defmodule Autolaunch.SubjectWalletActions do
   ]
 
   @doc """
-  What `address`, one of the signed-in account's wallets, holds on this subject.
-
-  The address is proved against the account the mounted lease resolves to before
-  any private fact is read, so a wallet the account does not hold is refused
-  rather than answered about.
+  What `address` holds on this subject, and what is waiting at its payment
+  address. Every figure is read from Base, where anyone can read it.
   """
-  @spec wallet_state(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def wallet_state(subject_id, address, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, signer} <- current_wallet(address, opts),
+  @spec wallet_state(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def wallet_state(subject_id, address) do
+    with {:ok, signer} <- normalize(address),
          {:ok, subject} <- stored_split(subject_id),
          {:ok, snapshot} <- snapshot(subject, signer, nil, nil) do
       {:ok, view(subject, signer, snapshot)}
@@ -379,7 +376,7 @@ defmodule Autolaunch.SubjectWalletActions do
   defp subject_asset_address(_subject, :usdc), do: Abi.usdc_address()
   defp subject_asset_address(_subject, :regent), do: Abi.regent_address()
 
-  # The whole private answer for one wallet on one subject.
+  # The whole answer for one wallet on one subject.
   defp view(subject, signer, snapshot) do
     %{
       signer: signer,

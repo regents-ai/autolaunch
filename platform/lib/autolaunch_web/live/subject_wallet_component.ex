@@ -7,7 +7,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   The wallet that acts is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); its balances show, or the signed-in
   wallet's until Privy reports the active one, and a note names both while the
-  wallet app has another wallet open. The review is prepared on the server and
+  wallet app has another wallet open. Signed out, the open wallet's balances
+  show and the button asks for sign-in. The review is prepared on the server and
   lives on this page only: an exact approval when one is missing, then the
   payment. Every press reaches the wallet, and every outcome is the server's
   own read of the hash against the review it was sent from.
@@ -19,7 +20,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
-  alias Autolaunch.SubjectWalletActions
+  alias Autolaunch.{Limits, SubjectWalletActions}
   alias AutolaunchWeb.Components.SwapForm
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
@@ -33,6 +34,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   @copy %{
     authentication_required: "Sign in to use your wallet here.",
+    wallet_read_limited: "Balances could not be read just now. Try again in a minute.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
     wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
@@ -115,13 +117,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
       <p class="subject-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
 
-      <p :if={!@authenticated} class="subject-wallet-empty">
-        <Regent.Primitives.button type="button" data-account-target="sign-in">
-          Sign in to pay
-        </Regent.Primitives.button>
-      </p>
-
-      <div :if={@authenticated && @state} class="subject-wallet-body">
+      <div :if={@state} class="subject-wallet-body">
         <dl class="subject-wallet-balances" hidden={!!@review}>
           <div>
             <dt>Wallet</dt>
@@ -134,6 +130,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         </dl>
 
         <form
+          :if={@authenticated}
           id={"#{@id}-form"}
           hidden={!!@review}
           class="subject-wallet-choose"
@@ -306,6 +303,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           </Regent.Primitives.button>
         </section>
       </div>
+
+      <p :if={!@authenticated} class="subject-wallet-empty">
+        <Regent.Primitives.button type="button" data-account-target="sign-in">
+          Sign in to pay
+        </Regent.Primitives.button>
+      </p>
     </section>
     """
   end
@@ -424,7 +427,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     wallet = shown_wallet(socket.assigns)
 
     cond do
-      !socket.assigns.authenticated -> socket
       is_nil(wallet) -> assign(socket, state: nil, state_for: nil)
       wallet == socket.assigns.state_for -> socket
       true -> start_state(socket, wallet)
@@ -438,16 +440,29 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
+  # Each read counts against the account's wallet-read allowance, or signed out
+  # the visitor's address allowance. Past it, the balances already shown stay.
   defp start_state(socket, wallet) do
     subject_id = socket.assigns.subject_id
-    opts = opts(socket)
 
-    socket
-    |> assign(state_for: wallet)
-    |> start_async(:state, fn ->
-      {wallet, SubjectWalletActions.wallet_state(subject_id, wallet, opts)}
-    end)
+    case Limits.spend(:wallet_read, reader(socket.assigns)) do
+      :ok ->
+        socket
+        |> assign(state_for: wallet)
+        |> start_async(:state, fn ->
+          {wallet, SubjectWalletActions.wallet_state(subject_id, wallet)}
+        end)
+
+      :limited when is_nil(socket.assigns.state) ->
+        assign(socket, notice: copy(:wallet_read_limited))
+
+      :limited ->
+        socket
+    end
   end
+
+  defp reader(%{current_human_id: id}) when is_integer(id), do: {:human, id}
+  defp reader(%{client_key: key}), do: {:client, key}
 
   # Reviews
 

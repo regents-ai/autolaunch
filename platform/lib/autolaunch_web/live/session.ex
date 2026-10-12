@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.Live.Session do
 
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.{EnsIdentity, SessionAuthority}
+  alias AutolaunchWeb.ClientAddress
 
   @public_root "/"
 
@@ -21,14 +22,21 @@ defmodule AutolaunchWeb.Live.Session do
   carries no path, so only `handle_params` sees the page route, and that is too
   late to refuse a mount.
 
+  The client key travels too, because a connected socket cannot see the
+  address header the rendering request carried; it is what a signed-out
+  visitor's wallet reads count against (`AutolaunchWeb.ClientAddress.client_key/1`).
+
   Phoenix LiveView 1.2.7 hands `mount/3` `Map.merge(handshake_session,
-  static_token_session)`, so both keys are the render's own and can never stand
-  in for the authority the socket connected with.
+  static_token_session)`, so these keys are the render's own and can never
+  stand in for the authority the socket connected with.
   """
   def render_context(conn) do
     conn.assigns.current_lineage
     |> rendered_topic()
-    |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
+    |> Map.merge(%{
+      "render_route" => local_route(conn.request_path, conn.query_string),
+      "client_key" => ClientAddress.client_key(conn)
+    })
   end
 
   # The product shell needs a path and an account control on every LiveView,
@@ -49,7 +57,12 @@ defmodule AutolaunchWeb.Live.Session do
   # connected mount that proved its claim, so a disconnected render can read but
   # can never reach a protected write.
   def on_mount(:load_human, _params, session, socket) do
-    socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
+    socket =
+      Phoenix.Component.assign(socket,
+        client_key: Map.fetch!(session, "client_key"),
+        session_lease: nil,
+        signed_out_reason: :signed_out
+      )
 
     if connected?(socket),
       do: connected(socket, session, get_connect_info(socket, :session)),
