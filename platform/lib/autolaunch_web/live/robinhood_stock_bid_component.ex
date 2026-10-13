@@ -604,9 +604,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   # Reviews
 
   # The bid is prepared in the background whenever what it would send changes:
-  # the wallet, the total or the most per token (which moves with the price to
-  # beat). One is prepared at a time; an answer for values the form has since
-  # left starts the next.
+  # the auction, the wallet, the total or the most per token (which moves with
+  # the price to beat). One is prepared at a time; an answer for values the
+  # form has since left starts the next.
   defp prepare_when_ready(%{assigns: assigns} = socket) do
     key = bid_key(assigns)
 
@@ -619,7 +619,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   defp start_prepare(socket, key) do
-    {signer, request} = request(socket.assigns, key)
+    {signer, request} = request(key)
     inputs = inputs(socket.assigns)
     opts = opts(socket)
 
@@ -637,14 +637,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         {:error, assign(socket, notice: incomplete(assigns))}
 
       key ->
-        {signer, request} = request(assigns, key)
+        {signer, request} = request(key)
         result = StockBidActions.prepare(request, signer, opts(socket))
         socket = reviewed(socket, key, inputs(assigns), result)
         if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
     end
   end
 
-  defp request(%{auction: auction}, {signer, amount, max_price}),
+  defp request({auction, signer, amount, max_price}),
     do: {signer, %{auction: auction, usdg_amount: amount, max_price: max_price}}
 
   defp reviewed(socket, key, inputs, {:ok, prepared}) do
@@ -709,10 +709,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp incomplete(%{form: %{amount: ""}}), do: copy(:amount_required)
   defp incomplete(_assigns), do: copy(:max_price_required)
 
-  defp bid_key(%{signer: signer, form: form} = assigns) when is_binary(signer) do
+  defp bid_key(%{signer: signer, form: form, auction: auction} = assigns)
+       when is_binary(signer) do
     with amount when amount != "" <- form.amount,
          max_price when is_binary(max_price) <- max_price(assigns),
-         do: {signer, amount, max_price},
+         do: {auction, signer, amount, max_price},
          else: (_incomplete -> nil)
   end
 
