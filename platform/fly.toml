@@ -45,9 +45,11 @@ primary_region = "iad"
   internal_port = 4000
   force_https = true
 
-# Keep the production capacity when the next image is deployed.
+# Keep the production capacity when the next image is deployed. The processor
+# is a dedicated one: Fly holds a shared processor to 6.25% each once its burst
+# is spent, and the site's steady chain reading alone uses about that much.
 [[vm]]
-  size = "shared-cpu-2x"
+  size = "performance-1x"
   memory_mb = 2048
 
 [[http_service.checks]]
