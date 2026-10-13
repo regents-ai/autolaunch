@@ -5,8 +5,11 @@ defmodule AutolaunchWeb.Endpoint do
   # transport must decode it with the same options the request plug runs with.
   @session_options {Application, :fetch_env!, [:autolaunch, :session_options]}
 
+  # A connection's process tidies all of its memory each time it tidies any.
+  # Left at the default it keeps what it used to send the page, about 1.5 MB
+  # for every open tab, for as long as the tab stays open.
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
+    websocket: [connect_info: [session: @session_options], fullsweep_after: 0],
     longpoll: [connect_info: [session: @session_options]]
 
   plug AutolaunchWeb.Plugs.CanonicalHost
