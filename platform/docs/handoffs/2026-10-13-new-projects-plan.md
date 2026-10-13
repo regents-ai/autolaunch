@@ -5,8 +5,10 @@ Sean, 13 October 2026 16:08Z, relayed verbatim by the Chief Regent orchestrator:
 add more onchain stock tokens as soon as they have a chainlink feed on base or rh, and a pool
 with liquidity more than 10k."
 
-Status: plan only. No code, no deployment, no signing. Sent to the orchestrator for a sense
-check; the numbered decisions go to Sean in the new-features thread.
+Status: plan only. No code, no deployment, no signing. The orchestrator's sense check of
+13 October 16:17Z cleared it to go to Sean with one added decision (AL-136). Base has nothing
+to add today, and without a Uniswap v4 route the rule adds two Robinhood stocks, so AL-128 is
+the decision that gives project 4 its value.
 
 ## Project 4: add stocks automatically
 
@@ -31,8 +33,9 @@ check; the numbered decisions go to Sean in the new-features thread.
   exactly the dollar token and the stock, the dollar side is worth more than $10,000, the feed
   answers and is fresh. Records each candidate and why it qualifies or not.
 - **Route deployment**: for each qualifying stock, the fixed route contract is deployed with
-  (stock, pool, feed). No authority is involved, only gas. Signed by a low-value operator key
-  the server holds, or done by a small factory contract so the address is predictable.
+  (stock, pool, feed). No authority is involved, only gas. Who deploys is decision AL-136: the
+  Safe's own batch (deploy at a predictable address, then admit, in one signing) or a low-value
+  operator key on the server.
 - **Admission**: the one step that carries authority. See decision AL-127.
 - **Site listing without a release**: the site reads `StockAdmitted` from the launchpads into
   its `Stock` table and offers what the chain has admitted; name, ticker and decimals come from
@@ -124,6 +127,15 @@ AL-130. GLD on Robinhood?
 - (a) Leave it out: its feed is the gold price, not a share price.
 - (b) Add it as a stock like the others.
 - Recommendation: (a) until Sean says commodities belong in the stock list.
+
+AL-136. Who deploys each stock's route contract? (Added at the orchestrator's sense check,
+13 October 16:17Z; numbered 136 because 133 to 135 are the UI decisions already with Sean.)
+- (a) The Safe's prepared batch deploys the route and admits the stock in one signing; the
+  server holds no key that can spend anything.
+- (b) A low-value operator key on the server deploys routes as stocks qualify; the Safe then
+  only admits.
+- Recommendation: (a) while additions are rare. A key on the server is one more thing to guard
+  and watch, for perhaps two stocks a month.
 
 AL-131. Covered calls: what is the underlying, and how do they settle?
 - (a) Onchain stocks, buyer pays the strike and takes the shares (no price feed needed).
