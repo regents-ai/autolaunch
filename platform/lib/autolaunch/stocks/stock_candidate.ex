@@ -145,11 +145,11 @@ defmodule Autolaunch.Stocks.StockCandidate do
       authorize_if always()
     end
 
-    policy action(:eligible) do
+    bypass action(:eligible) do
       authorize_if always()
     end
 
-    policy action([:read, :on_chain, :list, :unlist, :list_feeds, :read_market, :read_failed]) do
+    policy always() do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
