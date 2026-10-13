@@ -51,7 +51,8 @@ defmodule Autolaunch.SharedReading do
   (`[:autolaunch, :shared_reading, :kind]`), and the table's size in memory
   (`[:autolaunch, :shared_reading, :table]`). Every `degraded/1` is counted
   (`[:autolaunch, :shared_reading, :degraded]`), as is every refused reading
-  (`[:autolaunch, :shared_reading, :refused]`), by kind.
+  (`[:autolaunch, :shared_reading, :refused]`) and every wake-up sent to pages
+  (`[:autolaunch, :shared_reading, :woken]`), by kind.
   """
 
   use GenServer
@@ -82,11 +83,14 @@ defmodule Autolaunch.SharedReading do
       bytes: 4_096
     },
     # One for each auction, by its lowercase address: everything its own page
-    # shows from the chain, at one block.
+    # shows from the chain, at one block. Its size is its price ladder's: at
+    # most 1,000 prices (`Autolaunch.AuctionSnapshot`), each two 256-bit
+    # numbers, the price written out exactly and two amounts, under 500 bytes
+    # at their longest (about 210 measured), so a whole ladder always fits.
     auction_page: %{
       open: "an auction's price ladder, release schedule and stage are public on its contract",
       keys: 5_000,
-      bytes: 262_144
+      bytes: 524_288
     }
   }
 
@@ -147,20 +151,22 @@ defmodule Autolaunch.SharedReading do
   def measure do
     now = DateTime.utc_now()
 
-    held = Enum.group_by(:ets.tab2list(@table), fn {{kind, _id}, _entry} -> kind end)
+    # Each key's kind and when it was read; the readings themselves stay put.
+    held =
+      @table
+      |> :ets.select([{{{:"$1", :_}, %{at: :"$2"}}, [], [{{:"$1", :"$2"}}]}])
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
 
     # Every kind each tick, so a kind whose keys are all gone reads 0.
     for {kind, _limits} <- @kinds do
-      entries = Map.get(held, kind, [])
-
-      read =
-        for {_key, %{at: %DateTime{} = at}} <- entries, do: DateTime.diff(now, at, :millisecond)
+      ats = Map.get(held, kind, [])
+      read = for %DateTime{} = at <- ats, do: DateTime.diff(now, at, :millisecond)
 
       :telemetry.execute(
         [:autolaunch, :shared_reading, :kind],
         %{
-          keys: length(entries),
-          never_read: length(entries) - length(read),
+          keys: length(ats),
+          never_read: length(ats) - length(read),
           oldest_seconds: Enum.max(read, fn -> 0 end) / 1_000
         },
         %{kind: kind}
@@ -174,8 +180,9 @@ defmodule Autolaunch.SharedReading do
     )
   rescue
     # The poller drops a measurement that raises for good. No table for the
-    # instant its owner restarts: skip this tick.
-    ArgumentError -> :ok
+    # instant its owner restarts, which can fall between the two reads above
+    # (the size then reads :undefined): skip this tick.
+    [ArgumentError, ArithmeticError] -> :ok
   end
 
   @impl true
@@ -234,8 +241,10 @@ defmodule Autolaunch.SharedReading do
   defp changed?(held, entry),
     do: held.reading != entry.reading or held.degraded? != entry.degraded?
 
-  defp wake(key),
-    do: Phoenix.PubSub.local_broadcast(Autolaunch.PubSub, topic(key), {:shared_reading, key})
+  defp wake({kind, _id} = key) do
+    :telemetry.execute([:autolaunch, :shared_reading, :woken], %{count: 1}, %{kind: kind})
+    Phoenix.PubSub.local_broadcast(Autolaunch.PubSub, topic(key), {:shared_reading, key})
+  end
 
   defp topic({kind, id}), do: "shared_reading:#{kind}:#{id}"
 

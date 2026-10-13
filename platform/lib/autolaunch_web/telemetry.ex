@@ -32,7 +32,11 @@ defmodule AutolaunchWeb.Telemetry do
       alike (`Autolaunch.SharedReading`): for each `kind`, how many keys are
       held, how many have never been read and how long ago the oldest was
       read, every ten seconds; each reading that could not be taken; each one
-      refused; the table's size.
+      refused; each wake-up sent to open pages; the table's size.
+    * `[:autolaunch, :auction_page, :ladder_stopped]` — `count` 1 each time a
+      market feed's pass leaves an auction's price ladder unfinished: the
+      auction has more prices than a ladder lists, or the chain answered too
+      slowly to read them in one pass (`Autolaunch.AuctionSnapshot`).
     * `[:autolaunch, :pages, :announced]` — `count` 1 for each announcement
       the site makes to its open pages, by `kind` (`:listings` or `:ticker`).
       Every open page acts on each one, so a high rate with nobody bidding
@@ -169,6 +173,13 @@ defmodule AutolaunchWeb.Telemetry do
         event_name: [:autolaunch, :shared_reading, :refused],
         tags: [:kind, :reason]
       ),
+      counter("autolaunch.shared_reading.woken.total",
+        event_name: [:autolaunch, :shared_reading, :woken],
+        tags: [:kind]
+      ),
+      counter("autolaunch.auction_page.ladder_stopped.total",
+        event_name: [:autolaunch, :auction_page, :ladder_stopped]
+      ),
       last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
       last_value("vm.memory.processes.bytes",
         event_name: [:vm, :memory],
@@ -236,22 +247,33 @@ defmodule AutolaunchWeb.Telemetry do
     :exit, reason -> Logger.warning("open connections not counted: #{inspect(reason)}")
   end
 
-  # The poller drops a measurement that raises for good, so a database that
-  # cannot answer this tick skips it; the next tick measures again.
+  # The poller drops for good a measurement that raises or exits, and the row
+  # would then keep its last number. So whatever stops this tick (a database
+  # that cannot answer, a queue too busy to say whether it runs, Oban or the
+  # repo restarting) is logged and skipped; the next tick measures again.
   @doc false
   def oldest_unfinished_jobs do
     measure_oldest_unfinished_jobs()
   rescue
-    error in [DBConnection.ConnectionError, Postgrex.Error] ->
-      Logger.warning("background job age not measured: #{Exception.message(error)}")
+    error -> not_measured(Exception.message(error))
+  catch
+    :exit, reason -> not_measured(Exception.format_exit(reason))
   end
+
+  defp not_measured(why), do: Logger.warning("background job age not measured: #{why}")
 
   # Only running queues are measured: a paused queue (the finishing queue
   # while the finisher is off) holds its jobs on purpose, and its age would
-  # only grow.
+  # only grow. Where no queue runs (tests), nothing is read.
   defp measure_oldest_unfinished_jobs do
+    case for %{queue: queue, paused: false} <- Oban.check_all_queues(), do: queue do
+      [] -> :ok
+      running -> report_oldest(running)
+    end
+  end
+
+  defp report_oldest(running) do
     %{prefix: prefix} = Oban.config()
-    running = for %{queue: queue, paused: false} <- Oban.check_all_queues(), do: queue
 
     oldest =
       from(j in Oban.Job,

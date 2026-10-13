@@ -88,20 +88,36 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     end
   end
 
-  # Each auction is read and written on its own: one that fails is logged and
-  # left as it is, and every other auction still refreshes.
+  # Each auction is read and written on its own: one that fails is logged,
+  # marked as not read and left as it is, and every other auction still
+  # refreshes. Then the pages of the auctions that were read, apart from their
+  # figures and each on its own budget (`AuctionSnapshot.pages/4`): one that
+  # cannot be read leaves the page its last reading.
   defp refresh_auctions(config, block, opts, auctions) do
-    {snapshots, changed} =
-      Enum.reduce(auctions, {%{}, []}, fn auction, collected ->
+    {read, changed} =
+      Enum.reduce(auctions, {[], []}, fn auction, collected ->
         result = safely(fn -> refresh_auction(config, block, opts, auction) end)
         collect_reading(result, auction, collected)
+      end)
+
+    pages =
+      AuctionSnapshot.pages(
+        for({auction, snapshot} <- read, do: {auction, snapshot.state}),
+        config,
+        block,
+        opts
+      )
+
+    snapshots =
+      Map.new(read, fn {_auction, %{auction_address: address} = snapshot} ->
+        {address, Map.put(snapshot, :page, Map.fetch!(pages, address))}
       end)
 
     {:ok, snapshots, changed}
   end
 
-  defp collect_reading({:ok, snapshot, changed_id}, _auction, {snapshots, changed}),
-    do: {Map.put(snapshots, snapshot.auction_address, snapshot), List.wrap(changed_id) ++ changed}
+  defp collect_reading({:ok, snapshot, changed_id}, auction, {read, changed}),
+    do: {[{auction, snapshot} | read], List.wrap(changed_id) ++ changed}
 
   # A row whose contract does not exist at this head has no market to read (a
   # launch mined on another lab run, or one a reorg removed).
@@ -112,6 +128,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
       "memestock market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
     )
 
+    MarketReadings.unread_auction(auction.auction_address)
     collected
   end
 
@@ -188,28 +205,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          remaining_supply: Rpc.format_units(remaining, @new_decimals),
          terms: terms,
          minimum_reached: minimum_reached,
-         positions: positions,
-         page: page(auction, MarketState.join(auction.state, state), config, block, opts)
+         positions: positions
        }}
-    end
-  end
-
-  # What the auction's own page shows, at the same block, with the state its
-  # row takes from this pass. One that cannot be read leaves the page its last
-  # reading; the auction's figures above are stored either way.
-  defp page(auction, state, config, block, opts) do
-    pool = Pool.read_at(%{auction | state: state}, config, block, opts)
-
-    case AuctionSnapshot.page(auction, state, pool, block, opts) do
-      {:ok, page} ->
-        {:ok, page}
-
-      {:error, reason} ->
-        Logger.warning(
-          "memestock market feed could not read the page of #{auction.auction_address}: #{inspect(reason)}"
-        )
-
-        :error
     end
   end
 

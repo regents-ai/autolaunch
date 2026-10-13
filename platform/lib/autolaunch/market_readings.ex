@@ -73,7 +73,8 @@ defmodule Autolaunch.MarketReadings do
   Stores one pass's readings: each auction's first, then `head`, the block the
   pass read at, so a page woken by the head finds every reading of the pass. A
   reading whose `page` could not be read keeps the page's last one, marked
-  degraded.
+  degraded; so does a reading the store refuses (`SharedReading.put/2`), which
+  would otherwise stay on show as though it were this pass's.
 
   Each reading names the block it was read at. One whose figures match the
   reading already held keeps the held one's block, so a page is woken when a
@@ -82,29 +83,45 @@ defmodule Autolaunch.MarketReadings do
   @spec store(String.t(), map(), [map()]) :: :ok
   def store(feed, head, readings) do
     for %{auction_address: address} = reading <- readings do
-      put(market_key(address), Map.drop(reading, @feed_only))
+      put_changed(market_key(address), Map.drop(reading, @feed_only))
 
       case reading do
-        %{page: {:ok, page}} -> put(page_key(address), page)
+        %{page: {:ok, page}} -> put_changed(page_key(address), page)
         %{page: :error} -> SharedReading.degraded(page_key(address))
         _no_page -> :ok
       end
     end
 
-    SharedReading.put(head_key(feed), head)
+    put(head_key(feed), head)
     :ok
   end
 
-  defp put(key, reading) do
+  defp put_changed(key, reading) do
     case SharedReading.fetch(key) do
       {:ok, %{reading: %{} = held}} ->
         if Map.drop(held, @read_at) == Map.drop(reading, @read_at),
-          do: SharedReading.put(key, held),
-          else: SharedReading.put(key, reading)
+          do: put(key, held),
+          else: put(key, reading)
 
       _none ->
-        SharedReading.put(key, reading)
+        put(key, reading)
     end
+  end
+
+  defp put(key, reading) do
+    with {:error, _refused} <- SharedReading.put(key, reading), do: SharedReading.degraded(key)
+  end
+
+  @doc """
+  Marks the figures and the page of the auction at `address` as not read this
+  pass: the feed could not read the auction, or ran out of time on it. Their
+  last readings stay, marked degraded.
+  """
+  @spec unread_auction(String.t()) :: :ok
+  def unread_auction(address) do
+    SharedReading.degraded(market_key(address))
+    SharedReading.degraded(page_key(address))
+    :ok
   end
 
   @doc "The addresses a feed holds readings for, after a pass added `readings`."

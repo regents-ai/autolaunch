@@ -454,9 +454,17 @@ defmodule Autolaunch.LabMarketFeed do
     @read_timeout 10_000
 
     alias Autolaunch.Auction.MarketState
-    alias Autolaunch.AuctionTerms
     alias Autolaunch.Chain.Rpc
-    alias Autolaunch.{Lab, LabAbi, LabRpc, MarketWatch}
+
+    alias Autolaunch.{
+      AuctionSnapshot,
+      AuctionTerms,
+      Lab,
+      LabAbi,
+      LabRpc,
+      MarketReadings,
+      MarketWatch
+    }
 
     def head do
       with {:ok, config, block, opts} <- LabRpc.current([:strategy]) do
@@ -464,17 +472,27 @@ defmodule Autolaunch.LabMarketFeed do
       end
     end
 
+    # A pass's block is left when the block now at its number is another one.
+    # Every read names its block by hash, so newer blocks on top of it change
+    # nothing the pass read: a pass may take longer than a block.
     def verify_head(expected) do
-      case head() do
-        {:ok, current} ->
-          if current.binding == expected.binding and current.block == expected.block,
-            do: :ok,
-            else: {:error, {:head_changed, current}}
-
-        {:error, reason} ->
-          {:error, reason}
+      with {:ok, current} <- head() do
+        case on_chain?(expected, current) do
+          {:ok, true} -> :ok
+          {:ok, false} -> {:error, {:head_changed, current}}
+          {:error, reason} -> {:error, reason}
+        end
       end
     end
+
+    defp on_chain?(%{binding: binding, block: block}, %{binding: binding, block: block}),
+      do: {:ok, true}
+
+    defp on_chain?(%{binding: binding, block: read}, %{binding: binding, block: newest} = current)
+         when newest.number > read.number,
+         do: Rpc.canonical?(read, current.rpc_opts)
+
+    defp on_chain?(_read, _current), do: {:ok, false}
 
     def snapshots(head, watch, attempted_addresses) do
       with {:ok, auctions, next_watch} <- MarketWatch.next(watch, Lab.chain_id(), :agent) do
@@ -494,21 +512,36 @@ defmodule Autolaunch.LabMarketFeed do
       end
     end
 
-    # Each auction is read on its own: one that cannot be read is logged and
-    # left as it is, and every other auction still refreshes.
+    # Each auction is read on its own: one that cannot be read is logged,
+    # marked as not read and left as it is, and every other auction still
+    # refreshes. Then the pages of the auctions that were read, apart from
+    # their figures and each on its own budget (`AuctionSnapshot.pages/4`): one
+    # that cannot be read leaves the page its last reading.
     defp collect_snapshots(auctions, head) do
-      auctions
-      |> Task.async_stream(&{&1, snapshot(head, &1)},
-        max_concurrency: @read_concurrency,
-        ordered: false,
-        timeout: @read_timeout,
-        on_timeout: :kill_task,
-        zip_input_on_exit: true
-      )
-      |> Enum.flat_map(&collect_snapshot/1)
+      read =
+        auctions
+        |> Task.async_stream(&{&1, snapshot(head, &1)},
+          max_concurrency: @read_concurrency,
+          ordered: false,
+          timeout: @read_timeout,
+          on_timeout: :kill_task,
+          zip_input_on_exit: true
+        )
+        |> Enum.flat_map(&collect_snapshot/1)
+
+      pages =
+        AuctionSnapshot.pages(
+          for({auction, snapshot} <- read, do: {auction, snapshot.state}),
+          head.config,
+          head.block,
+          head.rpc_opts
+        )
+
+      for {_auction, snapshot} <- read,
+          do: Map.put(snapshot, :page, Map.fetch!(pages, snapshot.auction_address))
     end
 
-    defp collect_snapshot({:ok, {_auction, {:ok, snapshot}}}), do: [snapshot]
+    defp collect_snapshot({:ok, {auction, {:ok, snapshot}}}), do: [{auction, snapshot}]
 
     # A row whose contract does not exist at this head has no market to read
     # (a launch mined on another lab run, or one a reorg removed).
@@ -522,6 +555,7 @@ defmodule Autolaunch.LabMarketFeed do
         "revstake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
       )
 
+      MarketReadings.unread_auction(auction.auction_address)
       []
     end
 
@@ -572,29 +606,9 @@ defmodule Autolaunch.LabMarketFeed do
              terms: terms,
              minimum_reached: minimum_reached,
              pool_id: pool_id(pool_id),
-             positions: positions,
-             page: page(auction, MarketState.join(auction.state, state), config, block, opts)
+             positions: positions
            }}
         end
-      end
-    end
-
-    # What the auction's own page shows, at the same block, with the state its
-    # row takes from this pass. One that cannot be read leaves the page its
-    # last reading; the auction's figures above are stored either way.
-    defp page(auction, state, config, block, opts) do
-      pool = Autolaunch.Pool.read_at(%{auction | state: state}, config, block, opts)
-
-      case Autolaunch.AuctionSnapshot.page(auction, state, pool, block, opts) do
-        {:ok, page} ->
-          {:ok, page}
-
-        {:error, reason} ->
-          Logger.warning(
-            "revstake market feed could not read the page of #{auction.auction_address}: #{inspect(reason)}"
-          )
-
-          :error
       end
     end
 

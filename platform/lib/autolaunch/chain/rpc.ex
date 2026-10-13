@@ -85,6 +85,17 @@ defmodule Autolaunch.Chain.Rpc do
   end
 
   @doc """
+  Whether `block` is still part of its chain: the block now at its number is
+  the same one. Newer blocks on top of it leave it so.
+  """
+  @spec canonical?(block(), keyword()) :: {:ok, boolean()} | {:error, atom()}
+  def canonical?(%{number: number, hash: hash}, opts \\ []) do
+    with {:ok, header} <- request("eth_getBlockByNumber", [hex_quantity(number), false], opts),
+         {:ok, now} <- block_identity(header),
+         do: {:ok, now.hash == hash}
+  end
+
+  @doc """
   The exact canonical outcome of one submitted transaction against one safe head.
 
   `:pending` is every state that may still resolve differently: a hash this RPC
