@@ -23,6 +23,5 @@ defmodule Autolaunch.Chain.SubjectAbiTest do
              "0x01681a62" <> String.duplicate("0", 24) <> String.duplicate("ab", 20)
   end
 
-  defp keccak(text),
-    do: "0x" <> Base.encode16(:jose_jwa_sha3.keccak(1088, 512, text, 1, 32), case: :lower)
+  defp keccak(text), do: "0x" <> Base.encode16(ExKeccak.hash_256(text), case: :lower)
 end

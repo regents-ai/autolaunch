@@ -125,7 +125,7 @@ defmodule Autolaunch.AuctionFinishTest do
     end
 
     def hash("0x" <> raw) do
-      digest = :jose_jwa_sha3.keccak(1088, 512, Base.decode16!(raw, case: :lower), 1, 32)
+      digest = raw |> Base.decode16!(case: :lower) |> ExKeccak.hash_256()
       "0x" <> Base.encode16(digest, case: :lower)
     end
 

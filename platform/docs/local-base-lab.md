@@ -144,6 +144,8 @@ failure feedback; passive reconciliation stays silent.
 
 - **Restarting only the website is safe.** The site reads the same `site-config.json`,
   connects to the same Anvil and database, and the market feed picks the fork up where it is.
+- **A rewritten `site-config.json` needs a website restart.** The site reads each
+  deployment description once, when it is first needed, and keeps it for as long as it runs.
 - **Anvil keeps its chain in memory.** A plain `stop`, a crash or a new `start` loses every
   local block. To carry a fork across a restart, snapshot it first with `anvil_dumpState`
   (or run Anvil with `--dump-state PATH --state-interval 60`), then start the replacement with
