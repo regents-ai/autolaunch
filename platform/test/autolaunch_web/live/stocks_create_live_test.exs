@@ -4,8 +4,9 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.{Human, System}
 
-  @aapl "0xb200000000000000000000C2e324d24d7eEcd1fb"
-  @amzn "0xb200000000000000000000d9192b6B456483C2E8"
+  @aapl "0xb200000000000000000000c2e324d24d7eecd1fb"
+  @amzn "0xb200000000000000000000d9192b6b456483c2e8"
+  @route "0x547f3b931eaf75bab98364ab396058ddc2e68e4a"
   @wallet "0x1111111111111111111111111111111111111111"
 
   setup do
@@ -20,6 +21,22 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
         [@wallet],
         actor: %System{}
       )
+
+    # The picker offers the stocks the last read of the launchpad saved.
+    for {address, symbol, name} <- [{@aapl, "AAPLc", "Apple Inc."}, {@amzn, "AMZNc", "Amazon"}] do
+      Autolaunch.record_stock_admission!(
+        %{
+          chain_id: 8453,
+          address: address,
+          symbol: symbol,
+          name: name,
+          decimals: 8,
+          route: @route,
+          admitted: true
+        },
+        actor: %System{}
+      )
+    end
 
     {:ok, account: account}
   end

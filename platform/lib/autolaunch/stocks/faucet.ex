@@ -18,7 +18,7 @@ defmodule Autolaunch.Stocks.Faucet do
   alias Autolaunch.Chain.Rpc
 
   alias Autolaunch.{Lab, LabAbi, Prelaunch}
-  alias Autolaunch.Stocks.{Amounts, FaucetCooldown}
+  alias Autolaunch.Stocks.{Amounts, Assets, FaucetCooldown}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias RegentChain.Address
 
@@ -35,13 +35,8 @@ defmodule Autolaunch.Stocks.Faucet do
   def available?, do: not Prelaunch.read_only?() and Lab.test_chain?()
 
   @doc "The STOCK tokens this lab can mint, for the button list."
-  @spec stocks() :: [StocksLab.stock()]
-  def stocks do
-    case StocksLab.current() do
-      {:ok, config} -> config.stocks
-      {:error, _reason} -> []
-    end
-  end
+  @spec stocks() :: [Autolaunch.Stocks.Stock.t()]
+  def stocks, do: Assets.all(:base)
 
   @doc "1,000 test REGENT from the governance Safe's forked balance."
   @spec regent(String.t()) :: {:ok, grant()} | {:error, String.t()}
@@ -70,7 +65,7 @@ defmodule Autolaunch.Stocks.Faucet do
          {:ok, wallet} <- address(wallet),
          {:ok, config} <- stocks_lab(),
          {:ok, agent} <- agent_lab(),
-         {:ok, stock} <- lab_stock(config, stock_address),
+         {:ok, stock} <- lab_stock(stock_address),
          {:ok, amount} <- stock_amount(config, stock) do
       grant(%{
         rpc: rpc(config.rpc_url),
@@ -108,10 +103,10 @@ defmodule Autolaunch.Stocks.Faucet do
     end
   end
 
-  defp lab_stock(config, address) do
-    case StocksLab.stock(config, address) do
-      nil -> {:error, "That stock token is not part of this lab."}
-      stock -> {:ok, stock}
+  defp lab_stock(address) do
+    case Assets.fetch(Assets.chain_id(:base), address) do
+      {:ok, stock} -> {:ok, stock}
+      {:error, _reason} -> {:error, "That stock token is not part of this lab."}
     end
   end
 

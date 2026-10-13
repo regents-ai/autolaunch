@@ -93,7 +93,7 @@ with two differences:
   `https://` URL the host restricts to the site).
 - `public_rpc_url` in both files is the wallet door (`https://…`), identical in both.
 
-Everything else (`chain_id` 31337, the address sets, the ABIs, `faucet`, `stocks`) is validated
+Everything else (`chain_id` 31337, the address sets, the ABIs, `faucet`) is validated
 exactly as for a lab (`Autolaunch.Lab.load/2`, `Autolaunch.Stocks.Lab.load/2`). A description
 for chain 31337 names no `start_blocks`; only a mainnet description carries them, and the log
 ledger follows its `factory` from `start_blocks.factory`.

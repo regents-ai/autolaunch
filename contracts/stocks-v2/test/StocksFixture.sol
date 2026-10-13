@@ -170,8 +170,8 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         locker = MemestockLPLocker(launchpad.locker());
         adapter = new StockBidAdapterV1(address(launchpad));
 
-        routeLow = new FixtureStockRoute(STOCK_LOW, USDC_PER_SHARE);
-        routeHigh = new FixtureStockRoute(STOCK_HIGH, USDC_PER_SHARE);
+        routeLow = new FixtureStockRoute(STOCK_LOW, address(0), USDC_PER_SHARE);
+        routeHigh = new FixtureStockRoute(STOCK_HIGH, address(0), USDC_PER_SHARE);
         _fundRoute(routeLow, stockLow);
         _fundRoute(routeHigh, stockHigh);
 

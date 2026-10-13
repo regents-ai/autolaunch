@@ -31,12 +31,33 @@ not describe the current live site. V1 remains supported for its existing auctio
 The site prepares against the Stocks deployment description. Without
 `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` the draft page saves and validates, and the wallet step refuses
 with "Stock launches are not open on this site." The stock decimals shown on the draft page come
-from the description; the review uses the decimals the launchpad's `stockAdmission` records.
+from the saved stock; the review uses the decimals the launchpad's `stockAdmission` records.
+
+## The stock list
+
+The description names no stocks. The site keeps one list, the `stocks` table
+(`Autolaunch.Stocks.Stock`), and fills it from the chain: every five minutes, and once when a
+server starts, `Autolaunch.Stocks.Stock.SyncAdmissions` (an AshOban scheduled action on the
+`stock_admissions` queue, three attempts, a unique job so one run at a time across every server)
+asks each stock launchpad about every saved stock again and reads its `StockAdmitted` logs from
+where the last run stopped (`stock_admission_scans`, one row per launchpad) for stocks it has not
+saved yet. Each stock's row is what the chain says at the latest block: `stockAdmission(stock)`
+(admitted, decimals, route), the route's `feed()` and the token's `name()` and `symbol()`. A stock
+a launchpad admits is in the picker within about six minutes with no release (five for the next
+run, one for each server's kept list, `Autolaunch.Stocks.Assets`); a revoked stock leaves the
+picker and still answers by address and keeps its dollar price, so its auctions keep working. The
+dollar price of a stock is read from the feed its route names; every admitted route has to answer
+`feed()` (the zero address for a practice route no feed prices). A stock that cannot be read or
+saved (a route with no `feed()`, a name over 120 characters, a ticker over 32) is left out, kept
+on its launchpad's `stock_admission_scans` row and asked about again on every run, which fails
+and is reported for as long as the stock stays unread; the other stocks and the place in the logs
+are not held back. The sync asks the launchpads new launches go through; a stock only an earlier
+launchpad admitted has no saved facts. The job signs and sends nothing.
 
 ## Lab configuration
 
 The Stocks lab extends a running Agent lab (`platform/docs/local-base-lab.md`). Run
-`contracts/stocks/bin/local-stocks-lab.py deploy` from `contracts/stocks`; it reads the Agent
+`contracts/stocks-v2/bin/local-stocks-lab.py deploy` from `contracts/stocks-v2`; it reads the Agent
 run record, installs the fixture stock tokens at the catalog addresses, deploys the Stocks
 graph, admits the fixture routes, and writes
 `contracts/v1/reports/generated/local-base-lab/stocks-site-config.json`:
@@ -64,10 +85,6 @@ graph, admits the fixture routes, and writes
     "usdc_holder": "0x…",
     "usdc_amount": "1000000000"
   },
-  "stocks": [
-    {"symbol": "AAPLc", "address": "0xb200000000000000000000c2e324d24d7eecd1fb", "decimals": 8,
-     "route": "0x…", "fixture": true, "launch_admission": "fixture_admitted"}
-  ],
   "abis": {"launchpad": [...], "hook": [...], "bid_adapter": [...], "route": [...], "auction": [...], "erc20": [...], "permit2": [...]}
 }
 ```
@@ -77,8 +94,7 @@ the chain mode (loopback in `base` mode; `Autolaunch.LabRpcUrl` and [fork-previe
 for `fork` mode, where `public_rpc_url` is required as well and must equal the Agent lab's) answering
 whose chain id or RPC doors differ from the Base description it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
-`cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, whose `stocks`
-entries are not in `Autolaunch.Stocks.Assets`, or whose ABI set lacks a function or event the site
+`cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, or whose ABI set lacks a function or event the site
 prepares against (`Autolaunch.Stocks.LabAbi.requirements/0`; for the launchpad that includes
 `launchesPaused`, `locker`, `splitterImplementation`, `StockLaunchGraduated` and
 `MemestockSplitterCreated`; for the hook `accrued`, `settled`, `settleStakerLane`, `HookFeeAccrued`,

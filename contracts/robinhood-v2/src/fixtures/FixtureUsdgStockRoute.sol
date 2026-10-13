@@ -20,6 +20,12 @@ contract FixtureUsdgStockRoute is IRobinhoodStockRoute {
     address public immutable override stock;
     address public immutable override usdg;
 
+    /// @notice No feed prices a fixture stock; a production route names its own here, and the site
+    ///         reads this to know which feed gives a stock's dollar price. Named as every route names
+    ///         it, so the site reads one selector.
+    // forge-lint: disable-next-line(screaming-snake-case-const)
+    address public constant feed = address(0);
+
     /// @notice USDG base units per one whole share. Fixed for the life of the fixture.
     uint256 public immutable usdgPerShare;
 

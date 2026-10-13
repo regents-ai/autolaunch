@@ -1,14 +1,16 @@
 defmodule Autolaunch.Stocks.Lab do
   @moduledoc """
   The Base Stocks deployment description: `stocks-site-config.json` as
-  `contracts/stocks/bin/local-stocks-lab.py deploy` writes it, and as the
+  `contracts/stocks-v2/bin/local-stocks-lab.py deploy` writes it, and as the
   contracts thread writes it for Base mainnet. `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT`
   names the file.
 
   It extends the Base deployment (`Autolaunch.Lab`) and is refused unless it
   names the very Base description this site runs with, answers on the same
   chain through the same RPC doors (`Autolaunch.LabRpcUrl`), and declares
-  every function and event the site prepares against.
+  every function and event the site prepares against. The stocks the launchpad
+  admits are not listed here: the site reads them from the chain
+  (`Autolaunch.Stocks.Stock`).
 
   A deployment with launches on the first Memestock launchpad (BITE, JollyB and
   AGI on Base) names that launchpad, its hook and its locker in a `v1`
@@ -28,19 +30,9 @@ defmodule Autolaunch.Stocks.Lab do
   )
   @abi_keys ~w(launchpad hook locker splitter bid_adapter route auction erc20 permit2)
   @faucet_keys ~w(regent_holder regent_amount stock_amount_units usdc_holder usdc_amount)
-  @stock_keys ~w(symbol address decimals route fixture launch_admission)
   @contract_keys ~w(hook launchpad locker)
   # A v1 section also names the bid adapter that version's USDC bids went through.
   @v1_address_keys ~w(bid_adapter hook launchpad locker)
-
-  @type stock :: %{
-          symbol: String.t(),
-          address: String.t(),
-          decimals: non_neg_integer(),
-          route: String.t(),
-          fixture: boolean(),
-          launch_admission: String.t()
-        }
 
   @type t :: %{
           path: String.t(),
@@ -49,7 +41,6 @@ defmodule Autolaunch.Stocks.Lab do
           chain_id: pos_integer(),
           addresses: %{required(String.t()) => String.t()},
           faucet: %{required(String.t()) => String.t()} | nil,
-          stocks: [stock()],
           abis: %{required(String.t()) => [map()]},
           v1: map() | nil
         }
@@ -104,7 +95,6 @@ defmodule Autolaunch.Stocks.Lab do
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, faucet} <- faucet_section(decoded["faucet"], chain_id),
-         {:ok, stocks} <- exact_stocks(decoded["stocks"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
          :ok <- StocksLabAbi.validate(abis),
          {:ok, v1} <- v1_section(decoded["v1"]) do
@@ -116,7 +106,6 @@ defmodule Autolaunch.Stocks.Lab do
          chain_id: chain_id,
          addresses: addresses,
          faucet: faucet,
-         stocks: stocks,
          abis: abis,
          v1: v1
        }}
@@ -130,11 +119,6 @@ defmodule Autolaunch.Stocks.Lab do
   end
 
   def load(_path), do: {:error, :absolute_path_required}
-
-  @doc "The admitted lab stock for one exact address, or `nil`."
-  @spec stock(t(), String.t()) :: stock() | nil
-  def stock(%{stocks: stocks}, address) when is_binary(address),
-    do: Enum.find(stocks, &Address.equal?(&1.address, address))
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
@@ -227,48 +211,6 @@ defmodule Autolaunch.Stocks.Lab do
   end
 
   defp exact_faucet(_faucet), do: {:error, :invalid_faucet}
-
-  defp exact_stocks(stocks) when is_list(stocks) and stocks != [] do
-    parsed = Enum.map(stocks, &exact_stock/1)
-
-    if Enum.all?(parsed, &match?({:ok, _}, &1)) do
-      stocks = Enum.map(parsed, fn {:ok, stock} -> stock end)
-
-      if Enum.uniq_by(stocks, & &1.address) == stocks,
-        do: {:ok, stocks},
-        else: {:error, :invalid_stocks}
-    else
-      {:error, :invalid_stocks}
-    end
-  end
-
-  defp exact_stocks(_stocks), do: {:error, :invalid_stocks}
-
-  defp exact_stock(stock) when is_map(stock) do
-    with true <- Enum.sort(Map.keys(stock)) == Enum.sort(@stock_keys),
-         true <- is_binary(stock["symbol"]) and stock["symbol"] != "",
-         true <- valid_address?(stock["address"]),
-         true <- is_integer(stock["decimals"]) and stock["decimals"] in 0..36,
-         true <- valid_address?(stock["route"]),
-         true <- is_boolean(stock["fixture"]),
-         true <- is_binary(stock["launch_admission"]),
-         {:ok, catalog} <- Autolaunch.Stocks.Assets.catalogued(stock["address"]),
-         true <- catalog.symbol == stock["symbol"] do
-      {:ok,
-       %{
-         symbol: stock["symbol"],
-         address: String.downcase(stock["address"]),
-         decimals: stock["decimals"],
-         route: String.downcase(stock["route"]),
-         fixture: stock["fixture"],
-         launch_admission: stock["launch_admission"]
-       }}
-    else
-      _ -> :error
-    end
-  end
-
-  defp exact_stock(_stock), do: :error
 
   defp v1_section(nil), do: {:ok, nil}
 

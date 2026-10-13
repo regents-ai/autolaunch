@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
-  alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft, PriceFeeds}
+  alias Autolaunch.Stocks.{Amounts, Assets, LaunchActions, LaunchDraft, PriceFeeds}
   alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{DraftMarks, TokenDisplay}
   alias Phoenix.LiveView.JS
@@ -49,11 +49,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :image_notice, :string, default: nil
   attr :image_color, :string, default: nil
   attr :stocks_image_upload, :map, default: nil
-  attr :stocks_lab, :map, default: nil
   attr :market, :map, default: %{prices: %{}, venues: []}
   attr :launch_chain, :atom, required: true
   attr :stock_sort, :string, required: true
-  attr :stock_records, :map, required: true
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
@@ -66,7 +64,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def create(assigns) do
     draft = assigns.draft
     chain = assigns.launch_chain
-    stock = stock_for(chain, assigns.stocks_lab, assigns.draft_values["stock_address"])
+    stock = stock_for(chain, assigns.draft_values["stock_address"])
 
     assigns =
       assigns
@@ -145,7 +143,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   chain={@launch_chain}
                   sort={@stock_sort}
                   sort_event="sort_stocks"
-                  records={@stock_records[@launch_chain]}
                   form="stocks-terms"
                 />
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
@@ -478,21 +475,13 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     do:
       "Bidders pay in USDG, swapped into #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
 
-  # The stock as this site's lab admits it, with its recorded decimals. Without
-  # a Stocks lab the decimals are only known at review, from the launchpad.
-  defp stock_for(_chain, _config, address) when address in [nil, ""], do: nil
-  defp stock_for(:base, nil, _address), do: nil
-  defp stock_for(:base, config, address), do: Autolaunch.Stocks.Lab.stock(config, address)
+  # The chosen stock as the chain's launchpad admits it, with its decimals.
+  defp stock_for(_chain, address) when address in [nil, ""], do: nil
 
-  defp stock_for(:robinhood, _config, address) do
-    case Autolaunch.Robinhood.Lab.current() do
-      {:ok, config} ->
-        config
-        |> Autolaunch.Robinhood.Lab.stocks()
-        |> Enum.find(&RegentChain.Address.equal?(&1.address, address))
-
-      {:error, _closed} ->
-        nil
+  defp stock_for(chain, address) do
+    case Assets.named(chain, address) do
+      {:ok, stock} -> stock
+      :error -> nil
     end
   end
 

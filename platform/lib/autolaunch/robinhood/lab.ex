@@ -1,17 +1,17 @@
 defmodule Autolaunch.Robinhood.Lab do
   @moduledoc """
   The Robinhood deployment description: `site-config.json` as
-  `contracts/robinhood/bin/local-robinhood-lab.py start` writes it, and as the
+  `contracts/robinhood-v2/bin/local-robinhood-lab.py start` writes it, and as the
   contracts thread writes it for the Robinhood chain. `AUTOLAUNCH_ROBINHOOD_DEPLOYMENT`
   names the file.
 
   It is refused unless it answers on an admitted RPC door
   (`Autolaunch.LabRpcUrl`), names every address the site depends on (with the
-  swap router and quoter together or not at all), lists
-  every stock the Stocks launchpad admitted, and declares every function and
-  event the site prepares against. Chain 31338 is the local lab, a blank Anvil
-  chain with fixture stocks; `test_chain?/0` is what the lab-only features key
-  off.
+  swap router and quoter together or not at all), and declares every function
+  and event the site prepares against. The stocks the launchpad admits are not
+  listed here: the site reads them from the chain (`Autolaunch.Stocks.Stock`).
+  Chain 31338 is the local lab, a blank Anvil chain with fixture stocks;
+  `test_chain?/0` is what the lab-only features key off.
 
   A deployment with launches on the first Robinhood launchpad (RDOG) names
   that launchpad, its hook and its locker in a `v1` section with their ABIs;
@@ -31,23 +31,9 @@ defmodule Autolaunch.Robinhood.Lab do
   # Router and V4 Quoter together; one without the other is refused.
   @swap_address_keys ~w(swap_router quoter)
   @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
-  @stock_keys ~w(symbol name address decimals route pool feed fixture launch_admission)
   @contract_keys ~w(hook launchpad locker)
   # A v1 section also names the bid adapter that version's USDG bids went through.
   @v1_address_keys ~w(bid_adapter hook launchpad locker)
-  @stock_decimals 18
-
-  @type stock :: %{
-          symbol: String.t(),
-          name: String.t(),
-          address: String.t(),
-          decimals: pos_integer(),
-          route: String.t(),
-          pool: String.t(),
-          feed: String.t(),
-          fixture: boolean(),
-          launch_admission: String.t()
-        }
 
   @type t :: %{
           path: String.t(),
@@ -56,7 +42,6 @@ defmodule Autolaunch.Robinhood.Lab do
           chain_id: pos_integer(),
           run_id: String.t(),
           addresses: %{required(String.t()) => String.t()},
-          stocks: [stock()],
           abis: %{required(String.t()) => [map()]},
           v1: map() | nil
         }
@@ -109,7 +94,6 @@ defmodule Autolaunch.Robinhood.Lab do
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, run_id} <- run_id(decoded["run_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
-         {:ok, stocks} <- exact_stocks(decoded["stocks"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
          :ok <- RobinhoodLabAbi.validate(abis),
          {:ok, v1} <- v1_section(decoded["v1"]) do
@@ -121,7 +105,6 @@ defmodule Autolaunch.Robinhood.Lab do
          chain_id: chain_id,
          run_id: run_id,
          addresses: addresses,
-         stocks: stocks,
          abis: abis,
          v1: v1
        }}
@@ -189,10 +172,6 @@ defmodule Autolaunch.Robinhood.Lab do
   def versions(%{v1: nil}), do: [:v2]
   def versions(_config), do: [:v2, :v1]
 
-  @doc "The stocks the controller read back from the chain, admitted on the Stocks launchpad."
-  @spec stocks(t()) :: [stock()]
-  def stocks(%{stocks: stocks}), do: stocks
-
   def rpc_opts(config) do
     [
       rpc_url: config.rpc_url,
@@ -218,55 +197,6 @@ defmodule Autolaunch.Robinhood.Lab do
 
   defp address_key_sets,
     do: [Enum.sort(@address_keys), Enum.sort(@address_keys ++ @swap_address_keys)]
-
-  # Every entry is exactly what the controller read back from the chain; a
-  # missing field, a stock that is not eighteen decimals, or a repeated symbol or
-  # address refuses the whole description. Addresses are normalized (the zero
-  # address refused) before the duplicate check.
-  defp exact_stocks(stocks) when is_list(stocks) and stocks != [] do
-    parsed = Enum.map(stocks, &exact_stock/1)
-
-    with true <- Enum.all?(parsed, &match?({:ok, _stock}, &1)),
-         stocks <- Enum.map(parsed, fn {:ok, stock} -> stock end),
-         true <- Enum.uniq_by(stocks, & &1.address) == stocks,
-         true <- Enum.uniq_by(stocks, & &1.symbol) == stocks do
-      {:ok, stocks}
-    else
-      _ -> {:error, :invalid_stocks}
-    end
-  end
-
-  defp exact_stocks(_stocks), do: {:error, :invalid_stocks}
-
-  defp exact_stock(stock) when is_map(stock) do
-    with true <- Enum.sort(Map.keys(stock)) == Enum.sort(@stock_keys),
-         true <- present?(stock["symbol"]),
-         true <- present?(stock["name"]),
-         true <- valid_address?(stock["address"]),
-         @stock_decimals <- stock["decimals"],
-         true <- valid_address?(stock["route"]),
-         true <- valid_address?(stock["pool"]),
-         true <- valid_address?(stock["feed"]),
-         true <- is_boolean(stock["fixture"]),
-         true <- present?(stock["launch_admission"]) do
-      {:ok,
-       %{
-         symbol: stock["symbol"],
-         name: stock["name"],
-         address: String.downcase(stock["address"]),
-         decimals: @stock_decimals,
-         route: String.downcase(stock["route"]),
-         pool: String.downcase(stock["pool"]),
-         feed: String.downcase(stock["feed"]),
-         fixture: stock["fixture"],
-         launch_admission: stock["launch_admission"]
-       }}
-    else
-      _ -> :error
-    end
-  end
-
-  defp exact_stock(_stock), do: :error
 
   defp v1_section(nil), do: {:ok, nil}
 
@@ -301,8 +231,6 @@ defmodule Autolaunch.Robinhood.Lab do
   end
 
   defp exact_abis(_abis), do: {:error, :invalid_abis}
-
-  defp present?(value), do: is_binary(value) and value != ""
 
   defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
 end

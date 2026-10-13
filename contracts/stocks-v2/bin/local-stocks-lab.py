@@ -595,7 +595,6 @@ def write_documents(
             "agent_lab_config": str(lab.agent_lab_dir / AGENT_SITE_CONFIG_NAME),
             "addresses": addresses,
             "faucet": dict(faucet),
-            "stocks": stocks,
             "abis": dict(abis),
         },
     )

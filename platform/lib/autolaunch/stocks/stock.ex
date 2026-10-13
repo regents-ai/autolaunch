@@ -1,13 +1,23 @@
 defmodule Autolaunch.Stocks.Stock do
   @moduledoc """
-  A stock token the site supports as a launch currency, one row per chain and
-  token address, so search can find an auction by the stock it trades in.
+  A stock token a launchpad has admitted as a launch currency, one row per
+  chain and token address. This table is the site's one list of stocks: the
+  picker, search, prices and every action's stock facts read it
+  (`Autolaunch.Stocks.Assets`).
 
-  `Autolaunch.Stocks.SupportedStocks` records every stock the chains' lists
-  offer when the site starts. Its ticker and company name follow those lists;
-  its search words start from a set kept here and are ours to change after
-  that with `:set_search_words`. A stock that leaves the lists keeps its row,
-  so auctions already trading in it stay findable by its name.
+  Every five minutes, and once when a server starts, `:sync_admissions` asks
+  each stock launchpad about every saved stock and about every stock its
+  `StockAdmitted` logs name since the last run, and writes what the chain says
+  of each at the latest block (`Autolaunch.Stocks.Stock.SyncAdmissions`):
+  whether it is admitted, its decimals and route, the route's price feed, and
+  the token's own name and ticker. A stock a launchpad admits therefore shows
+  here without a release. A row is not proof of admission at the moment of an
+  action: the launchpad's `stockAdmission` is read again before every launch
+  and bid.
+
+  A stock's search words start from a set kept here and are ours to change
+  after that with `:set_search_words`. A revoked stock keeps its row, so
+  auctions already trading in it stay findable by its name.
 
   Every half hour, each stock on a chain GeckoTerminal reports on whose
   volume has not been counted through yesterday is read again
@@ -52,6 +62,20 @@ defmodule Autolaunch.Stocks.Stock do
   }
 
   oban do
+    scheduled_actions do
+      schedule :sync_admissions, "*/5 * * * *" do
+        action :sync_admissions
+        queue :stock_admissions
+        # A failed chain read is tried again in seconds, not at the next run.
+        max_attempts 3
+        # One run at a time across every server, whether the schedule or a
+        # starting server asked for it: a second is not queued while one
+        # waits, runs or waits to be tried again.
+        worker_opts unique: [fields: [:worker], period: :infinity, states: :incomplete]
+        worker_module_name Autolaunch.Stocks.Stock.Workers.SyncAdmissions
+      end
+    end
+
     triggers do
       trigger :read_weekly_volume do
         action :read_weekly_volume
@@ -90,21 +114,28 @@ defmodule Autolaunch.Stocks.Stock do
       pagination keyset?: true, required?: false
     end
 
-    # One chain's rows, for the stock gallery: when each was first offered
-    # here and every name it goes by.
+    # Every saved row of one chain, for the sync to ask the chain about again.
     read :on_chain do
       argument :chain_id, :integer, allow_nil?: false
       filter expr(chain_id == ^arg(:chain_id))
-      prepare build(load: [:search_text])
     end
 
-    # Recorded again on every start; the search words and offered time set
-    # when the row was first written are left alone.
-    create :record_supported do
-      accept [:chain_id, :address, :symbol, :name]
+    # The stocks one chain's launchpad admits or once admitted, with every
+    # name each goes by: what `Autolaunch.Stocks.Assets` answers from.
+    read :launch_currencies do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and not is_nil(route))
+      prepare build(load: [:search_text], sort: [symbol: :asc])
+    end
+
+    # What the chain said of one stock at the latest block. Written again on
+    # every sync; the search words and offered time set when the row was first
+    # written are left alone.
+    create :record_admission do
+      accept [:chain_id, :address, :symbol, :name, :decimals, :route, :feed, :admitted]
       upsert? true
       upsert_identity :chain_address
-      upsert_fields [:symbol, :name]
+      upsert_fields [:symbol, :name, :decimals, :route, :feed, :admitted]
       change set_attribute(:offered_at, &DateTime.utc_now/0)
 
       change fn changeset, _context ->
@@ -119,6 +150,15 @@ defmodule Autolaunch.Stocks.Stock do
 
     update :set_search_words do
       accept [:search_words]
+    end
+
+    # A saved stock the chain's launchpad has never admitted.
+    update :withdraw_admission do
+      change set_attribute(:admitted, false)
+    end
+
+    action :sync_admissions do
+      run fn _input, _context -> Autolaunch.Stocks.Stock.SyncAdmissions.run() end
     end
 
     # Reads GeckoTerminal, then writes the answer, so no database transaction
@@ -139,7 +179,13 @@ defmodule Autolaunch.Stocks.Stock do
       authorize_if always()
     end
 
-    policy action([:record_supported, :set_search_words, :read_weekly_volume]) do
+    policy action([
+             :record_admission,
+             :withdraw_admission,
+             :set_search_words,
+             :read_weekly_volume,
+             :sync_admissions
+           ]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -152,10 +198,18 @@ defmodule Autolaunch.Stocks.Stock do
     attribute :address, :string,
       allow_nil?: false,
       public?: true,
-      constraints: [match: ~r/\A0x[0-9a-fA-F]{40}\z/]
+      constraints: [match: ~r/\A0x[0-9a-f]{40}\z/]
 
     attribute :symbol, :string, allow_nil?: false, public?: true, constraints: [max_length: 32]
     attribute :name, :string, allow_nil?: false, public?: true, constraints: [max_length: 120]
+
+    # What the launchpad and the route said at the last sync. A row written
+    # before the site read admissions has none of these until its first sync.
+    # A route that names no feed gives the stock no dollar price.
+    attribute :admitted, :boolean, allow_nil?: false, default: false, public?: true
+    attribute :decimals, :integer, public?: true, constraints: [min: 0, max: 36]
+    attribute :route, :string, public?: true, constraints: [match: ~r/\A0x[0-9a-f]{40}\z/]
+    attribute :feed, :string, public?: true, constraints: [match: ~r/\A0x[0-9a-f]{40}\z/]
 
     attribute :search_words, {:array, :string},
       allow_nil?: false,
@@ -170,7 +224,7 @@ defmodule Autolaunch.Stocks.Stock do
     attribute :weekly_volume_complete, :boolean, allow_nil?: false, default: false, public?: true
     attribute :weekly_volume_through, :date, public?: true
 
-    # When this site first listed the stock: the start that wrote its row.
+    # When this site first listed the stock: when its row was first written.
     # Stocks it listed before it kept this record have none.
     attribute :offered_at, :utc_datetime_usec, public?: true
 

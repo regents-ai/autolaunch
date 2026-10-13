@@ -277,7 +277,7 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(decimals, 8);
         assertEq(route, address(routeLow));
 
-        FixtureStockRoute wrongRoute = new FixtureStockRoute(STOCK_HIGH, USDC_PER_SHARE);
+        FixtureStockRoute wrongRoute = new FixtureStockRoute(STOCK_HIGH, address(0), USDC_PER_SHARE);
         vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV2.RouteBindingMismatch.selector, STOCK_LOW, STOCK_HIGH));
         vm.prank(governance);
         launchpad.admitStock(STOCK_LOW, address(wrongRoute));

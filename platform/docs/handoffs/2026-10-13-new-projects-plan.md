@@ -236,8 +236,8 @@ After:
 - The local lab admits its practice stocks on its own chain, so they are read the same way.
 
 What the release of A needs beyond code: a migration adding the columns (a production database
-change), and both production description files replaced by ones without the `stocks` list at
-the same release (founder configuration). Both are release items for Sean, not done here.
+change). That is a release item for Sean, not done here. As built, the production description
+files need no change: the loaders no longer read their `stocks` list and ignore it.
 
 #### Build notes for A (13 October, after the orchestrator's clear with conditions a to e)
 
@@ -249,31 +249,66 @@ Settled while reading the code; this is what is being built on `al/stock-watcher
   `Autolaunch.AuctionFinish.Launchpads.configured/0`.
 - Its place: a new one-row-per-chain table (`Autolaunch.Stocks.AdmissionScan`: chain, launchpad,
   run id, next block). A different launchpad or run id (a new deployment, or a restarted local
-  lab) starts the read again from the launchpad's first block and re-reads every row. Each run
-  reads `StockAdmitted` and `StockRevoked` from the saved block less a small margin to the
-  latest block, in ranges of at most 10,000 blocks, a bounded number of ranges per run.
-- Every row's facts are read at that latest block: `stockAdmission(stock)`, the route's
-  `feed()`, the token's `name()` and `symbol()`. Rows already marked admitted are read again
-  every run, so the table never rests on a log alone.
-- First block: Robinhood reads from block 0 as its other readers do. Base needs the block the
-  Stocks launchpad was deployed in, so the Base Stocks description gains `start_block` (the lab
-  script and contracts/stocks-v2/bin/ceremony.py write it). This is one more thing in the new
-  production description file.
+  lab) starts the read again from the launchpad's first block. Each run has two passes. First,
+  every stock already saved for the chain is asked of the chain again, which is how a revoked
+  stock leaves the list. Second, `StockAdmitted` logs are read from the saved block less 1,000
+  blocks to the latest block, in ranges of 2,000 blocks (the range the site's other log readers
+  use), at most 250 ranges a run; each stock they name that is not saved yet is asked of the
+  chain. The block after the last range read is saved with the stocks named but not read yet
+  (`unread`), so one unreadable stock holds back neither the others nor the place.
+- Every row's facts are read at the latest block: `stockAdmission(stock)`, the route's
+  `feed()`, the token's `name()` and `symbol()`. No fact comes from a log.
+- First block: the block the launchpad's code first appears in, found on the chain
+  (`Autolaunch.Chain.Rpc.deployment_block/3`, as the auction activity reader already does). The
+  description files gain nothing.
+- When: every five minutes, and once when a server starts (the schedule runs on one server
+  only, so each new server queues one run itself; the job is unique while it waits or runs, so
+  a second is dropped and there is one run at a time across every server).
 - Reads: `Autolaunch.Stocks.Assets` keeps its name and becomes the one way to ask for stocks
-  (`all/1`, `fetch/2`, `named/2`, `counterpart/2`), answering from the table through a one-minute
-  kept answer, because the Robinhood market reader asks for a stock on every block. A new stock
-  shows within a minute of the job writing it.
+  (`all/1`, `fetch/2`, `named/2`, `counterpart/2`, `known/1`), answering from the table through
+  a one-minute kept answer (Cachex), because the Robinhood market reader asks for a stock on
+  every block. A new stock shows within a minute of the job writing it.
 - Names: a stock's name is the token's own `name()` ("Apple Inc.", "Strategy Inc."), no longer
   the catalog's short name ("Apple", "Strategy").
 - Feed: a route that names no feed (the practice routes) gives a stock no dollar price. So the
   Base practice lab keeps its prices, `FixtureStockRoute` gains a `feed` set by the lab script;
   the Robinhood practice route has never answered as a feed and stays without one.
-- The practice preview (sample data, no chain) gets its stock rows from the same sample-data
-  step that writes its auctions.
+- The practice preview (sample data, no chain) runs no jobs, so its stock rows are written by
+  hand from what the live launchpads answer.
 - Gone in the same head: the `stocks` list in both descriptions and their loaders, the catalog
   and counterpart pairs in `Autolaunch.Stocks.Assets`, `Autolaunch.Stocks.PriceFeeds`' feed list,
   `Autolaunch.Stocks.SupportedStocks`, and the unused `catalog_status`, `launch_admission`,
   `fixture`, `pool` and `oracle_registry` values.
+
+#### What was checked for A (13 October)
+
+- On a private copy of live Base (the real launchpad and routes), inside a database
+  transaction that was thrown away: the first run filled in two saved stocks and left alone a
+  saved stock the launchpad never admitted; after the Safe's address revoked Apple and
+  re-admitted Alphabet, the next run took Apple out of the picker (it still answers by address,
+  so old auctions keep working) and added Alphabet as a new row; a third run wrote nothing; a
+  run with the chain not answering failed and kept its place; a newly admitted stock whose
+  route did not answer failed the run, was kept as unread while the place moved on, and was
+  saved once the route answered. Dollar prices came back from the feed saved on each row, a
+  revoked stock's included.
+- Two independent reviews (contracts and scripts; site code); every finding answered in the
+  head. Details in `platform/docs/handoffs/2026-10-13-stock-list-from-chain.md`.
+- `make check-platform` and both v2 packages' format, build, tests and frozen-surface checks.
+  `bin/gate.sh` needs a pristine checkout and is for Sentinel.
+- Live answers on 13 October: the Base launchpad admits ten stocks (AAPLc, AMZNc, GOOGLc,
+  METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc, TSLAc); Circle and Intel are not admitted there.
+  The Robinhood launchpad admits all 25 of its listed stocks, each with a feed.
+- At the first release: saved stocks are right within seconds of the new server starting.
+  Stocks not saved before are found by the log read: about 2 runs on Base, about 10 runs
+  (some 50 minutes) on Robinhood, whose launchpad is some 5 million blocks old.
+- Roll forward only: the version before this one writes its own stock rows at start, in mixed
+  case, and would add a second copy of every Base stock beside the lowercase rows; those copies
+  then make every run report a failure until they are deleted.
+- For part C: `feed()` is in no route interface, so nothing but the sync asks a route for it.
+  The Safe's check before signing has to include: the route answers `feed()`, and the token's
+  name is at most 120 characters and its ticker at most 32, or the site will not list it.
+- Seen and left for Sean: Base names in the picker are now the tokens' own, which are longer
+  ("Space Exploration Technologies Corp." where the list said "SpaceX").
 
 ### B. The watcher
 

@@ -180,7 +180,7 @@ Run from the repository root unless a step says otherwise.
    `https://autolaunch-fork-preview.fly.dev`, and (Stocks file) `agent_lab_config` set to
    `/app/fork/site-config.json`, where `platform/Dockerfile.preview` copies both files (the website
    checks that the two documents name the same Agent lab). Every other key (`chain_id`,
-   `addresses`, `abis`, `faucet`, `stocks`, the two fee strings) is copied unchanged.
+   `addresses`, `abis`, `faucet`, the two fee strings) is copied unchanged.
    `FORK_INTERNAL_RPC_URL` and `FORK_PUBLIC_RPC_URL` override the two URLs, `FORK_CONFIG_MOUNT_DIR`
    the in-image folder; `FORK_APP` renames the app everywhere.
 

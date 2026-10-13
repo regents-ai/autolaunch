@@ -42,11 +42,14 @@ defmodule Autolaunch.Application do
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       Autolaunch.MarketTicker,
-      supported_stocks_child(),
+      Supervisor.child_spec({Cachex, name: Autolaunch.Stocks.Assets.cache()},
+        id: Autolaunch.Stocks.Assets.cache()
+      ),
       autolaunch_indexer_children(),
       auction_activity_child(),
       token_trades_child(),
       autolaunch_jobs_child(),
+      stock_admissions_child(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
       autolaunch_robinhood_market_feed_child(),
@@ -91,11 +94,19 @@ defmodule Autolaunch.Application do
     end
   end
 
-  # The stocks the chains offer, saved once at start for search.
-  defp supported_stocks_child do
+  # The stocks each launchpad admits are read from the chain as soon as a
+  # server starts, then every five minutes (`Autolaunch.Stocks.Stock`). After
+  # the jobs child, which runs the read. Not under ExUnit, where no job runs
+  # unless a test asks for it.
+  defp stock_admissions_child do
     if !Autolaunch.Prelaunch.read_only?() and
-         Application.get_env(:autolaunch, :database_startup_enabled, false),
-       do: Autolaunch.Stocks.SupportedStocks
+         Application.get_env(:autolaunch, :database_startup_enabled, false) and
+         Application.fetch_env!(:autolaunch, Oban)[:testing] != :manual do
+      Supervisor.child_spec(
+        {Task, fn -> AshOban.schedule(Autolaunch.Stocks.Stock, :sync_admissions) end},
+        id: :stock_admissions_at_start
+      )
+    end
   end
 
   # Trades in each launched token's pool, for the ticker at the foot of every page.

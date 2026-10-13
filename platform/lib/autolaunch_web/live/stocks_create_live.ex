@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{ImageColor, LaunchChain, Listings, Stocks, Ticker}
+  alias Autolaunch.{ImageColor, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.{AutolaunchHelpers, StockSelect}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
@@ -44,10 +44,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
         image_color: nil,
         current_human_id: nil,
         creator_connections: %{},
-        stocks_lab: stocks_lab(),
         market: %{prices: %{}, venues: []},
         stock_sort: "alphabetical",
-        stock_records: stock_records(),
         reviewing?: false,
         launched?: false,
         listings: 0,
@@ -118,17 +116,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
     chain = socket.assigns.launch_chain
     stock = chosen_stock(chain, socket.assigns.draft_values["stock_address"])
     start_async(socket, :market, fn -> Stocks.MarketData.overview(chain, stock) end)
-  end
-
-  # Each chain's stock rows, for the gallery's added times and search names. A
-  # chain with no id configured offers no stocks.
-  defp stock_records do
-    Map.new(LaunchChain.chains(), fn chain ->
-      case Stocks.Assets.chain_id(chain) do
-        nil -> {chain, []}
-        chain_id -> {chain, Autolaunch.chain_stocks!(chain_id)}
-      end
-    end)
   end
 
   defp chosen_stock(_chain, ""), do: nil
@@ -493,13 +480,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
     case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
       {:ok, nil} -> Autolaunch.create_stocks_launch_draft(%{}, actor: actor)
       other -> other
-    end
-  end
-
-  defp stocks_lab do
-    case Stocks.Lab.current() do
-      {:ok, config} -> config
-      {:error, _reason} -> nil
     end
   end
 

@@ -181,6 +181,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
        %{
          launchpad: :base_memestock,
          chain_id: config.chain_id,
+         run_id: config.run_id,
          chain: Client.chain(config),
          contract: contracts.launchpad,
          abi: contracts.abis["launchpad"],
@@ -199,6 +200,7 @@ defmodule Autolaunch.AuctionFinish.Launchpads do
        %{
          launchpad: :robinhood_memestock,
          chain_id: config.chain_id,
+         run_id: config.run_id,
          chain: Client.chain(config),
          contract: contracts.launchpad,
          abi: contracts.abis["launchpad"],

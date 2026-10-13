@@ -273,17 +273,17 @@
     },
     "FixtureStockRoute": {
       "source": "src/routes/FixtureStockRoute.sol",
-      "runtime_bytes": 1041,
-      "runtime_object_sha256": "ce690e89c0ecf87f5c6f45c5dbb07f81b967e276e51f70b5e81c0f7247545551",
-      "creation_bytes": 1299,
-      "creation_object_sha256": "d6c62e2d4485d5b367992ce26a31c75a55db298782fb038316246e820ed4cd9b"
+      "runtime_bytes": 1120,
+      "runtime_object_sha256": "9a8a1d3cc4d4287d18f8eb51d7b0960c3a7956977861d5620fa3fe3db172ef64",
+      "creation_bytes": 1425,
+      "creation_object_sha256": "e80aa1bd3d18028e23033d7d0ed4a7042a4fa2d2db7b1ff2dcf989a97d02e0d1"
     },
     "FixtureStockToken": {
       "source": "src/fixtures/FixtureStockToken.sol",
-      "runtime_bytes": 3228,
-      "runtime_object_sha256": "a63840041e0e98ba9b4561d6a1b0723c7be02a53e37eda2c0e51574c4d33beb5",
-      "creation_bytes": 3254,
-      "creation_object_sha256": "2384faedd2eab2e3999e85b09c26152c901cb8880d8dd711de1a07b5d3a64160"
+      "runtime_bytes": 3556,
+      "runtime_object_sha256": "2f03d4a70130e220b4b3ca6bf2151aef22b2a63d6c13f1f6a3648813adb1538b",
+      "creation_bytes": 3582,
+      "creation_object_sha256": "01025dc8dc2533b34634287e311ac21b6fad5f715413fd34947900d686ca2502"
     },
     "IChainlinkAggregatorMinimal": {
       "source": "src/interfaces/IChainlinkAggregatorMinimal.sol",

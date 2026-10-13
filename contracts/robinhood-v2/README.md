@@ -209,12 +209,13 @@ uv run --no-project python bin/local-robinhood-lab.py stop
 `start` writes `reports/generated/local-robinhood-lab/site-config.json` for the platform
 (`AUTOLAUNCH_ROBINHOOD_LAB_CONFIG`): `rpc_url`, `chain_id`, `run_id`, `addresses` (`stocks_launchpad`,
 `stocks_hook`, `stocks_locker`, `stocks_splitter_implementation`, `bid_adapter`, `usdg`, `inbox`, `hook_factory`,
-`pool_manager`, `position_manager`, `cca_factory`, `uerc20_factory`, `permit2`, `admin_safe`),
-`stocks` (one entry per fixture: `symbol`, `name`, `address`, `decimals`, `route`,
-`usdg_per_share`, `fixture`, `launch_admission`) and `abis` (`stocks_launchpad`, `stocks_hook`,
-`stocks_locker`, `splitter`, `bid_adapter`, `stock_route`, `auction`, `erc20`). Every stock entry is read back from the chain after
-deployment, including its admission on the Stocks launchpad; the controller carries no catalog of
-its own. Nothing proven against the fixture stocks or routes is evidence about a real stock market.
+`pool_manager`, `position_manager`, `cca_factory`, `uerc20_factory`, `permit2`, `admin_safe`)
+and `abis` (`stocks_launchpad`, `stocks_hook`,
+`stocks_locker`, `splitter`, `bid_adapter`, `stock_route`, `auction`, `erc20`). The file names no
+stocks: the platform reads the stocks the Stocks launchpad admits from the chain. The controller's
+own state file keeps one entry per fixture stock, each read back from the chain after deployment,
+including its admission on the Stocks launchpad; the controller carries no catalog of its own.
+Nothing proven against the fixture stocks or routes is evidence about a real stock market.
 
 The block clock. On the Robinhood chain the launchpad and the auction read the rollup block number
 from the ArbSys precompile (`arbBlockNumber()` at `0x…64`, through `BlockNumberish`), not from

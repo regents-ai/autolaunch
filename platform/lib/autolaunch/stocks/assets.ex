@@ -1,124 +1,73 @@
 defmodule Autolaunch.Stocks.Assets do
   @moduledoc """
-  The stock currencies a Stocks launch can be drafted against, by chain.
+  The stock currencies of each launch chain, answered from the saved stocks
+  (`Autolaunch.Stocks.Stock`), which the site reads from the chain's own stock
+  launchpad every five minutes. A stock a launchpad admits is offered here
+  with no release; a stock it revokes leaves the list but still answers by
+  address, so auctions already trading in it keep working.
 
-  Each chain offers exactly the stocks its deployment description lists. Base
-  names them from the founder-selected catalog, which every stock the Base
-  Stocks description lists must come from; Robinhood's description carries its
-  own names, and on the local lab mintable fixture stocks with fixture prices.
-  A chain is empty when its description is not configured, and a configured
-  description that no longer loads raises rather than answering an empty list.
+  A chain's stocks are read from the database at most once a minute on each
+  server and kept in between (`cache/0`); the server whose sync wrote a change
+  reads again at once (`changed/0`), the others within the minute. A chain is
+  empty when its deployment description is not configured.
 
-  Neither list is proof of executable contract admission: the launchpad's own
-  `stockAdmission` is read again before every launch and bid.
-  Preserve supplied address spelling; resolve identities by chain and address.
-  Every address lookup here goes through `RegentChain.Address.equal?/2`: lowercase
-  and uppercase match, and mixed case must be a valid checksum.
+  Each stock is its `Autolaunch.Stocks.Stock` row. Base stocks are saved under
+  Base's own chain id whichever chain the Base description runs on, since a
+  local fork carries the same tokens at the same addresses.
+
+  A saved stock is not proof of admission at the moment of an action: the
+  launchpad's own `stockAdmission` is read again before every launch and bid.
+  Every address lookup here goes through `RegentChain.Address.equal?/2`:
+  lowercase and uppercase match, and mixed case must be a valid checksum.
   """
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
-  alias Autolaunch.Stocks.PriceFeeds
+  alias Autolaunch.Stocks.{PriceFeeds, Stock}
   alias RegentChain.Address
 
   @base_chain_id 8453
-  @oracle_registry "0x3f3E8cf41cdd3b1D118c16471aB0113DfDDd5CaD"
-  # Each entry's last address is the same company's Robinhood stock token: the
-  # pair Chainlink's feed directory names for one issuer on both chains
-  # (artifacts/autolaunch-stock-catalog-1011/eligibility.json).
-  @catalog [
-    {"AAPLc", "Apple", "0xb200000000000000000000C2e324d24d7eEcd1fb",
-     "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9"},
-    {"AMZNc", "Amazon", "0xb200000000000000000000d9192b6B456483C2E8",
-     "0x12f190a9F9d7D37a250758b26824B97CE941bF54"},
-    {"COINc", "Coinbase", "0xb200000000000000000000c85a31389D71F3ecfb",
-     "0x6330D8C3178a418788dF01a47479c0ce7CCF450b"},
-    {"CRCLc", "Circle", "0xB20000000000000000000019f6E7C675b73C2e4D",
-     "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5"},
-    {"GOOGLc", "Alphabet", "0xb2000000000000000000002D0BA3164cc74f58B7",
-     "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3"},
-    {"INTCc", "Intel", "0xB2000000000000000000004AFF16039bA04bdFBc",
-     "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681"},
-    {"METAc", "Meta", "0xb2000000000000000000008bC8786B856E61707C",
-     "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"},
-    {"MSFTc", "Microsoft", "0xB200000000000000000000Ab99cFa739E253872B",
-     "0xe93237C50D904957Cf27E7B1133b510C669c2e74"},
-    {"MSTRc", "Strategy", "0xb2000000000000000000004884b426556b92883d",
-     "0xec262a75e413fAfD0dF80480274532C79D42da09"},
-    {"NVDAc", "NVIDIA", "0xb20000000000000000000078ee7ce2fE4908108C",
-     "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC"},
-    {"SNDKc", "Sandisk", "0xb200000000000000000000397293Cb8cda9a10c5",
-     "0xB90A19fF0Af67f7779afF50A882A9CfF42446400"},
-    {"SPCXc", "SpaceX", "0xb2000000000000000000007b9fcbd005511aCBd5",
-     "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa"},
-    {"TSLAc", "Tesla", "0xb2000000000000000000001e800a7f5189430cD0",
-     "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"}
-  ]
+  @cache :autolaunch_stock_list
+
+  @doc "The cache each chain's saved stocks are kept in."
+  def cache, do: @cache
 
   @doc "The chain id a draft's stock currency lives on, for each launch chain."
   def chain_id(:base), do: @base_chain_id
   def chain_id(:robinhood), do: RobinhoodLab.chain_id()
 
-  def all(:base) do
-    case StocksLab.current() do
-      {:ok, config} ->
-        Enum.map(config.stocks, &base_asset/1)
+  @doc "The chain id a stock launchpad's stocks are saved under."
+  def stock_chain_id(%{launchpad: :base_memestock}), do: @base_chain_id
+  def stock_chain_id(%{launchpad: :robinhood_memestock, chain_id: chain_id}), do: chain_id
 
-      {:error, :stocks_deployment_missing} ->
-        []
+  @doc "The stocks a chain's launchpad admits now, by ticker."
+  @spec all(:base | :robinhood) :: [Stock.t()]
+  def all(chain), do: chain |> known() |> Enum.filter(& &1.admitted)
 
-      {:error, reason} ->
-        raise "Autolaunch Base Stocks deployment description is invalid: #{reason}"
-    end
-  end
+  @doc "The stocks a chain's launchpad admits now or once admitted, by ticker."
+  @spec known(:base | :robinhood) :: [Stock.t()]
+  def known(:base), do: if(StocksLab.configured?(), do: saved(@base_chain_id), else: [])
 
-  def all(:robinhood) do
-    case RobinhoodLab.current() do
-      {:ok, config} ->
-        Enum.map(RobinhoodLab.stocks(config), &robinhood_asset(config, &1))
+  def known(:robinhood),
+    do: if(RobinhoodLab.configured?(), do: saved(RobinhoodLab.chain_id()), else: [])
 
-      {:error, :robinhood_deployment_missing} ->
-        []
-
-      {:error, reason} ->
-        raise "Autolaunch Robinhood deployment description is invalid: #{reason}"
-    end
-  end
-
-  @doc "The founder-selected Base catalog entry for an address."
-  @spec catalogued(String.t()) ::
-          {:ok, %{symbol: String.t(), name: String.t(), address: String.t()}} | :error
-  def catalogued(address) when is_binary(address) do
-    case Enum.find(@catalog, fn {_symbol, _name, listed, _robinhood} ->
-           Address.equal?(listed, address)
-         end) do
-      {symbol, name, listed, _robinhood} -> {:ok, %{symbol: symbol, name: name, address: listed}}
+  @doc """
+  The same company's stock on the other launch chain: the stock that chain's
+  launchpad admits under the same ticker.
+  """
+  @spec counterpart(:base | :robinhood, String.t()) :: {:ok, Stock.t()} | :error
+  def counterpart(chain, address) when chain in [:base, :robinhood] and is_binary(address) do
+    with %{symbol: symbol} <- Enum.find(all(chain), &Address.equal?(&1.address, address)),
+         ticker = PriceFeeds.ticker(symbol),
+         %{} = stock <- Enum.find(all(other(chain)), &(PriceFeeds.ticker(&1.symbol) == ticker)) do
+      {:ok, stock}
+    else
       nil -> :error
     end
   end
 
-  @doc "The same company's stock token on the other launch chain, from the catalog's pairs."
-  @spec counterpart(:base | :robinhood, String.t()) :: {:ok, String.t()} | :error
-  def counterpart(:base, address) when is_binary(address) do
-    case Enum.find(@catalog, fn {_symbol, _name, base, _robinhood} ->
-           Address.equal?(base, address)
-         end) do
-      {_symbol, _name, _base, robinhood} -> {:ok, robinhood}
-      nil -> :error
-    end
-  end
-
-  def counterpart(:robinhood, address) when is_binary(address) do
-    case Enum.find(@catalog, fn {_symbol, _name, _base, robinhood} ->
-           Address.equal?(robinhood, address)
-         end) do
-      {_symbol, _name, base, _robinhood} -> {:ok, base}
-      nil -> :error
-    end
-  end
-
-  @doc "The listed stock a link names by symbol, in any case, or by address."
-  @spec named(:base | :robinhood, String.t()) :: {:ok, map()} | :error
+  @doc "The admitted stock a link names by symbol, in any case, or by address."
+  @spec named(:base | :robinhood, String.t()) :: {:ok, Stock.t()} | :error
   def named(chain, token) when is_binary(token) do
     wanted = String.trim(token)
 
@@ -128,12 +77,13 @@ defmodule Autolaunch.Stocks.Assets do
                Address.equal?(&1.address, wanted))
          ) do
       nil -> :error
-      asset -> {:ok, asset}
+      stock -> {:ok, stock}
     end
   end
 
-  def oracle_registry, do: %{chain_id: @base_chain_id, address: @oracle_registry}
-
+  @doc "The stock at an address on a chain, admitted now or once admitted."
+  @spec fetch(term(), term()) ::
+          {:ok, Stock.t()} | {:error, :unsupported_stock | :invalid_address}
   def fetch(@base_chain_id, address) when is_binary(address), do: find(:base, address)
 
   def fetch(chain_id, address) when is_integer(chain_id) and is_binary(address) do
@@ -144,52 +94,43 @@ defmodule Autolaunch.Stocks.Assets do
 
   def fetch(_chain_id, _address), do: {:error, :unsupported_stock}
 
-  # The description checked every stock against the catalog when it loaded.
-  defp base_asset(stock) do
-    {:ok, entry} = catalogued(stock.address)
+  @doc "Drops the stocks this server keeps, so its next reader sees what was just written."
+  def changed, do: Cachex.clear!(@cache)
 
-    %{
-      chain_id: @base_chain_id,
-      symbol: entry.symbol,
-      name: entry.name,
-      address: entry.address,
-      feed: PriceFeeds.base_feed!(entry.symbol),
-      catalog_status: :listed,
-      launch_admission: :unverified
-    }
-  end
-
-  # A fixture stock is the lab's own mintable token; any other stock the
-  # description lists is a listed asset whose admission the launchpad answers.
-  defp robinhood_asset(config, %{fixture: true} = stock),
-    do: robinhood_asset(config, stock, :lab_fixture, :fixture_admitted)
-
-  defp robinhood_asset(config, stock), do: robinhood_asset(config, stock, :listed, :unverified)
-
-  defp robinhood_asset(config, stock, catalog_status, launch_admission) do
-    %{
-      chain_id: config.chain_id,
-      symbol: stock.symbol,
-      name: stock.name,
-      address: stock.address,
-      decimals: stock.decimals,
-      route: stock.route,
-      feed: stock.feed,
-      catalog_status: catalog_status,
-      launch_admission: launch_admission
-    }
-  end
+  defp other(:base), do: :robinhood
+  defp other(:robinhood), do: :base
 
   defp find(chain, address) do
     case Address.decode(address) do
       {:ok, _bytes} ->
-        case Enum.find(all(chain), &Address.equal?(&1.address, address)) do
+        case Enum.find(known(chain), &Address.equal?(&1.address, address)) do
           nil -> {:error, :unsupported_stock}
-          asset -> {:ok, asset}
+          stock -> {:ok, stock}
         end
 
       :error ->
         {:error, :invalid_address}
+    end
+  end
+
+  # Read in whichever process asks, so a page never waits on another's read
+  # and a failed read is the asker's own. Kept for no time, nothing is kept.
+  defp saved(chain_id) do
+    case Application.fetch_env!(:autolaunch, :stock_list_kept_ms) do
+      0 -> Autolaunch.launch_currency_stocks!(chain_id)
+      kept_ms -> kept(chain_id, kept_ms)
+    end
+  end
+
+  defp kept(chain_id, kept_ms) do
+    case Cachex.get!(@cache, chain_id) do
+      nil ->
+        stocks = Autolaunch.launch_currency_stocks!(chain_id)
+        Cachex.put!(@cache, chain_id, stocks, expire: kept_ms)
+        stocks
+
+      stocks ->
+        stocks
     end
   end
 end

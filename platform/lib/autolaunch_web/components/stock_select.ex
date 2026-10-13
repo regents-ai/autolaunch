@@ -43,17 +43,11 @@ defmodule AutolaunchWeb.Components.StockSelect do
   attr :sort_event, :string, required: true
   attr :form, :string, required: true, doc: "the id of the form the choice saves with"
 
-  attr :records, :list,
-    default: [],
-    doc: "the chain's `Autolaunch.Stocks.Stock` rows, with `search_text` loaded"
-
   def stock_select(assigns) do
-    records = Map.new(assigns.records, &{String.downcase(&1.address), &1})
-
     stocks =
       assigns.chain
       |> Assets.all()
-      |> Enum.map(&card(&1, records[String.downcase(&1.address)]))
+      |> Enum.map(&card/1)
       |> ordered(assigns.sort)
 
     assigns =
@@ -218,22 +212,20 @@ defmodule AutolaunchWeb.Components.StockSelect do
   # A card's facts: the added time is when this site first offered the stock;
   # a stock offered before the site kept that record has none and sorts after
   # those that do.
-  defp card(asset, record) do
-    ticker = PriceFeeds.ticker(asset.symbol)
-    company = company(asset)
+  defp card(stock) do
+    ticker = PriceFeeds.ticker(stock.symbol)
+    company = company(stock)
 
-    Map.merge(asset, %{
+    %{
+      address: stock.address,
+      symbol: stock.symbol,
       ticker: ticker,
       company: company,
       website: Companies.website(ticker),
-      volume: weekly_volume(record),
-      added_at: record && record.offered_at,
-      search:
-        [asset.symbol, company, record && record.search_text]
-        |> Enum.reject(&is_nil/1)
-        |> Enum.join(" ")
-        |> String.downcase()
-    })
+      volume: weekly_volume(stock),
+      added_at: stock.offered_at,
+      search: String.downcase("#{stock.symbol} #{company} #{stock.search_text}")
+    }
   end
 
   # The past week is the seven whole UTC days up to yesterday. Each morning's
@@ -248,7 +240,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
       do: %{usd: Decimal.to_float(usd), complete?: complete?, through: through}
   end
 
-  defp weekly_volume(_record), do: nil
+  defp weekly_volume(_stock), do: nil
 
   defp ordered(stocks, "volume"),
     do:

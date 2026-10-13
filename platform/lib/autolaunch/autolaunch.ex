@@ -276,9 +276,21 @@ defmodule Autolaunch do
     # the transaction that sends a grant.
     resource Autolaunch.Stocks.FaucetGrant
 
-    # The stocks the site lists as launch currencies, kept for search.
+    # The stocks the launchpads admit as launch currencies, read from the chain.
     resource Autolaunch.Stocks.Stock do
       define :chain_stocks, action: :on_chain, args: [:chain_id]
+      define :launch_currency_stocks, action: :launch_currencies, args: [:chain_id]
+      define :record_stock_admission, action: :record_admission
+      define :withdraw_stock_admission, action: :withdraw_admission
+    end
+
+    resource Autolaunch.Stocks.AdmissionScan do
+      define :stock_admission_scan,
+        action: :of_launchpad,
+        args: [:chain_id, :launchpad, :run_id],
+        not_found_error?: false
+
+      define :advance_stock_admission_scan, action: :advance
     end
 
     resource Autolaunch.Token do

@@ -10,8 +10,9 @@ import Config
 config :ash_oban, pro?: false
 
 # Background jobs: the launch listing's and the auction finisher's
-# minute-by-minute checks, the stocks' half-hourly volume reads, one job at a
-# time on each of those queues; the default queue's quick jobs, the daily
+# minute-by-minute checks, the stocks' half-hourly volume reads and the
+# five-minute read of the stocks each launchpad admits, one job at a time on
+# each of those queues; the default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
 # to read; and Regent Credits' minute-by-minute checks of purchases and Base
 # deposits (application.ex adds the RegentCredits domain). The finishing queue
@@ -29,6 +30,7 @@ config :autolaunch, Oban,
     launch_listing: 1,
     outside_calls: 3,
     stock_volume: 1,
+    stock_admissions: 1,
     default: 1,
     regent_credits: 3
   ],
@@ -156,6 +158,10 @@ config :autolaunch, :chain_nodes, %{
 # Robinhood Chain mainnet, read for the stock prices the create page shows.
 config :autolaunch, :robinhood_read_rpc_url, "https://rpc.mainnet.chain.robinhood.com"
 config :autolaunch, :autolaunch_indexer_chains, []
+
+# How long each server keeps a chain's saved stocks before reading them again;
+# 0 keeps nothing.
+config :autolaunch, :stock_list_kept_ms, 60_000
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 

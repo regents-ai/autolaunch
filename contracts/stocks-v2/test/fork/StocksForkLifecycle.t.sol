@@ -96,7 +96,7 @@ contract StocksForkLifecycleTest is Test {
         launchpad = new StocksLaunchpadV2(ForkAddresses.UERC20_FACTORY, salt);
         hook = StocksFeeHookV1(launchpad.hook());
         adapter = new StockBidAdapterV1(address(launchpad));
-        route = new FixtureStockRoute(ForkAddresses.AAPLC, USDC_PER_SHARE);
+        route = new FixtureStockRoute(ForkAddresses.AAPLC, address(0), USDC_PER_SHARE);
         swapRouter = new PoolSwapTest(IPoolManager(StocksBindings.POOL_MANAGER));
 
         stock.mint(address(route), 10_000_000e8);

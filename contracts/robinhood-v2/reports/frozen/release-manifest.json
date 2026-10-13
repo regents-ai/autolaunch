@@ -492,10 +492,10 @@
   "source_contracts": {
     "FixtureUsdgStockRoute": {
       "source": "src/fixtures/FixtureUsdgStockRoute.sol",
-      "runtime_bytes": 1057,
-      "runtime_object_sha256": "d8d30c5f57c276dea90883c5d81831b18fc3f6b76730cba76f840219d5a07d91",
-      "creation_bytes": 1351,
-      "creation_object_sha256": "2a7643be07191c7fd364d7fb50606c61b9fc95b07903c575ed9328c01b3f8b36"
+      "runtime_bytes": 1094,
+      "runtime_object_sha256": "4aa990e475a2a15139b927e86b89358a17d4fb5de11b65b90369d278942d86a6",
+      "creation_bytes": 1388,
+      "creation_object_sha256": "515218bff91438b8f75927edc9282b5fa303371d67f0869fa65ab05b4cf7767f"
     },
     "IChainlinkAggregatorMinimal": {
       "source": "../stocks-v2/src/interfaces/IChainlinkAggregatorMinimal.sol",

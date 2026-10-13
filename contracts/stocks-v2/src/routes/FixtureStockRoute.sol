@@ -21,6 +21,11 @@ contract FixtureStockRoute is IStockRoute {
     address public immutable override stock;
     address public immutable override usdc;
 
+    /// @notice The feed the site prices this stock in dollars from, as a production route names its
+    ///         own; zero for a fixture stock no feed prices. This route never reads it: the swap and
+    ///         the quote use only the fixed price below.
+    address public immutable feed;
+
     /// @notice USDC base units per one whole share. Fixed for the life of the fixture.
     uint256 public immutable usdcPerShare;
 
@@ -30,11 +35,14 @@ contract FixtureStockRoute is IStockRoute {
     error ZeroAmount();
     error InsufficientOutput(uint256 minimum, uint256 found);
 
-    constructor(address stock_, uint256 usdcPerShare_) {
+    constructor(address stock_, address feed_, uint256 usdcPerShare_) {
         if (stock_ == address(0)) revert ZeroAddress();
         if (usdcPerShare_ == 0) revert ZeroPrice();
         stock = stock_;
         usdc = StocksBindings.USDC;
+        // Zero is a stock with no feed, so it is not refused.
+        // slither-disable-next-line missing-zero-check
+        feed = feed_;
         usdcPerShare = usdcPerShare_;
     }
 

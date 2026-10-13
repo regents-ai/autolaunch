@@ -229,7 +229,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     ///      same rules.
     function test_eighteen_decimal_stock_graduates_and_sells_the_whole_sale_allocation() public {
         address stock18 = address(new MockERC20("Eighteen", "EIGHTEEN", 18));
-        FixtureStockRoute route = new FixtureStockRoute(stock18, USDC_PER_SHARE);
+        FixtureStockRoute route = new FixtureStockRoute(stock18, address(0), USDC_PER_SHARE);
         vm.prank(governance);
         launchpad.admitStock(stock18, address(route));
         (, uint8 decimals,) = launchpad.stockAdmission(stock18);

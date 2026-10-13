@@ -39,14 +39,14 @@ Modes:
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoints the founder passes, to reports/generated/deployment/. For
-              Memestake on both chains every stock's route is read from the launchpad's admission
-              over that endpoint; on Robinhood the route's pool and feed are read from the route.
+              ABIs and the endpoints the founder passes, to reports/generated/deployment/. It
+              names no stocks: the site reads the stocks a launchpad admits from the chain.
               For Revstake the log ledger's start block is the factory's creation block.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`, `REGENT_ROBINHOOD_RPC_URL`),
-matching the `[rpc_endpoints]` aliases in `foundry.toml`, except that site-config reads through
-the `--rpc-url` it is given. A diagnostic that would echo one is redacted before it is shown.
+matching the `[rpc_endpoints]` aliases in `foundry.toml`; site-config reads no chain and only
+writes the `--rpc-url` it is given into the document. A diagnostic that would echo an endpoint
+is redacted before it is shown.
 """
 
 from __future__ import annotations
@@ -215,29 +215,22 @@ def selection_logs(match_test: str, env: dict) -> dict[str, str]:
 
 
 class Chain:
-    """Read-only access to one chain through `cast`, by endpoint alias and environment name, or
-    through an endpoint passed on the command line (`through`)."""
+    """Read-only access to one chain through `cast`, by endpoint alias and environment name."""
 
-    def __init__(self, alias: str, env_name: str, chain_id: int, url: str | None = None) -> None:
+    def __init__(self, alias: str, env_name: str, chain_id: int) -> None:
         self.alias = alias
         self.env_name = env_name
         self.chain_id = chain_id
-        self.url = url
-
-    def through(self, url: str) -> "Chain":
-        """The same chain, read through the endpoint the caller passed."""
-        return Chain(self.alias, self.env_name, self.chain_id, url)
 
     def endpoint(self) -> str:
-        """What `--rpc-url` receives: the endpoint the caller passed, or else the foundry.toml alias, so
-        the injected address never appears on a command line or in the process list."""
-        source = "--rpc-url" if self.url else self.env_name
-        value = self.url or os.environ.get(self.env_name, "")
+        """What `--rpc-url` receives: the foundry.toml alias, so the injected address never appears
+        on a command line or in the process list."""
+        value = os.environ.get(self.env_name, "")
         if not value:
-            raise CeremonyError(f"no read-only endpoint is injected under {source}")
+            raise CeremonyError(f"no read-only endpoint is injected under {self.env_name}")
         if not re.match(r"^(https?|wss?)://.+", value):
-            raise CeremonyError(f"the value under {source} is not an http(s) or ws(s) endpoint; its value is never printed")
-        return self.url or self.alias
+            raise CeremonyError(f"the value under {self.env_name} is not an http(s) or ws(s) endpoint; its value is never printed")
+        return self.alias
 
     def cast(self, *args: str) -> str:
         return run(["cast", *args, "--rpc-url", self.endpoint()]).strip()
@@ -537,30 +530,6 @@ class Package:
 def mined_salt_bits(salt_hex: str) -> None:
     if not HASH32_RE.match(salt_hex):
         raise CeremonyError(f"the mined hook salt is not 32 bytes: {salt_hex}")
-
-
-def admitted_route(chain: Chain, launchpad: str, stock: str) -> str:
-    """The route the launchpad admits `stock` through, read from the chain; the route must report
-    that stock back. The chain is the authority, not the manifest."""
-    values = chain.call(launchpad, "stockAdmission(address)(bool,uint8,address)", stock).split()
-    if len(values) != 3 or values[0] not in ("true", "false"):
-        raise CeremonyError(f"stockAdmission on {launchpad} did not return (bool, uint8, address) for {stock}")
-    if values[0] != "true":
-        raise CeremonyError(f"{stock} is not admitted on the launchpad {launchpad}")
-    route = checksum(values[2])
-    found = chain.call_address(route, "stock()(address)")
-    if not same_address(found, stock):
-        raise CeremonyError(f"the route {route} admitted for {stock} reports {found} as its stock")
-    return route
-
-
-def route_venue(chain: Chain, route: str, usdg: str) -> tuple[str, str]:
-    """The pool and feed a Robinhood route is pinned to, read from the route, which must settle
-    in the chain's USDG."""
-    found = chain.call_address(route, "usdg()(address)")
-    if not same_address(found, usdg):
-        raise CeremonyError(f"the route {route} settles in {found}, not USDG {usdg}")
-    return chain.call_address(route, "pool()(address)"), chain.call_address(route, "feed()(address)")
 
 
 class Revstake(Package):
@@ -906,7 +875,6 @@ class Stocks(Package):
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
         created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
-        chain = self.chain.through(args.rpc_url)
         addresses = {
             "launchpad": created["launchpad"],
             "hook": created["hook"],
@@ -923,23 +891,11 @@ class Stocks(Package):
             "governance_safe": self.frozen.binding("GOVERNANCE_AND_REGENT_SAFE"),
             "agent_factory": checksum(args.agent_factory),
         }
-        stocks = [
-            {
-                "symbol": admission["symbol"],
-                "address": admission["stock"].lower(),
-                "decimals": admission["decimals"],
-                "route": admitted_route(chain, created["launchpad"], admission["stock"]).lower(),
-                "fixture": False,
-                "launch_admission": "admitted",
-            }
-            for admission in manifest["admissions"]
-        ]
         return {
             "rpc_url": args.rpc_url,
             "public_rpc_url": args.public_rpc_url,
             "chain_id": self.chain.chain_id,
             "addresses": {key: value.lower() for key, value in addresses.items()},
-            "stocks": stocks,
             "abis": abis,
         }
 
@@ -1306,29 +1262,12 @@ class Robinhood(Package):
             "swap_router": manifest["selection"]["site_bindings"]["swap_router"],
             "quoter": manifest["selection"]["site_bindings"]["quoter"],
         }
-        chain = self.chain.through(args.rpc_url)
-        stocks = []
-        for admission in manifest["admissions"]:
-            route = admitted_route(chain, created["launchpad"], admission["stock"])
-            pool, feed = route_venue(chain, route, external["usdg"])
-            stocks.append({
-                "symbol": admission["symbol"],
-                "name": admission["name"],
-                "address": admission["stock"].lower(),
-                "decimals": admission["decimals"],
-                "route": route.lower(),
-                "pool": pool.lower(),
-                "feed": feed.lower(),
-                "fixture": False,
-                "launch_admission": "admitted",
-            })
         return {
             "rpc_url": args.rpc_url,
             "public_rpc_url": args.public_rpc_url,
             "chain_id": self.chain.chain_id,
             "run_id": args.run_id,
             "addresses": {key: value.lower() for key, value in addresses.items()},
-            "stocks": stocks,
             "abis": abis,
         }
 

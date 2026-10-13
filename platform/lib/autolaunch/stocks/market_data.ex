@@ -4,7 +4,7 @@ defmodule Autolaunch.Stocks.MarketData do
   for the create page, and the dollar value of an auction's currency, REGENT or
   a stock, for the auction pages.
 
-  Stock prices come from the chain's Chainlink feeds (see `PriceFeeds`), and
+  Stock prices come from the Chainlink feed each stock's route names, and
   REGENT's price is its Base Uniswap pool's, from DexScreener. A stock's venues
   are the places holding more than $10,000 of its liquidity, the two deepest,
   deepest first. On Base they are the stock token's deepest USDC pool on
@@ -47,8 +47,15 @@ defmodule Autolaunch.Stocks.MarketData do
   @doc "The chain's stock prices and the venues that trade the chosen stock."
   def overview(chain, stock), do: %{prices: prices(chain), venues: venues(chain, stock)}
 
-  @doc "USD prices by ticker for every listed stock on the chain whose feed answered."
-  def prices(chain), do: cached({:prices, chain}, fn -> read_prices(chain) end, %{})
+  @doc """
+  USD prices by ticker for every listed stock on the chain whose feed answered.
+  The answer is kept for the feeds it was read from, so a stock the launchpad
+  admits or revokes is priced, or dropped, on the next ask.
+  """
+  def prices(chain) do
+    feeds = feeds(chain)
+    cached({:prices, chain, feeds}, fn -> read_prices(chain, feeds) end, %{})
+  end
 
   @doc "One stock token's USD price on the chain; nil while its feed has not answered."
   def stock_price(chain, symbol), do: prices(chain)[PriceFeeds.ticker(symbol)]
@@ -109,11 +116,19 @@ defmodule Autolaunch.Stocks.MarketData do
 
   defp retry_ms(misses), do: min(@first_retry_ms * Integer.pow(2, misses), @ttl_ms)
 
-  # One `latestRoundData()` per listed stock, read concurrently; a feed that
-  # does not answer leaves its ticker out and makes the answer partial.
-  defp read_prices(chain) do
-    feeds = chain |> Assets.all() |> Map.new(&{PriceFeeds.ticker(&1.symbol), &1.feed})
+  # The feed of each saved stock whose route names one, by ticker, so an
+  # auction in a revoked stock keeps its dollar figures. Where a chain has two
+  # stocks under one ticker, the admitted one's feed.
+  defp feeds(chain) do
+    for %{symbol: symbol, feed: feed} <- Enum.sort_by(Assets.known(chain), & &1.admitted),
+        feed,
+        into: %{},
+        do: {PriceFeeds.ticker(symbol), feed}
+  end
 
+  # One `latestRoundData()` per feed, read concurrently; a feed that does not
+  # answer leaves its ticker out and makes the answer partial.
+  defp read_prices(chain, feeds) do
     prices =
       feeds
       |> Task.async_stream(fn {ticker, feed} -> {ticker, read_price(chain, feed)} end,
@@ -128,6 +143,7 @@ defmodule Autolaunch.Stocks.MarketData do
       |> Map.new()
 
     cond do
+      feeds == %{} -> {:ok, %{}}
       prices == %{} -> :error
       map_size(prices) < map_size(feeds) -> {:partial, prices}
       true -> {:ok, prices}

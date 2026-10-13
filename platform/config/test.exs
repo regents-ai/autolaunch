@@ -115,6 +115,9 @@ unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
   config :autolaunch, :chain_nodes, %{}
 end
 
+# Each test saves its own stocks, so none is kept from one test to the next.
+config :autolaunch, :stock_list_kept_ms, 0
+
 # Stock prices and venues are unavailable to ExUnit, so the create page renders
 # without them; a review server reads them from the real chains and DexScreener.
 unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do

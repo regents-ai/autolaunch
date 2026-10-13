@@ -65,7 +65,7 @@ contract DeployStocksLab is Script {
 
         address[13] memory routes;
         for (uint256 i; i < catalog.length; ++i) {
-            routes[i] = address(new FixtureStockRoute(catalog[i].stock, catalog[i].usdcPerShare));
+            routes[i] = address(new FixtureStockRoute(catalog[i].stock, catalog[i].feed, catalog[i].usdcPerShare));
         }
         vm.stopBroadcast();
 
