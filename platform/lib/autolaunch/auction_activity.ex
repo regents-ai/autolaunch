@@ -527,18 +527,22 @@ defmodule Autolaunch.AuctionActivity do
       if current.activity_next_block != auction.activity_next_block,
         do: Repo.rollback(:superseded)
 
-      Repo.delete_all(
-        from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
-      )
+      {removed_bids, _} =
+        Repo.delete_all(
+          from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
+        )
 
-      Repo.delete_all(
-        from p in AuctionPricePoint,
-          where: p.auction_id == ^auction.id and p.block_number >= ^first
-      )
+      {removed_points, _} =
+        Repo.delete_all(
+          from p in AuctionPricePoint,
+            where: p.auction_id == ^auction.id and p.block_number >= ^first
+        )
 
-      Repo.delete_all(
-        from s in BidSettlement, where: s.auction_id == ^auction.id and s.block_number >= ^first
-      )
+      {removed_settlements, _} =
+        Repo.delete_all(
+          from s in BidSettlement,
+            where: s.auction_id == ^auction.id and s.block_number >= ^first
+        )
 
       Ash.bulk_create!(bids, BidActivity, :record, actor: @actor, return_errors?: true)
       Ash.bulk_create!(points, AuctionPricePoint, :record, actor: @actor, return_errors?: true)
@@ -563,7 +567,12 @@ defmodule Autolaunch.AuctionActivity do
           opened_at: opening,
           estimated_end_at: ending,
           bid_volume: if(complete?, do: total),
-          bid_volume_usd: dollar_volume(total, rate, complete?)
+          bid_volume_usd: dollar_volume(total, rate, complete?),
+          events_changed:
+            events_changed?(
+              removed_bids + removed_points + removed_settlements,
+              bids ++ points ++ settlements
+            )
         },
         actor: @actor,
         action: :refresh_activity,
@@ -579,6 +588,10 @@ defmodule Autolaunch.AuctionActivity do
         error
     end
   end
+
+  # Whether the pass changed what the lists show of this auction's events: it
+  # removed one from a range it read again, or it saved one.
+  defp events_changed?(removed, saved), do: removed > 0 or saved != []
 
   # Every bid a Base auction announced is also its bidder's position, whether or
   # not their page was open when it confirmed. Only bids without a saved position
@@ -650,7 +663,8 @@ defmodule Autolaunch.AuctionActivity do
           bid_volume: nil,
           bid_volume_usd: nil,
           estimated_end_at: nil,
-          activity_due_at: DateTime.utc_now()
+          activity_due_at: DateTime.utc_now(),
+          events_changed: true
         },
         actor: @actor,
         action: :refresh_activity,

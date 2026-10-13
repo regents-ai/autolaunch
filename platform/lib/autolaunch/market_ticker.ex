@@ -4,7 +4,7 @@ defmodule Autolaunch.MarketTicker do
   once and shared by every page that has it open.
 
   A saved bid or trade rereads them a second later, so a burst of them costs
-  one read, and each new list goes out to every page as
+  one read, and a list that differs from the last goes out to every page as
   `{:market_ticker, entries}`. They are also reread each minute, because
   entries leave the list an hour after they happened. The list holds at most
   the twenty newest bids and the twenty newest trades of that hour.
@@ -53,8 +53,12 @@ defmodule Autolaunch.MarketTicker do
     with {:ok, bids} <- Ash.read(BidActivity, action: :recent, actor: nil),
          {:ok, trades} <- Ash.read(TokenTrade, action: :recent, actor: nil) do
       entries = entries(bids, trades)
-      :ets.insert(__MODULE__, {:entries, entries})
-      Phoenix.PubSub.broadcast(Autolaunch.PubSub, @topic, {:market_ticker, entries})
+
+      # Most rereads find the same list; only a new one goes out to the pages.
+      if :ets.lookup(__MODULE__, :entries) != [{:entries, entries}] do
+        :ets.insert(__MODULE__, {:entries, entries})
+        Phoenix.PubSub.broadcast(Autolaunch.PubSub, @topic, {:market_ticker, entries})
+      end
     end
 
     {:noreply, %{state | due: false}}

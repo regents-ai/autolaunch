@@ -93,22 +93,27 @@ defmodule AutolaunchWeb.AuctionLive do
      )}
   end
 
-  # Either feed may have moved; the combined reading decides whether the page
-  # has anything new to show.
-  def handle_info({:autolaunch_market_updated, _update}, socket) do
+  # Either feed may have moved. A reading of this auction is read again here;
+  # another auction's reading only moves the page's block clock.
+  def handle_info({:autolaunch_market_updated, %{auction_ids: auction_ids}}, socket) do
     market = market_snapshot()
 
-    if market.generation > socket.assigns.market.generation do
-      {:noreply,
-       socket
-       |> assign(:market, market)
-       |> assign_positions()
-       |> load_page(reset: false)
-       |> load_book(reset: false)
-       |> load_snapshot(reset: false)
-       |> load_history(reset: false)}
-    else
-      {:noreply, socket}
+    cond do
+      market.generation <= socket.assigns.market.generation ->
+        {:noreply, socket}
+
+      socket.assigns.record_id in auction_ids ->
+        {:noreply,
+         socket
+         |> assign(:market, market)
+         |> assign_positions()
+         |> load_page(reset: false)
+         |> load_book(reset: false)
+         |> load_snapshot(reset: false)
+         |> load_history(reset: false)}
+
+      true ->
+        {:noreply, assign(socket, :market, market)}
     end
   end
 

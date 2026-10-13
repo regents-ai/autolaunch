@@ -36,6 +36,12 @@ defmodule Autolaunch.Auction do
     :chain_id
   ]
 
+  # What a bid-activity pass writes: the scanner's own place in the chain, and
+  # the figures the lists show. A field the pass comes to write goes in one of
+  # the two, so it is either announced or deliberately not.
+  @activity_place [:activity_next_block, :activity_last_hash, :activity_due_at]
+  @activity_figures [:bid_volume, :bid_volume_usd, :opened_at, :estimated_end_at]
+
   postgres do
     table "auctions"
     repo Autolaunch.Repo
@@ -80,16 +86,11 @@ defmodule Autolaunch.Auction do
 
     update :refresh_activity do
       require_atomic? false
+      accept @activity_place ++ @activity_figures
 
-      accept [
-        :activity_next_block,
-        :activity_last_hash,
-        :activity_due_at,
-        :bid_volume,
-        :bid_volume_usd,
-        :opened_at,
-        :estimated_end_at
-      ]
+      # Whether the pass saved or removed a bid, a clearing price or a
+      # withdraw or claim.
+      argument :events_changed, :boolean, allow_nil?: false
     end
 
     read :read do
@@ -497,7 +498,16 @@ defmodule Autolaunch.Auction do
     transform fn notification -> {:autolaunch_listings_changed, notification.data.id} end
 
     publish_all :create, "listings"
-    publish :refresh_activity, "listings"
+
+    # A bid-activity pass saves its place every few seconds. The lists hear of
+    # it only when it changed an event or a figure; a pass that moved nothing
+    # but its place is not their business.
+    publish :refresh_activity, "listings",
+      filter: fn %{changeset: %{data: before} = changeset, data: after_refresh} ->
+        Ash.Changeset.get_argument(changeset, :events_changed) or
+          Map.take(before, @activity_figures) != Map.take(after_refresh, @activity_figures)
+      end
+
     publish :set_bid_terms, "listings"
     publish :set_treasury_security_report, "listings"
     publish :hide, "listings"
