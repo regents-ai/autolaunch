@@ -214,6 +214,25 @@ defmodule Autolaunch.BidActionsTest do
              )
   end
 
+  test "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero" do
+    price =
+      "0." <>
+        String.duplicate("0", 6) <>
+        "15833990919455422282092917151435809523796205411372284288518130779266357421875"
+
+    auction =
+      Autolaunch.TestSupport.project_auction(state: :active, current_clearing_price: price)
+
+    assert {:ok, below} = Autolaunch.quote_auction_bid(auction.id, "1", "0.0000001")
+    assert below.current_clearing_price == price
+    refute below.would_be_active_now
+    assert "max_price_below_current_clearing_price" in below.warnings
+
+    assert {:ok, at} = Autolaunch.quote_auction_bid(auction.id, "1", price)
+    assert at.would_be_active_now
+    assert at.status_band == "borderline"
+  end
+
   defp prepare(auction_id, wallet, amount, max_price, opts),
     do:
       BidActions.prepare(

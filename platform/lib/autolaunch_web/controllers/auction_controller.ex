@@ -83,6 +83,7 @@ defmodule AutolaunchWeb.AuctionController do
       {:error, :invalid_amount} -> invalid_decimal(conn, "invalid_amount", "amount")
       {:error, :invalid_max_price} -> invalid_decimal(conn, "invalid_max_price", "max_price")
       {:error, :database_unavailable} -> internal_error(conn)
+      {:error, :price_unreadable} -> internal_error(conn)
     end
   end
 

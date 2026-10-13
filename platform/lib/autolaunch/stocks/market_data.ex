@@ -154,7 +154,7 @@ defmodule Autolaunch.Stocks.MarketData do
   end
 
   defp positive(price) do
-    case Decimal.parse(price) do
+    case Decimal.parse(price, max_digits: :infinity) do
       {decimal, ""} -> if Decimal.gt?(decimal, 0), do: {:ok, decimal}, else: :error
       _unparsed -> :error
     end

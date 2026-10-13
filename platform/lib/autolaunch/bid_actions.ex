@@ -53,14 +53,15 @@ defmodule Autolaunch.BidActions do
 
   A refusal names the first thing that stopped it, checked in this order:
   `:auction_not_found` (the id names no auction this site created),
-  `:estimate_not_offered` (a listed Robinhood auction), `:invalid_amount`, `:invalid_max_price`, or `:database_unavailable` when the
-  stored auction could not be read.
+  `:estimate_not_offered` (a listed Robinhood auction), `:invalid_amount`, `:invalid_max_price`,
+  `:database_unavailable` when the stored auction could not be read, or
+  `:price_unreadable` when its stored clearing price is not a plain decimal.
   """
   def quote(auction_id, amount, max_price, opts \\ []) do
     with {:ok, auction} <- quoted_auction(auction_id, opts),
          {:ok, amount} <- positive_decimal(amount, :invalid_amount),
-         {:ok, max_price} <- positive_decimal(max_price, :invalid_max_price) do
-      current_price = nonnegative_decimal_or_zero(auction.current_clearing_price)
+         {:ok, max_price} <- positive_decimal(max_price, :invalid_max_price),
+         {:ok, current_price} <- stored_price(auction.current_clearing_price) do
       projected_price = if Decimal.gt?(current_price, 0), do: current_price, else: max_price
       price_reaches? = Decimal.compare(max_price, current_price) != :lt
       active? = auction.state == :active and price_reaches?
@@ -598,8 +599,9 @@ defmodule Autolaunch.BidActions do
   def atomic_amount(value, decimals) when is_binary(value) and is_integer(decimals) do
     value = String.trim(value)
 
-    with true <- String.match?(value, ~r/^\d+(?:\.\d{1,#{decimals}})?$/),
-         {decimal, ""} <- Decimal.parse(value),
+    with true <- byte_size(value) <= 100,
+         true <- String.match?(value, ~r/^\d+(?:\.\d{1,#{decimals}})?$/),
+         {decimal, ""} <- Decimal.parse(value, max_digits: :infinity),
          scaled <- Decimal.mult(decimal, Decimal.new(Integer.pow(10, decimals))),
          rounded <- Decimal.round(scaled, 0),
          :eq <- Decimal.compare(scaled, rounded),
@@ -647,7 +649,7 @@ defmodule Autolaunch.BidActions do
 
     with true <- byte_size(value) <= 100,
          true <- String.match?(value, ~r/^(?:\d+(?:\.\d+)?|\.\d+)$/),
-         {decimal, ""} <- Decimal.parse(value),
+         {decimal, ""} <- Decimal.parse(value, max_digits: :infinity),
          :gt <- Decimal.compare(decimal, 0) do
       {:ok, decimal}
     else
@@ -657,19 +659,26 @@ defmodule Autolaunch.BidActions do
 
   defp positive_decimal(_value, refusal), do: {:error, refusal}
 
-  defp nonnegative_decimal_or_zero(value) when is_binary(value) do
-    case Decimal.parse(String.trim(value)) do
-      {decimal, ""} ->
-        if Decimal.compare(decimal, 0) in [:eq, :gt], do: decimal, else: Decimal.new(0)
-
-      _unreadable ->
-        Decimal.new(0)
+  # The clearing price the market feed stored, read whole: a stored price is
+  # far longer than Decimal's default 34 digits.
+  defp stored_price(value) when is_binary(value) do
+    with true <- String.match?(value, ~r/^\d+(?:\.\d+)?$/),
+         {decimal, ""} <- Decimal.parse(value, max_digits: :infinity) do
+      {:ok, decimal}
+    else
+      _unreadable -> {:error, :price_unreadable}
     end
   end
 
-  defp nonnegative_decimal_or_zero(_value), do: Decimal.new(0)
+  defp stored_price(_value), do: {:error, :price_unreadable}
 
-  defp decimal_string(decimal), do: decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
+  # Drops trailing zeros by hand: `Decimal.normalize/1` would round a stored
+  # price to the context precision.
+  defp decimal_string(%Decimal{coef: coef, exp: exp} = decimal)
+       when exp < 0 and rem(coef, 10) == 0,
+       do: decimal_string(%{decimal | coef: div(coef, 10), exp: exp + 1})
+
+  defp decimal_string(decimal), do: Decimal.to_string(decimal, :normal)
 
   defp status_band(false, _max_price, _projected_price), do: "inactive"
 
