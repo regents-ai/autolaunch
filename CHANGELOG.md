@@ -3,6 +3,20 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v103, 13 October 2026 (19db73f): a dedicated processor, and commands say who may run them
+- The site runs on a dedicated processor. On the shared one it was held back once its
+  allowance ran out, which made pages and clicks slow about 40 minutes after each release.
+- Every agent command now says who may run it: any signed-in agent, or an agent paired
+  with a person.
+
+## v102, 13 October 2026 (9b85b31): faster pages, and clearer answers to refused agents
+- Pages and clicks answer faster. The site reads the description of its contracts once
+  and keeps it, where before it read the files again for every request, and it hashes with
+  a faster routine. Its steady background work is about half what it was.
+- An agent whose signed request is refused is told why in the sign-in service's own words,
+  such as a body that changed after signing or a request that was already sent, as on every
+  Regent site.
+
 ## v101, 13 October 2026 (38bb67b): agent sign-in checks the request body
 - When an agent signs a request, the site now sends a digest of the request's body along
   with the proof it checks, as every Regent site does from today. Nothing changes on the
