@@ -355,7 +355,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           unit="REGENT"
           price={@opening.price}
           fdv={@opening.fdv}
-          threshold={@opening.threshold}
+          raise?
           rate={regent_rate(@regent_rate)}
           creator_connections={@creator_connections}
         />

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.AuctionsLive do
   @moduledoc """
   The auctions list: every auction as a table row with its FDV at the current
-  price, bid volume, launch threshold and status, filtered by chain, status,
+  price, bid volume and status, filtered by chain, status,
   search and the creator's verified connections.
   """
   use AutolaunchWeb, :live_view

@@ -5,8 +5,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   auction as the Robinhood market feed stored it (its token's name,
   description, website and image, its state and minimum) with the feed's
   latest reading of what it raised and the chain's clock. It names its
-  creator when a signed-up account's wallet launched it, shows how far it is
-  toward its minimum and roughly when bidding ends, hands the signed-in
+  creator when a signed-up account's wallet launched it, shows roughly when
+  bidding ends, hands the signed-in
   wallet the bid step, and once the launch has graduated, points at the
   token's own page, where it trades and stakes. When Robinhood cannot be
   read, the page says so and shows what was last read.
@@ -30,7 +30,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.AuctionNext
 
   alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt}
-  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.MarketData
@@ -175,6 +174,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         <.figures
           :if={@snapshot.ok?}
           snapshot={@snapshot.result}
+          auction={@launch}
           symbol={@launch.quote_token_symbol}
           token_symbol={@launch.token_symbol}
           chain={:robinhood}
@@ -341,16 +341,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     ~H"""
     <.details_window id="robinhood-auction-details">
       <dl class="autolaunch-live-market" aria-label="Auction facts">
-        <div>
-          <dt>Minimum to graduate</dt>
-          <dd>
-            <AutolaunchWeb.TokenDisplay.price
-              amount={required(@launch)}
-              unit={@launch.quote_token_symbol}
-            />
-            <UsdValue.usd amount={required(@launch)} rate={@usd_rate} />
-          </dd>
-        </div>
         <div>
           <dt>Bids are paid in</dt>
           <dd>
@@ -519,13 +509,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       {:error, _reason} -> assign(socket, :launch_failed?, true)
     end
   end
-
-  # The minimum is stored in the stock's smallest unit.
-  defp required(launch),
-    do:
-      launch.required_currency_raised
-      |> String.to_integer()
-      |> Rpc.format_units(launch.quote_token_decimals)
 
   # Robinhood's stock prices, read beside the launch so a slow price never
   # holds the auction back.

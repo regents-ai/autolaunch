@@ -2,7 +2,7 @@ defmodule Autolaunch.AuctionFigures do
   @moduledoc """
   The launch figures an auction's stored record gives, worked out once for the
   market cards and the public API: the minimum it must raise, how much of that
-  is met, and how many tokens it sells.
+  is met, when to say it is short, and how many tokens it sells.
   """
 
   alias Autolaunch.Chain.Rpc
@@ -39,6 +39,25 @@ defmodule Autolaunch.AuctionFigures do
   end
 
   def percent_met(_auction), do: nil
+
+  @closing_seconds 30 * 60
+
+  @doc """
+  The moment from which to tell bidders the auction is short of its minimum:
+  30 minutes before bidding is due to end, and only while everything bid so far
+  adds up to less than the minimum. Nil when the auction is not live, its bids
+  cover the minimum, or either figure is not recorded yet. Every minimum is
+  tiny beside a real auction's bids, so at any other time it is not shown.
+  """
+  @spec minimum_warning_from(map()) :: DateTime.t() | nil
+  def minimum_warning_from(
+        %{state: :active, estimated_end_at: %DateTime{} = end_at, bid_volume: %Decimal{} = bids} =
+          auction
+      ) do
+    if Decimal.lt?(bids, minimum(auction)), do: DateTime.add(end_at, -@closing_seconds)
+  end
+
+  def minimum_warning_from(_auction), do: nil
 
   @doc """
   The tokens the auction sells, fixed by its launch type: a Revstake auction

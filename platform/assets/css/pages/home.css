@@ -102,12 +102,14 @@
 :is(#home-explore, #create-preview) .home-coin__links a { justify-self: start; display: inline-flex; align-items: center; gap: .4em; max-width: 100%; color: var(--color-fg-muted); text-decoration: none; }
 :is(#home-explore, #create-preview) .home-coin__links a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :is(#home-explore, #create-preview) .home-coin__links a:is(:hover, :focus-visible) { color: var(--color-fg); }
-/* An auction's figures: a Revstake auction's bid volume and launch threshold on full-width lines that wrap on a narrow card, shown while the pointer is over the card or the keyboard is inside it; the FDV under them at the right, always. */
+/* An auction's figures: a Revstake auction's bid volume on a full-width line that wraps on a narrow card, shown while the pointer is over the card or the keyboard is inside it; the FDV under it at the right, always. */
 :is(#home-explore, #create-preview) .home-coin__figures { display: grid; gap: 2px; margin-top: 8px; font-size: .6875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
 :is(#home-explore, #create-preview) .home-coin__raise { min-width: 0; opacity: 0; }
 :is(#home-explore, #create-preview) .home-coin__raise p { margin: 0; overflow-wrap: anywhere; }
 :is(#home-explore, #create-preview) .home-coin__raise span { color: var(--color-fg-muted); }
 :is(#home-explore, #create-preview) .home-coin:has(:focus-visible) .home-coin__raise { opacity: 1; }
+/* A card whose auction is short of its minimum near the end keeps the line showing. */
+:is(#home-explore, #create-preview) .home-coin__raise:has([data-from]:not([hidden])) { opacity: 1; }
 @media (hover: hover) { :is(#home-explore, #create-preview) .home-coin:hover .home-coin__raise { opacity: 1; } }
 @media (prefers-reduced-motion: no-preference) { :is(#home-explore, #create-preview) .home-coin__raise { transition: opacity var(--duration-fast) var(--ease-out); } }
 /* The whole card rises a little toward the pointer or keyboard focus and its image drifts closer; still when motion is reduced. */
@@ -140,19 +142,8 @@
   :is(#home-explore, #create-preview) .home-coin__action { transition: translate var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
 }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { :is(#home-explore, #create-preview) .home-coin__action:hover:not(:disabled) { translate: 0 -2px; } }
-/* An auction's two bars at the foot of its card, always in the same place so every card keeps its height:
-   how much of the launch threshold is met, only while it is not yet met, in a faint glowing white that turns green at its end;
-   under it, how much of the auction's time has passed, in its chain's colour a little brighter than the chain's box. */
-:is(#home-explore, #create-preview) .home-coin__bars { display: grid; grid-template-rows: 3px 4px; row-gap: 5px; margin-top: 10px; }
-:is(#home-explore, #create-preview) .home-coin__met { grid-row: 1; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
-:is(#home-explore, #create-preview) .home-coin__met span { display: block; height: 100%; max-width: 100%; border-radius: 2px; background: linear-gradient(to left, #3ee04c, rgb(255 255 255 / .92) 10px); box-shadow: 0 0 5px rgb(255 255 255 / .55); }
-:root[data-theme="light"] :is(#home-explore, #create-preview) .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
-:root[data-theme="light"] :is(#home-explore, #create-preview) .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) :is(#home-explore, #create-preview) .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
-  :root:not([data-theme]) :is(#home-explore, #create-preview) .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
-}
-:is(#home-explore, #create-preview) .home-coin__time { grid-row: 2; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
+/* An auction's bar at the foot of its card: how much of the auction's time has passed, in its chain's colour a little brighter than the chain's box. */
+:is(#home-explore, #create-preview) .home-coin__time { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
 :is(#home-explore, #create-preview) .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
 :is(#home-explore, #create-preview) .home-coin__time--base { --time-color: #2970ff; }
 :is(#home-explore, #create-preview) .home-coin__time--robinhood { --time-color: #00e606; }
@@ -163,7 +154,7 @@
   :is(#home-explore, #create-preview) .home-coin__metric { margin-top: 6px; }
   :is(#home-explore, #create-preview) .home-coin__figures { margin-top: 4px; }
   :is(#home-explore, #create-preview) .home-coin__actions { margin-top: 8px; }
-  :is(#home-explore, #create-preview) .home-coin__bars { margin-top: 8px; }
+  :is(#home-explore, #create-preview) .home-coin__time { margin-top: 8px; }
 }
 @media (hover: none) {
   @container (max-width: 170px) {

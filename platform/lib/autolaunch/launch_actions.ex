@@ -143,30 +143,24 @@ defmodule Autolaunch.LaunchActions do
   def terms, do: Enum.map(LaunchAbi.terms(), &Atom.to_string/1)
 
   # The fixed terms of every Revstake launch, as `RegentLBPStrategyV2` holds
-  # them: the auction's floor price, the supply, and the tokens the auction
-  # sells. REGENT and the new token both have 18 decimals.
+  # them: the auction's floor price and the supply. REGENT and the new token
+  # both have 18 decimals.
   @floor_price_q96 4_294_967_300
-  @q96 Integer.pow(2, 96)
   @decimals 18
   @total_supply 100_000_000_000
-  @auction_allocation 20_000_000_000 * Integer.pow(10, @decimals)
 
   @doc """
   What a launch opens at, in REGENT: the price of one token at the auction's
-  floor, exactly, the whole supply at that price, and the launch threshold
-  (the whole sale at the floor, rounded up, plus one base unit, since the
-  auction can count a bid up to one unit short). Until a bid clears higher,
-  the first two are the auction's clearing price and FDV.
+  floor, exactly, and the whole supply at that price. Until a bid clears
+  higher, they are the auction's clearing price and FDV.
   """
-  @spec opening() :: %{price: String.t(), fdv: Decimal.t(), threshold: Decimal.t()}
+  @spec opening() :: %{price: String.t(), fdv: Decimal.t()}
   def opening do
     price = Amounts.format_cca_price(@floor_price_q96, @decimals, @decimals)
-    required = div(@auction_allocation * @floor_price_q96 + @q96 - 1, @q96)
 
     %{
       price: price,
-      fdv: price |> Decimal.new(max_digits: :infinity) |> Decimal.mult(@total_supply),
-      threshold: Decimal.new(minimum_regent(required))
+      fdv: price |> Decimal.new(max_digits: :infinity) |> Decimal.mult(@total_supply)
     }
   end
 

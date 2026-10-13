@@ -35,8 +35,8 @@
 .auction-next-figure dd { display: grid; gap: 4px; margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .auction-next-figure__value { color: var(--color-fg); font-size: 2rem; font-weight: 700; line-height: 1.15; }
 .auction-next-figure__value .figure__unit { color: var(--color-fg); font-size: 1.25rem; font-weight: 600; }
-.auction-next-figure__status { color: var(--color-fg-muted); font-size: .9375rem; font-weight: 600; }
-.auction-next-figure__status[data-on="true"] { color: var(--color-success); }
+/* The line that names the minimum keeps its place whether or not it is showing. */
+.auction-next-figure__short { min-height: 1.5em; color: var(--color-warning); font-size: .8125rem; font-weight: 600; line-height: 1.5; }
 .auction-next-figure__block { font-size: 1rem; font-weight: 600; }
 .auction-next-figure__note { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
 @media (max-width: 48rem) { .auction-next-figures { grid-auto-flow: row; } }

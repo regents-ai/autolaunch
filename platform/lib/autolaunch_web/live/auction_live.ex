@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
   import AutolaunchWeb.Components.AuctionNext
 
-  alias Autolaunch.{AuctionBook, AuctionFigures, AuctionSnapshot, AuctionStage, BidReceipt, Pool}
+  alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt, Pool}
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
@@ -220,8 +220,8 @@ defmodule AutolaunchWeb.AuctionLive do
         <.figures
           :if={@snapshot.ok?}
           snapshot={@snapshot.result}
-          minimum={if @page_record.kind == :agent, do: minimum(@page_record)}
-          raised={@snapshot.result.raised}
+          auction={@page_record}
+          raised={if @page_record.kind == :agent, do: @snapshot.result.raised}
           symbol={@page_record.quote_token_symbol}
           token_symbol={@page_record.token_symbol}
           chain={:base}
@@ -503,16 +503,6 @@ defmodule AutolaunchWeb.AuctionLive do
         unit={@page_record.quote_token_symbol}
       />
       <dl class="autolaunch-live-market" aria-label="Auction terms">
-        <div>
-          <dt>Minimum to graduate</dt>
-          <dd>
-            <AutolaunchWeb.TokenDisplay.price
-              amount={minimum(@page_record)}
-              unit={@page_record.quote_token_symbol}
-            />
-            <UsdValue.usd amount={minimum(@page_record)} rate={@usd_rate} />
-          </dd>
-        </div>
         <div>
           <dt>Bids are paid in</dt>
           <dd>
@@ -820,8 +810,6 @@ defmodule AutolaunchWeb.AuctionLive do
     do: "#{symbol} bid before refunds"
 
   defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
-
-  defp minimum(record), do: AuctionFigures.minimum_units(record)
 
   defp page_token(%{ok?: true, result: %{token: token}}), do: token
   defp page_token(_page), do: nil

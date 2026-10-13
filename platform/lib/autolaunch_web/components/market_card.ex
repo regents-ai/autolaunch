@@ -11,6 +11,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
   import AutolaunchWeb.Components.InfoTip
+  import AutolaunchWeb.Components.MinimumWarning
   alias AutolaunchWeb.{Paths, SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
 
@@ -20,9 +21,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   @tips %{
     fdv:
       "What the whole token supply is worth at the price bidders pay right now. It rises as bids push the price up.",
-    volume: "Everything bidders have put in so far.",
-    threshold:
-      "What the auction must raise for the token to launch. If it ends short, every bidder can withdraw their whole bid."
+    volume: "Everything bidders have put in so far."
   }
 
   attr :kind, :atom, required: true, values: [:auction, :token]
@@ -40,12 +39,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
   creator's links.
 
   An auction's card shows only its clearing price up top, then its figures
-  (on a Revstake auction the bid volume and launch threshold on hover or
-  keyboard focus; the FDV always), Details and Bid, and a thin bar of how
-  much of the auction's time has passed, under, on a Revstake auction, one
-  of how much of the launch threshold is met while it is not yet met. A
-  token's card shows its price and market
-  cap, then Details and Buy.
+  (on a Revstake auction the bid volume on hover or keyboard focus; the FDV
+  always), Details and Bid, and a thin bar of how much of the auction's time
+  has passed. The minimum is named only in an auction's last 30 minutes, and
+  only while its bids are short of it. A token's card shows its price and
+  market cap, then Details and Buy.
   """
   def explore_card(%{kind: :auction} = assigns) do
     figures = figures(assigns.record, assigns.rate)
@@ -124,17 +122,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :fdv, :any, default: nil, doc: "the whole supply at the starting price, in the unit"
   attr :rate, :any, default: nil, doc: "the USD price of one unit"
 
-  attr :threshold, :any,
-    default: nil,
-    doc: "a Revstake draft's launch threshold, in the unit; with it the card shows the raise"
+  attr :raise?, :boolean, default: false, doc: "a Revstake draft, which shows its bid volume"
 
   attr :creator_connections, :map, default: %{}
 
   @doc """
   A draft as the gallery will show its auction when it is listed: the same
   card as `explore_card/1`, at the starting price, with no bids and none of
-  its time passed; a Revstake draft shows its launch threshold with nothing
-  raised. Nothing on it can be pressed or followed. The creator's wallet is
+  its time passed. Nothing on it can be pressed or followed. The creator's wallet is
   not among the links: which wallet launches is not known until it signs.
   """
   def draft_card(assigns) do
@@ -157,9 +152,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
         figures: %{
           fdv: money(assigns.fdv, assigns.rate, assigns.unit) || "No price yet",
           volume: money(Decimal.new(0), assigns.rate, assigns.unit),
-          threshold: money(assigns.threshold, assigns.rate, assigns.unit),
           unpriced: if(is_nil(assigns.rate), do: assigns.unit),
-          met: if(assigns.threshold, do: 0),
+          short_from: nil,
           ends_at: nil,
           id: "draft"
         },
@@ -167,14 +161,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
       )
 
     ~H"""
-    <.auction_card view={@view} figures={@figures} bar={@bar} raise?={@threshold != nil} preview />
+    <.auction_card view={@view} figures={@figures} bar={@bar} raise?={@raise?} preview />
     """
   end
 
   attr :view, :map, required: true
   attr :figures, :map, required: true
   attr :bar, :map, required: true
-  attr :raise?, :boolean, default: false, doc: "a Revstake auction, which shows its raise"
+  attr :raise?, :boolean, default: false, doc: "a Revstake auction, which shows its bid volume"
   attr :trade_event, :string, default: nil
   attr :preview, :boolean, default: false, doc: "a draft's card: shown whole, and inert"
 
@@ -197,19 +191,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
             <.info_tip id={"volume-#{@figures.id}"} text={tip(:volume)} icon={false}>
               {@figures.volume}
             </.info_tip>
-            <span :if={@figures.met}> · {if @figures.met >= 100,
-              do: "met",
-              else: "#{@figures.met}% met"}</span>
-          </p>
-          <p>
-            <span>Launch threshold</span>
-            <.info_tip
-              id={"threshold-#{@figures.id}"}
-              text={tip(:threshold, @figures.unpriced)}
-              icon={false}
-            >
-              {@figures.threshold}
-            </.info_tip>
+            <.minimum_warning id={"short-#{@figures.id}"} from={@figures.short_from}>
+              · below minimum
+            </.minimum_warning>
           </p>
         </div>
         <p class="home-coin__floor">
@@ -238,28 +222,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
       </div>
-      <div class="home-coin__bars">
-        <div
-          :if={@raise? && @figures.met && @figures.met < 100}
-          class="home-coin__met"
-          role="img"
-          aria-label={"#{@figures.met}% of the launch threshold met"}
-          title={"#{@figures.met}% of the launch threshold met"}
-        >
-          <span :if={@figures.met > 0} style={"width: max(#{@figures.met}%, 8px)"}></span>
-        </div>
-        <div
-          id={"time-bar-#{@figures.id}"}
-          class={["home-coin__time", "home-coin__time--#{String.downcase(@view.chain)}"]}
-          role="img"
-          aria-label={@bar.label}
-          title={@bar.label}
-          phx-hook=".AuctionTimeBar"
-          data-opens-at={@bar.opens_at && DateTime.to_iso8601(@bar.opens_at)}
-          data-ends-at={@figures.ends_at && DateTime.to_iso8601(@figures.ends_at)}
-        >
-          <span :if={@bar.progress} style={"width: #{@bar.progress}%"}></span>
-        </div>
+      <div
+        id={"time-bar-#{@figures.id}"}
+        class={["home-coin__time", "home-coin__time--#{String.downcase(@view.chain)}"]}
+        role="img"
+        aria-label={@bar.label}
+        title={@bar.label}
+        phx-hook=".AuctionTimeBar"
+        data-opens-at={@bar.opens_at && DateTime.to_iso8601(@bar.opens_at)}
+        data-ends-at={@figures.ends_at && DateTime.to_iso8601(@figures.ends_at)}
+      >
+        <span :if={@bar.progress} style={"width: #{@bar.progress}%"}></span>
       </div>
       <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeBar">
         export default {
@@ -595,9 +568,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} />
       </td>
       <td>
-        {@figures.volume}<small :if={@figures.met}>{if @figures.met >= 100,
-          do: "Minimum met",
-          else: "#{@figures.met}% of minimum"}</small>
+        {@figures.volume}
+        <.minimum_warning
+          id={"short-#{@figures.id}"}
+          from={@figures.short_from}
+          tag="small"
+        >
+          Below minimum
+        </.minimum_warning>
       </td>
       <td>{@figures.fdv}</td>
       <td class="market-list__status">
@@ -911,9 +889,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       volume:
         money(auction.bid_volume_usd, Decimal.new(1)) || money(auction.bid_volume, nil, unit) ||
           "Not counted yet",
-      threshold: money(AuctionFigures.minimum(auction), rate, unit),
       unpriced: if(is_nil(rate), do: unit),
-      met: AuctionFigures.percent_met(auction),
+      short_from: AuctionFigures.minimum_warning_from(auction),
       progress: time_progress(auction),
       opens_at: live_open(auction),
       ends_at: live_end(auction),

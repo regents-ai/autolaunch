@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   auction's recorded prices:
 
     * `stage_rail/1` - where the auction is, from creation to its pool;
-    * `figures/1` - the price now, the amount raised against the minimum, and
+    * `figures/1` - the price now, on a Revstake auction the amount raised, and
       a live countdown to the end of bidding;
     * `filmstrip/1` - the recorded prices over the bidding window with the
       release schedule under them, a replay of each recorded price, and the
@@ -22,8 +22,17 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   use Phoenix.Component
 
   import AutolaunchWeb.Components.InfoTip
+  import AutolaunchWeb.Components.MinimumWarning
 
-  alias Autolaunch.{AuctionBook, AuctionSnapshot, BidActions, BidPrice, LaunchChain}
+  alias Autolaunch.{
+    AuctionBook,
+    AuctionFigures,
+    AuctionSnapshot,
+    BidActions,
+    BidPrice,
+    LaunchChain
+  }
+
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.TokenDisplay
   alias Phoenix.LiveView.JS
@@ -132,26 +141,30 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   attr :snapshot, :map, required: true
 
-  attr :minimum, :string,
-    default: nil,
-    doc: "a Revstake auction's minimum in whole currency; a Memestock auction shows none"
+  attr :auction, :map, required: true, doc: "the auction's stored record"
 
   attr :raised, :string,
     default: nil,
-    doc: "the currency raised in whole currency, beside the minimum"
+    doc: "a Revstake auction's currency raised in whole currency; a Memestock auction shows none"
 
   attr :symbol, :string, required: true
   attr :token_symbol, :string, required: true
   attr :chain, :atom, required: true
 
   @doc """
-  The price now per million tokens, on a Revstake auction the amount raised
-  against the minimum, and a live countdown to the end of bidding. The countdown runs to a time worked
-  out from the blocks left and the chain's block time, so it is an estimate;
-  the end block it counts to is shown under it.
+  The price now per million tokens, on a Revstake auction the amount raised,
+  and a live countdown to the end of bidding. The countdown runs to a time
+  worked out from the blocks left and the chain's block time, so it is an
+  estimate; the end block it counts to is shown under it. The last line of the
+  countdown names the minimum, only in the last 30 minutes of bidding and only
+  while the bids are short of it; its space is always kept.
   """
   def figures(assigns) do
-    assigns = assign(assigns, :ends_at, ends_at(assigns.snapshot, assigns.chain))
+    assigns =
+      assign(assigns,
+        ends_at: ends_at(assigns.snapshot, assigns.chain),
+        short_from: AuctionFigures.minimum_warning_from(assigns.auction)
+      )
 
     ~H"""
     <dl class="auction-next-figures">
@@ -185,8 +198,8 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           </span>
         </dd>
       </div>
-      <div :if={@minimum} class="auction-next-figure">
-        <dt>Minimum to graduate</dt>
+      <div :if={@raised} class="auction-next-figure">
+        <dt>Raised</dt>
         <dd>
           <strong
             id="auction-next-raised"
@@ -196,15 +209,8 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           >
             <TokenDisplay.price amount={@raised} unit={@symbol} />
           </strong>
-          <span
-            class="auction-next-figure__status"
-            data-on={to_string(@snapshot.stage.facts.minimum_reached == true)}
-          >
-            {minimum_word(@snapshot.stage.facts.minimum_reached, @ends_at)}
-          </span>
           <span class="auction-next-figure__note">
-            Raised of the <TokenDisplay.price amount={@minimum} unit={@symbol} />
-            minimum. {if @ends_at, do: "Reaching it does not end bidding."}
+            Spent by bids so far. Read from the chain at block {grouped(@snapshot.block.number)}.
           </span>
         </dd>
       </div>
@@ -224,6 +230,18 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           <strong :if={!@ends_at} class="auction-next-figure__value">Ended</strong>
           <span class="auction-next-figure__block">Block {grouped(@snapshot.blocks.end)}</span>
           <span class="auction-next-figure__note">{ending(@snapshot)}</span>
+          <span class="auction-next-figure__short">
+            <.minimum_warning id="auction-next-minimum" from={@short_from}>
+              <.info_tip
+                id="auction-next-minimum-tip"
+                text="If bidding ends below the minimum, every bidder can withdraw their whole bid."
+              >
+                Below the
+                <TokenDisplay.price amount={AuctionFigures.minimum_units(@auction)} unit={@symbol} />
+                minimum
+              </.info_tip>
+            </.minimum_warning>
+          </span>
         </dd>
       </div>
     </dl>
@@ -260,10 +278,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     </script>
     """
   end
-
-  defp minimum_word(true, _ends_at), do: "Passed"
-  defp minimum_word(_reached, nil), do: "Not reached"
-  defp minimum_word(_reached, _ends_at), do: "Not yet"
 
   defp ends_at(%{clock: clock, blocks: %{end: finish}}, _chain) when clock >= finish, do: nil
 
