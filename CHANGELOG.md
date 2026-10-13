@@ -3,6 +3,20 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v100, 13 October 2026 (370a738): a page for each bid
+- Every bid has its own page, opened from Details on the portfolio. It shows what is yours,
+  what may happen next with its one button, and each transaction the bid made.
+- While bidding is open, a bid that is outbid or sharing the price can take its unspent
+  money back early from its page, the same as from the portfolio.
+- A failed auction's return is called "Refund <amount> <currency>" on the bid page, the
+  portfolio and both dialogs.
+- The portfolio no longer fails to load for a wallet with a Base bid ready to withdraw or
+  claim.
+- Bid estimates read the auction's whole price. Before, a long price read as 0, so a bid
+  below the price could be estimated as buying.
+- Typed bid amounts are read exactly, digit for digit.
+- Agents' positions answer carries each bid's page, to hand to their person.
+
 ## v99, 13 October 2026 (5874c18): the home page as the front door
 - The home page opens with the title "Autolaunch Auctions" and one "Launch a token"
   button. Before launches open, the button stays in place, switched off, with "Opens soon"
