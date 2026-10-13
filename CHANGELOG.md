@@ -3,6 +3,16 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v105, 13 October 2026 (3bd5639): an auction page shows its price before bidding opens
+- An auction's page shows its price and schedule from the moment it is launched. Before,
+  between the launch and the first block of bidding, the page said the auction could not be
+  read from the chain.
+
+## v104, 13 October 2026 (13094a2): a limit on connections at Fly's door
+- Fly now hands the site at most 150 connections at once; newcomers beyond that wait at
+  Fly's door and open pages keep their connection. This does not by itself make open pages
+  faster.
+
 ## v103, 13 October 2026 (19db73f): a dedicated processor, and commands say who may run them
 - The site runs on a dedicated processor. On the shared one it was held back once its
   allowance ran out, which made pages and clicks slow about 40 minutes after each release.
