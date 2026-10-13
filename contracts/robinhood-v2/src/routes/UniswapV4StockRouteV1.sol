@@ -27,8 +27,10 @@ import {RobinhoodPreset} from "../RobinhoodPreset.sol";
 /// @dev Pinned at construction: USDG, the stock, the pool manager, the pool's fee and tick spacing,
 ///      and the feed. The route builds the pool key itself with no hook, so it can only ever reach
 ///      the hookless pool of exactly USDG and the stock at that fee and spacing (the Robinhood pools
-///      sort both ways; the key sorts them). A pool with a hook, and therefore any dynamic-fee pool,
-///      is out of reach by construction. The route calls the pool manager directly, never a router,
+///      sort both ways; the key sorts them). A pool with a hook, and therefore any pool whose
+///      liquidity-provider fee can change, is out of reach by construction; a protocol fee the pool
+///      manager's own controller may switch on changes the price only, and the caller's minimum
+///      covers it. The route calls the pool manager directly, never a router,
 ///      and builds every swap itself: the price limit is the extreme of the pool's range, so the
 ///      caller's `minAmountOut` is the only price control. `quoteExactIn` is the feed price, not the
 ///      pool price: it is the review quote a caller chooses a minimum from, and `swapExactIn` never
@@ -52,7 +54,8 @@ contract UniswapV4StockRouteV1 is ReentrancyGuardTransient, IRobinhoodStockRoute
     IPoolManager public immutable poolManager;
     IChainlinkAggregatorMinimal public immutable feed;
 
-    /// @notice The pinned pool's static fee, in hundredths of a basis point, and its tick spacing.
+    /// @notice The pinned pool's fixed liquidity-provider fee, in hundredths of a basis point, and its
+    ///         tick spacing.
     uint24 public immutable fee;
     int24 public immutable tickSpacing;
 

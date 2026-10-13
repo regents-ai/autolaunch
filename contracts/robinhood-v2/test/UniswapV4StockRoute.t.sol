@@ -6,6 +6,8 @@ import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {Pool} from "@uniswap/v4-core/src/libraries/Pool.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
@@ -133,6 +135,16 @@ abstract contract UniswapV4StockRouteTestBase is Test {
         _newRoute(address(usdg), address(otherStock), FEE, TICK_SPACING);
         _expectNotInitialized(address(otherDollar), address(stock), FEE, TICK_SPACING);
         _newRoute(address(otherDollar), address(stock), FEE, TICK_SPACING);
+    }
+
+    function test_construction_rejects_a_pair_whose_only_pool_has_a_hook() public {
+        // The same pair, fee and spacing behind a hook is a different pool; the route never reaches it.
+        PoolKey memory hooked = _key(address(usdg), address(stock), THIN_FEE, THIN_TICK_SPACING);
+        hooked.hooks = IHooks(address((uint160(1) << 159) | Hooks.BEFORE_DONATE_FLAG));
+        poolManager.initialize(hooked, _sqrtPriceAtFeed());
+
+        _expectNotInitialized(address(usdg), address(stock), THIN_FEE, THIN_TICK_SPACING);
+        _newRoute(address(usdg), address(stock), THIN_FEE, THIN_TICK_SPACING);
     }
 
     // -------------------------------------------------------------------------
@@ -307,15 +319,118 @@ abstract contract UniswapV4StockRouteTestBase is Test {
         _assertRouteEmpty(route);
     }
 
+    function test_swap_spends_only_the_stated_amount_and_leaves_other_tokens_alone() public {
+        usdg.mint(address(route), 1_500e6);
+        stock.mint(address(route), 5e18);
+        uint256 managerUsdg = usdg.balanceOf(address(poolManager));
+        uint256 managerStock = stock.balanceOf(address(poolManager));
+
+        uint256 bought = route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
+
+        assertEq(usdg.balanceOf(address(poolManager)), managerUsdg + 1_000e6, "exactly the stated USDG");
+        assertEq(usdg.balanceOf(address(route)), 500e6, "the other USDG stays");
+        assertEq(stock.balanceOf(address(route)), 5e18, "the stock stays");
+        assertEq(stock.balanceOf(alice), bought);
+        assertEq(usdg.balanceOf(alice), 0, "nothing is refunded on a full fill");
+
+        uint256 sold = route.swapExactIn(address(stock), address(usdg), 3e18, 0, alice);
+
+        assertEq(stock.balanceOf(address(poolManager)), managerStock - bought + 3e18, "exactly the stated stock");
+        assertEq(stock.balanceOf(address(route)), 2e18, "the other stock stays");
+        assertEq(usdg.balanceOf(address(route)), 500e6);
+        assertEq(usdg.balanceOf(alice), sold);
+        assertEq(stock.balanceOf(alice), bought, "nothing is refunded on a full fill");
+    }
+
+    function test_swap_reverts_when_the_route_holds_less_than_the_stated_amount() public {
+        usdg.mint(address(route), 999e6);
+        vm.expectRevert();
+        route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
+        assertEq(usdg.balanceOf(address(route)), 999e6);
+        assertEq(stock.balanceOf(alice), 0);
+    }
+
+    function test_swap_of_dust_that_buys_nothing_pays_nothing_and_keeps_nothing() public {
+        // One base unit of an 18-decimal share is far less than one base unit of USDG.
+        stock.mint(address(route), 1);
+
+        assertEq(route.swapExactIn(address(stock), address(usdg), 1, 0, alice), 0);
+
+        assertEq(usdg.balanceOf(alice), 0);
+        assertEq(stock.balanceOf(alice), 0, "the pool took the unit");
+        _assertRouteEmpty(route);
+    }
+
+    function test_swap_on_a_pool_with_no_liquidity_returns_the_whole_input() public {
+        poolManager.initialize(_key(address(usdg), address(stock), THIN_FEE, THIN_TICK_SPACING), _sqrtPriceAtFeed());
+        UniswapV4StockRouteV1 empty = _newRoute(address(usdg), address(stock), THIN_FEE, THIN_TICK_SPACING);
+        usdg.mint(address(empty), 1_000e6);
+
+        assertEq(empty.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice), 0);
+
+        assertEq(usdg.balanceOf(alice), 1_000e6, "every unit comes back");
+        assertEq(stock.balanceOf(alice), 0);
+        _assertRouteEmpty(empty);
+    }
+
+    function test_swap_after_the_pool_ran_out_is_refused_and_moves_nothing() public {
+        UniswapV4StockRouteV1 thin = _thinRoute();
+        usdg.mint(address(thin), 1_000_000e6);
+        thin.swapExactIn(address(usdg), address(stock), 1_000_000e6, 0, alice);
+
+        // The partial fill left the pool's price at the end of its range; nothing more can be bought
+        // until someone sells back into it.
+        usdg.mint(address(thin), 1_000e6);
+        vm.expectPartialRevert(Pool.PriceLimitAlreadyExceeded.selector);
+        thin.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
+        assertEq(usdg.balanceOf(address(thin)), 1_000e6);
+
+        stock.mint(address(thin), 1e18);
+        assertGt(thin.swapExactIn(address(stock), address(usdg), 1e18, 0, alice), 0, "the other side still trades");
+        assertGt(thin.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice), 0, "and buying resumes");
+        _assertRouteEmpty(thin);
+    }
+
+    function test_swap_cannot_be_called_from_inside_another_pool_manager_lock() public {
+        usdg.mint(address(route), 1_000e6);
+
+        poolManager.unlock("");
+
+        assertEq(usdg.balanceOf(address(route)), 1_000e6, "a refused swap moves nothing");
+        assertEq(stock.balanceOf(alice), 0);
+    }
+
+    /// @dev This contract's own lock on the pool manager: the route must refuse to swap inside it.
+    function unlockCallback(bytes calldata) external returns (bytes memory) {
+        vm.expectRevert(IPoolManager.AlreadyUnlocked.selector);
+        route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
+        return "";
+    }
+
     function test_swap_cannot_be_reentered_from_a_stock_transfer() public {
         usdg.mint(address(route), 1_000e6);
-        stock.arm(route, address(usdg));
+        stock.arm(route, address(usdg), alice);
 
         uint256 amountOut = route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
 
         assertEq(bytes4(stock.reentryRevert()), ReentrancyGuardTransient.Reentrancy.selector);
         assertEq(stock.balanceOf(alice), amountOut);
         _assertRouteEmpty(route);
+    }
+
+    function test_swap_cannot_be_reentered_from_the_refund_of_unconsumed_stock() public {
+        UniswapV4StockRouteV1 thin = _thinRoute();
+        stock.mint(address(thin), 10_000e18);
+        // The refund to alice happens after the pool manager's lock has closed, so only the route's
+        // own guard stands in the way.
+        stock.arm(thin, address(usdg), alice);
+
+        uint256 amountOut = thin.swapExactIn(address(stock), address(usdg), 10_000e18, 0, alice);
+
+        assertEq(bytes4(stock.reentryRevert()), ReentrancyGuardTransient.Reentrancy.selector);
+        assertEq(usdg.balanceOf(alice), amountOut);
+        assertGt(stock.balanceOf(alice), 0, "the unconsumed stock came back");
+        _assertRouteEmpty(thin);
     }
 
     function test_unlock_callback_accepts_only_the_pinned_pool_manager() public {
@@ -347,7 +462,6 @@ abstract contract UniswapV4StockRouteTestBase is Test {
     function _thinRoute() internal returns (UniswapV4StockRouteV1) {
         PoolKey memory key = _key(address(usdg), address(stock), THIN_FEE, THIN_TICK_SPACING);
         poolManager.initialize(key, _sqrtPriceAtFeed());
-        // slither-disable-next-line unused-return
         (, int24 tick,,) = IPoolManager(address(poolManager)).getSlot0(key.toId());
         int24 centre = tick / THIN_TICK_SPACING * THIN_TICK_SPACING;
         liquidityRouter.modifyLiquidity(
