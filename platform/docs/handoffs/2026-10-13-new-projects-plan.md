@@ -286,6 +286,13 @@ of `poolManager()`, `poolId()`, `fee()`, `tickSpacing()`, `feed()` and the runti
 done by someone other than whoever deployed the route and saved beside the admission; and
 contracts/robinhood-v2/bin/gate.sh is run whole in a pristine checkout first.
 
+The orchestrator's condition (13 October, sense check of 659ab14), to build with the batch and
+before any admission: today `admitStock` checks only the route's `stock()` and `usdg()`, so
+nothing on the chain ties a route to the real pool manager, pool and feed. Make `admitStock`
+refuse a route whose `poolManager()` is not the launchpad's own, and have the prepared batch
+show the route's `poolId` and `feed` beside the checklist. This is a contract change, so it
+gets its own independent review.
+
 ## Notes from the reviews of al/sean-ui-1013 23d51e4 (Sentinel CLEAR 13 October 17:47Z)
 
 - Sign-in window closed without signing in: platform/assets/js/privy_bridge.tsx says nothing,
@@ -295,5 +302,5 @@ contracts/robinhood-v2/bin/gate.sh is run whole in a pristine checkout first.
   often lists are read (`LiveListings`, the market feeds, each list page's mount, handle_info
   and load); this thread owns what a row, card and empty list show. Whoever ships second brings
   their branch up to main first.
-- When platform/lib/autolaunch_web/live/bid_component.ex is next open: `bid_key` does not
-  include the auction. Harmless today (no link moves between auctions in place); add it then.
+- Done in 88313a0 and 08f718b: a prepared bid's key carries its auction, and each auction
+  page's bid form is named after its auction.
