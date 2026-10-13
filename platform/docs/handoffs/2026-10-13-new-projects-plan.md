@@ -151,3 +151,55 @@ AL-132. Covered calls: who picks strike and expiry?
 
 Also for Sean, not a lettered decision: options on tokenised stocks are regulated in many
 places. This is a flag for his own advice, not legal advice from this thread.
+
+## Sean's answers, 13 October
+
+Sean, verbatim: "1a 2. a, though I thought all of our autolaunch contracts use uniswap v4
+already? 3. b 4. b 5. hold on this until spec 6. hold 7. a 8. a 9. a 10. b". The list he
+answered was numbered 1 AL-127, 2 AL-128, 3 AL-129, 4 AL-130, 5 AL-136, 6 AL-131, 7 AL-132,
+8 AL-126, 9 AL-133, 10 AL-134, 11 AL-135.
+
+- AL-127 (a): the Safe signs a batch the server prepares.
+- AL-128 (a): build the Uniswap v4 route for Robinhood. Built, see below.
+- AL-129 (b): one reading over $10,000 is enough.
+- AL-130 (b): GLD is added as a stock like the others.
+- AL-136: on hold until Sean's spec. (If he was counting one line later, this one is unanswered
+  and "hold until spec" is the covered-call question; asked him to confirm.)
+- AL-131: on hold. AL-132 (a): fixed menu. Both wait for the covered-call spec either way.
+- AL-126 (a) and AL-133 (a): done on the UI branch.
+- AL-MIN-1 (b), relayed by the orchestrator at about 17:08Z ("1 b"): the launch contracts stay
+  as they are; Robinhood launches keep no real minimum. Closed, nothing to build.
+- Sean, 17:35Z through the Patchbay thread: "nothing should be payable in any of the sites except
+  with Credits (autolaunch USDC/USDG bidding is fine)". Autolaunch charges nothing in USDC today
+  besides bids, trades and buying Credits themselves. A covered-call premium would be a new USDC
+  payment, so the spec has to say whether it counts as bidding.
+
+## The v4 route (AL-128 a): built, not deployed
+
+- Why it was needed: Autolaunch's own launch pools and fee hooks are Uniswap v4 on both chains.
+  The route is a separate small contract per stock that swaps USDG into the stock (to bid) and
+  back (to convert fees) in the pool where the stock already trades with outsiders. On Robinhood
+  only a v3 version existed, and six of the eight qualifying stocks trade only in v4 pools.
+- Source: contracts/robinhood-v2/src/routes/UniswapV4StockRouteV1.sol. Tests:
+  contracts/robinhood-v2/test/UniswapV4StockRoute.t.sol (26 run in both currency orders),
+  contracts/robinhood-v2/test/RobinhoodV4RouteCallers.t.sol (through the bid adapter and the
+  hook's lane settlement on a real pool manager), and
+  contracts/robinhood-v2/test/fork/UniswapV4StockRouteFork.t.sol (the live COIN and CRWV pools;
+  runs only on a fork of Robinhood Chain, outside the gate).
+- Independent review: no critical, high or medium findings. Its two low findings and its notes
+  are answered in 6bfac87, except that the fork suite stays outside the gate.
+- What nothing on-chain checks: that a route points at the real pool manager, pool and feed.
+  Admission checks only the route's stock and USDG. The Safe's checklist in
+  contracts/robinhood-v2/README.md note 13 is the control, and the prepared batch (AL-127 a) must
+  show those values to the signers.
+
+## Still to build for project 4
+
+1. The watcher: one Oban cron job that finds stocks with a Chainlink feed and an outside pool
+   over $10,000 on a single reading (GLD included) and records each candidate.
+2. The site reads `StockAdmitted` into its `Stock` table; the hard-coded lists
+   (`Autolaunch.Stocks.Assets`, `Autolaunch.Stocks.PriceFeeds`) go.
+3. The prepared Safe batch for admission, showing the checklist values. Who deploys the route
+   (AL-136) is on hold, so the batch covers admission only until Sean answers.
+Nothing is deployed, signed or paid without Sean's go.
+
