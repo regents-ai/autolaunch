@@ -12,8 +12,10 @@ defmodule AutolaunchWeb.BidLive do
   What is mine is always five rows. What the bid used, did not use and filled
   is what its withdraw stated on the chain (`Autolaunch.BidSettlement`); until
   one is recorded those rows show a dash. What may happen next is one line and
-  one place for one button, which opens the same withdraw or claim the
-  portfolio does; with nothing to press, that place says until when. What it
+  one place for one button, which offers whatever the portfolio offers for
+  the bid: the same withdraw, refund or claim, and while bidding is open, the
+  early return of a bid that is outbid or sharing at the price. With nothing
+  to press, that place says until when. What it
   cost is one line per transaction the chain watcher recorded, each with its
   explorer link; a withdraw or claim made before the watcher recorded them
   keeps its line in words, its link's place empty.
@@ -27,9 +29,11 @@ defmodule AutolaunchWeb.BidLive do
   import AutolaunchWeb.Components.MarketCard, only: [auction_status: 1]
   import AutolaunchWeb.Components.SwapModal
 
+  alias Autolaunch.AuctionBook
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.Stocks.Amounts
   alias Autolaunch.Token
+  alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
   alias AutolaunchWeb.Components.BidPlaced
 
   alias AutolaunchWeb.{
@@ -49,7 +53,7 @@ defmodule AutolaunchWeb.BidLive do
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page(:bid))
-     |> assign(id: id, dialog: nil, queued?: false, bid: %AsyncResult{})
+     |> assign(id: id, dialog: nil, queued?: false, bid: %AsyncResult{}, book: %AsyncResult{})
      |> assign(market: LabMarket.subscribe(socket))
      |> LiveListings.subscribe()
      |> read()}
@@ -59,6 +63,9 @@ defmodule AutolaunchWeb.BidLive do
 
   def handle_event("open_settlement", _params, socket),
     do: {:noreply, assign(socket, :dialog, :settle)}
+
+  def handle_event("open_early", _params, socket),
+    do: {:noreply, assign(socket, :dialog, :early)}
 
   def handle_event("close_trade", _params, socket), do: {:noreply, assign(socket, :dialog, nil)}
 
@@ -91,6 +98,15 @@ defmodule AutolaunchWeb.BidLive do
 
   def handle_async(:robinhood, {:ok, result}, socket),
     do: {:noreply, socket |> shown(result) |> read_queued()}
+
+  def handle_async(:book, {:ok, {:ok, book}}, socket),
+    do: {:noreply, assign(socket, :book, AsyncResult.ok(socket.assigns.book, book))}
+
+  def handle_async(:book, {:ok, {:error, reason}}, socket),
+    do: {:noreply, assign(socket, :book, AsyncResult.failed(socket.assigns.book, reason))}
+
+  def handle_async(:book, {:exit, reason}, socket),
+    do: {:noreply, assign(socket, :book, AsyncResult.failed(socket.assigns.book, reason))}
 
   def handle_async(:robinhood, {:exit, reason}, socket),
     do:
@@ -130,6 +146,7 @@ defmodule AutolaunchWeb.BidLive do
         <.bid
           :if={is_map(@bid.result)}
           bid={@bid.result}
+          book={@book}
           dialog={@dialog}
           market={@market}
           signed_in?={@signed_in?}
@@ -142,6 +159,7 @@ defmodule AutolaunchWeb.BidLive do
   end
 
   attr :bid, :map, required: true
+  attr :book, AsyncResult, required: true, doc: "the price book of a Base bid's open auction"
   attr :dialog, :atom, default: nil
   attr :market, :map, required: true
   attr :signed_in?, :boolean, required: true
@@ -150,7 +168,7 @@ defmodule AutolaunchWeb.BidLive do
 
   defp bid(assigns) do
     bid = assigns.bid
-    {line, slot} = next(bid)
+    {line, slot} = next(bid, assigns.book)
     assigns = assign(assigns, mine: mine(bid), line: line, slot: slot, costs: costs(bid))
 
     ~H"""
@@ -189,6 +207,19 @@ defmodule AutolaunchWeb.BidLive do
         <Regent.Primitives.button :if={match?({:press, _}, @slot)} phx-click="open_settlement">
           {elem(@slot, 1)}
         </Regent.Primitives.button>
+        <Regent.Primitives.button :if={@slot == :early_dialog} phx-click="open_early">
+          Withdraw
+        </Regent.Primitives.button>
+        <.live_component
+          :if={@slot == :early_return}
+          module={BidSettlementComponent}
+          id={"bid-early-#{@bid.position.id}"}
+          early
+          position={@bid.position}
+          authenticated={@signed_in?}
+          current_human_id={@human_id}
+          session_lease={@session_lease}
+        />
         <p :if={match?({:wait, _}, @slot)} class="bid-page__note">{elem(@slot, 1)}</p>
       </div>
     </section>
@@ -214,7 +245,8 @@ defmodule AutolaunchWeb.BidLive do
     </section>
 
     <.dialog
-      :if={@dialog == :settle}
+      :if={@dialog}
+      kind={@dialog}
       bid={@bid}
       market={@market}
       signed_in?={@signed_in?}
@@ -224,6 +256,7 @@ defmodule AutolaunchWeb.BidLive do
     """
   end
 
+  attr :kind, :atom, required: true, doc: ":settle, or :early for a Robinhood bid's early return"
   attr :bid, :map, required: true
   attr :market, :map, required: true
   attr :signed_in?, :boolean, required: true
@@ -252,9 +285,9 @@ defmodule AutolaunchWeb.BidLive do
 
     ~H"""
     <.robinhood_bid_modal
-      id={"bid-settle-#{@listing.id}"}
+      id={"bid-#{@kind}-#{@listing.id}"}
       auction={@listing}
-      ended={RobinhoodStockBidComponent.ended_copy(@listing)}
+      ended={if @kind == :settle, do: RobinhoodStockBidComponent.ended_copy(@listing)}
       stake_path={@stake_path}
       authenticated={@signed_in?}
       current_human_id={@human_id}
@@ -295,9 +328,9 @@ defmodule AutolaunchWeb.BidLive do
 
   # One line, then the button that settles the bid, or until when there is
   # nothing to press.
-  defp next(%{chain: :base, position: position, listing: auction} = bid) do
+  defp next(%{chain: :base, position: position, listing: auction} = bid, book) do
     case position.status do
-      "active" when auction.state == :active -> open(auction)
+      "active" when auction.state == :active -> open(position, auction, book)
       "active" -> {"Bidding has ended.", {:wait, "Nothing to do until the auction settles"}}
       "returnable" -> settle(bid, auction.state, BidSettlementComponent.spent?(position))
       "claimable" -> {"Your tokens are ready to claim.", {:press, claim(bid)}}
@@ -306,13 +339,16 @@ defmodule AutolaunchWeb.BidLive do
     end
   end
 
-  defp next(%{chain: :robinhood, listing: nil}),
+  defp next(%{chain: :robinhood, listing: nil}, _book),
     do: {"This auction is not listed on this site.", {:wait, "Nothing to do here"}}
 
-  defp next(%{chain: :robinhood, position: position, listing: listing} = bid) do
+  defp next(%{chain: :robinhood, position: position, listing: listing} = bid, _book) do
     case position.standing do
-      standing when standing in [:in, :sharing, :outbid] ->
-        open(listing)
+      :in ->
+        buying(listing)
+
+      standing when standing in [:sharing, :outbid] ->
+        {AuctionBookComponent.standing_label(standing), :early_dialog}
 
       :ended ->
         {"Bidding has ended.", {:wait, "Nothing to do until the launch finishes"}}
@@ -338,15 +374,37 @@ defmodule AutolaunchWeb.BidLive do
     end
   end
 
-  defp open(auction),
+  # An open Base bid against the auction's price, as the portfolio reads it:
+  # one that is buying waits for the end; one that is outbid or sharing at the
+  # price has its early return, which says itself when the money can come
+  # back. Until the price is read the place says so; if it cannot be read,
+  # the early return is offered and asks the auction itself.
+  defp open(position, auction, book) do
+    case book do
+      %{ok?: true, result: book} ->
+        case AuctionBook.bid_standing(position, auction, book) do
+          :in -> buying(auction)
+          standing -> {AuctionBookComponent.standing_label(standing), :early_return}
+        end
+
+      %{failed: failed} when failed not in [nil, false] ->
+        {"Bidding is open.", :early_return}
+
+      _reading ->
+        {"Bidding is open.", {:wait, "Reading the auction's price…"}}
+    end
+  end
+
+  defp buying(auction),
     do:
-      {"Bidding is open.",
+      {AuctionBookComponent.standing_label(:in),
        {:wait, "Nothing to do until #{display_time(auction.estimated_end_at)}"}}
 
   defp settle(bid, :failed, _spent?),
     do:
       {"The auction did not reach its minimum.",
-       {:press, "Refund #{figure(bid.put_in, bid.unit)}"}}
+       {:press,
+        BidSettlementComponent.refund_label(Decimal.to_string(bid.put_in, :normal), bid.unit)}}
 
   defp settle(bid, _state, true), do: {"The auction has settled.", {:press, claim(bid)}}
 
@@ -434,7 +492,7 @@ defmodule AutolaunchWeb.BidLive do
         shown(socket, {:ok, :missing})
 
       {actor, {:base, bid_id}} ->
-        shown(socket, base(bid_id, actor))
+        socket |> shown(base(bid_id, actor)) |> read_book()
 
       {_actor, {:robinhood, auction, bid_id}} ->
         socket
@@ -448,6 +506,23 @@ defmodule AutolaunchWeb.BidLive do
       do: start_async(socket, :robinhood, fn -> robinhood(wallet, auction, bid_id) end),
       else: socket
   end
+
+  # The price book of an open Base bid's auction, after the page; a new read
+  # keeps the last book on screen until it lands.
+  defp read_book(
+         %{assigns: %{bid: %{result: %{position: %{status: "active"}, listing: auction}}}} =
+           socket
+       )
+       when auction.state == :active do
+    if connected?(socket),
+      do:
+        socket
+        |> assign(:book, AsyncResult.loading(socket.assigns.book))
+        |> start_async(:book, fn -> AuctionBook.base(auction) end),
+      else: socket
+  end
+
+  defp read_book(socket), do: socket
 
   defp request_read(socket) do
     if socket.assigns.bid.loading,

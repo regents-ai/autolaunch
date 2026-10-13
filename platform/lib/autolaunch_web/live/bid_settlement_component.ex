@@ -328,7 +328,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         hidden={!(@auction.state == :failed && @position.status == "returnable")}
       >
         The auction for <span class="ticker">{@auction.token_symbol}</span>
-        did not meet its minimum raise. Withdraw your whole bid in
+        did not meet its minimum raise, so your whole bid comes back in
         <span class="ticker">{@auction.quote_token_symbol}</span>
         to the wallet above.
       </p>
@@ -772,8 +772,10 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp label("record", _prepared), do: "Record the new price"
 
-  defp label("exit", %{facts: facts}),
-    do: "Withdraw #{if facts.graduated, do: "unspent ", else: ""}#{facts.currency_symbol}"
+  defp label("exit", %{facts: %{graduated: false} = facts}),
+    do: refund_label(facts.currency_refunded, facts.currency_symbol)
+
+  defp label("exit", %{facts: facts}), do: "Withdraw unspent #{facts.currency_symbol}"
 
   defp label("claim", %{facts: facts}), do: "Claim #{facts.token_symbol} to wallet"
 
@@ -902,8 +904,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   # The exact action the position's status admits. A failed auction returns
   # the whole bid; a graduated one returns what the fill did not spend.
-  defp action(%{status: "returnable"}, %{state: :failed, quote_token_symbol: symbol}),
-    do: "Withdraw #{symbol}"
+  defp action(%{status: "returnable"} = position, %{state: :failed, quote_token_symbol: symbol}),
+    do: refund_label(position.amount, symbol)
 
   defp action(%{status: "returnable"} = position, auction) do
     if spent?(position),
@@ -947,6 +949,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   def spent?(_position), do: false
+
+  @doc """
+  The press that returns a failed auction's whole bid, with the amount that
+  comes back, rounded down. The bid page, the portfolio and both settlement
+  dialogs use it so the one action has one name.
+  """
+  def refund_label(amount, symbol),
+    do: "Refund #{amount |> TokenDisplay.short(:down) |> TokenDisplay.zeros()} #{symbol}"
 
   # The reason nothing can be done yet, from the auction's own blocks.
   defp reasons(%{status: "active"}, %{end_block: end_block}, _auction),

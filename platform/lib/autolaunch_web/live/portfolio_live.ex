@@ -543,7 +543,7 @@ defmodule AutolaunchWeb.PortfolioLive do
               phx-value-id={@listing.id}
               phx-value-mode="settle"
             >
-              {if @action == :claim, do: "Claim", else: "Withdraw"}
+              {robinhood_settle_label(@action, @position)}
             </Regent.Primitives.button>
             <.standing :if={@action not in [:withdraw, :claim]} is={robinhood_standing(@position)} />
             <Regent.Primitives.button
@@ -763,6 +763,9 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
   defp robinhood_path(_position), do: nil
 
+  defp settle_label(%{status: "returnable", auction: %{state: :failed} = auction} = position),
+    do: BidSettlementComponent.refund_label(position.amount, auction.quote_token_symbol)
+
   defp settle_label(%{status: "returnable"} = position),
     do: if(BidSettlementComponent.spent?(position), do: "Claim", else: "Withdraw")
 
@@ -772,6 +775,13 @@ defmodule AutolaunchWeb.PortfolioLive do
   # What a Robinhood bid's auction admits now: its unspent money back once
   # the auction has settled, its tokens once they can be claimed, or, while
   # bidding is open, the early return a bid that is not buying may have.
+  defp robinhood_settle_label(:claim, _position), do: "Claim"
+
+  defp robinhood_settle_label(:withdraw, %{standing: :refundable} = position),
+    do: BidSettlementComponent.refund_label(position.refundable, position.stock_symbol)
+
+  defp robinhood_settle_label(:withdraw, _position), do: "Withdraw"
+
   defp robinhood_action(%{standing: standing}) when standing in [:refundable, :graduated],
     do: :withdraw
 

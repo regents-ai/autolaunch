@@ -506,7 +506,13 @@
       "method": "GET",
       "path": "/api/agent/v1/positions",
       "authority": "wallet-proof",
-      "effect": "read"
+      "effect": "read",
+      "next_steps": [
+        {
+          "kind": "human",
+          "say": "Give your person the bid_page of any bid that needs them: it shows what is theirs, what may happen next with its one button, and each transaction."
+        }
+      ]
     },
     {
       "command": "account balances",

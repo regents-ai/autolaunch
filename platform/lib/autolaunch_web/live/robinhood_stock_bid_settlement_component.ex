@@ -38,7 +38,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{AuctionBook, SwapForm}
   alias AutolaunchWeb.Live.Session
-  alias AutolaunchWeb.{OnchainSteps, RobinhoodStockBidComponent, TokenDisplay}
+
+  alias AutolaunchWeb.{
+    BidSettlementComponent,
+    OnchainSteps,
+    RobinhoodStockBidComponent,
+    TokenDisplay
+  }
+
   alias AutolaunchWeb.UsdValue
   alias RegentChain.{Address, Presses, Review}
 
@@ -674,7 +681,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp next_step(%{prepared_for: {:refused, key}}, _steps, key), do: nil
   defp next_step(assigns, _steps, _key), do: %{name: "settle", label: offer_label(assigns)}
 
-  defp offer_label(%{graduated?: false} = assigns), do: "Withdraw #{stock_symbol(assigns)}"
+  defp offer_label(%{
+         graduated?: false,
+         prepared: %{facts: %{stock_refunded: refunded, stock_symbol: symbol}}
+       })
+       when is_binary(refunded),
+       do: BidSettlementComponent.refund_label(refunded, symbol)
+
+  defp offer_label(%{graduated?: false}), do: "Refund your stock"
 
   defp offer_label(%{bid: %{"exited_block" => "0"}} = assigns),
     do: "Withdraw unspent #{stock_symbol(assigns)}"
@@ -725,8 +739,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp label("record", _prepared), do: "Record the new price"
 
-  defp label("exit", %{facts: facts}),
-    do: "Withdraw #{if facts.graduated, do: "unspent ", else: ""}#{facts.stock_symbol}"
+  defp label("exit", %{facts: %{graduated: false} = facts}),
+    do: BidSettlementComponent.refund_label(facts.stock_refunded, facts.stock_symbol)
+
+  defp label("exit", %{facts: facts}), do: "Withdraw unspent #{facts.stock_symbol}"
 
   defp label("claim", _prepared), do: "Claim tokens to wallet"
 
