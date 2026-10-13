@@ -557,6 +557,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <td :if={@trade_event} class="market-list__action">
         <Regent.Primitives.button
           :if={@view.bid}
+          variant="secondary"
           phx-click={@trade_event}
           phx-value-id={@view.record_id}
           disabled={@view.bid.unavailable != nil}
@@ -655,6 +656,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <td :if={@trade_event} class="market-list__action">
         <Regent.Primitives.button
           :if={@view.buy}
+          variant="secondary"
           phx-click={@trade_event}
           phx-value-id={@view.record_id}
           disabled={@view.buy.unavailable != nil}
