@@ -51,6 +51,7 @@
 .market-list__empty { padding: 48px 16px; text-align: center; }
 .market-list__empty h2 { margin: 0 0 8px; font-size: 1.125rem; }
 .market-list__empty p { margin: 0 0 20px; color: var(--color-fg-muted); font-size: .875rem; }
+.market-list__routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
 .market-list__more { display: flex; justify-content: center; }
 /* A live auction's time bar, filling from its opening to its end in its chain's colour, over the time left. */
 .auction-figures__time { display: block; width: 112px; height: 4px; margin: 0 0 4px auto; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }

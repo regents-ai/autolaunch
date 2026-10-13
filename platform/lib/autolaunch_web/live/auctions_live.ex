@@ -152,8 +152,23 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp verified?(options), do: options.x or options.ens or options.github
 
-  defp filtered?(options),
-    do: options.q != "" or options.state != "all" or options.chain != "all" or verified?(options)
+  # A search, a chain or a verified-creator choice narrows the list; a status
+  # alone only picks which auctions to look at.
+  defp searched?(options), do: options.q != "" or options.chain != "all" or verified?(options)
+
+  defp empty_title("all"), do: "No auctions yet"
+  defp empty_title("active"), do: "No live auctions"
+  defp empty_title(_state), do: "No auctions with this status"
+
+  # With nothing live, the way on is what already happened: graduated auctions
+  # and launched tokens.
+  defp empty_routes(%{state: "active"} = options, _all),
+    do: [
+      {list_path(options, %{state: "graduated"}), "See graduated auctions"},
+      {"/tokens", "See tokens"}
+    ]
+
+  defp empty_routes(options, all), do: [{list_path(options, all), "See every auction"}]
 
   @all %{state: "all", sort: "newest", x: false, ens: false, github: false}
 
@@ -223,19 +238,23 @@ defmodule AutolaunchWeb.AuctionsLive do
         </Regent.Primitives.notice>
 
         <div :if={!@loading && !@failed && @records == []} class="market-list__empty" role="status">
-          <h2>
-            {cond do
-              @options.state == "active" -> "No live auctions"
-              filtered?(@options) -> "No matching auctions"
-              true -> "No auctions yet"
-            end}
-          </h2>
-          <p :if={filtered?(@options)}>Try a different search, or clear your filters.</p>
-          <.link
-            :if={filtered?(@options)}
-            patch={list_path(@options, Map.merge(@all, %{q: "", chain: "all"}))}
-            class="rg-button rg-button--secondary"
-          >Clear filters</.link>
+          <%= if searched?(@options) do %>
+            <h2>No matching auctions</h2>
+            <p>Try a different search, or clear your filters.</p>
+            <.link
+              patch={list_path(@options, Map.merge(@all, %{q: "", chain: "all"}))}
+              class="rg-button rg-button--secondary"
+            >Clear filters</.link>
+          <% else %>
+            <h2>{empty_title(@options.state)}</h2>
+            <div :if={@options.state != "all"} class="market-list__routes">
+              <.link
+                :for={{path, label} <- empty_routes(@options, @all)}
+                navigate={path}
+                class="rg-button rg-button--secondary"
+              >{label}</.link>
+            </div>
+          <% end %>
         </div>
 
         <div :if={@has_more && !@failed} class="market-list__more">
