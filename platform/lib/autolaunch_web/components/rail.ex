@@ -2,15 +2,17 @@ defmodule AutolaunchWeb.Components.Rail do
   @moduledoc false
   use Phoenix.Component
 
-  # Three destinations. Explore also covers the auction and token lists and
-  # their pages; Learn covers its persistent information-page navigation.
-  # Launching starts from the home page's one "Launch a token" button.
+  # Four destinations. Explore also covers the auction and token lists and
+  # their pages; New Stocks is the Upcoming page; Learn covers its persistent
+  # information-page navigation. Launching starts from the home page's one
+  # "Launch a token" button.
   @items [
     %{
       label: "Explore",
       path: "/",
       covers: ["/auctions", "/tokens", "/robinhood"]
     },
+    %{label: "New Stocks", path: "/upcoming", covers: []},
     %{label: "Portfolio", path: "/portfolio", covers: []},
     %{
       label: "Learn",

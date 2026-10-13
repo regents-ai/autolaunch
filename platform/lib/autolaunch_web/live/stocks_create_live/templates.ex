@@ -148,6 +148,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
                   {@draft_errors["stock_address"]}
                 </p>
+                <p class="create-page__hint">
+                  <.link navigate="/upcoming">Upcoming stocks</.link>
+                </p>
                 <p class="create-page__hint">{pay_line(@launch_chain, @stock)}</p>
                 <p
                   :if={@stock && @market.venues != []}
