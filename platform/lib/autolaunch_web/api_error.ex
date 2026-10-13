@@ -37,10 +37,6 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "Read the auction's figures with GET #{PublicDocuments.url("/api/v1/auctions/{id}")} or on its page (its url). Sending the same request again will not help."
 
-  defp hint(code) when code in ["signed_proof_required", "siwa_unavailable"],
-    do:
-      "Use your existing signer following https://siwa.regents.sh/skill.md and sign the exact Autolaunch request."
-
   defp hint("agent_not_paired"),
     do:
       "Ask the owner for a code from https://regents.sh/account, then redeem it with POST /api/agents/v1/pair."
