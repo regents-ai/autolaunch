@@ -154,8 +154,11 @@ defmodule Autolaunch.Stocks.MarketData do
   end
 
   defp positive(price) do
-    case Decimal.parse(price, max_digits: :infinity) do
-      {decimal, ""} -> if Decimal.gt?(decimal, 0), do: {:ok, decimal}, else: :error
+    with true <- byte_size(price) <= 100 and String.match?(price, ~r/^\d+(?:\.\d+)?$/),
+         {decimal, ""} <- Decimal.parse(price, max_digits: :infinity),
+         true <- Decimal.gt?(decimal, 0) do
+      {:ok, decimal}
+    else
       _unparsed -> :error
     end
   end

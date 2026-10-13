@@ -321,7 +321,7 @@ defmodule Autolaunch.RegentFacts do
          %{"baseToken" => %{"address" => base}, "priceUsd" => price} when is_binary(price) <-
            pair,
          true <- Address.equal?(base, token),
-         {_decimal, ""} <- Decimal.parse(price, max_digits: :infinity) do
+         true <- byte_size(price) <= 100 and String.match?(price, ~r/^\d+(?:\.\d+)?$/) do
       price
     else
       _unavailable -> :unavailable
