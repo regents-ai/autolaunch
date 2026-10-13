@@ -58,13 +58,17 @@ launchpad admitted has no saved facts. The job signs and sends nothing.
 
 `Autolaunch.Stocks.StockCandidate` (table `stock_candidates`) lists the stocks Chainlink prices
 on Base or Robinhood that the chain's stock launchpad does not admit, one row per chain and
-ticker, for the people who sign an admission. At five past each hour `:list_feeds` reads
+ticker, for the people who sign an admission. At two past each hour `:list_feeds` reads
 Chainlink's public feed list for each chain and keeps the rows in step with it and with the
-admitted stocks; at twenty past, each row is read, one at a time on the `stock_volume` queue:
-GeckoTerminal's search for the stock's dollar pools, then at one latest block the feed's latest
-round and whether a pool's token carries the issuer's marks. A row then says `qualifies` (the
-issuer's token has a dollar pool with more than $10,000 in it), `thin_pool`, `no_dollar_pool`,
-`feed_silent` or `unread`.
+admitted stocks (a list naming no stock feed, or more than two hundred, or larger than four
+megabytes, changes nothing). Every
+ten minutes the three rows tried longest ago are read, one at a time on the `stock_volume` queue,
+thirty seconds a row at most: GeckoTerminal's search for the stock's dollar pools, tried once,
+then at one latest block the feed's latest round and whether a pool's token carries the issuer's
+marks. A row then says `qualifies` (the issuer's token has a dollar pool with more than $10,000
+in it), `thin_pool`, `no_dollar_pool`, `feed_silent` or `unread`. Up to eighteen rows are each
+read within the hour; a read that fails keeps what the row said and writes only the time it was
+tried, so the row waits its turn like the rest.
 
 The rows are advice only. The feed list and the pool figures come from outside services and the
 issuer's marks can be copied, so nothing reads this table for a launch, a bid, a picker or a

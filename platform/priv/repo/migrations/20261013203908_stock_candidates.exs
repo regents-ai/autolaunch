@@ -19,6 +19,7 @@ defmodule Autolaunch.Repo.Migrations.StockCandidates do
       add :venue, :text
       add :liquidity_usd, :decimal
       add :read_at, :utc_datetime_usec
+      add :tried_at, :utc_datetime_usec
 
       add :inserted_at, :utc_datetime_usec,
         null: false,

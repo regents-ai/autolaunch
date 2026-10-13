@@ -12,8 +12,9 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
   carries is left out. Each feed left is saved as a row, and a saved row
   whose ticker is no longer among them is removed.
 
-  A list that cannot be read, or that names no stock feed at all, fails the
-  run and changes nothing; the job tries again. One read, fifteen seconds at
+  A list that cannot be read, or that names no stock feed at all or more
+  than two hundred, or that is larger than four megabytes, fails the run
+  and changes nothing; the job tries again. One read, fifteen seconds at
   most, for each chain. Nothing here signs or sends a transaction.
   """
 
@@ -27,6 +28,10 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
     8453 => {"feeds-ethereum-mainnet-base-1.json", :coinbase},
     4663 => {"feeds-robinhood-mainnet.json", :robinhood}
   }
+  # Robinhood's list named 36 stock feeds and Base's 13 on 13 October 2026.
+  @most_stock_feeds 200
+  # Base's list was a quarter of a megabyte on that day.
+  @most_bytes 4_000_000
   @actor %Autolaunch.Actors.System{}
 
   def run do
@@ -71,13 +76,18 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
            redirect: false,
            connect_options: [timeout: 5_000],
            receive_timeout: 15_000,
-           retry: false
+           retry: false,
+           # Asked for uncompressed and left as it arrives, so the size
+           # counted is the size decoded.
+           compressed: false,
+           raw: true,
+           into: &taken/2
          ) do
-      {:ok, %{status: 200, body: feeds}} when is_list(feeds) ->
-        named(feeds, issuer)
+      {:ok, %{status: 200, body: body}} when byte_size(body) <= @most_bytes ->
+        decoded(body, issuer)
 
       {:ok, %{status: 200}} ->
-        {:error, :unexpected_answer}
+        {:error, :answer_too_large}
 
       {:ok, %{status: status}} ->
         {:error, {:status, status}}
@@ -87,8 +97,26 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
     end
   end
 
+  # The answer is taken piece by piece and let go of once it is larger than
+  # a feed list could be.
+  defp taken({:data, data}, {request, response}) do
+    response = update_in(response.body, &(&1 <> data))
+
+    if byte_size(response.body) > @most_bytes,
+      do: {:halt, {request, response}},
+      else: {:cont, {request, response}}
+  end
+
+  defp decoded(body, issuer) do
+    case Jason.decode(body) do
+      {:ok, feeds} when is_list(feeds) -> named(feeds, issuer)
+      _other -> {:error, :unexpected_answer}
+    end
+  end
+
   # Both chains' lists carry feeds of stocks already admitted, so a list with
-  # no stock feed is a broken answer, not a reason to remove every row.
+  # no stock feed is a broken answer, not a reason to remove every row; and
+  # so is one with more stock feeds than any issuer has stocks.
   defp named(feeds, issuer) do
     found =
       for %{"name" => name, "proxyAddress" => proxy} = feed <- feeds,
@@ -99,7 +127,11 @@ defmodule Autolaunch.Stocks.StockCandidate.ListFeeds do
           into: %{},
           do: {ticker, address}
 
-    if found == %{}, do: {:error, :no_stock_feed_listed}, else: {:ok, found}
+    case map_size(found) do
+      0 -> {:error, :no_stock_feed_listed}
+      count when count > @most_stock_feeds -> {:error, :too_many_stock_feeds}
+      _count -> {:ok, found}
+    end
   end
 
   defp ticker(:coinbase, "Coinbase " <> ticker, _asset), do: plain(ticker)

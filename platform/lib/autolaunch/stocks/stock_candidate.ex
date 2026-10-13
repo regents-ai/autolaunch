@@ -7,11 +7,16 @@ defmodule Autolaunch.Stocks.StockCandidate do
   Every hour `:list_feeds` reads Chainlink's public feed list for each chain
   (`Autolaunch.Stocks.StockCandidate.ListFeeds`) and keeps a row for each
   stock feed whose ticker no admitted stock carries; a row whose feed has left
-  the list, or whose stock has since been admitted, is removed. Then each row
-  is read, one at a time (`Autolaunch.Stocks.StockCandidate.ReadMarket`): the
-  feed is asked on the chain whether it answers, GeckoTerminal is asked for
-  the stock's dollar pools, and the token is asked on the chain whether it is
-  the issuer's. The row then says one of:
+  the list, or whose stock has since been admitted, is removed. Every ten
+  minutes the three rows tried longest ago are read, one at a time
+  (`Autolaunch.Stocks.StockCandidate.ReadMarket`): GeckoTerminal is asked for
+  the stock's dollar pools, the feed is asked on the chain whether it answers,
+  and the token is asked on the chain whether it is the issuer's. Each read
+  has thirty seconds, so the reads never hold their queue for more than a
+  minute and a half at a stretch, however long the list is. Up to eighteen
+  rows are each read within the hour; a longer list is read more slowly. A
+  read that fails writes only the time it was tried, so a row that keeps
+  failing waits its turn like the rest. The row then says one of:
 
   - `:qualifies`: the feed answers and the issuer's token has a dollar pool
     with more than $10,000 in it.
@@ -37,7 +42,7 @@ defmodule Autolaunch.Stocks.StockCandidate do
 
   oban do
     scheduled_actions do
-      schedule :list_feeds, "5 * * * *" do
+      schedule :list_feeds, "2 * * * *" do
         action :list_feeds
         queue :outside_calls
         max_attempts 3
@@ -56,14 +61,19 @@ defmodule Autolaunch.Stocks.StockCandidate do
         # these reads and the weekly volume reads together.
         queue :stock_volume
         scheduler_queue :default
-        scheduler_cron "20 * * * *"
-        # A failed read is tried again at the next hour.
+        # Three rows every ten minutes, those tried longest ago first and
+        # never-tried ones before them. GeckoTerminal refuses a burst of
+        # reads, and the minutes are the ones the weekly volume reads
+        # (every half hour) do not start on.
+        scheduler_cron "5,15,25,35,45,55 * * * *"
+        sort tried_at: :asc_nils_first
+        record_limit 3
+        # A failed read is tried again when the row's turn comes round.
         max_attempts 1
-        # One refused GeckoTerminal read waits up to two and a quarter
-        # minutes, and at most twenty tokens are asked of the chain at eight
-        # seconds a call; under the twenty minutes after which a running job
-        # counts as orphaned (config.exs).
-        timeout :timer.minutes(10)
+        on_error :read_failed
+        # The search is twenty seconds at most and a usual read takes one or
+        # two; a read the chain drags out is stopped.
+        timeout :timer.seconds(30)
         worker_module_name Autolaunch.Stocks.StockCandidate.Workers.ReadMarket
         scheduler_module_name Autolaunch.Stocks.StockCandidate.Schedulers.ReadMarket
       end
@@ -108,6 +118,11 @@ defmodule Autolaunch.Stocks.StockCandidate do
       transaction? false
       change Autolaunch.Stocks.StockCandidate.ReadMarket
     end
+
+    # What an earlier read found is kept; only the row's turn moves on.
+    update :read_failed do
+      change set_attribute(:tried_at, &DateTime.utc_now/0)
+    end
   end
 
   policies do
@@ -147,6 +162,9 @@ defmodule Autolaunch.Stocks.StockCandidate do
     attribute :venue, :string, constraints: [max_length: 80]
     attribute :liquidity_usd, :decimal, constraints: [min: 0]
     attribute :read_at, :utc_datetime_usec
+
+    # When the row was last tried, read or not: the order of the rounds.
+    attribute :tried_at, :utc_datetime_usec
 
     timestamps()
   end

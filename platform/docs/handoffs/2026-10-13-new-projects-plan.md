@@ -321,17 +321,24 @@ price, and no page shows them yet (that waits for AL-137).
   ticker. Per chain and ticker, not per chain and token as first planned, so a stock with a
   feed and no pool yet still has a row.
 - Two jobs, both in the shape the site's other jobs have (AshOban; no hand-built loop):
-  - At five past each hour, `:list_feeds` reads Chainlink's public feed list for each chain
+  - At two past each hour, `:list_feeds` reads Chainlink's public feed list for each chain
     (`reference-data-directory.vercel.app`, one read of fifteen seconds at most per chain),
     keeps a row for every stock feed whose ticker no admitted stock carries, and removes a row
     whose feed has left the list or whose stock has been admitted. Queue `outside_calls`, three
-    attempts, one run at a time across every server. A list that cannot be read, or that names
-    no stock feed at all, fails the run and changes nothing.
-  - At twenty past each hour every row is read, one at a time, on the queue the weekly volume
-    reads use (`stock_volume`, GeckoTerminal's free service counts both together): the first
-    page of GeckoTerminal's search for the stock's symbol, then, at one latest block, the
-    feed's latest round and whether a pool's token is the issuer's. One attempt, ten minutes at
-    most; a failed read leaves the row as it was and the next hour reads again.
+    attempts, one run at a time across every server. A list that cannot be read, that names no
+    stock feed at all or more than two hundred, or that is larger than four megabytes, fails
+    the run and changes nothing.
+  - Every ten minutes (at :05, :15 and so on) the three rows tried longest ago are read, one at
+    a time, on the queue the weekly volume reads use (`stock_volume`, GeckoTerminal's free
+    service counts both together): the first page of GeckoTerminal's search for the stock's
+    symbol, tried once with no wait, then, at one latest block, the feed's latest round and
+    whether a pool's token is the issuer's. One attempt, thirty seconds at most. A failed read
+    keeps what an earlier read found and writes only the time it was tried (`:read_failed`,
+    the trigger's `on_error`), so a row that keeps failing waits its turn like the rest.
+  - The bound (Sentinel's finding of 20:28Z): the reads hold their queue for a minute and a
+    half at a stretch at the very most (three rows, thirty seconds each), usually a few
+    seconds, whatever the feed list names. Up to eighteen rows are each read within the hour;
+    a longer list is read more slowly, not harder.
 - A row says one of: `qualifies` (feed answers, issuer's token has a dollar pool with more than
   $10,000 in it; one reading, AL-129 b), `thin_pool`, `no_dollar_pool`, `feed_silent` (no
   price, or one more than seven days old), `unread`. It keeps the token, the deepest dollar
@@ -344,9 +351,10 @@ price, and no page shows them yet (that waits for AL-137).
 - Left for part C: the pool's fee and tick spacing and the route's settings are read when the
   batch is prepared, not kept on the row.
 - Known limits: a stock whose pools GeckoTerminal's first search page does not show is missed
-  until it does. The dollar figure is GeckoTerminal's, not the chain's. A refused GeckoTerminal
-  read waits half a minute, then a minute, so one hour's pass over fourteen rows can take a few
-  minutes.
+  until it does. The dollar figure is GeckoTerminal's, not the chain's. A pool whose token is
+  not written as an address, or whose dollar figure is not a plain number under a trillion, is
+  left out. A read stopped at its thirty seconds is not stamped as tried, so it is tried again
+  first; that needs a chain or a GeckoTerminal slow enough to stall every row, not one bad row.
 - Nothing here signs, sends or pays. No test was added.
 
 Release item for Sean when this goes out: one more migration, the new `stock_candidates` table
@@ -371,6 +379,22 @@ admitted lists saved first:
 - The rehearsal found one defect, fixed in this head: the latest block was chosen before the
   GeckoTerminal search, so a search that waited could leave the chain reads asking about a
   block a node no longer answers for. The search now comes first.
+
+After the reviews (Sentinel 20:28Z, orchestrator 20:33Z: one MEDIUM, the shared queue held for
+as long as an outside list and GeckoTerminal's refusals decide; LOWs on unchecked outside values
+and the list's size), rehearsed again on the changed code, live and read only:
+
+- Six rounds of three, a minute apart: eighteen reads, none refused, every one of the fourteen
+  rows read by the fifth round, each in under 2.3 seconds. The findings matched the first run.
+- Without the pacing, ten reads at once: GeckoTerminal refused from the sixth on. That is why
+  the rounds are three rows every ten minutes and not ten rows on the hour.
+- The real jobs (the sweep, then its three reads, run through Oban): never-tried rows are
+  picked first; with the chain not answering all three reads failed, each row kept what it said
+  and was stamped as tried, and the next round picked three other rows; a refused GeckoTerminal
+  read did the same.
+- The feed lists are read with the four-megabyte limit (they are 85 and 252 kilobytes).
+- Not rehearsed: a list larger than the limit, and a list naming more than two hundred stock
+  feeds; both hosts are fixed in code, so neither can be made to answer that way.
 
 ### C. The Safe's prepared batch (AL-136 a)
 

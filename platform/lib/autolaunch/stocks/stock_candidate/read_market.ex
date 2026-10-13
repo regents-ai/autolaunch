@@ -6,9 +6,8 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   1. GeckoTerminal is searched for pools under the stock's symbol (`COINc` on
      Base, `COIN` on Robinhood), the first page of twenty, and the pools of
      the chain's dollar token against one other token are kept.
-  2. The chain's latest block is read, after the search, because a refused
-     search can wait minutes; everything asked of the chain is asked at that
-     one block.
+  2. The chain's latest block is read, after the search, which can take
+     twenty seconds; everything asked of the chain is asked at that one block.
   3. The feed is asked for its latest round. No positive price, or one more
      than seven days old (the age the stock routes refuse a quote at), and
      the row says `:feed_silent`.
@@ -21,8 +20,11 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
 
   The search and the pool figures are GeckoTerminal's, not the chain's, and a
   stock whose pools the first page does not show is missed until it does. A
-  chain or GeckoTerminal read that fails or answers in another shape fails
-  the action and writes nothing; the next hour reads again.
+  pool whose token is not written as an address, or whose USD is not a plain
+  figure under a trillion, is left out. The search is tried once: a refusal,
+  like any chain or GeckoTerminal read that fails or answers in another
+  shape, fails the action and writes nothing here; the job then stamps the
+  row as tried (`:read_failed`) and it is read again when its turn comes.
   """
 
   use Ash.Resource.Change
@@ -52,9 +54,11 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
     Ash.Changeset.before_action(changeset, fn changeset ->
       case reading(changeset.data) do
         {:ok, facts} ->
+          now = DateTime.utc_now()
+
           Ash.Changeset.force_change_attributes(
             changeset,
-            Map.put(facts, :read_at, DateTime.utc_now())
+            Map.merge(facts, %{read_at: now, tried_at: now})
           )
 
         {:error, reason} ->
@@ -102,7 +106,7 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
     {network, dollar} = GeckoTerminal.network(candidate.chain_id)
     query = URI.encode_www_form(symbol(candidate))
 
-    case GeckoTerminal.get("/search/pools?query=#{query}&network=#{network}&page=1") do
+    case GeckoTerminal.get_once("/search/pools?query=#{query}&network=#{network}&page=1") do
       {:ok, %{"data" => pools}} when is_list(pools) ->
         {:ok,
          pools
@@ -132,20 +136,19 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   defp dollar_pool(_pool, _network, _dollar), do: []
 
   defp token_address(id, network) do
-    case String.split(id, "_", parts: 2) do
-      [^network, "0x" <> _hex = address] -> {:ok, address}
-      _other -> :error
+    with [^network, address] <- String.split(id, "_", parts: 2),
+         true <- address =~ ~r/\A0x[0-9a-f]{40}\z/ do
+      {:ok, address}
+    else
+      _not_an_address -> :error
     end
   end
 
+  # Plain digits, under a trillion, before anything is parsed.
   defp usd(usd) when is_binary(usd) do
-    case Decimal.parse(usd) do
-      {decimal, ""} ->
-        if Decimal.negative?(decimal), do: :error, else: {:ok, Decimal.round(decimal, 2)}
-
-      _unparsed ->
-        :error
-    end
+    if usd =~ ~r/\A[0-9]{1,12}(\.[0-9]{1,18})?\z/,
+      do: {:ok, usd |> Decimal.new() |> Decimal.round(2)},
+      else: :error
   end
 
   defp usd(_usd), do: :error

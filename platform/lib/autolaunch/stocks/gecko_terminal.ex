@@ -4,9 +4,9 @@ defmodule Autolaunch.Stocks.GeckoTerminal do
   reports on, each under its network name there with the launchpad's dollar
   token (USDC on Base, USDG on Robinhood), and one bounded read.
 
-  The free service allows about ten reads a minute, so a refused read waits
-  half a minute, then a minute, before it is given up. Only jobs read through
-  here; no page waits this long.
+  The free service allows about ten reads a minute. `get/1` waits out a
+  refusal, half a minute and then a minute, before it gives up; `get_once/1`
+  gives up at once. Only jobs read through here; no page waits on either.
   """
 
   @api "https://api.geckoterminal.com/api/v2"
@@ -36,17 +36,31 @@ defmodule Autolaunch.Stocks.GeckoTerminal do
 
   def pair(_pool), do: nil
 
-  @doc "One read of a path under the service's address, decoded."
+  @doc """
+  One read of a path under the service's address, decoded. A refused or
+  failed read is tried twice more, after half a minute and after a minute.
+  """
   def get(path) do
-    case Req.get(@api <> path,
-           headers: [accept: "application/json"],
-           redirect: false,
-           connect_options: [timeout: 5_000],
-           receive_timeout: 15_000,
-           retry: :transient,
-           retry_delay: &(&1 * 30_000 + 30_000),
-           max_retries: 2,
-           retry_log_level: false
+    read(path,
+      retry: :transient,
+      retry_delay: &(&1 * 30_000 + 30_000),
+      max_retries: 2,
+      retry_log_level: false
+    )
+  end
+
+  @doc "The same read tried once: twenty seconds at most, and no wait."
+  def get_once(path), do: read(path, retry: false)
+
+  defp read(path, retry) do
+    case Req.get(
+           @api <> path,
+           [
+             headers: [accept: "application/json"],
+             redirect: false,
+             connect_options: [timeout: 5_000],
+             receive_timeout: 15_000
+           ] ++ retry
          ) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status}} -> {:error, {:status, status}}

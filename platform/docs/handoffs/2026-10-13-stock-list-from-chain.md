@@ -44,8 +44,12 @@ unchanged. This is open with Sean as AL-138.
 - A run that read a launchpad's logs and left no stock unread sends the measurement the other
   chain readers send, `[:autolaunch, :indexer, :lag]` with `indexer: :stock_admissions`, the
   chain id, and `blocks`, how far the saved place is behind the chain's latest block. A failed
-  run, or one that left a stock unread, sends nothing, so "no measurement for 20 minutes" is
-  the alarm for a list that has stopped being read (Sentinel's finding of 19:41Z).
+  log read, or one that left a stock unread, sends nothing, so "no measurement for 20 minutes"
+  is the alarm for a list that has stopped being read (Sentinel's finding of 19:41Z). The
+  measurement is about the log read only: a run whose re-asking of the saved stocks failed can
+  still send it, and that run fails and is tried again like any other (the orchestrator's note
+  of 20:33Z). The alarm itself is Sentinel's, outside this repository; its two reader rows must
+  carry the `stock_admissions` label before the release.
 - Gone: the `stocks` list in both deployment descriptions and their loaders, the built-in Base
   catalog and feed list, and the start-up step `Autolaunch.Stocks.SupportedStocks`. The lab and
   ceremony scripts no longer write the list.
