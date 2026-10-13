@@ -3,7 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Next release: bid estimates on finished auctions
+## Next release: bid estimates on Robinhood auctions
+- Asking for a bid estimate on a Robinhood auction now says estimates cover Base auctions only
+  and where to read that auction's figures, instead of saying the auction was not found.
+
+## v97, 12 October 2026 (1833c5b): bid estimates on finished auctions
 - A bid estimate on an auction that has finished or failed no longer says the bid would be
   active. It says no bid can be placed there and estimates no tokens.
 

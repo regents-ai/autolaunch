@@ -79,6 +79,7 @@ defmodule AutolaunchWeb.AuctionController do
     else
       false -> invalid_request(conn)
       {:error, :auction_not_found} -> not_found(conn)
+      {:error, :estimate_not_offered} -> estimate_not_offered(conn)
       {:error, :invalid_amount} -> invalid_decimal(conn, "invalid_amount", "amount")
       {:error, :invalid_max_price} -> invalid_decimal(conn, "invalid_max_price", "max_price")
       {:error, :database_unavailable} -> internal_error(conn)
@@ -173,6 +174,15 @@ defmodule AutolaunchWeb.AuctionController do
 
   defp not_found(conn),
     do: ApiError.send(conn, :not_found, "not_found", "Auction not found.")
+
+  defp estimate_not_offered(conn),
+    do:
+      ApiError.send(
+        conn,
+        :unprocessable_entity,
+        "estimate_not_offered",
+        "Bid estimates cover Base auctions only. This auction is on Robinhood."
+      )
 
   defp internal_error(conn),
     do:

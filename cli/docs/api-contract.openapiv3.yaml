@@ -277,7 +277,7 @@ paths:
     post:
       operationId: quoteAuctionBid
       summary: Estimate a bid
-      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns. An id that names no auction this site created, including a Robinhood auction, answers 404.
+      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns. An id that names no auction this site created answers 404; a Robinhood auction answers 422 `estimate_not_offered`, since estimates cover Base auctions only.
       security: []
       parameters:
         - {$ref: "#/components/parameters/AuctionId"}
@@ -749,13 +749,15 @@ components:
             notFound:
               value: {error: {code: not_found, message: Auction not found., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json. Sending the same request again will not help.}}
     InvalidBidInput:
-      description: The body has the right fields, but amount or max_price is not a plain decimal string greater than zero. The code names which; amount is checked first.
+      description: The auction is on Robinhood, for which no estimate is offered (`estimate_not_offered`), or the body has the right fields but amount or max_price is not a plain decimal string greater than zero. The code names which; the auction is checked first, then amount.
       content:
         application/json:
           schema: {$ref: "#/components/schemas/InvalidBidInputApiError"}
           examples:
             invalidAmount:
               value: {error: {code: invalid_amount, message: "amount must be a plain decimal string greater than zero, such as \"12.5\".", hint: "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."}}
+            estimateNotOffered:
+              value: {error: {code: estimate_not_offered, message: "Bid estimates cover Base auctions only. This auction is on Robinhood.", hint: "Read the auction's figures with GET https://autolaunch.sh/api/v1/auctions/{id} or on its page (its url). Sending the same request again will not help."}}
     TooManyRequests:
       description: Too many requests from this client address in the current window. Wait the seconds in Retry-After, then send the request again.
       headers:
@@ -1089,6 +1091,6 @@ components:
           additionalProperties: false
           required: [code, message, hint]
           properties:
-            code: {type: string, enum: [invalid_amount, invalid_max_price]}
+            code: {type: string, enum: [estimate_not_offered, invalid_amount, invalid_max_price]}
             message: {type: string}
             hint: {type: string, description: What to do next.}

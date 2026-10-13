@@ -19,6 +19,7 @@ defmodule Autolaunch.BidActions do
   alias Autolaunch.Chain.{Abi, Client, Rpc}
   alias Autolaunch.{ChainClient, Lab, LabAbi, LabBidChainClient, TreasurySecurity}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.{Address, Review}
 
@@ -52,7 +53,7 @@ defmodule Autolaunch.BidActions do
 
   A refusal names the first thing that stopped it, checked in this order:
   `:auction_not_found` (the id names no auction this site created),
-  `:invalid_amount`, `:invalid_max_price`, or `:database_unavailable` when the
+  `:estimate_not_offered` (a listed Robinhood auction), `:invalid_amount`, `:invalid_max_price`, or `:database_unavailable` when the
   stored auction could not be read.
   """
   def quote(auction_id, amount, max_price, opts \\ []) do
@@ -505,17 +506,36 @@ defmodule Autolaunch.BidActions do
   end
 
   # Only an id can name an auction, so anything else is simply not found; a
-  # read that fails for a real id is the database's, not the caller's.
+  # read that fails for a real id is the database's, not the caller's. A listed
+  # Robinhood auction stores no clearing price to estimate from, so it is named
+  # as such rather than called missing.
   defp quoted_auction(auction_id, opts) do
-    with {:ok, id} when is_binary(id) <- Ash.Type.UUID.cast_input(auction_id, []),
-         {:ok, %Autolaunch.Auction{} = auction} <-
-           Autolaunch.get_public_auction(id, Keyword.put(opts, :actor, nil)) do
-      {:ok, auction}
-    else
-      {:error, %{}} -> {:error, :database_unavailable}
-      _not_found -> {:error, :auction_not_found}
+    opts = Keyword.put(opts, :actor, nil)
+
+    case Ash.Type.UUID.cast_input(auction_id, []) do
+      {:ok, id} when is_binary(id) ->
+        quoted_auction(Autolaunch.get_public_auction(id, opts), id, opts)
+
+      _not_an_id ->
+        {:error, :auction_not_found}
     end
   end
+
+  defp quoted_auction({:ok, %Autolaunch.Auction{} = auction}, _id, _opts), do: {:ok, auction}
+
+  defp quoted_auction({:ok, nil}, id, opts),
+    do: unquoted_auction(Autolaunch.get_listed_auction(id, opts))
+
+  defp quoted_auction({:error, _error}, _id, _opts), do: {:error, :database_unavailable}
+
+  defp unquoted_auction({:ok, %Autolaunch.Auction{chain_id: chain_id}}) do
+    if RobinhoodLab.chain?(chain_id),
+      do: {:error, :estimate_not_offered},
+      else: {:error, :auction_not_found}
+  end
+
+  defp unquoted_auction({:ok, nil}), do: {:error, :auction_not_found}
+  defp unquoted_auction({:error, _error}), do: {:error, :database_unavailable}
 
   # The auction must raise for the treasury this site recorded for it: a
   # verified report on Base, the admitted launchpad for a Base memestock

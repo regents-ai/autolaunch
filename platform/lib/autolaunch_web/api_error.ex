@@ -33,6 +33,10 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "Send max_price as digits with at most one decimal point, no sign, exponent or thousands separator: the most you would pay per token, in the auction's quote token. Sending the same value again will not help."
 
+  defp hint("estimate_not_offered"),
+    do:
+      "Read the auction's figures with GET #{PublicDocuments.url("/api/v1/auctions/{id}")} or on its page (its url). Sending the same request again will not help."
+
   defp hint(code) when code in ["signed_proof_required", "siwa_unavailable"],
     do:
       "Use your existing signer following https://siwa.regents.sh/skill.md and sign the exact Autolaunch request."
