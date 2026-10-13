@@ -18,6 +18,8 @@ defmodule Autolaunch.MarketTicker do
   @coalesce_ms 1_000
   @reread_ms 60_000
 
+  def topic, do: @topic
+
   def start_link(_), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   @doc "The current list, newest first; each later one arrives as `{:market_ticker, entries}`."

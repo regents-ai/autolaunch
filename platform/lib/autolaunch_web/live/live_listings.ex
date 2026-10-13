@@ -26,5 +26,8 @@ defmodule AutolaunchWeb.LiveListings do
   def schedule(socket), do: socket
 
   @doc "Marks the due reread as taken, so the next change schedules another."
-  def taken(socket), do: assign(socket, :listings_reread, nil)
+  def taken(socket) do
+    :telemetry.execute([:autolaunch, :pages, :reread], %{count: 1}, %{view: socket.view})
+    assign(socket, :listings_reread, nil)
+  end
 end

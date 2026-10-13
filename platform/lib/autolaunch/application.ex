@@ -36,6 +36,7 @@ defmodule Autolaunch.Application do
       # paired or unpaired, on any Regent site reaches the Account page.
       RegentCredits.Listener,
       RegentAgents.Listener,
+      AutolaunchWeb.Telemetry.Announcements,
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.
       {Task.Supervisor, name: Autolaunch.TaskSupervisor},
       Autolaunch.Stocks.MarketData,
@@ -52,7 +53,9 @@ defmodule Autolaunch.Application do
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry
-      AutolaunchWeb.Endpoint
+      AutolaunchWeb.Endpoint,
+      # After the endpoint, whose open connections it counts.
+      AutolaunchWeb.Telemetry.site_poller()
     ]
     |> List.flatten()
     |> Enum.reject(&is_nil/1)

@@ -27,6 +27,15 @@ defmodule AutolaunchWeb.Telemetry do
       `queue_time` is the wait for a database connection.
     * `[:autolaunch, :wallet, :failure]` — `count` 1 for each wallet send the
       browser reported as not made or not confirmed, by `flow` and `reason`.
+    * `[:autolaunch, :pages, :announced]` — `count` 1 for each announcement
+      the site makes to its open pages, by `kind` (`:listings`, `:base_market`,
+      `:robinhood_market` or `:ticker`). Every open page acts on each one, so
+      a high rate with nobody bidding means pages are refreshing for nothing.
+    * `[:autolaunch, :pages, :reread]` — `count` 1 each time an open page
+      reads its lists again after an announcement, by `view`.
+    * `[:autolaunch, :site, :connections]` — `open`, the connections the web
+      server holds, every ten seconds. An open page holds one for as long as
+      it is open, and Fly's connection ceiling (`fly.toml`) counts the same.
 
   The metrics port listens on Fly's private network only: the public proxy
   routes nothing but `[http_service]`, so the numbers are never public. It
@@ -108,6 +117,22 @@ defmodule AutolaunchWeb.Telemetry do
         tags: [:flow, :reason],
         description: "Wallet sends the browser reported as not made or not confirmed"
       ),
+      counter("health.page_announcements.total",
+        event_name: [:autolaunch, :pages, :announced],
+        tags: [:kind],
+        description: "Announcements the site made to its open pages"
+      ),
+      counter("health.page_list_reads.total",
+        event_name: [:autolaunch, :pages, :reread],
+        tags: [:view],
+        tag_values: &%{&1 | view: inspect(&1.view)},
+        description: "Times an open page read its lists again after an announcement"
+      ),
+      last_value("health.open_connections",
+        event_name: [:autolaunch, :site, :connections],
+        measurement: :open,
+        description: "Connections the web server holds"
+      ),
       last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
       last_value("vm.memory.processes.bytes",
         event_name: [:vm, :memory],
@@ -143,6 +168,24 @@ defmodule AutolaunchWeb.Telemetry do
        measurements: [{__MODULE__, :oldest_unfinished_jobs, []}],
        period: 10_000,
        name: :autolaunch_jobs_poller}
+
+  @doc "The poller that counts the web server's open connections, started after the endpoint."
+  def site_poller,
+    do:
+      {:telemetry_poller,
+       measurements: [{__MODULE__, :open_connections, []}],
+       period: 10_000,
+       name: :autolaunch_site_poller}
+
+  # Where the endpoint runs no server (tests), there is nothing to count.
+  @doc false
+  def open_connections do
+    with {:ok, server} when is_pid(server) <-
+           Bandit.PhoenixAdapter.bandit_pid(AutolaunchWeb.Endpoint),
+         {:ok, connections} <- ThousandIsland.connection_pids(server) do
+      :telemetry.execute([:autolaunch, :site, :connections], %{open: length(connections)}, %{})
+    end
+  end
 
   # The poller drops a measurement that raises for good, so a database that
   # cannot answer this tick skips it; the next tick measures again.
