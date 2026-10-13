@@ -1,6 +1,6 @@
 # Stock logo sources
 
-One logo per stock ticker, in `priv/static/images/stocks/`, shown at about 20–28px inside a small chip. Collected on 2026-09-25; ASML, GLD and ORCL added on 2026-10-13.
+One logo per stock ticker, in `priv/static/images/stocks/`, shown at about 20–28px inside a small chip. Collected on 2026-09-25; ASML, CRWV, GLD, NBIS, ORCL and RKLB added on 2026-10-13.
 
 Every logo here is a trademark of its owner. The licence column covers the image file only. It does not grant any trademark rights, so use each logo only to name the stock it belongs to.
 
@@ -15,6 +15,7 @@ Every logo here is a trademark of its owner. The licence column covers the image
 | BABA | BABA.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/alibabadotcom.svg | simple-icons, CC0. Filled with the brand colour #FF6A00. The Alibaba "smiling a" mark, which Alibaba Group and Alibaba.com share. | No |
 | COIN | COIN.png | https://commons.wikimedia.org/wiki/File:Coinbase_Icon.png | Wikimedia Commons, public domain, trademarked. Trimmed, centred and scaled to 128×128 on a transparent background. | No |
 | CRCL | CRCL.svg | https://cdn.prod.website-files.com/668c08d1b8a9330bd1d786ad/669a20df8ac2810a6dd50e67_favicon-256.svg | Circle's own site icon from circle.com, trademark of Circle Internet Group. Width, height and unused attributes removed. | No |
+| CRWV | CRWV.svg | https://commons.wikimedia.org/wiki/File:CoreWeave_logo.svg | Wikimedia Commons, public domain, trademark of CoreWeave. Only the "CW" mark is kept, its "C" in #2741E7 and the rest in black; the "CoreWeave" wordmark was left out, as were the drawing program's notes. | Yes (black strokes) |
 | DELL | DELL.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/dell.svg | simple-icons, CC0. Filled with the brand colour #007DB8. | No |
 | GLD | GLD.svg | https://www.ssga.com/library-content/images/site/state-street-investment-management-logo.svg | Same as SPY (State Street, which markets SPDR Gold Shares). | Yes (bright blue, low contrast on dark) |
 | GME | GME.svg | https://commons.wikimedia.org/wiki/File:GameStop_Logo.svg | Wikimedia Commons, public domain (text logo), trademarked. Wordmark (no separate icon). | Yes ("Game" is near-black #212322) |
@@ -24,10 +25,12 @@ Every logo here is a trademark of its owner. The licence column covers the image
 | MSFT | MSFT.svg | https://commons.wikimedia.org/wiki/File:Microsoft_logo_(2012).svg | Wikimedia Commons, public domain (text logo), trademarked. Only the four-square mark is kept; the grey "Microsoft" wordmark was left out. | No |
 | MSTR | MSTR.svg | https://commons.wikimedia.org/wiki/File:Strategy_logo_(2025).svg | Wikimedia Commons, public domain (text logo), trademarked. The 2025 "Strategy₿" wordmark in #FA660F; the company has no separate icon. | No |
 | MU | MU.svg | https://commons.wikimedia.org/wiki/File:Micron_Technology_logo_2024.svg | Wikimedia Commons, public domain (text logo), trademarked. The 2024 wordmark; a hidden unused shape was removed. | Yes (black) |
+| NBIS | NBIS.svg | https://nebius.com/favicon/favicon.svg | Nebius's own site icon, trademark of Nebius Group. The navy "N" on the brand lime tile. Width, height and two clips the size of the whole icon were removed. | No (has its own lime tile) |
 | NVDA | NVDA.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/nvidia.svg | simple-icons, CC0. Filled with the brand colour #76B900. | No |
 | ORCL | ORCL.svg | https://commons.wikimedia.org/wiki/File:Oracle_Corporation_logo.svg | Wikimedia Commons, public domain (text logo), trademark of Oracle. The "O" mark in #C74634; the "ORACLE" wordmark is too wide to read at chip size. Width and height replaced by a viewBox. | No |
 | PLTR | PLTR.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/palantir.svg | simple-icons, CC0. Filled with the brand colour #101113. | Yes (near-black) |
 | QQQ | QQQ.svg | https://www.invesco.com/etc.clientlibs/invesco/clientlib-global/clientlib/resources/images/logo-new.svg | Invesco's own site logo, trademark of Invesco Ltd. Only the mountain mark is kept, in #000AD2; the "Invesco" wordmark was left out. | Yes (deep blue, low contrast on dark) |
+| RKLB | RKLB.svg | https://commons.wikimedia.org/wiki/File:Rocket_Lab_logo_R_(Trimmed).svg | Wikimedia Commons, public domain, trademark of Rocket Lab. The "R" mark with its red streak, without the wordmark. Width, height and a clip the size of the whole drawing were removed. | Yes (near-black "R") |
 | SGOV | SGOV.svg | https://commons.wikimedia.org/wiki/File:Logo-ishares_2019.svg | Wikimedia Commons, public domain (text logo), trademark of BlackRock. The "iShares" wordmark only; the small "by BlackRock" line under it was left out because it cannot be read at chip size. Same file as SLV. | Yes (black) |
 | SLV | SLV.svg | https://commons.wikimedia.org/wiki/File:Logo-ishares_2019.svg | Same as SGOV (iShares, BlackRock). | Yes (black) |
 | SNDK | SNDK.svg | https://commons.wikimedia.org/wiki/File:SanDisk_2024_logo.svg (letter shape); layout from https://www.sandisk.com/favicon.ico | Wikimedia Commons, public domain (text logo), trademark of Sandisk. The "S" from the 2024 wordmark in white on the brand red #E10600 square, matching Sandisk's own site icon. | No |
@@ -41,5 +44,5 @@ Every logo here is a trademark of its owner. The licence column covers the image
 ## Licence summary
 
 - simple-icons 16.32.0 (10 files: AAPL, AMD, BABA, DELL, INTC, META, NVDA, PLTR, SPCX, TSLA): the icon package is CC0-1.0, and no icon has its own licence in the package data.
-- Wikimedia Commons (13 files: AMZN, ASML, COIN, GME, GOOGL, MSFT, MSTR, MU, ORCL, SGOV, SLV, SNDK, TSM): each file is marked public domain, with a "trademarked" warning where Commons shows one. The SNDK file also follows the layout of Sandisk's own site icon.
-- Company websites (6 files: CRCL, GLD, QQQ, SPY, USAR, USO): taken from each company's own public site with no sign-in. These are not openly licensed. They are used only to name the company's own stock.
+- Wikimedia Commons (15 files: AMZN, ASML, COIN, CRWV, GME, GOOGL, MSFT, MSTR, MU, ORCL, RKLB, SGOV, SLV, SNDK, TSM): each file is marked public domain, with a "trademarked" warning where Commons shows one. The SNDK file also follows the layout of Sandisk's own site icon.
+- Company websites (7 files: CRCL, GLD, NBIS, QQQ, SPY, USAR, USO): taken from each company's own public site with no sign-in. These are not openly licensed. They are used only to name the company's own stock.
