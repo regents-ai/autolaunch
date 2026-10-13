@@ -601,11 +601,9 @@ defmodule Autolaunch.BidActions do
 
     with true <- byte_size(value) <= 100,
          true <- String.match?(value, ~r/^\d+(?:\.\d{1,#{decimals}})?$/),
-         {decimal, ""} <- Decimal.parse(value, max_digits: :infinity),
-         scaled <- Decimal.mult(decimal, Decimal.new(Integer.pow(10, decimals))),
-         rounded <- Decimal.round(scaled, 0),
-         :eq <- Decimal.compare(scaled, rounded),
-         amount when amount in 1..@uint128_max <- Decimal.to_integer(rounded) do
+         [whole | fraction] <- String.split(value, "."),
+         fraction <- String.pad_trailing(List.first(fraction) || "", decimals, "0"),
+         amount when amount in 1..@uint128_max <- String.to_integer(whole <> fraction) do
       {:ok, amount}
     else
       _refused -> {:error, :invalid_amount}

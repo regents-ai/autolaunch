@@ -62,37 +62,37 @@
       "file": "test/autolaunch/bid_actions_test.exs",
       "line": 114,
       "test_name": "EXACT_AMOUNTS_AND_PRICES: only exact eighteen-decimal amounts and positive prices review",
-      "keep_because": "Malformed, nonpositive or over-precision amounts/prices cannot enter a bid review.",
+      "keep_because": "Malformed, nonpositive or over-precision amounts/prices cannot enter a bid review, and a long amount is read exactly, never rounded.",
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     },
     {
       "id": 8,
       "group": "Money and reviewed funding conditions",
       "framework": "exunit",
       "file": "test/autolaunch/bid_actions_test.exs",
-      "line": 142,
+      "line": 145,
       "test_name": "exact maximum is floored to the pinned zero-based grid without decimal rounding",
       "keep_because": "Tick alignment never rounds a bid above the requested maximum; encoded calldata carries the aligned integer.",
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     },
     {
       "id": 9,
       "group": "Money and reviewed funding conditions",
       "framework": "exunit",
       "file": "test/autolaunch/bid_actions_test.exs",
-      "line": 179,
+      "line": 182,
       "test_name": "tick boundaries, clearing floor, cap and huge precision use exact integer bounds",
       "keep_because": "Price floors, caps, tick boundaries and integer overflow are enforced without floating-point arithmetic.",
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     },
     {
       "id": 10,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     },
     {
       "id": 11,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     },
     {
       "id": 12,
@@ -131,7 +131,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     },
     {
       "id": 17,
@@ -333,13 +333,13 @@
       "group": "Money and reviewed funding conditions",
       "framework": "exunit",
       "file": "test/autolaunch/bid_actions_test.exs",
-      "line": 217,
+      "line": 220,
       "test_name": "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero",
       "keep_because": "A stored clearing price longer than 34 digits is read whole, so a bid below it is never estimated as buying now (live finding, 13 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ca5608e38514058a8faf839bc35431de6fc5d148f9a31be98d47303a5e494cf5"
+      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
     }
   ],
   "legacy_folders_to_remove": [

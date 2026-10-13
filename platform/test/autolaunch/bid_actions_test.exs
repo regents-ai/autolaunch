@@ -130,6 +130,9 @@ defmodule Autolaunch.BidActionsTest do
     assert {:error, error} = prepare(auction.id, wallet, "1", "", opts)
     assert refusal(error) == :invalid_decimal
 
+    assert {:ok, 12_345_678_901_234_567_890_123_456_789_012_345_678} =
+             BidActions.atomic_amount("12345678901234567890.123456789012345678", 18)
+
     assert {:ok, %{context: half}} = prepare(auction.id, wallet, "1", "0.5", opts)
     assert half.max_price_q96 == div(@q96, 2)
 
