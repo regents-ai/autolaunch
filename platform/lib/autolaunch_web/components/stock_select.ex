@@ -289,8 +289,17 @@ defmodule AutolaunchWeb.Components.StockSelect do
     """
   end
 
-  # Robinhood lists its stocks with the network in every name.
-  defp company(stock), do: String.replace_suffix(stock.name, " • Robinhood Token", "")
+  # A stock is shown under its token's own name, less what is not the
+  # company's name: Robinhood's network, in every name it lists, and the
+  # company's legal form at the end ("Apple Inc.", "Microsoft Corporation").
+  defp company(stock) do
+    stock.name
+    |> String.replace_suffix(" • Robinhood Token", "")
+    |> String.replace(
+      ~r/,? (Inc|Incorporated|Corp|Corporation|Ltd|Limited|PLC|plc|LLC|N\.V|S\.A|AG)\.?\z/,
+      ""
+    )
+  end
 
   defp toggle(id) do
     JS.toggle_attribute({"hidden", "hidden"}, to: "##{id}-list")

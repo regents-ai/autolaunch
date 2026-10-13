@@ -13,9 +13,13 @@ minutes, with its dollar price, with no site release. A stock the Safe revokes l
 within about six minutes; auctions already trading in it keep working and keep their dollar
 prices.
 
-Base stocks are now named as their tokens name themselves ("Apple Inc.", "Space Exploration
-Technologies Corp."), where the built-in list said "Apple" and "SpaceX". Robinhood names are
-unchanged. This is open with Sean as AL-138.
+Stocks are named as their tokens name themselves, and the picker shows that name without the
+company's legal form at the end (Sean, 13 October, AL-138 b): "Apple Inc." shows as "Apple",
+"Microsoft Corporation" as "Microsoft", "Space Exploration Technologies Corp." as "Space
+Exploration Technologies", where the built-in list said "Apple" and "SpaceX". The saved row keeps
+the token's name as the chain gives it. One rule for both chains, so on Robinhood "Strategy Inc."
+and "Sandisk Corporation" lose their endings too; its "Space Exploration Technologies Corp. Class
+A Common Stock" does not end in a legal form and shows whole.
 
 ## How it works
 
