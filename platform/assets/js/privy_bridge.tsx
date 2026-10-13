@@ -406,11 +406,12 @@ export function createPrivyLoginCallbacks({
         if (opened && isAvailable()) showFailure()
       })
     },
-    onError: () => {
+    // A person who closes the sign-in window chose to; nothing is said.
+    onError: error => {
       if (!isAvailable()) return
       const opened = loginOpen.current
       loginOpen.current = false
-      if (opened) showFailure()
+      if (opened && error !== "exited_auth_flow") showFailure()
     },
   } satisfies PrivyEvents["login"]
 }

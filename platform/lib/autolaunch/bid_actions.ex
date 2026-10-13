@@ -92,7 +92,9 @@ defmodule Autolaunch.BidActions do
   end
 
   @doc """
-  What one of the signed-in account's wallets may spend on this auction.
+  What one of the signed-in account's wallets may spend on this auction: its
+  balance of each currency the auction takes, read whether or not bidding has
+  opened.
 
   The address is proved against the account the mounted lease resolves to before
   any private fact is read, so a wallet the account does not link is refused
@@ -102,13 +104,20 @@ defmodule Autolaunch.BidActions do
     with {:ok, signer} <- current_wallet(input.arguments.expected_signer, context.actor, context),
          {:ok, auction} <- auction(input.arguments.auction_id),
          {:ok, auction_address} <- normalize(auction.auction_address),
-         {:ok, snapshot} <- snapshot(auction_address, signer, nil),
-         :ok <- bound_currency(snapshot, auction) do
-      {:ok, %{signer: signer, balance: Integer.to_string(snapshot.currency_balance)}}
+         {:ok, balances} <- balances(auction_address, signer, usdc_bids?(auction)),
+         :ok <- bound_currency(balances, auction) do
+      {:ok, %{signer: signer, balances: shown_balances(balances, auction)}}
     end
   end
 
   def position(_input, _context), do: {:error, :authentication_required}
+
+  # What the wallet can bid with, by currency, in whole units: the auction's
+  # own currency and, where it takes USDC, USDC.
+  defp shown_balances(%{currency_balance: own, usdc_balance: usdc}, auction) do
+    own = %{auction.quote_token_symbol => units(own, auction.quote_token_decimals)}
+    if usdc, do: Map.put(own, "USDC", units(usdc, @usdc_decimals)), else: own
+  end
 
   @doc """
   The steps of one bid for `address`, one of the signed-in account's wallets,
@@ -458,6 +467,18 @@ defmodule Autolaunch.BidActions do
   end
 
   # Chain snapshot
+
+  # A Stocks auction takes USDC wherever this site has the Stocks deployment.
+  defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
+  defp usdc_bids?(_auction), do: false
+
+  defp balances(address, signer, usdc?) do
+    case ChainClient.module().balances(%{auction: address, signer: signer, usdc: usdc?}) do
+      {:ok, balances} -> {:ok, balances}
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
+      {:error, reason} -> unavailable(reason)
+    end
+  end
 
   defp snapshot(address, signer, max_price_q96) do
     case ChainClient.module().snapshot(%{

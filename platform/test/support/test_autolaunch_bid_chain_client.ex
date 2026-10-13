@@ -34,7 +34,23 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
   def state, do: Application.get_env(:autolaunch, @key, %{})
 
   @impl true
-  def snapshot(%{max_price_q96: max_price_q96}) do
+  def balances(%{usdc: usdc?}) do
+    case state() do
+      %{unavailable: reason} ->
+        {:error, reason}
+
+      fixture ->
+        {:ok,
+         %{
+           currency: fixture.currency,
+           currency_balance: fixture.currency_balance,
+           usdc_balance: if(usdc?, do: fixture.usdc_balance)
+         }}
+    end
+  end
+
+  @impl true
+  def snapshot(_request) do
     case state() do
       %{unavailable: reason} ->
         {:error, reason}
@@ -55,15 +71,11 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
            permit2_amount: fixture.permit2_amount,
            permit2_expiration: fixture.permit2_expiration,
            predecessor_source: fixture.predecessor_source,
-           prev_tick_price_q96: predecessor(max_price_q96, fixture),
+           prev_tick_price_q96: fixture.prev_tick_price_q96,
            block: fixture.block
          }}
     end
   end
-
-  # No predecessor is asked for by the wallet position read, and none is invented.
-  defp predecessor(nil, _fixture), do: nil
-  defp predecessor(_max_price_q96, fixture), do: fixture.prev_tick_price_q96
 
   defp restore(key, nil), do: Application.delete_env(:autolaunch, key)
   defp restore(key, value), do: Application.put_env(:autolaunch, key, value)
@@ -145,6 +157,7 @@ defmodule Autolaunch.BidFixture do
       max_bid_price_q96: Integer.pow(2, 256) - 1,
       currency: regent(),
       currency_balance: 100 * Integer.pow(10, 18),
+      usdc_balance: 50 * Integer.pow(10, 6),
       token_allowance: 0,
       permit2_amount: 0,
       permit2_expiration: 0,

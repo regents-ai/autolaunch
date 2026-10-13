@@ -45,6 +45,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponentTest do
         graduated?: true,
         currency_raised: "1",
         stock: %{"symbol" => "TSLA"},
+        usdg_balance: "25",
         bids: [bid(1, @clearing + 1), bid(2, @clearing - 1)]
       }
     )

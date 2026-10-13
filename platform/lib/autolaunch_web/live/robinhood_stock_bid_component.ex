@@ -276,6 +276,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             book={@book}
             supply={supply(@supply)}
             rate={@usd_rate}
+            balance={@reading && @reading.usdg_balance}
           />
           <%!-- Outside the form: a wallet button is never inside one. --%>
           <div class="bid-actions">
@@ -487,6 +488,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     form = BidForm.values(params, socket.assigns.form, max_price(socket.assigns))
     {:noreply, socket |> assign(form: form, notice: nil) |> drafted() |> prepare_when_ready()}
   end
+
+  # The wallet's whole USDG, entered as the budget.
+  def handle_event(
+        "fill_bid_amount",
+        _params,
+        %{assigns: %{reading: %{usdg_balance: balance}}} = socket
+      ),
+      do:
+        {:noreply,
+         socket
+         |> assign(form: %{socket.assigns.form | amount: balance}, notice: nil)
+         |> drafted()
+         |> prepare_when_ready()}
+
+  def handle_event("fill_bid_amount", _params, socket), do: {:noreply, socket}
 
   # The price to beat, entered from the auction's price panel as the limit.
   def handle_event("use_price", %{"price" => price}, socket),
