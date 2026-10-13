@@ -86,7 +86,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         Your draft could not be loaded. Refresh and try again.
       </p>
 
-      <div :if={@status != :error} class="create-page__layout create-page__layout--preview">
+      <div :if={@status != :error} class="create-page__layout">
         <section
           id="memestock-form"
           class="create-page__form memestock rg-panel rg-panel--surface"

@@ -115,18 +115,27 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :color, :string, default: nil, doc: "the image's colour, which tints the card"
   attr :website, :string, default: nil
   attr :chain, :string, required: true, values: ["Base", "Robinhood"]
-  attr :unit, :string, default: nil, doc: "the paired stock's symbol; nil before one is chosen"
-  attr :price, :string, default: nil, doc: "the auction's starting price, in the stock"
-  attr :fdv, :any, default: nil, doc: "the whole supply at the starting price, in the stock"
-  attr :rate, :any, default: nil, doc: "the USD price of one unit of the stock"
+
+  attr :unit, :string,
+    default: nil,
+    doc: "the currency bids are paid in: REGENT, or the paired stock, nil before one is chosen"
+
+  attr :price, :string, default: nil, doc: "the auction's starting price, in the unit"
+  attr :fdv, :any, default: nil, doc: "the whole supply at the starting price, in the unit"
+  attr :rate, :any, default: nil, doc: "the USD price of one unit"
+
+  attr :threshold, :any,
+    default: nil,
+    doc: "a Revstake draft's launch threshold, in the unit; with it the card shows the raise"
+
   attr :creator_connections, :map, default: %{}
 
   @doc """
   A draft as the gallery will show its auction when it is listed: the same
   card as `explore_card/1`, at the starting price, with no bids and none of
-  its time passed. Nothing on it can be pressed or followed. The creator's
-  wallet is not among the links: which wallet launches is not known until it
-  signs.
+  its time passed; a Revstake draft shows its launch threshold with nothing
+  raised. Nothing on it can be pressed or followed. The creator's wallet is
+  not among the links: which wallet launches is not known until it signs.
   """
   def draft_card(assigns) do
     assigns =
@@ -147,8 +156,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
         },
         figures: %{
           fdv: money(assigns.fdv, assigns.rate, assigns.unit) || "No price yet",
+          volume: money(Decimal.new(0), assigns.rate, assigns.unit),
+          threshold: money(assigns.threshold, assigns.rate, assigns.unit),
           unpriced: if(is_nil(assigns.rate), do: assigns.unit),
-          met: nil,
+          met: if(assigns.threshold, do: 0),
           ends_at: nil,
           id: "draft"
         },
@@ -156,7 +167,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       )
 
     ~H"""
-    <.auction_card view={@view} figures={@figures} bar={@bar} preview />
+    <.auction_card view={@view} figures={@figures} bar={@bar} raise?={@threshold != nil} preview />
     """
   end
 

@@ -16,6 +16,7 @@ defmodule Autolaunch.LaunchActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, LaunchAbi, Rpc}
+  alias Autolaunch.Stocks.Amounts
   alias RegentChain.{Address, Review}
 
   alias Autolaunch.{
@@ -141,6 +142,34 @@ defmodule Autolaunch.LaunchActions do
   @spec terms() :: [String.t()]
   def terms, do: Enum.map(LaunchAbi.terms(), &Atom.to_string/1)
 
+  # The fixed terms of every Revstake launch, as `RegentLBPStrategyV2` holds
+  # them: the auction's floor price, the supply, and the tokens the auction
+  # sells. REGENT and the new token both have 18 decimals.
+  @floor_price_q96 4_294_967_300
+  @q96 Integer.pow(2, 96)
+  @decimals 18
+  @total_supply 100_000_000_000
+  @auction_allocation 20_000_000_000 * Integer.pow(10, @decimals)
+
+  @doc """
+  What a launch opens at, in REGENT: the price of one token at the auction's
+  floor, exactly, the whole supply at that price, and the launch threshold
+  (the whole sale at the floor, rounded up, plus one base unit, since the
+  auction can count a bid up to one unit short). Until a bid clears higher,
+  the first two are the auction's clearing price and FDV.
+  """
+  @spec opening() :: %{price: String.t(), fdv: Decimal.t(), threshold: Decimal.t()}
+  def opening do
+    price = Amounts.format_cca_price(@floor_price_q96, @decimals, @decimals)
+    required = div(@auction_allocation * @floor_price_q96 + @q96 - 1, @q96)
+
+    %{
+      price: price,
+      fdv: price |> Decimal.new(max_digits: :infinity) |> Decimal.mult(@total_supply),
+      threshold: Decimal.new(minimum_regent(required))
+    }
+  end
+
   # Reviews
 
   # The saved review: fixed once written, and read back exactly as stored.
@@ -204,7 +233,7 @@ defmodule Autolaunch.LaunchActions do
 
   # The smallest raise that graduates, in REGENT: one unit above the required
   # raise, since the auction can count a bid up to one unit short.
-  defp minimum_regent(atomic), do: Rpc.format_units(atomic + 1, 18)
+  defp minimum_regent(atomic), do: Rpc.format_units(atomic + 1, @decimals)
 
   defp risk_copy do
     if Lab.test_chain?(),

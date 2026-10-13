@@ -12,9 +12,21 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{Lab, LaunchDraft, LaunchDraftImageStorage, Listings, Ticker, TreasurySecurity}
+
+  alias Autolaunch.{
+    ImageColor,
+    Lab,
+    LaunchDraft,
+    LaunchDraftImageStorage,
+    Listings,
+    Ticker,
+    TreasurySecurity
+  }
+
+  alias AutolaunchWeb.Components.AutolaunchHelpers
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
+  alias AutolaunchWeb.UsdValue
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
   import AutolaunchWeb.Components.LaunchKindChoice
@@ -35,6 +47,9 @@ defmodule AutolaunchWeb.CreateLive do
       socket
       |> assign(AutolaunchWeb.PublicDocuments.page("/create/revstake"))
       |> assign_defaults(actor)
+      |> UsdValue.assign_rate(:regent_rate, :base, fn ->
+        {:ok, %{regent_rate: UsdValue.rate(%{kind: :agent})}}
+      end)
 
     case actor do
       nil ->
@@ -304,13 +319,12 @@ defmodule AutolaunchWeb.CreateLive do
   defp assign_saved_image(socket, stored, actor) do
     socket
     |> assign_loaded_draft(stored.draft, actor)
-    |> assign(
-      draft_values:
-        Templates.draft_values(stored.draft)
-        |> Map.put("image", LaunchDraftImageStorage.public_url(stored.image)),
-      draft_errors: %{},
-      image_notice: nil
+    |> assign_draft_values(
+      stored.draft
+      |> Templates.draft_values()
+      |> Map.put("image", LaunchDraftImageStorage.public_url(stored.image))
     )
+    |> assign(draft_errors: %{}, image_notice: nil)
   end
 
   defp load_create(socket, actor) do
@@ -334,6 +348,8 @@ defmodule AutolaunchWeb.CreateLive do
       draft_errors: %{},
       draft_notice: nil,
       image_notice: nil,
+      image_color: nil,
+      creator_connections: %{},
       has_connections: false,
       connections_waived: false,
       no_connections_typed: "",
@@ -348,13 +364,21 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   defp assign_loaded_draft(socket, draft, actor) do
-    assign(socket,
-      launch_drafts: [draft],
-      draft_values: Templates.draft_values(draft),
-      current_human_id: actor.human_account_id,
-      status: :ready
-    )
+    socket
+    |> assign_draft_values(Templates.draft_values(draft))
+    |> assign(launch_drafts: [draft], current_human_id: actor.human_account_id, status: :ready)
   end
+
+  # A saved draft's values, with the colour the gallery tints the auction's
+  # card with read again only when the draft's image changes.
+  defp assign_draft_values(
+         %{assigns: %{draft_values: %{"image" => image}}} = socket,
+         %{"image" => image} = values
+       ),
+       do: assign(socket, draft_values: values)
+
+  defp assign_draft_values(socket, %{"image" => image} = values),
+    do: assign(socket, draft_values: values, image_color: ImageColor.for_url(image))
 
   defp assign_ticker_taken(socket),
     do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
@@ -415,15 +439,23 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   # Whether the creator has any account on show: a checked X account, GitHub
-  # or ENS. A Revstake launch without one asks for a typed warning first.
-  defp assign_connections(socket) do
+  # or ENS. A Revstake launch without one asks for a typed warning first. With
+  # it, the accounts as a listed auction's gallery card shows them, for the
+  # card's preview.
+  defp assign_connections(%{assigns: %{current_human_id: id}} = socket) do
     x_connections = load_x_connections(account(socket))
     identities = CreatorConnectionsComponent.identities(human_actor(socket))
+    creator = %{creator_human_account_id: id}
 
     assign(socket,
       has_connections:
         Enum.any?(x_connections, &match?(%{verified_at: %DateTime{}}, &1)) or
-          Map.take(identities, [:github, :ens]) != %{}
+          Map.take(identities, [:github, :ens]) != %{},
+      creator_connections:
+        AutolaunchHelpers.connections_for(
+          creator,
+          AutolaunchHelpers.creator_connections_for([creator])
+        )
     )
   end
 

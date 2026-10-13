@@ -6,7 +6,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.DraftCarryOver, only: [draft_carry_over: 1]
   import AutolaunchWeb.Components.ImagePicker
 
-  alias Autolaunch.{Lab, LaunchDraft}
+  alias Autolaunch.{Lab, LaunchActions, LaunchDraft}
+  alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.DraftMarks
   alias RegentChain.Address
 
@@ -148,6 +149,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :launched?, :boolean, default: false
   attr :ticker_taken?, :boolean, default: false
   attr :treasury_check, :map, default: nil
+  attr :image_color, :string, default: nil
+  attr :creator_connections, :map, default: %{}
+  attr :regent_rate, :any, default: nil
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -162,6 +166,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       )
       |> assign(:marks, marks(assigns.draft_errors, assigns.draft_values))
       |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
+      |> assign(:opening, LaunchActions.opening())
 
     ~H"""
     <p :if={@status == :error} class="autolaunch-empty">
@@ -336,32 +341,41 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       </section>
 
       <aside
-        class="create-page__summary create-page__summary--next rg-panel rg-panel--surface"
-        aria-label="Your token"
+        id="create-preview"
+        class="create-page__preview"
+        aria-label="Your auction as the gallery will show it"
       >
-        <p class="autolaunch-kicker">Your token</p>
-        <div class="create-token">
-          <img
-            :if={@draft_values["image"] != ""}
-            src={@draft_values["image"]}
-            alt=""
-            class="create-token__image"
-          />
-          <span :if={@draft_values["image"] == ""} class="create-token__image" aria-hidden="true"></span>
-          <div class="create-token__names">
-            <strong>{present(@draft_values["name"], "Your token")}</strong>
-            <span>${present(@draft_values["symbol"], "TICKER")}</span>
-          </div>
-        </div>
-        <.launch_plan
-          id="revstake-plan"
-          kind={:revstake}
-          ticker={present_ticker(@draft_values["symbol"])}
-          minimum="The whole sale at the fixed floor, rounded up: about a billionth of a REGENT"
-          chosen={[
-            {"Treasury", present(@draft_values["treasury"], "Not set yet")}
-          ]}
+        <MarketCard.draft_card
+          name={@draft_values["name"]}
+          symbol={String.upcase(@draft_values["symbol"])}
+          image={@draft_values["image"]}
+          color={@image_color}
+          website={@draft_values["website"]}
+          chain="Base"
+          unit="REGENT"
+          price={@opening.price}
+          fdv={@opening.fdv}
+          threshold={@opening.threshold}
+          rate={regent_rate(@regent_rate)}
+          creator_connections={@creator_connections}
         />
+      </aside>
+    </div>
+
+    <section :if={@status != :error} class="create-page__info" aria-labelledby="create-info-title">
+      <h2 id="create-info-title" class="create-page__info-title">
+        Auction and Token Information
+      </h2>
+      <.launch_plan
+        id="revstake-plan"
+        kind={:revstake}
+        ticker={present_ticker(@draft_values["symbol"])}
+        minimum="The whole sale at the fixed floor, rounded up: about a billionth of a REGENT"
+        chosen={[
+          {"Treasury", present(@draft_values["treasury"], "Not set yet")}
+        ]}
+      />
+      <div class="create-next__card">
         <Regent.Primitives.disclosure
           id="launch-terms"
           summary="Every term"
@@ -410,8 +424,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             </tbody>
           </table>
         </Regent.Primitives.disclosure>
-      </aside>
-    </div>
+      </div>
+    </section>
     <.draft_carry_over
       id="launch-carry-over"
       key="autolaunch:create:revstake"
@@ -419,6 +433,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     />
     """
   end
+
+  # REGENT's dollar price once it has been read; on a test network, and until
+  # then, the card's figures stay in REGENT.
+  defp regent_rate(%{ok?: true, result: %Decimal{} = rate}), do: rate
+  defp regent_rate(_unread), do: nil
 
   # Names the custody choice above the address field so the two read as one
   # decision. Naming a path is not verification of the address.
