@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v107, 13 October 2026 (27c5135): an open page's connection holds less memory
+- The connection behind each open page now gives back the memory it used to send the
+  page. Before, it kept it for as long as the tab stayed open. With 50 pages open on a
+  practice copy of the site, a connection held about 0.09 MB, down from about 1.67 MB.
+  The limit of 150 connections at Fly's door is unchanged.
+
 ## v106, 13 October 2026 (ca358ae): open pages are told only when something they show changed
 - An open page is sent an update only when something it shows changed. Before, every open
   page was told on each pass of the site's readers, whether or not anything had moved. On
