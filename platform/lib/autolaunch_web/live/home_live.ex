@@ -578,10 +578,13 @@ defmodule AutolaunchWeb.HomeLive do
               >Clear filters</.link>
             <% @tab in [:live, :finished, :tokens] -> %>
               <h2>{empty_title(@tab)}</h2>
-              <.link
-                patch={HomeMarket.path(@market_options, tab_options(:new))}
-                class="rg-button rg-button--secondary"
-              >See every launch</.link>
+              <div class="home-empty__routes">
+                <.link
+                  :for={{tab, label} <- empty_routes(@tab)}
+                  patch={HomeMarket.path(@market_options, tab_options(tab))}
+                  class="rg-button rg-button--secondary"
+                >{label}</.link>
+              </div>
             <% true -> %>
               <h2>No launches yet. Be the first.</h2>
               <.launch_button />
@@ -634,6 +637,11 @@ defmodule AutolaunchWeb.HomeLive do
   defp empty_title(:live), do: "Nothing is live right now."
   defp empty_title(:finished), do: "No auction has finished yet."
   defp empty_title(:tokens), do: "No tokens have launched yet."
+
+  # With nothing live, the way on is what already happened: finished auctions
+  # and launched tokens.
+  defp empty_routes(:live), do: [finished: "See finished auctions", tokens: "See tokens"]
+  defp empty_routes(_tab), do: [new: "See every launch"]
 
   defp count_label(1, :token), do: "1 token"
   defp count_label(count, :token), do: "#{count} tokens"

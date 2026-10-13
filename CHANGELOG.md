@@ -14,8 +14,9 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   who made it and when, its price, amount raised, market cap and state, with a Bid or Buy
   button where one applies. The rows are in the page as it first loads. A grid view stays
   one press away.
-- An empty tab says so in words and offers a way back to every launch; with no launches at
-  all the page says "No launches yet. Be the first." with the launch button.
+- An empty tab says so in words. With nothing live it offers finished auctions and tokens;
+  the other tabs offer a way back to every launch. With no launches at all the page says
+  "No launches yet. Be the first." with the launch button.
 - The extra Create buttons, "Buy $REGENT" and "Follow on X" left the top bar and side rail.
   "Buy $REGENT" is now in the footer beside the other links; the crown menu still offers
   Buy on Uniswap.

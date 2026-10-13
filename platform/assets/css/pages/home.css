@@ -176,6 +176,7 @@
 #home-explore .home-empty { padding: 64px 20px; text-align: center; border: 1px dashed var(--hairline); border-radius: 8px; }
 #home-explore .home-empty h2 { font-size: 1.25rem; margin: 0 0 20px; }
 #home-explore .home-empty p { max-width: 480px; margin: 0 auto 24px; font-size: .875rem; color: var(--color-fg-muted); }
+#home-explore .home-empty__routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 #home-explore .home-market__error { margin-top: 24px; }
 #home-explore .home-load-more { display: flex; justify-content: center; margin-top: 32px; }
 #home-explore .home-result-count { margin: 20px 0 0; text-align: center; color: var(--color-fg-muted); font-size: .75rem; }
