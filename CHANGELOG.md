@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v110, 13 October 2026 (c54c0e4): logos for GLD, ORCL and ASML
+- On the Upcoming stocks page, GLD, ORCL and ASML show a logo in place of their first two letters. GLD carries State Street's mark, as SPY does.
+
 ## v109, 13 October 2026 (28a45d8): a page of upcoming stocks
 - New page, autolaunch.sh/upcoming. "Eligible to add" lists, for Base and for Robinhood, the stocks not yet available that have a live Chainlink price and more than $10,000 in a dollar pool, with the size of that pool. "Available to Pair" lists every stock a Memestock token can be paired with today.
 - The eligible list is the site's hourly reading of outside services. It is not a promise: a stock is added only when the Safe admits it. The page shows a ticker and a pool size, and no token address or link.
