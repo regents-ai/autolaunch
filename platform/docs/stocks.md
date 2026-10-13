@@ -54,6 +54,23 @@ and is reported for as long as the stock stays unread; the other stocks and the 
 are not held back. The sync asks the launchpads new launches go through; a stock only an earlier
 launchpad admitted has no saved facts. The job signs and sends nothing.
 
+## Candidate stocks
+
+`Autolaunch.Stocks.StockCandidate` (table `stock_candidates`) lists the stocks Chainlink prices
+on Base or Robinhood that the chain's stock launchpad does not admit, one row per chain and
+ticker, for the people who sign an admission. At five past each hour `:list_feeds` reads
+Chainlink's public feed list for each chain and keeps the rows in step with it and with the
+admitted stocks; at twenty past, each row is read, one at a time on the `stock_volume` queue:
+GeckoTerminal's search for the stock's dollar pools, then at one latest block the feed's latest
+round and whether a pool's token carries the issuer's marks. A row then says `qualifies` (the
+issuer's token has a dollar pool with more than $10,000 in it), `thin_pool`, `no_dollar_pool`,
+`feed_silent` or `unread`.
+
+The rows are advice only. The feed list and the pool figures come from outside services and the
+issuer's marks can be copied, so nothing reads this table for a launch, a bid, a picker or a
+price; those read `stocks`, which is written only from the launchpads' own answers. No page
+shows the rows yet. The jobs sign and send nothing.
+
 ## Lab configuration
 
 The Stocks lab extends a running Agent lab (`platform/docs/local-base-lab.md`). Run

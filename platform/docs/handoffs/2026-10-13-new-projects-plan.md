@@ -310,24 +310,67 @@ Settled while reading the code; this is what is being built on `al/stock-watcher
 - Seen and left for Sean: Base names in the picker are now the tokens' own, which are longer
   ("Space Exploration Technologies Corp." where the list said "SpaceX").
 
-### B. The watcher
+### B. The watcher (built 13 October, local, not released)
 
-- One Oban cron job, hourly, on its own queue (outside calls). Standard tools only: Oban for
-  the schedule and retries, Req for the calls, an Ash resource for the record.
-- Reads Chainlink's public feed lists (reference-data-directory.vercel.app,
-  `feeds-ethereum-mainnet-base-1.json` and `feeds-robinhood-mainnet.json`), keeps the stock
-  feeds, and drops tickers the `Stock` table already has as admitted.
-- Finds each ticker's dollar pools on GeckoTerminal (USDC on Base, USDG on Robinhood). One
-  reading over $10,000 qualifies (AL-129 b). GLD is treated like any other (AL-130 b).
-- Confirms on the chain: the feed answers and is fresh; the token's symbol is the feed's
-  ticker; the pool is exactly the dollar token and the stock; the issuer mark (Coinbase's
-  0xb2 address form on Base, Robinhood's token beacon on Robinhood).
-- Records one row per chain and token in a new `StockCandidate` table: ticker, token, feed,
-  pool, venue (Aerodrome, Uniswap v3 or v4), fee and spacing, liquidity, when read, and either
-  "qualifies" or the reason it does not.
-- What it cannot prove: that a token is the issuer's real one. Anyone can put a look-alike
-  behind Robinhood's beacon with a $10,000 pool. The candidate row says so, and the Safe's
-  check before signing (AL-127 a) is the control.
+What it does: every hour the site writes down which stocks Chainlink prices on Base and on
+Robinhood that the launchpad does not admit yet, and what each one's market looks like. The
+rows are advice for the three signers. Nothing reads them for a launch, a bid, the picker or a
+price, and no page shows them yet (that waits for AL-137).
+
+- One table, `stock_candidates` (`Autolaunch.Stocks.StockCandidate`), one row per chain and
+  ticker. Per chain and ticker, not per chain and token as first planned, so a stock with a
+  feed and no pool yet still has a row.
+- Two jobs, both in the shape the site's other jobs have (AshOban; no hand-built loop):
+  - At five past each hour, `:list_feeds` reads Chainlink's public feed list for each chain
+    (`reference-data-directory.vercel.app`, one read of fifteen seconds at most per chain),
+    keeps a row for every stock feed whose ticker no admitted stock carries, and removes a row
+    whose feed has left the list or whose stock has been admitted. Queue `outside_calls`, three
+    attempts, one run at a time across every server. A list that cannot be read, or that names
+    no stock feed at all, fails the run and changes nothing.
+  - At twenty past each hour every row is read, one at a time, on the queue the weekly volume
+    reads use (`stock_volume`, GeckoTerminal's free service counts both together): the first
+    page of GeckoTerminal's search for the stock's symbol, then, at one latest block, the
+    feed's latest round and whether a pool's token is the issuer's. One attempt, ten minutes at
+    most; a failed read leaves the row as it was and the next hour reads again.
+- A row says one of: `qualifies` (feed answers, issuer's token has a dollar pool with more than
+  $10,000 in it; one reading, AL-129 b), `thin_pool`, `no_dollar_pool`, `feed_silent` (no
+  price, or one more than seven days old), `unread`. It keeps the token, the deepest dollar
+  pool, the venue under GeckoTerminal's name and the dollars in the pool. GLD is treated like
+  any other (AL-130 b).
+- The issuer marks: on Base an address of the form Coinbase's share tokens have, with the
+  feed's ticker plus `c` as symbol; on Robinhood a token behind Robinhood's stock token beacon
+  with the feed's ticker as symbol. Both can be copied by anyone, so a row is never proof that
+  a token is the issuer's own. The Safe's check before signing (AL-127 a) is the control.
+- Left for part C: the pool's fee and tick spacing and the route's settings are read when the
+  batch is prepared, not kept on the row.
+- Known limits: a stock whose pools GeckoTerminal's first search page does not show is missed
+  until it does. The dollar figure is GeckoTerminal's, not the chain's. A refused GeckoTerminal
+  read waits half a minute, then a minute, so one hour's pass over fourteen rows can take a few
+  minutes.
+- Nothing here signs, sends or pays. No test was added.
+
+Release item for Sean when this goes out: one more migration, the new `stock_candidates` table
+(Autolaunch's own; it also goes on the protected-tables record).
+
+#### What was checked for B (13 October, 20:24Z)
+
+A rehearsal against live Base and live Robinhood Chain (read only), with the launchpads' real
+admitted lists saved first:
+
+- Feeds listed: Base COIN, CRCL, INTC; Robinhood ASML, CLSK, COIN, CRWV, EWY, GLD, IONQ, NBIS,
+  ORCL, RGTI, RKLB.
+- Robinhood `qualifies`: GLD ($2.25M, Uniswap v3), COIN ($812K), NBIS ($124K), ORCL ($119K),
+  CRWV ($43K), ASML ($25K, Uniswap v3), RKLB ($19K); the rest on Uniswap v4.
+- Robinhood `thin_pool`: EWY ($9,810), IONQ ($3,421), RGTI ($2,248), CLSK ($1,217).
+- Base: all three `no_dollar_pool`.
+- COIN left the Robinhood rows once saved as admitted (through the job's own action).
+- A Base row read eight days on with no new price said `feed_silent`.
+- A read with the chain not answering failed and left the row as it was.
+- Three reads were refused by GeckoTerminal for a while and went through after the wait (30 to
+  90 seconds each).
+- The rehearsal found one defect, fixed in this head: the latest block was chosen before the
+  GeckoTerminal search, so a search that waited could leave the chain reads asking about a
+  block a node no longer answers for. The search now comes first.
 
 ### C. The Safe's prepared batch (AL-136 a)
 

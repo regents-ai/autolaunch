@@ -92,7 +92,7 @@ defmodule Autolaunch.Stocks.Stock do
         timeout :timer.minutes(15)
 
         where expr(
-                chain_id in ^Autolaunch.Stocks.Stock.ReadWeeklyVolume.chain_ids() and
+                chain_id in ^Autolaunch.Stocks.GeckoTerminal.chain_ids() and
                   (is_nil(weekly_volume_through) or
                      weekly_volume_through < fragment("(now() AT TIME ZONE 'UTC')::date - 1"))
               )

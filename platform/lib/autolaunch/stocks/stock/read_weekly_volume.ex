@@ -13,23 +13,17 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
 
   A read that finds no dollar pool or no trade in the week, or any answer that
   is refused or not in the expected shape, fails the action and stores
-  nothing; the trigger's next run tries again.
+  nothing; the trigger's next run tries again. Each read is bounded
+  (`Autolaunch.Stocks.GeckoTerminal`), and one still going after the trigger's
+  fifteen minutes is stopped and stores nothing.
   """
 
   use Ash.Resource.Change
 
-  @api "https://api.geckoterminal.com/api/v2"
+  alias Autolaunch.Stocks.GeckoTerminal
+
   @page_size 20
   @last_free_page 10
-
-  # GeckoTerminal's network name and the launchpad's dollar token, by chain.
-  @networks %{
-    8453 => {"base", "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"},
-    4663 => {"robinhood", "0x5fc5360d0400a0fd4f2af552add042d716f1d168"}
-  }
-
-  @doc "The chains GeckoTerminal reports on."
-  def chain_ids, do: Map.keys(@networks)
 
   @impl true
   def change(changeset, _opts, _context) do
@@ -51,7 +45,7 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   end
 
   defp volume(chain_id, token, through) do
-    {network, dollar} = Map.fetch!(@networks, chain_id)
+    {network, dollar} = GeckoTerminal.network(chain_id)
     first = Date.add(through, -6)
 
     with {:ok, pools, complete?} <- dollar_pools(network, token, dollar, 1, []),
@@ -74,7 +68,7 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   # and one that moves onto a page already read is missed: only a short first
   # page lists every pool.
   defp dollar_pools(network, token, dollar, page, found) do
-    case get("/networks/#{network}/tokens/#{token}/pools?page=#{page}") do
+    case GeckoTerminal.get("/networks/#{network}/tokens/#{token}/pools?page=#{page}") do
       {:ok, %{"data" => pools}} when is_list(pools) ->
         found = found ++ Enum.filter(pools, &dollar_pool?(&1, network, token, dollar))
 
@@ -107,16 +101,8 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   end
 
   # A pool of the stock against the dollar token, either way round.
-  defp dollar_pool?(%{"relationships" => relationships}, network, token, dollar) do
-    sides =
-      Enum.map(~w(base_token quote_token), fn side ->
-        relationships |> get_in([side, "data", "id"]) |> to_string() |> String.downcase()
-      end)
-
-    Enum.sort(sides) == Enum.sort(["#{network}_#{token}", "#{network}_#{dollar}"])
-  end
-
-  defp dollar_pool?(_pool, _network, _token, _dollar), do: false
+  defp dollar_pool?(pool, network, token, dollar),
+    do: GeckoTerminal.pair(pool) == Enum.sort(["#{network}_#{token}", "#{network}_#{dollar}"])
 
   # Each candle is [start, open, high, low, close, volume in USD]; a day with
   # no trades has no candle. One candle of any other shape fails the read, and
@@ -133,7 +119,7 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
   defp pool_candles(network, pool, first, through) do
     path = "/networks/#{network}/pools/#{pool}/ohlcv/day?aggregate=1&limit=8&currency=usd"
 
-    case get(path) do
+    case GeckoTerminal.get(path) do
       {:ok, %{"data" => %{"attributes" => %{"ohlcv_list" => candles}}}} when is_list(candles) ->
         if Enum.all?(candles, &candle?/1),
           do: {:ok, week_volume(candles, first, through)},
@@ -163,24 +149,4 @@ defmodule Autolaunch.Stocks.Stock.ReadWeeklyVolume do
 
   defp to_decimal(value) when is_float(value), do: Decimal.from_float(value)
   defp to_decimal(value) when is_integer(value), do: Decimal.new(value)
-
-  # GeckoTerminal's free service allows about ten reads a minute, so a refusal
-  # waits half a minute, then a minute. A read still going after the trigger's
-  # fifteen minutes is stopped and stores nothing.
-  defp get(path) do
-    case Req.get(@api <> path,
-           headers: [accept: "application/json"],
-           redirect: false,
-           connect_options: [timeout: 5_000],
-           receive_timeout: 15_000,
-           retry: :transient,
-           retry_delay: &(&1 * 30_000 + 30_000),
-           max_retries: 2,
-           retry_log_level: false
-         ) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status}} -> {:error, {:status, status}}
-      {:error, exception} -> {:error, Exception.message(exception)}
-    end
-  end
 end

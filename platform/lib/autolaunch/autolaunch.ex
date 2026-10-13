@@ -293,6 +293,13 @@ defmodule Autolaunch do
       define :advance_stock_admission_scan, action: :advance
     end
 
+    # Stocks Chainlink prices that no launchpad admits yet: advice only.
+    resource Autolaunch.Stocks.StockCandidate do
+      define :chain_stock_candidates, action: :on_chain, args: [:chain_id]
+      define :list_stock_candidate, action: :list
+      define :unlist_stock_candidate, action: :unlist
+    end
+
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
       define :list_listed_tokens, action: :listed

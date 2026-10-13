@@ -197,7 +197,7 @@ defmodule Autolaunch.MixProject do
         # edges (Accounts six, Autolaunch twenty-five), forty
         # resource-to-check edges and the one endpoint edge, and it is re-based
         # per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 75",
+        "xref graph --label compile-connected --fail-above 77",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"
