@@ -13,8 +13,9 @@ defmodule Autolaunch.Stocks.MarketData do
   DexScreener's listing leaves out Aerodrome's concentrated pools, where most
   of a stock's trading is. On Robinhood they are each exchange's deepest
   DexScreener pair of the stock token against USDG, both matched by address,
-  linked to its DexScreener page. A full answer is kept for
-  ten minutes. A read that failed, or left a stock's price out, is tried again
+  linked to the pair's DexScreener page; the site writes that link itself from
+  the pair's id. A pool whose venue or depth the source leaves out is not a
+  venue. A full answer is kept for ten minutes. A read that failed, or left a stock's price out, is tried again
   after one second, then two, four and so on, up to ten minutes. The reads
   happen in whichever process asks, so a page that asks from a background task
   never waits on them.
@@ -33,6 +34,7 @@ defmodule Autolaunch.Stocks.MarketData do
   @latest_round_data "0xfeaf968c"
   @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   @dexscreener "https://api.dexscreener.com"
+  @dexscreener_pages "https://dexscreener.com"
   @geckoterminal "https://api.geckoterminal.com/api/v2"
   @regent_pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
   @base_venues [{"aerodrome", "Aerodrome"}, {"uniswap", "Uniswap"}]
@@ -199,11 +201,9 @@ defmodule Autolaunch.Stocks.MarketData do
 
       pairs
       |> Enum.filter(&dollar_pair?(&1, stock.address, usdg))
-      |> Enum.group_by(& &1["dexId"])
-      |> Enum.map(fn {dex, dex_pairs} ->
-        pair = Enum.max_by(dex_pairs, &liquidity/1)
-        %{name: venue_name(dex), url: pair["url"], liquidity_usd: liquidity(pair)}
-      end)
+      |> Enum.flat_map(&pair_venue/1)
+      |> Enum.group_by(& &1.name)
+      |> Enum.map(fn {_name, venues} -> Enum.max_by(venues, & &1.liquidity_usd) end)
       |> deepest_venues()
       |> then(&{:ok, &1})
     else
@@ -238,6 +238,21 @@ defmodule Autolaunch.Stocks.MarketData do
 
   defp dollar_pair?(_pair, _stock, _usdg), do: false
 
+  # A pair as a venue, as a single-item list; empty when DexScreener leaves out
+  # its exchange, its depth or a usable id. The link is to the pair's
+  # DexScreener page, written here from the pair's id: a pool address, or for a
+  # Uniswap v4 pool its 32-byte pool id.
+  defp pair_venue(%{"dexId" => dex, "pairAddress" => id, "liquidity" => %{"usd" => usd}})
+       when is_binary(dex) and dex != "" and is_binary(id) and is_number(usd) do
+    if String.match?(id, ~r/\A0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\z/),
+      do: [%{name: venue_name(dex), url: pair_url(id), liquidity_usd: usd / 1}],
+      else: []
+  end
+
+  defp pair_venue(_pair), do: []
+
+  defp pair_url(id), do: "#{@dexscreener_pages}/robinhood/#{String.downcase(id)}"
+
   # A pool of the stock against USDC, either way round: a pool against another
   # token is that token's market, and the swap page it would link starts from
   # USDC.
@@ -258,30 +273,32 @@ defmodule Autolaunch.Stocks.MarketData do
   # venue's name.
   defp deepest_pool(pools, {dex, name}, stock) do
     pools
-    |> Enum.filter(
-      &String.starts_with?(to_string(get_in(&1, ["relationships", "dex", "data", "id"])), dex)
-    )
-    |> Enum.max_by(&reserve/1, fn -> nil end)
+    |> Enum.flat_map(&pool_reserve(&1, dex))
+    |> Enum.max(fn -> nil end)
     |> List.wrap()
-    |> Enum.map(&%{name: name, url: swap_url(dex, stock), liquidity_usd: reserve(&1)})
+    |> Enum.map(&%{name: name, url: swap_url(dex, stock), liquidity_usd: &1})
   end
 
-  defp reserve(pool), do: dollars(get_in(pool, ["attributes", "reserve_in_usd"]))
-
-  # GeckoTerminal writes dollar amounts as decimal text.
-  defp dollars(text) when is_binary(text) do
-    case Float.parse(text) do
-      {amount, ""} -> amount
-      _unparsed -> 0.0
+  # The dollars a pool on this venue holds, as a single-item list; empty for
+  # another venue's pool and for one GeckoTerminal gives no depth for. It writes
+  # dollar amounts as decimal text.
+  defp pool_reserve(
+         %{
+           "relationships" => %{"dex" => %{"data" => %{"id" => pool_dex}}},
+           "attributes" => %{"reserve_in_usd" => text}
+         },
+         dex
+       )
+       when is_binary(pool_dex) and is_binary(text) do
+    with true <- String.starts_with?(pool_dex, dex),
+         {amount, ""} <- Float.parse(text) do
+      [amount]
+    else
+      _other -> []
     end
   end
 
-  defp dollars(_missing), do: 0.0
-
-  defp liquidity(pair), do: number(get_in(pair, ["liquidity", "usd"]))
-
-  defp number(value) when is_number(value), do: value / 1
-  defp number(_missing), do: 0.0
+  defp pool_reserve(_pool, _dex), do: []
 
   defp swap_url("aerodrome", stock),
     do: "https://aerodrome.finance/swap?from=#{@usdc_base}&to=#{stock}"
@@ -290,9 +307,7 @@ defmodule Autolaunch.Stocks.MarketData do
     do:
       "https://app.uniswap.org/swap?chain=base&inputCurrency=#{@usdc_base}&outputCurrency=#{stock}"
 
-  defp venue_name("uniswap"), do: "Uniswap"
-  defp venue_name(dex) when is_binary(dex), do: String.capitalize(dex)
-  defp venue_name(_unknown), do: "a venue"
+  defp venue_name(dex), do: String.capitalize(dex)
 
   defp get(url) do
     client = Application.get_env(:autolaunch, :autolaunch_market_http_client, Req)

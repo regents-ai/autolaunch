@@ -472,7 +472,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp assign_draft(socket, draft) do
     socket
-    |> assign_image_color(draft.image || "")
+    |> assign_image_color(draft.image)
     |> assign(
       draft: draft,
       draft_values: Templates.draft_values(draft),
@@ -483,7 +483,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   # The colour the gallery tints the auction's card with, read again only when
   # the draft's image changes.
-  defp assign_image_color(%{assigns: %{draft_values: %{"image" => image}}} = socket, image),
+  defp assign_image_color(%{assigns: %{draft: %{image: image}}} = socket, image),
     do: socket
 
   defp assign_image_color(socket, image),

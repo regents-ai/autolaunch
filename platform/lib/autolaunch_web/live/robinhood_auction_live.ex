@@ -69,7 +69,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
          {:ok, price} <- handle_price(snapshot, step),
          do:
            send_update(AutolaunchWeb.RobinhoodStockBidComponent,
-             id: "autolaunch-robinhood-bid",
+             id: bid_form_id(socket.assigns.auction),
              use_price: price
            )
 
@@ -127,6 +127,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     page(assigns)
   end
 
+  # The bid form is named after its auction, so a form never carries one
+  # auction's review, balance or typed figures over to another.
+  defp bid_form_id(auction), do: "autolaunch-robinhood-bid-#{auction}"
+
   # The stage and facts first, the recorded prices over the schedule, the
   # price ladder and a bid lookup, around the bid panel.
   defp page(assigns) do
@@ -145,7 +149,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       </header>
       <.outbid_banner
         :if={@outbid}
-        bid_form="autolaunch-robinhood-bid"
+        bid_form={bid_form_id(@auction)}
         return_to={if @outbid.graduated?, do: @outbid.bid}
       />
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
@@ -219,7 +223,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             draft={@draft_price}
             symbol={@launch.quote_token_symbol}
             token_symbol={@launch.token_symbol}
-            bid_form="autolaunch-robinhood-bid"
+            bid_form={bid_form_id(@auction)}
           />
           <.check_bid
             :if={@snapshot.ok?}
@@ -268,7 +272,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     ~H"""
     <.live_component
       module={AutolaunchWeb.RobinhoodStockBidComponent}
-      id="autolaunch-robinhood-bid"
+      id={bid_form_id(@auction)}
       outbid_banner
       draft_marker={@draft_marker}
       auction={@auction}

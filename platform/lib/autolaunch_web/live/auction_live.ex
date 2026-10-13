@@ -69,7 +69,11 @@ defmodule AutolaunchWeb.AuctionLive do
   def handle_event("price_handle", %{"step" => step}, socket) do
     with %{ok?: true, result: snapshot} <- socket.assigns.snapshot,
          {:ok, price} <- handle_price(snapshot, step),
-         do: send_update(AutolaunchWeb.BidComponent, id: "autolaunch-bid", use_price: price)
+         do:
+           send_update(AutolaunchWeb.BidComponent,
+             id: bid_form_id(socket.assigns.record_id),
+             use_price: price
+           )
 
     {:noreply, socket}
   end
@@ -180,6 +184,10 @@ defmodule AutolaunchWeb.AuctionLive do
     page(assigns)
   end
 
+  # The bid form is named after its auction, so a form never carries one
+  # auction's review, balance or typed figures over to another.
+  defp bid_form_id(auction), do: "autolaunch-bid-#{auction}"
+
   # The stage and facts first, the recorded prices over the schedule, the
   # price ladder and the bid receipts, around the bid panel.
   defp page(assigns) do
@@ -197,7 +205,7 @@ defmodule AutolaunchWeb.AuctionLive do
       </header>
       <.outbid_banner
         :if={@outbid}
-        bid_form="autolaunch-bid"
+        bid_form={bid_form_id(@page_record.id)}
         return_to={if @page_record.minimum_reached, do: "autolaunch-position-#{@outbid.id}"}
       />
       <section class="auction-next-overview" aria-label="Where this auction is">
@@ -267,7 +275,7 @@ defmodule AutolaunchWeb.AuctionLive do
             draft={@draft_price}
             symbol={@page_record.quote_token_symbol}
             token_symbol={@page_record.token_symbol}
-            bid_form="autolaunch-bid"
+            bid_form={bid_form_id(@page_record.id)}
           />
           <section
             :if={@snapshot.ok? && @my_receipts.ok? && @my_receipts.result != []}
@@ -353,7 +361,7 @@ defmodule AutolaunchWeb.AuctionLive do
     <.live_component
       :if={!Autolaunch.Prelaunch.read_only?() && !@ended}
       module={AutolaunchWeb.BidComponent}
-      id="autolaunch-bid"
+      id={bid_form_id(@page_record.id)}
       draft_marker={@draft_marker}
       auction={@page_record}
       book={@book}

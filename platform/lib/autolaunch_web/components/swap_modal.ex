@@ -206,16 +206,14 @@ defmodule AutolaunchWeb.Components.SwapModal do
     <div class="token-swap-modal__title">
       <span class="token-swap-modal__art">
         <img
-          :if={@auction.image not in [nil, ""]}
+          :if={@auction.image}
           src={@auction.image}
           alt=""
           decoding="async"
           width="56"
           height="56"
         />
-        <span :if={@auction.image in [nil, ""]} aria-hidden="true">
-          {String.first(@auction.title || "?")}
-        </span>
+        <span :if={!@auction.image} aria-hidden="true">{String.first(@auction.title)}</span>
       </span>
       <h2 id={@id}>{render_slot(@inner_block)} <span class="token-name">{@auction.title}</span></h2>
     </div>
