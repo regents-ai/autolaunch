@@ -565,7 +565,7 @@ defmodule Autolaunch.TreasuryChainClient do
 
   defp keccak("0x" <> hex) do
     {:ok, bytes} = Base.decode16(hex, case: :mixed)
-    "0x" <> Base.encode16(:jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32), case: :lower)
+    "0x" <> Base.encode16(ExKeccak.hash_256(bytes), case: :lower)
   rescue
     _ -> "invalid"
   end

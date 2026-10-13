@@ -88,7 +88,7 @@ defmodule Autolaunch.AuctionFinish.Wallet do
 
   defp bytes("0x" <> hex), do: Base.decode16!(hex, case: :mixed)
   defp hex(bytes), do: "0x" <> Base.encode16(bytes, case: :lower)
-  defp keccak(bytes), do: :jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32)
+  defp keccak(bytes), do: ExKeccak.hash_256(bytes)
 
   # Recursive-length-prefix encoding: a binary, a non-negative integer
   # (big-endian with no leading zeros, so 0 is the empty string) or a list.

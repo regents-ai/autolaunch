@@ -62,7 +62,7 @@ defmodule Autolaunch.Chain.Abi do
 
   @doc "Ethereum Keccak-256 of an exact event signature, which is its `topic0`."
   def topic0(signature),
-    do: "0x" <> Base.encode16(:jose_jwa_sha3.keccak(1088, 512, signature, 1, 32), case: :lower)
+    do: "0x" <> Base.encode16(ExKeccak.hash_256(signature), case: :lower)
 
   defp event_signature(id), do: Map.fetch!(@event_signatures, id)
   def event_topic(id), do: id |> event_signature() |> topic0()

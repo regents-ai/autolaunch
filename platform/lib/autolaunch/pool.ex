@@ -1155,5 +1155,5 @@ defmodule Autolaunch.Pool do
     if value >= Integer.pow(2, bits - 1), do: value - Integer.pow(2, bits), else: value
   end
 
-  defp keccak(bytes), do: :jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32)
+  defp keccak(bytes), do: ExKeccak.hash_256(bytes)
 end

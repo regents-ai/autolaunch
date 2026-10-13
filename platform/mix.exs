@@ -114,8 +114,8 @@ defmodule Autolaunch.MixProject do
       {:telemetry_poller, "~> 1.3"},
       {:jason, "~> 1.2"},
       {:error_tracker, "~> 0.9"},
-      # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
-      {:jose, "~> 1.11.12"},
+      # Ethereum Keccak-256, which OTP's NIST `:sha3_256` is not.
+      {:ex_keccak, "~> 0.7.8"},
       # Signs the transaction that finishes an ended auction.
       {:ex_secp256k1, "~> 0.8.0"},
       {:decimal, "== 3.1.2"},

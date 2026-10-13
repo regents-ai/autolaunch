@@ -72,7 +72,7 @@ defmodule Autolaunch.Lab do
   def current do
     with path when is_binary(path) <-
            Application.get_env(:autolaunch, :autolaunch_base_deployment),
-         {:ok, config} <- load(path),
+         {:ok, config} <- loaded(__MODULE__, path),
          run_id when is_binary(run_id) and run_id != "" <-
            Application.get_env(:autolaunch, :autolaunch_base_deployment_id) do
       {:ok, Map.put(config, :run_id, run_id)}
@@ -94,6 +94,27 @@ defmodule Autolaunch.Lab do
     case load(path) do
       {:ok, config} -> config
       {:error, reason} -> raise "Autolaunch Base deployment description is invalid: #{reason}"
+    end
+  end
+
+  @doc """
+  The description at `path` as `module.load/1` reads it, read from disk once
+  for the life of the running site. A deployment's files are written before
+  the site starts and a new deployment restarts it, so every later call is
+  answered from memory. A description that does not load is not kept.
+  """
+  def loaded(module, path) do
+    key = {module, path}
+
+    case :persistent_term.get(key, nil) do
+      nil ->
+        with {:ok, config} <- module.load(path) do
+          :persistent_term.put(key, config)
+          {:ok, config}
+        end
+
+      config ->
+        {:ok, config}
     end
   end
 

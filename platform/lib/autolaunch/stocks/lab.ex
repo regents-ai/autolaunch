@@ -64,7 +64,7 @@ defmodule Autolaunch.Stocks.Lab do
            Application.get_env(:autolaunch, :autolaunch_base_stocks_deployment) ||
              {:error, :stocks_deployment_missing},
          {:ok, agent} <- Lab.current(),
-         {:ok, config} <- load(path),
+         {:ok, config} <- Lab.loaded(__MODULE__, path),
          true <- config.chain_id == agent.chain_id || {:error, :agent_lab_mismatch},
          true <- config.rpc_url == agent.rpc_url || {:error, :agent_lab_mismatch},
          true <- config.public_rpc_url == agent.public_rpc_url || {:error, :agent_lab_mismatch},

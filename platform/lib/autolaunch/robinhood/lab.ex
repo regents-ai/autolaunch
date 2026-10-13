@@ -83,7 +83,7 @@ defmodule Autolaunch.Robinhood.Lab do
 
   def current do
     case Application.get_env(:autolaunch, :autolaunch_robinhood_deployment) do
-      path when is_binary(path) -> load(path)
+      path when is_binary(path) -> Lab.loaded(__MODULE__, path)
       nil -> {:error, :robinhood_deployment_missing}
     end
   end
