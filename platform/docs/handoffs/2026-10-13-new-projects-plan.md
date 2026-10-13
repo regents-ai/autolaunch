@@ -258,10 +258,28 @@ the same release (founder configuration). Both are release items for Sean, not d
   behind Robinhood's beacon with a $10,000 pool. The candidate row says so, and the Safe's
   check before signing (AL-127 a) is the control.
 
-### C. The Safe's prepared batch (waits for AL-136)
+### C. The Safe's prepared batch (AL-136 a)
 
-A stock cannot be admitted without a route, so nothing can be prepared until Sean says who
-deploys routes. Also to settle then: how the three signers are told a stock is ready.
+Sean, 13 October, about 18:1xZ, answering the list of four in this thread (1 AL-NUM-1,
+2 AL-136, 3 AL-135, 4 AL-131), verbatim: "1. where is this list coming from? link to file
+2. a 3. b , but only show 2 venues max, the 2 highest ones". So AL-136 is (a): the Safe's
+prepared batch deploys the route and admits the stock in one signing; the server holds no key.
+AL-135 is built on al/sean-ui-1013 (659ab14). His first line is a question back about the
+numbering check, so AL-131, AL-132 and AL-134 stay as the numbers literally read until he says.
+
+Shape, to be checked before any code:
+
+- A Safe cannot create a contract from an ordinary call, so the batch's first call goes to a
+  deterministic deployer (CREATE2) with the route's code and its settings (stock, pool manager
+  or pool, fee, spacing, feed); the second call is `admitStock(stock, route)`. To check on each
+  chain first: that a deterministic deployer exists there, and which one.
+- The route's address is fixed by its code and settings before anything is signed. That is how
+  Sentinel's first condition is met with one signing: a second party recomputes the address
+  from the code and settings in the batch and confirms the settings name the real pool manager,
+  pool and feed, and that record is saved beside the admission.
+- The server prepares the batch file for the Safe app from a qualifying `StockCandidate` row and
+  shows the checklist values with it. It signs nothing and sends nothing.
+- Still to settle with Sean: how the three signers are told a stock is ready.
 
 Sentinel's two conditions for the day a route is put forward (13 October 17:47Z): the read-back
 of `poolManager()`, `poolId()`, `fee()`, `tickSpacing()`, `feed()` and the runtime code hash is
