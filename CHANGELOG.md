@@ -3,6 +3,24 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v108, 13 October 2026 (38c4edf): the stock list comes from the chain, and the create and bid pages show more
+- The stocks a Memestock token can be paired with are now read from each chain's launchpad
+  every five minutes. A stock the Safe admits shows in the picker within about six minutes,
+  with its dollar price, and a stock it revokes leaves the picker. Before, either needed a
+  site release.
+- The picker shows a company's short name: "Apple", "Microsoft", "Meta Platforms".
+- Once an hour the site notes which stocks not yet admitted have a Chainlink price and more
+  than $10,000 in a dollar pool. This is a record only: it changes no page, launch or bid.
+- Both create pages show the gallery card for the token beside the form as it is filled in.
+- A bid window shows the auction's picture and the wallet's balances.
+- "Buy at" on a stock names its trading venues with more than $10,000, the two deepest.
+- An auction names its minimum only when it is about to miss it, and an auctions list with
+  nothing in a status says so instead of reporting a failed search.
+- For about five minutes after this release (21:41Z to 21:46Z) the create page answered an
+  error and stock prices were not read, and the stock picker was empty until 21:50Z: the
+  release went out before its two database changes were applied. They were applied at
+  21:46Z.
+
 ## v107, 13 October 2026 (27c5135): an open page's connection holds less memory
 - The connection behind each open page now gives back the memory it used to send the
   page. Before, it kept it for as long as the tab stayed open. With 50 pages open on a
