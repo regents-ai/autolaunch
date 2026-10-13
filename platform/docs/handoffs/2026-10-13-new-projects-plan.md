@@ -203,3 +203,79 @@ answered was numbered 1 AL-127, 2 AL-128, 3 AL-129, 4 AL-130, 5 AL-136, 6 AL-131
    (AL-136) is on hold, so the batch covers admission only until Sean answers.
 Nothing is deployed, signed or paid without Sean's go.
 
+
+## Design for project 4's site parts (13 October, for the orchestrator's sense check)
+
+Branch `al/stock-watcher-1013`, cut from al/sean-ui-1013 23d51e4 in the same worktree. No code
+yet. Build order is A then B; C waits for AL-136.
+
+### A. New stocks appear without a site release
+
+Today the stock list comes from two files written when contracts are deployed
+(`stocks-site-config.json` for Base, `site-config.json` for Robinhood; written by
+contracts/stocks-v2/bin/ceremony.py, its Robinhood counterpart and the two local lab scripts,
+read by `Autolaunch.Stocks.Lab` and `Autolaunch.Robinhood.Lab`). Base names and feeds come from
+two hard-coded lists (`Autolaunch.Stocks.Assets`, `Autolaunch.Stocks.PriceFeeds`). A new stock
+therefore needs new files and a release.
+
+After:
+
+- One source: the `Autolaunch.Stocks.Stock` table (already one row per chain and address) gains
+  route, feed, decimals and whether the stock is admitted now.
+- One scheduled Oban job per chain (an AshOban trigger, as the weekly volume read already is)
+  reads the launchpad's `StockAdmitted` and `StockRevoked` logs, then for each stock reads at
+  the latest block: `stockAdmission(stock)`, the route's `feed()`, and the token's `name()`,
+  `symbol()` and `decimals()`. It writes the rows. Every fact is a chain read.
+- Pages, the picker, search and the market reads use the table.
+- Removed, not kept beside it: the `stocks` list in both description files (the scripts stop
+  writing it, the loaders stop reading it), the catalog and feed lists in the two modules above,
+  and the start-up task `Autolaunch.Stocks.SupportedStocks`. "The same company on the other
+  chain" becomes a match on ticker instead of the catalog's pairs.
+- Unchanged: the launchpad's own `stockAdmission` is still read before every launch and bid, so
+  a stock revoked a minute ago cannot be launched against even if a page still shows it.
+- The local lab admits its practice stocks on its own chain, so they are read the same way.
+
+What the release of A needs beyond code: a migration adding the columns (a production database
+change), and both production description files replaced by ones without the `stocks` list at
+the same release (founder configuration). Both are release items for Sean, not done here.
+
+### B. The watcher
+
+- One Oban cron job, hourly, on its own queue (outside calls). Standard tools only: Oban for
+  the schedule and retries, Req for the calls, an Ash resource for the record.
+- Reads Chainlink's public feed lists (reference-data-directory.vercel.app,
+  `feeds-ethereum-mainnet-base-1.json` and `feeds-robinhood-mainnet.json`), keeps the stock
+  feeds, and drops tickers the `Stock` table already has as admitted.
+- Finds each ticker's dollar pools on GeckoTerminal (USDC on Base, USDG on Robinhood). One
+  reading over $10,000 qualifies (AL-129 b). GLD is treated like any other (AL-130 b).
+- Confirms on the chain: the feed answers and is fresh; the token's symbol is the feed's
+  ticker; the pool is exactly the dollar token and the stock; the issuer mark (Coinbase's
+  0xb2 address form on Base, Robinhood's token beacon on Robinhood).
+- Records one row per chain and token in a new `StockCandidate` table: ticker, token, feed,
+  pool, venue (Aerodrome, Uniswap v3 or v4), fee and spacing, liquidity, when read, and either
+  "qualifies" or the reason it does not.
+- What it cannot prove: that a token is the issuer's real one. Anyone can put a look-alike
+  behind Robinhood's beacon with a $10,000 pool. The candidate row says so, and the Safe's
+  check before signing (AL-127 a) is the control.
+
+### C. The Safe's prepared batch (waits for AL-136)
+
+A stock cannot be admitted without a route, so nothing can be prepared until Sean says who
+deploys routes. Also to settle then: how the three signers are told a stock is ready.
+
+Sentinel's two conditions for the day a route is put forward (13 October 17:47Z): the read-back
+of `poolManager()`, `poolId()`, `fee()`, `tickSpacing()`, `feed()` and the runtime code hash is
+done by someone other than whoever deployed the route and saved beside the admission; and
+contracts/robinhood-v2/bin/gate.sh is run whole in a pristine checkout first.
+
+## Notes from the reviews of al/sean-ui-1013 23d51e4 (Sentinel CLEAR 13 October 17:47Z)
+
+- Sign-in window closed without signing in: platform/assets/js/privy_bridge.tsx says nothing,
+  written this site's own way. The template does the same in its release line (2f5dc1b). At the
+  next re-pin take the template's form so there is one standard.
+- Boundary with the production fixes thread, agreed 13 October: that thread owns when and how
+  often lists are read (`LiveListings`, the market feeds, each list page's mount, handle_info
+  and load); this thread owns what a row, card and empty list show. Whoever ships second brings
+  their branch up to main first.
+- When platform/lib/autolaunch_web/live/bid_component.ex is next open: `bid_key` does not
+  include the auction. Harmless today (no link moves between auctions in place); add it then.
