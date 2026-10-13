@@ -77,7 +77,7 @@ defmodule Autolaunch.AuctionSnapshot do
   def needed_at(_price_q96, _snapshot), do: nil
 
   defp read(address, decimals, {block, clock}, opts) do
-    with {:ok, book} <- AuctionBook.read(address, decimals, block, opts),
+    with {:ok, book} <- AuctionBook.read(address, decimals, {block, clock}, opts),
          {:ok, blocks} <- blocks(address, block, opts),
          {:ok, schedule} <- schedule(address, blocks.start, block, opts),
          {:ok, ladder} <- ladder(address, block, opts) do

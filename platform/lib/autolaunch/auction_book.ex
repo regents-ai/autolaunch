@@ -6,7 +6,9 @@ defmodule Autolaunch.AuctionBook do
 
   The price is the one the auction would record in this block, from a call to
   `checkpoint()` that is never sent, so it counts bids the auction has not
-  recorded a price for yet. A new bid's maximum has to sit on the auction's
+  recorded a price for yet. The auction refuses that call before its start
+  block; until then the price it stores, its floor, is the only price there
+  is. A new bid's maximum has to sit on the auction's
   price grid and above that price, so the lowest one that gets tokens is the
   next grid step above it.
 
@@ -20,6 +22,7 @@ defmodule Autolaunch.AuctionBook do
   alias Autolaunch.Lab
   alias Autolaunch.LabAbi
   alias Autolaunch.LabRpc
+  alias Autolaunch.Robinhood.BlockClock
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
 
@@ -31,7 +34,7 @@ defmodule Autolaunch.AuctionBook do
       when is_binary(address) do
     with {:ok, opts} <- base_opts(auction),
          {:ok, block} <- Rpc.latest_block(opts),
-         do: read(address, decimals, block, opts)
+         do: read(address, decimals, {block, block.number}, opts)
   end
 
   def base(_auction), do: {:error, :no_auction_contract}
@@ -47,8 +50,9 @@ defmodule Autolaunch.AuctionBook do
          {:ok, block} <- Rpc.latest_block(opts),
          {:ok, currency} <- Rpc.call_uint(address, LabAbi.selector("currency()"), block, opts),
          {:ok, currency} <- Abi.word_address(currency),
-         {:ok, decimals} <- Rpc.call_uint(currency, LabAbi.selector("decimals()"), block, opts) do
-      read(address, decimals, block, opts)
+         {:ok, decimals} <- Rpc.call_uint(currency, LabAbi.selector("decimals()"), block, opts),
+         {:ok, clock} <- BlockClock.read(block, opts) do
+      read(address, decimals, {block, clock}, opts)
     else
       :error -> {:error, :invalid_chain_response}
       error -> error
@@ -114,15 +118,16 @@ defmodule Autolaunch.AuctionBook do
   defp plain(typed), do: Decimal.new(String.trim(typed), max_digits: :infinity)
 
   @doc """
-  The book of the auction at `address`, read at `block`: the reading `base/1`
-  and `robinhood/1` return, for a caller that reads more of the same auction
-  at the same block.
+  The book of the auction at `address`, read at `block` with the block the
+  auction keeps time by there (`Autolaunch.AuctionSnapshot`): the reading
+  `base/1` and `robinhood/1` return, for a caller that reads more of the same
+  auction at the same block.
   """
-  def read(address, decimals, block, opts) do
+  def read(address, decimals, {block, clock}, opts) do
     with {:ok, spacing} <- uint(address, "tickSpacing()", block, opts),
          {:ok, cap} <- uint(address, "MAX_BID_PRICE()", block, opts),
-         {:ok, [clearing | _checkpoint]} <-
-           Rpc.call_words(address, LabAbi.selector("checkpoint()"), block, 6, opts) do
+         {:ok, start} <- uint(address, "startBlock()", block, opts),
+         {:ok, clearing} <- clearing(address, start, {block, clock}, opts) do
       to_beat = (div(clearing, spacing) + 1) * spacing
 
       {:ok,
@@ -137,6 +142,15 @@ defmodule Autolaunch.AuctionBook do
          price_to_beat: if(to_beat <= cap, do: entered(to_beat, spacing, decimals))
        }}
     end
+  end
+
+  defp clearing(address, start, {block, clock}, opts) when clock < start,
+    do: uint(address, "clearingPrice()", block, opts)
+
+  defp clearing(address, _start, {block, _clock}, opts) do
+    with {:ok, [clearing | _checkpoint]} <-
+           Rpc.call_words(address, LabAbi.selector("checkpoint()"), block, 6, opts),
+         do: {:ok, clearing}
   end
 
   defp uint(address, signature, block, opts),
