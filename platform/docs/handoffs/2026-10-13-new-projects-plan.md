@@ -239,6 +239,42 @@ What the release of A needs beyond code: a migration adding the columns (a produ
 change), and both production description files replaced by ones without the `stocks` list at
 the same release (founder configuration). Both are release items for Sean, not done here.
 
+#### Build notes for A (13 October, after the orchestrator's clear with conditions a to e)
+
+Settled while reading the code; this is what is being built on `al/stock-watcher-1013`.
+
+- The job: an AshOban scheduled action on `Autolaunch.Stocks.Stock` (`:sync_admissions`, every
+  five minutes, its own queue with a limit of one), the same shape as
+  `Autolaunch.LaunchDiscovery`'s `:discover_memestock`. It takes the two stock launchpads from
+  `Autolaunch.AuctionFinish.Launchpads.configured/0`.
+- Its place: a new one-row-per-chain table (`Autolaunch.Stocks.AdmissionScan`: chain, launchpad,
+  run id, next block). A different launchpad or run id (a new deployment, or a restarted local
+  lab) starts the read again from the launchpad's first block and re-reads every row. Each run
+  reads `StockAdmitted` and `StockRevoked` from the saved block less a small margin to the
+  latest block, in ranges of at most 10,000 blocks, a bounded number of ranges per run.
+- Every row's facts are read at that latest block: `stockAdmission(stock)`, the route's
+  `feed()`, the token's `name()` and `symbol()`. Rows already marked admitted are read again
+  every run, so the table never rests on a log alone.
+- First block: Robinhood reads from block 0 as its other readers do. Base needs the block the
+  Stocks launchpad was deployed in, so the Base Stocks description gains `start_block` (the lab
+  script and contracts/stocks-v2/bin/ceremony.py write it). This is one more thing in the new
+  production description file.
+- Reads: `Autolaunch.Stocks.Assets` keeps its name and becomes the one way to ask for stocks
+  (`all/1`, `fetch/2`, `named/2`, `counterpart/2`), answering from the table through a one-minute
+  kept answer, because the Robinhood market reader asks for a stock on every block. A new stock
+  shows within a minute of the job writing it.
+- Names: a stock's name is the token's own `name()` ("Apple Inc.", "Strategy Inc."), no longer
+  the catalog's short name ("Apple", "Strategy").
+- Feed: a route that names no feed (the practice routes) gives a stock no dollar price. So the
+  Base practice lab keeps its prices, `FixtureStockRoute` gains a `feed` set by the lab script;
+  the Robinhood practice route has never answered as a feed and stays without one.
+- The practice preview (sample data, no chain) gets its stock rows from the same sample-data
+  step that writes its auctions.
+- Gone in the same head: the `stocks` list in both descriptions and their loaders, the catalog
+  and counterpart pairs in `Autolaunch.Stocks.Assets`, `Autolaunch.Stocks.PriceFeeds`' feed list,
+  `Autolaunch.Stocks.SupportedStocks`, and the unused `catalog_status`, `launch_admission`,
+  `fixture`, `pool` and `oracle_registry` values.
+
 ### B. The watcher
 
 - One Oban cron job, hourly, on its own queue (outside calls). Standard tools only: Oban for
