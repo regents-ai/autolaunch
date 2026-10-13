@@ -1,29 +1,34 @@
 defmodule Autolaunch.LabMarketFeed do
-  @moduledoc false
+  @moduledoc """
+  Keeps the Base Revstake auctions current: every second on a lab, every
+  fifteen seconds on mainnet.
+
+  Each pass reads a bounded page of the auctions (`Autolaunch.MarketWatch`) at
+  one block, writes their rows (`Projector`), and then stores each auction's
+  reading in `Autolaunch.SharedReading`, where every open page reads the one
+  copy: `Autolaunch.MarketReadings.market/1` for the lists and the bidder's
+  pages, `page/1` for the auction's own page. Nothing is stored from a block
+  the chain has since left; a head the chain left forgets every reading.
+  """
 
   use GenServer
 
   require Logger
 
   alias __MODULE__.{Projector, Reader}
+  alias Autolaunch.MarketReadings
 
-  @topic "autolaunch:lab_market"
+  @feed "base"
   # A lab moves every second; a mainnet reading is fresh enough every fifteen.
   @lab_delay 1_000
   @mainnet_delay 15_000
   @max_delay 10_000
-
-  def topic, do: @topic
 
   def start_link(options \\ []) do
     case Keyword.get(options, :name, __MODULE__) do
       nil -> GenServer.start_link(__MODULE__, options)
       name -> GenServer.start_link(__MODULE__, options, name: name)
     end
-  end
-
-  def snapshot(server \\ __MODULE__) do
-    GenServer.call(server, :snapshot)
   end
 
   def refresh(server \\ __MODULE__) do
@@ -36,10 +41,8 @@ defmodule Autolaunch.LabMarketFeed do
     state = %{
       reader: Keyword.get(options, :reader, Reader),
       projector: Keyword.get(options, :projector, Projector),
-      pubsub: Keyword.get(options, :pubsub, Autolaunch.PubSub),
       poll?: Keyword.get(options, :poll?, true),
       delay: Keyword.get(options, :initial_delay, initial_delay()),
-      generation: 0,
       watch: Autolaunch.MarketWatch.new(),
       binding: nil,
       accepted_head: nil,
@@ -49,24 +52,14 @@ defmodule Autolaunch.LabMarketFeed do
       pending_projection: nil,
       displaced_head: nil,
       recovery_head: nil,
-      snapshots: %{},
+      held: MapSet.new(),
       degraded?: false,
       in_flight: nil,
       timer: nil
     }
 
+    MarketReadings.start(@feed, fn -> state.reader.head() end)
     {:ok, if(state.poll?, do: schedule(state, 0), else: state)}
-  end
-
-  @impl true
-  def handle_call(:snapshot, _from, state) do
-    {:reply,
-     %{
-       generation: state.generation,
-       head: state.accepted_head,
-       degraded?: state.degraded?,
-       auctions: state.snapshots
-     }, state}
   end
 
   @impl true
@@ -215,8 +208,8 @@ defmodule Autolaunch.LabMarketFeed do
     end
   end
 
-  defp handle_projection({:ok, durable_changed_ids}, state, head, snapshots),
-    do: accept_refresh(state, head, snapshots, durable_changed_ids)
+  defp handle_projection({:ok, _changed_ids}, state, head, snapshots),
+    do: accept_refresh(state, head, snapshots)
 
   defp handle_projection({:error, {:head_changed, current}}, state, _head, _snapshots),
     do: {:noreply, verified_transition(state, current)}
@@ -227,47 +220,32 @@ defmodule Autolaunch.LabMarketFeed do
   end
 
   # A pass reads only part of the auctions, so its readings join the ones
-  # earlier passes accepted; each reading names the block it was taken at. A
-  # head the chain left clears them all (`displace_cache/2`, `invalidate_for/2`).
-  defp accept_refresh(state, head, snapshots, durable_changed_ids) do
-    next_snapshots = Map.merge(state.snapshots, Map.new(snapshots, &{&1.auction_address, &1}))
-
-    cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
-    changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
-
-    status_changed? =
-      state.binding != head.binding or not same_head?(state.accepted_head, head.block) or
-        state.degraded?
-
-    notify? = status_changed? or changed_ids != []
-    generation = if notify?, do: state.generation + 1, else: state.generation
-
-    if notify?, do: broadcast(state, generation, changed_ids, head.block)
+  # earlier passes stored; each reading names the block it was taken at. A
+  # head the chain left forgets them all (`displace_cache/2`, `invalidate_for/2`).
+  defp accept_refresh(state, head, snapshots) do
+    MarketReadings.store(@feed, head.block, snapshots)
 
     {:noreply,
      succeeded(%{
        state
-       | generation: generation,
-         binding: head.binding,
+       | binding: head.binding,
          accepted_head: head.block,
          failed_head: nil,
          pending_projection: nil,
          displaced_head: nil,
          recovery_head: nil,
-         snapshots: next_snapshots,
+         held: MarketReadings.held(state.held, snapshots),
          degraded?: false,
          in_flight: nil
      })}
   end
 
   defp invalidate_for(state, head) do
-    generation = state.generation + 1
-    broadcast_invalidation(state, generation, head.block)
+    MarketReadings.forget(state.held)
 
     %{
       state
-      | generation: generation,
-        binding: head.binding,
+      | binding: head.binding,
         accepted_head: nil,
         failed_head: nil,
         attempted_head: nil,
@@ -275,7 +253,7 @@ defmodule Autolaunch.LabMarketFeed do
         pending_projection: nil,
         displaced_head: head_identity(head),
         recovery_head: nil,
-        snapshots: %{},
+        held: MapSet.new(),
         degraded?: true,
         in_flight: nil
     }
@@ -293,19 +271,17 @@ defmodule Autolaunch.LabMarketFeed do
   end
 
   defp displace_cache(state, head) do
-    generation = state.generation + 1
-    broadcast_invalidation(state, generation, head.block)
+    MarketReadings.forget(state.held)
 
     state
     |> Map.merge(%{
-      generation: generation,
       failed_head: nil,
       attempted_head: nil,
       attempted_addresses: MapSet.new(),
       pending_projection: nil,
       displaced_head: head_identity(head),
       recovery_head: nil,
-      snapshots: %{},
+      held: MapSet.new(),
       degraded?: true,
       in_flight: nil
     })
@@ -359,37 +335,6 @@ defmodule Autolaunch.LabMarketFeed do
         })
         |> failed()
     end
-  end
-
-  defp broadcast(state, generation, changed_ids, block) do
-    Phoenix.PubSub.broadcast(
-      state.pubsub,
-      @topic,
-      {:autolaunch_market_updated,
-       %{
-         generation: generation,
-         auction_ids: changed_ids,
-         block_number: block.number,
-         block_hash: block.hash
-       }}
-    )
-  end
-
-  defp broadcast_invalidation(state, generation, block) do
-    changed_ids = state.snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.uniq()
-
-    Phoenix.PubSub.broadcast(
-      state.pubsub,
-      @topic,
-      {:autolaunch_market_updated,
-       %{
-         generation: generation,
-         auction_ids: changed_ids,
-         block_number: block.number,
-         block_hash: block.hash,
-         invalidated?: true
-       }}
-    )
   end
 
   defp pending_for_head?(
@@ -466,17 +411,10 @@ defmodule Autolaunch.LabMarketFeed do
   defp moved_backwards?(%{number: accepted}, %{number: observed}), do: observed < accepted
   defp moved_backwards?(_accepted, _observed), do: false
 
-  defp changed_snapshot_ids(previous, current) do
-    current
-    |> Enum.reduce([], fn {address, snapshot}, changed ->
-      if Map.get(previous, address) == snapshot,
-        do: changed,
-        else: [snapshot.auction_id | changed]
-    end)
-    |> Enum.reverse()
-  end
-
+  # The feed's own key says whether its last pass read the chain: held after
+  # one that did, marked degraded after one that could not.
   defp succeeded(state) do
+    MarketReadings.read(@feed)
     delay = initial_delay()
 
     state
@@ -485,6 +423,7 @@ defmodule Autolaunch.LabMarketFeed do
   end
 
   defp failed(state) do
+    MarketReadings.unread(@feed)
     delay = min(max(state.delay * 2, 2_000), max(@max_delay, initial_delay()))
     state |> Map.put(:delay, delay) |> schedule(delay)
   end
@@ -613,12 +552,14 @@ defmodule Autolaunch.LabMarketFeed do
         %{lifecycle: lifecycle, pool_id: pool_id} = LabAbi.distribution(distribution)
         market = %{end_block: end_block, claim_block: claim_block}
 
+        state = MarketState.observed(lifecycle, block.number, start_block, end_block)
+
         with {:ok, positions} <- positions(config, auction, market, block, opts) do
           {:ok,
            %{
              auction_id: auction.id,
              auction_address: String.downcase(address),
-             state: MarketState.observed(lifecycle, block.number, start_block, end_block),
+             state: state,
              current_clearing_price: Lab.format_price(clearing_price),
              price_quote: price_quote,
              block_number: block.number,
@@ -631,9 +572,29 @@ defmodule Autolaunch.LabMarketFeed do
              terms: terms,
              minimum_reached: minimum_reached,
              pool_id: pool_id(pool_id),
-             positions: positions
+             positions: positions,
+             page: page(auction, MarketState.join(auction.state, state), config, block, opts)
            }}
         end
+      end
+    end
+
+    # What the auction's own page shows, at the same block, with the state its
+    # row takes from this pass. One that cannot be read leaves the page its
+    # last reading; the auction's figures above are stored either way.
+    defp page(auction, state, config, block, opts) do
+      pool = Autolaunch.Pool.read_at(%{auction | state: state}, config, block, opts)
+
+      case Autolaunch.AuctionSnapshot.page(auction, state, pool, block, opts) do
+        {:ok, page} ->
+          {:ok, page}
+
+        {:error, reason} ->
+          Logger.warning(
+            "revstake market feed could not read the page of #{auction.auction_address}: #{inspect(reason)}"
+          )
+
+          :error
       end
     end
 

@@ -18,7 +18,7 @@ defmodule Autolaunch.AuctionSnapshot do
   the supply per block (ten million in all) for a number of blocks.
   """
 
-  alias Autolaunch.{AuctionBook, BidPrice, LabAbi}
+  alias Autolaunch.{AuctionBook, AuctionStage, BidPrice, LabAbi}
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.Robinhood.BlockClock
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -28,17 +28,50 @@ defmodule Autolaunch.AuctionSnapshot do
   @no_tick Integer.pow(2, 256) - 1
   # The lens reads at most this many prices; the ladder says when it stopped.
   @max_ticks 1_000
+  @book [
+    :block,
+    :clearing_q96,
+    :clearing,
+    :decimals,
+    :tick_spacing_q96,
+    :max_bid_price_q96,
+    :price_to_beat_q96,
+    :price_to_beat
+  ]
 
-  @doc "A Base auction's snapshot, read at the latest block."
-  @spec base(map()) :: {:ok, map()} | {:error, atom()}
-  def base(%{auction_address: address, quote_token_decimals: decimals} = auction)
-      when is_binary(address) do
-    with {:ok, opts} <- AuctionBook.base_opts(auction),
-         {:ok, block} <- Rpc.latest_block(opts),
-         do: read(address, decimals, {block, block.number}, opts)
+  @doc """
+  Everything a Base auction's own page shows from the chain, read at `block`
+  with the options a market feed already reads with: the snapshot, the
+  auction's stage (`Autolaunch.AuctionStage`) and the amount raised. `state`
+  is the state the auction's row takes from the same pass, and `pool` its
+  pool's reading at the same block.
+  """
+  @spec page(map(), atom(), {:ok, map()} | {:error, atom()}, map(), keyword()) ::
+          {:ok, map()} | {:error, atom()}
+  def page(
+        %{auction_address: address, quote_token_decimals: decimals} = auction,
+        state,
+        pool,
+        block,
+        opts
+      )
+      when is_binary(address) and is_integer(decimals) do
+    with {:ok, snapshot} <- read(address, decimals, {block, block.number}, opts) do
+      required = String.to_integer(auction.required_currency_raised)
+
+      {:ok,
+       Map.merge(snapshot, %{
+         stage: AuctionStage.read(state, snapshot, required, pool),
+         raised: Rpc.format_units(snapshot.blocks.raised, decimals)
+       })}
+    end
   end
 
-  def base(_auction), do: {:error, :no_auction_contract}
+  def page(_auction, _state, _pool, _block, _opts), do: {:error, :no_auction_contract}
+
+  @doc "The book a snapshot was built on (`Autolaunch.AuctionBook`), for a caller that shows only that."
+  @spec book(map()) :: map()
+  def book(snapshot), do: Map.take(snapshot, @book)
 
   @doc "A Robinhood auction's snapshot by its address, read at the latest block."
   @spec robinhood(String.t()) :: {:ok, map()} | {:error, atom()}

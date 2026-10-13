@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.QuietPagesTest do
     Auction,
     BaseRpcStub,
     BidActivity,
-    LabMarketFeed,
+    MarketReadings,
     MarketTicker,
     Repo,
     TestSupport
@@ -23,23 +23,6 @@ defmodule AutolaunchWeb.QuietPagesTest do
   alias AutolaunchWeb.Paths
 
   @moduletag :capture_log
-
-  defmodule QuietChain do
-    @moduledoc "A Base chain at whatever block the test last set, with no auction read on it."
-
-    def set(number), do: :persistent_term.put(__MODULE__, number)
-
-    def head do
-      number = :persistent_term.get(__MODULE__)
-      hash = "0x" <> String.pad_leading(Integer.to_string(number, 16), 64, "0")
-      {:ok, %{binding: :lab, block: %{number: number, hash: hash}}}
-    end
-
-    def snapshots(_head, watch, attempted),
-      do: {:ok, %{snapshots: [], attempted: attempted, watch: watch}}
-
-    def verify_head(_head), do: :ok
-  end
 
   test "the lists hear a bid-activity pass only when it changed an event or a figure" do
     auction = TestSupport.project_auction(state: :active)
@@ -63,30 +46,31 @@ defmodule AutolaunchWeb.QuietPagesTest do
     assert_received {:autolaunch_listings_changed, ^id}
   end
 
-  test "an auction page reads again when a reading names its auction, though another moved the clock first",
+  test "an auction page reads its row again for a new reading of its own auction, and for no other's",
        %{conn: conn} do
-    # No feed runs under ExUnit, so this one is the page's. The page's own chain
-    # reads are refused at once; its saved row is what the case watches.
+    # No feed runs under ExUnit, so the readings below are this case's own. The
+    # page's price read is refused at once; its saved row is what the case watches.
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, BaseRpcStub.Timeout)
     on_exit(fn -> Application.delete_env(:autolaunch, :autolaunch_lab_http_client) end)
-    QuietChain.set(1)
-    start_supervised!({LabMarketFeed, reader: QuietChain, poll?: false})
 
     stored = TestSupport.project_auction(chain_id: 8453, symbol: "QUIET", title: "First words")
+    other = TestSupport.project_auction(chain_id: 8453, symbol: "OTHER")
+    on_exit(fn -> MarketReadings.forget([stored.auction_address, other.auction_address]) end)
+
     {:ok, auction} = Paths.find_auction("QUIET", String.slice(stored.auction_address, -5, 5))
     {:ok, view, _html} = live(conn, Paths.auction(auction))
     assert render_async(view) =~ "First words"
 
     Repo.update_all(from(a in Auction, where: a.id == ^auction.id), set: [title: "Second words"])
 
-    # The feed moves to a new block and names no auction, as it does when only
-    # another auction's reading changed. The page takes the clock and reads nothing.
-    next_reading()
+    # The feed stores another auction's new reading and moves its clock. The
+    # page takes the clock and reads nothing.
+    MarketReadings.store("base", block(2), [reading(other, 2)])
     html = render_async(view)
     assert html =~ "First words"
     refute html =~ "Second words"
 
-    send(view.pid, {:autolaunch_market_updated, %{auction_ids: [auction.id]}})
+    MarketReadings.store("base", block(3), [reading(stored, 3)])
     assert render_async(view) =~ "Second words"
   end
 
@@ -114,22 +98,24 @@ defmodule AutolaunchWeb.QuietPagesTest do
   defp refresh_activity(auction, changes),
     do: Ash.update!(auction, changes, action: :refresh_activity, actor: %System{})
 
-  # One pass of the feed at the next block; its announcement is with every
-  # subscriber by the time the feed shows the new count.
-  defp next_reading do
-    before = LabMarketFeed.snapshot().generation
-    QuietChain.set(before + 2)
-    LabMarketFeed.refresh()
-    await_reading(before, 100)
-  end
+  defp block(number),
+    do: %{
+      number: number,
+      hash: "0x" <> String.pad_leading(Integer.to_string(number, 16), 64, "0")
+    }
 
-  defp await_reading(_before, 0), do: flunk("the feed never took its next reading")
-
-  defp await_reading(before, tries) do
-    if LabMarketFeed.snapshot().generation == before do
-      Process.sleep(10)
-      await_reading(before, tries - 1)
-    end
+  # One auction's figures as a market feed stores them, raised to `raised`.
+  defp reading(auction, raised) do
+    %{
+      auction_id: auction.id,
+      auction_address: String.downcase(auction.auction_address),
+      block_number: raised,
+      start_block: 1,
+      end_block: 1_000,
+      claim_block: 1_010,
+      currency_raised: Integer.to_string(raised),
+      remaining_supply: "0"
+    }
   end
 
   # The call returns once the ticker has handled the reread.

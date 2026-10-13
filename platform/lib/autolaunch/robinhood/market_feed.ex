@@ -28,7 +28,9 @@ defmodule Autolaunch.Robinhood.MarketFeed do
 
   This process is its own failure boundary. A Robinhood outage marks its
   readings stale and leaves the stored rows as they are; nothing here touches
-  the Base feeds. Changes are broadcast on `topic/0`.
+  the Base feeds. Each auction's reading is stored in
+  `Autolaunch.SharedReading` (`Autolaunch.MarketReadings`), where every open
+  page reads the one copy.
   """
 
   use GenServer
@@ -40,17 +42,15 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   alias Autolaunch.Auction.MarketState
   alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{LabProjection, LaunchedDrafts, MarketWatch}
+  alias Autolaunch.{LabProjection, LaunchedDrafts, MarketReadings, MarketWatch}
   alias Autolaunch.Stocks.{Amounts, LaunchActions}
 
-  @topic "autolaunch:robinhood_market"
+  @feed "robinhood"
   @lab_interval 1_000
   @mainnet_interval 15_000
   @launch_page 200
   @token_decimals 18
   @actor %System{}
-
-  def topic, do: @topic
 
   def start_link(options \\ []) do
     case Keyword.get(options, :name, __MODULE__) do
@@ -58,12 +58,6 @@ defmodule Autolaunch.Robinhood.MarketFeed do
       name -> GenServer.start_link(__MODULE__, options, name: name)
     end
   end
-
-  @doc """
-  The last readings by lowercase auction address, and whether they are stale
-  (the last poll could not read the chain). Answered at once.
-  """
-  def snapshot(server \\ __MODULE__), do: GenServer.call(server, :snapshot)
 
   @doc "Asks for a poll now."
   def refresh(server \\ __MODULE__) do
@@ -75,29 +69,14 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   def init(options) do
     state = %{
       reader: Keyword.get(options, :reader, __MODULE__.Reader),
-      pubsub: Keyword.get(options, :pubsub, Autolaunch.PubSub),
       poll?: Keyword.get(options, :poll?, true),
-      generation: 0,
-      head: nil,
-      stale?: false,
-      snapshots: %{},
       cursors: %{watch: MarketWatch.new(), next_launch_id: 1, retry_launch_ids: []},
       in_flight: false,
       timer: nil
     }
 
+    MarketReadings.start(@feed, fn -> state.reader.head() end)
     {:ok, schedule(state, 0)}
-  end
-
-  @impl true
-  def handle_call(:snapshot, _from, state) do
-    {:reply,
-     %{
-       generation: state.generation,
-       head: state.head,
-       stale?: state.stale?,
-       auctions: state.snapshots
-     }, state}
   end
 
   @impl true
@@ -111,54 +90,17 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   def handle_info(:poll, state), do: {:noreply, state}
 
   # A pass reads only part of the auctions, so its readings join the ones
-  # earlier passes took; each reading names the block it was taken at.
+  # earlier passes stored; each reading names the block it was taken at.
   def handle_info({:refreshed, {:ok, refresh}}, state) do
-    snapshots = Map.merge(state.snapshots, refresh.snapshots)
-    changed = Enum.uniq(refresh.changed ++ changed_snapshot_ids(state.snapshots, snapshots))
-
-    state =
-      %{state | cursors: refresh.cursors, snapshots: snapshots, in_flight: false}
-      |> publish(changed != [] or state.stale? or state.head != refresh.head, %{
-        head: refresh.head,
-        stale?: false,
-        changed: changed
-      })
-
-    {:noreply, schedule(state, interval())}
+    MarketReadings.store(@feed, refresh.head, Map.values(refresh.snapshots))
+    MarketReadings.read(@feed)
+    {:noreply, schedule(%{state | cursors: refresh.cursors, in_flight: false}, interval())}
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
     Logger.warning("robinhood market feed could not read the chain: #{inspect(reason)}")
-
-    state =
-      publish(%{state | in_flight: false}, not state.stale?, %{
-        head: state.head,
-        stale?: true,
-        changed: []
-      })
-
-    {:noreply, schedule(state, interval())}
-  end
-
-  defp publish(state, false, _update), do: state
-
-  defp publish(state, true, %{head: head, stale?: stale?, changed: changed}) do
-    generation = state.generation + 1
-
-    Phoenix.PubSub.broadcast(
-      state.pubsub,
-      @topic,
-      {:robinhood_market_updated,
-       %{
-         generation: generation,
-         auction_ids: changed,
-         stale?: stale?,
-         block_number: head && head.number,
-         block_hash: head && head.hash
-       }}
-    )
-
-    %{state | generation: generation, head: head, stale?: stale?}
+    MarketReadings.unread(@feed)
+    {:noreply, schedule(%{state | in_flight: false}, interval())}
   end
 
   @doc false
@@ -171,7 +113,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
 
       {:ok,
        %{
-         head: head.block,
+         head: Map.put(head.block, :clock, head.clock),
          snapshots: snapshots,
          changed: discovered ++ changed,
          cursors: %{
@@ -412,12 +354,6 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         {:error, reason} -> Ash.DataLayer.rollback(Auction, reason)
       end
     end)
-  end
-
-  defp changed_snapshot_ids(previous, current) do
-    for {address, snapshot} <- current,
-        Map.get(previous, address) != snapshot,
-        do: snapshot.auction_id
   end
 
   defp interval,

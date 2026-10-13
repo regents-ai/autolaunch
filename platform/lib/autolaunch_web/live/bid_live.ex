@@ -30,6 +30,7 @@ defmodule AutolaunchWeb.BidLive do
   import AutolaunchWeb.Components.SwapModal
 
   alias Autolaunch.AuctionBook
+  alias Autolaunch.MarketReadings
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.Stocks.Amounts
   alias Autolaunch.Token
@@ -54,7 +55,7 @@ defmodule AutolaunchWeb.BidLive do
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page(:bid))
      |> assign(id: id, dialog: nil, queued?: false, bid: %AsyncResult{}, book: %AsyncResult{})
-     |> assign(market: LabMarket.subscribe(socket))
+     |> LabMarket.subscribe_heads()
      |> LiveListings.subscribe()
      |> read()}
   end
@@ -79,14 +80,10 @@ defmodule AutolaunchWeb.BidLive do
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> request_read()}
 
-  def handle_info({event, _update}, socket)
-      when event in [:autolaunch_market_updated, :robinhood_market_updated] do
-    market = LabMarket.snapshot()
-
-    if market.generation > socket.assigns.market.generation,
-      do: {:noreply, socket |> assign(:market, market) |> request_read()},
-      else: {:noreply, socket}
-  end
+  # A market feed stored readings at a new block: the bid may have become
+  # returnable or claimable.
+  def handle_info({:shared_reading, {:market_head, _feed}}, socket),
+    do: {:noreply, request_read(socket)}
 
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, request_read(socket)}
@@ -148,7 +145,6 @@ defmodule AutolaunchWeb.BidLive do
           bid={@bid.result}
           book={@book}
           dialog={@dialog}
-          market={@market}
           signed_in?={@signed_in?}
           human_id={@human_id}
           session_lease={@session_lease}
@@ -161,7 +157,6 @@ defmodule AutolaunchWeb.BidLive do
   attr :bid, :map, required: true
   attr :book, AsyncResult, required: true, doc: "the price book of a Base bid's open auction"
   attr :dialog, :atom, default: nil
-  attr :market, :map, required: true
   attr :signed_in?, :boolean, required: true
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
@@ -248,7 +243,6 @@ defmodule AutolaunchWeb.BidLive do
       :if={@dialog}
       kind={@dialog}
       bid={@bid}
-      market={@market}
       signed_in?={@signed_in?}
       human_id={@human_id}
       session_lease={@session_lease}
@@ -258,7 +252,6 @@ defmodule AutolaunchWeb.BidLive do
 
   attr :kind, :atom, required: true, doc: ":settle, or :early for a Robinhood bid's early return"
   attr :bid, :map, required: true
-  attr :market, :map, required: true
   attr :signed_in?, :boolean, required: true
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
@@ -268,7 +261,7 @@ defmodule AutolaunchWeb.BidLive do
     <.settlement_modal
       id={"bid-settle-#{@bid.position.id}"}
       position={@bid.position}
-      market={LabMarket.reading(@market, @bid.position.auction_address)}
+      market={MarketReadings.market(@bid.position.auction_address)}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

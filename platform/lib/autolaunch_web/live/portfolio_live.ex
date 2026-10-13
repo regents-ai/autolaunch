@@ -42,6 +42,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.AuctionBook
+  alias Autolaunch.MarketReadings
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
@@ -66,10 +67,8 @@ defmodule AutolaunchWeb.PortfolioLive do
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/portfolio"))
-     |> assign(
-       robinhood_swap?: RobinhoodLab.swap_configured?(),
-       market: LabMarket.subscribe(socket)
-     )
+     |> assign(robinhood_swap?: RobinhoodLab.swap_configured?())
+     |> LabMarket.subscribe_heads()
      |> clear_wallet_state()
      |> assign_figure_rates()
      |> read_holdings()}
@@ -108,16 +107,10 @@ defmodule AutolaunchWeb.PortfolioLive do
     end
   end
 
-  # The lab feeds moved: positions may have become returnable or claimable,
-  # and a trade may have changed what the wallets hold.
-  def handle_info({event, _update}, socket)
-      when event in [:autolaunch_market_updated, :robinhood_market_updated] do
-    market = LabMarket.snapshot()
-
-    if market.generation > socket.assigns.market.generation,
-      do: {:noreply, socket |> assign(:market, market) |> request_reads()},
-      else: {:noreply, socket}
-  end
+  # A market feed stored readings at a new block: positions may have become
+  # returnable or claimable, and a trade may have changed what the wallets hold.
+  def handle_info({:shared_reading, {:market_head, _feed}}, socket),
+    do: {:noreply, request_reads(socket)}
 
   # A settlement card verified a step, so the stored position changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
@@ -367,7 +360,6 @@ defmodule AutolaunchWeb.PortfolioLive do
         positions={@positions}
         robinhood={@robinhood_current ++ @robinhood_history}
         holdings={@holdings}
-        market={@market}
         signed_in?={@signed_in?}
         human_id={@human_id}
         session_lease={@session_lease}
@@ -660,7 +652,6 @@ defmodule AutolaunchWeb.PortfolioLive do
   attr :positions, :list, required: true
   attr :robinhood, :list, required: true
   attr :holdings, :list, required: true
-  attr :market, :map, required: true
   attr :signed_in?, :boolean, required: true
   attr :human_id, :integer, default: nil
   attr :session_lease, :any, required: true
@@ -695,7 +686,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       :if={@position}
       id={"portfolio-settle-#{@position.id}"}
       position={@position}
-      market={LabMarket.reading(@market, @position.auction_address)}
+      market={MarketReadings.market(@position.auction_address)}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

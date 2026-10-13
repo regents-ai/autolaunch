@@ -5,27 +5,10 @@ defmodule Autolaunch.MarketFeedTest do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction.MarketState
-  alias Autolaunch.{BaseRpcStub, LabAbi, LabMarketFeed, MarketWatch}
+  alias Autolaunch.{BaseRpcStub, LabAbi, MarketWatch}
   alias Autolaunch.LabMarketFeed.{Projector, Reader}
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
   alias Autolaunch.TestSupport
-
-  defmodule HangingReader do
-    @moduledoc "A chain whose head never verifies: every verification waits forever."
-    @head %{binding: :lab, block: %{number: 150, hash: "0x" <> String.duplicate("ab", 32)}}
-
-    def install(test_pid), do: :persistent_term.put(__MODULE__, test_pid)
-
-    def head, do: {:ok, @head}
-
-    def snapshots(_head, watch, attempted),
-      do: {:ok, %{snapshots: [], attempted: attempted, watch: watch}}
-
-    def verify_head(_head) do
-      send(:persistent_term.get(__MODULE__), {:verifying, self()})
-      Process.sleep(:infinity)
-    end
-  end
 
   defmodule ChainStub do
     @moduledoc """
@@ -270,19 +253,6 @@ defmodule Autolaunch.MarketFeedTest do
 
       assert {:ok, %{name: "Memestock"}} =
                Autolaunch.get_token_for_projection(auction.id, actor: %System{})
-    end
-  end
-
-  describe "a page asking the feed for its readings" do
-    test "is answered at once while the feed waits on the chain" do
-      HangingReader.install(self())
-      {:ok, feed} = LabMarketFeed.start_link(name: nil, poll?: false, reader: HangingReader)
-
-      LabMarketFeed.refresh(feed)
-      assert_receive {:verifying, _pid}, 1_000
-
-      reply = Task.async(fn -> LabMarketFeed.snapshot(feed) end)
-      assert {:ok, %{auctions: %{}, generation: 0}} = Task.yield(reply, 200)
     end
   end
 

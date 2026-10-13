@@ -8,8 +8,9 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   of the launchpad their contracts version names, and writes back only their state, minimum reached,
   clearing price, bidders' positions and a graduated token's pool price.
   Rows are created elsewhere, by launch discovery and the creator's own
-  confirmation, never here. Changes are broadcast on the shared market topic
-  so open pages reload.
+  confirmation, never here. Each auction's reading is then stored in
+  `Autolaunch.SharedReading` (`Autolaunch.MarketReadings`), where every open
+  page reads the one copy.
   """
 
   use GenServer
@@ -19,50 +20,26 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction
   alias Autolaunch.Auction.MarketState
+  alias Autolaunch.AuctionSnapshot
   alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
+  alias Autolaunch.{LabAbi, LabProjection, MarketReadings, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
-  @topic "autolaunch:lab_market"
+  @feed "stocks"
   @lab_interval 1_000
   @mainnet_interval 15_000
   @actor %System{}
   @new_decimals 18
 
-  def topic, do: @topic
-
   def start_link(options \\ []),
     do: GenServer.start_link(__MODULE__, options, name: Keyword.get(options, :name, __MODULE__))
 
-  @doc "The last accepted per-auction market readings, by lowercase auction address."
-  def snapshot(server \\ __MODULE__), do: GenServer.call(server, :snapshot)
-
   @impl true
-  def init(options) do
-    state = %{
-      pubsub: Keyword.get(options, :pubsub, Autolaunch.PubSub),
-      generation: 0,
-      head: nil,
-      snapshots: %{},
-      watch: MarketWatch.new(),
-      in_flight: false,
-      timer: nil
-    }
-
-    {:ok, schedule(state, 0)}
-  end
-
-  @impl true
-  def handle_call(:snapshot, _from, state) do
-    {:reply,
-     %{
-       generation: state.generation,
-       head: state.head,
-       degraded?: false,
-       auctions: state.snapshots
-     }, state}
+  def init(_options) do
+    MarketReadings.start(@feed, &head/0)
+    {:ok, schedule(%{watch: MarketWatch.new(), in_flight: false, timer: nil}, 0)}
   end
 
   @impl true
@@ -76,50 +53,34 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   def handle_info(:poll, state), do: {:noreply, state}
 
   # A pass reads only part of the auctions, so its readings join the ones
-  # earlier passes took; each reading names the block it was taken at.
+  # earlier passes stored; each reading names the block it was taken at.
   def handle_info({:refreshed, {:ok, refresh}}, state) do
-    %{head: head, snapshots: readings, changed: changed, watch: watch} = refresh
-    snapshots = Map.merge(state.snapshots, readings)
-    changed_ids = Enum.uniq(changed ++ changed_snapshot_ids(state.snapshots, snapshots))
-    state = %{state | watch: watch}
-
-    state =
-      if changed_ids == [] and state.head == head do
-        %{state | in_flight: false}
-      else
-        generation = state.generation + 1
-
-        Phoenix.PubSub.broadcast(
-          state.pubsub,
-          @topic,
-          {:autolaunch_market_updated,
-           %{
-             generation: generation,
-             auction_ids: changed_ids,
-             block_number: head.number,
-             block_hash: head.hash
-           }}
-        )
-
-        %{state | generation: generation, head: head, snapshots: snapshots, in_flight: false}
-      end
-
-    {:noreply, schedule(state, interval())}
+    MarketReadings.store(@feed, refresh.head, Map.values(refresh.snapshots))
+    MarketReadings.read(@feed)
+    {:noreply, schedule(%{state | watch: refresh.watch, in_flight: false}, interval())}
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
     Logger.warning("memestock market feed skipped a poll: #{inspect(reason)}")
+    MarketReadings.unread(@feed)
     {:noreply, schedule(%{state | in_flight: false}, interval())}
   end
 
   defp interval,
     do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
 
-  # One poll: this pass's page of Memestock auctions (`Autolaunch.MarketWatch`).
+  defp head do
+    with {:ok, config} <- Lab.current(), do: Rpc.latest_block(rpc_opts(config))
+  end
+
+  defp rpc_opts(config), do: Lab.rpc_opts(config, "autolaunch stocks market feed")
+
+  # One poll: this pass's page of Memestock auctions (`Autolaunch.MarketWatch`),
+  # with the auctions whose rows it changed.
   @doc false
   def refresh(watch) do
     with {:ok, config} <- Lab.current(),
-         opts <- Lab.rpc_opts(config, "autolaunch stocks market feed"),
+         opts <- rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
          {:ok, auctions, next_watch} <- MarketWatch.next(watch, config.chain_id, :stocks),
          {:ok, snapshots, changed} <- refresh_auctions(config, block, opts, auctions) do
@@ -208,17 +169,13 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          market <- %{end_block: end_block, claim_block: claim_block},
          {:ok, positions} <- positions(config, auction, market, block, opts),
          {:ok, price_quote} <- Pool.stocks_price_quote(config, record, decimals, block, opts) do
+      state = MarketState.observed(record.lifecycle, block.number, start_block, end_block)
+
       {:ok,
        %{
          auction_id: auction.id,
          auction_address: String.downcase(address),
-         state:
-           MarketState.observed(
-             record.lifecycle,
-             block.number,
-             start_block,
-             end_block
-           ),
+         state: state,
          current_clearing_price: Amounts.format_cca_price(clearing, decimals, @new_decimals),
          price_quote: price_quote,
          block_number: block.number,
@@ -231,8 +188,28 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          remaining_supply: Rpc.format_units(remaining, @new_decimals),
          terms: terms,
          minimum_reached: minimum_reached,
-         positions: positions
+         positions: positions,
+         page: page(auction, MarketState.join(auction.state, state), config, block, opts)
        }}
+    end
+  end
+
+  # What the auction's own page shows, at the same block, with the state its
+  # row takes from this pass. One that cannot be read leaves the page its last
+  # reading; the auction's figures above are stored either way.
+  defp page(auction, state, config, block, opts) do
+    pool = Pool.read_at(%{auction | state: state}, config, block, opts)
+
+    case AuctionSnapshot.page(auction, state, pool, block, opts) do
+      {:ok, page} ->
+        {:ok, page}
+
+      {:error, reason} ->
+        Logger.warning(
+          "memestock market feed could not read the page of #{auction.auction_address}: #{inspect(reason)}"
+        )
+
+        :error
     end
   end
 
@@ -333,12 +310,6 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
         block,
         opts
       )
-
-  defp changed_snapshot_ids(previous, current) do
-    for {address, snapshot} <- current,
-        Map.get(previous, address) != snapshot,
-        do: snapshot.auction_id
-  end
 
   defp schedule(state, delay) do
     if state.timer, do: Process.cancel_timer(state.timer)

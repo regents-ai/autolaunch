@@ -4,7 +4,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   @moduletag :capture_log
 
   alias Autolaunch.Actors.System
-  alias Autolaunch.{MarketWatch, TestSupport}
+  alias Autolaunch.{MarketReadings, MarketWatch, SharedReading, TestSupport}
   alias Autolaunch.Robinhood.MarketFeed
 
   @chain_id 4_663
@@ -280,19 +280,26 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     Application.put_env(:autolaunch, :autolaunch_robinhood_chain_id, @chain_id)
     on_exit(fn -> Application.put_env(:autolaunch, :autolaunch_robinhood_chain_id, previous) end)
 
-    Phoenix.PubSub.subscribe(Autolaunch.PubSub, MarketFeed.topic())
+    # Whatever an earlier case left, so each change below is one this case made.
+    feed_key = MarketReadings.feed_key("robinhood")
+    head_key = MarketReadings.head_key("robinhood")
+    for key <- [feed_key, head_key], do: SharedReading.delete(key)
+    for key <- [feed_key, head_key], do: SharedReading.subscribe(key)
+
     {:ok, feed} = MarketFeed.start_link(name: nil, poll?: false, reader: Chain)
+    assert_receive {:shared_reading, ^feed_key}, 2_000
 
     MarketFeed.refresh(feed)
-    assert_receive {:robinhood_market_updated, %{stale?: false}}, 2_000
+    assert_receive {:shared_reading, ^head_key}, 2_000
+    refute MarketReadings.stale?("robinhood")
     rows = robinhood_rows()
 
     Chain.put(%{Chain.chain() | down?: true})
     MarketFeed.refresh(feed)
-    assert_receive {:robinhood_market_updated, %{stale?: true, auction_ids: []}}, 2_000
+    assert_receive {:shared_reading, ^feed_key}, 2_000
 
-    assert %{stale?: true, auctions: %{@site_auction => %{state: :ended}}} =
-             MarketFeed.snapshot(feed)
+    assert MarketReadings.stale?("robinhood")
+    assert %{state: :ended} = MarketReadings.market(@site_auction)
 
     assert robinhood_rows() == rows
     assert [%{id: base_id, state: :active}] = base_rows()

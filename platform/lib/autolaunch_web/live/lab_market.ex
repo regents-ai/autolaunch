@@ -1,78 +1,69 @@
 defmodule AutolaunchWeb.LabMarket do
-  @moduledoc false
+  @moduledoc """
+  What a page takes from the market feeds' shared readings
+  (`Autolaunch.MarketReadings`). A page subscribes to the keys of what it
+  shows, reads them once, and reads a key again on its
+  `{:shared_reading, key}`; it is told of a key only when that reading changed.
+  """
 
-  alias Autolaunch.LabMarketFeed
-  alias Autolaunch.Robinhood.MarketFeed, as: RobinhoodMarketFeed
-  alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
+  import Phoenix.Component, only: [assign: 3]
 
-  @empty %{
-    generation: 0,
-    head: nil,
-    degraded?: false,
-    robinhood_head: nil,
-    robinhood_stale?: false,
-    auctions: %{}
-  }
+  alias Autolaunch.{MarketReadings, SharedReading}
+
+  @feeds ["base", "stocks", "robinhood"]
 
   @doc """
-  Subscribes the connected page to the Base market topic and the Robinhood
-  market topic, each when its feed runs, and answers the current snapshot.
+  Assigns `robinhood_stale?`, whether the Robinhood feed could not read its
+  chain, and has the connected page told when that changes
+  (`{:shared_reading, {:market_feed, "robinhood"}}`).
   """
-  def subscribe(socket) do
-    if Phoenix.LiveView.connected?(socket) do
-      if running?(LabMarketFeed),
-        do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, LabMarketFeed.topic())
+  def assign_robinhood_stale(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do: SharedReading.subscribe(MarketReadings.feed_key("robinhood"))
 
-      if running?(RobinhoodMarketFeed),
-        do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, RobinhoodMarketFeed.topic())
+    robinhood_stale(socket)
+  end
 
-      snapshot()
-    else
-      @empty
+  @doc "Reads `robinhood_stale?` again."
+  def robinhood_stale(socket),
+    do: assign(socket, :robinhood_stale?, MarketReadings.stale?("robinhood"))
+
+  @doc """
+  Has the connected page told whenever a feed stores readings at a new block
+  (`{:shared_reading, {:market_head, feed}}`): for a page of one person's own
+  bids and holdings across auctions, which reads them again then.
+  """
+  def subscribe_heads(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do: Enum.each(@feeds, &SharedReading.subscribe(MarketReadings.head_key(&1)))
+
+    socket
+  end
+
+  @doc """
+  Has the connected page told when the figures of the auction at `address`
+  change (`{:shared_reading, {:auction_market, address}}`). An auction with no
+  contract yet has none.
+  """
+  def subscribe_market(socket, address) do
+    if is_binary(address) and Phoenix.LiveView.connected?(socket),
+      do: SharedReading.subscribe(MarketReadings.market_key(address))
+
+    socket
+  end
+
+  @doc """
+  Has the connected page of the auction at `address` told when what it shows
+  from the chain changes: the auction's figures, its own page's reading
+  (`{:shared_reading, {:auction_page, address}}`) and each new block of
+  `feed` (`{:shared_reading, {:market_head, feed}}`).
+  """
+  def subscribe_auction(socket, address, feed) do
+    if is_binary(address) and Phoenix.LiveView.connected?(socket) do
+      SharedReading.subscribe(MarketReadings.page_key(address))
+      SharedReading.subscribe(MarketReadings.head_key(feed))
     end
+
+    subscribe_market(socket, address)
   end
-
-  @doc """
-  Every running feed's per-auction readings by lowercase auction address, with
-  one generation counter that moves whenever any of them does. The head and
-  `degraded?` are the Base feed's; `robinhood_head` is the Robinhood feed's
-  latest block and `robinhood_stale?` says its last read of its chain failed.
-  """
-  def snapshot do
-    @empty
-    |> join_base(running?(LabMarketFeed) && LabMarketFeed.snapshot())
-    |> join_readings(running?(StocksMarketFeed) && StocksMarketFeed.snapshot())
-    |> join_robinhood(running?(RobinhoodMarketFeed) && RobinhoodMarketFeed.snapshot())
-  end
-
-  @doc "Whether Robinhood's readings are stale: its feed runs and could not read its chain."
-  def robinhood_stale?,
-    do: running?(RobinhoodMarketFeed) and RobinhoodMarketFeed.snapshot().stale?
-
-  @doc "The reading for one auction address, or `nil`."
-  def reading(%{auctions: auctions}, address) when is_binary(address),
-    do: Map.get(auctions, String.downcase(address))
-
-  def reading(_market, _address), do: nil
-
-  defp join_base(market, false), do: market
-
-  defp join_base(market, base),
-    do: join_readings(%{market | head: base.head, degraded?: base.degraded?}, base)
-
-  defp join_readings(market, false), do: market
-
-  defp join_readings(market, feed),
-    do: %{
-      market
-      | generation: market.generation + feed.generation,
-        auctions: Map.merge(market.auctions, feed.auctions)
-    }
-
-  defp join_robinhood(market, false), do: market
-
-  defp join_robinhood(market, feed),
-    do: join_readings(%{market | robinhood_head: feed.head, robinhood_stale?: feed.stale?}, feed)
-
-  defp running?(feed), do: is_pid(Process.whereis(feed))
 end

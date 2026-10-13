@@ -9,7 +9,6 @@ defmodule AutolaunchWeb.MarketPage do
   """
 
   alias Autolaunch.{HomeMarket, Search}
-  alias AutolaunchWeb.LabMarket
 
   @filters ~w(q chain kind x ens github limit after)
   @parameters %{"auctions" => ~w(state sort) ++ @filters, "tokens" => @filters}
@@ -22,7 +21,7 @@ defmodule AutolaunchWeb.MarketPage do
       {:ok,
        %{
          records: page.records,
-         robinhood_unavailable: LabMarket.robinhood_stale?(),
+         robinhood_unavailable: Autolaunch.MarketReadings.stale?("robinhood"),
          pagination: %{has_more: page.has_more, next_cursor: page.next_cursor}
        }}
     else

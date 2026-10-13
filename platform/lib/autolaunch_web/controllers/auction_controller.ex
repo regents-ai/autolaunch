@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.AuctionController do
   alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{ApiError, LabMarket, MarketPage, Paths}
+  alias AutolaunchWeb.{ApiError, MarketPage, Paths}
   alias RegentChain.Address
 
   @cache :autolaunch_public_auctions
@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.AuctionController do
   # Any listed auction is named by its id; a Robinhood auction also by its
   # contract address.
   def show(conn, %{"id" => id} = params) do
-    robinhood_unavailable = LabMarket.robinhood_stale?()
+    robinhood_unavailable = Autolaunch.MarketReadings.stale?("robinhood")
 
     with true <- Map.keys(params) == ["id"],
          {:ok, auction} <- auction_entry(id) do

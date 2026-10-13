@@ -29,18 +29,21 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
   import AutolaunchWeb.Components.AuctionNext
 
-  alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt}
+  alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt, MarketReadings}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.{LabMarket, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
-  def mount(_params, _session, socket),
+  def mount(%{"auction" => address}, _session, socket),
     do:
       {:ok,
        socket
-       |> assign(open?: Lab.configured?(), market: LabMarket.subscribe(socket), outbid: nil)
+       |> assign(open?: Lab.configured?(), outbid: nil)
+       |> LabMarket.subscribe_auction(address, "robinhood")
+       |> LabMarket.assign_robinhood_stale()
+       |> assign(reading: MarketReadings.market(address), head: MarketReadings.head("robinhood"))
        |> assign(draft_price: nil, scrub_at: nil, checked_bid: nil, check_number: "")
        |> assign_usd_prices()}
 
@@ -94,17 +97,26 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
      )}
   end
 
-  # The feed read Robinhood again: the stored auction, its reading and its
-  # price move together.
-  def handle_info({:robinhood_market_updated, _update}, socket),
+  # The feed read Robinhood at a new block: the stored auction and what this
+  # page reads from the chain move together.
+  def handle_info({:shared_reading, {:market_head, "robinhood"}}, socket),
     do:
       {:noreply,
        socket
-       |> assign(:market, LabMarket.snapshot())
+       |> assign(:head, MarketReadings.head("robinhood"))
        |> reload_launch()
        |> load_history(false)
        |> load_book(false)
        |> load_snapshot(false)}
+
+  def handle_info({:shared_reading, {:auction_market, address}}, socket),
+    do: {:noreply, assign(socket, :reading, MarketReadings.market(address))}
+
+  # This page reads the auction's own figures itself.
+  def handle_info({:shared_reading, {:auction_page, _address}}, socket), do: {:noreply, socket}
+
+  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+    do: {:noreply, LabMarket.robinhood_stale(socket)}
 
   # The bid panel found one of the wallet's bids outbid, or none any more.
   def handle_info({:robinhood_outbid, outbid}, socket),
@@ -114,18 +126,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   def handle_info({:bid_draft_price, price}, socket),
     do: {:noreply, assign(socket, :draft_price, price)}
 
-  def handle_info({:autolaunch_market_updated, _update}, socket),
-    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
-
-  def render(assigns) do
-    assigns =
-      assign(assigns,
-        usd_rate: usd_rate(assigns.usd_prices, assigns.launch),
-        reading: assigns.launch && LabMarket.reading(assigns.market, assigns.auction)
-      )
-
-    page(assigns)
-  end
+  def render(assigns),
+    do: assigns |> assign(:usd_rate, usd_rate(assigns.usd_prices, assigns.launch)) |> page()
 
   # The bid form is named after its auction, so a form never carries one
   # auction's review, balance or typed figures over to another.
@@ -152,7 +154,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         bid_form={bid_form_id(@auction)}
         return_to={if @outbid.graduated?, do: @outbid.bid}
       />
-      <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
+      <p :if={@robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this auction shows what was last read.
       </p>
       <p :if={@launch_failed?} class="autolaunch-live-market" role="status">
@@ -204,7 +206,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             auction={@auction}
             launch={@launch}
             book={@book}
-            observed={@market.robinhood_head}
+            observed={@head}
             account_control={@account_control}
             access_context={@access_context}
             session_lease={@session_lease}
@@ -236,11 +238,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             claim_block={@snapshot.result.blocks.claim}
           />
           <.auction_activity
-            :if={@reading && @history.ok? && @history.result}
+            :if={@head && @history.ok? && @history.result}
             id="robinhood-auction-activity"
             bids={@history.result.bids}
             symbol={@launch.quote_token_symbol}
-            block={@reading.clock}
+            block={@head.clock}
             start_block={@launch.start_block}
             end_block={@launch.end_block}
             chain={:robinhood}

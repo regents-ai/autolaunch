@@ -22,6 +22,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.TokenHeading
   import AutolaunchWeb.Components.TokenNext
 
+  alias Autolaunch.MarketReadings
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
   alias Autolaunch.Stocks.MarketData
@@ -29,14 +30,14 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   @reward_assets %{"stock" => :stock, "dollar" => :dollar, "token" => :token}
 
-  def mount(_params, _session, socket),
+  def mount(%{"auction" => auction}, _session, socket),
     do:
       {:ok,
-       assign(socket,
-         open?: Lab.configured?(),
-         swap?: Lab.swap_configured?(),
-         market: LabMarket.subscribe(socket)
-       )}
+       socket
+       |> assign(open?: Lab.configured?(), swap?: Lab.swap_configured?())
+       |> LabMarket.subscribe_market(auction)
+       |> assign(:reading, MarketReadings.market(auction))
+       |> LabMarket.assign_robinhood_stale()}
 
   # The address is read here so a patch to another token reloads the page
   # instead of keeping the previous launch on screen.
@@ -59,24 +60,15 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   # answers, so the card that asked keeps its wallet, position and notice.
   def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
 
-  # The feed read Robinhood again: the stored token and its reading move
-  # together.
-  def handle_info({:robinhood_market_updated, _update}, socket),
-    do: {:noreply, socket |> assign(:market, LabMarket.snapshot()) |> reload_token()}
+  # The feed read a new figure for this token's auction: the stored token and
+  # its reading move together.
+  def handle_info({:shared_reading, {:auction_market, address}}, socket),
+    do: {:noreply, socket |> assign(:reading, MarketReadings.market(address)) |> reload_token()}
 
-  def handle_info({:autolaunch_market_updated, _update}, socket),
-    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+    do: {:noreply, LabMarket.robinhood_stale(socket)}
 
-  def render(assigns) do
-    assigns =
-      assign(
-        assigns,
-        :reading,
-        assigns.token && LabMarket.reading(assigns.market, assigns.token.auction.auction_address)
-      )
-
-    page(assigns)
-  end
+  def render(assigns), do: page(assigns)
 
   # One reward followed from the trade to the claim beside the staking card,
   # then the market, the locked liquidity and the launch's details.
@@ -98,7 +90,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         />
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
-      <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
+      <p :if={@robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this token shows what was last read.
       </p>
       <p :if={@token_failed?} class="autolaunch-live-market" role="status">

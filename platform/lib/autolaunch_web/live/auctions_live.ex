@@ -20,7 +20,6 @@ defmodule AutolaunchWeb.AuctionsLive do
      |> assign(
        options: nil,
        records: [],
-       market: LabMarket.subscribe(socket),
        loading: true,
        failed: false,
        append: false,
@@ -28,6 +27,7 @@ defmodule AutolaunchWeb.AuctionsLive do
        has_more: false
      )
      |> LiveListings.subscribe()
+     |> LabMarket.assign_robinhood_stale()
      |> assign_auction_stats()
      |> assign_figure_rates()}
   end
@@ -98,11 +98,8 @@ defmodule AutolaunchWeb.AuctionsLive do
   def handle_async(:auctions_reread, _failure, socket), do: {:noreply, socket}
 
   # The Robinhood notice follows whether its feed could read Robinhood.
-  def handle_info({:autolaunch_market_updated, _update}, socket),
-    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
-
-  def handle_info({:robinhood_market_updated, _update}, socket),
-    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+    do: {:noreply, LabMarket.robinhood_stale(socket)}
 
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
@@ -216,7 +213,7 @@ defmodule AutolaunchWeb.AuctionsLive do
         aria-labelledby="auctions-list-title"
         aria-busy={to_string(@loading)}
       >
-        <Regent.Primitives.notice :if={@market.robinhood_stale?} role="status">
+        <Regent.Primitives.notice :if={@robinhood_stale?} role="status">
           <p>Robinhood could not be read just now, so its auctions show what was last read.</p>
         </Regent.Primitives.notice>
         <p :if={@loading} class="visually-hidden" role="status">Loading auctions</p>

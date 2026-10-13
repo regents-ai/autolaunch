@@ -19,10 +19,8 @@ defmodule AutolaunchWeb.TokenLive do
 
   @reward_assets %{"stock" => :stock, "dollar" => :dollar, "token" => :token}
 
-  def mount(_params, _session, socket) do
-    LabMarket.subscribe(socket)
-    {:ok, LiveListings.subscribe(socket)}
-  end
+  def mount(%{"auction_address" => address}, _session, socket),
+    do: {:ok, socket |> LabMarket.subscribe_market(address) |> LiveListings.subscribe()}
 
   # The identifier is read here so a patch to another token reloads the page
   # instead of keeping the previous record on screen.
@@ -44,14 +42,10 @@ defmodule AutolaunchWeb.TokenLive do
   # answers, so the card that asked keeps its wallet, position and notice.
   def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
 
-  # The market feed saw this token's auction change: a trade moved its pool,
-  # so the price and the pool are read again. Other tokens' changes are not
-  # this page's business.
-  def handle_info({:autolaunch_market_updated, %{auction_ids: auction_ids}}, socket) do
-    if page_auction_id(socket.assigns.page) in auction_ids,
-      do: {:noreply, refresh(socket)},
-      else: {:noreply, socket}
-  end
+  # The market feed read a new figure for this token's auction: a trade moved
+  # its pool, so the price and the pool are read again.
+  def handle_info({:shared_reading, {:auction_market, _address}}, socket),
+    do: {:noreply, refresh(socket)}
 
   # This token's auction saved a change, so the page reads it again in place.
   def handle_info({:autolaunch_listings_changed, auction_id}, socket) do
@@ -62,9 +56,6 @@ defmodule AutolaunchWeb.TokenLive do
 
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> refresh()}
-
-  # LabMarket subscribes to both networks; this page represents a Base token.
-  def handle_info({:robinhood_market_updated, _update}, socket), do: {:noreply, socket}
 
   def render(assigns) do
     page_record = page_record(assigns.page)

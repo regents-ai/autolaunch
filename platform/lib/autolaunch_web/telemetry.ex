@@ -28,10 +28,15 @@ defmodule AutolaunchWeb.Telemetry do
       `queue_time` is the wait for a database connection.
     * `[:autolaunch, :wallet, :failure]` — `count` 1 for each wallet send the
       browser reported as not made or not confirmed, by `flow` and `reason`.
+    * `[:autolaunch, :shared_reading, ...]` — the figures every visitor sees
+      alike (`Autolaunch.SharedReading`): for each `kind`, how many keys are
+      held, how many have never been read and how long ago the oldest was
+      read, every ten seconds; each reading that could not be taken; each one
+      refused; the table's size.
     * `[:autolaunch, :pages, :announced]` — `count` 1 for each announcement
-      the site makes to its open pages, by `kind` (`:listings`, `:base_market`,
-      `:robinhood_market` or `:ticker`). Every open page acts on each one, so
-      a high rate with nobody bidding means pages are refreshing for nothing.
+      the site makes to its open pages, by `kind` (`:listings` or `:ticker`).
+      Every open page acts on each one, so a high rate with nobody bidding
+      means pages are refreshing for nothing.
     * `[:autolaunch, :pages, :reread]` — `count` 1 each time an open page
       reads its lists again after an announcement, by `view`.
     * `[:autolaunch, :site, :connections]` — `open`, the connections the web
@@ -134,6 +139,36 @@ defmodule AutolaunchWeb.Telemetry do
         measurement: :open,
         description: "Connections the web server holds"
       ),
+      last_value("health.shared_reading.oldest.seconds",
+        event_name: [:autolaunch, :shared_reading, :kind],
+        measurement: :oldest_seconds,
+        tags: [:kind],
+        description: "Seconds since the oldest shared reading of each kind was read"
+      ),
+      last_value("health.shared_reading.never_read.keys",
+        event_name: [:autolaunch, :shared_reading, :kind],
+        measurement: :never_read,
+        tags: [:kind],
+        description: "Keys of the kind that have had no reading since the site started"
+      ),
+      counter("health.shared_reading.degraded.total",
+        event_name: [:autolaunch, :shared_reading, :degraded],
+        tags: [:kind],
+        description: "Shared readings that could not be taken"
+      ),
+      last_value("autolaunch.shared_reading.keys",
+        event_name: [:autolaunch, :shared_reading, :kind],
+        measurement: :keys,
+        tags: [:kind]
+      ),
+      last_value("autolaunch.shared_reading.table.bytes",
+        event_name: [:autolaunch, :shared_reading, :table],
+        measurement: :bytes
+      ),
+      counter("autolaunch.shared_reading.refused.total",
+        event_name: [:autolaunch, :shared_reading, :refused],
+        tags: [:kind, :reason]
+      ),
       last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
       last_value("vm.memory.processes.bytes",
         event_name: [:vm, :memory],
@@ -169,6 +204,14 @@ defmodule AutolaunchWeb.Telemetry do
        measurements: [{__MODULE__, :oldest_unfinished_jobs, []}],
        period: 10_000,
        name: :autolaunch_jobs_poller}
+
+  @doc "The poller that measures the shared readings, started after their table."
+  def shared_reading_poller,
+    do:
+      {:telemetry_poller,
+       measurements: [{Autolaunch.SharedReading, :measure, []}],
+       period: 10_000,
+       name: :autolaunch_shared_reading_poller}
 
   @doc "The poller that counts the web server's open connections, started after the endpoint."
   def site_poller,

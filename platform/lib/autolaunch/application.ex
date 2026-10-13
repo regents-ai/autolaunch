@@ -36,6 +36,10 @@ defmodule Autolaunch.Application do
       # paired or unpaired, on any Regent site reaches the Account page.
       RegentCredits.Listener,
       RegentAgents.Listener,
+      # The figures every visitor sees alike, and their measurements. Before the
+      # market feeds that keep them and the endpoint whose pages read them.
+      Autolaunch.SharedReading,
+      AutolaunchWeb.Telemetry.shared_reading_poller(),
       AutolaunchWeb.Telemetry.Announcements,
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.
       {Task.Supervisor, name: Autolaunch.TaskSupervisor},

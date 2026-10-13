@@ -130,12 +130,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def connections_for(_record, _grouped), do: %{}
 
-  def auction_market_snapshot(%{auctions: auctions}, %{auction_address: address})
-      when is_binary(address),
-      do: Map.get(auctions, String.downcase(address))
-
-  def auction_market_snapshot(_market, _record), do: nil
-
   @doc "Whether a listed auction, or a listed token's auction, is on Robinhood."
   def robinhood?(%Token{auction: auction}), do: robinhood?(auction)
   def robinhood?(%{chain_id: chain_id}), do: RobinhoodLab.chain?(chain_id)

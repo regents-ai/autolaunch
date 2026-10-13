@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.ChainIcon
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.SwapModal
-  alias Autolaunch.HomeMarket
+  alias Autolaunch.{HomeMarket, MarketReadings}
   alias AutolaunchWeb.{BidSettlementComponent, LabMarket, LiveListings}
 
   @no_connection %{x: false, ens: false, github: false}
@@ -43,7 +43,6 @@ defmodule AutolaunchWeb.HomeLive do
        records_kind: :auction,
        backed: [],
        creators: %{},
-       market: LabMarket.subscribe(socket),
        market_loading: true,
        market_failed: false,
        market_append: false,
@@ -53,6 +52,7 @@ defmodule AutolaunchWeb.HomeLive do
      )
      |> LiveListings.subscribe()
      |> watch_settle()
+     |> LabMarket.assign_robinhood_stale()
      |> assign_figure_rates()}
   end
 
@@ -144,11 +144,8 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
   # The Robinhood notice follows whether its feed could read Robinhood.
-  def handle_info({:autolaunch_market_updated, _update}, socket),
-    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
-
-  def handle_info({:robinhood_market_updated, _update}, socket),
-    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+    do: {:noreply, LabMarket.robinhood_stale(socket)}
 
   # A bid's button is worded by its auction's outcome, so a change to an
   # auction the viewer has a bid to settle in reads that bid again too.
@@ -585,7 +582,7 @@ defmodule AutolaunchWeb.HomeLive do
         <p :if={@market_loading} class="visually-hidden" role="status">Loading launches</p>
 
         <Regent.Primitives.notice
-          :if={@market.robinhood_stale?}
+          :if={@robinhood_stale?}
           role="status"
           class="home-market__error"
         >
@@ -703,7 +700,7 @@ defmodule AutolaunchWeb.HomeLive do
         :if={match?(%{position: _}, @trade)}
         id={"home-settle-#{@trade.position.id}"}
         position={@trade.position}
-        market={LabMarket.reading(@market, @trade.position.auction_address)}
+        market={MarketReadings.market(@trade.position.auction_address)}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
