@@ -4,12 +4,14 @@ defmodule Autolaunch.Stocks.MarketData do
   for the create page, and the dollar value of an auction's currency, REGENT or
   a stock, for the auction pages.
 
-  Stock prices come from the chain's Chainlink feeds (see `PriceFeeds`);
-  REGENT's price is its Base Uniswap pool's, and venues come from DexScreener's
-  pair listings. On Base the venues are the stock token's
-  deepest Aerodrome pool and its deepest Uniswap pool, each linked to that
-  venue's swap page; on Robinhood it is the single pair with the most volume
-  in the last day, linked to its DexScreener page. A full answer is kept for
+  Stock prices come from the chain's Chainlink feeds (see `PriceFeeds`), and
+  REGENT's price is its Base Uniswap pool's, from DexScreener. On Base the
+  venues are the stock token's deepest USDC pool on Aerodrome and its deepest
+  on Uniswap, deepest first, each linked to that venue's swap page. They come
+  from GeckoTerminal's list of the token's twenty busiest pools: DexScreener's
+  listing leaves out Aerodrome's concentrated pools, where most of a stock's
+  trading is. On Robinhood it is the single DexScreener pair with the most
+  volume in the last day, linked to its DexScreener page. A full answer is kept for
   ten minutes. A read that failed, or left a stock's price out, is tried again
   after one second, then two, four and so on, up to ten minutes. The reads
   happen in whichever process asks, so a page that asks from a background task
@@ -28,6 +30,7 @@ defmodule Autolaunch.Stocks.MarketData do
   @latest_round_data "0xfeaf968c"
   @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   @dexscreener "https://api.dexscreener.com"
+  @geckoterminal "https://api.geckoterminal.com/api/v2"
   @regent_pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
   @base_venues [{"aerodrome", "Aerodrome"}, {"uniswap", "Uniswap"}]
 
@@ -143,7 +146,7 @@ defmodule Autolaunch.Stocks.MarketData do
   # The pool must be the REGENT pool this site names; any other token's price
   # in its place is no answer.
   defp read_regent_price do
-    case get("/latest/dex/pairs/base/#{@regent_pool}") do
+    case get("#{@dexscreener}/latest/dex/pairs/base/#{@regent_pool}") do
       {:ok, %{"pairs" => [%{"baseToken" => %{"address" => token}, "priceUsd" => price} | _]}}
       when is_binary(price) ->
         if Address.equal?(token, Abi.regent_address()), do: positive(price), else: :error
@@ -167,9 +170,16 @@ defmodule Autolaunch.Stocks.MarketData do
   defp rpc_url(:robinhood), do: Application.fetch_env!(:autolaunch, :robinhood_read_rpc_url)
 
   defp read_venues(:base, stock) do
-    case get("/tokens/v1/base/#{stock.address}") do
-      {:ok, pairs} when is_list(pairs) ->
-        {:ok, Enum.flat_map(@base_venues, &deepest_pool(pairs, &1, stock.address))}
+    token = String.downcase(stock.address)
+
+    case get("#{@geckoterminal}/networks/base/tokens/#{token}/pools?page=1") do
+      {:ok, %{"data" => pools}} when is_list(pools) ->
+        dollar_pools = Enum.filter(pools, &dollar_pool?(&1, token))
+
+        @base_venues
+        |> Enum.flat_map(&deepest_pool(dollar_pools, &1, stock.address))
+        |> Enum.sort_by(& &1.liquidity_usd, :desc)
+        |> then(&{:ok, &1})
 
       _unavailable ->
         :error
@@ -179,13 +189,20 @@ defmodule Autolaunch.Stocks.MarketData do
   defp read_venues(:robinhood, stock) do
     ticker = PriceFeeds.ticker(stock.symbol)
 
-    case get("/latest/dex/search?q=#{URI.encode_www_form(ticker)}") do
+    case get("#{@dexscreener}/latest/dex/search?q=#{URI.encode_www_form(ticker)}") do
       {:ok, %{"pairs" => pairs}} when is_list(pairs) ->
         pairs
         |> Enum.filter(&(&1["chainId"] == "robinhood" and &1["baseToken"]["symbol"] == ticker))
         |> Enum.max_by(&volume/1, fn -> nil end)
         |> List.wrap()
-        |> Enum.map(&venue(&1, venue_name(&1["dexId"]), &1["url"]))
+        |> Enum.map(
+          &%{
+            name: venue_name(&1["dexId"]),
+            url: &1["url"],
+            liquidity_usd: number(&1["liquidity"]["usd"]),
+            volume_usd: volume(&1)
+          }
+        )
         |> then(&{:ok, &1})
 
       _unavailable ->
@@ -193,20 +210,53 @@ defmodule Autolaunch.Stocks.MarketData do
     end
   end
 
-  # The venue's deepest pool for the stock, as a single-item list; empty when
-  # the venue has none.
-  defp deepest_pool(pairs, {dex, name}, stock) do
-    pairs
-    |> Enum.filter(&(&1["dexId"] == dex))
-    |> Enum.max_by(&liquidity/1, fn -> nil end)
-    |> List.wrap()
-    |> Enum.map(&venue(&1, name, swap_url(dex, stock)))
+  # A pool of the stock against USDC, either way round: a pool against another
+  # token is that token's market, and the swap page it would link starts from
+  # USDC.
+  defp dollar_pool?(%{"relationships" => relationships}, token) do
+    sides =
+      Enum.map(~w(base_token quote_token), fn side ->
+        relationships |> get_in([side, "data", "id"]) |> to_string() |> String.downcase()
+      end)
+
+    Enum.sort(sides) == Enum.sort(["base_#{token}", "base_#{String.downcase(@usdc_base)}"])
   end
 
-  defp venue(pair, name, url),
-    do: %{name: name, url: url, liquidity_usd: liquidity(pair), volume_usd: volume(pair)}
+  defp dollar_pool?(_pool, _token), do: false
 
-  defp liquidity(pair), do: number(pair["liquidity"]["usd"])
+  # The venue's deepest pool, as a single-item list; empty when the venue has
+  # none. GeckoTerminal names each of a venue's pool kinds apart, such as
+  # `aerodrome-slipstream-3` and `uniswap-v4-base`, all starting with the
+  # venue's name.
+  defp deepest_pool(pools, {dex, name}, stock) do
+    pools
+    |> Enum.filter(
+      &String.starts_with?(to_string(get_in(&1, ["relationships", "dex", "data", "id"])), dex)
+    )
+    |> Enum.max_by(&reserve/1, fn -> nil end)
+    |> List.wrap()
+    |> Enum.map(
+      &%{
+        name: name,
+        url: swap_url(dex, stock),
+        liquidity_usd: reserve(&1),
+        volume_usd: dollars(get_in(&1, ["attributes", "volume_usd", "h24"]))
+      }
+    )
+  end
+
+  defp reserve(pool), do: dollars(get_in(pool, ["attributes", "reserve_in_usd"]))
+
+  # GeckoTerminal writes dollar amounts as decimal text.
+  defp dollars(text) when is_binary(text) do
+    case Float.parse(text) do
+      {amount, ""} -> amount
+      _unparsed -> 0.0
+    end
+  end
+
+  defp dollars(_missing), do: 0.0
+
   defp volume(pair), do: number(pair["volume"]["h24"])
 
   defp number(value) when is_number(value), do: value / 1
@@ -223,10 +273,11 @@ defmodule Autolaunch.Stocks.MarketData do
   defp venue_name(dex) when is_binary(dex), do: String.capitalize(dex)
   defp venue_name(_unknown), do: "a venue"
 
-  defp get(path) do
+  defp get(url) do
     client = Application.get_env(:autolaunch, :autolaunch_market_http_client, Req)
 
-    case client.get(@dexscreener <> path,
+    case client.get(url,
+           headers: [accept: "application/json"],
            connect_options: [timeout: 3_000],
            receive_timeout: 5_000,
            retry: false
