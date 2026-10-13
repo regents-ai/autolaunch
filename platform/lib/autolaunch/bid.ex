@@ -25,10 +25,12 @@ defmodule Autolaunch.Bid do
     end
 
     # The bids of the one wallet the session signed in with. The policies below
-    # still admit only the account's verified wallets.
+    # still admit only the account's verified wallets. Every write stores the
+    # owner's address in lowercase, so the per-wallet reads compare it as stored
+    # and use its index.
     read :mine_by_wallet do
       argument :wallet_address, :string, allow_nil?: false
-      filter expr(string_downcase(owner_address) == ^arg(:wallet_address))
+      filter expr(owner_address == ^arg(:wallet_address))
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
@@ -37,7 +39,7 @@ defmodule Autolaunch.Bid do
       argument :wallet_address, :string, allow_nil?: false
 
       filter expr(
-               string_downcase(owner_address) == ^arg(:wallet_address) and
+               owner_address == ^arg(:wallet_address) and
                  status in ["returnable", "claimable"]
              )
 
@@ -46,7 +48,7 @@ defmodule Autolaunch.Bid do
 
     read :agent_mine_by_wallet do
       argument :wallet_address, :string, allow_nil?: false
-      filter expr(string_downcase(owner_address) == ^arg(:wallet_address))
+      filter expr(owner_address == ^arg(:wallet_address))
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 

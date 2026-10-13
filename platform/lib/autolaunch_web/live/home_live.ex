@@ -150,6 +150,12 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info({:robinhood_market_updated, _update}, socket),
     do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
+  # A bid's button is worded by its auction's outcome, so a change to an
+  # auction the viewer has a bid to settle in reads that bid again too.
+  def handle_info({:autolaunch_listings_changed, auction_id}, socket)
+      when is_map_key(socket.assigns.settle, auction_id),
+      do: {:noreply, socket |> assign(:settle_due, true) |> LiveListings.schedule()}
+
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
 
