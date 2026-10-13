@@ -72,7 +72,7 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestock: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestock launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Create a memecoin paired to onchain stock. Holders earn the stock from trading fees. Memestock launches last 24 hours. 49.75% of the tokens are sold in the auction, 49.75% is locked in the Uni v4 pool with everything the auction raised, and 0.5% goes to the token's creator over 30 days. Stakers earn the onchain stock from fees.
 
 Memestock supply: 1 billion tokens.
 
