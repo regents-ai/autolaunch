@@ -11,12 +11,13 @@ defmodule AutolaunchWeb.Telemetry do
       `:trade`) on `chain_id`. Emitted by `Autolaunch.AuctionActivity` and
       `Autolaunch.TokenTrades` on passes that follow the head.
     * `[:autolaunch, :indexer, :lag]` — `blocks` between the chain head and
-      the last indexed block, for `indexer` (`:ledger`, `:auction_activity`
-      or `:token_trades`) on `chain_id`. The ledger compares its cursor with
-      the safe head at the start of each pass, the other two their new cursor
-      with the latest head after each committed pass. Each event also counts
-      one pass, so a reader that stops shows as passes that stop rising while
-      its lag keeps its last value.
+      the last indexed block, for `indexer` (`:ledger`, `:auction_activity`,
+      `:token_trades` or `:stock_admissions`) on `chain_id`. The ledger
+      compares its cursor with the safe head at the start of each pass, the
+      others their new cursor with the latest head after each committed pass;
+      the stock list sends it only for a pass that left no stock unread. Each
+      event also counts one pass, so a reader that stops shows as passes that
+      stop rising while its lag keeps its last value.
     * `[:autolaunch, :jobs, :oldest_unfinished]` — `age_ms` of the oldest
       available, running or retrying background job in each running `queue`,
       0 when there is none, every ten seconds while background jobs run. A

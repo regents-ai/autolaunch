@@ -41,6 +41,11 @@ unchanged. This is open with Sean as AL-138.
   once; the others within the minute. `Autolaunch.Stocks.MarketData` prices each stock from the
   feed saved on its row, revoked stocks included.
 - The launchpad's own `stockAdmission` is still read before every launch and bid.
+- A run that read a launchpad's logs and left no stock unread sends the measurement the other
+  chain readers send, `[:autolaunch, :indexer, :lag]` with `indexer: :stock_admissions`, the
+  chain id, and `blocks`, how far the saved place is behind the chain's latest block. A failed
+  run, or one that left a stock unread, sends nothing, so "no measurement for 20 minutes" is
+  the alarm for a list that has stopped being read (Sentinel's finding of 19:41Z).
 - Gone: the `stocks` list in both deployment descriptions and their loaders, the built-in Base
   catalog and feed list, and the start-up step `Autolaunch.Stocks.SupportedStocks`. The lab and
   ceremony scripts no longer write the list.
@@ -61,6 +66,19 @@ unchanged. This is open with Sean as AL-138.
 3. Before the release, the releaser confirms that production `stocks` already holds the admitted
    stocks (25 on chain 4663, at least 10 on chain 8453). Saved stocks are right within seconds;
    missing ones wait for the log read (see below).
+
+4. `stock_admission_scans` goes on the protected-tables record at the release.
+5. Owed before the release, and not run yet: `sh bin/gate.sh` whole, for
+   `contracts/stocks-v2` and for `contracts/robinhood-v2`, inside the pristine release export
+   the orchestrator cuts, with logs and exit codes to Sentinel. The gate needs a pristine
+   checkout, and this lane has no worktree left to make one.
+6. Tests changed, by file (none added, none asserts the old file shape):
+   - `platform/test/autolaunch_web/live/stocks_create_live_test.exs`: its setup now saves two
+     stocks, addresses in lowercase.
+   - `platform/test/fixtures/base-stocks-deployment.json`: the `stocks` list removed.
+   - `contracts/stocks-v2/test/StocksFixture.sol`, `StocksLaunchpadLaunch.t.sol`,
+     `StocksLaunchpadMigrate.t.sol` and `test/fork/StocksForkLifecycle.t.sol`: the practice
+     route's constructor takes a feed.
 
 The production description files need no change: their `stocks` list is no longer read.
 
@@ -87,6 +105,14 @@ The production description files need no change: their `stocks` list is no longe
 - A launch in a stock admitted minutes ago and not read yet fails the Robinhood auction and
   market reads for that auction until the next run (up to five minutes). Before this change the
   same gap lasted until a site release.
+- Two stocks under one symbol on one chain are no longer refused by the site, and a price is
+  kept by ticker, so two such stocks would share one price. Only the governance Safe admits a
+  stock, so this is a rule for the signers' check, not something a stranger can cause.
+- The kept list is cleared at once only on the server that ran the job. Any other server shows
+  the old list for up to a minute more.
+- The migration puts saved addresses in lowercase. If two saved rows differ only by letter
+  case, that step fails, and so does the release. The row check before the release (item 3)
+  is where this would be seen first.
 - Older tooling left as it was: `ops/fork-preview` and the first-generation lab scripts in
   `contracts/stocks` and `contracts/robinhood` still build first-generation launchpads, which
   this site no longer reads stocks from. The practice labs to use are
@@ -122,6 +148,6 @@ answers on 13 October.
 
 ## Next
 
-Part B, the watcher: an hourly Oban job that records stocks with a Chainlink feed and a dollar
-pool over $10,000 as candidates. Advisory only; it never feeds a launch, a bid or the picker.
+Part B, the watcher, is built on the same branch: see "B. The watcher" in
+`/Users/sean/Documents/regent/worktrees/autolaunch/stocks-cca/platform/docs/handoffs/2026-10-13-new-projects-plan.md`.
 Part C, the Safe's prepared batch, stays design.

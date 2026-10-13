@@ -27,7 +27,10 @@ defmodule Autolaunch.Stocks.Stock.SyncAdmissions do
   never admitted is marked not admitted and keeps its other facts. One stock
   that cannot be read or saved does not hold back the others or the place in
   the logs: each is written on its own, and the run fails after them so it is
-  tried again and seen for as long as that stock stays unread.
+  tried again and seen for as long as that stock stays unread. Each
+  launchpad's pass that read its logs and left no stock unread sends the
+  chain readers' `[:autolaunch, :indexer, :lag]` event, so a list that stops
+  being read shows as passes that stop.
 
   A run is bounded: every chain call gives up after eight seconds, a stock's
   four reads after a minute, and the log read after three minutes, so a run
@@ -91,19 +94,33 @@ defmodule Autolaunch.Stocks.Stock.SyncAdmissions do
          {:ok, saved} <- saved(pad),
          named = Enum.reject(MapSet.union(logged, unread(scan)), &is_map_key(saved, &1)),
          {unread, recorded} = record(pad, head, saved, named),
+         next_block = reached(scan, next_block),
          {:ok, _scan} <-
            Autolaunch.advance_stock_admission_scan(
              %{
                chain_id: pad.chain_id,
                launchpad: pad.contract,
                run_id: pad.run_id,
-               next_block: reached(scan, next_block),
+               next_block: next_block,
                unread: unread
              },
              actor: @actor
-           ) do
-      with :ok <- read, do: recorded
+           ),
+         :ok <- read,
+         :ok <- recorded do
+      followed(pad, head, next_block)
     end
+  end
+
+  # A pass that read its logs and left no stock unread says how many blocks
+  # up to the head it has still to read, as the site's other chain readers
+  # do. A pass that failed says nothing, so its silence is what is seen.
+  defp followed(pad, head, next_block) do
+    :telemetry.execute(
+      [:autolaunch, :indexer, :lag],
+      %{blocks: max(head.number + 1 - next_block, 0)},
+      %{indexer: :stock_admissions, chain_id: pad.chain_id}
+    )
   end
 
   defp unread(nil), do: MapSet.new()
