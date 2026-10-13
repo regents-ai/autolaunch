@@ -88,8 +88,8 @@ defmodule Autolaunch.Auction do
       require_atomic? false
       accept @activity_place ++ @activity_figures
 
-      # Whether the pass saved or removed a bid, a clearing price or a
-      # withdraw or claim.
+      # Whether the pass saved a bid, a clearing price or a withdraw or claim
+      # the lists do not have yet, or removed the ones they had.
       argument :events_changed, :boolean, allow_nil?: false
     end
 

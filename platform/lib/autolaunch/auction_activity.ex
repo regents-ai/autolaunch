@@ -527,22 +527,18 @@ defmodule Autolaunch.AuctionActivity do
       if current.activity_next_block != auction.activity_next_block,
         do: Repo.rollback(:superseded)
 
-      {removed_bids, _} =
-        Repo.delete_all(
-          from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
-        )
+      Repo.delete_all(
+        from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
+      )
 
-      {removed_points, _} =
-        Repo.delete_all(
-          from p in AuctionPricePoint,
-            where: p.auction_id == ^auction.id and p.block_number >= ^first
-        )
+      Repo.delete_all(
+        from p in AuctionPricePoint,
+          where: p.auction_id == ^auction.id and p.block_number >= ^first
+      )
 
-      {removed_settlements, _} =
-        Repo.delete_all(
-          from s in BidSettlement,
-            where: s.auction_id == ^auction.id and s.block_number >= ^first
-        )
+      Repo.delete_all(
+        from s in BidSettlement, where: s.auction_id == ^auction.id and s.block_number >= ^first
+      )
 
       Ash.bulk_create!(bids, BidActivity, :record, actor: @actor, return_errors?: true)
       Ash.bulk_create!(points, AuctionPricePoint, :record, actor: @actor, return_errors?: true)
@@ -568,11 +564,7 @@ defmodule Autolaunch.AuctionActivity do
           estimated_end_at: ending,
           bid_volume: if(complete?, do: total),
           bid_volume_usd: dollar_volume(total, rate, complete?),
-          events_changed:
-            events_changed?(
-              removed_bids + removed_points + removed_settlements,
-              bids ++ points ++ settlements
-            )
+          events_changed: new_events?(current, bids ++ points ++ settlements)
         },
         actor: @actor,
         action: :refresh_activity,
@@ -589,9 +581,13 @@ defmodule Autolaunch.AuctionActivity do
     end
   end
 
-  # Whether the pass changed what the lists show of this auction's events: it
-  # removed one from a range it read again, or it saved one.
-  defp events_changed?(removed, saved), do: removed > 0 or saved != []
+  # Whether the pass saved an event the lists do not have yet. A pass that
+  # finds no new block reads its last block again; `cursor_valid/3` has checked
+  # that block is the one already saved, so its events are the same rows.
+  defp new_events?(%{activity_next_block: nil}, events), do: events != []
+
+  defp new_events?(%{activity_next_block: next}, events),
+    do: Enum.any?(events, &(&1.block_number >= next))
 
   # Every bid a Base auction announced is also its bidder's position, whether or
   # not their page was open when it confirmed. Only bids without a saved position
