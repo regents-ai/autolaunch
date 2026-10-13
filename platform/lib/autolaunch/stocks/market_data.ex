@@ -5,13 +5,15 @@ defmodule Autolaunch.Stocks.MarketData do
   a stock, for the auction pages.
 
   Stock prices come from the chain's Chainlink feeds (see `PriceFeeds`), and
-  REGENT's price is its Base Uniswap pool's, from DexScreener. On Base the
-  venues are the stock token's deepest USDC pool on Aerodrome and its deepest
-  on Uniswap, deepest first, each linked to that venue's swap page. They come
-  from GeckoTerminal's list of the token's twenty busiest pools: DexScreener's
-  listing leaves out Aerodrome's concentrated pools, where most of a stock's
-  trading is. On Robinhood it is the single DexScreener pair with the most
-  volume in the last day, linked to its DexScreener page. A full answer is kept for
+  REGENT's price is its Base Uniswap pool's, from DexScreener. A stock's venues
+  are the places holding more than $10,000 of its liquidity, the two deepest,
+  deepest first. On Base they are the stock token's deepest USDC pool on
+  Aerodrome and its deepest on Uniswap, each linked to that venue's swap page.
+  They come from GeckoTerminal's list of the token's twenty busiest pools:
+  DexScreener's listing leaves out Aerodrome's concentrated pools, where most
+  of a stock's trading is. On Robinhood they are each exchange's deepest
+  DexScreener pair of the stock token against USDG, both matched by address,
+  linked to its DexScreener page. A full answer is kept for
   ten minutes. A read that failed, or left a stock's price out, is tried again
   after one second, then two, four and so on, up to ten minutes. The reads
   happen in whichever process asks, so a page that asks from a background task
@@ -22,6 +24,7 @@ defmodule Autolaunch.Stocks.MarketData do
 
   alias Autolaunch.Chain.{Abi, Rpc}
 
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.{Assets, PriceFeeds}
   alias RegentChain.Address
 
@@ -33,6 +36,8 @@ defmodule Autolaunch.Stocks.MarketData do
   @geckoterminal "https://api.geckoterminal.com/api/v2"
   @regent_pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
   @base_venues [{"aerodrome", "Aerodrome"}, {"uniswap", "Uniswap"}]
+  @venue_floor_usd 10_000
+  @venue_limit 2
 
   def start_link(options \\ []),
     do: GenServer.start_link(__MODULE__, %{}, name: Keyword.get(options, :name, __MODULE__))
@@ -49,7 +54,7 @@ defmodule Autolaunch.Stocks.MarketData do
   @doc "REGENT's USD price in its Base Uniswap pool; nil while DexScreener has not answered."
   def regent_price, do: cached(:regent_price, &read_regent_price/0, nil)
 
-  @doc "The venues that trade the stock, deepest or busiest first; none for no stock."
+  @doc "The venues that trade the stock, deepest first; none for no stock."
   def venues(_chain, nil), do: []
 
   def venues(chain, stock),
@@ -178,7 +183,7 @@ defmodule Autolaunch.Stocks.MarketData do
 
         @base_venues
         |> Enum.flat_map(&deepest_pool(dollar_pools, &1, stock.address))
-        |> Enum.sort_by(& &1.liquidity_usd, :desc)
+        |> deepest_venues()
         |> then(&{:ok, &1})
 
       _unavailable ->
@@ -187,28 +192,51 @@ defmodule Autolaunch.Stocks.MarketData do
   end
 
   defp read_venues(:robinhood, stock) do
-    ticker = PriceFeeds.ticker(stock.symbol)
+    with {:ok, config} <- RobinhoodLab.current(),
+         {:ok, pairs} when is_list(pairs) <-
+           get("#{@dexscreener}/token-pairs/v1/robinhood/#{String.downcase(stock.address)}") do
+      usdg = RobinhoodLab.address!(config, :usdg)
 
-    case get("#{@dexscreener}/latest/dex/search?q=#{URI.encode_www_form(ticker)}") do
-      {:ok, %{"pairs" => pairs}} when is_list(pairs) ->
-        pairs
-        |> Enum.filter(&(&1["chainId"] == "robinhood" and &1["baseToken"]["symbol"] == ticker))
-        |> Enum.max_by(&volume/1, fn -> nil end)
-        |> List.wrap()
-        |> Enum.map(
-          &%{
-            name: venue_name(&1["dexId"]),
-            url: &1["url"],
-            liquidity_usd: number(&1["liquidity"]["usd"]),
-            volume_usd: volume(&1)
-          }
-        )
-        |> then(&{:ok, &1})
-
-      _unavailable ->
-        :error
+      pairs
+      |> Enum.filter(&dollar_pair?(&1, stock.address, usdg))
+      |> Enum.group_by(& &1["dexId"])
+      |> Enum.map(fn {dex, dex_pairs} ->
+        pair = Enum.max_by(dex_pairs, &liquidity/1)
+        %{name: venue_name(dex), url: pair["url"], liquidity_usd: liquidity(pair)}
+      end)
+      |> deepest_venues()
+      |> then(&{:ok, &1})
+    else
+      _unavailable -> :error
     end
   end
+
+  # The venues worth sending a buyer to: more than $10,000 of liquidity, the
+  # two deepest.
+  defp deepest_venues(venues) do
+    venues
+    |> Enum.filter(&(&1.liquidity_usd > @venue_floor_usd))
+    |> Enum.sort_by(& &1.liquidity_usd, :desc)
+    |> Enum.take(@venue_limit)
+  end
+
+  # A Robinhood pair of this stock token against USDG, either way round, both
+  # by address: another token can carry the same ticker.
+  defp dollar_pair?(
+         %{
+           "chainId" => "robinhood",
+           "baseToken" => %{"address" => base},
+           "quoteToken" => %{"address" => other}
+         },
+         stock,
+         usdg
+       )
+       when is_binary(base) and is_binary(other) do
+    (Address.equal?(base, stock) and Address.equal?(other, usdg)) or
+      (Address.equal?(base, usdg) and Address.equal?(other, stock))
+  end
+
+  defp dollar_pair?(_pair, _stock, _usdg), do: false
 
   # A pool of the stock against USDC, either way round: a pool against another
   # token is that token's market, and the swap page it would link starts from
@@ -235,14 +263,7 @@ defmodule Autolaunch.Stocks.MarketData do
     )
     |> Enum.max_by(&reserve/1, fn -> nil end)
     |> List.wrap()
-    |> Enum.map(
-      &%{
-        name: name,
-        url: swap_url(dex, stock),
-        liquidity_usd: reserve(&1),
-        volume_usd: dollars(get_in(&1, ["attributes", "volume_usd", "h24"]))
-      }
-    )
+    |> Enum.map(&%{name: name, url: swap_url(dex, stock), liquidity_usd: reserve(&1)})
   end
 
   defp reserve(pool), do: dollars(get_in(pool, ["attributes", "reserve_in_usd"]))
@@ -257,7 +278,7 @@ defmodule Autolaunch.Stocks.MarketData do
 
   defp dollars(_missing), do: 0.0
 
-  defp volume(pair), do: number(pair["volume"]["h24"])
+  defp liquidity(pair), do: number(get_in(pair, ["liquidity", "usd"]))
 
   defp number(value) when is_number(value), do: value / 1
   defp number(_missing), do: 0.0
