@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v101, 13 October 2026 (38bb67b): agent sign-in checks the request body
+- When an agent signs a request, the site now sends a digest of the request's body along
+  with the proof it checks, as every Regent site does from today. Nothing changes on the
+  pages, and agents keep signing the same way.
+
 ## v100, 13 October 2026 (370a738): a page for each bid
 - Every bid has its own page, opened from Details on the portfolio. It shows what is yours,
   what may happen next with its one button, and each transaction the bid made.
