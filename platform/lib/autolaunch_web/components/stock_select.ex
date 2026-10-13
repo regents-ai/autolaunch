@@ -289,10 +289,12 @@ defmodule AutolaunchWeb.Components.StockSelect do
     """
   end
 
-  # A stock is shown under its token's own name, less what is not the
-  # company's name: Robinhood's network, in every name it lists, and the
-  # company's legal form at the end ("Apple Inc.", "Microsoft Corporation").
-  defp company(stock) do
+  @doc """
+  The name a stock is shown under: its token's own name, less what is not the
+  company's name: Robinhood's network, in every name it lists, and the
+  company's legal form at the end ("Apple Inc.", "Microsoft Corporation").
+  """
+  def company(stock) do
     stock.name
     |> String.replace_suffix(" • Robinhood Token", "")
     |> String.replace(

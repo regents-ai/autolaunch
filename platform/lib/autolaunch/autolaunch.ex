@@ -296,6 +296,7 @@ defmodule Autolaunch do
     # Stocks Chainlink prices that no launchpad admits yet: advice only.
     resource Autolaunch.Stocks.StockCandidate do
       define :chain_stock_candidates, action: :on_chain, args: [:chain_id]
+      define :eligible_stock_candidates, action: :eligible
       define :list_stock_candidate, action: :list
       define :unlist_stock_candidate, action: :unlist
     end

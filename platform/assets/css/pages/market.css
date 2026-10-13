@@ -76,8 +76,8 @@
 
 /* The chain an auction or token lives on, bordered in that chain's colour. */
 .chain-chip { display: inline-flex; align-items: center; padding: 1px 8px; border: 2px solid var(--chain-color); border-radius: 4px; color: var(--color-fg); font-size: .75rem; font-weight: 600; line-height: 1.4; }
-.chain-chip--base { --chain-color: #0052ff; }
-.chain-chip--robinhood { --chain-color: #00c805; }
+.chain-chip--base { --chain-color: var(--chain-base); }
+.chain-chip--robinhood { --chain-color: var(--chain-robinhood); }
 
 /* A launch's trust section: who is behind it, then the launch itself, as two separate blocks. */
 .launch-trust { display: grid; gap: 16px; min-width: 0; }

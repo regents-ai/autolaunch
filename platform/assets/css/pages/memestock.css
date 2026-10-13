@@ -1,5 +1,5 @@
 /* Create a Memestock token: what only the Memestock form has. */
-.memestock { --memestock-base: #0052ff; --memestock-robinhood: #00c805; }
+.memestock { --memestock-base: var(--chain-base); --memestock-robinhood: var(--chain-robinhood); }
 
 /* Paired stock: Base or Robinhood, then the chain's stocks in one dropdown. */
 .memestock__paired { display: grid; gap: var(--space-2); }

@@ -31,6 +31,10 @@ defmodule Autolaunch.Stocks.StockCandidate do
   No launch, bid, picker or price reads this table; those read
   `Autolaunch.Stocks.Stock`, which is written only from the launchpads' own
   answers. Nothing here signs or sends a transaction.
+
+  The public Upcoming page (`AutolaunchWeb.UpcomingLive`) shows the rows that
+  say `:qualifies`, through `:eligible`: each one's chain, ticker and pool
+  size, and no address, so the page cannot lead anyone to a token.
   """
 
   use Ash.Resource,
@@ -97,6 +101,17 @@ defmodule Autolaunch.Stocks.StockCandidate do
       prepare build(sort: [ticker: :asc])
     end
 
+    # What anyone may read: the stocks the last look found ready to admit,
+    # deepest dollar pool first, and of each only what the Upcoming page shows.
+    read :eligible do
+      filter expr(status == :qualifies)
+
+      prepare build(
+                sort: [liquidity_usd: :desc, ticker: :asc],
+                select: [:chain_id, :ticker, :liquidity_usd]
+              )
+    end
+
     # A stock feed Chainlink lists; what an earlier read found is kept.
     create :list do
       accept [:chain_id, :ticker, :feed]
@@ -130,7 +145,11 @@ defmodule Autolaunch.Stocks.StockCandidate do
       authorize_if always()
     end
 
-    policy always() do
+    policy action(:eligible) do
+      authorize_if always()
+    end
+
+    policy action([:read, :on_chain, :list, :unlist, :list_feeds, :read_market, :read_failed]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
