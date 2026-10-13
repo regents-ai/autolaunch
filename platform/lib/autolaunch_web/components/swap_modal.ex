@@ -93,7 +93,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       aria-modal="true"
     >
       <header class="token-swap-modal__header">
-        <h2 id={@id <> "-title"}>Bid on <span class="token-name">{@auction.title}</span></h2>
+        <.auction_title id={@id <> "-title"} auction={@auction}>Bid on</.auction_title>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
           Close
         </Regent.Primitives.button>
@@ -134,10 +134,9 @@ defmodule AutolaunchWeb.Components.SwapModal do
       aria-modal="true"
     >
       <header class="token-swap-modal__header">
-        <h2 id={@id <> "-title"}>
+        <.auction_title id={@id <> "-title"} auction={@auction}>
           {if @ended, do: "Your bids on", else: "Bid on"}
-          <span class="token-name">{@auction.title}</span>
-        </h2>
+        </.auction_title>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
           Close
         </Regent.Primitives.button>
@@ -178,9 +177,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       aria-modal="true"
     >
       <header class="token-swap-modal__header">
-        <h2 id={@id <> "-title"}>
-          Your bid on <span class="token-name">{@position.auction.title}</span>
-        </h2>
+        <.auction_title id={@id <> "-title"} auction={@position.auction}>Your bid on</.auction_title>
         <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close">
           Close
         </Regent.Primitives.button>
@@ -195,6 +192,33 @@ defmodule AutolaunchWeb.Components.SwapModal do
         session_lease={@session_lease}
       />
     </dialog>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :auction, :map, required: true
+  slot :inner_block, required: true, doc: "the words before the auction's name"
+
+  # A bid window's title: the auction's picture, then what the window is for
+  # and the auction's name.
+  defp auction_title(assigns) do
+    ~H"""
+    <div class="token-swap-modal__title">
+      <span class="token-swap-modal__art">
+        <img
+          :if={@auction.image not in [nil, ""]}
+          src={@auction.image}
+          alt=""
+          decoding="async"
+          width="56"
+          height="56"
+        />
+        <span :if={@auction.image in [nil, ""]} aria-hidden="true">
+          {String.first(@auction.title || "?")}
+        </span>
+      </span>
+      <h2 id={@id}>{render_slot(@inner_block)} <span class="token-name">{@auction.title}</span></h2>
+    </div>
     """
   end
 end

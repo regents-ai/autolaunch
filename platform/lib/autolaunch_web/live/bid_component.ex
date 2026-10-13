@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.BidComponent do
   @generic "That did not go through. Try again in a moment."
 
   # A balance read that fails for one of these says why, beside the form.
-  @told [:bid_preparation_unavailable, :auction_currency_changed]
+  @told [:auction_currency_changed]
 
   @impl true
   def mount(socket) do
@@ -71,7 +71,7 @@ defmodule AutolaunchWeb.BidComponent do
        wallet: nil,
        signer: nil,
        mismatch: nil,
-       balance: nil,
+       balances: nil,
        prepared: nil,
        prepared_for: nil,
        preparing: nil,
@@ -140,7 +140,7 @@ defmodule AutolaunchWeb.BidComponent do
 
     if wallet == socket.assigns.wallet,
       do: socket,
-      else: socket |> assign(wallet: wallet, balance: nil) |> read_balance()
+      else: socket |> assign(wallet: wallet, balances: nil) |> read_balance()
   end
 
   defp reviewed_for_signer(%{assigns: %{review: %{signer: signer}}} = socket, signer), do: socket
@@ -223,11 +223,11 @@ defmodule AutolaunchWeb.BidComponent do
             book={@book}
             supply={@auction.token_supply}
             rate={@rate}
-            balance={@form.pay_with == @auction.quote_token_symbol && balance(@balance, @auction)}
+            balance={balance(@balances, @form.pay_with)}
           />
           <%!-- Outside the form: a wallet button is never inside one. --%>
           <div class="bid-actions">
-            <p class="bid-form__note" role="status" hidden={@balance != :unread}>
+            <p class="bid-form__note" role="status" hidden={@balances != :unread}>
               Your balance can't be read right now.
             </p>
             <p
@@ -314,7 +314,7 @@ defmodule AutolaunchWeb.BidComponent do
   end
 
   def handle_event("fill_bid_amount", _params, socket) do
-    case balance(socket.assigns.balance, socket.assigns.auction) do
+    case balance(socket.assigns.balances, socket.assigns.form.pay_with) do
       nil ->
         {:noreply, socket}
 
@@ -374,26 +374,26 @@ defmodule AutolaunchWeb.BidComponent do
   # A balance that could not be read says so; a later read that fails keeps
   # the last one read for the same wallet.
   def handle_async(:balance, {:ok, {wallet, read}}, %{assigns: %{wallet: wallet}} = socket) do
-    case {read, socket.assigns.balance} do
-      {{:ok, %{balance: balance}}, _shown} ->
-        {:noreply, assign(socket, balance: balance)}
+    case {read, socket.assigns.balances} do
+      {{:ok, %{balances: balances}}, _shown} ->
+        {:noreply, assign(socket, balances: balances)}
 
-      {{:error, _error}, shown} when is_binary(shown) ->
+      {{:error, _error}, shown} when is_map(shown) ->
         {:noreply, socket}
 
       {{:error, error}, _none} ->
         reason = refusal(error)
         notice = if reason in @told, do: copy(reason), else: socket.assigns.notice
-        {:noreply, assign(socket, balance: :unread, notice: notice)}
+        {:noreply, assign(socket, balances: :unread, notice: notice)}
     end
   end
 
   def handle_async(:balance, {:ok, _other_wallet}, socket), do: {:noreply, socket}
 
   def handle_async(:balance, {:exit, _reason}, socket) do
-    if is_binary(socket.assigns.balance),
+    if is_map(socket.assigns.balances),
       do: {:noreply, socket},
-      else: {:noreply, assign(socket, balance: :unread)}
+      else: {:noreply, assign(socket, balances: :unread)}
   end
 
   def handle_async({:onchain_step, hash}, result, socket),
@@ -656,7 +656,7 @@ defmodule AutolaunchWeb.BidComponent do
   # balance already shown stays, and one not read yet reads as unavailable.
   defp read_balance(%{assigns: %{wallet: wallet, auction: auction}} = socket)
        when is_binary(wallet) do
-    %{current_human_id: human_id, balance: balance} = socket.assigns
+    %{current_human_id: human_id, balances: balances} = socket.assigns
     opts = opts(socket)
 
     case Limits.spend(:wallet_read, {:human, human_id}) do
@@ -666,7 +666,7 @@ defmodule AutolaunchWeb.BidComponent do
         end)
 
       :limited ->
-        assign(socket, balance: balance || :unread)
+        assign(socket, balances: balances || :unread)
     end
   end
 
@@ -872,8 +872,7 @@ defmodule AutolaunchWeb.BidComponent do
     |> UsdValue.assign_rate(:usd_rate, :base, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
   end
 
-  defp balance(balance, %{quote_token_decimals: decimals}) when is_binary(balance),
-    do: balance |> String.to_integer() |> Autolaunch.bid_amount_units(decimals)
-
-  defp balance(_unread, _auction), do: nil
+  # The wallet's balance of the currency the budget is paid in, in whole units.
+  defp balance(balances, currency) when is_map(balances), do: balances[currency]
+  defp balance(_unread, _currency), do: nil
 end

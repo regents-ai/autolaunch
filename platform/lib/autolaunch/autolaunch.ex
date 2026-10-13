@@ -465,8 +465,4 @@ defmodule Autolaunch do
 
   def quote_auction_bid(auction_id, amount, max_price, opts \\ []),
     do: Autolaunch.BidActions.quote(auction_id, amount, max_price, opts)
-
-  # The bidder rule a presenter needs, owned here so the page and the named
-  # preparation action can only ever answer the same way.
-  defdelegate bid_amount_units(amount, decimals), to: Autolaunch.BidActions, as: :units
 end

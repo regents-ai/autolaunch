@@ -70,8 +70,9 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   the fields a bid never changes. A malformed log or a record that disagrees
   refuses the whole read rather than dropping an entry. A bid that has since
   exited or been claimed is still listed; its current state is stated as such.
-  The same read states the auction's STOCK and its bidding window, so the page
-  can name the currency and say whether bidding is open before any review.
+  The same read states the auction's STOCK, its bidding window and the
+  wallet's USDG, so the page can name the currency, say whether bidding is
+  open and show what the wallet can bid with before any review.
   """
   @spec bids(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def bids(auction, address, opts) do
@@ -87,18 +88,29 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          {:ok, window} <- bidding_window(auction, block, config, rpc),
          {:ok, graduated?} <- graduated?(auction, block, config, rpc),
          {:ok, logs} <- bid_logs(auction, signer, block, rpc),
-         {:ok, bids} <- bid_records(logs, auction, signer, decimals, block, config, rpc) do
+         {:ok, bids} <- bid_records(logs, auction, signer, decimals, block, config, rpc),
+         {:ok, usdg_balance} <- chain(usdg_balance(config, signer, block, rpc)) do
       {:ok,
        %{
          block: block,
          clock: clock,
          bids: bids,
+         usdg_balance: usdg_units(usdg_balance),
          stock: %{"address" => stock, "symbol" => asset.symbol},
          window: window,
          graduated?: graduated?
        }}
     end
   end
+
+  defp usdg_balance(config, signer, block, rpc),
+    do:
+      Rpc.call_uint(
+        Lab.address!(config, :usdg),
+        LabAbi.encode(Lab.abi!(config, :erc20), "balanceOf(address)", [signer]),
+        block,
+        rpc
+      )
 
   # Inputs
 

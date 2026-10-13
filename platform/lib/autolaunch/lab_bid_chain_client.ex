@@ -15,6 +15,31 @@ defmodule Autolaunch.LabBidChainClient do
   # The auction's own `currency()` is the token every balance and allowance is
   # read from: REGENT for an Agent auction, the admitted stock for a Stocks one.
   @impl true
+  def balances(%{auction: auction, signer: signer, usdc: usdc?}) do
+    with {:ok, auction} <- Address.normalize(auction),
+         {:ok, config, block, opts} <- LabRpc.current([:regent, :permit2]),
+         :ok <- LabRpc.ensure_contract(auction, block, opts),
+         {:ok, currency} <- call_address(config, auction, "currency()", [], block, opts),
+         {:ok, currency_balance} <-
+           LabRpc.call_uint(
+             config,
+             currency,
+             "token",
+             "balanceOf(address)",
+             [signer],
+             block,
+             opts
+           ),
+         {:ok, usdc_balance} <- usdc_balance(usdc?, signer, block, opts) do
+      {:ok, %{currency: currency, currency_balance: currency_balance, usdc_balance: usdc_balance}}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+      _other -> {:error, :invalid_chain_response}
+    end
+  end
+
+  @impl true
   def snapshot(%{auction: auction, signer: signer, max_price_q96: max_price}) do
     with {:ok, auction} <- Address.normalize(auction),
          {:ok, config, block, opts} <- LabRpc.current([:regent, :permit2]),
@@ -64,7 +89,7 @@ defmodule Autolaunch.LabBidChainClient do
            clearing_price_q96: clearing,
            max_bid_price_q96: cap
          },
-         {:ok, aligned} <- aligned_price(max_price, limits),
+         {:ok, aligned} <- Autolaunch.BidPrice.align(max_price, limits),
          {:ok, prev_tick_price_q96} <- predecessor(config, auction, aligned, block, opts) do
       {:ok,
        %{
@@ -166,10 +191,20 @@ defmodule Autolaunch.LabBidChainClient do
   defp started(%{number: number}, start_block) when number >= start_block, do: :ok
   defp started(_block, _start_block), do: {:error, :bid_preparation_unavailable}
 
-  defp aligned_price(nil, _limits), do: {:ok, nil}
-  defp aligned_price(price, limits), do: Autolaunch.BidPrice.align(price, limits)
+  defp usdc_balance(false, _signer, _block, _opts), do: {:ok, nil}
 
-  defp predecessor(config, auction, max_price, block, opts) when is_integer(max_price) do
+  defp usdc_balance(true, signer, block, opts) do
+    with {:ok, config} <- StocksLab.current() do
+      Autolaunch.Chain.Rpc.call_uint(
+        StocksLab.address!(config, :usdc),
+        LabAbi.encode(StocksLab.abi!(config, :erc20), "balanceOf(address)", [signer]),
+        block,
+        opts
+      )
+    end
+  end
+
+  defp predecessor(config, auction, max_price, block, opts) do
     with {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
          true <- floor < max_price do
       walk_ticks(config, auction, floor, max_price, block, opts, 0)
@@ -178,8 +213,6 @@ defmodule Autolaunch.LabBidChainClient do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  defp predecessor(_config, _auction, nil, _block, _opts), do: {:ok, 0}
 
   defp walk_ticks(_config, _auction, _current, _max_price, _block, _opts, @max_tick_walk),
     do: {:error, :bid_preparation_unavailable}

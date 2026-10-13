@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.Components.LaunchKindChoice do
         aria-current={@current == :memestock && "page"}
       >
         <strong>Memestock</strong>
-        <span>Pairing a memecoin with a real stock is called a memestock.</span>
+        <span>Create a memecoin paired to onchain stock. Holders earn the stock from trading fees.</span>
       </.link>
       <.link
         navigate={~p"/create/revstake"}
