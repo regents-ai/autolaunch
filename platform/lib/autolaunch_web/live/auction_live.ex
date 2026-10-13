@@ -93,27 +93,27 @@ defmodule AutolaunchWeb.AuctionLive do
      )}
   end
 
-  # Either feed may have moved. A reading of this auction is read again here;
-  # another auction's reading only moves the page's block clock.
+  # Either feed may have moved. The page's block clock always takes the newest
+  # snapshot. A message naming this auction reads it again from the chain, and
+  # `market_read` marks the snapshot that reading covered: several messages can
+  # be waiting, each sees the same newest snapshot, and the one naming this
+  # auction must still read it again whichever of them moved the clock first.
   def handle_info({:autolaunch_market_updated, %{auction_ids: auction_ids}}, socket) do
     market = market_snapshot()
+    socket = assign(socket, :market, market)
 
-    cond do
-      market.generation <= socket.assigns.market.generation ->
-        {:noreply, socket}
-
-      socket.assigns.record_id in auction_ids ->
-        {:noreply,
-         socket
-         |> assign(:market, market)
-         |> assign_positions()
-         |> load_page(reset: false)
-         |> load_book(reset: false)
-         |> load_snapshot(reset: false)
-         |> load_history(reset: false)}
-
-      true ->
-        {:noreply, assign(socket, :market, market)}
+    if socket.assigns.record_id in auction_ids and
+         market.generation != socket.assigns.market_read do
+      {:noreply,
+       socket
+       |> assign(:market_read, market.generation)
+       |> assign_positions()
+       |> load_page(reset: false)
+       |> load_book(reset: false)
+       |> load_snapshot(reset: false)
+       |> load_history(reset: false)}
+    else
+      {:noreply, socket}
     end
   end
 
@@ -829,9 +829,10 @@ defmodule AutolaunchWeb.AuctionLive do
   defp assign_market(socket) do
     if connected?(socket) and Process.whereis(LabMarketFeed) do
       Phoenix.PubSub.subscribe(Autolaunch.PubSub, LabMarketFeed.topic())
-      assign(socket, :market, market_snapshot())
+      market = market_snapshot()
+      assign(socket, market: market, market_read: market.generation)
     else
-      assign(socket, :market, empty_market())
+      assign(socket, market: empty_market(), market_read: 0)
     end
   end
 

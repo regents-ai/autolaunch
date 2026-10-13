@@ -39,4 +39,8 @@ defmodule AutolaunchWeb.Telemetry.Announcements do
     :telemetry.execute([:autolaunch, :pages, :announced], %{count: 1}, %{kind: @kinds[kind]})
     {:noreply, state}
   end
+
+  # A message shape these topics gain later is not counted, and never stops
+  # the counter.
+  def handle_info(_other, state), do: {:noreply, state}
 end

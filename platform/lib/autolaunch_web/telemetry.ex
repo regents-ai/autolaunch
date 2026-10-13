@@ -177,7 +177,10 @@ defmodule AutolaunchWeb.Telemetry do
        period: 10_000,
        name: :autolaunch_site_poller}
 
-  # Where the endpoint runs no server (tests), there is nothing to count.
+  # Where the endpoint runs no server (tests), there is nothing to count. The
+  # poller drops a measurement that exits for good, so a web server supervisor
+  # that is restarting or slow to answer this tick skips it; the next tick
+  # counts again.
   @doc false
   def open_connections do
     with {:ok, server} when is_pid(server) <-
@@ -185,6 +188,8 @@ defmodule AutolaunchWeb.Telemetry do
          {:ok, connections} <- ThousandIsland.connection_pids(server) do
       :telemetry.execute([:autolaunch, :site, :connections], %{open: length(connections)}, %{})
     end
+  catch
+    :exit, reason -> Logger.warning("open connections not counted: #{inspect(reason)}")
   end
 
   # The poller drops a measurement that raises for good, so a database that
