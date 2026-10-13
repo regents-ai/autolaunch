@@ -108,7 +108,8 @@ defmodule AutolaunchWeb.MyPositionsController do
       max_price: position.max_price,
       standing: standing,
       can: can,
-      page: PublicDocuments.url(Paths.auction(auction))
+      page: PublicDocuments.url(Paths.auction(auction)),
+      bid_page: PublicDocuments.url(Paths.bid(position.bid_id))
     }
   end
 
@@ -136,9 +137,10 @@ defmodule AutolaunchWeb.MyPositionsController do
 
   defp robinhood_bid(position) do
     {standing, can} = robinhood_standing(position.standing)
+    bid = String.downcase("#{position.auction}:#{position.bid_id}")
 
     %{
-      bid: String.downcase("#{position.auction}:#{position.bid_id}"),
+      bid: bid,
       chain: "robinhood",
       name: position.name,
       symbol: position.symbol,
@@ -147,7 +149,8 @@ defmodule AutolaunchWeb.MyPositionsController do
       max_price: position.max_price,
       standing: standing,
       can: can,
-      page: position.listing && PublicDocuments.url(Paths.auction(position.listing))
+      page: position.listing && PublicDocuments.url(Paths.auction(position.listing)),
+      bid_page: PublicDocuments.url(Paths.bid(bid))
     }
   end
 

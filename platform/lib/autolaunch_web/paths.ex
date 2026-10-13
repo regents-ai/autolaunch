@@ -18,6 +18,9 @@ defmodule AutolaunchWeb.Paths do
   @doc "The auction's page."
   def auction(auction), do: ~p"/auctions/#{symbol(auction)}/#{auction.path_tail}"
 
+  @doc "One of a wallet's bids: a Base bid's `bid_id`, or `<auction>:<bid>` on Robinhood."
+  def bid(id), do: ~p"/portfolio/bids/#{id}"
+
   @doc "The page of the token the auction launched."
   def token(auction), do: ~p"/tokens/#{symbol(auction)}/#{auction.path_tail}"
 

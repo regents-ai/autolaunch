@@ -10,6 +10,11 @@ defmodule Autolaunch do
   resources do
     resource Autolaunch.BidActivity do
       define :auction_bids, action: :for_auction, args: [:auction_id]
+      define :auction_bid, action: :for_bid, args: [:auction_id, :bid_id], not_found_error?: false
+    end
+
+    resource Autolaunch.BidSettlement do
+      define :bid_settlements, action: :for_bid, args: [:auction_id, :bid_id]
     end
 
     resource Autolaunch.TokenTrade

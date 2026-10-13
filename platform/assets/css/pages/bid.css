@@ -1,0 +1,18 @@
+/* One bid's own page: the account screen's three panels, one under the other. */
+.bid-page { display: grid; gap: var(--space-3); max-inline-size: 48rem; }
+.bid-page__back { justify-self: start; color: var(--color-fg-muted); font-size: .875rem; }
+.bid-page__header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.bid-page__header h1 { margin: 0; font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 650; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.bid-page__header > div:nth-child(2) { flex: 1 1 16rem; min-inline-size: 0; }
+.bid-page__status { margin-inline-start: auto; text-align: right; }
+.bid-page__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+.rg-account .bid-page__mine { margin-block-start: var(--space-2); }
+/* Every row keeps its second line's place, so a figure arriving never moves the rows below. */
+.bid-page__mine .bid-page__detail { min-block-size: 1.5em; margin: 2px 0 0; font-family: var(--font-family-ui); font-size: .75rem; color: var(--color-fg-muted); }
+.bid-page__line { margin: var(--space-2) 0; line-height: 1.5; }
+/* The button's place is kept whether a button or a waiting line fills it. */
+.bid-page__slot { display: flex; align-items: center; min-block-size: 44px; }
+.rg-account .rg-account__history { margin-block-start: var(--space-2); }
+/* The explorer link's place is kept on a line the chain watcher did not record. */
+.bid-page__link { min-inline-size: 5.5rem; text-align: right; font-size: .875rem; }
+.rg-account__history .rg-account__when { min-block-size: 1.5em; color: var(--color-fg-muted); }

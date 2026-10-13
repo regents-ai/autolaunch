@@ -992,7 +992,7 @@ components:
     MyBid:
       type: object
       additionalProperties: false
-      required: [bid, chain, name, symbol, currency, amount, max_price, standing, can, page]
+      required: [bid, chain, name, symbol, currency, amount, max_price, standing, can, page, bid_page]
       properties:
         bid: {type: string, description: "The bid's id: its number on a Base auction, or auction:number on a Robinhood one."}
         chain: {type: string, enum: [base, robinhood]}
@@ -1009,6 +1009,7 @@ components:
           enum: [withdraw, claim, early_return, null]
           description: "What the bid's card on its auction page offers now. early_return means the unspent money may come back before the auction ends; the bid's card says when."
         page: {type: [string, "null"], format: uri, description: "The auction page where the bid's card is; null for a Robinhood auction this site does not list."}
+        bid_page: {type: string, format: uri, description: "The bid's own page, for the person who placed it: what is theirs, what may happen next with its one button, and each transaction with its explorer link. Give this address to the person when the bid needs them."}
     MyToken:
       type: object
       additionalProperties: false

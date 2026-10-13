@@ -170,6 +170,7 @@ defmodule AutolaunchWeb.Router do
       live "/tokens/:symbol/:tail", MarketPageLive, :token
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
+      live "/portfolio/bids/:id", BidLive, :bid
       live "/account", AccountLive, :account
       live "/account/points", PointsLive, :points
       live "/regent", RegentLive, :regent

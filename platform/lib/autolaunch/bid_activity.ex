@@ -32,6 +32,13 @@ defmodule Autolaunch.BidActivity do
       prepare build(sort: [block_number: :asc, log_index: :asc])
     end
 
+    read :for_bid do
+      get? true
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :bid_id, :string, allow_nil?: false
+      filter expr(auction_id == ^arg(:auction_id) and bid_id == ^arg(:bid_id))
+    end
+
     create :record do
       accept [
         :auction_id,
@@ -69,7 +76,7 @@ defmodule Autolaunch.BidActivity do
   end
 
   policies do
-    policy action([:recent, :for_auction]) do
+    policy action([:recent, :for_auction, :for_bid]) do
       authorize_if always()
     end
 

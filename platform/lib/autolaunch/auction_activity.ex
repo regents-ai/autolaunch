@@ -1,9 +1,10 @@
 defmodule Autolaunch.AuctionActivity do
   @moduledoc """
-  A bounded, browser-independent projection of confirmed bids and the clearing
-  prices the auction announced. Each pass reads one auction and at most 2,000
+  A bounded, browser-independent projection of confirmed bids, the clearing
+  prices the auction announced, and the withdraws and claims of its bids
+  (`Autolaunch.BidSettlement`). Each pass reads one auction and at most 2,000
   blocks. The cursor and rows commit together;
-  repeat ranges replace the same bids. A changed cursor block invalidates this
+  repeat ranges replace the same events. A changed cursor block invalidates this
   auction's derived activity and rebuilds it. On Base each bid also becomes its
   bidder's wallet position; a rebuild never removes or changes a saved one.
   """
@@ -12,13 +13,27 @@ defmodule Autolaunch.AuctionActivity do
   require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
-  alias Autolaunch.{Auction, AuctionPricePoint, Bid, BidActivity, BidPrice, LabAbi, Repo}
+
+  alias Autolaunch.{
+    Auction,
+    AuctionPricePoint,
+    Bid,
+    BidActivity,
+    BidPrice,
+    BidSettlement,
+    LabAbi,
+    Repo
+  }
+
   alias Autolaunch.Chain.Rpc
   alias RegentChain.Address
   @actor %System{}
   @bid "BidSubmitted(uint256,address,uint256,uint128)"
   @checkpoint "CheckpointUpdated(uint256,uint256,uint24)"
   @price "ClearingPriceUpdated(uint256,uint256)"
+  @exited "BidExited(uint256,address,uint256,uint256)"
+  @claimed "TokensClaimed(uint256,address,uint256)"
+  @token_decimals 18
   @adapter_bid "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @range 2_000
 
@@ -82,7 +97,7 @@ defmodule Autolaunch.AuctionActivity do
          :ok <- cursor_valid(auction, head, venue.opts),
          {:ok, last, logs} <- logs(auction, venue, first, min(first + @range - 1, head.number)),
          {:ok, headers} <- headers(logs, last, venue.opts),
-         {:ok, bids, points} <- events(auction, venue, logs, headers, first),
+         {:ok, bids, points, settlements} <- events(auction, venue, logs, headers, first),
          {:ok, current} <- header(head.number, venue.opts),
          true <- current.hash == head.hash do
       timestamp = DateTime.from_unix!(current.timestamp, :second)
@@ -93,7 +108,7 @@ defmodule Autolaunch.AuctionActivity do
         first,
         last,
         headers[last].hash,
-        {bids, points},
+        {bids, points, settlements},
         {at(timestamp, clock, start_block, venue), at(timestamp, clock, end_block, venue)},
         rate,
         last == head.number
@@ -201,7 +216,15 @@ defmodule Autolaunch.AuctionActivity do
     bid_filter =
       Map.merge(range, %{
         address: auction.auction_address,
-        topics: [[LabAbi.topic(@bid), LabAbi.topic(@checkpoint), LabAbi.topic(@price)]]
+        topics: [
+          [
+            LabAbi.topic(@bid),
+            LabAbi.topic(@checkpoint),
+            LabAbi.topic(@price),
+            LabAbi.topic(@exited),
+            LabAbi.topic(@claimed)
+          ]
+        ]
       })
 
     # Scope the adapter query to this auction, not every auction on the network.
@@ -278,19 +301,21 @@ defmodule Autolaunch.AuctionActivity do
            |> Enum.filter(&Address.equal?(&1["address"], auction.auction_address))
            |> map_ok(&positioned(&1, headers)),
          {:ok, clock} <- stored_clock(auction, first),
-         {:ok, _clock, bids, points} <-
+         {:ok, _clock, {bids, points, settlements}} <-
            read_events(positioned, clock, &event(auction, venue, logs, headers, &1, &2, &3)),
          {:ok, points} <- with_sold(points, auction, headers, venue.opts),
-         do: {:ok, bids, points}
+         do: {:ok, bids, points, settlements}
   end
 
   defp read_events(positioned, clock, read) do
     positioned
     |> Enum.sort_by(fn {position, _log} -> position end)
-    |> Enum.reduce_while({:ok, clock, [], []}, fn {position, log}, {:ok, clock, bids, points} ->
+    |> Enum.reduce_while({:ok, clock, {[], [], []}}, fn {position, log},
+                                                        {:ok, clock, {bids, points, settled}} ->
       case read.(position, log, clock) do
-        {:point, point} -> {:cont, {:ok, point.clock_block, bids, [point | points]}}
-        {:bid, bid} -> {:cont, {:ok, clock, [bid | bids], points}}
+        {:point, point} -> {:cont, {:ok, point.clock_block, {bids, [point | points], settled}}}
+        {:bid, bid} -> {:cont, {:ok, clock, {[bid | bids], points, settled}}}
+        {:settlement, row} -> {:cont, {:ok, clock, {bids, points, [row | settled]}}}
         error -> {:halt, error}
       end
     end)
@@ -317,6 +342,8 @@ defmodule Autolaunch.AuctionActivity do
     checkpoint = LabAbi.topic(@checkpoint)
     price = LabAbi.topic(@price)
     bid = LabAbi.topic(@bid)
+    exited = LabAbi.topic(@exited)
+    claimed = LabAbi.topic(@claimed)
 
     case {log["topics"], words(log["data"])} do
       {[^checkpoint], {:ok, [at, clearing, _released]}} ->
@@ -349,8 +376,39 @@ defmodule Autolaunch.AuctionActivity do
            }}
         end
 
+      {[^exited, id, owner], {:ok, [filled, refunded]}} ->
+        settlement(auction, headers, {number, index}, log, {id, owner}, %{
+          kind: :exit,
+          currency: Decimal.new(Rpc.format_units(refunded, auction.quote_token_decimals)),
+          tokens: Decimal.new(Rpc.format_units(filled, @token_decimals))
+        })
+
+      {[^claimed, id, owner], {:ok, [tokens]}} ->
+        settlement(auction, headers, {number, index}, log, {id, owner}, %{
+          kind: :claim,
+          currency: nil,
+          tokens: Decimal.new(Rpc.format_units(tokens, @token_decimals))
+        })
+
       _ ->
         {:error, :invalid_bid_event}
+    end
+  end
+
+  defp settlement(auction, headers, {number, index}, log, {id, owner}, amounts) do
+    with {:ok, bid_id} <- quantity(id),
+         {:ok, owner} <- topic_address(owner) do
+      {:settlement,
+       Map.merge(amounts, %{
+         auction_id: auction.id,
+         bid_id: Integer.to_string(bid_id),
+         owner: owner,
+         transaction_hash: log["transactionHash"],
+         block_hash: headers[number].hash,
+         block_number: number,
+         log_index: index,
+         occurred_at: DateTime.from_unix!(headers[number].timestamp)
+       })}
     end
   end
 
@@ -445,7 +503,16 @@ defmodule Autolaunch.AuctionActivity do
   # This system projection locks its parent auction before replacing confirmed
   # events and aggregating their exact amounts in SQL. Notifications come only
   # from the parent Ash update after the enclosing transaction commits.
-  defp commit(auction, first, last, hash, {bids, points}, {opening, ending}, rate, complete?) do
+  defp commit(
+         auction,
+         first,
+         last,
+         hash,
+         {bids, points, settlements},
+         {opening, ending},
+         rate,
+         complete?
+       ) do
     Repo.transaction(fn ->
       current =
         Auction
@@ -469,8 +536,18 @@ defmodule Autolaunch.AuctionActivity do
           where: p.auction_id == ^auction.id and p.block_number >= ^first
       )
 
+      Repo.delete_all(
+        from s in BidSettlement, where: s.auction_id == ^auction.id and s.block_number >= ^first
+      )
+
       Ash.bulk_create!(bids, BidActivity, :record, actor: @actor, return_errors?: true)
       Ash.bulk_create!(points, AuctionPricePoint, :record, actor: @actor, return_errors?: true)
+
+      Ash.bulk_create!(settlements, BidSettlement, :record,
+        actor: @actor,
+        return_errors?: true
+      )
+
       record_positions(auction)
 
       total =
@@ -563,6 +640,7 @@ defmodule Autolaunch.AuctionActivity do
 
       Repo.delete_all(from b in BidActivity, where: b.auction_id == ^auction.id)
       Repo.delete_all(from p in AuctionPricePoint, where: p.auction_id == ^auction.id)
+      Repo.delete_all(from s in BidSettlement, where: s.auction_id == ^auction.id)
 
       Ash.update!(
         current,

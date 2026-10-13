@@ -88,6 +88,9 @@ defmodule AutolaunchWeb.PublicDocuments do
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
+    :bid =>
+      {"Your bid",
+       "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
     "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
     "/regent" =>

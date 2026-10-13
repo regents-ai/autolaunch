@@ -6,7 +6,8 @@ defmodule AutolaunchWeb.PortfolioLive do
   Each bid is a list row: its token, what it put in, its maximum price, where
   it stands and its auction's time. Under it sit its buttons: the auction's
   page (the token's once it has launched), withdrawing or claiming when the
-  auction allows it, and bidding more while bidding is open. Each token the
+  auction allows it, bidding more while bidding is open, and the bid's own
+  page (`AutolaunchWeb.BidLive`); several bids in one auction are one row each. Each token the
   wallet holds or stakes is a row with its page, Buy, Sell and Stake. Every
   wallet step happens in the same components the auction and token pages use,
   opened here in a dialog, or for a Base bid's early return, under its row.
@@ -411,6 +412,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     live? = auction.state == :active
     book = price && price.book
     standing = if(live? && book, do: AuctionBook.bid_standing(position, auction, book))
+    settle = settle_label(position)
 
     assigns =
       assign(assigns,
@@ -421,11 +423,12 @@ defmodule AutolaunchWeb.PortfolioLive do
             else: Paths.auction(auction)
           ),
         rate: figure_rate(assigns.rates, auction),
-        settle: settle_label(position),
+        settle: settle,
         live?: live?,
         book: book,
         standing: standing,
-        is: base_standing(position, standing, price)
+        # A bid with a withdraw or claim shows that button in place of its standing.
+        is: if(!settle, do: base_standing(position, standing, price))
       )
 
     ~H"""
@@ -465,6 +468,9 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               Bid more
             </Regent.Primitives.button>
+            <.link navigate={Paths.bid(@position.bid_id)} class="rg-button rg-button--quiet">
+              Details
+            </.link>
           </div>
         </td>
         <td><.auction_status id={"portfolio-time-#{@position.id}"} auction={@auction} /></td>
@@ -558,6 +564,12 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               Bid more
             </Regent.Primitives.button>
+            <.link
+              navigate={Paths.bid(String.downcase("#{@position.auction}:#{@position.bid_id}"))}
+              class="rg-button rg-button--quiet"
+            >
+              Details
+            </.link>
           </div>
         </td>
         <td>
