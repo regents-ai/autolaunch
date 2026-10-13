@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v106, 13 October 2026 (ca358ae): open pages are told only when something they show changed
+- An open page is sent an update only when something it shows changed. Before, every open
+  page was told on each pass of the site's readers, whether or not anything had moved. On
+  the live site an open page now receives about 24 updates a minute, down from about 70.
+- An auction's page reads its auction again when a reading names that auction, and the
+  price strip sends its list only when the list differs from the last one.
+- Claims on finished auctions reach the lists on the ten-minute pass.
+
 ## v105, 13 October 2026 (3bd5639): an auction page shows its price before bidding opens
 - An auction's page shows its price and schedule from the moment it is launched. Before,
   between the launch and the first block of bidding, the page said the auction could not be
