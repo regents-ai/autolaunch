@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Next release: the home page as the front door
+## v99, 13 October 2026 (5874c18): the home page as the front door
 - The home page opens with the title "Autolaunch Auctions" and one "Launch a token"
   button. Before launches open, the button stays in place, switched off, with "Opens soon"
   beside it.

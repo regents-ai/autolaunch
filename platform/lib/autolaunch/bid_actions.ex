@@ -18,8 +18,8 @@ defmodule Autolaunch.BidActions do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Client, Rpc}
   alias Autolaunch.{ChainClient, Lab, LabAbi, LabBidChainClient, TreasurySecurity}
-  alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias RegentChain.{Address, Review}
 
