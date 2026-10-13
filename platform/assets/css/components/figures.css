@@ -12,7 +12,5 @@
 /* A state word (Ready, Completed, Outbid) is a micro-label chip; its tone gives the colour. The Create pages' launch steps read the same way. */
 :where(.portfolio, .token-page, .auction-page, dialog, .launch-wallet) .rg-status { align-items: center; font-size: .6875rem; font-weight: 600; letter-spacing: var(--tracking-microlabel); line-height: 1.6; text-transform: uppercase; white-space: nowrap; }
 
-/* An ended auction's state word takes its outcome's colour. */
+/* An auction's state word, before it opens and while it waits to finish. */
 :where(.portfolio, .token-page, .auction-page, dialog) .auction-state { font-weight: 600; }
-:where(.portfolio, .token-page, .auction-page, dialog) .auction-state[data-state="graduated"] { color: var(--color-success); }
-:where(.portfolio, .token-page, .auction-page, dialog) .auction-state[data-state="failed"] { color: var(--color-error); }

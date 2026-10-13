@@ -5,7 +5,8 @@ defmodule Autolaunch.Bid do
     otp_app: :autolaunch,
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table "bids"
@@ -28,6 +29,18 @@ defmodule Autolaunch.Bid do
     read :mine_by_wallet do
       argument :wallet_address, :string, allow_nil?: false
       filter expr(string_downcase(owner_address) == ^arg(:wallet_address))
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
+    # The one wallet's ended bids with money to take back or tokens to claim.
+    read :to_settle_by_wallet do
+      argument :wallet_address, :string, allow_nil?: false
+
+      filter expr(
+               string_downcase(owner_address) == ^arg(:wallet_address) and
+                 status in ["returnable", "claimable"]
+             )
+
       prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
     end
 
@@ -145,17 +158,27 @@ defmodule Autolaunch.Bid do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action([:mine, :mine_by_wallet, :owned_by_bid_id]) do
+    policy action([:mine, :mine_by_wallet, :to_settle_by_wallet, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:mine, :mine_by_wallet, :owned_by_bid_id]) do
+    policy action([:mine, :mine_by_wallet, :to_settle_by_wallet, :owned_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
     policy action([:import_position, :project_lab, :record_from_chain, :set_chain_identity]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
+  end
+
+  # A bid's standing is written only by `:project_lab`; its owner's open pages
+  # hear of each write (`Autolaunch.WalletBids`).
+  pub_sub do
+    module Phoenix.PubSub
+    name Autolaunch.PubSub
+    transform fn notification -> {:autolaunch_bid_changed, notification.data.bid_id} end
+
+    publish :project_lab, ["wallet_bids", :owner_address]
   end
 
   attributes do

@@ -29,6 +29,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
 
+  attr :settle, :string,
+    default: nil,
+    doc: "the viewer's own Claim or Refund press, when they have one"
+
   attr :rate, :any,
     default: nil,
     doc: "the USD price of one unit of the record's currency, for its figures"
@@ -62,6 +66,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       bar={@bar}
       raise?={@record.kind == :agent}
       trade_event={@trade_event}
+      settle={@settle}
     />
     """
   end
@@ -170,6 +175,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :bar, :map, required: true
   attr :raise?, :boolean, default: false, doc: "a Revstake auction, which shows its bid volume"
   attr :trade_event, :string, default: nil
+  attr :settle, :string, default: nil, doc: "the card's half-width button shows its first word"
   attr :preview, :boolean, default: false, doc: "a draft's card: shown whole, and inert"
 
   defp auction_card(assigns) do
@@ -221,6 +227,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
           title={@view.bid.unavailable}
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
+        <Regent.Primitives.button
+          :if={@settle}
+          class="home-coin__action"
+          phx-click="open_settlement"
+          phx-value-id={@view.record_id}
+          aria-label={@settle}
+          title={@settle}
+        >{@settle |> String.split() |> hd()}</Regent.Primitives.button>
       </div>
       <div
         id={"time-bar-#{@figures.id}"}
@@ -484,11 +498,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "the event a row's Bid button sends with the auction's id; no Bid column without it"
 
+  attr :settle, :map,
+    default: %{},
+    doc:
+      "the viewer's own Claim or Refund press on each finished auction they bid in, by auction id"
+
   @doc """
   The auctions list: the token with its creator and age, then its price, what
   bidders have put in, its market cap and its status, and a Bid button on a
-  live auction when the page takes bids. On a phone the raise and market cap
-  are left out.
+  live auction when the page takes bids. A finished auction the viewer has
+  money or tokens to take from shows that press there instead. On a phone the
+  raise and market cap are left out.
   """
   def auction_list(assigns) do
     ~H"""
@@ -515,6 +535,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             auction={record}
             rate={figure_rate(@rates, record)}
             trade_event={@trade_event}
+            settle={@settle[record.id]}
           />
           <tr
             :for={index <- 1..6}
@@ -543,14 +564,25 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :auction, :map, required: true
   attr :rate, :any, default: nil
   attr :trade_event, :string, default: nil
+  attr :settle, :string, default: nil
 
   defp auction_list_row(assigns) do
     view = view(:auction, assigns.auction, %{})
 
+    # A phone shows the press's first word; the amount is in the card it opens.
+    {settle_word, settle_rest} =
+      case assigns.settle && String.split(assigns.settle, " ", parts: 2) do
+        [word, rest] -> {word, " " <> rest}
+        [word] -> {word, nil}
+        nil -> {nil, nil}
+      end
+
     assigns =
       assign(assigns,
         view: view,
-        figures: figures(assigns.auction, assigns.rate)
+        figures: figures(assigns.auction, assigns.rate),
+        settle_word: settle_word,
+        settle_rest: settle_rest
       )
 
     ~H"""
@@ -591,6 +623,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
           title={@view.bid.unavailable}
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
+        <Regent.Primitives.button
+          :if={@settle}
+          phx-click="open_settlement"
+          phx-value-id={@view.record_id}
+          aria-label={@settle}
+        >{@settle_word}<span class="market-list__rest">{@settle_rest}</span></Regent.Primitives.button>
       </td>
     </tr>
     """
@@ -895,6 +933,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       opens_at: live_open(auction),
       ends_at: live_end(auction),
       status: figure_status(auction),
+      outcome: outcome(auction),
       state: auction.state,
       id: auction.id
     }
@@ -999,6 +1038,19 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp ended(label, _auction), do: label
 
+  # How a finished auction came out, as its bar's fill and the few words under
+  # it: a full bar once graduated, else how much of the minimum was raised.
+  defp outcome(%{state: :graduated}), do: %{fill: 100, label: "Graduated"}
+
+  defp outcome(%{state: :failed} = auction) do
+    case AuctionFigures.percent_met(auction) do
+      nil -> %{fill: 0, label: "Minimum unmet"}
+      percent -> %{fill: percent, label: "#{percent}% of minimum"}
+    end
+  end
+
+  defp outcome(_auction), do: nil
+
   attr :id, :string, required: true, doc: "unique on the page, for the ticking time left"
   attr :auction, :map, required: true
 
@@ -1014,6 +1066,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           opens_at: live_open(auction),
           ends_at: live_end(auction),
           status: figure_status(auction),
+          outcome: outcome(auction),
           state: auction.state
         },
         chain: if(RobinhoodLab.chain?(auction.chain_id), do: "Robinhood", else: "Base")
@@ -1028,8 +1081,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :chain, :string, required: true, values: ["Base", "Robinhood"]
 
   # A live auction's time bar in its chain's colour over its time left, both
-  # kept moving in the browser; any other state's word and when it ended. A
-  # live auction whose opening time is unknown shows an empty bar.
+  # kept moving in the browser. A finished auction's outcome bar: full and
+  # ticked once graduated, else filled as far as the minimum was met, with when
+  # it ended on hover. Any other state's word. A live auction whose opening
+  # time is unknown shows an empty bar.
   defp status_figure(assigns) do
     ~H"""
     <span
@@ -1047,7 +1102,26 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </span>
       <small>{@figures.status}</small>
     </span>
-    <span :if={!@figures.ends_at} class="auction-state" data-state={@figures.state}>
+    <span
+      :if={@figures.outcome}
+      class="auction-outcome"
+      data-state={@figures.state}
+      title={@figures.status}
+    >
+      <span class="auction-figures__time" aria-hidden="true">
+        <span style={"width: #{@figures.outcome.fill}%"}></span>
+      </span>
+      <small>
+        <svg :if={@figures.state == :graduated} viewBox="0 0 16 16" aria-hidden="true">
+          <path d="m3 8.5 3.2 3L13 4.5" />
+        </svg>{@figures.outcome.label}
+      </small>
+    </span>
+    <span
+      :if={!@figures.ends_at && !@figures.outcome}
+      class="auction-state"
+      data-state={@figures.state}
+    >
       {@figures.status}
     </span>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeLeft">

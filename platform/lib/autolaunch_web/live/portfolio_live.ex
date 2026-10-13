@@ -412,7 +412,7 @@ defmodule AutolaunchWeb.PortfolioLive do
     live? = auction.state == :active
     book = price && price.book
     standing = if(live? && book, do: AuctionBook.bid_standing(position, auction, book))
-    settle = settle_label(position)
+    settle = BidSettlementComponent.settle_label(position)
 
     assigns =
       assign(assigns,
@@ -762,15 +762,6 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp robinhood_path(%{token: %Token{}, listing: listing}), do: Paths.token(listing)
   defp robinhood_path(%{listing: %{} = listing}), do: Paths.auction(listing)
   defp robinhood_path(_position), do: nil
-
-  defp settle_label(%{status: "returnable", auction: %{state: :failed} = auction} = position),
-    do: BidSettlementComponent.refund_label(position.amount, auction.quote_token_symbol)
-
-  defp settle_label(%{status: "returnable"} = position),
-    do: if(BidSettlementComponent.spent?(position), do: "Claim", else: "Withdraw")
-
-  defp settle_label(%{status: "claimable"}), do: "Claim"
-  defp settle_label(_position), do: nil
 
   # What a Robinhood bid's auction admits now: its unspent money back once
   # the auction has settled, its tokens once they can be claimed, or, while

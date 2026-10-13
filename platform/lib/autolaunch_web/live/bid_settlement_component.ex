@@ -951,6 +951,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   def spent?(_position), do: false
 
   @doc """
+  The few words on the button that opens an ended bid's settlement, on the
+  portfolio and on the home page's rows; nil when the bid has nothing to take.
+  """
+  def settle_label(%{status: "returnable", auction: %{state: :failed} = auction} = position),
+    do: refund_label(position.amount, auction.quote_token_symbol)
+
+  def settle_label(%{status: "returnable"} = position),
+    do: if(spent?(position), do: "Claim", else: "Withdraw")
+
+  def settle_label(%{status: "claimable"}), do: "Claim"
+  def settle_label(_position), do: nil
+
+  @doc """
   The press that returns a failed auction's whole bid, with the amount that
   comes back, rounded down. The bid page, the portfolio and both settlement
   dialogs use it so the one action has one name.
