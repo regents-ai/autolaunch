@@ -6,7 +6,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
 
   alias AutolaunchWeb.Components.TokenLinks
 
-  slot :lead, doc: "what comes first in the row, before Buy $REGENT"
   slot :trail, doc: "what comes last in the row, after the GitHub icon"
 
   def header_links(assigns) do
@@ -14,20 +13,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
 
     ~H"""
     <div class="regent-header-links">
-      {render_slot(@lead)}
-      <a
-        class="rg-button rg-button--primary regent-header-cta"
-        href={TokenLinks.buy()}
-        target="_blank"
-        rel="noopener noreferrer"
-      >Buy $REGENT</a>
-      <a
-        class="rg-button regent-header-cta regent-header-cta--soft"
-        href="https://x.com/regents_sh"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Follow on X"
-      ><span class="rg-button__label">Follow on <.link_icon kind={:x} /></span></a>
       <details id="header-regent-menu" class="regent-token-menu" data-regent-token-menu>
         <summary aria-label="$REGENT links"><.source_icon kind={:regent} /></summary>
         <div class="regent-token-menu__panel" {AutolaunchWeb.Motion.panel("menu")}>
@@ -58,13 +43,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
               target="_blank"
               rel="noopener noreferrer"
             >View Chart</a>
-            <a
-              id="regent-follow-x"
-              class="rg-button regent-token-menu__link regent-token-menu__link--phone"
-              href="https://x.com/regents_sh"
-              target="_blank"
-              rel="noopener noreferrer"
-            ><span class="rg-button__label">Follow on <.link_icon kind={:x} /></span></a>
             <p :if={@local_lab?} class="regent-token-menu__note">
               Public Base mainnet, not this fork’s test REGENT.
             </p>

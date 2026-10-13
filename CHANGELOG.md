@@ -3,7 +3,26 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Next release: bid estimates on Robinhood auctions
+## Next release: the home page as the front door
+- The home page opens with one sentence on how Autolaunch works and one "Launch a token"
+  button. Before launches open, the button stays in place, switched off, with "Opens soon"
+  beside it.
+- A "Most backed" row shows up to six launches with the most put in by bidders, as large
+  square pictures with their rank, amount raised and state.
+- The list below has four tabs: New (every launch, newest first, so the page is never
+  empty while any launch exists), Live, Finished and Tokens. Each row shows the token,
+  who made it and when, its price, amount raised, market cap and state, with a Bid or Buy
+  button where one applies. The rows are in the page as it first loads. A grid view stays
+  one press away.
+- An empty tab says so in words and offers a way back to every launch; with no launches at
+  all the page says "No launches yet. Be the first." with the launch button.
+- The extra Create buttons, "Buy $REGENT" and "Follow on X" left the top bar and side rail.
+  "Buy $REGENT" is now in the footer beside the other links; the crown menu still offers
+  Buy on Uniswap.
+- The side rail no longer slides in when a page opens, and the token pictures on the home
+  page move faster when pointed at.
+
+## v98, 13 October 2026 (230462d): bid estimates on Robinhood auctions
 - Asking for a bid estimate on a Robinhood auction now says estimates cover Base auctions only
   and where to read that auction's figures, instead of saying the auction was not found.
 

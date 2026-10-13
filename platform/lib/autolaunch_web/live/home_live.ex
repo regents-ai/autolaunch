@@ -15,13 +15,13 @@ defmodule AutolaunchWeb.HomeLive do
       auction_list: 1,
       token_list: 1,
       explore_card: 1,
+      backed_card: 1,
       assign_figure_rates: 1,
       figure_rate: 2
     ]
 
   import AutolaunchWeb.Components.ChainIcon
   import AutolaunchWeb.Components.LinkIcon
-  import AutolaunchWeb.Components.Opening, only: [welcome: 1]
   import AutolaunchWeb.Components.SwapModal
   alias Autolaunch.HomeMarket
   alias AutolaunchWeb.{LabMarket, LiveListings}
@@ -37,6 +37,7 @@ defmodule AutolaunchWeb.HomeLive do
        trade: nil,
        records: [],
        records_kind: :auction,
+       backed: [],
        creators: %{},
        market: LabMarket.subscribe(socket),
        market_loading: true,
@@ -102,7 +103,9 @@ defmodule AutolaunchWeb.HomeLive do
 
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
-  def handle_async(:home_reread, {:ok, {options, count, {:ok, page}}}, socket) do
+  def handle_async(:home_reread, {:ok, {options, count, backed, {:ok, page}}}, socket) do
+    socket = assign(socket, :backed, backed)
+
     if options == socket.assigns.market_options and count == length(socket.assigns.records) and
          not socket.assigns.market_loading do
       {:noreply,
@@ -118,6 +121,9 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   # A failed reread leaves the listing the reader already has.
+  def handle_async(:home_reread, {:ok, {_options, _count, backed, _failure}}, socket),
+    do: {:noreply, assign(socket, :backed, backed)}
+
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
   # The Robinhood notice follows whether its feed could read Robinhood.
@@ -156,13 +162,25 @@ defmodule AutolaunchWeb.HomeLive do
   # the page as it arrives, for readers that run no scripts too. Later
   # listings load beside the ones already shown.
   defp first_market(socket) do
-    socket = assign(socket, market_append: false)
+    socket = assign(socket, market_append: false, backed: read_backed())
 
     case read_market(socket.assigns.market_options, nil) do
       {:ok, page} -> put_market(socket, page)
       _failure -> market_failed(socket)
     end
   end
+
+  # The "Most backed" row: up to six launches with the most put in by bidders,
+  # whatever the list below shows. Launches nobody has bid on stay out of it.
+  defp read_backed do
+    case HomeMarket.read(HomeMarket.options(%{"sort" => "volume"}), nil, 6) do
+      {:ok, page} -> Enum.filter(page.records, &raised?/1)
+      _failure -> []
+    end
+  end
+
+  defp raised?(%{bid_volume_usd: %Decimal{} = volume}), do: Decimal.gt?(volume, 0)
+  defp raised?(_auction), do: false
 
   defp read_market(options, cursor) do
     with {:ok, page} <- HomeMarket.read(options, cursor) do
@@ -220,7 +238,7 @@ defmodule AutolaunchWeb.HomeLive do
           {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
         end
 
-      {options, count, result}
+      {options, count, read_backed(), result}
     end)
   end
 
@@ -250,14 +268,52 @@ defmodule AutolaunchWeb.HomeLive do
     """
   end
 
-  defp network_label("base"), do: "Base"
-  defp network_label("robinhood"), do: "Robinhood"
-  defp network_label(_), do: "Base + Robinhood"
+  # The list's tabs: every launch, the live auctions, the finished ones and the
+  # launched tokens. Each is a set of list options.
+  @tabs [new: "New", live: "Live", finished: "Finished", tokens: "Tokens"]
+
+  defp tab(%{view: "tokens"}), do: :tokens
+  defp tab(%{state: "all"}), do: :new
+  defp tab(%{state: "active"}), do: :live
+  defp tab(%{state: "finished"}), do: :finished
+  defp tab(_options), do: nil
+
+  defp tab_options(:new), do: %{view: "auctions", state: "all", sort: "newest"}
+  defp tab_options(:live), do: %{view: "auctions", state: "active", sort: "ending"}
+  defp tab_options(:finished), do: %{view: "auctions", state: "finished", sort: "newest"}
+  defp tab_options(:tokens), do: %{view: "tokens"}
+
+  defp filtered?(options),
+    do:
+      options.q != "" or options.chain != "all" or options.kind != "all" or options.x or
+        options.ens or options.github
+
+  @unfiltered %{q: "", chain: "all", kind: "all", x: false, ens: false, github: false}
+
+  # The one way in to launching. Before launches open it stays in place,
+  # switched off, with the reason beside it.
+  defp launch_button(assigns) do
+    ~H"""
+    <.link
+      :if={!Autolaunch.Prelaunch.read_only?()}
+      navigate="/create"
+      class="rg-button rg-button--primary home-launch"
+    >Launch a token</.link>
+    <span :if={Autolaunch.Prelaunch.read_only?()} class="home-launch">
+      <Regent.Primitives.button disabled class="create-button">Launch a token</Regent.Primitives.button>
+      <small>Opens soon</small>
+    </span>
+    """
+  end
 
   def render(assigns) do
     assigns =
       assign(assigns,
         kind: kind(assigns.market_options),
+        tab: tab(assigns.market_options),
+        tabs: @tabs,
+        filtered?: filtered?(assigns.market_options),
+        unfiltered: @unfiltered,
         listed?: assigns.records != [],
         no_connection: @no_connection,
         connections: Map.take(assigns.market_options, [:x, :ens, :github])
@@ -265,109 +321,33 @@ defmodule AutolaunchWeb.HomeLive do
 
     ~H"""
     <main class="home-page home-explore-page" id="home-explore">
-      <.welcome :if={Autolaunch.Prelaunch.read_only?()} />
-      <div class="home-autolaunch">
-        <a href="https://autolaunch.sh/create" class="rg-button rg-button--primary">
-          <span class="rg-button__label">Create Memestock</span>
-        </a>
-      </div>
-      <header class="home-heading">
-        <div class="home-heading__discovery">
-          <h1 id="home-explore-title">Explore</h1>
-          <nav class="home-kind-toggle" aria-label="Explore auctions or graduated tokens">
-            <.link
-              patch={HomeMarket.path(@market_options, %{view: "auctions", state: "active"})}
-              aria-current={if @kind == :auction, do: "page"}
-            >Auctions</.link>
-            <span aria-hidden="true">|</span>
-            <.link
-              patch={HomeMarket.path(@market_options, %{view: "tokens", state: "all"})}
-              aria-current={if @kind == :token, do: "page"}
-            >Tokens</.link>
-          </nav>
-          <.link
-            :if={@kind == :auction}
-            navigate={~p"/auctions"}
-            class="home-heading__all"
-          >Search auctions</.link>
-          <.link :if={@kind == :token} navigate={~p"/tokens"} class="home-heading__all">
-            Search all tokens
-          </.link>
-        </div>
-        <span class="home-network" title="The network these listings belong to">
-          <span aria-hidden="true" class="home-network__dot"></span>
-          {if @local_lab,
-            do: "#{Autolaunch.ChainMode.label()} · test assets",
-            else: network_label(@market_options.chain)}
-        </span>
+      <header class="home-hero">
+        <h1 class="home-hero__title">
+          Tokens launch by <span>auction</span> here, so if you're in the auction, you're early.
+        </h1>
+        <.launch_button />
       </header>
 
+      <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
+        <h2 id="home-backed-title">Most backed</h2>
+        <ol class="home-backed__row">
+          <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
+            <.backed_card auction={auction} rank={rank} rate={figure_rate(@rates, auction)} />
+          </li>
+        </ol>
+      </section>
+
       <div class="home-toolbar">
-        <nav :if={@kind == :auction} class="home-sort" aria-label="Sort auctions">
+        <nav class="home-tabs" aria-label="Launches">
           <.link
-            :for={
-              {value, label} <- [
-                {"newest", "Recent"},
-                {"ending", "Closing"},
-                {"volume", "Bid volume"}
-              ]
-            }
-            patch={
-              HomeMarket.path(@market_options, %{
-                sort: value,
-                state:
-                  if(@market_options.state == "finished", do: "active", else: @market_options.state)
-              })
-            }
-            aria-current={
-              if @market_options.state != "finished" && @market_options.sort == value, do: "page"
-            }
+            :for={{tab, label} <- @tabs}
+            patch={HomeMarket.path(@market_options, tab_options(tab))}
+            aria-current={if @tab == tab, do: "page"}
           >{label}</.link>
-          <.link
-            patch={HomeMarket.path(@market_options, %{state: "finished", sort: "newest"})}
-            aria-current={if @market_options.state == "finished", do: "page"}
-          >Finished</.link>
         </nav>
-        <nav class="home-display" aria-label="Display">
-          <.link
-            patch={HomeMarket.path(@market_options, %{display: "grid"})}
-            aria-current={if @market_options.display == "grid", do: "page"}
-            aria-label="Grid"
-            title="Grid"
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <rect x="1" y="1" width="6" height="6" rx="1.5" /><rect
-                x="9"
-                y="1"
-                width="6"
-                height="6"
-                rx="1.5"
-              /><rect x="1" y="9" width="6" height="6" rx="1.5" /><rect
-                x="9"
-                y="9"
-                width="6"
-                height="6"
-                rx="1.5"
-              />
-            </svg>
-          </.link>
-          <.link
-            patch={HomeMarket.path(@market_options, %{display: "table"})}
-            aria-current={if @market_options.display == "table", do: "page"}
-            aria-label="Table"
-            title="Table"
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <rect x="1" y="2" width="14" height="2.5" rx="1.25" /><rect
-                x="1"
-                y="6.75"
-                width="14"
-                height="2.5"
-                rx="1.25"
-              /><rect x="1" y="11.5" width="14" height="2.5" rx="1.25" />
-            </svg>
-          </.link>
-        </nav>
+        <span :if={@local_lab} class="home-network">
+          {Autolaunch.ChainMode.label()} · test assets
+        </span>
         <details
           id="home-filters"
           class="home-filter"
@@ -376,41 +356,12 @@ defmodule AutolaunchWeb.HomeLive do
         >
           <summary>
             Filter<span
-              :if={
-                @market_options.state != "all" or @market_options.chain != "all" or
-                  @market_options.kind != "all" or @market_options.x or @market_options.ens or
-                  @market_options.github
-              }
+              :if={@filtered? and @market_options.q == ""}
               class="home-filter__active"
               aria-label="Filter active"
             ></span>
           </summary>
           <div class="home-filter__panel" {AutolaunchWeb.Motion.panel("menu")}>
-            <div :if={@kind == :auction} class="home-filter__group" role="group" aria-label="Status">
-              <span class="home-filter__label" aria-hidden="true">Status</span>
-              <.filter_option
-                :for={
-                  {value, label} <- [
-                    {"all", "All"},
-                    {"created", "Opening soon"},
-                    {"active", "Live"},
-                    {"finished", "Finished"},
-                    {"ended", "Waiting to finish"},
-                    {"failed", "Minimum unmet"},
-                    {"graduated", "Graduated"}
-                  ]
-                }
-                patch={
-                  HomeMarket.path(@market_options, %{
-                    state: value,
-                    sort: if(value == "finished", do: "newest", else: @market_options.sort)
-                  })
-                }
-                selected={@market_options.state == value}
-              >
-                {label}
-              </.filter_option>
-            </div>
             <div class="home-filter__group" role="group" aria-label="Network">
               <span class="home-filter__label" aria-hidden="true">Network</span>
               <div class="home-filter__row">
@@ -488,6 +439,46 @@ defmodule AutolaunchWeb.HomeLive do
             }
           }
         </script>
+        <nav class="home-display" aria-label="Display">
+          <.link
+            patch={HomeMarket.path(@market_options, %{display: "list"})}
+            aria-current={if @market_options.display == "list", do: "page"}
+            aria-label="List"
+            title="List"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <rect x="1" y="2" width="14" height="2.5" rx="1.25" /><rect
+                x="1"
+                y="6.75"
+                width="14"
+                height="2.5"
+                rx="1.25"
+              /><rect x="1" y="11.5" width="14" height="2.5" rx="1.25" />
+            </svg>
+          </.link>
+          <.link
+            patch={HomeMarket.path(@market_options, %{display: "grid"})}
+            aria-current={if @market_options.display == "grid", do: "page"}
+            aria-label="Grid"
+            title="Grid"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <rect x="1" y="1" width="6" height="6" rx="1.5" /><rect
+                x="9"
+                y="1"
+                width="6"
+                height="6"
+                rx="1.5"
+              /><rect x="1" y="9" width="6" height="6" rx="1.5" /><rect
+                x="9"
+                y="9"
+                width="6"
+                height="6"
+                rx="1.5"
+              />
+            </svg>
+          </.link>
+        </nav>
       </div>
 
       <div
@@ -503,11 +494,11 @@ defmodule AutolaunchWeb.HomeLive do
       <section
         id="home-market"
         class="home-market"
-        aria-labelledby="home-explore-title"
+        aria-label="Launches"
         aria-busy={to_string(@market_loading)}
       >
         <div
-          :if={@market_loading && !@listed?}
+          :if={@market_loading && !@listed? && @market_options.display == "grid"}
           class="home-coin-grid home-skeletons"
           aria-hidden="true"
         >
@@ -516,7 +507,7 @@ defmodule AutolaunchWeb.HomeLive do
             </div>
           </div>
         </div>
-        <p :if={@market_loading} class="visually-hidden" role="status">Loading coins</p>
+        <p :if={@market_loading} class="visually-hidden" role="status">Loading launches</p>
 
         <Regent.Primitives.notice
           :if={@market.robinhood_stale?}
@@ -548,95 +539,53 @@ defmodule AutolaunchWeb.HomeLive do
           />
         </div>
         <.auction_list
-          :if={@listed? && @market_options.display == "table" && @records_kind == :auction}
-          records={@records}
+          :if={
+            @market_options.display == "list" && @kind == :auction && (@listed? || @market_loading)
+          }
+          records={if @records_kind == :auction, do: @records, else: []}
           rates={@rates}
+          loading={@market_loading}
+          trade_event="open_trade"
         />
         <.token_list
-          :if={@listed? && @market_options.display == "table" && @records_kind == :token}
-          records={@records}
+          :if={@market_options.display == "list" && @kind == :token && (@listed? || @market_loading)}
+          records={if @records_kind == :token, do: @records, else: []}
           rates={@rates}
+          loading={@market_loading}
+          trade_event="open_trade"
         />
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">
           <p>
             {if @market_append,
-              do: "More coins could not be loaded. Your current results are still here.",
-              else: "Listings are unavailable right now."}
+              do: "More launches could not be loaded. The ones shown are still here.",
+              else: "Launches can't be shown right now."}
           </p>
-          <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
+          <Regent.Primitives.button phx-click="retry" variant="secondary">Try again</Regent.Primitives.button>
         </Regent.Primitives.notice>
         <div
           :if={!@market_loading && !@market_failed && !@listed?}
           class="home-empty"
           role="status"
         >
-          <h2>
-            {cond do
-              @kind == :auction && @market_options.state == "active" ->
-                "No live auctions"
-
-              @kind == :auction && @market_options.state == "finished" ->
-                "No finished auctions"
-
-              @market_options.q != "" or
-                  (@market_options.state != "all" or @market_options.chain != "all" or
-                     @market_options.kind != "all" or @market_options.x or @market_options.ens or
-                     @market_options.github) ->
-                "No matching coins"
-
-              true ->
-                "No coins in this category yet"
-            end}
-          </h2>
-          <p>
-            {if @market_options.q != "" or
-                  (@market_options.state != "all" or @market_options.chain != "all" or
-                     @market_options.kind != "all" or @market_options.x or @market_options.ens or
-                     @market_options.github),
-                do: "Try a different name, symbol, address or creator—or clear your filters.",
-                else: "New auctions and graduated tokens will appear here as they become available."}
-          </p>
-          <.link
-            :if={
-              @market_options.q != "" or
-                (@market_options.state != "all" or @market_options.chain != "all" or
-                   @market_options.kind != "all" or @market_options.x or @market_options.ens or
-                   @market_options.github)
-            }
-            patch={
-              HomeMarket.path(@market_options, %{
-                q: "",
-                state: "all",
-                chain: "all",
-                kind: "all",
-                x: false,
-                ens: false,
-                github: false
-              })
-            }
-            class="rg-button rg-button--secondary"
-          >Clear filters</.link>
-          <Regent.Primitives.button
-            :if={
-              Autolaunch.Prelaunch.read_only?() && @market_options.q == "" &&
-                @market_options.state == "all" && @market_options.chain == "all" &&
-                @market_options.kind == "all" && !@market_options.x && !@market_options.ens &&
-                !@market_options.github
-            }
-            disabled
-            title="Opens soon"
-          >Create an auction</Regent.Primitives.button>
-          <.link
-            :if={
-              !Autolaunch.Prelaunch.read_only?() && @market_options.q == "" &&
-                @market_options.state == "all" && @market_options.chain == "all" &&
-                @market_options.kind == "all" && !@market_options.x && !@market_options.ens &&
-                !@market_options.github
-            }
-            navigate="/create"
-            class="rg-button rg-button--primary"
-          >Create an auction</.link>
+          <%= cond do %>
+            <% @filtered? -> %>
+              <h2>Nothing matches</h2>
+              <p>Try another name, ticker, address or creator, or clear the filters.</p>
+              <.link
+                patch={HomeMarket.path(@market_options, @unfiltered)}
+                class="rg-button rg-button--secondary"
+              >Clear filters</.link>
+            <% @tab in [:live, :finished, :tokens] -> %>
+              <h2>{empty_title(@tab)}</h2>
+              <.link
+                patch={HomeMarket.path(@market_options, tab_options(:new))}
+                class="rg-button rg-button--secondary"
+              >See every launch</.link>
+            <% true -> %>
+              <h2>No launches yet. Be the first.</h2>
+              <.launch_button />
+          <% end %>
         </div>
         <div :if={@has_more && !@market_failed} class="home-load-more">
           <Regent.Primitives.button
@@ -681,6 +630,10 @@ defmodule AutolaunchWeb.HomeLive do
     </main>
     """
   end
+
+  defp empty_title(:live), do: "Nothing is live right now."
+  defp empty_title(:finished), do: "No auction has finished yet."
+  defp empty_title(:tokens), do: "No tokens have launched yet."
 
   defp count_label(1, :token), do: "1 token"
   defp count_label(count, :token), do: "#{count} tokens"

@@ -2,8 +2,9 @@ defmodule AutolaunchWeb.Components.Rail do
   @moduledoc false
   use Phoenix.Component
 
-  # Four destinations. Explore also covers the auction and token lists and
+  # Three destinations. Explore also covers the auction and token lists and
   # their pages; Learn covers its persistent information-page navigation.
+  # Launching starts from the home page's one "Launch a token" button.
   @items [
     %{
       label: "Explore",
@@ -11,7 +12,6 @@ defmodule AutolaunchWeb.Components.Rail do
       covers: ["/auctions", "/tokens", "/robinhood"]
     },
     %{label: "Portfolio", path: "/portfolio", covers: []},
-    %{label: "Create", path: "/create", covers: []},
     %{
       label: "Learn",
       path: "/how-it-works",
@@ -31,16 +31,7 @@ defmodule AutolaunchWeb.Components.Rail do
       </div>
       <ul class="shell-rail__list">
         <li :for={item <- @items} class="shell-rail__item">
-          <span
-            :if={item.path == "/create" && Autolaunch.Prelaunch.read_only?()}
-            class="rg-button rg-button--primary shell-rail__link"
-            aria-disabled="true"
-            title="Opens soon"
-          >
-            {item.label}
-          </span>
           <.link
-            :if={item.path != "/create" || !Autolaunch.Prelaunch.read_only?()}
             href={item.path}
             class="rg-button rg-button--primary shell-rail__link"
             aria-current={if current?(@current_path, item), do: "page"}

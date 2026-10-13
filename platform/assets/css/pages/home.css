@@ -10,21 +10,49 @@
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */
 #home-explore { display: block; min-width: 0; }
-#home-explore .home-autolaunch { margin-bottom: 24px; }
-#home-explore .home-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 24px; }
-#home-explore h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
-#home-explore .home-network { display: inline-flex; align-items: center; gap: 7px; color: var(--color-fg-muted); font-size: .75rem; }
-#home-explore .home-network__dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-#home-explore .home-heading__all { color: var(--color-fg-muted); font-size: .8125rem; text-underline-offset: 3px; }
-#home-explore .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
-/* Sort and display are segmented toggles; Filter opens a menu as wide as its choices. */
-#home-explore .home-toolbar { gap: 8px; }
-#home-explore .home-sort { margin-right: auto; flex-wrap: wrap; }
-#home-explore .home-sort, #home-explore .home-display { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline); border-radius: 8px; }
-#home-explore .home-sort a, #home-explore .home-display a { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 12px; border-radius: 5px; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; white-space: nowrap; }
-#home-explore .home-display a { padding: 0 9px; }
+/* The front door: one sentence in the pixel face, with the one way in to launching beside it. */
+#home-explore .home-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 8px 0 40px; }
+#home-explore .home-hero__title { max-width: 30ch; margin: 0; font-size: clamp(1.625rem, 1.1rem + 1.6vw, 2.5rem); line-height: 1.15; text-wrap: balance; }
+#home-explore .home-hero__title span { color: var(--product-autolaunch); }
+#home-explore .home-launch { flex: none; }
+#home-explore span.home-launch { display: inline-flex; align-items: center; gap: 10px; }
+#home-explore span.home-launch small { color: var(--color-fg-muted); font-size: .8125rem; }
+/* Most backed: square pictures in a row that scrolls sideways when it runs out of room. Each picture keeps its square before it loads. */
+#home-explore .home-backed { margin-bottom: 40px; }
+#home-explore .home-backed h2 { margin: 0 0 14px; font-size: 1.125rem; }
+#home-explore .home-backed__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(9.5rem, 1fr); gap: 16px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; }
+#home-explore .home-backed__row > li { min-width: 0; scroll-snap-align: start; }
+#home-explore .home-backed__card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; color: inherit; text-decoration: none; border-radius: 10px; }
+#home-explore .home-backed__art { position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: 10px; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-size: 2.5rem; }
+#home-explore .home-backed__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#home-explore .home-backed__rank { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; min-width: 1.75rem; height: 1.75rem; padding: 0 6px; box-sizing: border-box; border-radius: 6px; background: rgb(20 20 20 / .78); color: #fff; font-family: var(--font-family-title); font-size: .875rem; }
+#home-explore .home-backed__name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+#home-explore .home-backed__name strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .9375rem; }
+#home-explore .home-backed__name small { flex: none; color: var(--color-fg-muted); font-size: .8125rem; }
+#home-explore .home-backed__figures { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin-top: -4px; color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#home-explore .home-backed__figures span { overflow: hidden; text-overflow: ellipsis; }
+#home-explore .home-backed__figures span:first-child { color: var(--color-fg); }
+#home-explore .home-backed__card:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  #home-explore .home-backed__card { transition: transform var(--duration-fast) var(--ease-out); }
+  #home-explore .home-backed__card:active { transform: scale(.97); }
+  #home-explore .home-backed__art img { transition: transform var(--duration-base) var(--ease-out); }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  #home-explore .home-backed__card:hover .home-backed__art img { transform: scale(1.03); }
+}
+/* Tabs on the left with an orange line under the one showing; Filter and the list or grid switch on the right. */
+#home-explore .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
+#home-explore .home-tabs { display: flex; gap: 24px; margin-right: auto; border-bottom: 1px solid var(--hairline); }
+#home-explore .home-tabs a { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: var(--color-fg-muted); font-size: .9375rem; text-decoration: none; white-space: nowrap; }
+#home-explore .home-tabs a[aria-current] { color: var(--color-fg); font-weight: 600; }
+#home-explore .home-tabs a[aria-current]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--product-autolaunch); }
+@media (hover: hover) and (pointer: fine) { #home-explore .home-tabs a:not([aria-current]):hover { color: var(--color-fg); } }
+#home-explore .home-network { color: var(--color-fg-muted); font-size: .75rem; }
+#home-explore .home-display { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline); border-radius: 8px; }
+#home-explore .home-display a { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 9px; border-radius: 5px; color: var(--color-fg-muted); }
 #home-explore .home-display svg { width: 14px; height: 14px; }
-#home-explore .home-sort a[aria-current], #home-explore .home-display a[aria-current] { background: var(--color-fg); color: var(--color-surface); }
+#home-explore .home-display a[aria-current] { background: var(--color-fg); color: var(--color-surface); }
 #home-explore .home-filter { position: relative; flex: none; }
 #home-explore .home-filter summary { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 12px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--color-surface); color: var(--color-fg); font-size: .8125rem; list-style: none; white-space: nowrap; cursor: pointer; user-select: none; }
 #home-explore .home-filter summary::-webkit-details-marker { display: none; }
@@ -41,7 +69,7 @@
 #home-explore .home-filter__option[aria-current] .home-filter__check { visibility: visible; }
 @media (hover: hover) and (pointer: fine) {
   #home-explore .home-filter__option:hover { background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
-  #home-explore .home-sort a:not([aria-current]):hover, #home-explore .home-display a:not([aria-current]):hover, #home-explore .home-filter summary:hover { color: var(--color-fg); }
+  #home-explore .home-display a:not([aria-current]):hover, #home-explore .home-filter summary:hover { color: var(--color-fg); }
 }
 @media (pointer: coarse) { #home-explore .home-filter__option { min-height: 40px; } }
 /* The search line keeps its one-line space with or without a search, so the list below never moves. */
@@ -85,7 +113,7 @@
 /* The whole card rises a little toward the pointer or keyboard focus and its image drifts closer; still when motion is reduced. */
 @media (prefers-reduced-motion: no-preference) {
   #home-explore .home-coin { transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out); }
-  #home-explore .home-coin__art img, #home-explore .home-coin__fallback { transition: transform 600ms var(--ease-out); }
+  #home-explore .home-coin__art img, #home-explore .home-coin__fallback { transition: transform var(--duration-base) var(--ease-out); }
   #home-explore .home-coin:has(:focus-visible) { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
   #home-explore .home-coin:has(:focus-visible) :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
@@ -146,7 +174,7 @@
 #home-explore .home-skeleton__line { height: 12px; margin-top: 12px; border-radius: 3px; background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 #home-explore .home-skeleton__line--short { width: 55%; }
 #home-explore .home-empty { padding: 64px 20px; text-align: center; border: 1px dashed var(--hairline); border-radius: 8px; }
-#home-explore .home-empty h2 { font-size: 1.25rem; margin: 0 0 12px; }
+#home-explore .home-empty h2 { font-size: 1.25rem; margin: 0 0 20px; }
 #home-explore .home-empty p { max-width: 480px; margin: 0 auto 24px; font-size: .875rem; color: var(--color-fg-muted); }
 #home-explore .home-market__error { margin-top: 24px; }
 #home-explore .home-load-more { display: flex; justify-content: center; margin-top: 32px; }
@@ -165,16 +193,17 @@
 @media (max-width: 70rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* Below this width the header's buttons leave the search too little room, so it takes its own row. */
 @media (max-width: 72rem) { #home-top { flex-wrap: wrap; gap: 12px; } #home-top .home-search { order: 2; flex-basis: 100%; max-width: none; } }
-@media (max-width: 55rem) { #home-explore .home-toolbar { gap: 12px; } }
-@media (max-width: 42rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; } #home-explore .home-heading { align-items: flex-start; } #home-explore .home-toolbar { width: 100%; } #home-explore .home-sort { flex: 1 0 100%; margin: 0; } #home-explore .home-sort a { flex: 1; } #home-top .home-search__shortcut { display: none; } }
+/* Phones: the sentence takes the width with the button under it, the tabs take a row of their own, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
+@media (max-width: 42rem) {
+  #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
+  #home-explore .home-hero { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 28px; }
+  #home-explore .home-backed { margin-bottom: 28px; }
+  #home-explore .home-backed__row { grid-auto-columns: 40%; gap: 12px; }
+  #home-explore .home-tabs { flex: 1 0 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+  #home-explore .home-filter { margin-left: auto; }
+  #home-top .home-search__shortcut { display: none; }
+}
 @media (max-width: 22rem) { #home-explore .home-coin-grid { grid-template-columns: minmax(0, 1fr); } }
-
-#home-explore .home-heading__discovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
-#home-explore .home-kind-toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 1rem; }
-#home-explore .home-kind-toggle a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 0; color: var(--color-fg-muted); text-decoration: none; }
-#home-explore .home-kind-toggle a[aria-current] { color: var(--color-fg); font-weight: 600; text-decoration: underline; text-underline-offset: 6px; }
-#home-explore .home-kind-toggle > span { color: var(--color-fg-muted); }
-#home-explore .home-toolbar { justify-content: flex-end; }
 
 .creator-connections { display: grid; gap: var(--space-3); }
 .creator-connections > header { margin-bottom: 0; }

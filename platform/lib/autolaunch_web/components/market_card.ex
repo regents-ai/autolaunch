@@ -240,6 +240,49 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :auction, :map, required: true
+  attr :rank, :integer, required: true
+  attr :rate, :any, default: nil, doc: "the USD price of one unit of the auction's currency"
+
+  @doc """
+  One square in the home page's "Most backed" row: the token's picture with its
+  rank, its name and ticker, what bidders have put in and its state in words.
+  It opens the auction's page.
+  """
+  def backed_card(assigns) do
+    assigns =
+      assign(assigns,
+        view: view(:auction, assigns.auction, %{}),
+        figures: figures(assigns.auction, assigns.rate)
+      )
+
+    ~H"""
+    <.link navigate={@view.path} class="home-backed__card">
+      <span class="home-backed__art">
+        <img
+          :if={present?(@view.image)}
+          src={@view.image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          width="320"
+          height="320"
+        />
+        <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
+        <span class="home-backed__rank"><span class="visually-hidden">Rank </span>{@rank}</span>
+      </span>
+      <span class="home-backed__name">
+        <strong>{@view.name}</strong>
+        <small>{@view.symbol}</small>
+      </span>
+      <span class="home-backed__figures">
+        <span>{@figures.volume} raised</span>
+        <span>{@view.status}</span>
+      </span>
+    </.link>
+    """
+  end
+
   attr :view, :map, required: true
 
   # The card's top, which opens its page: the image, the ticker over its
@@ -415,9 +458,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
   attr :loading, :boolean, default: false
 
+  attr :trade_event, :string,
+    default: nil,
+    doc: "the event a row's Bid button sends with the auction's id; no Bid column without it"
+
   @doc """
-  The auctions list: the token, then the four auction figures. On a phone only
-  the token, launch threshold and status show.
+  The auctions list: the token with its creator and age, then its price, what
+  bidders have put in, its market cap and its status, and a Bid button on a
+  live auction when the page takes bids. On a phone the raise and market cap
+  are left out.
   """
   def auction_list(assigns) do
     ~H"""
@@ -427,16 +476,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <thead>
           <tr>
             <th scope="col">Token</th>
+            <th scope="col">Price</th>
             <th scope="col">
-              <.info_tip id="auctions-fdv" text={tip(:fdv)}>FDV</.info_tip>
+              <.info_tip id="auctions-volume" text={tip(:volume)}>Raised</.info_tip>
             </th>
             <th scope="col">
-              <.info_tip id="auctions-volume" text={tip(:volume)}>Bid volume</.info_tip>
-            </th>
-            <th scope="col">
-              <.info_tip id="auctions-threshold" text={tip(:threshold)}>Launch threshold</.info_tip>
+              <.info_tip id="auctions-fdv" text={tip(:fdv)}>Market cap</.info_tip>
             </th>
             <th scope="col">Status</th>
+            <th :if={@trade_event} scope="col"><span class="visually-hidden">Bid</span></th>
           </tr>
         </thead>
         <tbody>
@@ -444,6 +492,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             :for={record <- @records}
             auction={record}
             rate={figure_rate(@rates, record)}
+            trade_event={@trade_event}
           />
           <tr
             :for={index <- 1..6}
@@ -452,7 +501,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan="5"></td>
+            <td colspan={if @trade_event, do: "6", else: "5"}></td>
           </tr>
         </tbody>
       </table>
@@ -471,11 +520,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :auction, :map, required: true
   attr :rate, :any, default: nil
+  attr :trade_event, :string, default: nil
 
   defp auction_list_row(assigns) do
+    view = view(:auction, assigns.auction, %{})
+
     assigns =
       assign(assigns,
-        view: view(:auction, assigns.auction, %{}),
+        view: view,
         figures: figures(assigns.auction, assigns.rate)
       )
 
@@ -484,29 +536,57 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <.list_token
         name={@view.name}
         symbol={@view.symbol}
+        unit={@view.metric.unit}
         image={@view.image}
         chain={@view.chain}
         path={@view.path}
+        detail={byline(@view)}
       />
-      <td>{@figures.fdv}</td>
-      <td>{@figures.volume}</td>
       <td>
-        {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
+        <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} />
       </td>
       <td>
+        {@figures.volume}<small :if={@figures.met}>{if @figures.met >= 100,
+          do: "Minimum met",
+          else: "#{@figures.met}% of minimum"}</small>
+      </td>
+      <td>{@figures.fdv}</td>
+      <td class="market-list__status">
         <.status_figure figures={@figures} chain={@view.chain} />
+      </td>
+      <td :if={@trade_event} class="market-list__action">
+        <Regent.Primitives.button
+          :if={@view.bid}
+          phx-click={@trade_event}
+          phx-value-id={@view.record_id}
+          disabled={@view.bid.unavailable != nil}
+          title={@view.bid.unavailable}
+          aria-label={"Bid on #{@view.name}"}
+        >Bid</Regent.Primitives.button>
       </td>
     </tr>
     """
   end
 
+  # Who made it and how long ago, under a list row's name.
+  defp byline(view),
+    do:
+      [view.creator && "by #{view.creator}", view.age]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" · ")
+
   attr :records, :list, required: true, doc: "launched tokens with `market_cap` loaded"
   attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
   attr :loading, :boolean, default: false
 
+  attr :trade_event, :string,
+    default: nil,
+    doc: "the event a row's Buy button sends with the token's id; no Buy column without it"
+
   @doc """
-  The tokens list: the token, its price, its market cap and when it launched.
-  On a phone the market cap is left out.
+  The tokens list: the token with its creator and when it launched, then its
+  price and market cap, and a Buy button when the page trades. On a phone the
+  market cap is left out.
   """
   def token_list(assigns) do
     ~H"""
@@ -518,7 +598,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             <th scope="col">Token</th>
             <th scope="col">Price</th>
             <th scope="col">Market cap</th>
-            <th scope="col">Graduated</th>
+            <th :if={@trade_event} scope="col"><span class="visually-hidden">Buy</span></th>
           </tr>
         </thead>
         <tbody>
@@ -526,6 +606,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             :for={token <- @records}
             token={token}
             rate={figure_rate(@rates, token.auction)}
+            trade_event={@trade_event}
           />
           <tr
             :for={index <- 1..6}
@@ -534,7 +615,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan="4"></td>
+            <td colspan={if @trade_event, do: "4", else: "3"}></td>
           </tr>
         </tbody>
       </table>
@@ -544,6 +625,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :token, :map, required: true
   attr :rate, :any, default: nil
+  attr :trade_event, :string, default: nil
 
   defp token_list_row(assigns) do
     view = view(:token, assigns.token, %{})
@@ -564,12 +646,22 @@ defmodule AutolaunchWeb.Components.MarketCard do
         image={@view.image}
         chain={@view.chain}
         path={@view.path}
+        detail={byline(@view)}
       />
       <td>
         <.price_figure amount={@token.price_quote} unit={@view.metric.unit} rate={@rate} />
       </td>
       <td>{@market_cap}</td>
-      <td>{@view.age || "-"}</td>
+      <td :if={@trade_event} class="market-list__action">
+        <Regent.Primitives.button
+          :if={@view.buy}
+          phx-click={@trade_event}
+          phx-value-id={@view.record_id}
+          disabled={@view.buy.unavailable != nil}
+          title={@view.buy.unavailable}
+          aria-label={"Buy #{@view.name}"}
+        >Buy</Regent.Primitives.button>
+      </td>
     </tr>
     """
   end
@@ -650,11 +742,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :image, :string, default: nil
   attr :chain, :string, required: true, values: ["Base", "Robinhood"]
   attr :path, :string, default: nil, doc: "the token's or auction's page; nil when it has none"
+  attr :detail, :string, default: nil, doc: "a short line under the name, such as its creator"
 
   @doc """
   The cell every list row starts with: the token's image with its chain's
   badge, then its name and its ticker on one line, the ticker followed by its
-  paired currency when one is given. It opens `path` when there is one.
+  paired currency when one is given, and `detail` under them when given. It
+  opens `path` when there is one.
   """
   def list_token(assigns) do
     ~H"""
@@ -670,6 +764,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   defp list_token_contents(assigns) do
+    assigns = assign_new(assigns, :detail, fn -> nil end)
+
     ~H"""
     <span class="market-list__art">
       <img
@@ -687,9 +783,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
         class="market-list__chain"
       />
     </span>
-    <span class="market-list__name">
-      <strong>{@name}</strong>
-      <small>{@symbol}<span :if={@unit}> / {@unit}</span></small>
+    <span class="market-list__label">
+      <span class="market-list__name">
+        <strong>{@name}</strong>
+        <small>{@symbol}<span :if={@unit}> / {@unit}</span></small>
+      </span>
+      <small :if={present?(@detail)} class="market-list__detail">{@detail}</small>
     </span>
     """
   end

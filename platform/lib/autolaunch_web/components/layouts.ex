@@ -53,6 +53,11 @@ defmodule AutolaunchWeb.Layouts do
     <footer class="regent-footer">
       <AutolaunchWeb.Components.RegentLinks.social_links />
       <nav class="regent-footer__links" aria-label="About Autolaunch">
+        <a
+          href={AutolaunchWeb.Components.TokenLinks.buy()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >Buy $REGENT</a>
         <a href="/docs">Docs</a>
         <a href="/about">About</a>
         <a href="/contact">Contact</a>

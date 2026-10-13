@@ -14,8 +14,8 @@ defmodule Autolaunch.HomeMarket do
           do: "newest",
           else: choice(params["sort"], ~w(newest ending volume), "newest")
         ),
-      display: choice(params["display"], ~w(grid table), "grid"),
-      state: if(view == "tokens", do: "all", else: choice(params["state"], states, "active")),
+      display: choice(params["display"], ~w(list grid), "list"),
+      state: if(view == "tokens", do: "all", else: choice(params["state"], states, "all")),
       chain: choice(params["chain"], ~w(all base robinhood), "all"),
       kind: choice(params["kind"], ~w(all revstake memestock), "all"),
       x: params["x"] in [true, "true"],

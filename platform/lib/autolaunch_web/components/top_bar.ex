@@ -33,19 +33,6 @@ defmodule AutolaunchWeb.Components.TopBar do
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
       </button>
       <AutolaunchWeb.Components.RegentLinks.header_links>
-        <:lead>
-          <Regent.Primitives.button
-            :if={Autolaunch.Prelaunch.read_only?()}
-            disabled
-            class="create-button"
-            title="Opens soon"
-          >+ Create</Regent.Primitives.button>
-          <.link
-            :if={!Autolaunch.Prelaunch.read_only?()}
-            navigate="/create"
-            class="rg-button create-button"
-          >+ Create</.link>
-        </:lead>
         <:trail><.theme_toggle /></:trail>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
