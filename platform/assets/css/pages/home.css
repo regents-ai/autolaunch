@@ -10,14 +10,14 @@
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */
 #home-explore { display: block; min-width: 0; }
-/* The front door: one sentence in the pixel face, with the one way in to launching beside it. */
+/* The front door: the title in the pixel face, with the one way in to launching beside it. */
 #home-explore .home-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 8px 0 40px; }
 #home-explore .home-hero__title { max-width: 30ch; margin: 0; font-size: clamp(1.625rem, 1.1rem + 1.6vw, 2.5rem); line-height: 1.15; text-wrap: balance; }
 #home-explore .home-hero__title span { color: var(--product-autolaunch); }
 #home-explore .home-launch { flex: none; }
 #home-explore span.home-launch { display: inline-flex; align-items: center; gap: 10px; }
 #home-explore span.home-launch small { color: var(--color-fg-muted); font-size: .8125rem; }
-/* Most backed: square pictures in a row that scrolls sideways when it runs out of room. Each picture keeps its square before it loads. */
+/* Bid volume: square pictures in a row that scrolls sideways when it runs out of room. Each picture keeps its square before it loads. */
 #home-explore .home-backed { margin-bottom: 40px; }
 #home-explore .home-backed h2 { margin: 0 0 14px; font-size: 1.125rem; }
 #home-explore .home-backed__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(9.5rem, 1fr); gap: 16px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; }

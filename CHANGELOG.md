@@ -4,10 +4,10 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 (`autolaunch-sh`) and the commit it was built from.
 
 ## Next release: the home page as the front door
-- The home page opens with one sentence on how Autolaunch works and one "Launch a token"
+- The home page opens with the title "Autolaunch Auctions" and one "Launch a token"
   button. Before launches open, the button stays in place, switched off, with "Opens soon"
   beside it.
-- A "Most backed" row shows up to six launches with the most put in by bidders, as large
+- A "Bid volume" row shows up to six launches with the most put in by bidders, as large
   square pictures with their rank, amount raised and state.
 - The list below has four tabs: New (every launch, newest first, so the page is never
   empty while any launch exists), Live, Finished and Tokens. Each row shows the token,

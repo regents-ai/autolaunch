@@ -170,7 +170,7 @@ defmodule AutolaunchWeb.HomeLive do
     end
   end
 
-  # The "Most backed" row: up to six launches with the most put in by bidders,
+  # The "Bid volume" row: up to six launches with the most put in by bidders,
   # whatever the list below shows. Launches nobody has bid on stay out of it.
   defp read_backed do
     case HomeMarket.read(HomeMarket.options(%{"sort" => "volume"}), nil, 6) do
@@ -323,13 +323,13 @@ defmodule AutolaunchWeb.HomeLive do
     <main class="home-page home-explore-page" id="home-explore">
       <header class="home-hero">
         <h1 class="home-hero__title">
-          Tokens launch by <span>auction</span> here, so if you're in the auction, you're early.
+          Autolaunch <span>Auctions</span>
         </h1>
         <.launch_button />
       </header>
 
       <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
-        <h2 id="home-backed-title">Most backed</h2>
+        <h2 id="home-backed-title">Bid volume</h2>
         <ol class="home-backed__row">
           <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
             <.backed_card auction={auction} rank={rank} rate={figure_rate(@rates, auction)} />

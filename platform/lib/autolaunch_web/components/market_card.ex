@@ -245,7 +245,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :rate, :any, default: nil, doc: "the USD price of one unit of the auction's currency"
 
   @doc """
-  One square in the home page's "Most backed" row: the token's picture with its
+  One square in the home page's "Bid volume" row: the token's picture with its
   rank, its name and ticker, what bidders have put in and its state in words.
   It opens the auction's page.
   """
