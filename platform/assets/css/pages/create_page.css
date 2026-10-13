@@ -52,9 +52,21 @@
 .create-token__names strong { overflow: hidden; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .create-token__names span { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .8125rem; overflow-wrap: anywhere; }
 
+/* The Memestock page: beside the form, only the auction's gallery card as it will be listed, at a gallery
+   card's width and in view while the form scrolls; under both, what the launch does, as cards. */
+.create-page__layout--preview { grid-template-columns: minmax(0, 35rem) minmax(0, 15rem); }
+.create-page__preview { position: sticky; top: var(--space-4); min-width: 0; }
+.create-page__info { display: grid; gap: var(--space-3); width: min(100%, calc(50rem + var(--space-4))); margin: var(--space-5) auto 0; }
+.create-page__info-title { margin: 0; font-family: var(--font-family-title); font-size: 1.375rem; font-weight: 400; }
+.create-page__info .create-next { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.create-page__info .create-page__more > summary { min-height: 0; }
+
 @media (max-width: 61.99rem) {
   .create-page__layout { grid-template-columns: minmax(0, 35rem); }
-  .create-page__summary { position: relative; top: auto; }
+  .create-page__summary, .create-page__preview { position: relative; top: auto; }
+  .create-page__preview { width: min(100%, 15rem); }
+  .create-page__info { width: min(100%, 35rem); }
+  .create-page__info .create-next { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 30rem) {

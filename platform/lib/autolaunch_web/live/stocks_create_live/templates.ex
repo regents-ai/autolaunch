@@ -10,7 +10,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
-  alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
+  alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft, PriceFeeds}
+  alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{DraftMarks, TokenDisplay}
   alias Phoenix.LiveView.JS
 
@@ -46,6 +47,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
   attr :image_notice, :string, default: nil
+  attr :image_color, :string, default: nil
   attr :stocks_image_upload, :map, default: nil
   attr :stocks_lab, :map, default: nil
   attr :market, :map, default: %{prices: %{}, venues: []}
@@ -55,6 +57,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
+  attr :creator_connections, :map, default: %{}
   attr :status, :atom, default: :ready
   attr :reviewing?, :boolean, default: false
   attr :launched?, :boolean, default: false
@@ -63,6 +66,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def create(assigns) do
     draft = assigns.draft
     chain = assigns.launch_chain
+    stock = stock_for(chain, assigns.stocks_lab, assigns.draft_values["stock_address"])
 
     assigns =
       assigns
@@ -71,10 +75,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:detail_errors, DraftMarks.marked(assigns.draft_errors, assigns.draft_values))
       |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
       |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.configured?())
-      |> assign(
-        :stock,
-        stock_for(chain, assigns.stocks_lab, assigns.draft_values["stock_address"])
-      )
+      |> assign(:stock, stock)
+      |> assign(:opening, opening(stock, assigns.market.prices))
       |> assign(:fixed_terms, fixed_terms(chain, ticker(assigns.draft_values["symbol"])))
 
     ~H"""
@@ -84,7 +86,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         Your draft could not be loaded. Refresh and try again.
       </p>
 
-      <div :if={@status != :error} class="create-page__layout">
+      <div :if={@status != :error} class="create-page__layout create-page__layout--preview">
         <section
           id="memestock-form"
           class="create-page__form memestock rg-panel rg-panel--surface"
@@ -232,6 +234,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
               optional
+              notify
             />
             <p :if={!@current_human_id} class="create-page__hint">
               After you sign in, you can connect X, GitHub or ENS to show on your auction and token.
@@ -336,35 +339,47 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         </section>
 
         <aside
-          class="create-page__summary create-page__summary--next rg-panel rg-panel--surface"
-          aria-label="Your token"
+          id="create-preview"
+          class="create-page__preview"
+          aria-label="Your auction as the gallery will show it"
         >
-          <p class="autolaunch-kicker">Your token</p>
-          <div class="create-token">
-            <img
-              :if={@draft_values["image"] != ""}
-              src={@draft_values["image"]}
-              alt=""
-              class="create-token__image"
-            />
-            <span :if={@draft_values["image"] == ""} class="create-token__image" aria-hidden="true"></span>
-            <div class="create-token__names">
-              <strong>{present(@draft_values["name"], "Your token")}</strong>
-              <span>${present(@draft_values["symbol"], "TICKER")}</span>
-            </div>
-          </div>
-          <.launch_plan
-            id="memestock-plan"
-            kind={:memestock}
-            chain={@launch_chain}
-            ticker={ticker(@draft_values["symbol"])}
-            currency={@stock && @stock.symbol}
-            minimum={minimum_raise(@stock)}
-            chosen={[
-              {"Chain", LaunchChain.label(@launch_chain)},
-              {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")}
-            ]}
+          <MarketCard.draft_card
+            name={@draft_values["name"]}
+            symbol={String.upcase(@draft_values["symbol"])}
+            image={@draft_values["image"]}
+            color={@image_color}
+            website={@draft_values["website"]}
+            chain={LaunchChain.label(@launch_chain)}
+            unit={@stock && @stock.symbol}
+            price={@opening.price}
+            fdv={@opening.fdv}
+            rate={@opening.rate}
+            creator_connections={@creator_connections}
           />
+        </aside>
+      </div>
+
+      <section
+        :if={@status != :error}
+        class="create-page__info"
+        aria-labelledby="create-info-title"
+      >
+        <h2 id="create-info-title" class="create-page__info-title">
+          Auction and Token Information
+        </h2>
+        <.launch_plan
+          id="memestock-plan"
+          kind={:memestock}
+          chain={@launch_chain}
+          ticker={ticker(@draft_values["symbol"])}
+          currency={@stock && @stock.symbol}
+          minimum={minimum_raise(@stock)}
+          chosen={[
+            {"Chain", LaunchChain.label(@launch_chain)},
+            {"Paired stock", if(@stock, do: @stock.symbol, else: "Choose a stock")}
+          ]}
+        />
+        <div class="create-next__card">
           <Regent.Primitives.disclosure
             id="stocks-fixed-terms"
             summary="Every term"
@@ -380,8 +395,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </tbody>
             </table>
           </Regent.Primitives.disclosure>
-        </aside>
-      </div>
+        </div>
+      </section>
       <.draft_carry_over
         id="memestock-carry-over"
         key="autolaunch:create:memestock"
@@ -481,6 +496,19 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     end
   end
 
+  # What the gallery card shows of a launch no one has bid on yet: its price
+  # and FDV at the auction's floor, in the stock, and the stock's dollar price
+  # once its feed has answered.
+  defp opening(nil, _prices), do: %{price: nil, fdv: nil, rate: nil}
+
+  defp opening(stock, prices),
+    do:
+      Map.put(
+        LaunchActions.opening(stock.decimals),
+        :rate,
+        prices[PriceFeeds.ticker(stock.symbol)]
+      )
+
   # The whole sale at the starting price, in the chosen stock.
   defp minimum_raise(nil), do: "Choose a stock"
 
@@ -502,7 +530,4 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp symbol(nil), do: "the stock"
   defp symbol(%{symbol: symbol}), do: symbol
-
-  defp present("", placeholder), do: placeholder
-  defp present(value, _placeholder), do: value
 end

@@ -47,6 +47,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   # the tick divisor so the bid tick spacing divides it exactly.
   @floor_price_q96 4_294_967_300
   @q96 Integer.pow(2, 96)
+  @total_supply 1_000_000_000
 
   @metadata [name: 64, symbol: 16, description: 512, image: 256]
 
@@ -107,6 +108,21 @@ defmodule Autolaunch.Stocks.LaunchActions do
     }
 
   def floor_price_q96, do: @floor_price_q96
+
+  @doc """
+  What a launch opens at, in a stock of `stock_decimals`: the price of one
+  token at the auction's floor, exactly, and the whole supply at that price.
+  Until a bid clears higher, these are the auction's clearing price and FDV.
+  """
+  @spec opening(non_neg_integer()) :: %{price: String.t(), fdv: Decimal.t()}
+  def opening(stock_decimals) do
+    price = Amounts.format_cca_price(@floor_price_q96, stock_decimals, @new_decimals)
+
+    %{
+      price: price,
+      fdv: price |> Decimal.new(max_digits: :infinity) |> Decimal.mult(@total_supply)
+    }
+  end
 
   @doc """
   The stock a launch must raise to graduate: the whole sale at the floor,

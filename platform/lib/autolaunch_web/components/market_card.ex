@@ -25,39 +25,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       "What the auction must raise for the token to launch. If it ends short, every bidder can withdraw their whole bid."
   }
 
-  attr :kind, :atom, required: true, values: [:draft, :auction, :token]
-  attr :record, :map, required: true
-  attr :creator_connections, :map, default: %{}
-  attr :preview, :boolean, default: false
-  attr :linked, :boolean, default: true
-  attr :class, :string, default: nil
-
-  def autolaunch_market_card(assigns) do
-    view =
-      assigns.kind
-      |> view(assigns.record, assigns.creator_connections)
-      |> Map.update!(:path, &if(assigns.linked, do: &1, else: nil))
-
-    assigns = assign(assigns, :view, view)
-
-    ~H"""
-    <article class={["launchpad-card", @preview && "launchpad-card--preview", @class]}>
-      <.link
-        :if={@view.path}
-        navigate={@view.path}
-        class="launchpad-card__link"
-        aria-label={@view.name}
-      >
-        <.card_contents view={@view} />
-      </.link>
-      <div :if={!@view.path} class="launchpad-card__link">
-        <.card_contents view={@view} />
-      </div>
-      <.card_socials connections={@view.connections} website={@view.website} />
-    </article>
-    """
-  end
-
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
@@ -91,9 +58,121 @@ defmodule AutolaunchWeb.Components.MarketCard do
       )
 
     ~H"""
+    <.auction_card
+      view={@view}
+      figures={@figures}
+      bar={@bar}
+      raise?={@record.kind == :agent}
+      trade_event={@trade_event}
+    />
+    """
+  end
+
+  def explore_card(%{kind: :token} = assigns) do
+    view = view(:token, assigns.record, assigns.creator_connections)
+
+    assigns =
+      assign(assigns,
+        view: view,
+        market_cap:
+          money(assigns.record.market_cap, assigns.rate, view.metric.unit) || "No price yet"
+      )
+
+    ~H"""
     <article
       class={["home-coin", @view.color && "home-coin--tinted"]}
       style={tint(@view.color)}
+    >
+      <.card_head view={@view} />
+      <div class="home-coin__metric">
+        <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>Price</span>
+      </div>
+      <p class="home-coin__figure">Market cap: <span>{@market_cap}</span></p>
+      <.card_links view={@view} />
+      <div class="home-coin__actions">
+        <.link
+          navigate={@view.path}
+          class="rg-button rg-button--secondary home-coin__action"
+          aria-label={"Details for #{@view.name}"}
+        >Details</.link>
+        <Regent.Primitives.button
+          :if={@trade_event && @view.buy}
+          class="home-coin__action"
+          phx-click={@trade_event}
+          phx-value-id={@view.record_id}
+          disabled={@view.buy.unavailable != nil}
+          title={@view.buy.unavailable}
+          aria-label={"Buy #{@view.name}"}
+        >Buy</Regent.Primitives.button>
+      </div>
+    </article>
+    """
+  end
+
+  attr :name, :string, required: true
+  attr :symbol, :string, required: true
+  attr :image, :string, default: nil
+  attr :color, :string, default: nil, doc: "the image's colour, which tints the card"
+  attr :website, :string, default: nil
+  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
+  attr :unit, :string, default: nil, doc: "the paired stock's symbol; nil before one is chosen"
+  attr :price, :string, default: nil, doc: "the auction's starting price, in the stock"
+  attr :fdv, :any, default: nil, doc: "the whole supply at the starting price, in the stock"
+  attr :rate, :any, default: nil, doc: "the USD price of one unit of the stock"
+  attr :creator_connections, :map, default: %{}
+
+  @doc """
+  A draft as the gallery will show its auction when it is listed: the same
+  card as `explore_card/1`, at the starting price, with no bids and none of
+  its time passed. Nothing on it can be pressed or followed. The creator's
+  wallet is not among the links: which wallet launches is not known until it
+  signs.
+  """
+  def draft_card(assigns) do
+    assigns =
+      assign(assigns,
+        view: %{
+          name: present(assigns.name, "Your token"),
+          symbol: present(assigns.symbol, "TICKER"),
+          image: assigns.image,
+          color: assigns.color,
+          website: assigns.website,
+          metric: metric(assigns.price, assigns.unit, "No price yet"),
+          path: nil,
+          creator_address: nil,
+          connections: connection_list(assigns.creator_connections),
+          bid: %{unavailable: nil},
+          record_id: nil,
+          chain: assigns.chain
+        },
+        figures: %{
+          fdv: money(assigns.fdv, assigns.rate, assigns.unit) || "No price yet",
+          unpriced: if(is_nil(assigns.rate), do: assigns.unit),
+          met: nil,
+          ends_at: nil,
+          id: "draft"
+        },
+        bar: %{progress: 0, opens_at: nil, label: state_label(:created)}
+      )
+
+    ~H"""
+    <.auction_card view={@view} figures={@figures} bar={@bar} preview />
+    """
+  end
+
+  attr :view, :map, required: true
+  attr :figures, :map, required: true
+  attr :bar, :map, required: true
+  attr :raise?, :boolean, default: false, doc: "a Revstake auction, which shows its raise"
+  attr :trade_event, :string, default: nil
+  attr :preview, :boolean, default: false, doc: "a draft's card: shown whole, and inert"
+
+  defp auction_card(assigns) do
+    ~H"""
+    <article
+      class={["home-coin", @view.color && "home-coin--tinted"]}
+      style={tint(@view.color)}
+      inert={@preview}
     >
       <.card_head view={@view} />
       <div class="home-coin__metric">
@@ -101,7 +180,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </div>
       <.card_links view={@view} />
       <div class="home-coin__figures">
-        <div :if={@record.kind == :agent} class="home-coin__raise">
+        <div :if={@raise?} class="home-coin__raise">
           <p>
             <span>Bid volume</span>
             <.info_tip id={"volume-#{@figures.id}"} text={tip(:volume)} icon={false}>
@@ -139,7 +218,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           aria-label={"Details for #{@view.name}"}
         >Details</.link>
         <Regent.Primitives.button
-          :if={@trade_event && @view.bid}
+          :if={(@trade_event || @preview) && @view.bid}
           class="home-coin__action"
           phx-click={@trade_event}
           phx-value-id={@view.record_id}
@@ -150,7 +229,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </div>
       <div class="home-coin__bars">
         <div
-          :if={@record.kind == :agent && @figures.met && @figures.met < 100}
+          :if={@raise? && @figures.met && @figures.met < 100}
           class="home-coin__met"
           role="img"
           aria-label={"#{@figures.met}% of the launch threshold met"}
@@ -195,47 +274,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
           }
         }
       </script>
-    </article>
-    """
-  end
-
-  def explore_card(%{kind: :token} = assigns) do
-    view = view(:token, assigns.record, assigns.creator_connections)
-
-    assigns =
-      assign(assigns,
-        view: view,
-        market_cap:
-          money(assigns.record.market_cap, assigns.rate, view.metric.unit) || "No price yet"
-      )
-
-    ~H"""
-    <article
-      class={["home-coin", @view.color && "home-coin--tinted"]}
-      style={tint(@view.color)}
-    >
-      <.card_head view={@view} />
-      <div class="home-coin__metric">
-        <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>Price</span>
-      </div>
-      <p class="home-coin__figure">Market cap: <span>{@market_cap}</span></p>
-      <.card_links view={@view} />
-      <div class="home-coin__actions">
-        <.link
-          navigate={@view.path}
-          class="rg-button rg-button--secondary home-coin__action"
-          aria-label={"Details for #{@view.name}"}
-        >Details</.link>
-        <Regent.Primitives.button
-          :if={@trade_event && @view.buy}
-          class="home-coin__action"
-          phx-click={@trade_event}
-          phx-value-id={@view.record_id}
-          disabled={@view.buy.unavailable != nil}
-          title={@view.buy.unavailable}
-          aria-label={"Buy #{@view.name}"}
-        >Buy</Regent.Primitives.button>
-      </div>
     </article>
     """
   end
@@ -1149,37 +1187,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp chain_short("Robinhood"), do: "RH"
   defp chain_short("Base"), do: "Base"
 
-  attr :view, :map, required: true
-
-  defp card_contents(assigns) do
-    ~H"""
-    <Regent.Structure.capability_card
-      title={@view.name}
-      description={@view.description}
-      index={Enum.join(Enum.filter([@view.status, present(@view.symbol, nil)], & &1), " · ")}
-      image_src={present(@view.image, nil)}
-      image_alt={"#{@view.name} token"}
-      class="launchpad-card__feature"
-    >
-      <:media><span class="launchpad-card__placeholder" aria-hidden="true">R</span></:media>
-      <:actions>
-        <p class="launchpad-card__metric">
-          <span class="autolaunch-micro">{@view.metric_label}</span>
-          <TokenDisplay.price
-            amount={@view.metric.amount}
-            unit={@view.metric.unit}
-            fallback={@view.metric.empty}
-          />
-        </p>
-        <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
-          <span :if={present?(@view.creator)}>{@view.creator}</span>
-          <span :if={present?(@view.age)}>{@view.age}</span>
-        </p>
-      </:actions>
-    </Regent.Structure.capability_card>
-    """
-  end
-
   attr :connections, :list, required: true
   attr :website, :string, default: nil
   attr :wallet, :map, default: nil, doc: "the creator's wallet and its explorer page"
@@ -1260,25 +1267,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       short: RegentFormat.short_address(address),
       url: BidPlaced.address_url(if(chain == "Robinhood", do: :robinhood, else: :base), address)
     }
-
-  defp view(:draft, values, connections) do
-    %{
-      name: present(values["name"], "Your token"),
-      symbol: present(values["symbol"], "TICKER"),
-      description: present(values["description"], "Your launch description will appear here."),
-      image: values["image"],
-      color: nil,
-      website: values["website"],
-      status: "Preview",
-      metric_label: "Minimum raise",
-      metric: metric(nil, "REGENT", "Less than one REGENT"),
-      path: nil,
-      creator: nil,
-      creator_address: nil,
-      age: nil,
-      connections: connection_list(connections)
-    }
-  end
 
   # A stored auction on either chain. A Robinhood auction's bids are paid in
   # USDG.

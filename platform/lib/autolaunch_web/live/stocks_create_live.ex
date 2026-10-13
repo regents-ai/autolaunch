@@ -12,9 +12,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchChain, Listings, Stocks, Ticker}
+  alias Autolaunch.{ImageColor, LaunchChain, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
-  alias AutolaunchWeb.Components.StockSelect
+  alias AutolaunchWeb.Components.{AutolaunchHelpers, StockSelect}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
   alias RegentChain.Address
 
@@ -41,7 +41,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
         draft_errors: %{},
         draft_notice: nil,
         image_notice: nil,
+        image_color: nil,
         current_human_id: nil,
+        creator_connections: %{},
         stocks_lab: stocks_lab(),
         market: %{prices: %{}, venues: []},
         stock_sort: "alphabetical",
@@ -84,6 +86,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
            socket
            |> load_draft(actor)
+           |> assign_connections()
            |> choose_linked_stock()
            |> assign_market()
            |> assign_ticker_taken()
@@ -94,6 +97,20 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  # The accounts the creator has connected and proved, as a listed auction's
+  # gallery card shows them, for the card's preview.
+  defp assign_connections(%{assigns: %{current_human_id: id}} = socket) do
+    creator = %{creator_human_account_id: id}
+
+    assign(socket,
+      creator_connections:
+        AutolaunchHelpers.connections_for(
+          creator,
+          AutolaunchHelpers.creator_connections_for([creator])
+        )
+    )
+  end
 
   # The chain's stock prices and the chosen stock's venues are read in the
   # background: the page renders without them and fills them in when they land.
@@ -200,6 +217,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # of a launch made here looks again (`AutolaunchWeb.LaunchSteps.relisted/2`).
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, update(socket, :listings, &(&1 + 1))}
+
+  def handle_info({:creator_connections, :changed}, socket),
+    do: {:noreply, assign_connections(socket)}
 
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
@@ -451,13 +471,23 @@ defmodule AutolaunchWeb.StocksCreateLive do
     do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
 
   defp assign_draft(socket, draft) do
-    assign(socket,
+    socket
+    |> assign_image_color(draft.image || "")
+    |> assign(
       draft: draft,
       draft_values: Templates.draft_values(draft),
       launch_chain: draft.chain,
       status: :ready
     )
   end
+
+  # The colour the gallery tints the auction's card with, read again only when
+  # the draft's image changes.
+  defp assign_image_color(%{assigns: %{draft_values: %{"image" => image}}} = socket, image),
+    do: socket
+
+  defp assign_image_color(socket, image),
+    do: assign(socket, image_color: ImageColor.for_url(image))
 
   defp current_or_new_draft(actor) do
     case Autolaunch.get_my_stocks_launch_draft(actor: actor) do

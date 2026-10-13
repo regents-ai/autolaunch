@@ -79,95 +79,95 @@
 #home-explore .home-search-context a { flex: none; }
 #home-explore .home-coin-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 32px 18px; }
 #home-explore .home-coin-grid > * { display: block; grid-row: auto; min-width: 0; }
-#home-explore .home-coin__main { display: block; color: inherit; text-decoration: none; border-radius: 8px; }
-#home-explore .home-coin__art { width: 100%; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
-#home-explore .home-coin__art img { display: block; width: 100%; height: 100%; object-fit: cover; }
-#home-explore .home-coin__fallback { display: grid; width: 100%; height: 100%; place-items: center; font-size: 2.5rem; font-weight: 500; color: var(--color-fg-muted); }
+:is(#home-explore, #create-preview) .home-coin__main { display: block; color: inherit; text-decoration: none; border-radius: 8px; }
+:is(#home-explore, #create-preview) .home-coin__art { width: 100%; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
+:is(#home-explore, #create-preview) .home-coin__art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+:is(#home-explore, #create-preview) .home-coin__fallback { display: grid; width: 100%; height: 100%; place-items: center; font-size: 2.5rem; font-weight: 500; color: var(--color-fg-muted); }
 /* Every gallery card is framed; a card whose image has a known colour wears it as a border that fades into the card. */
-#home-explore .home-coin { container-type: inline-size; padding: 6px 6px 12px; border: 3px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
-#home-explore .home-coin--tinted { border-color: transparent; background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom, var(--image-color) 35%, var(--color-surface)) border-box; }
+:is(#home-explore, #create-preview) .home-coin { container-type: inline-size; padding: 6px 6px 12px; border: 3px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
+:is(#home-explore, #create-preview) .home-coin--tinted { border-color: transparent; background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom, var(--image-color) 35%, var(--color-surface)) border-box; }
 /* A card reads: its ticker over its currency with its chain, the name, the price and one more figure, links, then an auction's figures row, the buttons and an auction's time bar.
    Every part keeps a set height, so all cards in the grid are the same height whatever their text and the buttons line up. A narrow card gives the ticker and price more lines. */
-#home-explore .home-coin__pair { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; height: 1.6em; margin: 12px 0 2px; font-size: .9375rem; line-height: 1.6; font-weight: 650; letter-spacing: -.015em; }
-#home-explore .home-coin__ticker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#home-explore .home-coin__ticker wbr { display: none; }
-#home-explore .home-coin__pair .chain-chip { flex: none; margin-top: 1px; letter-spacing: 0; }
-#home-explore .home-coin__name { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-weight: 400; color: var(--color-fg-muted); }
-#home-explore .home-coin__metric { height: 1.4em; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__metric > span:last-child { margin-left: 6px; color: var(--color-fg-muted); font-size: .6875rem; }
-#home-explore .home-coin__figure { height: 1.5em; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__figure span { color: var(--color-fg); }
-#home-explore .home-coin__links { --link-rows: 3; box-sizing: content-box; height: calc(var(--link-rows) * 1.5em + (var(--link-rows) - 1) * 2px); margin-top: 6px; padding: 6px 0 8px; border-bottom: 1px solid var(--hairline); font-size: .75rem; line-height: 1.5; }
-#home-explore .home-coin__links .launchpad-card__socials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1.5em; gap: 2px 12px; padding: 0; border: 0; font-size: inherit; }
-#home-explore .home-coin__links a { justify-self: start; display: inline-flex; align-items: center; gap: .4em; max-width: 100%; color: var(--color-fg-muted); text-decoration: none; }
-#home-explore .home-coin__links a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#home-explore .home-coin__links a:is(:hover, :focus-visible) { color: var(--color-fg); }
+:is(#home-explore, #create-preview) .home-coin__pair { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; height: 1.6em; margin: 12px 0 2px; font-size: .9375rem; line-height: 1.6; font-weight: 650; letter-spacing: -.015em; }
+:is(#home-explore, #create-preview) .home-coin__ticker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(#home-explore, #create-preview) .home-coin__ticker wbr { display: none; }
+:is(#home-explore, #create-preview) .home-coin__pair .chain-chip { flex: none; margin-top: 1px; letter-spacing: 0; }
+:is(#home-explore, #create-preview) .home-coin__name { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-weight: 400; color: var(--color-fg-muted); }
+:is(#home-explore, #create-preview) .home-coin__metric { height: 1.4em; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-variant-numeric: tabular-nums; }
+:is(#home-explore, #create-preview) .home-coin__metric > span:last-child { margin-left: 6px; color: var(--color-fg-muted); font-size: .6875rem; }
+:is(#home-explore, #create-preview) .home-coin__figure { height: 1.5em; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+:is(#home-explore, #create-preview) .home-coin__figure span { color: var(--color-fg); }
+:is(#home-explore, #create-preview) .home-coin__links { --link-rows: 3; box-sizing: content-box; height: calc(var(--link-rows) * 1.5em + (var(--link-rows) - 1) * 2px); margin-top: 6px; padding: 6px 0 8px; border-bottom: 1px solid var(--hairline); font-size: .75rem; line-height: 1.5; }
+:is(#home-explore, #create-preview) .home-coin__links .launchpad-card__socials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1.5em; gap: 2px 12px; padding: 0; border: 0; font-size: inherit; }
+:is(#home-explore, #create-preview) .home-coin__links a { justify-self: start; display: inline-flex; align-items: center; gap: .4em; max-width: 100%; color: var(--color-fg-muted); text-decoration: none; }
+:is(#home-explore, #create-preview) .home-coin__links a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(#home-explore, #create-preview) .home-coin__links a:is(:hover, :focus-visible) { color: var(--color-fg); }
 /* An auction's figures: a Revstake auction's bid volume and launch threshold on full-width lines that wrap on a narrow card, shown while the pointer is over the card or the keyboard is inside it; the FDV under them at the right, always. */
-#home-explore .home-coin__figures { display: grid; gap: 2px; margin-top: 8px; font-size: .6875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__raise { min-width: 0; opacity: 0; }
-#home-explore .home-coin__raise p { margin: 0; overflow-wrap: anywhere; }
-#home-explore .home-coin__raise span { color: var(--color-fg-muted); }
-#home-explore .home-coin:has(:focus-visible) .home-coin__raise { opacity: 1; }
-@media (hover: hover) { #home-explore .home-coin:hover .home-coin__raise { opacity: 1; } }
-@media (prefers-reduced-motion: no-preference) { #home-explore .home-coin__raise { transition: opacity var(--duration-fast) var(--ease-out); } }
+:is(#home-explore, #create-preview) .home-coin__figures { display: grid; gap: 2px; margin-top: 8px; font-size: .6875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
+:is(#home-explore, #create-preview) .home-coin__raise { min-width: 0; opacity: 0; }
+:is(#home-explore, #create-preview) .home-coin__raise p { margin: 0; overflow-wrap: anywhere; }
+:is(#home-explore, #create-preview) .home-coin__raise span { color: var(--color-fg-muted); }
+:is(#home-explore, #create-preview) .home-coin:has(:focus-visible) .home-coin__raise { opacity: 1; }
+@media (hover: hover) { :is(#home-explore, #create-preview) .home-coin:hover .home-coin__raise { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { :is(#home-explore, #create-preview) .home-coin__raise { transition: opacity var(--duration-fast) var(--ease-out); } }
 /* The whole card rises a little toward the pointer or keyboard focus and its image drifts closer; still when motion is reduced. */
 @media (prefers-reduced-motion: no-preference) {
-  #home-explore .home-coin { transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out); }
-  #home-explore .home-coin__art img, #home-explore .home-coin__fallback { transition: transform var(--duration-base) var(--ease-out); }
-  #home-explore .home-coin:has(:focus-visible) { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
-  #home-explore .home-coin:has(:focus-visible) :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
+  :is(#home-explore, #create-preview) .home-coin { transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out); }
+  :is(#home-explore, #create-preview) .home-coin__art img, :is(#home-explore, #create-preview) .home-coin__fallback { transition: transform var(--duration-base) var(--ease-out); }
+  :is(#home-explore, #create-preview) .home-coin:has(:focus-visible) { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
+  :is(#home-explore, #create-preview) .home-coin:has(:focus-visible) :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  #home-explore .home-coin:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
-  #home-explore .home-coin:hover :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
+  :is(#home-explore, #create-preview) .home-coin:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
+  :is(#home-explore, #create-preview) .home-coin:hover :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
-#home-explore .home-coin__floor { justify-self: end; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
+:is(#home-explore, #create-preview) .home-coin__floor { justify-self: end; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
 @container (max-width: 170px) {
-  #home-explore .home-coin__pair { height: 2.6em; line-height: 1.3; }
-  #home-explore .home-coin__ticker wbr { display: inline; }
-  #home-explore .home-coin__ticker { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: anywhere; }
-  #home-explore .home-coin__metric { height: 2.8em; white-space: normal; }
-  #home-explore .home-coin__metric > span:not(.visually-hidden) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #home-explore .home-coin__metric > span:last-child { margin-left: 0; }
-  #home-explore .home-coin__links .launchpad-card__socials { column-gap: 8px; }
+  :is(#home-explore, #create-preview) .home-coin__pair { height: 2.6em; line-height: 1.3; }
+  :is(#home-explore, #create-preview) .home-coin__ticker wbr { display: inline; }
+  :is(#home-explore, #create-preview) .home-coin__ticker { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: anywhere; }
+  :is(#home-explore, #create-preview) .home-coin__metric { height: 2.8em; white-space: normal; }
+  :is(#home-explore, #create-preview) .home-coin__metric > span:not(.visually-hidden) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(#home-explore, #create-preview) .home-coin__metric > span:last-child { margin-left: 0; }
+  :is(#home-explore, #create-preview) .home-coin__links .launchpad-card__socials { column-gap: 8px; }
 }
-#home-explore .home-coin__actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
-#home-explore .home-coin__action { min-height: 44px; padding: 4px; font-size: .8125rem; white-space: nowrap; overflow-wrap: normal; }
-#home-explore .home-coin__action.rg-button--secondary:is(:hover, :focus-visible) { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
+:is(#home-explore, #create-preview) .home-coin__actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
+:is(#home-explore, #create-preview) .home-coin__action { min-height: 44px; padding: 4px; font-size: .8125rem; white-space: nowrap; overflow-wrap: normal; }
+:is(#home-explore, #create-preview) .home-coin__action.rg-button--secondary:is(:hover, :focus-visible) { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
 /* The buttons lift toward the pointer; keyboard focus never moves them, and they stay still when motion is reduced.
    The lift moves `translate`, so the press's squish, which moves `transform`, plays on top of it. */
 @media (prefers-reduced-motion: no-preference) {
-  #home-explore .home-coin__action { transition: translate var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+  :is(#home-explore, #create-preview) .home-coin__action { transition: translate var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
 }
-@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { #home-explore .home-coin__action:hover:not(:disabled) { translate: 0 -2px; } }
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { :is(#home-explore, #create-preview) .home-coin__action:hover:not(:disabled) { translate: 0 -2px; } }
 /* An auction's two bars at the foot of its card, always in the same place so every card keeps its height:
    how much of the launch threshold is met, only while it is not yet met, in a faint glowing white that turns green at its end;
    under it, how much of the auction's time has passed, in its chain's colour a little brighter than the chain's box. */
-#home-explore .home-coin__bars { display: grid; grid-template-rows: 3px 4px; row-gap: 5px; margin-top: 10px; }
-#home-explore .home-coin__met { grid-row: 1; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
-#home-explore .home-coin__met span { display: block; height: 100%; max-width: 100%; border-radius: 2px; background: linear-gradient(to left, #3ee04c, rgb(255 255 255 / .92) 10px); box-shadow: 0 0 5px rgb(255 255 255 / .55); }
-:root[data-theme="light"] #home-explore .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
-:root[data-theme="light"] #home-explore .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
+:is(#home-explore, #create-preview) .home-coin__bars { display: grid; grid-template-rows: 3px 4px; row-gap: 5px; margin-top: 10px; }
+:is(#home-explore, #create-preview) .home-coin__met { grid-row: 1; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
+:is(#home-explore, #create-preview) .home-coin__met span { display: block; height: 100%; max-width: 100%; border-radius: 2px; background: linear-gradient(to left, #3ee04c, rgb(255 255 255 / .92) 10px); box-shadow: 0 0 5px rgb(255 255 255 / .55); }
+:root[data-theme="light"] :is(#home-explore, #create-preview) .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
+:root[data-theme="light"] :is(#home-explore, #create-preview) .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme]) #home-explore .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
-  :root:not([data-theme]) #home-explore .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
+  :root:not([data-theme]) :is(#home-explore, #create-preview) .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
+  :root:not([data-theme]) :is(#home-explore, #create-preview) .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
 }
-#home-explore .home-coin__time { grid-row: 2; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
-#home-explore .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
-#home-explore .home-coin__time--base { --time-color: #2970ff; }
-#home-explore .home-coin__time--robinhood { --time-color: #00e606; }
+:is(#home-explore, #create-preview) .home-coin__time { grid-row: 2; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
+:is(#home-explore, #create-preview) .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
+:is(#home-explore, #create-preview) .home-coin__time--base { --time-color: #2970ff; }
+:is(#home-explore, #create-preview) .home-coin__time--robinhood { --time-color: #00e606; }
 /* Phone cards sit a little tighter; on a touch phone the raise figures never show, so their
    lines close up and only the FDV line stays. */
 @container (max-width: 170px) {
-  #home-explore .home-coin__pair { margin-top: 10px; }
-  #home-explore .home-coin__metric { margin-top: 6px; }
-  #home-explore .home-coin__figures { margin-top: 4px; }
-  #home-explore .home-coin__actions { margin-top: 8px; }
-  #home-explore .home-coin__bars { margin-top: 8px; }
+  :is(#home-explore, #create-preview) .home-coin__pair { margin-top: 10px; }
+  :is(#home-explore, #create-preview) .home-coin__metric { margin-top: 6px; }
+  :is(#home-explore, #create-preview) .home-coin__figures { margin-top: 4px; }
+  :is(#home-explore, #create-preview) .home-coin__actions { margin-top: 8px; }
+  :is(#home-explore, #create-preview) .home-coin__bars { margin-top: 8px; }
 }
 @media (hover: none) {
   @container (max-width: 170px) {
-    #home-explore .home-coin__raise { display: none; }
+    :is(#home-explore, #create-preview) .home-coin__raise { display: none; }
   }
 }
 #home-explore .home-skeleton__image { width: 100%; aspect-ratio: 1; border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
