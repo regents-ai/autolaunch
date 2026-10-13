@@ -996,6 +996,68 @@
       "input_structs": {},
       "return_structs": {}
     },
+    "UniswapV4StockRouteV1": {
+      "source": "src/routes/UniswapV4StockRouteV1.sol",
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address poolManager_",
+        "uint24 fee_",
+        "int24 tickSpacing_",
+        "address feed_"
+      ],
+      "functions": [
+        "0x12be4fe0 quoteExactIn(address,address,uint256)",
+        "0x37a7b7d8 feed()",
+        "0x3e0dc34e poolId()",
+        "0x696453b8 MAX_FEED_AGE()",
+        "0x7b32b50e swapExactIn(address,address,uint256,uint256,address)",
+        "0x871ba01f feedUnit()",
+        "0x91dd7346 unlockCallback(bytes)",
+        "0xbdf3c4ae stock()",
+        "0xbe12b460 stockIsCurrency0()",
+        "0xd0c93a7c tickSpacing()",
+        "0xdc4c90d3 poolManager()",
+        "0xddca3f43 fee()",
+        "0xf5b91b7b usdg()",
+        "0xfe8d6b94 stockUnit()"
+      ],
+      "mutating_functions": [
+        "0x7b32b50e swapExactIn(address,address,uint256,uint256,address)",
+        "0x91dd7346 unlockCallback(bytes)"
+      ],
+      "view_functions": [
+        "0x12be4fe0 quoteExactIn(address,address,uint256)",
+        "0x37a7b7d8 feed()",
+        "0x3e0dc34e poolId()",
+        "0x696453b8 MAX_FEED_AGE()",
+        "0x871ba01f feedUnit()",
+        "0xbdf3c4ae stock()",
+        "0xbe12b460 stockIsCurrency0()",
+        "0xd0c93a7c tickSpacing()",
+        "0xdc4c90d3 poolManager()",
+        "0xddca3f43 fee()",
+        "0xf5b91b7b usdg()",
+        "0xfe8d6b94 stockUnit()"
+      ],
+      "events": [],
+      "event_fields": {},
+      "errors": [
+        "0x1f2a2005 ZeroAmount()",
+        "0x2c19b8b8 InsufficientOutput(uint256,uint256)",
+        "0x3016795c UnsupportedPair(address,address)",
+        "0x515f5007 StaleFeed(uint256)",
+        "0x56ad21c6 BadFeedAnswer(int256)",
+        "0x674520b6 NoCode(address)",
+        "0x7562d808 UnexpectedDecimals(uint8,uint8)",
+        "0x81489ec0 NotPoolManager(address)",
+        "0xab143c06 Reentrancy()",
+        "0xd92e233d ZeroAddress()",
+        "0xdc15460a PoolNotInitialized(bytes32)"
+      ],
+      "input_structs": {},
+      "return_structs": {}
+    },
     "RobinhoodBaseRevenueReceiverV1": {
       "source": "src/RobinhoodBaseRevenueReceiverV1.sol",
       "constructor": [

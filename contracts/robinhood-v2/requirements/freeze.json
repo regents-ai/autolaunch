@@ -48,6 +48,10 @@
       "role": "The production USDG <-> STOCK route for one admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order) under the caller's minimum alone and quotes from its Chainlink feed.",
       "deployed_by": "deployment script (CREATE from the deployer), one per admitted stock after the bid adapter"
     },
+    "UniswapV4StockRouteV1": {
+      "role": "The production USDG <-> STOCK route for one admitted stock whose market is a Uniswap v4 pool: executes on that stock's hookless USDG/STOCK pool (either currency order) under the caller's minimum alone and quotes from its Chainlink feed.",
+      "deployed_by": "one per stock admitted after the first deployment, by whoever prepares that admission; it has no owner and the Safe admits it"
+    },
     "RobinhoodBaseRevenueReceiverV1": {
       "role": "The Base-side address bridged USDC lands on: Base-Safe-attested attribution, permissionless deposit into live REGENT staking, surplus sweep.",
       "deployed_by": "deployment script on Base mainnet (chain 8453)"

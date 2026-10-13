@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 111,
+  "total": 147,
   "tests": {
     "test/RobinhoodBaseReceiver.t.sol": {
       "RobinhoodBaseReceiverTest": [
@@ -161,6 +161,48 @@
         "test_swap_stock_to_usdg_pays_the_recipient_and_keeps_nothing",
         "test_swap_succeeds_while_the_feed_is_stale_and_the_quote_reverts",
         "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing"
+      ]
+    },
+    "test/UniswapV4StockRoute.t.sol": {
+      "UniswapV4StockRouteStockFirstTest": [
+        "test_construction_pins_pool_feed_order_and_units",
+        "test_construction_rejects_a_dollar_that_is_not_six_decimals",
+        "test_construction_rejects_a_pool_that_does_not_exist",
+        "test_construction_rejects_zero_addresses_and_codeless_targets",
+        "test_quote_converts_both_ways_at_the_feed_price",
+        "test_quote_rejects_a_stopped_or_broken_feed",
+        "test_quote_rejects_zero_amount_and_unsupported_pairs",
+        "test_swap_cannot_be_reentered_from_a_stock_transfer",
+        "test_swap_far_under_the_feed_is_refused_only_by_the_caller_minimum",
+        "test_swap_is_refused_one_unit_over_what_the_pool_pays_and_executes_at_it",
+        "test_swap_rejects_a_zero_recipient",
+        "test_swap_rejects_zero_amount_and_unsupported_pairs",
+        "test_swap_returns_unconsumed_stock_to_the_recipient",
+        "test_swap_returns_unconsumed_usdg_to_the_recipient",
+        "test_swap_stock_to_usdg_pays_the_recipient_and_keeps_nothing",
+        "test_swap_succeeds_while_the_feed_is_stale_and_the_quote_reverts",
+        "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing",
+        "test_unlock_callback_accepts_only_the_pinned_pool_manager"
+      ],
+      "UniswapV4StockRouteUsdgFirstTest": [
+        "test_construction_pins_pool_feed_order_and_units",
+        "test_construction_rejects_a_dollar_that_is_not_six_decimals",
+        "test_construction_rejects_a_pool_that_does_not_exist",
+        "test_construction_rejects_zero_addresses_and_codeless_targets",
+        "test_quote_converts_both_ways_at_the_feed_price",
+        "test_quote_rejects_a_stopped_or_broken_feed",
+        "test_quote_rejects_zero_amount_and_unsupported_pairs",
+        "test_swap_cannot_be_reentered_from_a_stock_transfer",
+        "test_swap_far_under_the_feed_is_refused_only_by_the_caller_minimum",
+        "test_swap_is_refused_one_unit_over_what_the_pool_pays_and_executes_at_it",
+        "test_swap_rejects_a_zero_recipient",
+        "test_swap_rejects_zero_amount_and_unsupported_pairs",
+        "test_swap_returns_unconsumed_stock_to_the_recipient",
+        "test_swap_returns_unconsumed_usdg_to_the_recipient",
+        "test_swap_stock_to_usdg_pays_the_recipient_and_keeps_nothing",
+        "test_swap_succeeds_while_the_feed_is_stale_and_the_quote_reverts",
+        "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing",
+        "test_unlock_callback_accepts_only_the_pinned_pool_manager"
       ]
     }
   }

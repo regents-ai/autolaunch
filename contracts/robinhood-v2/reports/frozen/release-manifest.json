@@ -29,6 +29,7 @@
     "MemestockLPLocker",
     "RobinhoodStockBidAdapterV1",
     "UniswapV3StockRouteV1",
+    "UniswapV4StockRouteV1",
     "RobinhoodBaseRevenueReceiverV1"
   ],
   "contracts": {
@@ -288,6 +289,37 @@
         "address feed_"
       ],
       "abi_file": "abi/UniswapV3StockRouteV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "UniswapV4StockRouteV1": {
+      "source": "src/routes/UniswapV4StockRouteV1.sol",
+      "role": "The production USDG <-> STOCK route for one admitted stock whose market is a Uniswap v4 pool: executes on that stock's hookless USDG/STOCK pool (either currency order) under the caller's minimum alone and quotes from its Chainlink feed.",
+      "deployed_by": "one per stock admitted after the first deployment, by whoever prepares that admission; it has no owner and the Safe admits it",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 4090,
+      "runtime_keccak256": "0xbb49503125852432fd6162038450e4c26d960a45c0d1e38a01d37975ca4e3ca8",
+      "runtime_sha256": "78b121a9e2846613e358527356b19dca750529bc2d1f598acf22ceaceb010532",
+      "runtime_object_sha256": "cdec3d668433eaa35d9600fc365a540e0fbcebc0b5810c6f6607379743154b80",
+      "runtime_immutable_references": 10,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 5409,
+      "creation_keccak256": "0x2d23d9be2d465284b4c1376d6ebf9a806f98c65007d8e89f961013d1eb9c0b0b",
+      "creation_sha256": "ed8d8b45d39cbc2387de647c6f4d3d060a5c5bbc3930c0ed8c570ea72ce61d31",
+      "creation_object_sha256": "df7536e684a4187db22ef6e5315edee961a0c1bd48336a299e6528782e1c291f",
+      "creation_linked_libraries": [],
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address poolManager_",
+        "uint24 fee_",
+        "int24 tickSpacing_",
+        "address feed_"
+      ],
+      "abi_file": "abi/UniswapV4StockRouteV1.json",
       "deployment": {
         "address": null,
         "status": "deployment_pending"
