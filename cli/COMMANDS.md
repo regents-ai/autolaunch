@@ -200,3 +200,10 @@ the renamed commands are unchanged; the old names are not aliases.
 (`listTokens`) and `treasury security <address>` (`getTreasurySecurity`). They take
 the names of the older Autolaunch-specific CLI, need no sign-in and change nothing.
 No signed command changed.
+
+13 October 2026: every signed command names who may run it in the three-way
+`authority` of regents-cli `41da314`. `agents whoami` and `agents pair` are
+`signed_agent`: any signed-in agent, paired or not. Every other signed command is
+`paired_agent`: the agent's person must have paired it. None carries a condition;
+no command here spends Credits or acts on something its person joins. Routes, inputs,
+answers and refusals are unchanged.

@@ -1,8 +1,8 @@
-.PHONY: help check check-platform check-required-fixes readiness
+.PHONY: help check check-platform check-required-fixes check-cli readiness
 help:
-	@echo "Run make check for every gate, or check-platform or check-required-fixes for one."
+	@echo "Run make check for every gate, or check-platform, check-required-fixes or check-cli for one."
 	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
-check: check-platform check-required-fixes
+check: check-platform check-required-fixes check-cli
 check-platform:
 	cd platform && mix precommit && npm run typecheck && npm test
 # Every site runs the same check against ash-template's current main branch, so a
@@ -13,6 +13,12 @@ check-required-fixes:
 	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/platform/scripts/check_required_fixes.exs?ref=$$rev" > _build/check_required_fixes.exs \
 	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/security/required-fixes.json?ref=$$rev" > _build/required-fixes.json \
 	&& elixir _build/check_required_fixes.exs "ash-template $$rev" < _build/required-fixes.json
+# The command description check is regents-cli's own checker at the commit pinned
+# here, run by uv straight from GitHub. Move the pin in a commit.
+REGENTS_CLI_REV := 41da3144bea4443100bedda4b24a8cb7121e419f
+check-cli:
+	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
+	  python -m regents_cli.check_commands cli/commands.json cli/docs/profile.openapi.json cli/docs/api-contract.openapiv3.yaml
 # Starts the local server on a free port, checks what the agent-readiness scorer
 # looks for, then stops the server.
 readiness:
