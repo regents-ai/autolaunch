@@ -1,22 +1,20 @@
 defmodule AutolaunchWeb.UpcomingLive do
   @moduledoc """
   Stocks on Base and Robinhood, with dated pool research in a native modal
-  dialog. Research does not enable trading: Available to Pair is joined to
-  the launchpads' saved admissions by token address, never just by ticker.
+  dialog. The established Available to Pair list is preserved; new research
+  remains in its preview sections and never changes launchpad admission.
   """
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
+  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1, compact_usd: 1]
 
-  alias Autolaunch.Stocks.{Assets, UpcomingCatalog}
+  alias Autolaunch.Stocks.UpcomingCatalog
 
   def mount(_params, _session, socket) do
-    admitted = Map.new([:base, :robinhood], &{&1, Assets.all(&1)})
-
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/upcoming-stocks"))
-     |> assign(chains: UpcomingCatalog.chains(admitted))}
+     |> assign(chains: UpcomingCatalog.chains())}
   end
 
   def render(assigns) do
@@ -130,7 +128,7 @@ defmodule AutolaunchWeb.UpcomingLive do
           autofocus
         >Close</button>
       </header>
-      <p class="upcoming-details__status">{@stock["status"]}</p>
+      <p :if={@stock["status"]} class="upcoming-details__status">{@stock["status"]}</p>
       <p :if={@stock["blocker"]} class="upcoming-details__note">{@stock["blocker"]}</p>
       <dl class="upcoming-details__facts">
         <.address
@@ -242,13 +240,13 @@ defmodule AutolaunchWeb.UpcomingLive do
   end
 
   defp liquidity(nil), do: "Unknown"
-  defp liquidity(usd), do: "$" <> RegentFormat.decimal_to_string(Decimal.new(usd), 2)
+  defp liquidity(usd), do: usd |> Decimal.new() |> Decimal.to_float() |> compact_usd()
 
   defp feed_note(%{"feed_address" => nil}),
     do: "No verified same-chain feed address is available."
 
   defp feed_note(%{"section" => "available"}),
-    do: "Launchpad's saved feed; current price is not checked here."
+    do: "Current price is not checked here."
 
   defp feed_note(_stock),
     do: "Address identified; current price and token binding need verification."

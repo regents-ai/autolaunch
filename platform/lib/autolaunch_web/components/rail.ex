@@ -2,8 +2,8 @@ defmodule AutolaunchWeb.Components.Rail do
   @moduledoc false
   use Phoenix.Component
 
-  # Four destinations. Explore also covers the auction and token lists and
-  # their pages; Onchain Stocks is the Upcoming page; Learn covers its persistent
+  # Explore has two smaller links to its auction and token views. It also
+  # covers their search and detail pages; Docs covers the persistent
   # information-page navigation. Launching starts from the home page's one
   # "Launch a token" button.
   @items [
@@ -15,16 +15,22 @@ defmodule AutolaunchWeb.Components.Rail do
     %{label: "Onchain Stocks", path: "/upcoming-stocks", covers: []},
     %{label: "Portfolio", path: "/portfolio", covers: []},
     %{
-      label: "Learn",
-      path: "/how-it-works",
+      label: "Docs",
+      path: "/docs",
       covers: []
     }
   ]
 
+  @explore_views [
+    %{label: "Auctions", path: "/", view: "auctions"},
+    %{label: "Tokens", path: "/?view=tokens", view: "tokens"}
+  ]
+
   attr :current_path, :string, required: true
+  attr :market_view, :string, default: nil
 
   def rail(assigns) do
-    assigns = assign(assigns, :items, @items)
+    assigns = assign(assigns, items: @items, explore_views: @explore_views)
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
@@ -40,17 +46,34 @@ defmodule AutolaunchWeb.Components.Rail do
           >
             {item.label}
           </.link>
+          <ul :if={item.path == "/"} class="shell-rail__sublist" aria-label="Explore views">
+            <li :for={view <- @explore_views}>
+              <.link
+                href={view.path}
+                class="rg-button rg-button--primary shell-rail__link shell-rail__sublink"
+                aria-current={if view_current?(@current_path, @market_view, view.view), do: "page"}
+              >
+                {view.label}
+              </.link>
+            </li>
+          </ul>
         </li>
       </ul>
     </nav>
     """
   end
 
-  defp current?(path, %{label: "Learn"}),
+  defp current?(path, %{label: "Docs"}),
     do: Enum.any?(AutolaunchWeb.Components.LearnNavigation.paths(), &under?(path, &1))
 
   defp current?(path, %{path: own, covers: covers}),
     do: Enum.any?([own | covers], &under?(path, &1))
+
+  defp view_current?("/", view, target), do: (view || "auctions") == target
+  defp view_current?(path, _view, "tokens"), do: under?(path, "/tokens")
+
+  defp view_current?(path, _view, "auctions"),
+    do: under?(path, "/auctions") or under?(path, "/robinhood")
 
   defp under?(path, "/"), do: path == "/"
 

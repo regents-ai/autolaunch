@@ -1,37 +1,27 @@
 defmodule Autolaunch.Stocks.UpcomingCatalog do
   @moduledoc """
-  Dated research for the public stocks page. Pool observations and unresolved
-  identities are kept as supplied; they never admit a stock or configure a route.
-  Available stocks come from `Assets`, joined by chain and token address, so a
-  ticker shared by two issuers cannot inherit another token's admission.
+  The stocks page's established Available to Pair list and dated research for
+  its two preview sections. Research never admits a stock or configures a route.
+  Section membership comes from the catalog: an empty local admission cache
+  cannot remove an established stock or move it into the preview.
   """
-
-  alias Autolaunch.Stocks.{Companies, PriceFeeds}
 
   @source Application.app_dir(:autolaunch, "priv/stocks/upcoming-2026-10-14.json")
   @external_resource @source
   @stocks @source |> File.read!() |> Jason.decode!() |> Map.fetch!("stocks")
   @chains [base: "Base", robinhood: "Robinhood"]
 
-  @doc "The research observations, without any claim of current admission."
+  @doc "The catalog's identities and dated observations."
   def stocks, do: @stocks
 
-  @doc "Groups research and saved admitted stocks for each chain, without writing either."
-  def chains(admitted) do
+  @doc "The established stock list and the two preview groups, without changing admission."
+  def chains do
     Enum.map(@chains, fn {chain, name} ->
-      saved = Map.get(admitted, chain, [])
-      by_address = Map.new(saved, &{String.downcase(&1.address), &1})
-      research = Enum.filter(@stocks, &(&1["chain"] == Atom.to_string(chain)))
-      researched = MapSet.new(research, &String.downcase(&1["token_address"] || ""))
-
-      catalog = Enum.map(research, &research_record(&1, by_address))
-
-      additions =
-        saved
-        |> Enum.reject(&MapSet.member?(researched, String.downcase(&1.address)))
-        |> Enum.map(&new_stock(&1, chain))
-
-      grouped = Enum.group_by(catalog ++ additions, & &1["section"])
+      grouped =
+        @stocks
+        |> Enum.filter(&(&1["chain"] == Atom.to_string(chain)))
+        |> Enum.map(&status/1)
+        |> Enum.group_by(& &1["section"])
 
       %{
         chain: chain,
@@ -43,58 +33,16 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
     end)
   end
 
-  defp research_record(stock, by_address) do
-    case Map.get(by_address, String.downcase(stock["token_address"] || "")) do
-      nil -> pending(stock)
-      saved -> admitted(stock, saved)
-    end
-  end
+  defp status(%{"section" => "available"} = stock), do: Map.put(stock, "status", nil)
 
-  defp pending(%{"section" => "available"} = stock) do
-    Map.merge(stock, %{
-      "section" => "soon",
-      "status" => "Previously listed; current admission is not confirmed"
-    })
-  end
-
-  defp pending(%{"section" => "soon"} = stock),
+  defp status(%{"section" => "soon"} = stock),
     do: Map.put(stock, "status", "Pending admission or verification")
 
-  defp pending(%{"section" => "feed_required"} = stock),
+  defp status(%{"section" => "feed_required"} = stock),
     do: Map.put(stock, "status", "Chainlink feed required; other checks may also be pending")
 
-  defp admitted(stock, saved) do
-    Map.merge(stock, %{
-      "section" => "available",
-      "symbol" => saved.symbol,
-      "token_address" => saved.address,
-      "feed_address" => saved.feed,
-      "feed_status" => "Launchpad's saved feed; current price round is not checked here",
-      "status" => "Admitted by the launchpad",
-      "blocker" => nil
-    })
-  end
-
-  defp new_stock(saved, chain) do
-    ticker = PriceFeeds.ticker(saved.symbol)
-
-    %{
-      "id" => "#{chain}-#{String.downcase(saved.address)}",
-      "section" => "available",
-      "symbol" => saved.symbol,
-      "name" => saved.name,
-      "ticker" => ticker,
-      "token_address" => saved.address,
-      "feed_address" => saved.feed,
-      "feed_status" => "Launchpad's saved feed; current price round is not checked here",
-      "company_url" => Companies.website(ticker),
-      "view_url" => nil,
-      "status" => "Admitted by the launchpad",
-      "blocker" => nil,
-      "rank" => nil,
-      "pools" => []
-    }
-  end
+  defp sorted(grouped, "available"),
+    do: grouped |> Map.get("available", []) |> Enum.sort_by(& &1["symbol"])
 
   defp sorted(grouped, section) do
     grouped

@@ -9,16 +9,17 @@ The catalog in `priv/stocks/upcoming-2026-10-14.json` was imported from Sean's
 checksum, 127 chain/ticker records, exact addresses, company and stock-quote
 links, pool observations and unresolved identities. The research snapshot has
 35 previously available records, 14 upcoming records and 78 feed-required records.
-Liquidity observations have their own dates; historical or missing figures are
+Liquidity uses the existing stock picker’s compact dollar format (K, M and B).
+Observations have their own dates; historical or missing figures are
 never presented as current liquidity or zero.
 
-Available to Pair still reads `Stocks.Assets`: only saved admitted stocks enter
-that section. Research joins those stocks by chain and token address, not ticker.
-The saved launchpad feed takes precedence over the research feed. Revoked or
-unconfirmed former admissions appear under Soon Available. New admissions not
-yet researched remain visible with their saved address and feed; missing links
-and pool observations are explicit. This catalog does not configure routes,
-admit tokens, grant trading eligibility or change launch checks.
+Available to Pair preserves the established 35-stock website list: 10 on Base
+and 25 on Robinhood. Catalog membership determines the section, so unavailable
+local chain settings or an empty admission cache cannot shrink it or move its
+stocks into the preview. The additional research remains under Soon Available
+and Chainlink Feed Required. Research does not add stocks to Available to Pair.
+The launch picker and every launch/bid keep their existing admission checks.
+This catalog does not configure routes, admit tokens or change those checks.
 
 Every stock card is a button. Clicking it, tapping it or pressing Enter or
 Space opens a native modal dialog near the viewport's top. Hover never opens
@@ -38,8 +39,8 @@ price feed.
 
 ## Design review
 
-- Before: stock cards showed only a ticker and short note.
-- After: all sections offer the same details, with full addresses and links in
-  a dialog opened by selecting the stock card.
-- Why: visitors can inspect a stock without leaving the catalog, while dated
-  research remains distinct from actual launchpad admission.
+| Before | After | Why |
+| --- | --- | --- |
+| Stock cards showed a ticker and short note. | Clicking a card opens full addresses, links and dated pool observations. | Visitors can inspect a stock without leaving the catalog. |
+| An empty local admission cache moved established stocks into Soon Available. | The 35 established pairing stocks retain their catalog membership. | Research previews must not shrink or expand the available list. |
+| Liquidity displayed every dollar and cent. | The existing K/M/B dollar format displays compact amounts. | Large figures are easier to scan. |

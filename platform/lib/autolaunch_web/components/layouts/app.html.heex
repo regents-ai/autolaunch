@@ -1,7 +1,12 @@
 <Regent.Structure.frame class="shell">
   <a class="shell-skip" href="#shell-content">Skip to content</a>
   <Regent.Structure.row class="shell-body">
-    <:rail_content><.rail current_path={@current_path} /></:rail_content>
+    <:rail_content>
+      <.rail
+        current_path={@current_path}
+        market_view={assigns[:market_options] && assigns.market_options.view}
+      />
+    </:rail_content>
     <div class="shell-main">
       <.top_bar
         account_control={@account_control}
