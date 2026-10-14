@@ -30,6 +30,7 @@ defmodule Autolaunch.Stocks.LabProjection do
       current_clearing_price: "0",
       chain_id: chain_id,
       auction_address: result["auction"],
+      token_address: result["new_token"],
       origin: :site,
       creator_human_account_id: operation.human_account_id,
       creator_address: String.downcase(signer),
