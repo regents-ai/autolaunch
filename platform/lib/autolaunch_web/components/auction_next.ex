@@ -1175,7 +1175,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         </div>
         <div :if={@receipt.outcome != :failed}>
           <dt>Standing</dt>
-          <dd>{standing(@receipt.standing)}</dd>
+          <dd>{standing(@receipt.standing, @receipt.bidding_ended?)}</dd>
         </div>
         <div>
           <dt>Owner</dt>
@@ -1190,7 +1190,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         </div>
         <div :if={@receipt.outcome != :failed}>
           <dt>Getting unspent money back</dt>
-          <dd>
+          <dd :if={@receipt.state == :withdrawn}>
+            Already returned when the bid was withdrawn.
+          </dd>
+          <dd :if={@receipt.state != :withdrawn}>
             When the bid is withdrawn: after bidding ends, or earlier once the price passes
             this bid's maximum.
           </dd>
@@ -1222,9 +1225,12 @@ defmodule AutolaunchWeb.Components.AuctionNext do
 
   defp claiming(_graduated, block), do: "Once the pool is ready, from block #{grouped(block)}"
 
-  defp standing(:in), do: "Above the price: buying at the price every block"
-  defp standing(:sharing), do: "At the price: shares what higher bids leave"
-  defp standing(:outbid), do: "Below the price: no longer buying"
+  defp standing(:in, false), do: "Above the price: buying at the price every block"
+  defp standing(:sharing, false), do: "At the price: shares what higher bids leave"
+  defp standing(:outbid, false), do: "Below the price: no longer buying"
+  defp standing(:in, true), do: "Above the final price: bought every block"
+  defp standing(:sharing, true), do: "At the final price: shared what higher bids left"
+  defp standing(:outbid, true), do: "Below the final price: stopped buying"
 
   defp owner_note(_owner, nil), do: "Only this wallet can claim or withdraw this bid."
 
