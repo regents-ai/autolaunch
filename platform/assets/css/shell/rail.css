@@ -5,8 +5,10 @@
 .shell-rail__list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
 .shell-rail__item { min-width: 0; }
 /* The links are the header's charcoal buttons: corner marks that close
-   into a full outline on hover, and stay closed on the page you are on. */
-.rg-button.shell-rail__link { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); width: 100%; min-height: 3rem; padding: var(--space-1) var(--space-2); justify-content: start; font-size: 1.0625rem; white-space: nowrap; }
+   into a full outline on hover, and stay closed on the page you are on.
+   A label too long for its link ("Onchain Stocks") takes two lines inside
+   the same height as the others. */
+.rg-button.shell-rail__link { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); width: 100%; min-height: 3rem; padding: .25rem var(--space-2); justify-content: start; font-size: 1.0625rem; line-height: 1.15; text-align: start; text-wrap: balance; }
 @media (forced-colors: none) {
   :root .rg-button.shell-rail__link[aria-current="page"]::after {
     --rg-button-edge-ink: var(--rg-button-active-border);
@@ -26,7 +28,7 @@
 @media (max-width: 63.99rem) {
   .shell-rail { padding: var(--rg-panel-padding); gap: var(--space-2); }
   .shell-rail__list { grid-template-columns: repeat(4, minmax(0,1fr)); }
-  .rg-button.shell-rail__link { justify-content: center; }
+  .rg-button.shell-rail__link { justify-content: center; text-align: center; }
 }
 /* Phones: two rows of two, slightly shorter links. They are there from the
    first frame. */
