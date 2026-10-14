@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v121, 14 October 2026 (c51d0a9): finished auctions lead on to their token
+- An auction that ended below its minimum says "Minimum not met" on the lists, in place of an empty bar.
+- On the Auctions list, a graduated auction's row shows a "Buy" button on hover that opens its token page. A signed-in wallet with something to collect sees its "Claim" or "Refund" button in the same place, and a Claim button now names the token, for example "Claim AIFROG".
+- A graduated auction's page, on Base or Robinhood, opens with "Auction is Finished" and a button on to its token page, beside the token's picture, its creator and their links, the total bid volume, the starting market cap (the auction's final price times the whole supply) and the market cap now.
+- An auction page lists the 100 prices nearest the price now, so it opens faster.
+- An auction page reads a signed-in visitor's own bids from the chain when it opens and when one of them changes, not on every block.
+- The lists send an open page only what changed on screen.
+- Every stock Chainlink prices on Base or Robinhood now has a logo: CleanSpark, the iShares South Korea fund, IonQ and Rigetti join the rest, so no stock on the Onchain Stocks page shows letters in place of a logo.
+
 ## v120, 14 October 2026 (28d2cb6): the trades health reading follows the token furthest behind
 - The site's health reading for token trades now shows, for each chain, the token whose trades are furthest behind, so one token that is up to date no longer hides another that is catching up. Visitors see no change.
 
