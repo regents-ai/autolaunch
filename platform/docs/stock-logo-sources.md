@@ -1,6 +1,6 @@
 # Stock logo sources
 
-One logo per stock ticker, in `priv/static/images/stocks/`, shown at about 20–28px inside a small chip. Collected on 2026-09-25; ASML, CRWV, GLD, NBIS, ORCL and RKLB added on 2026-10-13.
+One logo per stock ticker, in `priv/static/images/stocks/`, shown at about 20–28px inside a small chip. Collected on 2026-09-25; ASML, CRWV, GLD, NBIS, ORCL and RKLB added on 2026-10-13; CLSK, EWY, IONQ and RGTI on 2026-10-14.
 
 Every logo here is a trademark of its owner. The licence column covers the image file only. It does not grant any trademark rights, so use each logo only to name the stock it belongs to.
 
@@ -13,14 +13,17 @@ Every logo here is a trademark of its owner. The licence column covers the image
 | AMZN | AMZN.svg | https://commons.wikimedia.org/wiki/File:Amazon_icon.svg | Wikimedia Commons, public domain (text logo), trademarked. A duplicate copy of the two shapes in the source file was removed. | Yes (black "a", orange smile) |
 | ASML | ASML.svg | https://commons.wikimedia.org/wiki/File:ASML_Holding_N.V._logo.svg | Wikimedia Commons, public domain (text logo), trademark of ASML Holding. Wordmark in #0F238C (no separate icon). The drawing program's notes were removed and the shapes kept as they are. | Yes (dark blue) |
 | BABA | BABA.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/alibabadotcom.svg | simple-icons, CC0. Filled with the brand colour #FF6A00. The Alibaba "smiling a" mark, which Alibaba Group and Alibaba.com share. | No |
+| CLSK | CLSK.svg | https://www.cleanspark.com/assets/v3/img/icon/safari-pinned-tab.svg | CleanSpark's own site icon, trademark of CleanSpark. The four-pointed star in #1935A9, the colour the site names for that icon; an empty frame the size of the drawing was removed. | Yes (dark blue) |
 | COIN | COIN.png | https://commons.wikimedia.org/wiki/File:Coinbase_Icon.png | Wikimedia Commons, public domain, trademarked. Trimmed, centred and scaled to 128×128 on a transparent background. | No |
 | CRCL | CRCL.svg | https://cdn.prod.website-files.com/668c08d1b8a9330bd1d786ad/669a20df8ac2810a6dd50e67_favicon-256.svg | Circle's own site icon from circle.com, trademark of Circle Internet Group. Width, height and unused attributes removed. | No |
 | CRWV | CRWV.svg | https://commons.wikimedia.org/wiki/File:CoreWeave_logo.svg | Wikimedia Commons, public domain, trademark of CoreWeave. Only the "CW" mark is kept, its "C" in #2741E7 and the rest in black; the "CoreWeave" wordmark was left out, as were the drawing program's notes. | Yes (black strokes) |
 | DELL | DELL.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/dell.svg | simple-icons, CC0. Filled with the brand colour #007DB8. | No |
+| EWY | EWY.svg | https://commons.wikimedia.org/wiki/File:Logo-ishares_2019.svg | Same as SGOV (iShares MSCI South Korea, BlackRock). | Yes (black) |
 | GLD | GLD.svg | https://www.ssga.com/library-content/images/site/state-street-investment-management-logo.svg | Same as SPY (State Street, which markets SPDR Gold Shares). | Yes (bright blue, low contrast on dark) |
 | GME | GME.svg | https://commons.wikimedia.org/wiki/File:GameStop_Logo.svg | Wikimedia Commons, public domain (text logo), trademarked. Wordmark (no separate icon). | Yes ("Game" is near-black #212322) |
 | GOOGL | GOOGL.svg | https://commons.wikimedia.org/wiki/File:Google_Favicon_2025.svg | Wikimedia Commons, public domain (text logo), trademarked. The current (2025) gradient "G". | No |
 | INTC | INTC.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/intel.svg | simple-icons, CC0. Filled with the brand colour #0071C5. Wordmark (no separate icon). | No |
+| IONQ | IONQ.svg | https://commons.wikimedia.org/wiki/File:IonQ_corp_logo.svg | Wikimedia Commons, public domain, trademark of IonQ. Only the hexagon mark is kept, each face in its own colour; the "IonQ" wordmark and three shapes that draw nothing were left out. | No |
 | META | META.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/meta.svg | simple-icons, CC0. Filled with the brand colour #0467DF. | No |
 | MSFT | MSFT.svg | https://commons.wikimedia.org/wiki/File:Microsoft_logo_(2012).svg | Wikimedia Commons, public domain (text logo), trademarked. Only the four-square mark is kept; the grey "Microsoft" wordmark was left out. | No |
 | MSTR | MSTR.svg | https://commons.wikimedia.org/wiki/File:Strategy_logo_(2025).svg | Wikimedia Commons, public domain (text logo), trademarked. The 2025 "Strategy₿" wordmark in #FA660F; the company has no separate icon. | No |
@@ -30,6 +33,7 @@ Every logo here is a trademark of its owner. The licence column covers the image
 | ORCL | ORCL.svg | https://commons.wikimedia.org/wiki/File:Oracle_Corporation_logo.svg | Wikimedia Commons, public domain (text logo), trademark of Oracle. The "O" mark in #C74634; the "ORACLE" wordmark is too wide to read at chip size. Width and height replaced by a viewBox. | No |
 | PLTR | PLTR.svg | https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/palantir.svg | simple-icons, CC0. Filled with the brand colour #101113. | Yes (near-black) |
 | QQQ | QQQ.svg | https://www.invesco.com/etc.clientlibs/invesco/clientlib-global/clientlib/resources/images/logo-new.svg | Invesco's own site logo, trademark of Invesco Ltd. Only the mountain mark is kept, in #000AD2; the "Invesco" wordmark was left out. | Yes (deep blue, low contrast on dark) |
+| RGTI | RGTI.svg | https://www.rigetti.com/assets/img/logo-mark.svg | Rigetti's own site logo mark, trademark of Rigetti Computing. The "ri" shape in #0D0D36; the small registered sign beside it was left out. | Yes (dark navy) |
 | RKLB | RKLB.svg | https://commons.wikimedia.org/wiki/File:Rocket_Lab_logo_R_(Trimmed).svg | Wikimedia Commons, public domain, trademark of Rocket Lab. The "R" mark with its red streak, without the wordmark. Width, height and a clip the size of the whole drawing were removed. | Yes (near-black "R") |
 | SGOV | SGOV.svg | https://commons.wikimedia.org/wiki/File:Logo-ishares_2019.svg | Wikimedia Commons, public domain (text logo), trademark of BlackRock. The "iShares" wordmark only; the small "by BlackRock" line under it was left out because it cannot be read at chip size. Same file as SLV. | Yes (black) |
 | SLV | SLV.svg | https://commons.wikimedia.org/wiki/File:Logo-ishares_2019.svg | Same as SGOV (iShares, BlackRock). | Yes (black) |
@@ -44,5 +48,5 @@ Every logo here is a trademark of its owner. The licence column covers the image
 ## Licence summary
 
 - simple-icons 16.32.0 (10 files: AAPL, AMD, BABA, DELL, INTC, META, NVDA, PLTR, SPCX, TSLA): the icon package is CC0-1.0, and no icon has its own licence in the package data.
-- Wikimedia Commons (15 files: AMZN, ASML, COIN, CRWV, GME, GOOGL, MSFT, MSTR, MU, ORCL, RKLB, SGOV, SLV, SNDK, TSM): each file is marked public domain, with a "trademarked" warning where Commons shows one. The SNDK file also follows the layout of Sandisk's own site icon.
-- Company websites (7 files: CRCL, GLD, NBIS, QQQ, SPY, USAR, USO): taken from each company's own public site with no sign-in. These are not openly licensed. They are used only to name the company's own stock.
+- Wikimedia Commons (17 files: AMZN, ASML, COIN, CRWV, EWY, GME, GOOGL, IONQ, MSFT, MSTR, MU, ORCL, RKLB, SGOV, SLV, SNDK, TSM): each file is marked public domain, with a "trademarked" warning where Commons shows one. The SNDK file also follows the layout of Sandisk's own site icon.
+- Company websites (9 files: CLSK, CRCL, GLD, NBIS, QQQ, RGTI, SPY, USAR, USO): taken from each company's own public site with no sign-in. These are not openly licensed. They are used only to name the company's own stock.
