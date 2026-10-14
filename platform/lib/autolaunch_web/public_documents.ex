@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"How Autolaunch works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
     "/upcoming" =>
-      {"Upcoming stocks",
+      {"Onchain Stocks",
        "Stocks next in line to pair with a Memestock token on Base and Robinhood Chain, and every stock you can pair with today."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
