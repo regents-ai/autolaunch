@@ -503,16 +503,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
     doc:
       "the viewer's own Claim or Refund press on each finished auction they bid in, by auction id"
 
+  attr :settle_column, :boolean,
+    default: false,
+    doc: "whether the viewer has had such a press this visit, on a page that takes no bids"
+
   @doc """
   The auctions list: the token with its creator and age, then its price, what
   bidders have put in, its market cap and its status, and a Bid button on a
   live auction when the page takes bids. A finished auction the viewer has
   money or tokens to take from shows that press in the same column, which a
-  page that takes no bids has only for a viewer with one. On a phone the
-  raise and market cap are left out.
+  page that takes no bids has only for a viewer with one, and then keeps for
+  the visit. On a phone the raise and market cap are left out.
   """
   def auction_list(assigns) do
-    assigns = assign(assigns, :action?, assigns.trade_event != nil or assigns.settle != %{})
+    assigns = assign(assigns, :action?, assigns.trade_event != nil or assigns.settle_column)
 
     ~H"""
     <div class="market-list__scroll">

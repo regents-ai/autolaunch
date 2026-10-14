@@ -231,6 +231,7 @@ defmodule AutolaunchWeb.AuctionsLive do
           rates={@rates}
           loading={@loading}
           settle={@settle_labels}
+          settle_column={@settle_column}
         />
 
         <Regent.Primitives.notice :if={@failed} tone="error">

@@ -3,7 +3,9 @@ defmodule AutolaunchWeb.LiveSettle do
   A list page's own Claim, Withdraw and Refund buttons: the signed-in wallet's
   ended Base bids with money or tokens to take, one for each auction
   (`settle`, by auction id), and the settlement card a press opens in the
-  page's one dialog (`trade`, as `%{position: bid}`).
+  page's one dialog (`trade`, as `%{position: bid}`). `settle_column` says
+  whether the viewer has had such a button this visit, so a list that makes
+  room for one keeps that room after the last is taken.
 
   The page calls `watch/1` in its mount, after `AutolaunchWeb.LiveListings.subscribe/1`
   and with `trade` assigned, hands `labels/1` to its list and draws the card
@@ -33,6 +35,7 @@ defmodule AutolaunchWeb.LiveSettle do
 
     socket
     |> assign(:settle, %{})
+    |> assign(:settle_column, false)
     |> assign(:settle_due, false)
     |> attach_hook(:settle_event, :handle_event, &event/3)
     |> attach_hook(:settle_info, :handle_info, &info/2)
@@ -99,6 +102,7 @@ defmodule AutolaunchWeb.LiveSettle do
            Autolaunch.list_wallet_bids_to_settle(signed_in_wallet(context), actor: actor) do
       socket
       |> assign(:settle, Map.new(Enum.reverse(positions), &{&1.auction_id, &1}))
+      |> assign(:settle_column, socket.assigns.settle_column or positions != [])
       |> follow_open_bid(actor)
     else
       _signed_out_or_unread -> socket
