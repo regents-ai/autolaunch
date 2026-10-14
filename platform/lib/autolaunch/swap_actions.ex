@@ -214,7 +214,7 @@ defmodule Autolaunch.SwapActions do
   end
 
   defp pool_price(%{current: %{price: %{value: value}}}),
-    do: {:ok, Decimal.new(String.trim_trailing(value, "…"))}
+    do: {:ok, Decimal.new(String.trim_trailing(value, "…"), max_digits: :infinity)}
 
   defp pool_price(_pool), do: unavailable(:chain_unavailable)
 
