@@ -74,7 +74,6 @@ config :regent_points,
   ash_domains: [RegentPoints],
   program_id: "regents-points-v1",
   starts_at: nil,
-  unified_activity_starts_at: nil,
   approved_rules: [],
   adapters: %{}
 
