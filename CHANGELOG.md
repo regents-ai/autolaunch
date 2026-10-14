@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v111, 14 October 2026 (037127d): logos for NBIS, CRWV and RKLB
+- On the Upcoming stocks page, NBIS, CRWV and RKLB show a logo in place of their first two letters. Every stock the page lists today has one.
+
 ## v110, 13 October 2026 (c54c0e4): logos for GLD, ORCL and ASML
 - On the Upcoming stocks page, GLD, ORCL and ASML show a logo in place of their first two letters. GLD carries State Street's mark, as SPY does.
 
