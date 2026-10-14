@@ -45,24 +45,23 @@ primary_region = "iad"
   internal_port = 4000
   force_https = true
 
-# Fly hands the machine no more than this many connections at once, so a crowd
-# waits at Fly's edge and the people already on the site keep working. Each
-# open page holds one connection for as long as it is open. Measured on
-# 13 October 2026: about 270 open pages fill this machine's processor and
-# about 300 exhaust its memory, and at 200 its free memory was still falling
-# when the reading ended, so 200 was never seen to hold level. Raise it once
-# each open page costs less and a longer hold at the new number has been read.
+# No hard cap: every visitor reaches the machine. When Sentinel's readings show
+# the machine filling up, the answer is a bigger machine, chosen by hand (Sean,
+# 14 October 2026). The soft limit only steers new visitors between machines
+# when there is more than one.
 [http_service.concurrency]
   type = "connections"
-  hard_limit = 150
   soft_limit = 120
 
-# Keep the production capacity when the next image is deployed. The processor
-# is a dedicated one: Fly holds a shared processor to 6.25% each once its burst
-# is spent, and the site's steady chain reading alone uses about that much.
+# Keep the production capacity when the next image is deployed. Two dedicated
+# processors and 4 GB: measured on 14 October 2026 on the live code, each open
+# page, its connection included, adds about 1 MB to the machine, so 2,000 open
+# pages use about 2.1 GB. Fly holds a shared processor to
+# 6.25% each once its burst is spent, and the site's steady chain reading alone
+# uses about that much.
 [[vm]]
-  size = "performance-1x"
-  memory_mb = 2048
+  size = "performance-2x"
+  memory_mb = 4096
 
 [[http_service.checks]]
   grace_period = "30s"
