@@ -56,7 +56,7 @@ defmodule AutolaunchWeb.Components.TokenHeading do
     """
   end
 
-  # Uniswap lists a Base token by its address and a Robinhood one by its pool.
+  # The button opens the token's pool on Uniswap, on Base and Robinhood alike.
   defp uniswap_url(network, pool),
     do: "https://app.uniswap.org/explore/pools/#{network}/#{pool.pool_id}"
 
