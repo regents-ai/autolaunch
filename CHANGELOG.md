@@ -3,6 +3,13 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v113, 14 October 2026 (1a656e0): the create page's link says "Onchain Stocks"
+- On the create page, the link under the stock picker to the stocks page reads "Onchain Stocks".
+
+## v112, 14 October 2026 (6b8ad5f): the stocks page is called "Onchain Stocks"
+- The stocks page opens with "Onchain Stocks" and one line: launch a pair with a meme ticker and earn from trading fees, with Covered Call Options coming soon. The browser tab says "Onchain Stocks" too.
+- The list of stocks next in line is headed "Soon Available".
+
 ## v111, 14 October 2026 (037127d): logos for NBIS, CRWV and RKLB
 - On the Upcoming stocks page, NBIS, CRWV and RKLB show a logo in place of their first two letters. Every stock the page lists today has one.
 
