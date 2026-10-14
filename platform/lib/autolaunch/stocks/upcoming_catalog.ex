@@ -36,7 +36,7 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
   defp status(%{"section" => "available"} = stock), do: Map.put(stock, "status", nil)
 
   defp status(%{"section" => "soon"} = stock),
-    do: Map.put(stock, "status", "Pending admission or verification")
+    do: Map.put(stock, "status", "Pending Autolaunch smart contract enablement")
 
   defp status(%{"section" => "feed_required"} = stock),
     do: Map.put(stock, "status", "Chainlink feed required; other checks may also be pending")
