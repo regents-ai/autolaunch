@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v118, 14 October 2026 (f3e0524): a failed ENS lookup keeps its reason
+- When the site can't read a wallet's ENS name or picture, the reason is now kept with the site's saved errors, so the team can see why. Visitors see no change; the site tries again later as before.
+
 ## v117, 14 October 2026 (80523b6): your Claim or Refund button on the Auctions list, and outcome pictures in search
 - On the Auctions list, a signed-in wallet with something to collect from a finished Base auction sees its own button on that row: "Claim", "Withdraw", or "Refund" with the amount. It opens the same card as on the home page. Signed out, or with nothing to collect, the list looks as before.
 - In search results, a finished auction shows the same picture as the lists: a full bar with a tick and "Graduated", or a part-filled bar with how much of its minimum it raised. On a phone, search leaves it out to save room.
