@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v126, 14 October 2026: mobile auction names and pool charts stay readable
+- Phone auction rows put the token name and ticker above actions and status, so wallet buttons no longer squeeze names out.
+- Loaded token pool charts fit the page and wrap long price-range labels.
+- Opening the side panel moves focus inside at every screen size; Escape closes it and returns to its button.
+
 ## v125, 14 October 2026: launch and agent tools are easier to find
 - Available to Pair links Memestock to the create page and shows Dual Stock Token greyed out with a Coming soon hint.
 - The sidebar ends with an orange Launch button. The header links to agents.md, and a glossy vgpu badge below it shows the tool count from the site's manifest.
