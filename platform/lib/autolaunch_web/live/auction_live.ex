@@ -16,6 +16,9 @@ defmodule AutolaunchWeb.AuctionLive do
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
+  # The page reads this many of the viewer's own bids from the chain, the newest.
+  @receipts_read 10
+
   # Everything the page shows from the chain that every visitor sees alike is
   # the market feed's one reading of it (`Autolaunch.MarketReadings`): the
   # page reads the chain itself only for the signed-in bidder's own bids.
@@ -31,6 +34,8 @@ defmodule AutolaunchWeb.AuctionLive do
      |> LiveListings.subscribe()
      |> assign(
        my_positions: [],
+       my_receipts: AsyncResult.ok([]),
+       receipts_for: nil,
        positions_unread: false,
        draft_price: nil,
        scrub_at: nil,
@@ -99,9 +104,10 @@ defmodule AutolaunchWeb.AuctionLive do
      )}
   end
 
-  # The feed read a new price ladder, schedule or stage for this auction.
+  # The feed read a new price ladder, schedule or stage for this auction; a
+  # new stage reads the viewer's own bids again.
   def handle_info({:shared_reading, {:auction_page, _address}}, socket),
-    do: {:noreply, assign_snapshot(socket)}
+    do: {:noreply, socket |> assign_snapshot() |> load_receipts()}
 
   # The feed read new figures for this auction and saved them on its row
   # first, so the row, its bids and the viewer's own are read again.
@@ -115,9 +121,9 @@ defmodule AutolaunchWeb.AuctionLive do
        |> load_history(reset: false)
        |> load_receipts()}
 
-  # A block went by: the page's clock moves, and a bidder's own bids are read
-  # again, since the auction uses a little more of each with every block.
-  # Nothing on the page of a finished auction moves with the block.
+  # A block went by: the page's clock moves, and a read of the viewer's own
+  # bids that failed is tried again. Nothing on the page of a finished auction
+  # moves with the block.
   def handle_info({:shared_reading, {:market_head, feed}}, socket) do
     if finished?(socket.assigns.snapshot),
       do: {:noreply, socket},
@@ -177,6 +183,12 @@ defmodule AutolaunchWeb.AuctionLive do
         assigns,
         :outbid,
         if(bidding_open?(assigns.bidding_ended?), do: outbid(assigns.my_positions, assigns.book))
+      )
+
+    assigns =
+      assign(assigns,
+        receipts_read: @receipts_read,
+        receipts_left_out: max(length(onchain_bids(assigns.my_positions)) - @receipts_read, 0)
       )
 
     page(assigns)
@@ -286,6 +298,9 @@ defmodule AutolaunchWeb.AuctionLive do
               token_symbol={@page_record.token_symbol}
               claim_block={@snapshot.blocks.claim}
             />
+            <p :if={@receipts_left_out > 0} class="auction-next-note">
+              Your {@receipts_read} newest bids. Look up an older one by its number below.
+            </p>
           </section>
           <.check_bid
             :if={@snapshot}
@@ -633,15 +648,34 @@ defmodule AutolaunchWeb.AuctionLive do
   defp book(nil, true), do: AsyncResult.failed(AsyncResult.loading(), :unread)
   defp book(nil, false), do: AsyncResult.loading()
 
-  # The signed-in wallet and its bids as the auction holds them now: that
-  # bidder's own reading, eight calls to the chain for each bid.
+  # The signed-in wallet and its bids as the auction holds them: that
+  # bidder's own reading, eight calls to the chain for each bid, so it is
+  # bounded. It reads the newest few (`@receipts_read`), and reads them again
+  # only when the site's record of one of them changed (placed, outbid,
+  # withdrawn, claimed), when the auction moved to another stage, or after a
+  # read that failed. Each bid says the block it was read at.
   defp load_receipts(socket) do
-    bids = socket.assigns.my_positions |> Enum.map(& &1.onchain_bid_id) |> Enum.reject(&is_nil/1)
+    bids = socket.assigns.my_positions |> onchain_bids() |> Enum.take(@receipts_read)
 
-    socket
-    |> assign(:wallet, signed_in_wallet(socket.assigns.access_context))
-    |> load_receipts(bids)
+    read_for =
+      {Enum.map(bids, &{&1.onchain_bid_id, &1.status, &1.exited_at, &1.claimed_at}),
+       stage(socket)}
+
+    socket = assign(socket, :wallet, signed_in_wallet(socket.assigns.access_context))
+
+    if read_for == socket.assigns.receipts_for and !socket.assigns.my_receipts.failed do
+      socket
+    else
+      socket
+      |> assign(:receipts_for, read_for)
+      |> load_receipts(Enum.map(bids, & &1.onchain_bid_id))
+    end
   end
+
+  defp onchain_bids(positions), do: Enum.reject(positions, &is_nil(&1.onchain_bid_id))
+
+  defp stage(%{assigns: %{snapshot: %{stage: %{stage: stage}}}}), do: stage
+  defp stage(_no_reading), do: nil
 
   defp load_receipts(socket, []), do: assign(socket, :my_receipts, AsyncResult.ok([]))
 
