@@ -14,9 +14,10 @@ defmodule Autolaunch.Stocks.StockCandidate do
   and the token is asked on the chain whether it is the issuer's. Each read
   has thirty seconds, so the reads never hold their queue for more than a
   minute and a half at a stretch, however long the list is. Up to eighteen
-  rows are each read within the hour; a longer list is read more slowly. A
-  read that fails writes only the time it was tried, so a row that keeps
-  failing waits its turn like the rest. The row then says one of:
+  rows are each read within the hour; a longer list is read more slowly.
+  Each read writes the time it was tried before it asks anyone anything, so
+  a row whose read fails or runs out of time waits its turn like the rest.
+  The row then says one of:
 
   - `:qualifies`: the feed answers and the issuer's token has a dollar pool
     with more than $10,000 in it.
@@ -72,9 +73,11 @@ defmodule Autolaunch.Stocks.StockCandidate do
         scheduler_cron "5,15,25,35,45,55 * * * *"
         sort tried_at: :asc_nils_first
         record_limit 3
-        # A failed read is tried again when the row's turn comes round.
+        # A failed read is tried again when the row's turn comes round. Its
+        # turn was taken before the read began, so a read stopped at the
+        # timeout, which never reaches `on_error`, still moves the row back.
         max_attempts 1
-        on_error :read_failed
+        on_error :mark_tried
         # The search is twenty seconds at most and a usual read takes one or
         # two; a read the chain drags out is stopped.
         timeout :timer.seconds(30)
@@ -135,7 +138,7 @@ defmodule Autolaunch.Stocks.StockCandidate do
     end
 
     # What an earlier read found is kept; only the row's turn moves on.
-    update :read_failed do
+    update :mark_tried do
       change set_attribute(:tried_at, &DateTime.utc_now/0)
     end
   end

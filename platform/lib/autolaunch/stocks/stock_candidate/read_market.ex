@@ -3,19 +3,21 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   Reads what one candidate stock's feed and market look like now, before the
   row is written and outside any transaction.
 
-  1. GeckoTerminal is searched for pools under the stock's symbol (`COINc` on
+  1. The row's turn is taken first (`:mark_tried`), so a read that fails or
+     runs out of time still sends it to the back of the line.
+  2. GeckoTerminal is searched for pools under the stock's symbol (`COINc` on
      Base, `COIN` on Robinhood), the first page of twenty, and the pools of
      the chain's dollar token against one other token are kept.
-  2. The chain's latest block is read, after the search, which can take
+  3. The chain's latest block is read, after the search, which can take
      twenty seconds; everything asked of the chain is asked at that one block.
-  3. The feed is asked for its latest round. No positive price, or one more
+  4. The feed is asked for its latest round. No positive price, or one more
      than seven days old (the age the stock routes refuse a quote at), and
      the row says `:feed_silent`.
-  4. The pools' tokens are asked, deepest pool first, until one is the
+  5. The pools' tokens are asked, deepest pool first, until one is the
      issuer's: on Base an address of the form Coinbase's share tokens have
      and that symbol; on Robinhood a token behind Robinhood's stock token
      beacon with that symbol. None, and the row says `:no_dollar_pool`.
-  5. That token's deepest dollar pool is saved with its venue and the USD
+  6. That token's deepest dollar pool is saved with its venue and the USD
      GeckoTerminal counts in it: `:qualifies` over $10,000, else `:thin_pool`.
 
   The search and the pool figures are GeckoTerminal's, not the chain's, and a
@@ -23,8 +25,8 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   pool whose token is not written as an address, or whose USD is not a plain
   figure under a trillion, is left out. The search is tried once: a refusal,
   like any chain or GeckoTerminal read that fails or answers in another
-  shape, fails the action and writes nothing here; the job then stamps the
-  row as tried (`:read_failed`) and it is read again when its turn comes.
+  shape, fails the action and writes nothing more; the row is read again
+  when its turn comes.
   """
 
   use Ash.Resource.Change
@@ -49,18 +51,20 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
 
   @unfound %{token: nil, pool: nil, venue: nil, liquidity_usd: nil}
 
+  @actor %Autolaunch.Actors.System{}
+
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.before_action(changeset, fn changeset ->
-      case reading(changeset.data) do
-        {:ok, facts} ->
-          now = DateTime.utc_now()
+      with {:ok, _tried} <- Autolaunch.mark_stock_candidate_tried(changeset.data, actor: @actor),
+           {:ok, facts} <- reading(changeset.data) do
+        now = DateTime.utc_now()
 
-          Ash.Changeset.force_change_attributes(
-            changeset,
-            Map.merge(facts, %{read_at: now, tried_at: now})
-          )
-
+        Ash.Changeset.force_change_attributes(
+          changeset,
+          Map.merge(facts, %{read_at: now, tried_at: now})
+        )
+      else
         {:error, reason} ->
           Ash.Changeset.add_error(changeset, "stock candidate read failed: #{inspect(reason)}")
       end

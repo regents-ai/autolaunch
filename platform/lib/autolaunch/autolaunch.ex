@@ -299,6 +299,7 @@ defmodule Autolaunch do
       define :eligible_stock_candidates, action: :eligible
       define :list_stock_candidate, action: :list
       define :unlist_stock_candidate, action: :unlist
+      define :mark_stock_candidate_tried, action: :mark_tried
     end
 
     resource Autolaunch.Token do

@@ -332,9 +332,9 @@ price, and no page shows them yet (that waits for AL-137).
     a time, on the queue the weekly volume reads use (`stock_volume`, GeckoTerminal's free
     service counts both together): the first page of GeckoTerminal's search for the stock's
     symbol, tried once with no wait, then, at one latest block, the feed's latest round and
-    whether a pool's token is the issuer's. One attempt, thirty seconds at most. A failed read
-    keeps what an earlier read found and writes only the time it was tried (`:read_failed`,
-    the trigger's `on_error`), so a row that keeps failing waits its turn like the rest.
+    whether a pool's token is the issuer's. One attempt, thirty seconds at most. Each read
+    writes the time it was tried before any outside read (`:mark_tried`, also the trigger's
+    `on_error`), so a row whose read fails or runs out of time waits its turn like the rest.
   - The bound (Sentinel's finding of 20:28Z): the reads hold their queue for a minute and a
     half at a stretch at the very most (three rows, thirty seconds each), usually a few
     seconds, whatever the feed list names. Up to eighteen rows are each read within the hour;
