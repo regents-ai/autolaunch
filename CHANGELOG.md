@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v119, 14 October 2026 (06bfa91): shared library update
+- Brings in the latest shared fixes: a slow or busy ENS picture service counts as a failed read and is tried again, rather than leaving a wallet with no picture; Credits holds keep their cause; refund decisions and history read the same way on every site; Points share one daily limit; and a refused signed request gets one answer everywhere.
+- A release now stops, naming what is missing, if the shared database hasn't yet been given a change the Credits or Points code needs.
+
 ## v118, 14 October 2026 (f3e0524): a failed ENS lookup keeps its reason
 - When the site can't read a wallet's ENS name or picture, the reason is now kept with the site's saved errors, so the team can see why. Visitors see no change; the site tries again later as before.
 
