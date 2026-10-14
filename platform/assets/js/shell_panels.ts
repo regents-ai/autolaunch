@@ -36,7 +36,8 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     remember(value)
     sync()
 
-    if (open && phone()) {
+    // This product's panel overlays the page at every width.
+    if (open) {
       aside()?.focus()
     }
   }

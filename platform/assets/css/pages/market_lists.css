@@ -81,6 +81,7 @@
   .market-list__table td { white-space: nowrap; }
   /* A status such as "Waiting to finish" wraps so the name keeps its room. */
   .market-list__table .market-list__status { white-space: normal; min-width: 5.5rem; }
+  .market-list__table .auction-outcome small { white-space: normal; }
   .market-list__art { width: 32px; height: 32px; }
   /* The token cell takes the room left and cuts a long name short. */
   .market-list__table tbody th { width: 100%; max-width: 0; }
@@ -97,4 +98,16 @@
   .market-list__name strong { max-width: 100%; }
   .market-list__detail { display: none; }
   .auction-figures__time { width: 100%; }
+  /* Wallet actions and outcomes follow the token identity on phones. */
+  .market-list__table--auctions .market-list__name :is(strong, small) { white-space: normal; overflow-wrap: anywhere; }
+  .market-list__table--auctions :is(thead, tbody) { display: block; }
+  .market-list__table--auctions thead tr { display: flex; justify-content: space-between; }
+  .market-list__table--auctions thead th:is(:nth-child(2), :nth-child(7)) { display: none; }
+  .market-list__table--auctions .market-list__row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); }
+  .market-list__table--auctions .market-list__row > th { grid-column: 1 / -1; width: auto; max-width: none; padding-bottom: 0; }
+  .market-list__table--auctions .market-list__quick { grid-column: 1; grid-row: 2; width: auto; padding-left: 12px; }
+  .market-list__table--auctions .market-list__action { grid-column: 2; grid-row: 2; width: auto; padding-inline: 4px; }
+  .market-list__table--auctions .market-list__status { grid-column: 3; grid-row: 2; justify-self: end; max-width: 7rem; }
+  .market-list__table--auctions .market-list__row + .market-list__row { border-top: 1px solid var(--hairline); }
+  .market-list__table--auctions .market-list__row + .market-list__row > * { border-top: 0; }
 }
