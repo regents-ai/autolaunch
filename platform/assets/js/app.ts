@@ -1,5 +1,4 @@
 import "../css/app.css"
-import "interestfor"
 import "../vendor/regent_ui/blog.mjs"
 
 import {Socket} from "phoenix"

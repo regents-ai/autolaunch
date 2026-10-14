@@ -13,14 +13,15 @@
 }
 
 .upcoming__hint { color: var(--color-fg-muted); font-size: .875rem; }
-.upcoming-stock { width: 100%; height: 100%; text-align: left; color: var(--color-fg); font: inherit; cursor: pointer; interest-delay-start: 120ms; interest-delay-end: 1.2s; --interest-delay-start: 120ms; --interest-delay-end: 1.2s; }
+.upcoming-stock { width: 100%; height: 100%; text-align: left; color: var(--color-fg); font: inherit; cursor: pointer; }
 .upcoming-stock:hover { border-color: var(--chain-color); }
 .upcoming-stock:focus-visible { outline: 2px solid var(--chain-color); outline-offset: 2px; }
 .upcoming-stock .stock-select__name { white-space: normal; line-height: 1.3; }
 
-/* The native top layer escapes the chain columns' clipping. The interest
-   invoker keeps the panel open during pointer travel and while it is in use. */
+/* Native modal dialogs escape the chain columns' clipping and handle focus
+   containment, Escape dismissal and returning focus to the stock button. */
 .upcoming-details { position: fixed; inset: 5rem 0 auto; margin: 0 auto; box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 6rem); overflow: auto; overscroll-behavior: contain; padding: var(--space-3); border: 2px solid var(--hairline); border-radius: 8px; background: var(--color-bg); color: var(--color-fg); box-shadow: 0 12px 40px #0003; }
+.upcoming-details::backdrop { background: #0006; }
 .upcoming-details__heading, .upcoming-details__pool > header { display: flex; align-items: start; justify-content: space-between; gap: var(--space-2); }
 .upcoming-details h3, .upcoming-details h4, .upcoming-details__heading p { margin: 0; }
 .upcoming-details h3 { font-size: 1.25rem; }

@@ -20,13 +20,13 @@ yet researched remain visible with their saved address and feed; missing links
 and pool observations are explicit. This catalog does not configure routes,
 admit tokens, grant trading eligibility or change launch checks.
 
-Every stock opens the same interactive popover on hover, keyboard focus, click
-or tap. Native popovers keep the panel near the viewport's top and above the
-page's clipping containers. The `interestfor` polyfill supports browsers without
-native interest invokers. The 1.2-second exit delay allows pointer travel into
-the panel; remaining inside it preserves interest. Escape, Close and an outside
-click dismiss it. Narrow screens retain full, wrapped addresses and a scrollable
-panel. Address copies use the shared Regent copy button.
+Every stock card is a button. Clicking it, tapping it or pressing Enter or
+Space opens a native modal dialog near the viewport's top. Hover never opens
+it and does not add text. The existing LiveView dialog commands open and close
+it; the browser handles Escape, focus containment and focus returning to the
+stock button. Close also dismisses it. Narrow screens retain full, wrapped
+addresses and a scrollable dialog. Address copies use the shared Regent copy
+button. No additional hover helper or dependency is needed.
 
 Pool 1 is the strongest pool in its recorded observation. Pool 2 is included
 only where a separate pool exceeded $10,000 in that same observation. V4 entries
@@ -40,6 +40,6 @@ price feed.
 
 - Before: stock cards showed only a ticker and short note.
 - After: all sections offer the same details, with full addresses and links in
-  a panel that supports both hover and explicit opening.
+  a dialog opened by selecting the stock card.
 - Why: visitors can inspect a stock without leaving the catalog, while dated
   research remains distinct from actual launchpad admission.

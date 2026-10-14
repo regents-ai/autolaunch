@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.UpcomingLive do
   @moduledoc """
-  Stocks on Base and Robinhood, with dated pool research in an interactive
-  popover. Research does not enable trading: Available to Pair is joined to
+  Stocks on Base and Robinhood, with dated pool research in a native modal
+  dialog. Research does not enable trading: Available to Pair is joined to
   the launchpads' saved admissions by token address, never just by ticker.
   """
   use AutolaunchWeb, :live_view
@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.UpcomingLive do
           Launch a pair with a meme ticker and earn from trading fees. Covered Call Options coming soon.
         </p>
         <p class="upcoming__hint">
-          Hover or select a stock for addresses, company links and pool details.
+          Select a stock for addresses, company links and pool details.
           Research snapshot: 14 October 2026. Liquidity figures are dated observations, not live quotes.
         </p>
       </header>
@@ -89,10 +89,9 @@ defmodule AutolaunchWeb.UpcomingLive do
           <button
             type="button"
             class="upcoming-stock"
-            interestfor={"stock-details-#{stock["id"]}"}
-            popovertarget={"stock-details-#{stock["id"]}"}
-            popovertargetaction="show"
+            phx-click={JS.dispatch("autolaunch:open-dialog", to: "#stock-details-#{stock["id"]}")}
             aria-haspopup="dialog"
+            aria-controls={"stock-details-#{stock["id"]}"}
             aria-label={"#{stock["symbol"]} on #{@chain.name}: stock details"}
           >
             <.stock_logo stock={%{symbol: stock["symbol"]}} />
@@ -112,13 +111,11 @@ defmodule AutolaunchWeb.UpcomingLive do
 
   defp details(assigns) do
     ~H"""
-    <section
+    <dialog
       id={"stock-details-#{@stock["id"]}"}
       class="upcoming-details"
-      popover="auto"
-      role="dialog"
-      aria-modal="false"
       aria-labelledby={"stock-title-#{@stock["id"]}"}
+      phx-mounted={JS.ignore_attributes(["open"])}
     >
       <header class="upcoming-details__heading">
         <div>
@@ -128,9 +125,9 @@ defmodule AutolaunchWeb.UpcomingLive do
         <button
           type="button"
           class="rg-button rg-button--quiet"
-          popovertarget={"stock-details-#{@stock["id"]}"}
-          popovertargetaction="hide"
+          phx-click={JS.dispatch("autolaunch:close-dialog", to: "#stock-details-#{@stock["id"]}")}
           aria-label="Close stock details"
+          autofocus
         >Close</button>
       </header>
       <p class="upcoming-details__status">{@stock["status"]}</p>
@@ -174,7 +171,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       <p class="upcoming-details__note">
         Buy opens the pool's market page. Liquidity is a dated observation and may have changed.
       </p>
-    </section>
+    </dialog>
     """
   end
 
