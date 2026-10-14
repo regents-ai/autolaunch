@@ -1,49 +1,22 @@
 defmodule AutolaunchWeb.UpcomingLive do
   @moduledoc """
-  The public Upcoming page: for Base and for Robinhood, the stocks next in line
-  to be added, then the stocks a Memestock token can be paired with today.
-
-  A stock is next in line when the hourly look
-  (`Autolaunch.Stocks.StockCandidate`) last found a Chainlink price for it and
-  more than $10,000 in its deepest dollar pool. That is advice from outside
-  services, not a promise: a stock is added only when the Safe admits it on
-  the chain's launchpad. The page shows a ticker and a pool size and links to
-  no token. A stock already admitted is shown only under "Available to Pair",
-  also in the hour before the look drops its row.
+  Stocks on Base and Robinhood, with dated pool research in an interactive
+  popover. Research does not enable trading: Available to Pair is joined to
+  the launchpads' saved admissions by token address, never just by ticker.
   """
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1, company: 1, compact_usd: 1]
+  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
-  alias Autolaunch.Stocks.{Assets, PriceFeeds}
-
-  @chains [base: "Base", robinhood: "Robinhood"]
+  alias Autolaunch.Stocks.{Assets, UpcomingCatalog}
 
   def mount(_params, _session, socket) do
-    eligible = Enum.group_by(Autolaunch.eligible_stock_candidates!(), & &1.chain_id)
-
-    chains =
-      for {chain, name} <- @chains do
-        available = Assets.all(chain)
-        admitted = MapSet.new(available, &PriceFeeds.ticker(&1.symbol))
-
-        %{
-          chain: chain,
-          name: name,
-          available: Enum.map(available, &%{symbol: &1.symbol, note: company(&1)}),
-          eligible:
-            for %{ticker: ticker, liquidity_usd: usd} <-
-                  Map.get(eligible, Assets.chain_id(chain), []),
-                ticker not in admitted do
-              %{symbol: ticker, note: "#{compact_usd(Decimal.to_float(usd))} liquidity"}
-            end
-        }
-      end
+    admitted = Map.new([:base, :robinhood], &{&1, Assets.all(&1)})
 
     {:ok,
      socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/upcoming"))
-     |> assign(chains: chains)}
+     |> assign(AutolaunchWeb.PublicDocuments.page("/upcoming-stocks"))
+     |> assign(chains: UpcomingCatalog.chains(admitted))}
   end
 
   def render(assigns) do
@@ -54,11 +27,15 @@ defmodule AutolaunchWeb.UpcomingLive do
         <p>
           Launch a pair with a meme ticker and earn from trading fees. Covered Call Options coming soon.
         </p>
+        <p class="upcoming__hint">
+          Hover or select a stock for addresses, company links and pool details.
+          Research snapshot: 14 October 2026. Liquidity figures are dated observations, not live quotes.
+        </p>
       </header>
 
       <section class="fact-page__section" aria-labelledby="upcoming-eligible">
         <h2 id="upcoming-eligible">Soon Available</h2>
-        <p>A live Chainlink price and more than $10,000 of liquidity.</p>
+        <p>Stocks with a matched Chainlink feed, pending admission or further verification.</p>
         <div class="upcoming__columns">
           <.column
             :for={chain <- @chains}
@@ -80,32 +57,202 @@ defmodule AutolaunchWeb.UpcomingLive do
           />
         </div>
       </section>
+
+      <section class="fact-page__section" aria-labelledby="upcoming-feed-required">
+        <h2 id="upcoming-feed-required">Chainlink Feed Required</h2>
+        <p>
+          A matching Chainlink feed has not been identified. These stocks are not available to pair.
+        </p>
+        <div class="upcoming__columns">
+          <.column
+            :for={chain <- @chains}
+            id={"upcoming-feed-required-#{chain.chain}"}
+            chain={chain}
+            stocks={chain.feed_required}
+          />
+        </div>
+      </section>
     </main>
     """
   end
 
   attr :id, :string, required: true
   attr :chain, :map, required: true
-  attr :stocks, :list, required: true, doc: "each a symbol and the few words under it"
+  attr :stocks, :list, required: true
 
-  # One chain's column in the chain's own colour: its name and how many
-  # stocks it lists, then the stocks, or a line saying there are none.
   defp column(assigns) do
     ~H"""
     <section class={"upcoming-column upcoming-column--#{@chain.chain}"} aria-labelledby={@id}>
-      <h3 id={@id}>
-        <span>{@chain.name}</span>
-        <span>{length(@stocks)}</span>
-      </h3>
+      <h3 id={@id}><span>{@chain.name}</span><span>{length(@stocks)}</span></h3>
       <ul :if={@stocks != []} class="upcoming-column__stocks">
-        <li :for={stock <- @stocks} class="upcoming-stock">
-          <.stock_logo stock={stock} />
-          <span class="stock-select__symbol">{stock.symbol}</span>
-          <span class="stock-select__name">{stock.note}</span>
+        <li :for={stock <- @stocks}>
+          <button
+            type="button"
+            class="upcoming-stock"
+            interestfor={"stock-details-#{stock["id"]}"}
+            popovertarget={"stock-details-#{stock["id"]}"}
+            popovertargetaction="show"
+            aria-haspopup="dialog"
+            aria-label={"#{stock["symbol"]} on #{@chain.name}: stock details"}
+          >
+            <.stock_logo stock={%{symbol: stock["symbol"]}} />
+            <span class="stock-select__symbol">{stock["symbol"]}</span>
+            <span class="stock-select__name">{stock["name"]}</span>
+          </button>
+          <.details stock={stock} chain={@chain} />
         </li>
       </ul>
       <p :if={@stocks == []} class="upcoming-column__none">None right now.</p>
     </section>
     """
   end
+
+  attr :stock, :map, required: true
+  attr :chain, :map, required: true
+
+  defp details(assigns) do
+    ~H"""
+    <section
+      id={"stock-details-#{@stock["id"]}"}
+      class="upcoming-details"
+      popover="auto"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby={"stock-title-#{@stock["id"]}"}
+    >
+      <header class="upcoming-details__heading">
+        <div>
+          <h3 id={"stock-title-#{@stock["id"]}"}>{@stock["symbol"]} <span>· {@chain.name}</span></h3>
+          <p>{@stock["name"]}</p>
+        </div>
+        <button
+          type="button"
+          class="rg-button rg-button--quiet"
+          popovertarget={"stock-details-#{@stock["id"]}"}
+          popovertargetaction="hide"
+          aria-label="Close stock details"
+        >Close</button>
+      </header>
+      <p class="upcoming-details__status">{@stock["status"]}</p>
+      <p :if={@stock["blocker"]} class="upcoming-details__note">{@stock["blocker"]}</p>
+      <dl class="upcoming-details__facts">
+        <.address
+          label="Onchain token address"
+          value={@stock["token_address"]}
+          id={"#{@stock["id"]}-token"}
+        />
+        <.address
+          label="Chainlink feed address"
+          value={@stock["feed_address"]}
+          id={"#{@stock["id"]}-feed"}
+        />
+        <dt>Feed verification</dt><dd>{feed_note(@stock)}</dd>
+        <dt>Company URL</dt>
+        <dd>
+          <.external
+            :if={@stock["company_url"]}
+            href={@stock["company_url"]}
+            label={@stock["company_url"]}
+          /><span :if={!@stock["company_url"]}>Not available</span>
+        </dd>
+        <dt>Real-world stock</dt>
+        <dd>
+          <.external :if={@stock["view_url"]} href={@stock["view_url"]} label="View ↗" /><span :if={
+            !@stock["view_url"]
+          }>Not available</span>
+        </dd>
+      </dl>
+      <.pool
+        :for={{pool, index} <- Enum.with_index(@stock["pools"], 1)}
+        pool={pool}
+        index={index}
+        stock_id={@stock["id"]}
+      />
+      <p :if={@stock["pools"] == []} class="upcoming-details__note">
+        Pool 1: address and liquidity not available.
+      </p>
+      <p class="upcoming-details__note">
+        Buy opens the pool's market page. Liquidity is a dated observation and may have changed.
+      </p>
+    </section>
+    """
+  end
+
+  attr :pool, :map, required: true
+  attr :index, :integer, required: true
+  attr :stock_id, :string, required: true
+
+  defp pool(assigns) do
+    ~H"""
+    <section class="upcoming-details__pool" aria-label={"Pool #{@index}"}>
+      <header>
+        <h4>Pool {@index}<span :if={@pool["venue"]}> · {@pool["venue"]}</span></h4>
+        <.external
+          :if={@pool["buy_url"] && @pool["identifier"]}
+          href={@pool["buy_url"]}
+          label="Buy ↗"
+        />
+      </header>
+      <dl class="upcoming-details__facts">
+        <.address
+          label={if @pool["kind"] == "v4", do: "Onchain pool ID", else: "Onchain pool address"}
+          value={@pool["identifier"]}
+          id={"#{@stock_id}-pool-#{@index}"}
+        />
+        <.address
+          :if={@pool["kind"] == "v4"}
+          label="PoolManager address"
+          value={@pool["manager"]}
+          id={"#{@stock_id}-manager-#{@index}"}
+        />
+        <dt>Liquidity depth</dt><dd>{liquidity(@pool["liquidity_usd"])}</dd>
+        <dt>Observed</dt><dd>
+          {@pool["observed_at"] || "Date not available"}<span :if={@pool["historical"]}> · Historical; current depth unknown</span>
+        </dd>
+      </dl>
+    </section>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :value, :string, default: nil
+  attr :id, :string, required: true
+
+  defp address(assigns) do
+    ~H"""
+    <dt>{@label}</dt>
+    <dd class="upcoming-details__address">
+      <code :if={@value}>{@value}</code>
+      <Regent.Primitives.copy_button
+        :if={@value}
+        id={"copy-#{@id}"}
+        text={@value}
+        variant="quiet"
+        aria-label={"Copy #{@label}"}
+      >Copy</Regent.Primitives.copy_button>
+      <span :if={!@value}>Not verified</span>
+    </dd>
+    """
+  end
+
+  attr :href, :string, required: true
+  attr :label, :string, required: true
+
+  defp external(assigns) do
+    ~H"""
+    <a href={@href} target="_blank" rel="noopener noreferrer">{@label}</a>
+    """
+  end
+
+  defp liquidity(nil), do: "Unknown"
+  defp liquidity(usd), do: "$" <> RegentFormat.decimal_to_string(Decimal.new(usd), 2)
+
+  defp feed_note(%{"feed_address" => nil}),
+    do: "No verified same-chain feed address is available."
+
+  defp feed_note(%{"section" => "available"}),
+    do: "Launchpad's saved feed; current price is not checked here."
+
+  defp feed_note(_stock),
+    do: "Address identified; current price and token binding need verification."
 end

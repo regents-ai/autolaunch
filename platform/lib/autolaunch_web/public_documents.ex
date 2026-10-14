@@ -86,7 +86,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/how-it-works" =>
       {"How Autolaunch works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
-    "/upcoming" =>
+    "/upcoming-stocks" =>
       {"Onchain Stocks",
        "Stocks next in line to pair with a Memestock token on Base and Robinhood Chain, and every stock you can pair with today."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
@@ -213,7 +213,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
     fixed =
       Enum.map(
-        ~w(/ /auctions /tokens /upcoming /how-it-works /regent /docs /about /contact /privacy /terms /blog),
+        ~w(/ /auctions /tokens /upcoming-stocks /how-it-works /regent /docs /about /contact /privacy /terms /blog),
         fn
           "/auctions" = path -> {url(path), latest(auctions)}
           "/tokens" = path -> {url(path), latest(tokens)}

@@ -20,6 +20,9 @@ defmodule AutolaunchWeb.PublicPagesController do
 
   def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
 
+  def upcoming_stocks(conn, _params),
+    do: conn |> put_status(301) |> redirect(to: "/upcoming-stocks")
+
   def sitemap(conn, _params) do
     conn
     |> put_resp_content_type("application/xml")
