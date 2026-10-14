@@ -50,12 +50,14 @@ defmodule AutolaunchWeb.UpcomingLive do
     ~H"""
     <main class="fact-page upcoming">
       <header class="autolaunch-heading">
-        <h1>Upcoming stocks</h1>
-        <p>Stocks next in line to pair with a Memestock token.</p>
+        <h1>Onchain Stocks</h1>
+        <p>
+          Launch a pair with a meme ticker and earn from trading fees. Covered Call Options coming soon.
+        </p>
       </header>
 
       <section class="fact-page__section" aria-labelledby="upcoming-eligible">
-        <h2 id="upcoming-eligible">Eligible to add</h2>
+        <h2 id="upcoming-eligible">Soon Available</h2>
         <p>A live Chainlink price and more than $10,000 of liquidity.</p>
         <div class="upcoming__columns">
           <.column
