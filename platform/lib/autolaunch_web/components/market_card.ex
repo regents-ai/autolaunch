@@ -446,7 +446,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
                   {"active", "Live"},
                   {"ended", "Waiting to finish"},
                   {"graduated", "Graduated"},
-                  {"failed", "Minimum unmet"}
+                  {"failed", "Minimum not met"}
                 ]
               }
               value={value}
@@ -503,21 +503,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
     doc:
       "the viewer's own Claim or Refund press on each finished auction they bid in, by auction id"
 
-  attr :settle_column, :boolean,
-    default: false,
-    doc: "whether the viewer has had such a press this visit, on a page that takes no bids"
-
   @doc """
   The auctions list: the token with its creator and age, then its price, what
   bidders have put in, its market cap and its status, and a Bid button on a
-  live auction when the page takes bids. A finished auction the viewer has
-  money or tokens to take from shows that press in the same column, which a
-  page that takes no bids has only for a viewer with one, and then keeps for
-  the visit. On a phone the raise and market cap are left out.
+  live auction when the page takes bids. Between the token and its price, a
+  graduated auction shows a Buy link to its token's page while the row is
+  pointed at, and a finished auction the viewer has money or tokens to take
+  from shows that press. On a phone the raise and market cap are left out.
   """
   def auction_list(assigns) do
-    assigns = assign(assigns, :action?, assigns.trade_event != nil or assigns.settle_column)
-
     ~H"""
     <div class="market-list__scroll">
       <table class="market-list__table market-list__table--auctions">
@@ -525,6 +519,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <thead>
           <tr>
             <th scope="col">Token</th>
+            <th scope="col"><span class="visually-hidden">Buy or take your bid</span></th>
             <th scope="col">Price</th>
             <th scope="col">
               <.info_tip id="auctions-volume" text={tip(:volume)}>Raised</.info_tip>
@@ -533,9 +528,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
               <.info_tip id="auctions-fdv" text={tip(:fdv)}>Market cap</.info_tip>
             </th>
             <th scope="col">Status</th>
-            <th :if={@action?} scope="col">
-              <span class="visually-hidden">{if @trade_event, do: "Bid", else: "Your bid"}</span>
-            </th>
+            <th :if={@trade_event} scope="col"><span class="visually-hidden">Bid</span></th>
           </tr>
         </thead>
         <tbody>
@@ -546,7 +539,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
             rate={figure_rate(@rates, record)}
             trade_event={@trade_event}
             settle={@settle[record.id]}
-            action?={@action?}
           />
           <tr
             :for={index <- 1..6}
@@ -555,7 +547,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan={if @action?, do: "6", else: "5"}></td>
+            <td colspan={if @trade_event, do: "7", else: "6"}></td>
           </tr>
         </tbody>
       </table>
@@ -580,7 +572,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :rate, :any, default: nil
   attr :trade_event, :string, default: nil
   attr :settle, :string, default: nil
-  attr :action?, :boolean, default: false
 
   defp auction_list_row(assigns) do
     ~H"""
@@ -594,6 +585,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
         path={@view.path}
         detail={byline(@view)}
       />
+      <td class="market-list__quick">
+        <.link
+          :if={@view.token_path}
+          navigate={@view.token_path}
+          class="rg-button rg-button--secondary market-list__buy"
+          aria-label={"Buy #{@view.name}"}
+        ><span class="rg-button__label">Buy</span></.link>
+        <Regent.Primitives.button
+          :if={@settle}
+          phx-click="open_settlement"
+          phx-value-id={@view.record_id}
+          aria-label={@settle}
+        >{settle_word(@settle)}<span class="market-list__rest">{settle_rest(@settle)}</span></Regent.Primitives.button>
+      </td>
       <td>
         <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} />
       </td>
@@ -611,9 +616,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <td class="market-list__status">
         <.status_figure figures={@figures} chain={@view.chain} />
       </td>
-      <td :if={@action?} class="market-list__action">
+      <td :if={@trade_event} class="market-list__action">
         <Regent.Primitives.button
-          :if={@trade_event && @view.bid}
+          :if={@view.bid}
           variant="secondary"
           phx-click={@trade_event}
           phx-value-id={@view.record_id}
@@ -621,12 +626,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
           title={@view.bid.unavailable}
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
-        <Regent.Primitives.button
-          :if={@settle}
-          phx-click="open_settlement"
-          phx-value-id={@view.record_id}
-          aria-label={@settle}
-        >{settle_word(@settle)}<span class="market-list__rest">{settle_rest(@settle)}</span></Regent.Primitives.button>
       </td>
     </tr>
     """
@@ -934,9 +933,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
     %{
       fdv: money(auction.fdv, rate, unit) || "No price yet",
-      volume:
-        money(auction.bid_volume_usd, Decimal.new(1)) || money(auction.bid_volume, nil, unit) ||
-          "Not counted yet",
+      volume: volume(auction),
       unpriced: if(is_nil(rate), do: unit),
       short_from: AuctionFigures.minimum_warning_from(auction),
       progress: time_progress(auction),
@@ -947,6 +944,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
       state: auction.state,
       id: auction.id
     }
+  end
+
+  # Everything bidders put in: in dollars when the site has priced it, else in
+  # the auction's currency.
+  defp volume(auction) do
+    money(auction.bid_volume_usd, Decimal.new(1)) ||
+      money(auction.bid_volume, nil, auction.quote_token_symbol) || "Not counted yet"
   end
 
   # Dollar figures are shortened the way market lists write them, to three
@@ -1030,7 +1034,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     do: time_left(max(DateTime.diff(end_at, DateTime.utc_now()), 0))
 
   defp figure_status(%{state: :graduated} = auction), do: ended("Graduated", auction)
-  defp figure_status(%{state: :failed} = auction), do: ended("Minimum unmet", auction)
+  defp figure_status(%{state: :failed} = auction), do: ended("Minimum not met", auction)
   defp figure_status(%{state: state}), do: state_label(state)
 
   # Days, hours and minutes, never seconds; the last minute reads "Ending".
@@ -1049,15 +1053,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp ended(label, _auction), do: label
 
   # How a finished auction came out, as its bar's fill and the few words under
-  # it: a full bar once graduated, else how much of the minimum was raised.
+  # it: a full bar once graduated; no bar, only the words, when the minimum
+  # was not met.
   defp outcome(%{state: :graduated}), do: %{fill: 100, label: "Graduated"}
-
-  defp outcome(%{state: :failed} = auction) do
-    case AuctionFigures.percent_met(auction) do
-      nil -> %{fill: 0, label: "Minimum unmet"}
-      percent -> %{fill: percent, label: "#{percent}% of minimum"}
-    end
-  end
+  defp outcome(%{state: :failed}), do: %{fill: nil, label: "Minimum not met"}
 
   defp outcome(_auction), do: nil
 
@@ -1152,7 +1151,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     ~H"""
     <span class="auction-outcome" data-state={@figures.state} title={@figures.status}>
       <span class="auction-figures__time" aria-hidden="true">
-        <span style={"width: #{@figures.outcome.fill}%"}></span>
+        <span :if={@figures.outcome.fill} style={"width: #{@figures.outcome.fill}%"}></span>
       </span>
       <small>
         <svg :if={@figures.state == :graduated} viewBox="0 0 16 16" aria-hidden="true">
@@ -1246,6 +1245,104 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </p>
       </div>
       <div :if={@chart != []} class="market-identity__chart">{render_slot(@chart)}</div>
+    </section>
+    """
+  end
+
+  attr :auction, :map, required: true, doc: "a graduated auction, with `fdv` loaded"
+
+  attr :market_cap, :any,
+    required: true,
+    doc: "its token's market cap now, in the auction's currency; nil while it has no price"
+
+  attr :connections, :map, default: nil, doc: "the creator's connected accounts"
+
+  attr :rate, :any,
+    default: nil,
+    doc:
+      "the USD price of one unit of the auction's currency, nil while none is known, or :test_network"
+
+  @doc """
+  The first thing on a graduated auction's page: that the auction is over and
+  the way on to its token's page, beside the token, who made it and their
+  links, what bidders put in, and its market cap at the auction's final price
+  and now.
+  """
+  def finished_auction(assigns) do
+    %{auction: auction} = assigns
+    view = view(:auction, auction, assigns.connections)
+    # A test network's coins carry no dollar value, so its figures stay in the currency.
+    rate = if assigns.rate == :test_network, do: nil, else: assigns.rate
+
+    assigns =
+      assign(assigns,
+        view: view,
+        wallet: view.creator_address && wallet_link(view),
+        volume: volume(auction),
+        starting: money(auction.fdv, rate, auction.quote_token_symbol) || "No price yet",
+        current: money(assigns.market_cap, rate, auction.quote_token_symbol) || "No price yet"
+      )
+
+    ~H"""
+    <section
+      id="auction-finished"
+      class={["auction-finished", @view.color && "auction-finished--tinted"]}
+      style={tint(@view.color)}
+      aria-labelledby="auction-finished-title"
+    >
+      <div class="auction-finished__next">
+        <h2 id="auction-finished-title">Auction is Finished</h2>
+        <.link navigate={@view.token_path} class="rg-button rg-button--primary auction-finished__go">
+          <span class="rg-button__label">Continue to {@view.symbol} Token Page to Buy/Claim/Sell
+          <span aria-hidden="true">→</span></span>
+        </.link>
+      </div>
+      <div class="auction-finished__token">
+        <span class="auction-finished__art">
+          <img
+            :if={present?(@view.image)}
+            src={@view.image}
+            alt={"#{@view.name} token"}
+            width="400"
+            height="400"
+            decoding="async"
+          />
+          <span :if={!present?(@view.image)} aria-label="No token image">{String.first(
+            @view.name || "?"
+          )}</span>
+        </span>
+        <div class="auction-finished__who">
+          <p class="auction-finished__name">
+            <strong>{@view.name}</strong> <span>${@view.symbol}</span>
+          </p>
+          <p :if={@wallet} class="auction-finished__creator">
+            Created by
+            <a href={@wallet.url} title={@wallet.address} target="_blank" rel="noopener noreferrer">{@wallet.short}</a>
+          </p>
+          <.card_socials connections={@view.connections} website={@view.website} />
+        </div>
+      </div>
+      <dl class="auction-finished__figures">
+        <div>
+          <dt>Total bid volume</dt>
+          <dd>{@volume}</dd>
+        </div>
+        <div>
+          <dt>
+            <.info_tip
+              id="auction-finished-starting"
+              text="The auction's final price times the token's whole supply."
+            >
+              Starting market cap
+            </.info_tip>
+          </dt>
+          <dd>{@starting}</dd>
+        </div>
+        <div>
+          <dt>Current market cap</dt>
+          <dd>{@current}</dd>
+        </div>
+      </dl>
     </section>
     """
   end
@@ -1361,6 +1458,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol, "No price yet"),
       path: Paths.auction(auction),
+      token_path: if(auction.state == :graduated, do: Paths.token(auction)),
       creator: RegentFormat.short_address(auction.creator_address),
       creator_address: auction.creator_address,
       age: auction_age(auction),
@@ -1416,7 +1514,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def state_label(:active), do: "Live"
   def state_label(:ended), do: "Waiting to finish"
   def state_label(:graduated), do: "Graduated"
-  def state_label(:failed), do: "Minimum unmet"
+  def state_label(:failed), do: "Minimum not met"
 
   # An auction past its end block takes no bids, so its card offers none.
   defp auction_bid(%{state: state}) when state in [:ended, :graduated, :failed], do: nil
@@ -1438,7 +1536,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   # failure reads as an error, every other state stays plain.
   defp state_tone("Live"), do: "info"
   defp state_tone("Graduated"), do: "success"
-  defp state_tone("Minimum unmet"), do: "error"
+  defp state_tone("Minimum not met"), do: "error"
   defp state_tone(_status), do: "neutral"
 
   # `empty` is what the card shows while there is no figure.

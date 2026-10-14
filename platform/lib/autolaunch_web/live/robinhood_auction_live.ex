@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       signed_in_wallet: 1
     ]
 
-  import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
+  import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1, finished_auction: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.AuctionHistory
@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     do:
       {:ok,
        socket
-       |> assign(open?: Lab.configured?(), outbid: nil)
+       |> assign(open?: Lab.configured?(), outbid: nil, launched_token: nil)
        |> LabMarket.subscribe_auction(address, "robinhood")
        |> LabMarket.assign_robinhood_stale()
        |> assign(reading: MarketReadings.market(address), head: MarketReadings.head("robinhood"))
@@ -149,6 +149,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         </Regent.Structure.section_bar>
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
+      <.finished_auction
+        :if={@launch.state == :graduated && @launched_token}
+        auction={@launch}
+        market_cap={@launched_token.market_cap}
+        connections={@creator_connections.ok? && @creator_connections.result}
+        rate={@usd_rate}
+      />
       <.outbid_banner
         :if={@outbid}
         bid_form={bid_form_id(@auction)}
@@ -511,10 +518,28 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   # A failed re-read keeps the auction already on screen and says so.
   defp reload_launch(socket) do
     case Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil, load: [:fdv]) do
-      {:ok, launch} -> assign(socket, launch: launch, launch_failed?: false)
-      {:error, _reason} -> assign(socket, :launch_failed?, true)
+      {:ok, launch} ->
+        assign(socket,
+          launch: launch,
+          launch_failed?: false,
+          launched_token: launched_token(launch)
+        )
+
+      {:error, _reason} ->
+        assign(socket, :launch_failed?, true)
     end
   end
+
+  # The token a graduated auction launched, with its market cap now, once the
+  # site has recorded it; its page is where the finished auction's box leads.
+  defp launched_token(%{state: :graduated, token_address: address}) when is_binary(address) do
+    case Autolaunch.get_robinhood_token(address, actor: nil, load: [:market_cap]) do
+      {:ok, %Autolaunch.Token{} = token} -> token
+      _unrecorded_or_unread -> nil
+    end
+  end
+
+  defp launched_token(_launch), do: nil
 
   # Robinhood's stock prices, read beside the launch so a slow price never
   # holds the auction back.

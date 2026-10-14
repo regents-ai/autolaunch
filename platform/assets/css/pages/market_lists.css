@@ -45,6 +45,12 @@
 /* A row's one button sits last, as narrow as its label. */
 .market-list__table .market-list__action { width: 1%; padding-left: 0; }
 .market-list__action .rg-button { min-height: 36px; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
+/* Between a token and its price: Buy shows while the row is pointed at or focused, its room always kept; the viewer's own Claim or Refund always shows. */
+.market-list__table .market-list__quick { width: 1%; padding-left: 0; white-space: nowrap; }
+.market-list__quick .rg-button { min-height: 36px; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
+.market-list__quick .rg-button + .rg-button { margin-left: 8px; }
+.market-list__buy { opacity: 0; transition: opacity .12s ease; }
+.market-list__row:is(:hover, :focus-within) .market-list__buy { opacity: 1; }
 .market-list__name strong { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); font-weight: 600; }
 .market-list__name small { flex-shrink: 0; color: var(--color-fg-muted); font-size: .8125rem; white-space: nowrap; }
 .market-list__skeleton td { height: 64px; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
@@ -58,10 +64,10 @@
 .auction-figures__time span { display: block; height: 100%; border-radius: inherit; background: var(--time-color); }
 .auction-figures__time--base { --time-color: #2970ff; }
 .auction-figures__time--robinhood { --time-color: #00e606; }
-/* A finished auction's outcome on the same bar: full and ticked once graduated; else filled as far as the minimum was met, the bar's end being the minimum. */
+/* A finished auction's outcome on the same bar: full and ticked once graduated. One that missed its minimum shows only its words, the bar's space kept so the row keeps its height. */
 .auction-outcome[data-state="graduated"] { --time-color: var(--color-success); }
-.auction-outcome[data-state="failed"] { --time-color: var(--color-error); }
-.auction-outcome[data-state="failed"] .auction-figures__time { box-shadow: inset -2px 0 0 var(--color-fg-muted); }
+.auction-outcome[data-state="failed"] .auction-figures__time { visibility: hidden; }
+.auction-outcome[data-state="failed"] small { color: var(--color-error); }
 .auction-outcome small { white-space: nowrap; }
 .auction-outcome svg { display: inline-block; width: 12px; height: 12px; margin-right: 3px; vertical-align: -1px; fill: none; stroke: var(--color-success); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 @media (max-width: 42rem) {
@@ -78,9 +84,12 @@
   .market-list__art { width: 32px; height: 32px; }
   /* The token cell takes the room left and cuts a long name short. */
   .market-list__table tbody th { width: 100%; max-width: 0; }
-  .market-list__table--auctions :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(4)),
+  .market-list__table--auctions :is(th, td):is(:nth-child(3), :nth-child(4), :nth-child(5)),
   .market-list__table--tokens :is(th, td):nth-child(3) { display: none; }
   .market-list__action .rg-button { padding: 4px 12px; }
+  /* A phone has no pointer to hover with, so Buy waits for the auction's page. */
+  .market-list__quick .rg-button { padding: 4px 12px; }
+  .market-list__buy { display: none; }
   .market-list__rest { display: none; }
   .market-list__token { gap: 8px; }
   /* The ticker goes under the name; who made it and when wait for the token's page. */

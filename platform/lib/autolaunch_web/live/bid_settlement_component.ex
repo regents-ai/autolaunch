@@ -957,10 +957,10 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   def settle_label(%{status: "returnable", auction: %{state: :failed} = auction} = position),
     do: refund_label(position.amount, auction.quote_token_symbol)
 
-  def settle_label(%{status: "returnable"} = position),
-    do: if(spent?(position), do: "Claim", else: "Withdraw")
+  def settle_label(%{status: "returnable", auction: auction} = position),
+    do: if(spent?(position), do: "Claim #{auction.token_symbol}", else: "Withdraw")
 
-  def settle_label(%{status: "claimable"}), do: "Claim"
+  def settle_label(%{status: "claimable", auction: auction}), do: "Claim #{auction.token_symbol}"
   def settle_label(_position), do: nil
 
   @doc """

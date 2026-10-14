@@ -213,6 +213,13 @@ defmodule AutolaunchWeb.AuctionLive do
           <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
         </Regent.Structure.section_bar>
       </header>
+      <.finished_auction
+        :if={@page_record.state == :graduated && @graduated_token}
+        auction={@page_record}
+        market_cap={@graduated_token.market_cap}
+        connections={@creator_connections}
+        rate={@usd_rate}
+      />
       <.outbid_banner
         :if={@outbid}
         bid_form={bid_form_id(@page_record.id)}
@@ -828,7 +835,7 @@ defmodule AutolaunchWeb.AuctionLive do
   defp with_fdv(record), do: Ash.load(record, [:fdv], actor: nil, reuse_values?: true)
 
   defp graduated_token(%{state: :graduated, id: auction_id}) do
-    case Autolaunch.get_public_token_by_auction(auction_id) do
+    case Autolaunch.get_public_token_by_auction(auction_id, load: [:market_cap]) do
       {:ok, token} -> token
       {:error, _reason} -> nil
     end
