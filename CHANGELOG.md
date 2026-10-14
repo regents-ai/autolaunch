@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v123, 14 October 2026 (d787d04): token pages quote prices again
+- The price impact box on a token page gives buy and sell figures again, on Base and Robinhood, where it had said "The quote did not come back" for every size.
+- Checking a bid on an auction that has ended now speaks in the past, against the final price: for example "Above the final price: bought every block". A withdrawn bid says its unspent money was already returned when it was withdrawn.
+- A Base Memestock auction now shows its token's address under Additional Details and in the site's token list for agents, as Robinhood ones already did. AIFROG, BITE, JollyBoi and two earlier auctions now show theirs too.
+- The "Uniswap Pool" button at the top of a Base token page opens the token's pool on Uniswap, as it already did on Robinhood.
+
+## v122, 14 October 2026 (d8e3135): the stock watcher always moves on to the next stocks
+- The site's ten-minute check of stocks waiting to be added now marks each stock's turn before it starts. A check that runs out of time sends that stock to the back of the line, so a few slow stocks can no longer hold up the rest. Visitors see no change.
+
 ## v121, 14 October 2026 (c51d0a9): finished auctions lead on to their token
 - An auction that ended below its minimum says "Minimum not met" on the lists, in place of an empty bar.
 - On the Auctions list, a graduated auction's row shows a "Buy" button on hover that opens its token page. A signed-in wallet with something to collect sees its "Claim" or "Refund" button in the same place, and a Claim button now names the token, for example "Claim AIFROG".
