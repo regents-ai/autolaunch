@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v120, 14 October 2026 (28d2cb6): the trades health reading follows the token furthest behind
+- The site's health reading for token trades now shows, for each chain, the token whose trades are furthest behind, so one token that is up to date no longer hides another that is catching up. Visitors see no change.
+
 ## v119, 14 October 2026 (06bfa91): shared library update
 - Brings in the latest shared fixes: a slow or busy ENS picture service counts as a failed read and is tried again, rather than leaving a wallet with no picture; Credits holds keep their cause; refund decisions and history read the same way on every site; Points share one daily limit; and a refused signed request gets one answer everywhere.
 - A release now stops, naming what is missing, if the shared database hasn't yet been given a change the Credits or Points code needs.
