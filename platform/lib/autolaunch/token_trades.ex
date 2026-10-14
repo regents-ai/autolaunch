@@ -100,7 +100,7 @@ defmodule Autolaunch.TokenTrades do
     chain_id = token.auction.chain_id
 
     # A measurement never fails the pass it measures.
-    with {:ok, oldest} <- oldest_next_block(chain_id),
+    with {:ok, oldest} when is_integer(oldest) <- oldest_next_block(chain_id),
          do:
            :telemetry.execute(
              [:autolaunch, :indexer, :lag],
@@ -126,7 +126,8 @@ defmodule Autolaunch.TokenTrades do
 
   defp indexed(error, _token, _trades, _last, _head), do: error
 
-  # Includes the token just committed, so it is never nil here.
+  # Nil when no listed token on the chain has a cursor, as when the token just
+  # read was unlisted during its pass.
   defp oldest_next_block(chain_id) do
     Token
     |> Ash.Query.for_read(:listed, %{}, actor: @actor)
