@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v115, 14 October 2026 (9fbf1d8): the menu says "Onchain Stocks"
+- The left menu's link to the stocks page reads "Onchain Stocks". Where the two words do not fit on one line they take two, inside a button the same size as the others.
+
 ## v114, 14 October 2026 (28d4f1a): finished auctions show a picture, and your own Claim or Refund button
 - On the home page's list, a finished auction shows a bar in place of the text about its dates: a full bar with a tick and "Graduated", or a part-filled bar with how much of its minimum it raised.
 - A signed-in wallet with something to collect from a finished Base auction sees its own button on that row: "Claim", "Withdraw", or "Refund" with the amount. It opens the same card Portfolio does, in place. Nobody else sees a button there, and signed out there are none.
