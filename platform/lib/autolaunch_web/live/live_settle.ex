@@ -2,13 +2,14 @@ defmodule AutolaunchWeb.LiveSettle do
   @moduledoc """
   A list page's own Claim, Withdraw and Refund buttons: the signed-in wallet's
   ended Base bids with money or tokens to take, one for each auction
-  (`settle`, by auction id), and the settlement card a press opens in the
-  page's one dialog (`trade`, as `%{position: bid}`). `settle_column` says
+  (`settle`, by auction id, with the few words on each button in
+  `settle_labels`), and the settlement card a press opens in the page's one
+  dialog (`trade`, as `%{position: bid}`). `settle_column` says
   whether the viewer has had such a button this visit, so a list that makes
   room for one keeps that room after the last is taken.
 
   The page calls `watch/1` in its mount, after `AutolaunchWeb.LiveListings.subscribe/1`
-  and with `trade` assigned, hands `labels/1` to its list and draws the card
+  and with `trade` assigned, hands `settle_labels` to its list and draws the card
   for a `trade` that holds a position. Everything else happens here:
 
     * "open_settlement" opens the pressed auction's bid, and "close_trade"
@@ -35,18 +36,12 @@ defmodule AutolaunchWeb.LiveSettle do
 
     socket
     |> assign(:settle, %{})
+    |> assign(:settle_labels, %{})
     |> assign(:settle_column, false)
     |> assign(:settle_due, false)
     |> attach_hook(:settle_event, :handle_event, &event/3)
     |> attach_hook(:settle_info, :handle_info, &info/2)
     |> read()
-  end
-
-  @doc "The few words on each auction's button, by auction id."
-  def labels(settle) do
-    Map.new(settle, fn {auction_id, position} ->
-      {auction_id, BidSettlementComponent.settle_label(position)}
-    end)
   end
 
   defp event("open_settlement", %{"id" => id}, socket) do
@@ -100,14 +95,20 @@ defmodule AutolaunchWeb.LiveSettle do
     with %{} = actor <- human_actor(context),
          {:ok, positions} <-
            Autolaunch.list_wallet_bids_to_settle(signed_in_wallet(context), actor: actor) do
+      settle = Map.new(Enum.reverse(positions), &{&1.auction_id, &1})
+
       socket
-      |> assign(:settle, Map.new(Enum.reverse(positions), &{&1.auction_id, &1}))
+      |> assign(:settle, settle)
+      |> assign(:settle_labels, Map.new(settle, &label/1))
       |> assign(:settle_column, socket.assigns.settle_column or positions != [])
       |> follow_open_bid(actor)
     else
       _signed_out_or_unread -> socket
     end
   end
+
+  defp label({auction_id, position}),
+    do: {auction_id, BidSettlementComponent.settle_label(position)}
 
   defp follow_open_bid(%{assigns: %{trade: %{position: %{bid_id: bid_id}}}} = socket, actor) do
     case Autolaunch.get_my_bid_position(bid_id, actor: actor) do

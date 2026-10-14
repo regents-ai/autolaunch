@@ -44,7 +44,20 @@ defmodule Autolaunch.HomeMarket do
     if query == "", do: base, else: base <> "?" <> query
   end
 
-  def read(options, cursor \\ nil, limit \\ 24) do
+  # The site's own bookkeeping on an auction: when it last wrote the record and
+  # when it next looks at the auction's chain, rewritten about once a minute.
+  # The JSON API reports `updated_at`; the pages show none of them, and leaving
+  # them out means a page's records change, and the page is sent anything, only
+  # when something it shows has moved.
+  @unshown [:updated_at, :activity_next_block, :activity_last_hash, :activity_due_at]
+
+  @doc "A page of a list as the website shows it."
+  def read(options, cursor \\ nil, limit \\ 24), do: page(options, cursor, limit, @unshown)
+
+  @doc "A page of a list with each auction's whole record, for the JSON API."
+  def read_records(options, cursor, limit), do: page(options, cursor, limit, [])
+
+  defp page(options, cursor, limit, unshown) do
     scope = {:home_market, Map.drop(options, [:display])}
     resource = if options.view == "tokens", do: Token, else: Auction
 
@@ -66,7 +79,8 @@ defmodule Autolaunch.HomeMarket do
             Map.merge(arguments, %{view: "new", state: options.state, sort: options.sort}),
             actor: nil
           )
-          |> Ash.Query.load(:fdv),
+          |> Ash.Query.load(:fdv)
+          |> Ash.Query.deselect(unshown),
         else:
           Token
           |> Ash.Query.for_read(:home_market, arguments, actor: nil)

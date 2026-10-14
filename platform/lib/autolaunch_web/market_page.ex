@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.MarketPage do
   @doc "The page `params` asks for from the auctions or tokens list, as `view` names it."
   def read(params, view) do
     with {:ok, options, limit} <- options(params, view),
-         {:ok, page} <- HomeMarket.read(options, params["after"], limit) do
+         {:ok, page} <- HomeMarket.read_records(options, params["after"], limit) do
       {:ok,
        %{
          records: page.records,

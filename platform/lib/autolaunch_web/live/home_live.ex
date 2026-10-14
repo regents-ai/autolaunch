@@ -26,6 +26,12 @@ defmodule AutolaunchWeb.HomeLive do
   alias Autolaunch.{HomeMarket, MarketReadings}
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
+  # The list's tabs: every launch, the live auctions, the finished ones and the
+  # launched tokens. Each is a set of list options.
+  @tabs [new: "New", live: "Live", finished: "Finished", tokens: "Tokens"]
+
+  @unfiltered %{q: "", chain: "all", kind: "all", x: false, ens: false, github: false}
+
   @no_connection %{x: false, ens: false, github: false}
 
   def mount(_params, _session, socket) do
@@ -44,7 +50,10 @@ defmodule AutolaunchWeb.HomeLive do
        market_append: false,
        next_cursor: nil,
        has_more: false,
-       local_lab: Autolaunch.Lab.test_chain?()
+       local_lab: Autolaunch.Lab.test_chain?(),
+       tabs: @tabs,
+       unfiltered: @unfiltered,
+       no_connection: @no_connection
      )
      |> LiveListings.subscribe()
      |> LiveSettle.watch()
@@ -55,7 +64,16 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_params(params, _uri, socket) do
     options = HomeMarket.options(params)
     previous = socket.assigns.market_options
-    socket = assign(socket, market_options: options, trade: nil)
+
+    socket =
+      assign(socket,
+        market_options: options,
+        kind: kind(options),
+        tab: tab(options),
+        filtered?: filtered?(options),
+        connections: Map.take(options, [:x, :ens, :github]),
+        trade: nil
+      )
 
     cond do
       is_nil(previous) -> {:noreply, first_market(socket)}
@@ -266,10 +284,6 @@ defmodule AutolaunchWeb.HomeLive do
     """
   end
 
-  # The list's tabs: every launch, the live auctions, the finished ones and the
-  # launched tokens. Each is a set of list options.
-  @tabs [new: "New", live: "Live", finished: "Finished", tokens: "Tokens"]
-
   defp tab(%{view: "tokens"}), do: :tokens
   defp tab(%{state: "all"}), do: :new
   defp tab(%{state: "active"}), do: :live
@@ -285,8 +299,6 @@ defmodule AutolaunchWeb.HomeLive do
     do:
       options.q != "" or options.chain != "all" or options.kind != "all" or options.x or
         options.ens or options.github
-
-  @unfiltered %{q: "", chain: "all", kind: "all", x: false, ens: false, github: false}
 
   # The one way in to launching. Before launches open it stays in place,
   # switched off, with the reason beside it.
@@ -305,19 +317,6 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   def render(assigns) do
-    assigns =
-      assign(assigns,
-        kind: kind(assigns.market_options),
-        tab: tab(assigns.market_options),
-        tabs: @tabs,
-        filtered?: filtered?(assigns.market_options),
-        unfiltered: @unfiltered,
-        listed?: assigns.records != [],
-        no_connection: @no_connection,
-        connections: Map.take(assigns.market_options, [:x, :ens, :github]),
-        settle_labels: LiveSettle.labels(assigns.settle)
-      )
-
     ~H"""
     <main class="home-page home-explore-page" id="home-explore">
       <header class="home-hero">
@@ -497,7 +496,7 @@ defmodule AutolaunchWeb.HomeLive do
         aria-busy={to_string(@market_loading)}
       >
         <div
-          :if={@market_loading && !@listed? && @market_options.display == "grid"}
+          :if={@market_loading && @records == [] && @market_options.display == "grid"}
           class="home-coin-grid home-skeletons"
           aria-hidden="true"
         >
@@ -520,7 +519,7 @@ defmodule AutolaunchWeb.HomeLive do
           </p>
         </Regent.Primitives.notice>
         <div
-          :if={@listed? && @market_options.display == "grid"}
+          :if={@records != [] && @market_options.display == "grid"}
           id="home-coin-grid"
           class="home-coin-grid"
           phx-hook="MotionCascade"
@@ -540,7 +539,8 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
         <.auction_list
           :if={
-            @market_options.display == "list" && @kind == :auction && (@listed? || @market_loading)
+            @market_options.display == "list" && @kind == :auction &&
+              (@records != [] || @market_loading)
           }
           records={if @records_kind == :auction, do: @records, else: []}
           rates={@rates}
@@ -549,7 +549,10 @@ defmodule AutolaunchWeb.HomeLive do
           settle={@settle_labels}
         />
         <.token_list
-          :if={@market_options.display == "list" && @kind == :token && (@listed? || @market_loading)}
+          :if={
+            @market_options.display == "list" && @kind == :token &&
+              (@records != [] || @market_loading)
+          }
           records={if @records_kind == :token, do: @records, else: []}
           rates={@rates}
           loading={@market_loading}
@@ -565,7 +568,7 @@ defmodule AutolaunchWeb.HomeLive do
           <Regent.Primitives.button phx-click="retry" variant="secondary">Try again</Regent.Primitives.button>
         </Regent.Primitives.notice>
         <div
-          :if={!@market_loading && !@market_failed && !@listed?}
+          :if={!@market_loading && !@market_failed && @records == []}
           class="home-empty"
           role="status"
         >
@@ -599,7 +602,7 @@ defmodule AutolaunchWeb.HomeLive do
           >{if @market_loading, do: "Loading…", else: "Load more"}</Regent.Primitives.button>
         </div>
         <p
-          :if={!@market_loading && !@market_failed && @listed?}
+          :if={!@market_loading && !@market_failed && @records != []}
           class="home-result-count"
           role="status"
         >

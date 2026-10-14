@@ -17,6 +17,8 @@ defmodule AutolaunchWeb.AuctionsLive do
   alias Autolaunch.{HomeMarket, MarketReadings}
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
+  @all %{state: "all", sort: "newest", x: false, ens: false, github: false}
+
   def mount(_params, _session, socket) do
     {:ok,
      socket
@@ -29,7 +31,8 @@ defmodule AutolaunchWeb.AuctionsLive do
        failed: false,
        append: false,
        next_cursor: nil,
-       has_more: false
+       has_more: false,
+       all: @all
      )
      |> LiveListings.subscribe()
      |> LiveSettle.watch()
@@ -43,7 +46,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
     if options == socket.assigns.options,
       do: {:noreply, socket},
-      else: {:noreply, socket |> assign(:options, options) |> load(false)}
+      else: {:noreply, socket |> assign(options: options, pill: pill(options)) |> load(false)}
   end
 
   def handle_event("search", params, socket),
@@ -173,16 +176,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp empty_routes(options, all), do: [{list_path(options, all), "See every auction"}]
 
-  @all %{state: "all", sort: "newest", x: false, ens: false, github: false}
-
   def render(assigns) do
-    assigns =
-      assign(assigns,
-        pill: pill(assigns.options),
-        all: @all,
-        settle_labels: LiveSettle.labels(assigns.settle)
-      )
-
     ~H"""
     <main class="autolaunch-page market-list-page" id="auctions-list">
       <.auction_stats revstake={@revstake_stats} memestock={@memestock_stats} />

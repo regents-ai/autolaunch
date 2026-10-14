@@ -541,7 +541,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <tbody>
           <.auction_list_row
             :for={record <- @records}
-            auction={record}
+            view={view(:auction, record, %{})}
+            figures={figures(record, figure_rate(@rates, record))}
             rate={figure_rate(@rates, record)}
             trade_event={@trade_event}
             settle={@settle[record.id]}
@@ -571,31 +572,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
     do:
       "#{tip(figure)} There is no dollar price for #{unit} right now, so it is shown in #{unit}."
 
-  attr :auction, :map, required: true
+  # A row is handed only what it shows, so a reread that changes nothing shown,
+  # such as the site's own note of when it last checked an auction, sends the
+  # page nothing for that row.
+  attr :view, :map, required: true
+  attr :figures, :map, required: true
   attr :rate, :any, default: nil
   attr :trade_event, :string, default: nil
   attr :settle, :string, default: nil
   attr :action?, :boolean, default: false
 
   defp auction_list_row(assigns) do
-    view = view(:auction, assigns.auction, %{})
-
-    # A phone shows the press's first word; the amount is in the card it opens.
-    {settle_word, settle_rest} =
-      case assigns.settle && String.split(assigns.settle, " ", parts: 2) do
-        [word, rest] -> {word, " " <> rest}
-        [word] -> {word, nil}
-        nil -> {nil, nil}
-      end
-
-    assigns =
-      assign(assigns,
-        view: view,
-        figures: figures(assigns.auction, assigns.rate),
-        settle_word: settle_word,
-        settle_rest: settle_rest
-      )
-
     ~H"""
     <tr class="market-list__row">
       <.list_token
@@ -639,10 +626,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
           phx-click="open_settlement"
           phx-value-id={@view.record_id}
           aria-label={@settle}
-        >{@settle_word}<span class="market-list__rest">{@settle_rest}</span></Regent.Primitives.button>
+        >{settle_word(@settle)}<span class="market-list__rest">{settle_rest(@settle)}</span></Regent.Primitives.button>
       </td>
     </tr>
     """
+  end
+
+  # A phone shows the press's first word; the amount is in the card it opens.
+  defp settle_word(settle), do: settle |> String.split(" ", parts: 2) |> hd()
+
+  defp settle_rest(settle) do
+    case String.split(settle, " ", parts: 2) do
+      [_word, rest] -> " " <> rest
+      [_word] -> nil
+    end
   end
 
   # Who made it and how long ago, under a list row's name.
