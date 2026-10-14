@@ -67,8 +67,9 @@ defmodule Autolaunch.LabMarketFeed do
     token = make_ref()
     parent = self()
     reader = state.reader
+    accepted = state.accepted_head && %{binding: state.binding, block: state.accepted_head}
 
-    Task.start(fn -> send(parent, {:head, token, safely(fn -> reader.head() end)}) end)
+    Task.start(fn -> send(parent, {:head, token, safely(fn -> reader.head(accepted) end)}) end)
 
     {:noreply, %{state | in_flight: %{token: token, stage: :head}, timer: nil}}
   end
@@ -79,6 +80,11 @@ defmodule Autolaunch.LabMarketFeed do
     case result do
       {:ok, head} ->
         handle_head(state, head)
+
+      # The chain left the block the held readings were stored at: they are
+      # forgotten and every auction is read again at this head.
+      {:error, {:head_changed, head}} ->
+        state |> invalidate_for(head) |> begin_snapshots(head)
 
       {:error, reason} ->
         Logger.warning("revstake market feed could not read the chain head: #{inspect(reason)}")
@@ -471,6 +477,28 @@ defmodule Autolaunch.LabMarketFeed do
         {:ok, %{config: config, binding: Lab.full_binding(config), block: block, rpc_opts: opts}}
       end
     end
+
+    # The newest head for a pass. `accepted` is where the held readings were
+    # stored: once the chain has gone on past that block, the block now at its
+    # number is asked for, and another one there means the chain left it. A
+    # head at or before it, or of another binding, the feed tells from the
+    # head alone.
+    def head(nil), do: head()
+
+    def head(accepted) do
+      with {:ok, current} <- head(), do: past(accepted, current)
+    end
+
+    defp past(%{binding: binding, block: accepted}, %{binding: binding, block: newest} = current)
+         when newest.number > accepted.number do
+      case Rpc.canonical?(accepted, current.rpc_opts) do
+        {:ok, true} -> {:ok, current}
+        {:ok, false} -> {:error, {:head_changed, current}}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+
+    defp past(_accepted, current), do: {:ok, current}
 
     # A pass's block is left when the block now at its number is another one.
     # Every read names its block by hash, so newer blocks on top of it change

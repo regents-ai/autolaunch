@@ -87,6 +87,8 @@ defmodule Autolaunch.SharedReading do
     # most 1,000 prices (`Autolaunch.AuctionSnapshot`), each two 256-bit
     # numbers, the price written out exactly and two amounts, under 500 bytes
     # at their longest (about 210 measured), so a whole ladder always fits.
+    # What the kind holds is the site's auctions times their own ladders (a
+    # few kilobytes for most), not keys times bytes.
     auction_page: %{
       open: "an auction's price ladder, release schedule and stage are public on its contract",
       keys: 5_000,
