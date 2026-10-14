@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v117, 14 October 2026 (80523b6): your Claim or Refund button on the Auctions list, and outcome pictures in search
+- On the Auctions list, a signed-in wallet with something to collect from a finished Base auction sees its own button on that row: "Claim", "Withdraw", or "Refund" with the amount. It opens the same card as on the home page. Signed out, or with nothing to collect, the list looks as before.
+- In search results, a finished auction shows the same picture as the lists: a full bar with a tick and "Graduated", or a part-filled bar with how much of its minimum it raised. On a phone, search leaves it out to save room.
+
 ## v116, 14 October 2026 (d379c58): auction figures are read once for everyone
 - An auction's price, price chart, schedule and stage are read from the chain once and shown to every visitor alike. An open page changes when one of those figures changes, not every time a block goes by.
 - The line under the price names the block those figures were read at, and keeps it until a figure changes.
