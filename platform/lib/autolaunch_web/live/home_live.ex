@@ -7,9 +7,7 @@ defmodule AutolaunchWeb.HomeLive do
       connections_for: 2,
       creator_connections_for: 1,
       current_human_id: 1,
-      human_actor: 1,
-      robinhood?: 1,
-      signed_in_wallet: 1
+      robinhood?: 1
     ]
 
   import AutolaunchWeb.Components.MarketCard,
@@ -26,7 +24,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.SwapModal
   alias Autolaunch.{HomeMarket, MarketReadings}
-  alias AutolaunchWeb.{BidSettlementComponent, LabMarket, LiveListings}
+  alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
   @no_connection %{x: false, ens: false, github: false}
 
@@ -37,8 +35,6 @@ defmodule AutolaunchWeb.HomeLive do
      |> assign(
        market_options: nil,
        trade: nil,
-       settle: %{},
-       settle_due: false,
        records: [],
        records_kind: :auction,
        backed: [],
@@ -51,7 +47,7 @@ defmodule AutolaunchWeb.HomeLive do
        local_lab: Autolaunch.Lab.test_chain?()
      )
      |> LiveListings.subscribe()
-     |> watch_settle()
+     |> LiveSettle.watch()
      |> LabMarket.assign_robinhood_stale()
      |> assign_figure_rates()}
   end
@@ -89,21 +85,9 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
-  # The viewer's own bid on a finished auction, opened from its row or card.
-  def handle_event("open_settlement", %{"id" => id}, socket) do
-    trade =
-      case socket.assigns.settle do
-        %{^id => position} -> %{position: position}
-        _none -> nil
-      end
-
-    {:noreply, assign(socket, :trade, trade)}
-  end
-
   def handle_event("close_trade", %{"id" => id}, socket) do
     case socket.assigns.trade do
       %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
-      %{position: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
       _other -> {:noreply, socket}
     end
   end
@@ -147,12 +131,6 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
-  # A bid's button is worded by its auction's outcome, so a change to an
-  # auction the viewer has a bid to settle in reads that bid again too.
-  def handle_info({:autolaunch_listings_changed, auction_id}, socket)
-      when is_map_key(socket.assigns.settle, auction_id),
-      do: {:noreply, socket |> assign(:settle_due, true) |> LiveListings.schedule()}
-
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
 
@@ -160,55 +138,7 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_info(:reload_pool, socket), do: {:noreply, LiveListings.schedule(socket)}
 
   def handle_info(:reread_listings, socket),
-    do: {:noreply, socket |> LiveListings.taken() |> reread_market() |> reread_settle()}
-
-  # One of the viewer's bids was written: its auction ended, or its tokens
-  # became claimable. Read with the listing's next reread, after the write
-  # has landed.
-  def handle_info({:autolaunch_bid_changed, _bid_id}, socket),
-    do: {:noreply, socket |> assign(:settle_due, true) |> LiveListings.schedule()}
-
-  # The open settlement card verified a step, so the stored bid changed.
-  def handle_info({:bid_settlement_changed, _position_id}, socket),
-    do: {:noreply, read_settle(socket)}
-
-  # The signed-in wallet's ended bids with money or tokens to take, one for
-  # each auction; the page hears when any of that wallet's bids is written.
-  defp watch_settle(socket) do
-    wallet = signed_in_wallet(socket.assigns.access_context)
-    if wallet && connected?(socket), do: Autolaunch.WalletBids.subscribe(wallet)
-    read_settle(socket)
-  end
-
-  defp reread_settle(%{assigns: %{settle_due: true}} = socket),
-    do: socket |> assign(:settle_due, false) |> read_settle()
-
-  defp reread_settle(socket), do: socket
-
-  # A read that fails leaves the buttons the viewer already has. An open card
-  # follows its bid, which leaves this list once it has nothing left to take.
-  defp read_settle(socket) do
-    context = socket.assigns.access_context
-
-    with %{} = actor <- human_actor(context),
-         {:ok, positions} <-
-           Autolaunch.list_wallet_bids_to_settle(signed_in_wallet(context), actor: actor) do
-      socket
-      |> assign(:settle, Map.new(Enum.reverse(positions), &{&1.auction_id, &1}))
-      |> follow_open_bid(actor)
-    else
-      _signed_out_or_unread -> socket
-    end
-  end
-
-  defp follow_open_bid(%{assigns: %{trade: %{position: %{bid_id: bid_id}}}} = socket, actor) do
-    case Autolaunch.get_my_bid_position(bid_id, actor: actor) do
-      {:ok, %Autolaunch.Bid{} = position} -> assign(socket, :trade, %{position: position})
-      _unread -> socket
-    end
-  end
-
-  defp follow_open_bid(socket, _actor), do: socket
+    do: {:noreply, socket |> LiveListings.taken() |> reread_market()}
 
   # The cards already shown stay until the new listing arrives and replaces
   # them, so changing a setting never blanks the gallery.
@@ -385,10 +315,7 @@ defmodule AutolaunchWeb.HomeLive do
         listed?: assigns.records != [],
         no_connection: @no_connection,
         connections: Map.take(assigns.market_options, [:x, :ens, :github]),
-        settle_labels:
-          Map.new(assigns.settle, fn {auction_id, position} ->
-            {auction_id, BidSettlementComponent.settle_label(position)}
-          end)
+        settle_labels: LiveSettle.labels(assigns.settle)
       )
 
     ~H"""

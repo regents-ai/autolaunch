@@ -52,5 +52,5 @@
   .search-dialog__categories { display: flex; gap: 4px; padding: 8px 12px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--hairline); }
   .search-dialog__categories button { flex-shrink: 0; }
   .search-dialog__results { padding: 12px; }
-  .search-result__figures small { display: none; }
+  .search-result__figures :is(small, .auction-outcome) { display: none; }
 }

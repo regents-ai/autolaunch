@@ -2,7 +2,9 @@ defmodule AutolaunchWeb.AuctionsLive do
   @moduledoc """
   The auctions list: every auction as a table row with its FDV at the current
   price, bid volume and status, filtered by chain, status,
-  search and the creator's verified connections.
+  search and the creator's verified connections. A finished auction the
+  signed-in wallet has money or tokens to take from shows that press on its
+  row (`AutolaunchWeb.LiveSettle`).
   """
   use AutolaunchWeb, :live_view
 
@@ -10,8 +12,10 @@ defmodule AutolaunchWeb.AuctionsLive do
     only: [auction_list: 1, assign_figure_rates: 1, list_tools: 1]
 
   import AutolaunchWeb.Components.AuctionStats
-  alias Autolaunch.HomeMarket
-  alias AutolaunchWeb.{LabMarket, LiveListings}
+  import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
+  import AutolaunchWeb.Components.SwapModal, only: [settlement_modal: 1]
+  alias Autolaunch.{HomeMarket, MarketReadings}
+  alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -19,6 +23,7 @@ defmodule AutolaunchWeb.AuctionsLive do
      |> assign(AutolaunchWeb.PublicDocuments.page("/auctions"))
      |> assign(
        options: nil,
+       trade: nil,
        records: [],
        loading: true,
        failed: false,
@@ -27,6 +32,7 @@ defmodule AutolaunchWeb.AuctionsLive do
        has_more: false
      )
      |> LiveListings.subscribe()
+     |> LiveSettle.watch()
      |> LabMarket.assign_robinhood_stale()
      |> assign_auction_stats()
      |> assign_figure_rates()}
@@ -173,7 +179,8 @@ defmodule AutolaunchWeb.AuctionsLive do
     assigns =
       assign(assigns,
         pill: pill(assigns.options),
-        all: @all
+        all: @all,
+        settle_labels: LiveSettle.labels(assigns.settle)
       )
 
     ~H"""
@@ -223,6 +230,7 @@ defmodule AutolaunchWeb.AuctionsLive do
           records={@records}
           rates={@rates}
           loading={@loading}
+          settle={@settle_labels}
         />
 
         <Regent.Primitives.notice :if={@failed} tone="error">
@@ -260,6 +268,15 @@ defmodule AutolaunchWeb.AuctionsLive do
           </Regent.Primitives.button>
         </div>
       </section>
+      <.settlement_modal
+        :if={@trade}
+        id={"auctions-settle-#{@trade.position.id}"}
+        position={@trade.position}
+        market={MarketReadings.market(@trade.position.auction_address)}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
     </main>
     """
   end

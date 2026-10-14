@@ -507,10 +507,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
   The auctions list: the token with its creator and age, then its price, what
   bidders have put in, its market cap and its status, and a Bid button on a
   live auction when the page takes bids. A finished auction the viewer has
-  money or tokens to take from shows that press there instead. On a phone the
+  money or tokens to take from shows that press in the same column, which a
+  page that takes no bids has only for a viewer with one. On a phone the
   raise and market cap are left out.
   """
   def auction_list(assigns) do
+    assigns = assign(assigns, :action?, assigns.trade_event != nil or assigns.settle != %{})
+
     ~H"""
     <div class="market-list__scroll">
       <table class="market-list__table market-list__table--auctions">
@@ -526,7 +529,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
               <.info_tip id="auctions-fdv" text={tip(:fdv)}>Market cap</.info_tip>
             </th>
             <th scope="col">Status</th>
-            <th :if={@trade_event} scope="col"><span class="visually-hidden">Bid</span></th>
+            <th :if={@action?} scope="col">
+              <span class="visually-hidden">{if @trade_event, do: "Bid", else: "Your bid"}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -536,6 +541,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             rate={figure_rate(@rates, record)}
             trade_event={@trade_event}
             settle={@settle[record.id]}
+            action?={@action?}
           />
           <tr
             :for={index <- 1..6}
@@ -544,7 +550,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan={if @trade_event, do: "6", else: "5"}></td>
+            <td colspan={if @action?, do: "6", else: "5"}></td>
           </tr>
         </tbody>
       </table>
@@ -565,6 +571,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :rate, :any, default: nil
   attr :trade_event, :string, default: nil
   attr :settle, :string, default: nil
+  attr :action?, :boolean, default: false
 
   defp auction_list_row(assigns) do
     view = view(:auction, assigns.auction, %{})
@@ -613,9 +620,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <td class="market-list__status">
         <.status_figure figures={@figures} chain={@view.chain} />
       </td>
-      <td :if={@trade_event} class="market-list__action">
+      <td :if={@action?} class="market-list__action">
         <Regent.Primitives.button
-          :if={@view.bid}
+          :if={@trade_event && @view.bid}
           variant="secondary"
           phx-click={@trade_event}
           phx-value-id={@view.record_id}
@@ -739,7 +746,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   @doc """
   One search result: the token cell as the lists show it, then an auction's
-  value and state or a token's price and market cap. It opens the record's page.
+  value over its time left, or its outcome bar once finished, or a token's
+  price and market cap. It opens the record's page.
   """
   def search_result(%{kind: :auction, record: auction} = assigns) do
     assigns =
@@ -761,7 +769,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </span>
       <span class="search-result__figures">
         <strong>{@figures.fdv}</strong>
-        <small>{@figures.status}</small>
+        <.outcome_figure :if={@figures.outcome} figures={@figures} />
+        <small :if={!@figures.outcome}>{@figures.status}</small>
       </span>
     </.link>
     """
@@ -1102,21 +1111,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </span>
       <small>{@figures.status}</small>
     </span>
-    <span
-      :if={@figures.outcome}
-      class="auction-outcome"
-      data-state={@figures.state}
-      title={@figures.status}
-    >
-      <span class="auction-figures__time" aria-hidden="true">
-        <span style={"width: #{@figures.outcome.fill}%"}></span>
-      </span>
-      <small>
-        <svg :if={@figures.state == :graduated} viewBox="0 0 16 16" aria-hidden="true">
-          <path d="m3 8.5 3.2 3L13 4.5" />
-        </svg>{@figures.outcome.label}
-      </small>
-    </span>
+    <.outcome_figure :if={@figures.outcome} figures={@figures} />
     <span
       :if={!@figures.ends_at && !@figures.outcome}
       class="auction-state"
@@ -1145,6 +1140,25 @@ defmodule AutolaunchWeb.Components.MarketCard do
         }
       }
     </script>
+    """
+  end
+
+  attr :figures, :map, required: true
+
+  # A finished auction's outcome bar over its few words, with when it ended on
+  # hover.
+  defp outcome_figure(assigns) do
+    ~H"""
+    <span class="auction-outcome" data-state={@figures.state} title={@figures.status}>
+      <span class="auction-figures__time" aria-hidden="true">
+        <span style={"width: #{@figures.outcome.fill}%"}></span>
+      </span>
+      <small>
+        <svg :if={@figures.state == :graduated} viewBox="0 0 16 16" aria-hidden="true">
+          <path d="m3 8.5 3.2 3L13 4.5" />
+        </svg>{@figures.outcome.label}
+      </small>
+    </span>
     """
   end
 
