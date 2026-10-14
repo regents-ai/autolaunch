@@ -30,6 +30,7 @@ import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
 import {installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
+import {HolographicCard, createHolographicCardController} from "./hooks/holographic_card"
 
 // The motion lab's own hooks load only on its page.
 const labHooks = window.location.pathname === "/animations"
@@ -50,6 +51,7 @@ const hooks = {
   MotionCount,
   MotionPanels,
   MotionRefusal,
+  HolographicCard,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 
@@ -66,6 +68,14 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // this application calls, so the transport entry point is named at the cast.
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
+// Controller-rendered documents have the same badge outside a LiveView root.
+const badge = document.querySelector<HTMLElement>("[data-webmcp-badge]")
+if (badge && !badge.closest("[data-phx-session]")) {
+  const controller = createHolographicCardController(badge)
+  controller.mount()
+  window.addEventListener("pagehide", event => event.persisted ? controller.pause() : controller.destroy())
+  window.addEventListener("pageshow", () => controller.resume())
+}
 mountMotion(document)
 // A press dispatches these to open or close the dialog it names.
 document.addEventListener("autolaunch:open-dialog", event => {

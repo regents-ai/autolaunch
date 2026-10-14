@@ -45,7 +45,17 @@ defmodule AutolaunchWeb.UpcomingLive do
       </section>
 
       <section class="fact-page__section" aria-labelledby="upcoming-available">
-        <h2 id="upcoming-available">Available to Pair</h2>
+        <h2 id="upcoming-available" class="upcoming__pairing">
+          <span>Available to Pair:</span>
+          <a href="/create">Memestock</a>
+          <span aria-hidden="true">|</span>
+          <span
+            class="upcoming__pairing-soon"
+            title="Coming soon"
+            aria-label="Dual Stock Token: Coming soon"
+            tabindex="0"
+          >Dual Stock Token</span>
+        </h2>
         <div class="upcoming__columns">
           <.column
             :for={chain <- @chains}

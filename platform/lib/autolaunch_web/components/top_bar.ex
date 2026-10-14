@@ -36,11 +36,39 @@ defmodule AutolaunchWeb.Components.TopBar do
         <:trail><.theme_toggle /></:trail>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
+        <a href="/agents.md" class="shell-agent-guide">agents.md</a>
         <AutolaunchWeb.Components.Credits.button credits={@credits} />
         <.account_control account_control={@account_control} />
         <AutolaunchWeb.Components.SidePanel.button />
       </div>
     </header>
+    """
+  end
+
+  def webmcp_badge(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :tool_count,
+        Enum.count(
+          AutolaunchWeb.PublicDocuments.capabilities()["tools"],
+          &(&1["scope"] == "site")
+        )
+      )
+
+    ~H"""
+    <div class="shell-tools">
+      <Regent.HolographicCard.card
+        id="shell-webmcp-badge"
+        class="shell-tools__badge"
+        phx-hook="HolographicCard"
+        data-webmcp-badge
+        data-holo-crown="false"
+        data-holo-tilt="0"
+      >
+        <span>{@tool_count} WebMCP Tools Available</span>
+      </Regent.HolographicCard.card>
+    </div>
     """
   end
 

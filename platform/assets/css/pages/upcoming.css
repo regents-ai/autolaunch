@@ -13,6 +13,10 @@
 }
 
 .upcoming__hint { color: var(--color-fg-muted); font-size: .875rem; }
+.upcoming__pairing { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35em; }
+.upcoming__pairing a { color: inherit; text-underline-offset: .2em; }
+.upcoming__pairing-soon { color: var(--color-fg-muted); cursor: help; }
+.upcoming__pairing :is(a, [tabindex]):focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
 .upcoming-stock { width: 100%; height: 100%; text-align: left; color: var(--color-fg); font: inherit; cursor: pointer; }
 .upcoming-stock:hover { border-color: var(--chain-color); }
 .upcoming-stock:focus-visible { outline: 2px solid var(--chain-color); outline-offset: 2px; }

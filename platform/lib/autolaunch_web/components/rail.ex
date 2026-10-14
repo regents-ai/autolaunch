@@ -4,8 +4,7 @@ defmodule AutolaunchWeb.Components.Rail do
 
   # Explore has two smaller links to its auction and token views. It also
   # covers their search and detail pages; Docs covers the persistent
-  # information-page navigation. Launching starts from the home page's one
-  # "Launch a token" button.
+  # information-page navigation. Launch is the last, orange destination.
   @items [
     %{
       label: "Explore",
@@ -18,7 +17,8 @@ defmodule AutolaunchWeb.Components.Rail do
       label: "Docs",
       path: "/docs",
       covers: []
-    }
+    },
+    %{label: "Launch", path: "/create", covers: []}
   ]
 
   @explore_views [
@@ -41,7 +41,10 @@ defmodule AutolaunchWeb.Components.Rail do
         <li :for={item <- @items} class="shell-rail__item">
           <.link
             href={item.path}
-            class="rg-button rg-button--primary shell-rail__link"
+            class={[
+              "rg-button rg-button--primary shell-rail__link",
+              item.path == "/create" && "shell-rail__launch"
+            ]}
             aria-current={if current?(@current_path, item), do: "page"}
           >
             {item.label}

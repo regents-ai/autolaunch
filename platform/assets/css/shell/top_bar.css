@@ -3,3 +3,7 @@
 .shell-search__label { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
 .shell-search__input::placeholder { color: var(--color-fg-muted); }
 .theme-control { display: flex; }
+.shell-agent-guide { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; font-size: .8125rem; text-underline-offset: .2em; }
+.shell-tools { padding: var(--space-2) var(--rg-panel-padding) 0; }
+.shell-tools__badge { display: inline-block; --rg-cut-panel: 8px; max-width: 100%; font-size: .8125rem; }
+.shell-tools__badge .rg-holo__content { padding: .65rem 1rem; }

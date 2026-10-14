@@ -21,6 +21,15 @@ and Chainlink Feed Required. Research does not add stocks to Available to Pair.
 The launch picker and every launch/bid keep their existing admission checks.
 This catalog does not configure routes, admit tokens or change those checks.
 
+The pairing heading links Memestock to `/create`. Dual Stock Token remains
+greyed out, with a Coming soon hover hint and accessible label. Launch is the
+orange final sidebar item and also opens `/create`. The header links to
+`/agents.md`; its badge counts the site-scoped tools in the existing manifest.
+The badge uses the shared vgpu foil renderer and the template's canvas lifecycle,
+with a readable still face when WebGPU is unavailable or reduced motion is requested.
+The browser hook and canvas lifecycle are copied unchanged from ash-template
+`2c984274571ebbdc575f0e1d73d9b95d4ad15827`; the existing Regent UI and vgpu pins are retained.
+
 Every stock card is a button. Clicking it, tapping it or pressing Enter or
 Space opens a native modal dialog near the viewport's top. Hover never opens
 it and does not add text. The existing LiveView dialog commands open and close
