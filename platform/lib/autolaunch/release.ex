@@ -17,11 +17,37 @@ defmodule Autolaunch.Release do
     Application.put_env(@app, Autolaunch.Repo, migration_config!())
 
     Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
+      :ok = require_shared_migrations!(repo)
       RegentAgents.Migrator.require_pairing_history!(repo)
       RegentCredits.Migrator.require_pairing_grants!(repo)
       ensure_schema!(repo)
       Ecto.Migrator.run(repo, migrations_path(), :up, all: true, prefix: repo.default_prefix())
     end)
+  end
+
+  # The Credits and Points code this release carries reads tables and columns
+  # from every migration its pinned library ships, so each must already be in
+  # that schema's own ledger. Every missing version is named at once.
+  defp require_shared_migrations!(repo) do
+    case unapplied_shared_migrations(repo) do
+      [] ->
+        :ok
+
+      unapplied ->
+        raise "These separately approved shared migrations must be applied before deployment: " <>
+                Enum.join(unapplied, ", ")
+    end
+  end
+
+  defp unapplied_shared_migrations(repo) do
+    for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"],
+        {:down, version, _name} <-
+          Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
+            prefix: schema,
+            skip_table_creation: true,
+            migration_lock: false
+          ),
+        do: "#{schema} #{version}"
   end
 
   @doc "Creates the product schema when the database does not have it yet."
@@ -34,21 +60,24 @@ defmodule Autolaunch.Release do
   Lists what a deployed database and the release disagree about.
 
   Prints every migration the release carries that the database has not applied
-  under `pending:`, and every version the database has applied whose file the
-  release does not carry under `applied-without-file:`. Prints `none` when both
-  are empty. It applies nothing, creates nothing, and takes no migration lock.
+  under `pending:`, every version the database has applied whose file the
+  release does not carry under `applied-without-file:`, and the shared Credits
+  and Points changes the release needs that their own ledgers do not hold under
+  `shared-pending:` (each as schema and version; a deployment is refused while
+  one is listed). Prints `none` when all three are empty. It applies nothing,
+  creates nothing, and takes no migration lock.
   """
   def pending_migrations do
     load_app()
     Application.put_env(@app, Autolaunch.Repo, migration_config!())
     path = migrations_path()
 
-    {:ok, {pending, applied_without_file}, _started} =
+    {:ok, {{pending, applied_without_file}, shared}, _started} =
       Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
-        collect_disagreements(repo, path)
+        {collect_disagreements(repo, path), unapplied_shared_migrations(repo)}
       end)
 
-    report(pending, applied_without_file)
+    report(pending, applied_without_file, shared)
   end
 
   defp collect_disagreements(repo, path) do
@@ -106,14 +135,16 @@ defmodule Autolaunch.Release do
     |> MapSet.new()
   end
 
-  defp report([], []), do: IO.puts("none")
+  defp report([], [], []), do: IO.puts("none")
 
-  defp report(pending, applied_without_file) do
+  defp report(pending, applied_without_file, shared) do
     if pending != [], do: IO.puts("pending: #{Enum.join(pending, " ")}")
 
     if applied_without_file != [] do
       IO.puts("applied-without-file: #{Enum.join(applied_without_file, " ")}")
     end
+
+    if shared != [], do: IO.puts("shared-pending: #{Enum.join(shared, ", ")}")
   end
 
   defp migration_source(repo), do: repo.config()[:migration_source] || "schema_migrations"
