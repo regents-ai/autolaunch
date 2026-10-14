@@ -99,11 +99,14 @@ defmodule Autolaunch.TokenTrades do
   defp indexed(:ok, token, trades, last, head) do
     chain_id = token.auction.chain_id
 
-    :telemetry.execute(
-      [:autolaunch, :indexer, :lag],
-      %{blocks: max(head - (oldest_next_block(chain_id) - 1), 0)},
-      %{indexer: :token_trades, chain_id: chain_id}
-    )
+    # A measurement never fails the pass it measures.
+    with {:ok, oldest} <- oldest_next_block(chain_id),
+         do:
+           :telemetry.execute(
+             [:autolaunch, :indexer, :lag],
+             %{blocks: max(head - (oldest - 1), 0)},
+             %{indexer: :token_trades, chain_id: chain_id}
+           )
 
     if last == head and is_integer(token.trades_next_block) do
       now = DateTime.utc_now()
@@ -128,7 +131,7 @@ defmodule Autolaunch.TokenTrades do
     Token
     |> Ash.Query.for_read(:listed, %{}, actor: @actor)
     |> Ash.Query.filter(auction.chain_id == ^chain_id)
-    |> Ash.min!(:trades_next_block, actor: @actor)
+    |> Ash.min(:trades_next_block, actor: @actor)
   end
 
   @doc """
