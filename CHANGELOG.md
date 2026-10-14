@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v125, 14 October 2026: launch and agent tools are easier to find
+- Available to Pair links Memestock to the create page and shows Dual Stock Token greyed out with a Coming soon hint.
+- The sidebar ends with an orange Launch button. The header links to agents.md, and a glossy vgpu badge below it shows the tool count from the site's manifest.
+
 ## v124, 14 October 2026: stock details and clearer Explore navigation
 - Onchain Stocks moves to `/upcoming-stocks`; `/upcoming` redirects there. Clicking a stock opens its token and Chainlink addresses, company and stock links, and dated pool details. Escape closes the dialog.
 - Available to Pair preserves its 35 established stocks. New research appears in Soon Available (14 stocks) and Chainlink Feed Required (78 stocks). Soon Available says "pending Autolaunch smart contract enablement." Liquidity uses compact dollar amounts.
