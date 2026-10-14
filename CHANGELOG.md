@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v124, 14 October 2026: stock details and clearer Explore navigation
+- Onchain Stocks moves to `/upcoming-stocks`; `/upcoming` redirects there. Clicking a stock opens its token and Chainlink addresses, company and stock links, and dated pool details. Escape closes the dialog.
+- Available to Pair preserves its 35 established stocks. New research appears in Soon Available (14 stocks) and Chainlink Feed Required (78 stocks). Soon Available says "pending Autolaunch smart contract enablement." Liquidity uses compact dollar amounts.
+- The sidebar says Docs and adds smaller Auctions and Tokens links beneath Explore. Both lists share the Explore page.
+
 ## v123, 14 October 2026 (d787d04): token pages quote prices again
 - The price impact box on a token page gives buy and sell figures again, on Base and Robinhood, where it had said "The quote did not come back" for every size.
 - Checking a bid on an auction that has ended now speaks in the past, against the final price: for example "Above the final price: bought every block". A withdrawn bid says its unspent money was already returned when it was withdrawn.
