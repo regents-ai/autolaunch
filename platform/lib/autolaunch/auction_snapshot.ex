@@ -18,6 +18,14 @@ defmodule Autolaunch.AuctionSnapshot do
   (`pages/4`): while the auction's stored state has not moved, a whole ladder
   is not read again and one that stopped is carried on from where it stopped.
 
+  A ladder lists the hundred prices nearest the clearing price (`rungs`) and
+  says how many it read beyond them (`more`) and the highest of them all
+  (`highest_q96`). Every price it read stays with it, packed as one binary
+  (`prices`: each price and the demand there, 32 bytes apiece, lowest first),
+  which is what the demand needed at a drafted price counts (`needed_at/2`)
+  and what the next walk starts from. Every page showing the auction holds
+  its own copy of the listed prices and shares the one binary.
+
   The release schedule is the one the auction was created with, read from the
   contract that stores it: each step releases `mps` millionths of a tenth of
   the supply per block (ten million in all) for a number of blocks.
@@ -36,6 +44,8 @@ defmodule Autolaunch.AuctionSnapshot do
   @no_tick Integer.pow(2, 256) - 1
   # The lens reads at most this many prices; the ladder says when it stopped.
   @max_ticks 1_000
+  # A ladder lists this many of them, the nearest above the clearing price.
+  @listed 100
   # The longest one walk of the prices takes; the ladder says when it stopped.
   @walk_budget_ms 3_000
   # A feed reads this many pages at once, each for at most this long.
@@ -169,14 +179,13 @@ defmodule Autolaunch.AuctionSnapshot do
   ladder's lowest price, where no further demand is needed.
   """
   @spec needed_at(non_neg_integer(), map()) :: String.t() | nil
-  def needed_at(price_q96, %{ladder: %{state: state, rungs: rungs}, decimals: decimals})
+  def needed_at(price_q96, %{ladder: %{state: state, prices: prices}, decimals: decimals})
       when is_integer(price_q96) do
     if price_q96 > state.clearing_q96 do
       at_or_above =
-        rungs
-        |> Enum.filter(&(&1.price_q96 >= price_q96))
-        |> Enum.map(& &1.demand_q96)
-        |> Enum.sum()
+        for <<price::256, demand::256 <- prices>>, price >= price_q96, reduce: 0 do
+          sum -> sum + demand
+        end
 
       price_q96 |> needed_q96(at_or_above, state) |> currency(decimals)
     end
@@ -291,9 +300,11 @@ defmodule Autolaunch.AuctionSnapshot do
   # read at this checkpoint, with this demand above and this lowest price, are
   # the ladder's now: a whole one needs no reading, and one that stopped goes
   # on from its highest price, read again for the price after it.
-  defp begun(%{state: state, rungs: [%{price_q96: next} | _] = rungs} = held, state, next) do
+  defp begun(%{state: state, prices: <<next::256, _rest::binary>> = prices} = held, state, next) do
     [highest | lower] =
-      rungs |> Enum.map(&Map.take(&1, [:price_q96, :demand_q96])) |> Enum.reverse()
+      Enum.reverse(
+        for <<price::256, demand::256 <- prices>>, do: %{price_q96: price, demand_q96: demand}
+      )
 
     if held.complete?, do: {[highest | lower], @no_tick}, else: {lower, highest.price_q96}
   end
@@ -323,15 +334,17 @@ defmodule Autolaunch.AuctionSnapshot do
     end
   end
 
-  # Each price with the demand still bidding there and the demand the price
-  # needs, lowest first, as the lens lists them.
+  # The nearest prices, each with the demand still bidding there and the
+  # demand the price needs, lowest first, as the lens lists them; and every
+  # price the walk read, packed.
   defp ladder_view(%{state: state, rungs: rungs, complete?: complete?}, decimals) do
-    {rungs, _running} =
-      Enum.map_reduce(rungs, state.demand_above_q96, fn rung, running ->
+    {nearest, beyond} = Enum.split(rungs, @listed)
+
+    {listed, _running} =
+      Enum.map_reduce(nearest, state.demand_above_q96, fn rung, running ->
         view = %{
           price_q96: rung.price_q96,
           price: BidPrice.decimal(rung.price_q96, decimals),
-          demand_q96: rung.demand_q96,
           bidding: currency(div(rung.demand_q96 * state.remaining_mps, @mps), decimals),
           needed: rung.price_q96 |> needed_q96(running, state) |> currency(decimals)
         }
@@ -339,7 +352,19 @@ defmodule Autolaunch.AuctionSnapshot do
         {view, max(running - rung.demand_q96, 0)}
       end)
 
-    %{state: state, rungs: rungs, complete?: complete?}
+    %{
+      state: state,
+      complete?: complete?,
+      rungs: listed,
+      more: length(beyond),
+      highest_q96: with(%{price_q96: highest} <- List.last(rungs), do: highest),
+      prices:
+        for(
+          %{price_q96: price, demand_q96: demand} <- rungs,
+          into: <<>>,
+          do: <<price::256, demand::256>>
+        )
+    }
   end
 
   # TickDataLens: the demand a price needs, less the demand at or above it,

@@ -911,7 +911,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       <Regent.Primitives.disclosure
         :if={@snapshot.ladder.rungs != []}
         id={"#{@id}-table"}
-        summary={"All #{length(@snapshot.ladder.rungs)} prices as a table"}
+        summary={table_summary(@snapshot.ladder)}
       >
         <table class="auction-next-table">
           <caption>Prices bids are waiting at, lowest first</caption>
@@ -932,10 +932,20 @@ defmodule AutolaunchWeb.Components.AuctionNext do
             </tr>
           </tbody>
         </table>
+        <p :if={@snapshot.ladder.more > 0} class="auction-next-note">
+          {grouped(@snapshot.ladder.more)} more {if @snapshot.ladder.more == 1,
+            do: "price is",
+            else: "prices are"} higher than these.
+        </p>
       </Regent.Primitives.disclosure>
     </section>
     """
   end
+
+  defp table_summary(%{rungs: rungs, more: 0}), do: "All #{length(rungs)} prices as a table"
+
+  defp table_summary(%{rungs: rungs}),
+    do: "The #{length(rungs)} prices nearest the price now, as a table"
 
   defp ladder_view(%{snapshot: snapshot, draft: draft}) do
     rungs = snapshot.ladder.rungs
@@ -1025,11 +1035,9 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     %{price_to_beat_q96: low, tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
 
     high =
-      snapshot.ladder.rungs
-      |> Enum.map(& &1.price_q96)
-      |> Enum.concat(List.wrap(effective))
-      |> Enum.max(fn -> low end)
-      |> max(low)
+      [snapshot.ladder.highest_q96, effective, low]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.max()
 
     ((high - low) * 5)
     |> div(4 * spacing)

@@ -83,16 +83,17 @@ defmodule Autolaunch.SharedReading do
       bytes: 4_096
     },
     # One for each auction, by its lowercase address: everything its own page
-    # shows from the chain, at one block. Its size is its price ladder's: at
-    # most 1,000 prices (`Autolaunch.AuctionSnapshot`), each two 256-bit
-    # numbers, the price written out exactly and two amounts, under 500 bytes
-    # at their longest (about 210 measured), so a whole ladder always fits.
-    # What the kind holds is the site's auctions times their own ladders (a
-    # few kilobytes for most), not keys times bytes.
+    # shows from the chain, at one block. Its size is its price ladder's
+    # (`Autolaunch.AuctionSnapshot`): the hundred prices it lists, each a
+    # 256-bit number, the price written out exactly and two amounts, under 450
+    # bytes at their longest (about 170 measured), and every price it read, at
+    # most 1,000, packed at 64 bytes each. So a whole ladder always fits. What
+    # the kind holds is the site's auctions times their own ladders (a few
+    # kilobytes for most), not keys times bytes.
     auction_page: %{
       open: "an auction's price ladder, release schedule and stage are public on its contract",
       keys: 5_000,
-      bytes: 524_288
+      bytes: 131_072
     }
   }
 
