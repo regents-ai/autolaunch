@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v116, 14 October 2026 (d379c58): auction figures are read once for everyone
+- An auction's price, price chart, schedule and stage are read from the chain once and shown to every visitor alike. An open page changes when one of those figures changes, not every time a block goes by.
+- The line under the price names the block those figures were read at, and keeps it until a figure changes.
+- An auction with a long price chart is read over a few rounds and then costs nothing until the next bid. If an auction's page could not be read on a round, it keeps what was last read.
+- When the chain replaces a block the figures were read at, they are read again.
+
 ## v115, 14 October 2026 (9fbf1d8): the menu says "Onchain Stocks"
 - The left menu's link to the stocks page reads "Onchain Stocks". Where the two words do not fit on one line they take two, inside a button the same size as the others.
 
