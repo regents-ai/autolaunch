@@ -15,6 +15,8 @@ defmodule AutolaunchWeb.Telemetry do
       `:token_trades` or `:stock_admissions`) on `chain_id`. The ledger
       compares its cursor with the safe head at the start of each pass, the
       others their new cursor with the latest head after each committed pass;
+      the token trades reader sends the furthest-behind cursor among the
+      chain's listed tokens that have one, not only the token it just read;
       the stock list sends it only for a pass that left no stock unread. Each
       event also counts one pass, so a reader that stops shows as passes that
       stop rising while its lag keeps its last value.

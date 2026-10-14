@@ -83,27 +83,29 @@ defmodule Autolaunch.TokenTrades do
 
       token
       |> commit(first, last, headers[last].hash, trades, last == head.number)
-      |> indexed(token, trades, head.number - last)
+      |> indexed(token, trades, last, head.number)
     else
       {:error, :cursor_changed} -> invalidate(token)
       _ -> {:error, :trades_unavailable}
     end
   end
 
-  # After a committed pass: how far the token's cursor trails the head, and
-  # how long after its block each trade first seen by a pass that reached the
-  # head from an existing cursor got to the site. A first pass or a rebuild
-  # reads history rather than new trades, so it is left out.
-  defp indexed(:ok, token, trades, behind) do
+  # After a committed pass: how far the furthest-behind cursor among the
+  # chain's listed tokens trails the head, so a token that falls behind is not
+  # hidden by one that has caught up; and how long after its block each trade
+  # first seen by a pass that reached the head from an existing cursor got to
+  # the site. A first pass or a rebuild reads history rather than new trades,
+  # so it is left out.
+  defp indexed(:ok, token, trades, last, head) do
     chain_id = token.auction.chain_id
 
     :telemetry.execute(
       [:autolaunch, :indexer, :lag],
-      %{blocks: behind},
+      %{blocks: max(head - (oldest_next_block(chain_id) - 1), 0)},
       %{indexer: :token_trades, chain_id: chain_id}
     )
 
-    if behind == 0 and is_integer(token.trades_next_block) do
+    if last == head and is_integer(token.trades_next_block) do
       now = DateTime.utc_now()
 
       for %{block_number: number, occurred_at: at} <- trades,
@@ -119,7 +121,15 @@ defmodule Autolaunch.TokenTrades do
     :ok
   end
 
-  defp indexed(error, _token, _trades, _behind), do: error
+  defp indexed(error, _token, _trades, _last, _head), do: error
+
+  # Includes the token just committed, so it is never nil here.
+  defp oldest_next_block(chain_id) do
+    Token
+    |> Ash.Query.for_read(:listed, %{}, actor: @actor)
+    |> Ash.Query.filter(auction.chain_id == ^chain_id)
+    |> Ash.min!(:trades_next_block, actor: @actor)
+  end
 
   @doc """
   One `Swap` log's trade, in base units. The PoolManager reports each amount
