@@ -5,7 +5,16 @@ defmodule Autolaunch.MarketFeedTest do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction.MarketState
-  alias Autolaunch.{BaseRpcStub, LabAbi, MarketWatch}
+
+  alias Autolaunch.{
+    BaseRpcStub,
+    LabAbi,
+    LabMarketFeed,
+    MarketReadings,
+    MarketWatch,
+    SharedReading
+  }
+
   alias Autolaunch.LabMarketFeed.{Projector, Reader}
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
   alias Autolaunch.TestSupport
@@ -16,6 +25,11 @@ defmodule Autolaunch.MarketFeedTest do
     live and has met its minimum, and any auction named in `:broken` refuses
     every read. Memestock launch records are Active unless `:lifecycle` says
     otherwise; a migrated launch's pool has no price yet.
+
+    With `:chain`, an Agent holding `%{latest: number, rewritten_from: number
+    | nil}`, the chain moves on one block each time its newest block is asked
+    for, and every block from `rewritten_from` on has another hash: the chain
+    rewrote them.
     """
     @block %{
       "number" => "0x96",
@@ -45,6 +59,18 @@ defmodule Autolaunch.MarketFeedTest do
     end
 
     defp answer("eth_chainId", _params, _options), do: "0x2105"
+
+    defp answer("eth_getBlockByNumber", [tag, _full?], %{chain: chain}) do
+      chain
+      |> Agent.get_and_update(fn chain ->
+        case tag do
+          "latest" -> {chain.latest + 1, %{chain | latest: chain.latest + 1}}
+          "0x" <> number -> {String.to_integer(number, 16), chain}
+        end
+      end)
+      |> block(Agent.get(chain, & &1.rewritten_from))
+    end
+
     defp answer("eth_getBlockByNumber", _params, _options), do: @block
     defp answer("eth_getCode", _params, _options), do: "0x6080"
 
@@ -85,6 +111,17 @@ defmodule Autolaunch.MarketFeedTest do
         |> Map.fetch!(selector)
 
       "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)
+    end
+
+    defp block(number, rewritten_from) do
+      side = if rewritten_from && number >= rewritten_from, do: "bb", else: "aa"
+      hex = number |> Integer.to_string(16) |> String.downcase()
+
+      %{
+        "number" => "0x" <> hex,
+        "hash" => "0x" <> String.pad_leading(hex, 62, "0") <> side,
+        "timestamp" => "0x" <> (Integer.to_string(0x6700 + number, 16) |> String.downcase())
+      }
     end
   end
 
@@ -301,6 +338,54 @@ defmodule Autolaunch.MarketFeedTest do
       assert Enum.reduce(passes, &MapSet.union/2) == all_ids
       assert MapSet.size(all_ids) > 257
     end
+  end
+
+  describe "the Revstake feed on a chain that moves on or rewrites a block" do
+    setup do
+      # Each test starts from no stored head, so its first pass wakes it.
+      SharedReading.delete(MarketReadings.head_key("base"))
+      auction = TestSupport.project_auction(chain_id: 8453, state: :active)
+      {:ok, chain} = Agent.start_link(fn -> %{latest: 150, rewritten_from: nil} end)
+      ChainStub.install(%{broken: MapSet.new(), chain: chain})
+      SharedReading.subscribe(MarketReadings.head_key("base"))
+      feed = start_supervised!({LabMarketFeed, name: nil, poll?: false})
+      %{address: String.downcase(auction.auction_address), chain: chain, feed: feed}
+    end
+
+    test "a pass that takes longer than one block is still stored", context do
+      head = pass(context.feed)
+
+      # The chain moved on while the pass ran, and its readings were kept.
+      assert Agent.get(context.chain, & &1.latest) > head.number
+      assert %{block_number: number, block_hash: hash} = MarketReadings.market(context.address)
+      assert {number, hash} == {head.number, head.hash}
+    end
+
+    test "a reading from a block the chain rewrote is thrown away", context do
+      first = pass(context.feed)
+      Agent.update(context.chain, &%{&1 | rewritten_from: first.number})
+
+      # A pass read at the rewritten block is not stored.
+      assert {:ok, now} = Reader.head()
+
+      assert {:error, {:head_changed, _current}} =
+               Reader.verify_head(%{now | block: first})
+
+      # The next pass forgets the held readings and reads every auction again,
+      # so the auction's figures name the new block, not the one they were
+      # first read at, though they are the same figures.
+      second = pass(context.feed)
+      assert second.number > first.number and second.hash != first.hash
+      assert %{block_hash: hash} = MarketReadings.market(context.address)
+      assert hash == second.hash
+    end
+  end
+
+  # One pass of `feed`, answered with the head it stored its readings at.
+  defp pass(feed) do
+    LabMarketFeed.refresh(feed)
+    assert_receive {:shared_reading, {:market_head, "base"}}, 5_000
+    MarketReadings.head("base")
   end
 
   defp snapshot(auction, state, minimum_reached) do
