@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Autolaunch API
   version: 1.0.0
-  description: Public reads of Autolaunch auctions, launched tokens, bid estimates and treasury reports. Reads need no account or API key. Bidding, launching and staking happen on the website with the person's own wallet.
+  description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; profile operations require the owner's verified sign-in. Bidding, launching and staking happen on the website with the person's own wallet.
   contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/contact}
 paths:
   /api/v1/profile:
@@ -614,7 +614,10 @@ paths:
           "SiwaProof": []
       "responses":
         "200":
-          "description": "Success"
+          "description": "Canonical account projection"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AccountBalances"}
         "401":
           "description": "Fresh request proof required"
         "403":
@@ -632,7 +635,10 @@ paths:
           "SiwaProof": []
       "responses":
         "200":
-          "description": "Success"
+          "description": "Canonical account projection"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CreditsHistory"}
         "401":
           "description": "Fresh request proof required"
         "403":
@@ -661,7 +667,10 @@ paths:
           "SiwaProof": []
       "responses":
         "200":
-          "description": "Success"
+          "description": "Canonical account projection"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AccountPoints"}
         "401":
           "description": "Fresh request proof required"
         "403":
@@ -787,6 +796,78 @@ components:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/contact.}}
   schemas:
+    PointsAmount:
+      type: string
+      pattern: '^-?\d+(?:\.\d{1,2})?$'
+      description: Points in display units, truncated to at most two decimal places.
+    AccountPoints:
+      type: object
+      additionalProperties: false
+      required: [points, earned_today, pending, daily_allowances, entries, more]
+      properties:
+        points: {$ref: "#/components/schemas/PointsAmount"}
+        earned_today: {$ref: "#/components/schemas/PointsAmount"}
+        pending: {type: integer, minimum: 0, description: "Number of pending events, not a Points amount."}
+        more: {type: boolean}
+        note: {type: string}
+        daily_allowances:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [scope, remaining]
+            properties:
+              scope: {type: string}
+              remaining: {$ref: "#/components/schemas/PointsAmount"}
+        entries:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [points, source, by, earned_at]
+            properties:
+              points: {$ref: "#/components/schemas/PointsAmount"}
+              source: {type: string}
+              by: {type: string}
+              earned_at: {type: string, format: date-time}
+    CreditsHistory:
+      type: object
+      additionalProperties: false
+      required: [entries, pagination]
+      properties:
+        entries:
+          type: array
+          description: Shared Credits history entries, newest first; private request details appear only for this agent's own holds.
+          items: {type: object}
+        pagination: {$ref: "#/components/schemas/Pagination"}
+    AccountBalances:
+      type: object
+      additionalProperties: false
+      required: [credits, spending_grant]
+      properties:
+        note: {type: string}
+        credits:
+          type: object
+          additionalProperties: false
+          required: [available, given, purchased, held]
+          properties:
+            available: {$ref: "#/components/schemas/DecimalString"}
+            given: {$ref: "#/components/schemas/DecimalString"}
+            purchased: {$ref: "#/components/schemas/DecimalString"}
+            held: {$ref: "#/components/schemas/DecimalString"}
+        spending_grant:
+          type: object
+          additionalProperties: false
+          required: [enabled, max_per_spend, daily_limit, sites, site_allowed, used_24h, remaining_24h, grant_approvals_available]
+          properties:
+            enabled: {type: boolean}
+            max_per_spend: {$ref: "#/components/schemas/DecimalString"}
+            daily_limit: {$ref: "#/components/schemas/DecimalString"}
+            sites: {type: array, items: {type: string}}
+            site_allowed: {type: boolean}
+            used_24h: {$ref: "#/components/schemas/DecimalString"}
+            remaining_24h: {$ref: "#/components/schemas/DecimalString"}
+            grant_approvals_available: {type: boolean}
     AuctionBidRequest:
       type: object
       additionalProperties: false
@@ -887,7 +968,7 @@ components:
         estimated_end_at: {type: [string, "null"], format: date-time, description: "When bidding closes, estimated from the auction's end block and the chain's block times."}
         quote_token: {$ref: "#/components/schemas/QuoteToken"}
         clearing_price: {type: [string, "null"], description: "The auction's current clearing price in the quote token, as a decimal string."}
-        token_allocation: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "Whole tokens the auction sells, fixed by its launch type: 10 billion of a Revstake token's 100 billion, 800 million of a Memestock token's 1 billion."}
+        token_allocation: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "Whole tokens the auction sells, determined by its launch type and contract version. V2 sells 20 billion Revstake tokens or 497.5 million Memestock tokens; legacy V1 Memestock auctions sold up to 800 million."}
         bid_volume:
           description: Everything bid so far, in whole quote-token units.
           oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
@@ -934,7 +1015,7 @@ components:
         id: {type: string, format: uuid}
         chain: {type: string, enum: [base, robinhood]}
         chain_id: {type: integer, minimum: 1}
-        address: {type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$", description: "The token contract's address, recorded for Robinhood tokens, whose page is /robinhood/tokens/{address}. A Base token's page is /tokens/{id}."}
+        address: {type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$", description: "The token contract's address on the indicated chain, when recorded."}
         auction_id: {type: string, format: uuid}
         subject_id: {type: [string, "null"]}
         name: {type: string}

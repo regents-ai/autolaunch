@@ -148,8 +148,9 @@ than a partial success. Cannot bid, trade, settle, stake or claim.
 ## `account balances`
 
 Read canonical Credits and the current spending budget. Route:
-`GET /api/agent/v1/account/balances`; no body inputs. Returns canonical account and
-pairing IDs, Credits, spending grant and whether grant approvals are available.
+`GET /api/agent/v1/account/balances`; no body inputs. Returns `credits` and
+`spending_grant`, including `grant_approvals_available`. A `note` explains when
+approving agent spending is off.
 
 Server: admit paired actor → use shared Credits identity → read current grant,
 24-hour usage and balance → return the account projection. Requires shared Credits
@@ -160,7 +161,8 @@ schema and pairing. Missing/revoked authority refuses; unavailable data returns
 
 Read canonical Credits history. Route:
 `POST /api/agent/v1/account/credits/history`; stdin is `{}` or optional string `after`.
-Returns the shared history page with its cursor. POST is a read here.
+Returns `entries` and `pagination` (`has_more`, `next_cursor`). Pass
+`pagination.next_cursor` as `after` while `has_more` is true. POST is a read here.
 
 Server: admit paired actor → validate optional cursor → call shared Credits history
 action → return page. Requires shared Credits schema. Extra fields or a non-string
@@ -170,8 +172,12 @@ Missing/revoked authority refuses. Creates no account or ledger entry.
 ## `account points`
 
 Read canonical Points without earning rewards. Route:
-`GET /api/agent/v1/account/points`; no body inputs. Returns balance, today's earnings,
-pending amounts, allowances, entries and whether more entries exist.
+`GET /api/agent/v1/account/points`; no body inputs. Returns `points`, `earned_today`,
+`pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal
+strings, truncated to at most two decimal places, as on the Points page. `pending`
+is a count of pending events, not an amount. Each allowance has `scope` and
+`remaining`; each entry has `points`, `source`, `by` and `earned_at`. A `note`
+explains when earning Points is off.
 
 Server: admit paired actor → call shared Points summary → return the published
 projection. Requires shared Points schema and pairing. Missing/revoked authority

@@ -23,6 +23,8 @@ Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet
 
 Signed `GET /api/agent/v1/account/balances`, `POST /api/agent/v1/account/credits/history` (JSON `{}` or an `after` cursor), and `GET /api/agent/v1/account/points` read canonical account data. They create no balance, award no Points, approve no budget and spend nothing. New grant approvals remain disabled during rollout. Pairing is not spending approval.
 
+Balances return `credits` and `spending_grant`. Credits history returns `entries` and `pagination`; pass `pagination.next_cursor` as `after` while `pagination.has_more` is true. Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal strings truncated to at most two decimal places; `pending` counts events. A `note` explains when earning Points or approving agent spending is off.
+
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
 
 ## Browser and CLI

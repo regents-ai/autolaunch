@@ -525,7 +525,7 @@
     },
     {
       "command": "account credits-history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's next) for older ones. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor) for older ones. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "operation_id": "account_credits_history",
       "method": "POST",
       "path": "/api/agent/v1/account/credits/history",
