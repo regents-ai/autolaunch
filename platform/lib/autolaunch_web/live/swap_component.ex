@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.SwapComponent do
   alias AutolaunchWeb.{OnchainSteps, Paths}
   alias RegentChain.{Presses, Review}
 
-  @default_protection "1"
+  @default_protection "6"
 
   @copy %{
     authentication_required: "Sign in to swap from your wallet.",
