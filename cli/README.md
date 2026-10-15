@@ -82,7 +82,7 @@ See the [product directory](https://github.com/regents-ai/autolaunch#related-pro
 
 ## Shared personal profile
 
-Private `profile get`, `profile sync`, and `profile update` are available with paired Privy proof from an approved credential provider. See [the private profile contract](docs/private-profile.md). They use the same API as browser WebMCP and do not obtain a session or grant payment authority.
+Private `profile get`, `profile sync`, and `profile update` use the owner's access and identity tokens from an approved Privy credential provider. See [the private profile contract](docs/private-profile.md). These standalone CLI commands do not obtain a session or grant payment authority. Profile operations are not native browser tools or unified CLI paired-agent commands.
 
 ## Signed agent access
 

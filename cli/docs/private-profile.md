@@ -1,8 +1,9 @@
 # Private shared profile API v1
 
 `profile get` → GET `/api/v1/profile`; `profile sync` → POST `/api/v1/profile/sync`;
-`profile update` → PATCH `/api/v1/profile`. The browser tools are `profile_get`,
-`profile_sync`, `profile_update`, with the same private API and response body.
+`profile update` → PATCH `/api/v1/profile`. These standalone CLI commands use
+the owner's Privy credentials. Profile operations are not registered as native
+browser tools or exposed through the unified CLI's paired-agent commands.
 
 Pipe one JSON object with exactly `access` and `identity` from an approved Privy
 credential provider. Never pass tokens as flags, copy cookies, or use SIWA or

@@ -28,7 +28,7 @@ First steps for an agent:
 
 1. Read live auctions with `GET https://autolaunch.sh/api/v1/auctions?state=active&sort=ending`, or launched tokens with `GET https://autolaunch.sh/api/v1/tokens`. No account or API key is needed.
 2. Estimate a bid with `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote`; it does not place one.
-3. To bid, trade or stake, use the tools on the auction's or token's `url` in the person's browser, or send them there. To launch, use the tools on https://autolaunch.sh/create for a Memestock token or https://autolaunch.sh/create/revstake for a Revstake token in the person's browser: read the form, fill it, then press launch. The person signs in, chooses the picture and types any warning the page asks for. Every step is confirmed in their own wallet.
+3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can prepare saved text metadata using the draft commands in [agents.md]({{origin}}/agents.md). The person completes the form at https://autolaunch.sh/create for a Memestock token or https://autolaunch.sh/create/revstake for a Revstake token, chooses the picture and launch settings, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
 
 Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.
 

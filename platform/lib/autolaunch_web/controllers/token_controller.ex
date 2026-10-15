@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.TokenController do
   alias Autolaunch
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{ApiError, MarketPage}
+  alias AutolaunchWeb.{ApiError, MarketPage, Paths}
 
   def index(conn, params) do
     case MarketPage.read(params, "tokens") do
@@ -29,6 +29,7 @@ defmodule AutolaunchWeb.TokenController do
       chain: if(Lab.chain?(token.auction.chain_id), do: "robinhood", else: "base"),
       chain_id: token.auction.chain_id,
       address: token.auction.token_address,
+      url: Paths.token_url(token.auction),
       auction_id: token.auction_id,
       subject_id: token.subject_id,
       name: token.name,

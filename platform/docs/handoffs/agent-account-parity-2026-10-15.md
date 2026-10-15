@@ -159,3 +159,115 @@ published CLI compatibility remain unverified. The coordinator will resolve
 release authority separately. This documentation-only update preserves both
 reviewed patches; no unchanged checks were rerun, and nothing was pushed or deployed.
 Unrelated untracked work remains untouched.
+
+
+## Bounded workflow completeness audit — 15 October 2026
+
+Reviewed Autolaunch `b5bae84` (implementation remains `ef05f93`), its actual native-tool registration source, standalone CLI source, unified CLI descriptions and installed `regents 1.10.2` help. This is a read-only source/command-discovery audit; it adds no new signed, database or live-browser acceptance. Earlier native AIFROG/SANDY evidence above remains limited to the operations actually exercised. No product source changed.
+
+Design check: Ash actions/policies own discovery and saved drafts; Phoenix exposes them through existing routes; shared SIWA transport owns per-request proof. This audit proposes no new queue, identity store, polling loop or wallet executor.
+
+### Concrete gaps and smallest repairs
+
+Paths below are relative to this repository unless marked template.
+
+| Gap | Evidence and consequence | Smallest repair |
+| --- | --- | --- |
+| Token discovery has no canonical page URL and no single-token detail operation. | `platform/lib/autolaunch_web/controllers/token_controller.ex:26` returns only a summary, identifiers and treasury report. `router.ex:130` registers only the token list; native requests at `assets/js/public_tools.ts:218` and CLI descriptions at `cli/commands.json:192` do the same. Installed 1.10.2 `tokens --help` exposes only `list`. Meanwhile `lib/autolaunch/token.ex:179` already has the policy-filtered `public_by_id` read, and `live/token_live.ex:94` displays details, rewards, pool information and exact price. Agents cannot directly retrieve one token's structured detail or follow the advertised token `url`. | First return the existing canonical `Paths.token_url` in token summaries and its schema. Add a bounded public detail adapter over the existing public read, then mirror it in the manifest and CLI descriptions. Reuse existing pool reads only for fields explicitly included; distinguish unavailable/current versus stored data. Do not expose wallet writes or the unfiltered projection action. |
+| The copied agent guide advertises financial tools that are not registered. | `public_documents/llms.md:31` says use tools on auction/token URLs to bid, trade, stake and launch. The same document at line 159 correctly says these controls are not agent tools. `live/how_it_works_live.ex:19` and `:28` copy this entire guide through Copy to Agent; `public_documents.ex:131` identifies its source. The manifest contains reads, metadata edits and proof preparation, not transaction tools. | Rewrite first step 3 as a handoff to the person's visible page controls. Point metadata preparation to the existing signed draft commands. Keep user signatures and owner-controlled creation gates explicit. Fix the shared guidance pattern in template first if it carries the same wording, then adopt locally. |
+| Standalone profile documentation names nonexistent native profile tools. | `cli/docs/private-profile.md:4` advertises `profile_get`, `profile_sync`, `profile_update`; `cli/README.md:85` repeats native parity. None is in `platform/priv/tool_manifest.json`; `assets/js/public_tools.ts:230` registers only this manifest's supported entries. `/api/v1/profile` remains a separate owner-Privy route (`router.ex:121`), and the installed unified CLI explicitly excludes profile mutation. | Correct the two standalone documents to describe owner-credential CLI/HTTP access only. Do not register owner profile mutations as paired-agent tools merely to match stale prose. Use template's owner/agent distinction. |
+| Pairing-code redemption is available to CLI/HTTP but absent from native tools. | `cli/commands.json:326` and installed `agents pair --help` expose the signed existing `/api/agents/v1/pair` operation. The native manifest has whoami/status but no pair operation (`tool_manifest.json:260`, `:316`, `:941`); signed preparation builds its operation set from that manifest (`assets/js/public_tools.ts:15`). Native-only callers cannot prepare/redeem the owner-issued code through this registry. Template currently has the same omission. | Coordinate the common decision with ash-template: either provide its existing signed pair operation in the canonical native manifest, retaining owner-issued code and proof checks, or clearly require the CLI/HTTP pairing step before native use. This is an adapter coverage limit, not evidence of an authorization bypass. No automatic pairing or new keys. |
+
+### Coverage and intentional limits
+
+| Workflow | Source chain / coverage | What remains unproven or intentionally excluded |
+| --- | --- | --- |
+| Auction/token search, filters and pagination | `MarketPage.read/2` (`market_page.ex:18`) calls `HomeMarket.read_records`; `home_market.ex:78` and `:86` use Ash `:home_market` reads. Both list controllers, native manifest and both CLI descriptions cover these reads. Earlier actual native/public CLI evidence covers AIFROG and SANDY. | No new broad live-list acceptance in this audit. Public default `state=all` is explicitly documented, whereas the website defaults to live; the filter exists and this is not missing capability. |
+| Auction details, bid estimate and treasury observation | `auction_controller.ex:59` uses existing listed auction domain reads; `:75` calls `Autolaunch.quote_auction_bid`. Native requests at `public_tools.ts:218` and CLI descriptions expose these reads. | Bid estimates remain Base-only by explicit contract; a quote never authorizes or submits a bid. No new estimate or chain correctness claims. |
+| Saved draft read/create/edit | Controller `agent_account_controller.ex:15`, `:24`, `:59` reads the owner's existing draft and creates only if absent. Revstake actions `launch_draft.ex:97`–`:119` and Memestock `stocks/launch_draft.ex:114`–`:136` use owner-scoped reads, partial validation and current pairing. Both kinds have native show/save and installed CLI show/save. | Read responses intentionally include metadata only (`agent_account_controller.ex:187`). Pictures, chain/stock choice, treasury, terms and launch readiness are not returned; their modification remains person-controlled. The guide promises metadata, not complete launch preparation. Successful candidate save/read round-trip and revocation transition remain unproven; no new fixture or deletion attempt occurred. |
+| Positions and account | `my_positions_controller.ex:34` uses the paired owner's primary account wallet; `:75` uses `:agent_mine_by_wallet`. Human portfolio source also explicitly reads the signed-in wallet only (`live/portfolio_live.ex:3`, `:893`), so this audit does not substantiate the earlier suggested active-wallet coverage gap. Balances, history and Points are present in both interfaces. | Prior account response and cursor fixes remain frozen and held for adoption. No signed candidate history page-boundary proof. No spend approval or Points enablement. |
+| Profile and pairing management | Account UI delegates profile/pairing management to regents.sh (`live/account_live.ex:98`, `:128`); owner profile HTTP remains separate. Pairing identity/status are native tools; redemption is an existing CLI command. | Owner profile edits, issuing/revoking pairings and wallet actions are deliberate human gates, not missing agent write capabilities. |
+| Copy-to-agent onboarding | Copy to Agent exists on `/how-it-works` and copies `llms.txt`, which links to signed instructions; therefore it is not absent. Template's published `79c39d6` additionally contains `AgentStart` and `/start` with agent-specific copy instructions. Autolaunch has no `/start` route. | The concrete copied-text defect is listed above. Adopting the template's focused onboarding would improve shared consistency; it is a separate UI adoption, not a prerequisite for existing CLI access. No clipboard or new authenticated browser acceptance was performed. |
+
+### Verification and release boundary
+
+Read installed CLI version and help for Autolaunch, token commands, Memestock draft reads and pairing; all are discovery-only calls. Compared source registration and routes, rather than treating a manifest or help entry as proof of successful signed execution. Standalone npm publication remains unverified. Existing published CLI 1.10.2 history-cursor wording and SOCKS-install limitation remain as recorded above.
+
+No tests, fixtures, signatures, transactions, Points settings, database contents or product source were changed. The automatically rejected deletion script was not retried. Findings propose follow-up work only; `ef05f93` and both immutable review patches remain unchanged. Shared pairing/onboarding changes belong in ash-template before site adoption.
+
+
+### Targeted UnexpectedFailure logger check
+
+Autolaunch does not use `UnexpectedFailure` in the reviewed candidate or published `09b69da` application source. Candidate `agent_account_controller.ex:136` handles returned history errors by classifying cursor failures; unrelated or mixed errors go directly to `unavailable/1`, which returns a fixed 503 message. `api_error.ex:16` serializes that fixed response and does not log the underlying error. Published `09b69da` likewise sends failed history results directly to the fixed unavailable response. No matching helper or call was found in application source.
+
+Therefore the reported template/Patchbay returned-error logger leak does not apply to this Autolaunch history path, and no helper adoption is queued solely for it. If later template adoption introduces unexpected-error logging, use the corrected canonical class/correlation-only implementation. This narrow source check does not assess framework exception logging or all dependencies and establishes no live incident. No private/live logs were read and no product code changed.
+
+
+## Proposed token detail projection — not implemented
+
+A material limit surfaced while tracing the proposed adapter: existing
+`Autolaunch.get_public_token/1` → `Token.:public_by_id` is Base-only when Robinhood
+is configured. `Token.Preparations.SiteCreatedAuctionOnly` explicitly excludes
+that chain. The earlier audit's suggestion to reuse this read does not, by itself,
+cover SANDY. Do not route Robinhood through an unfiltered read or silently claim
+both chains.
+
+Minimal existing-action proposal: `GET /api/v1/tokens/{id}` with one token UUID,
+using `get_public_token(id, actor: nil)`, explicitly documented as Base-only.
+Unknown, hidden, external-origin or Robinhood records remain 404. Malformed UUID
+and extra parameters retain structured input errors. No endpoint is implemented
+or approved here. Before choosing this limited surface, decide whether a useful
+first release must support both chains; that would require a separately reviewed
+read action with the existing `ListedAuction` and `ShownAuction` preparations,
+not broadening existing callers or bypassing their policies.
+
+| Public field | Existing source | Cost / meaning |
+| --- | --- | --- |
+| Current token summary fields, including `url` | Existing `TokenController.public_token` projection; `Paths.token_url(token.auction)` | Reuse the loaded token, its listed auction and safe treasury projection. No struct serialization. |
+| `auction_url` | `Paths.auction_url(token.auction)` | Existing canonical path helper; no extra chain read. |
+| `price_quote`, `price_updated_at` | Public stored Token attributes | Decimal string or null, with nullable recording timestamp. A stored observation, not a current executable quote. |
+| `quote_token` (`address`, `symbol`, `decimals`) | Loaded auction's public quote-token fields | Same explicitly projected denomination as auction API. |
+| `token_supply` | Loaded auction's public `token_supply` | Exact whole-token decimal string or null. |
+
+This first projection needs one bounded Ash record read, its existing relationship
+loads and canonical path-tail calculation (which may perform the existing batched
+peer lookup). It performs no RPC, live pool read, polling, new cache or background
+job. It excludes swaps, rewards/claimability, current liquidity, transaction data,
+creator account IDs, trade-index cursors and raw treasury records. Native/CLI
+adapters and OpenAPI must be added together only after the action/chain scope is
+settled. No new generic detail framework is proposed.
+
+
+## Local guidance and token URL follow-up
+
+Prepared a separate follow-up above `b5bae84`; earlier `ef05f93` is unchanged.
+The copied guide now sends the person to visible financial/launch controls and
+points agents to metadata-only draft commands. Standalone profile documents now
+accurately describe owner Privy credentials, without claiming native or unified
+paired-agent profile tools. No registrations, permissions or signing changed.
+
+Token summaries now include `url: Paths.token_url(token.auction)`. Their existing
+auction relationship uses `:listed`, which already loads `:path_tail`; no new
+relationship load, RPC or database query was added. The owning OpenAPI Token
+schema and exact bundled CLI copy require the new URI field. There is still no
+token-detail endpoint; the proposal above is deliberately unimplemented.
+
+Validation: platform compilation passed; rebuilding dependencies emitted an
+existing ErrorTracker navbar `target` attribute warning. Scoped formatter and
+whitespace checks passed. CLI contract-copy check passed. The actual canonical
+path helper returned the expected AIFROG and SANDY URLs. The generated Copy to
+Agent document contains the corrected boundary and no obsolete financial-tool
+instruction. These final checks initialized Phoenix endpoint URL metadata without
+an HTTP listener, database, application jobs or wallet actions. Two initial local
+check setup errors (endpoint not initialized, then the PubSub start API) were
+corrected before the successful check; they were not product failures.
+
+No new tests or fixtures were added. No new live HTTP, signed-save or full token
+controller/database acceptance is claimed. Existing native and CLI adapters pass
+response JSON through unchanged; external consumers validating the old closed
+Token schema may reject the added field and must adopt the updated contract.
+Published/deployed content still needs the separately authorized release.
+Shared pairing and `/start` decisions remain outside this candidate. The exact
+misleading financial/profile wording was not found in the template guidance
+searched, so these prose fixes stay product-local. The earlier audit findings are
+historical; only these named guidance issues and token URL are addressed here.
