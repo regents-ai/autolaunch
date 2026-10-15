@@ -20,6 +20,7 @@ import {
   browserSessionMutations,
   clearLocalSession,
   csrfToken,
+  finishWalletSignOut,
   recoverOnce,
   reloadDocumentOnce,
   sessionLifecycleError,
@@ -32,7 +33,11 @@ import {
 } from "./auth_lazy"
 import {
   eligibleActiveWallet,
+  forgetWalletDisconnected,
   replaceActiveEthereumWallet,
+  replaceConnectedEthereumWallets,
+  walletDisconnected,
+  walletWorkEpoch,
   type EthereumProvider,
 } from "./wallet_actions/connected_wallet"
 
@@ -297,6 +302,7 @@ async function establishLocalSession(
 
 type ProviderSessionReconcilerOptions = {
   clearSession: () => Promise<void>
+  disconnectWallets?: () => Promise<void>
   providerAuthenticated: () => boolean
   reload: () => void
   signedIn: () => boolean
@@ -308,6 +314,7 @@ type ProviderSessionReconcilerOptions = {
 // advances no generation, renews no cookie and rotates no CSRF state.
 export function createProviderSessionReconciler({
   clearSession,
+  disconnectWallets = async () => undefined,
   providerAuthenticated,
   reload,
   signedIn,
@@ -321,6 +328,7 @@ export function createProviderSessionReconciler({
     if (!signedIn()) return false
 
     await clearSession()
+    await disconnectWallets()
     reload()
     return false
   }
@@ -397,11 +405,19 @@ export function createPrivyLoginCallbacks({
   showFailure,
 }: PrivyLoginCallbackOptions): PrivyEvents["login"] {
   return {
-    onComplete: () => {
+    onComplete: ({wasAlreadyAuthenticated}) => {
       if (!isAvailable()) return
       const opened = loginOpen.current
       loginOpen.current = false
       if (!opened && !allowAutomatic) return
+      // A Privy session the browser already held is never the visitor's own
+      // sign-in: a page's sign-in logs Privy out first. So after a Disconnect
+      // it stays signed out.
+      if ((!opened || wasAlreadyAuthenticated) && walletDisconnected()) return
+      // The visitor signed in, which is how they come back with a wallet. This
+      // runs before the session completion reloads the document, so the page
+      // that replaces this one reads a cleared note on its first wallet sync.
+      forgetWalletDisconnected()
       void (opened ? completeLogin() : completeAutomaticLogin()).catch(() => {
         if (opened && isAvailable()) showFailure()
       })
@@ -528,10 +544,10 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
       }),
     [isAvailable],
   )
-  // Adoption only ever asks the server.
+  // Adoption only ever asks the server, and never after a Disconnect.
   const completeAutomaticLogin = React.useCallback(
     () => completeExplicitLogin(() =>
-      provider.current.ready && provider.current.authenticated &&
+      provider.current.ready && provider.current.authenticated && !walletDisconnected() &&
       !signOutOnly && mode !== "profile-only",
     ),
     [completeExplicitLogin, signOutOnly, mode],
@@ -601,6 +617,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     () =>
       createProviderSessionReconciler({
         clearSession: () => browserSessionMutations.signOut(clearLocalSession),
+        disconnectWallets: () => finishWalletSignOut(document, window),
         providerAuthenticated: () => authenticated,
         reload: () => { if (isAvailable()) reloadDocumentOnce(document, () => window.location.reload()) },
         signedIn: () => isAvailable() && showsSignedInAccount(),
@@ -619,7 +636,25 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   // `autolaunch:wallet-state`.
   const synchronizeWallets = React.useCallback(async () => {
     if (!isAvailable()) return
+    const epoch = walletWorkEpoch()
     const generation = ++walletSyncGeneration.current
+    // Provider logout is authoritative independently of wallet hydration or a
+    // remembered wallet-only disconnect. Never let that early return mask it.
+    if (ready && !authenticated && showsSignedInAccount()) {
+      await reconcileProviderSession()
+      return
+    }
+
+    // Disconnect is the visitor's own choice and outlives the document it was
+    // made in. Until they sign in again, nothing the wallet app still reports
+    // to Privy is this page's wallet.
+    if (walletDisconnected()) {
+      replaceConnectedEthereumWallets([])
+      replaceActiveEthereumWallet(null)
+      window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
+      return
+    }
+
     let selected = eligibleActiveWallet(activeWallet, wallets)
 
     // Privy names no wallet after a sign-in that skipped its window, or in a new
@@ -639,24 +674,49 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
 
     if (!ready || !(await reconcileProviderSession()) || !walletsReady) {
       if (!isAvailable() || walletSyncGeneration.current !== generation) return
+      replaceConnectedEthereumWallets([])
       replaceActiveEthereumWallet(null)
       window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
       return
     }
 
-    // The selected wallet's provider is resolved once. A selection whose
-    // provider does not resolve is no wallet here, never the previous one.
-    const connected = selected
-      ? wallets.find(wallet => wallet.address.toLowerCase() === selected.address.toLowerCase())
-      : undefined
-    const provider = connected
-      ? ((await connected.getEthereumProvider().catch(() => null)) as EthereumProvider | null)
-      : null
+    // Each connected wallet's provider is resolved once, and the selection is
+    // taken from those resolved entries. A selection whose provider does not
+    // resolve is no wallet here, never the previous one.
+    const resolved = await Promise.allSettled(
+      wallets.map(async wallet => ({
+        address: wallet.address.toLowerCase(),
+        provider: (await wallet.getEthereumProvider()) as EthereumProvider,
+        // Privy's own way of letting go of this wallet, carried beside the
+        // provider so Disconnect can release both without the bridge.
+        disconnect: () => wallet.disconnect(),
+      })),
+    )
     if (!isAvailable() || walletSyncGeneration.current !== generation) return
+    // Everything above was awaited, so Disconnect may have landed while this
+    // sync was in flight. The generation counter only knows about newer syncs,
+    // which is why the visitor's own choice is read again here, last.
+    if (walletDisconnected() || walletWorkEpoch() !== epoch) return
 
+    const entries = resolved.flatMap(result => (result.status === "fulfilled" ? [result.value] : []))
+    const address = selected?.address.toLowerCase()
+    const provider = entries.find(entry => entry.address === address)?.provider ?? null
+    replaceConnectedEthereumWallets(
+      entries.map(entry => [entry.address, {provider: entry.provider, disconnect: entry.disconnect}]),
+    )
     replaceActiveEthereumWallet(selected && provider ? {address: selected.address, provider} : null)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
-  }, [activeWallet, linkedWallets, ready, reconcileProviderSession, setActiveWallet, wallets, walletsReady, isAvailable])
+  }, [
+    activeWallet,
+    authenticated,
+    linkedWallets,
+    ready,
+    reconcileProviderSession,
+    setActiveWallet,
+    wallets,
+    walletsReady,
+    isAvailable,
+  ])
 
   React.useEffect(() => {
     if (signOutOnly) return

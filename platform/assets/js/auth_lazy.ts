@@ -1,5 +1,7 @@
 import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {installSharedProfile} from "./shared_profile"
+import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisconnected,
+  walletDisconnected, walletDisconnectedStorageKey} from "./wallet_actions/connected_wallet"
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
 
 export type IdentityProvider = "github"
@@ -38,17 +40,35 @@ type AccountAuthInstallOptions = {
   clearSession?: () => Promise<void>
   handoffStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
   now?: () => number
+  walletSignOutTimeoutMs?: number
   reload?: () => void
   sessionMutations?: SessionMutationCoordinator
   signedInStartupTimeoutMs?: number
 }
 
+const defaultWalletSignOutTimeoutMs = 1_500
 const providerSignOutWaitMs = 15_000
 const defaultSignedInStartupTimeoutMs = 5_000
 const signOutHandoffKey = "autolaunch:privy-sign-out-handoff:v1"
 const signOutHandoffMaxAgeMs = 30_000
 const consumedHandoffDocuments = new WeakSet<Document>()
 const reloadedDocuments = new WeakSet<Document>()
+const walletSignOuts = new WeakMap<Document, Promise<void>>()
+
+// Called only after server revocation/anonymous truth. Cleanup is shared by
+// explicit and provider logout; no extension can keep the page signed in.
+export function finishWalletSignOut(
+  documentRoot: Document = document,
+  walletEvents: EventTarget = documentRoot.defaultView ?? documentRoot,
+  timeoutMs = defaultWalletSignOutTimeoutMs,
+): Promise<void> {
+  const existing = walletSignOuts.get(documentRoot)
+  if (existing) return existing
+  const attempt = withinWindow(disconnectEveryEthereumWallet(walletEvents), timeoutMs,
+    "Wallet disconnection did not settle.").catch(() => undefined)
+  walletSignOuts.set(documentRoot, attempt)
+  return attempt
+}
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
 
@@ -703,6 +723,7 @@ export function installAccountAuthLazyLoader(
     clearSession = clearLocalSession,
     handoffStorage,
     now = () => Date.now(),
+    walletSignOutTimeoutMs = defaultWalletSignOutTimeoutMs,
     reload = () => window.location.reload(),
     sessionMutations = browserSessionMutations,
     signedInStartupTimeoutMs = defaultSignedInStartupTimeoutMs,
@@ -733,11 +754,46 @@ export function installAccountAuthLazyLoader(
     clearStatus()
     void loader.request(accountRequest).catch(() => showLoadFailure(accountRequest))
   }
+  const walletEvents: EventTarget = documentRoot.defaultView ?? documentRoot
+  let installed = true
+  let peerLogout: Promise<void> | null = null
+  const observePeerLogout = () => {
+    if (!installed || peerLogout) return
+    // A notice is not authority. Withdraw stale wallet presentation immediately,
+    // then ask the server before replacing a signed-in document.
+    rememberWalletDisconnected()
+    walletEvents.dispatchEvent(new Event("autolaunch:wallet-state"))
+    const attempt = (async () => {
+      if (!await proveAnonymousSession() || !installed) return
+      await sessionMutations.signOut(async () => {
+        // Any local committed cookie response must finish before this check.
+        if (!await proveAnonymousSession()) throw new Error("Session changed again.")
+      })
+      if (!installed) return
+      await finishWalletSignOut(documentRoot, walletEvents, walletSignOutTimeoutMs)
+      if (installed) reloadDocumentOnce(documentRoot, reload)
+    })().catch(() => undefined)
+    peerLogout = attempt
+    void attempt.then(() => { if (peerLogout === attempt) peerLogout = null })
+  }
+  const onWalletStorage = (event: Event) => {
+    const changed = event as StorageEvent
+    if (changed.key === walletDisconnectedStorageKey && changed.newValue === "true") observePeerLogout()
+  }
+  const onWalletFocus = () => {
+    if (documentRoot.visibilityState !== "hidden" && walletDisconnected() &&
+        documentRoot.querySelector("#account-control [data-account-target='profile']")) observePeerLogout()
+  }
+
+  walletEvents.addEventListener("storage", onWalletStorage)
+  walletEvents.addEventListener("focus", onWalletFocus)
+  documentRoot.addEventListener("visibilitychange", onWalletFocus)
   let signOutInFlight: Promise<void> | null = null
   const signOut = () => {
     if (signOutInFlight) return
     clearStatus()
 
+    invalidateWalletWork()
     // Until Privy's logout lands, the next page owes it.
     writeSignOutHandoff(storage, now())
 
@@ -749,9 +805,14 @@ export function installAccountAuthLazyLoader(
         showLoadFailure("sign-out")
         return
       }
-      // Privy is logged out here, on the page where Sign out was pressed and
-      // its bridge is usually already running. A logout that could not finish
-      // in time is handed on, freshly dated, so the next page still owes it.
+      // Disconnect is one command. The site session is gone; every wallet
+      // Privy holds is released here, before this document is replaced, so the
+      // wallet apps are asked while the page that asked them still exists, and
+      // the page goes anonymous whether or not they answer.
+      await finishWalletSignOut(documentRoot, walletEvents, walletSignOutTimeoutMs)
+      // Privy is logged out here too, where its bridge is usually already
+      // running. A logout that could not finish in time is handed on, freshly
+      // dated, so the next page still owes it.
       const providerSignedOut = await withinWindow(loader.request("sign-out"), providerSignOutWaitMs,
         "Provider sign out did not settle.").then(() => true, () => false)
       if (providerSignedOut) clearSignOutHandoff(storage)
@@ -810,7 +871,11 @@ export function installAccountAuthLazyLoader(
     reconcileSignedInStartup()
   }
   return () => {
+    installed = false
     stopProfile()
+    walletEvents.removeEventListener("storage", onWalletStorage)
+    walletEvents.removeEventListener("focus", onWalletFocus)
+    documentRoot.removeEventListener("visibilitychange", onWalletFocus)
     documentRoot.removeEventListener("click", onClick)
     documentRoot.removeEventListener("autolaunch:identity-request", onIdentityRequest)
   }
