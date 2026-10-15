@@ -182,6 +182,7 @@ defmodule AutolaunchWeb.SwapComponent do
           submit_event="review_swap"
           reverse_event="reverse"
           options_event="toggle_options"
+          close_options_event="close_options"
           fill_event="fill"
           target={@myself}
         />
@@ -231,6 +232,9 @@ defmodule AutolaunchWeb.SwapComponent do
 
   def handle_event("toggle_options", _params, socket),
     do: {:noreply, assign(socket, options_open: !socket.assigns.options_open)}
+
+  def handle_event("close_options", _params, socket),
+    do: {:noreply, assign(socket, options_open: false)}
 
   def handle_event("reverse", _params, socket) do
     {:noreply,

@@ -7,6 +7,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
 
   use Phoenix.Component
 
+  alias Phoenix.LiveView.JS
+
   attr :id, :string, required: true
   attr :sell_symbol, :string, required: true
   attr :buy_symbol, :string, required: true
@@ -36,10 +38,23 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :submit_event, :string, required: true
   attr :reverse_event, :string, required: true
   attr :options_event, :string, required: true
+  attr :close_options_event, :string, required: true
   attr :fill_event, :string, required: true
   attr :target, :any, default: nil
 
   def swap_form(assigns) do
+    # A window binding avoids the slippage input's blur debounce. Return
+    # focus only if it is still in this form, not in another open panel.
+    assigns =
+      assign(assigns,
+        close_options:
+          if(assigns.options_open && !assigns.inert,
+            do:
+              JS.push(assigns.close_options_event, target: assigns.target)
+              |> JS.focus(to: "##{assigns.id}:focus-within ##{assigns.id}-settings")
+          )
+      )
+
     ~H"""
     <form
       id={@id}
@@ -49,11 +64,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
       phx-change={@change_event}
       phx-submit={@submit_event}
       phx-target={@target}
+      phx-window-keydown={@close_options}
+      phx-key="Escape"
       inert={@inert}
     >
       <header class="token-swap__bar">
         <span class="token-swap__mode">Swap</span>
         <Regent.Primitives.button
+          id={@id <> "-settings"}
           type="button"
           variant="quiet"
           class="token-swap__gear"

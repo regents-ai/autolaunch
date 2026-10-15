@@ -807,7 +807,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
     do:
-      "The auction raised its minimum. Bids above the final price can claim tokens and withdraw their unspent #{symbol}; the rest can withdraw what was not spent."
+      "The auction raised its minimum. Bidders can claim the tokens their bids bought and withdraw any unspent #{symbol}."
 
   defp ended_copy(%{state: :failed, quote_token_symbol: symbol}),
     do:
@@ -815,7 +815,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp ended_copy(%{minimum_reached: true, quote_token_symbol: symbol}),
     do:
-      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids above the final price can claim tokens and withdraw their unspent #{symbol}; the rest can withdraw what was not spent."
+      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bidders can withdraw any unspent #{symbol} and, once claims open, claim the tokens their bids bought."
 
   defp ended_copy(%{quote_token_symbol: symbol}),
     do:
