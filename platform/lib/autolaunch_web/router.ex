@@ -3,7 +3,14 @@ defmodule AutolaunchWeb.Router do
   use ErrorTracker.Web, :router
 
   pipeline :browser do
+    plug :accepts, ["html"]
+  end
+
+  pipeline :browser_auth do
     plug :accepts, ["html", "json"]
+  end
+
+  pipeline :browser_session do
     plug :fetch_session
     plug :enforce_session_authority
     plug :fetch_live_flash
@@ -127,7 +134,19 @@ defmodule AutolaunchWeb.Router do
   end
 
   scope "/", AutolaunchWeb do
-    pipe_through :browser
+    pipe_through [:browser_auth, :browser_session]
+
+    get "/auth/csrf", PrivySessionController, :csrf
+    post "/auth/privy/session", PrivySessionController, :create
+    get "/auth/session", PrivySessionController, :show
+    delete "/auth/privy/session", PrivySessionController, :delete
+    post "/auth/x/connections/:role", XOAuthController, :create
+    delete "/auth/x/connections/:role", XOAuthController, :delete
+    delete "/auth/x/connections/:role/attempt", XOAuthController, :cancel
+  end
+
+  scope "/", AutolaunchWeb do
+    pipe_through [:browser, :browser_session]
 
     live_session :public_root,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
@@ -148,13 +167,6 @@ defmodule AutolaunchWeb.Router do
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
 
-    get "/auth/csrf", PrivySessionController, :csrf
-    post "/auth/privy/session", PrivySessionController, :create
-    get "/auth/session", PrivySessionController, :show
-    delete "/auth/privy/session", PrivySessionController, :delete
-    post "/auth/x/connections/:role", XOAuthController, :create
-    delete "/auth/x/connections/:role", XOAuthController, :delete
-    delete "/auth/x/connections/:role/attempt", XOAuthController, :cancel
     get "/auth/x/callback", XOAuthController, :callback, log: false
 
     live_session :product_shell,
@@ -182,7 +194,7 @@ defmodule AutolaunchWeb.Router do
 
   # The motion lab, unless the showcase setting is off (AutolaunchWeb.Showcase).
   scope "/", AutolaunchWeb do
-    pipe_through [:motion_lab, :browser]
+    pipe_through [:motion_lab, :browser, :browser_session]
 
     live_session :motion_lab,
       session: {AutolaunchWeb.Live.Session, :render_context, []},

@@ -1,5 +1,5 @@
 {
-  "total": 26,
+  "total": 30,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -340,6 +340,58 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+    },
+    {
+      "id": 46,
+      "group": "HTTP content negotiation regression",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/content_negotiation_test.exs",
+      "line": 16,
+      "test_name": "HTML pages reject JSON selected by Accept or _format",
+      "keep_because": "JSON-selected HTML pages must return406 instead of crashing while encoding a LiveView safe-HTML tuple.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+    },
+    {
+      "id": 47,
+      "group": "HTTP content negotiation regression",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/content_negotiation_test.exs",
+      "line": 21,
+      "test_name": "a browser or an Accept header with an HTML fallback still gets LiveView HTML",
+      "keep_because": "Correcting JSON admission must keep HTML rendering and mixed Accept fallback working.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+    },
+    {
+      "id": 48,
+      "group": "HTTP content negotiation regression",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/content_negotiation_test.exs",
+      "line": 33,
+      "test_name": "the existing session fetch still returns JSON",
+      "keep_because": "JSON page rejection must preserve the existing wildcard and explicit-JSON session response.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+    },
+    {
+      "id": 49,
+      "group": "HTTP content negotiation regression",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/content_negotiation_test.exs",
+      "line": 45,
+      "test_name": "JSON account-link requests retain CSRF protection",
+      "keep_because": "X linking must admit its existing JSON format while continuing to reject requests without CSRF proof.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
     }
   ],
   "legacy_folders_to_remove": [
