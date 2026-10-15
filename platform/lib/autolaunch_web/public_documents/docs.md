@@ -105,6 +105,5 @@ time, quote-token denomination and nullable supply. It does not call the chain;
 a missing timestamp is not evidence of freshness. Hidden, external and missing
 tokens return 404; invalid UUIDs and extra parameters return 400.
 
-The native tool is `autolaunch_token`. The source CLI command is `token <id>`;
-published `regents 1.10.2` does not yet include it. CLI publication and server
-deployment are separate release steps.
+The native tool is `autolaunch_token`. The CLI command is
+`regents autolaunch token <id>`, in regents-cli 1.10.6 and later.

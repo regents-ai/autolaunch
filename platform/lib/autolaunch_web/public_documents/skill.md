@@ -29,10 +29,8 @@ does them.
 ## Access and tool selection
 
 Check `regents --version` and the command's `--help` before use. Every command below is in
-regents-cli 1.10.2, 1.10.4 and 1.10.5 (the newest release on 15 October 2026); their
-Autolaunch commands are the same. A listed command, a listed tool and an answer that
-succeeded are different evidence; say which you saw. Do not silently downgrade or replace an
-installed client.
+regents-cli 1.10.6. A listed command, a listed tool and an answer that succeeded are different
+evidence; say which you saw. Do not silently downgrade or replace an installed client.
 
 Use your own SIWA signer and your current pairing for private reads. A missing signer or a
 revoked pairing blocks private work; ask your person before making a new key. Never use their
@@ -57,7 +55,7 @@ ids.
 | Read one auction | `auction ID` | `autolaunch_auction` |
 | Estimate a bid (Base auctions) | `bids quote --auction UUID --amount DECIMAL --max-price DECIMAL` | `autolaunch_bid_quote` |
 | Browse tokens | `tokens list` | `autolaunch_tokens` |
-| Read one token | No command in a published release yet; use `GET /api/v1/tokens/ID` | `autolaunch_token` |
+| Read one token | `token ID` | `autolaunch_token` |
 | Read a treasury report | `treasury security ADDRESS` | `autolaunch_treasury` |
 | Check your identity and pairing | `agents whoami` | `agent_whoami` |
 | Read your person's positions | `positions` | `autolaunch_my_positions` |

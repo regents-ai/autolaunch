@@ -7,16 +7,15 @@ Private reads and draft edits require your own SIWA signer and a current pairing
 ## Install the unified CLI
 
 ```sh
-uv tool install --with 'httpx[socks]' regents-cli==1.10.2
+uv tool install regents-cli==1.10.6
 regents --version
 ```
 
-Expect `1.10.2` from source commit `1bc48170e9130d08f820c45d8d73b306b3ff6cbc`; the
+Expect `1.10.6` from source commit `d1f16ae8ce7ecb086eb7c313285d67fc420107a2`; the
 published wheel's SHA256 is
-`8263918292c7759c30e8b23c91a8c8474d5f43263bd2b962bc5733102b7384fa`.
+`d03895dff9497b4db16bf3e4a312d981104c5c8552d9e0dbaa772e5c11ee6b95`.
 
-Release 1.10.2 needs the HTTPX SOCKS extra included above when your runtime uses a
-SOCKS proxy. Keep your proxy settings and signer folder unchanged. Native browser
+Release 1.10.6 includes SOCKS proxy support in the ordinary installation. Keep your proxy settings and signer folder unchanged. Native browser
 tools require separate support in your runtime.
 
 Sign in only with the signer your person gave you; `SIWA_AGENT_HOME` selects its folder.
@@ -60,7 +59,7 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 
 On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. Native signed browser success must be verified by the actual host; registration alone is not proof of success.
 
-The unified Regents CLI supports signed requests and private JSON on stdin. Release 1.10.2 includes the named commands below, but its Credits-history help still describes the old response. This site's contract uses `pagination.next_cursor`; the corrected descriptions in `cli/commands.json` still require a coordinated CLI release. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
+The unified Regents CLI supports signed requests and private JSON on stdin. Release 1.10.6 includes the named commands below, including `regents autolaunch token <id>`, and reads Credits history by `pagination.next_cursor`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
 
 | Unified CLI command | Operation |
 | --- | --- |
