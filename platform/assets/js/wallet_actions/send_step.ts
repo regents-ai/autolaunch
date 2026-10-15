@@ -36,7 +36,14 @@ export async function sendStep(
   sending()
   const hash = await provider.request({
     method: "eth_sendTransaction",
-    params: [{from: getAddress(signer), to: getAddress(step.to), data: step.data, value: step.value}],
+    params: [{
+      from: getAddress(signer),
+      to: getAddress(step.to),
+      data: step.data,
+      value: step.value,
+      // A wallet that checks it refuses the send if it moved off the chain after the read above.
+      chainId: `0x${chain.chain_id.toString(16)}`,
+    }],
   })
   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
     throw new Error("The wallet did not return a transaction hash.")

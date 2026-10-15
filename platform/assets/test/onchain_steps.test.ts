@@ -59,7 +59,7 @@ describe("a wallet button sends only the step the server built", () => {
 
     expect(provider.request).toHaveBeenCalledWith({
       method: "eth_sendTransaction",
-      params: [{from: signer, to: target, data: "0xa52c8728ff", value: "0x0"}],
+      params: [{from: signer, to: target, data: "0xa52c8728ff", value: "0x0", chainId: "0x2105"}],
     })
     // The chain is the last thing read before the send.
     expect(methods(provider).slice(-2)).toEqual(["eth_chainId", "eth_sendTransaction"])
