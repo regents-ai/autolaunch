@@ -1,10 +1,10 @@
 # Autolaunch agent account parity — 15 October 2026
 
-## Current consolidated state — frozen for review
+## Current consolidated state — frozen, release held
 
-This summary supersedes earlier checkpoint wording below. The detail review base is
-**`3312b9225367ebce39693d19f2ad238d24b720b5`**; the only subsequent product change
-is the separate query-refusal correction recorded at the end. Work remains on
+This summary supersedes earlier checkpoint wording below. The final frozen
+implementation head is **`89230ef616d3a1a8104b5519fb2ebb8ce84a08a6`**. It adds only
+the query-refusal correction to detail candidate `3312b92`. Work remains on
 `sol/agent-account-parity-1015`, in the primary Autolaunch checkout. The last verified
 published/live baseline is **`09b69dada7fe7587a474de8f6c23b18e1ce9da60`**, Fly **130**.
 No candidate here has been pushed or deployed. This consolidation does not recheck
@@ -19,11 +19,12 @@ production or imply the live site has remained unchanged since that observation.
 | `ef05f93ccbcce3e45b8faf68a157589ebbd2318d` | Cursor errors, 2048-character bound and CLI setup guidance | Independent review complete with no concrete regression; release holds remain. |
 | `b5bae84722e8c04725a1c278ff7ccc3c7f25b424` | Records final cursor review | Documentation only. |
 | `b3a82ba71ac50731421d7bdf893f1c808a9a3fdf` | Canonical token list URLs, corrected financial/profile guidance, audit and detail proposal | Coordinator reports product diff review found no concrete issue. External closed-schema adoption caveat remains. |
-| `3312b9225367ebce39693d19f2ad238d24b720b5` | Both-chain stored token-detail read, public route, native adapter, CLI source and contracts | Independent review assigned, pending. Frozen; no further implementation authorized by this checkpoint. |
+| `3312b9225367ebce39693d19f2ad238d24b720b5` | Both-chain stored token-detail read, public route, native adapter, CLI source and contracts | Independent review found the query-parameter P3 below; its correction is closed on `89230ef`. Local evidence does not establish live acceptance. |
+| `9229946a4bbb350096064718b950685f071b1238` | Consolidated source, runtime evidence and holds | Documentation only. |
+| `89230ef616d3a1a8104b5519fb2ebb8ce84a08a6` | Reject every nonempty token-detail query map before UUID/lookup | Independent reviewer closed P3; release remains held. |
 
-Documentation commit `9229946a4bbb350096064718b950685f071b1238` records this
-consolidation without changing implementation. The query-refusal correction is a
-separate commit above it; its immutable patch is `token-query-correction.patch`.
+The final correction patch is `token-query-correction.patch`. Any subsequent
+commit that records this closure changes documentation only.
 Existing unrelated untracked work is preserved.
 
 ### What the evidence establishes
@@ -43,8 +44,10 @@ passed. No unchanged checks were rerun for this consolidation.
 
 ### Current holds and shared work
 
-- **Independent review:** await the result for exact `3312b92` versus `b3a82ba`.
-  Preliminary source review is not independent clearance or release approval.
+- **Independent review:** the coordinator reports P3 closed on exact `89230ef`.
+  The empty-query requirement precedes UUID/lookup, with visibility and authorization
+  unchanged. This source review and owner diagnostics are not live acceptance or
+  release approval.
 - **Signed/private acceptance:** candidate account success, history pagination
   across a boundary, saved-draft write/read and a real revocation transition remain
   unproven. The earlier deletion fixture was automatically rejected and never
@@ -91,6 +94,7 @@ Checksums below are the recorded checksums, not a new rerun:
 | `cursor-guidance-followup.patch` | `5976a87c74e2687dc7047c3908fbba2e9952171c5096690f428823df4fccb217` |
 | `token-url-guidance.patch` | `373961d42d2a74093175ecb7c5fb29c71fcd90905e6ac96cebb17f859503feed` |
 | `token-detail.patch` | `4f1aa4eaa0a5e4df88bf88c50d99f01efe2420ee4b46e9d7c03fa961cfea3908` |
+| `token-query-correction.patch` | `62c0466e41e0b76fbf7e6df15c566a7535c7a9dad043c88e85b58efe45d7ae4f` |
 
 The remaining sections preserve the chronological findings, source locations,
 review messages, diagnostic limits and repairs that led to this state.
@@ -450,3 +454,19 @@ public lookup (only that read result was substituted to avoid database access).
 Evidence: `token-query-diagnostic.exs` and `.log` in the existing artifact directory.
 No broad checks, fixtures, live writes or releases were performed. Independent
 reviewer recheck and the earlier signed/client/release holds remain pending.
+
+
+### Final independent recheck received
+
+The coordinator relayed the independent reviewer’s closure of P3 on exact
+`89230ef616d3a1a8104b5519fb2ebb8ce84a08a6`, patch SHA-256
+`62c0466e41e0b76fbf7e6df15c566a7535c7a9dad043c88e85b58efe45d7ae4f`.
+The reviewer confirmed the empty query-map requirement precedes UUID validation
+and lookup, with visibility and authorization unchanged. This supersedes the
+pending-recheck sentence above.
+
+The candidate remains frozen and local. Evidence is owner diagnostics plus
+independent source review, not an installed/released updated CLI or a successful
+live request to the new route. Signed/private acceptance, client adoption,
+closed-schema compatibility and explicit release authority remain outstanding.
+No implementation, checks, live state or release action changed in this closure update.
