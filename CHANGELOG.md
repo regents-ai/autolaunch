@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v128, 14 October 2026: page requests no longer crash when JSON is requested
+- HTML pages, including Onchain Stocks, safely refuse JSON requests. Normal browsing, session requests and account linking retain their existing behavior.
+- Regression checks from ash-template protect this distinction and preserve the account-link forgery check.
+
 ## v127, 14 October 2026: Credits stays easy to tap
 - The header's Credits button is at least 44 pixels wide and tall, including when its balance is unavailable. It aligns with the account control, matching ash-template.
 
