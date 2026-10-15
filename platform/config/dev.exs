@@ -22,8 +22,7 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   debug_errors: System.get_env("AUTOLAUNCH_DEBUG_ERRORS", "on") == "on",
   secret_key_base: "rsjuscXIckaYbEgnoyWVDsdVcA6yZHvSJbQDJf8WMBSfHYdEP+7ySHJFc7dQeEmH",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:autolaunch, ~w(--sourcemap=inline --watch)]},
-    crown_island: {Esbuild, :install_and_run, [:autolaunch_crown, ~w(--sourcemap=inline --watch)]}
+    esbuild: {Esbuild, :install_and_run, [:autolaunch, ~w(--sourcemap=inline --watch)]}
   ]
 
 # ## SSL Support

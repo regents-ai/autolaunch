@@ -20,7 +20,6 @@ import {PriceChart} from "./hooks/price_chart"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
-import {Optics} from "./optics_controller.js"
 import {mountMotion} from "./motion"
 import {MotionCascade} from "./hooks/motion/reveals"
 import {MotionCount, MotionRefusal} from "./hooks/motion/moments"
@@ -42,7 +41,6 @@ const hooks = {
   ImageGradient,
   OnchainSteps,
   PriceChart,
-  Optics,
   XConnections,
   CreatorConnections,
   SearchDialog,

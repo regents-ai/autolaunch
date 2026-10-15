@@ -174,8 +174,7 @@ defmodule Autolaunch.MixProject do
         "regent_blog.assets",
         "regent_identity.assets",
         "regent_agent_access.assets",
-        "esbuild autolaunch",
-        "esbuild autolaunch_crown"
+        "esbuild autolaunch"
       ],
       "assets.deploy": [
         "regent_ui.assets",
@@ -183,7 +182,6 @@ defmodule Autolaunch.MixProject do
         "regent_identity.assets",
         "regent_agent_access.assets",
         "esbuild autolaunch --minify",
-        "esbuild autolaunch_crown --minify",
         "phx.digest"
       ],
       precommit: [

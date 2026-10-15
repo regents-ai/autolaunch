@@ -1,26 +1,14 @@
 # Third-party notices
 
-## VGPU crown renderer
-
-The 13-cube crown under `assets/js/optics/crown/` is copied from TechTree's
-homepage crown (via Patchbay's smaller corner mark), which is adapted from the
-public VGPU homepage prism.
-
-- Project: `vercel-labs/vgpu`
-- Source: https://github.com/vercel-labs/vgpu
-- Commit: `bd3b05101fdd1193a1593558d3c52a0b2b18f31d`
-- Source directory: `apps/docs/app/[lang]/(home)/components/prism-background`
-- Package: `vgpu@0.3.1`
-- License: MIT
-
-TechTree source: `repos/techtree/platform/assets/js/optics/crown/` and
-`assets/js/optics/background/shader.ts`.
-
-Patchbay source: `repos/patchbay/assets/js/optics/crown/`.
+## VGPU gradient
 
 The coin overview gradient under `assets/js/optics/image_gradient/` starts from
 the vignette of the VGPU "Simple Gradient" example (https://vgpu.sh/examples/gradient),
-used with `vgpu@0.4.0` under the same license.
+used with `vgpu@0.6.0` and `@vgpu/wgsl@0.6.0`.
+
+- Project: `vercel-labs/vgpu`
+- Source: https://github.com/vercel-labs/vgpu
+- License: MIT
 
 ### MIT License
 
