@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v127, 14 October 2026: Credits stays easy to tap
+- The header's Credits button is at least 44 pixels wide and tall, including when its balance is unavailable. It aligns with the account control, matching ash-template.
+
 ## v126, 14 October 2026: mobile auction names and pool charts stay readable
 - Phone auction rows put the token name and ticker above actions and status, so wallet buttons no longer squeeze names out.
 - Loaded token pool charts fit the page and wrap long price-range labels.

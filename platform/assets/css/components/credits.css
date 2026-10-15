@@ -283,8 +283,12 @@
 /* The header's Credits balance, which opens Buy Credits. It sits here, outside
    the product layer, so it wins over the site's plain button rules. */
 #home-top .shell-credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
   align-self: center;
-  min-height: 2.5rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   margin-inline-end: var(--space-1);
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--color-border);
