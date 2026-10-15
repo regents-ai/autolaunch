@@ -2,8 +2,9 @@
 
 ## Current consolidated state — frozen for review
 
-This summary supersedes earlier checkpoint wording below. The implementation is
-frozen at **`3312b9225367ebce39693d19f2ad238d24b720b5`**, on
+This summary supersedes earlier checkpoint wording below. The detail review base is
+**`3312b9225367ebce39693d19f2ad238d24b720b5`**; the only subsequent product change
+is the separate query-refusal correction recorded at the end. Work remains on
 `sol/agent-account-parity-1015`, in the primary Autolaunch checkout. The last verified
 published/live baseline is **`09b69dada7fe7587a474de8f6c23b18e1ce9da60`**, Fly **130**.
 No candidate here has been pushed or deployed. This consolidation does not recheck
@@ -20,8 +21,10 @@ production or imply the live site has remained unchanged since that observation.
 | `b3a82ba71ac50731421d7bdf893f1c808a9a3fdf` | Canonical token list URLs, corrected financial/profile guidance, audit and detail proposal | Coordinator reports product diff review found no concrete issue. External closed-schema adoption caveat remains. |
 | `3312b9225367ebce39693d19f2ad238d24b720b5` | Both-chain stored token-detail read, public route, native adapter, CLI source and contracts | Independent review assigned, pending. Frozen; no further implementation authorized by this checkpoint. |
 
-A later documentation-only commit may record this summary; it does not change the
-frozen implementation. Existing unrelated untracked work is preserved.
+Documentation commit `9229946a4bbb350096064718b950685f071b1238` records this
+consolidation without changing implementation. The query-refusal correction is a
+separate commit above it; its immutable patch is `token-query-correction.patch`.
+Existing unrelated untracked work is preserved.
 
 ### What the evidence establishes
 
@@ -423,3 +426,27 @@ created database fixtures; no database, signing, wallet or live write occurred.
 No new test suite was added. Live API/native and integrated CLI publication remain
 release acceptance steps. Shared pairing, `/start`, logger and dependency updates
 remain outside this candidate. Prior review commits and immutable patches are intact.
+
+
+## Independent review correction: reject every query parameter
+
+The reviewer identified a low-severity mismatch in `3312b92`: Phoenix lets the
+route ID overwrite a query ID before the action receives merged parameters, so
+`?id=ignored` and `?id[x]=y` could escape the merged-key check. This did not select
+another record or bypass visibility, but contradicted the documented 400 response
+for extra query input.
+
+The separate correction above `9229946` fetches query parameters explicitly and
+requires `conn.query_params == %{}` in addition to the existing merged-key and UUID
+checks. The route, projection, actor, action, visibility and all response statuses
+are otherwise unchanged. No new endpoint or schema change is needed.
+
+Scoped compilation and formatting passed. A one-off no-database diagnostic sends
+already parsed scalar `id`, nested `id[x]` and unrelated query fields through the
+actual Phoenix router and production controller; all return 400 `invalid_request`.
+It records that the merged ID remains the route ID while the separate query map
+retains the supplied fields. A valid ID with no query still reaches the unchanged
+public lookup (only that read result was substituted to avoid database access).
+Evidence: `token-query-diagnostic.exs` and `.log` in the existing artifact directory.
+No broad checks, fixtures, live writes or releases were performed. Independent
+reviewer recheck and the earlier signed/client/release holds remain pending.

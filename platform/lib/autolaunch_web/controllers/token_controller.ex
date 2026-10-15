@@ -42,7 +42,9 @@ defmodule AutolaunchWeb.TokenController do
   end
 
   def show(conn, %{"id" => id} = params) do
-    with true <- Map.keys(params) == ["id"],
+    conn = Plug.Conn.fetch_query_params(conn)
+
+    with true <- conn.query_params == %{} and Map.keys(params) == ["id"],
          {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []) do
       case Autolaunch.get_listed_token(uuid, actor: nil) do
         {:ok, nil} ->
