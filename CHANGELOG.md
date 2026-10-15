@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v130, 15 October 2026: shared dependency baseline
+- Match ash-template's tested shared package versions, including the current browser, wallet and graphics libraries. Keep the verified database compatibility hold.
+- Update graphics rendering and Credits event wiring for those libraries. Points earning remains off.
+- Check all required shared database migration records before release; no database changes are included.
+
 ## v129, 14 October 2026: HTTP/2 timeout security fix
 - Adopt ash-template's upstream Bandit fix for CVE-2026-105659: tiny connection updates can no longer indefinitely extend a blocked response's timeout.
 

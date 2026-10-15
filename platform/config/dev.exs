@@ -17,6 +17,7 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: port],
   check_origin: ["http://localhost:#{port}", "http://127.0.0.1:#{port}"],
   code_reloader: true,
+  reloadable_compilers: [:ash_signals, :phoenix_live_view, :elixir, :app],
   # scripts/readiness.sh sets this to off, so error pages answer as they do in a release.
   debug_errors: System.get_env("AUTOLAUNCH_DEBUG_ERRORS", "on") == "on",
   secret_key_base: "rsjuscXIckaYbEgnoyWVDsdVcA6yZHvSJbQDJf8WMBSfHYdEP+7ySHJFc7dQeEmH",
