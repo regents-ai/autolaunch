@@ -87,3 +87,57 @@ external consumers and successful signed, nonempty history on this candidate
 remain unverified. Do not describe this candidate as fully compatible or released.
 The reviewed implementation is preserved unchanged; this follow-up only records
 the review. Unchanged implementation checks were not rerun.
+
+## Local cursor and installation follow-up
+
+Follow-up base: `d14263d`; original implementation `32b96189` and its saved patch
+remain unchanged. Adopted template cursor behavior from `a7bfd9b` and installation
+guidance from `3d116822`. These template changes are local and unpublished.
+
+- History now returns 422 `invalid_cursor` for a non-string `after`, Ash's
+  invalid-after argument errors and invalid-keyset errors. Only nonempty nested
+  lists consisting entirely of those errors qualify; unrelated, mixed and empty
+  error classes keep the existing 503 `account_unavailable` response.
+- The recovery message/hint matches the template. Autolaunch still rejects extra
+  body fields with `invalid_request`; its POST route and exact signed bytes stay
+  unchanged. Ash retains responsibility for length and keyset validation.
+- Both browser input schemas and the OpenAPI request declare `maxLength: 2048`.
+  CLI descriptions and guides explain the limit, `pagination.next_cursor`, and
+  omitting `after` when the cursor is null. No automatic private pagination or
+  new signed GET alias was invented.
+- `agents.md` and `llms.txt` use the reviewed installation command
+  `uv tool install --with 'httpx[socks]' regents-cli==1.10.2`, distinguish the extra
+  from a repaired published wheel, and preserve signer/key-creation cautions.
+  The guide records the same reviewed source revision and wheel hash as template.
+
+Affected validation passed: scoped warning-free compilation and formatting,
+frontend typecheck, the existing five-public-operation adapter comparison, exact
+CLI contract copy and whitespace check. One-off diagnostics exercise actual Ash
+2048/2049 input validation and malformed-keyset errors, nested/mixed/empty error
+classification, five direct non-string controller refusals, extra-field refusal,
+and the canonical recovery hint. The actual shared request-preparation adapter
+accepts empty and 2048-character inputs, rejects 2049/non-string inputs and preserves
+POST/path/body exactly. Local Endpoint requests serve the updated guide and OpenAPI;
+JSON Schema 2020-12 validates the actual refusal JSON and input boundaries.
+
+Evidence: `cursor-diagnostic.exs`/`.log`, `cursor-adapter-check.mjs`/`.log`,
+`cursor-contract.json`, `cursor-error.json`, and `cursor-schema-check.txt` in the
+existing artifact directory. These are local diagnostics, not successful signed
+HTTP or private multi-page acceptance. No database fixtures, migrations, signing,
+production changes or retries of the rejected deletion script occurred.
+
+The installed CLI's help was read directly: 1.10.2 still tells users to use the
+previous page's top-level `next`. Published CLI guidance/packaging and successful
+signed candidate history across a page boundary remain explicit release holds.
+The original response compatibility review does not clear this new follow-up.
+
+### New template entry-schema finding
+
+Do not copy the history entry fields from template `8e1a60e`: its required
+`operation`, `available_delta` and `held_delta` do not match the final entries in
+the pinned shared library. Immutable `28783ed:credits/lib/regent_credits/history.ex`
+in `worktrees/ui-standardization/eu` confirms final entries contain `id`, `kind`,
+`at`, `amount`, `direction` and nullable facts. Autolaunch's `b582404` behaves the
+same. The template owner acknowledged the stale-source mistake and is correcting
+it. Autolaunch retains its generic shared-entry schema pending that correction;
+the pagination envelope and cursor fix are unaffected.

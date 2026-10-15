@@ -525,7 +525,7 @@
     },
     {
       "command": "account credits-history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor) for older ones. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "operation_id": "account_credits_history",
       "method": "POST",
       "path": "/api/agent/v1/account/credits/history",
@@ -536,7 +536,7 @@
           "field": "after",
           "type": "string",
           "required": false,
-          "description": "Private after; read from JSON stdin."
+          "description": "Previous pagination.next_cursor, unchanged, at most 2048 characters; read from JSON stdin. Omit after for the first page or when next_cursor is null."
         }
       ]
     },

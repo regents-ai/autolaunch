@@ -160,13 +160,16 @@ schema and pairing. Missing/revoked authority refuses; unavailable data returns
 ## `account credits-history`
 
 Read canonical Credits history. Route:
-`POST /api/agent/v1/account/credits/history`; stdin is `{}` or optional string `after`.
+`POST /api/agent/v1/account/credits/history`; stdin is `{}` or optional string `after`
+of at most 2,048 characters. Omit `after` for the first page or when the previous
+`pagination.next_cursor` is null; do not send null as a cursor.
 Returns `entries` and `pagination` (`has_more`, `next_cursor`). Pass
 `pagination.next_cursor` as `after` while `has_more` is true. POST is a read here.
 
 Server: admit paired actor → validate optional cursor → call shared Credits history
-action → return page. Requires shared Credits schema. Extra fields or a non-string
-cursor return `invalid_request`; unavailable data returns `account_unavailable`.
+action → return page. Requires shared Credits schema. Non-string, overlong or malformed
+cursors return 422 `invalid_cursor`. Extra fields return 422 `invalid_request`.
+Unrelated or mixed service failures remain 503 `account_unavailable`.
 Missing/revoked authority refuses. Creates no account or ledger entry.
 
 ## `account points`

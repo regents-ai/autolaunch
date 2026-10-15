@@ -21,6 +21,10 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "Check the request against #{PublicDocuments.url("/openapi.json")}. An unknown parameter or value is refused. Sending the same request again will not help."
 
+  defp hint("invalid_cursor"),
+    do:
+      "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
+
   defp hint("not_found"),
     do:
       "List what exists with GET #{PublicDocuments.url("/api/v1/auctions")} or GET #{PublicDocuments.url("/api/v1/tokens")}. Every endpoint is described at #{PublicDocuments.url("/openapi.json")}. Sending the same request again will not help."

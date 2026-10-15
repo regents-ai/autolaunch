@@ -644,7 +644,10 @@ paths:
         "403":
           "description": "Pairing or local identity required"
         "422":
-          "description": "Invalid input"
+          "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
         "503":
           "description": "Dependency unavailable"
       "requestBody":
@@ -656,6 +659,8 @@ paths:
               "properties":
                 "after":
                   "type": "string"
+                  "maxLength": 2048
+                  "description": "Previous pagination.next_cursor, unchanged. Omit after for the first page or when next_cursor is null."
               "required": []
               "additionalProperties": false
   /api/agent/v1/account/points:

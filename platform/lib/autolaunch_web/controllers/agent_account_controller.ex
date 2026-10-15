@@ -87,6 +87,9 @@ defmodule AutolaunchWeb.AgentAccountController do
       %{"after" => cursor} = args when map_size(args) == 1 and is_binary(cursor) ->
         history_reply(conn, %{after: cursor})
 
+      %{"after" => _cursor} = args when map_size(args) == 1 ->
+        invalid_cursor(conn)
+
       _ ->
         ApiError.send(
           conn,
@@ -137,10 +140,27 @@ defmodule AutolaunchWeb.AgentAccountController do
           pagination: %{has_more: page.more?, next_cursor: page.next}
         })
 
-      _ ->
-        unavailable(conn)
+      {:error, error} ->
+        if cursor_error?(error), do: invalid_cursor(conn), else: unavailable(conn)
     end
   end
+
+  defp cursor_error?(%Ash.Error.Action.InvalidArgument{field: :after}), do: true
+  defp cursor_error?(%Ash.Error.Page.InvalidKeyset{}), do: true
+
+  defp cursor_error?(%Ash.Error.Invalid{errors: [_ | _] = errors}),
+    do: Enum.all?(errors, &cursor_error?/1)
+
+  defp cursor_error?(_error), do: false
+
+  defp invalid_cursor(conn),
+    do:
+      ApiError.send(
+        conn,
+        :unprocessable_entity,
+        "invalid_cursor",
+        "That history cursor is invalid."
+      )
 
   defp credit_actor(conn) do
     actor = conn.assigns.actor

@@ -177,11 +177,17 @@ Every auction names its page (`url`), when bidding is expected to close (`estima
 
 Schema: https://autolaunch.sh/openapi.json. Every error keeps its HTTP status and answers `{"error": {"code", "message", "hint"}}`; the hint says what to do next. A bid estimate answers 400 `invalid_request` (the body is not exactly `amount` and `max_price`), 404 `not_found` (no auction this site created has that id), 422 `estimate_not_offered` (a Robinhood auction: estimates cover Base auctions only, so read its figures with `GET https://autolaunch.sh/api/v1/auctions/{id}`), 422 `invalid_amount` or `invalid_max_price` (not a plain decimal string greater than zero) or 500 `internal_error`; only the 500 is worth retrying. Each client address has 120 requests per 60 seconds across `/api`, and 6 per 60 seconds for `GET /api/v1/auctions`; past either the answer is 429 `too_many_requests` with `Retry-After` in seconds.
 
-### Command line (coming soon)
+### Command line
 
-The `autolaunch` command-line tool will offer the same reads from a terminal. It is not published yet.
+Install the unified CLI with `uv tool install --with 'httpx[socks]' regents-cli==1.10.2`.
+The SOCKS extra is needed for proxy support in this release; keep your proxy settings
+and existing signer unchanged. See [agents.md]({{origin}}/agents.md) for the release
+source, wheel hash and sign-in instructions. Do not create a new key without your
+person's approval. Native browser tools require separate runtime support.
 
-The unified Regents CLI has separate signed command descriptions awaiting coordinated release. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; metadata writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
+The separate `autolaunch` CLI package remains unpublished. The unified Regents CLI
+1.10.2 includes the signed commands below, but its Credits-history help needs a
+coordinated update for this site's `pagination.next_cursor` response. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; metadata writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
 
 ### Bidding, launching and staking
 

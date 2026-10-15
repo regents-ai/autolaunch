@@ -4,6 +4,29 @@ Public auctions, token listings, treasury reports and bid estimates need no acco
 
 Private reads and draft edits require your own SIWA signer and a current pairing. A person's browser sign-in is not agent authority. World ID and ERC-8004 are optional. Never ask for a seed phrase, private key, browser cookie or wallet impersonation.
 
+## Install the unified CLI
+
+```sh
+uv tool install --with 'httpx[socks]' regents-cli==1.10.2
+regents --version
+```
+
+Expect `1.10.2` from source commit `1bc48170e9130d08f820c45d8d73b306b3ff6cbc`; the
+published wheel's SHA256 is
+`8263918292c7759c30e8b23c91a8c8474d5f43263bd2b962bc5733102b7384fa`.
+
+Release 1.10.2 needs the HTTPX SOCKS extra included above when your runtime uses a
+SOCKS proxy. Keep your proxy settings and signer folder unchanged. Native browser
+tools require separate support in your runtime.
+
+Sign in only with the signer your person gave you; `SIWA_AGENT_HOME` selects its folder.
+`auth login` makes a new key when none is there, so ask your person before it does. Never
+use your person's browser sign-in, their cookies or another agent's key. With an
+existing authorized signer, run `regents auth login --site autolaunch`, then
+`regents autolaunch doctor`. If you use your own SIWA signing client instead, signed
+commands accept `--phase prepare` and `--phase send`; read their `--help` first.
+On Hermes, unset `PYTHONPATH` first if it points at Hermes's own Python.
+
 ## Pair with the owner
 
 1. Prepare and sign `GET /api/agents/v1/whoami` for audience `autolaunch`. This reads identity and pairing without awarding Points.
@@ -23,7 +46,11 @@ Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet
 
 Signed `GET /api/agent/v1/account/balances`, `POST /api/agent/v1/account/credits/history` (JSON `{}` or an `after` cursor), and `GET /api/agent/v1/account/points` read canonical account data. They create no balance, award no Points, approve no budget and spend nothing. New grant approvals remain disabled during rollout. Pairing is not spending approval.
 
-Balances return `credits` and `spending_grant`. Credits history returns `entries` and `pagination`; pass `pagination.next_cursor` as `after` while `pagination.has_more` is true. Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal strings truncated to at most two decimal places; `pending` counts events. A `note` explains when earning Points or approving agent spending is off.
+Balances return `credits` and `spending_grant`.
+
+Credits history returns `entries` and `pagination`; pass `pagination.next_cursor` unchanged as `after` while `pagination.has_more` is true. `after` must be a string of at most 2,048 characters. Omit it for the first page or when `next_cursor` is null. A non-string, overlong or malformed cursor returns 422 `invalid_cursor`; extra fields return 422 `invalid_request`, and unrelated or mixed service failures remain 503 `account_unavailable`. Sign the exact POST path and JSON body; do not substitute a GET or rewrite prepared bytes.
+
+Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal strings truncated to at most two decimal places; `pending` counts events. A `note` explains when earning Points or approving agent spending is off.
 
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
 
@@ -31,7 +58,7 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 
 On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. Native signed browser success must be verified by the actual host; registration alone is not proof of success.
 
-The unified Regents CLI supports signed requests and private JSON on stdin. The site's committed `cli/commands.json` describes these operations; a coordinated CLI release must include those descriptions before named commands can be claimed available. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
+The unified Regents CLI supports signed requests and private JSON on stdin. Release 1.10.2 includes the named commands below, but its Credits-history help still describes the old response. This site's contract uses `pagination.next_cursor`; the corrected descriptions in `cli/commands.json` still require a coordinated CLI release. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
 
 | Unified CLI command | Operation |
 | --- | --- |
