@@ -1,5 +1,9 @@
 # Autolaunch agent account parity — 15 October 2026
 
+> **Released in v131** (built from `e055673`, deployed 15 October 2026 14:46 UTC). The holds below
+> are historical: the whole local chain, account responses included, is live. regents-cli 1.10.2
+> still expects the old account shapes; the regents-cli project owns that catch-up.
+
 ## Wallet-only check-in projection follow-up — local, release held
 
 This separate slice follows documentation head `d1373ff6d4130abb807605917eb5e99858d7a090`;

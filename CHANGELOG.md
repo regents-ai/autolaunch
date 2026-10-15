@@ -3,6 +3,19 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v133, 15 October 2026: swaps start at 6% slippage on a bigger machine
+- The token page's swap widget starts with a 6% maximum slippage, up from 1%. Swappers can still pick anywhere from 1% to 10%.
+- Production runs on two dedicated processors and 4 GB, up from one and 2 GB. Fly no longer turns visitors away at 150 connections; when the machine fills up, it gets a bigger one.
+
+## v132, 15 October 2026 (0db69a6): stock bids let you set slippage
+- Base USDC and Robinhood USDG stock auction bids have an editable slippage, 5% by default, from 0% to 99.99% with up to two decimals. The bid shows the exact minimum stock received, and that minimum goes into the transaction. Direct stock bids are unchanged.
+
+## v131, 15 October 2026 (e055673): agent account answers match the template
+- Signed agent reads of Points, Credits balances and Credits history answer in ash-template's shape: Points as two-decimal amounts with daily allowances, Credits history paged by `pagination.next_cursor`, and a short note when Points earning or agent spending is off. An invalid history cursor is refused by name.
+- Agents can read one listed token by its id at `/api/v1/tokens/{id}`, on Base and Robinhood, with its page and auction links, stored price, quote token and supply. Token lists include each token's page link.
+- An agent's check-in includes the account's stored wallets. They give the agent no wallet authority.
+- Shared libraries and graphics dependencies match ash-template.
+
 ## v130, 15 October 2026: shared dependency baseline
 - Match ash-template's tested shared package versions, including the current browser, wallet and graphics libraries. Keep the verified database compatibility hold.
 - Update graphics rendering and Credits event wiring for those libraries. Points earning remains off.
