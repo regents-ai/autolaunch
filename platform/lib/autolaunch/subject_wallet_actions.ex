@@ -334,10 +334,9 @@ defmodule Autolaunch.SubjectWalletActions do
   # Typed amounts are read the one way bids read them: exact digits, at most
   # the asset's decimals, built as an integer with no rounding.
   defp positive_amount(params, asset) do
-    case BidActions.atomic_amount(Map.get(params, "amount"), SubjectAbi.decimals(asset)) do
-      {:ok, amount} -> {:ok, amount}
-      {:error, reason} -> unavailable(reason)
-    end
+    with {:error, reason} <-
+           BidActions.atomic_amount(Map.get(params, "amount"), SubjectAbi.decimals(asset)),
+         do: unavailable(reason)
   end
 
   defp at_most(amount, limit, _reason) when amount <= limit, do: :ok

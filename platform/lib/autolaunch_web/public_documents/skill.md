@@ -127,9 +127,8 @@ Autolaunch has no event feed: time checks from returned deadlines such as
 person. Read every page before moving a checkpoint; on an expired cursor (400), start the
 listing again and say there may be a gap. [/docs]({{origin}}/docs) gives the request
 limits; on 429, wait the `Retry-After` seconds, and back off on repeated failures. Stop
-private work when the pairing is revoked. Alert only for
-a meaningful change, a decision or a blocker. Never say a schedule exists until your host
-confirms it.
+private work when the pairing is revoked. Alert only for a meaningful change, a decision or a
+blocker. Never say a schedule exists until your host confirms it.
 
 ## When to check again
 
