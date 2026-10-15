@@ -34,6 +34,28 @@ claim full-envelope coverage or successful signed/native/installed-CLI acceptanc
 No push or deployment. The package-alignment candidates are separate branches and
 have not been integrated into this checkout.
 
+### Complete pairing/check-in envelope follow-up
+
+Wallet projection is frozen at `2ac251b6be0f00af17bfd4b72b13857297624c2e`.
+The separate schema-only follow-up documents the full successful pair and check-in
+responses, following template `f7f6a0703560647c587c5d63bc7818fb68661711`. Both include
+the existing pairing `id`, name, harness, wallet, timestamps, nullable registry
+listing, `human_backed` and nullable `same_person_agent_count`. Check-in references
+Autolaunch's existing account success/recovery variants rather than introducing
+the template's different account fields. No response code or runtime behavior changes.
+
+The one-off diagnostic extracts the actual pinned HTTP serializer and uses the
+real HumanBacking formatter on synthetic in-memory records. All four combinations
+of backing/listing and all nine account outcomes validate as complete envelopes:
+four pair responses and 36 check-ins. Missing pairing IDs, private identifier or
+World timestamp additions, and invalid zero agent counts are rejected. The harness
+enum exactly matches the installed library. Both operation response references and
+the bundled CLI contract match. These checks establish serialization/schema
+agreement, not successful authenticated admission, a database write or revocation
+behavior. Evidence: `pairing-envelope-diagnostic.exs`, `.log`, `-responses.json`,
+`-contract.json`, `-schema.log` and `pairing-harness-values.json` alongside the wallet
+artifacts. Independent review and all earlier release/acceptance holds remain.
+
 ## Current consolidated state — frozen, release held
 
 This summary supersedes earlier checkpoint wording below. The final frozen

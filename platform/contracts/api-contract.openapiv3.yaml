@@ -450,15 +450,7 @@ paths:
           "description": "Check-in recorded; existing owner account projection"
           content:
             application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [account]
-                    properties:
-                      account: {$ref: "#/components/schemas/PairedAccount"}
+              schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
         "401":
           "description": "Fresh request proof required"
         "404":
@@ -482,7 +474,10 @@ paths:
         "503":
           "description": "Dependency unavailable"
         "201":
-          "description": "Success"
+          "description": "Pairing created"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
       "requestBody":
         "required": true
         "content":
@@ -839,6 +834,50 @@ components:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/contact.}}
   schemas:
+    AgentHarness:
+      type: string
+      enum: [hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other]
+    PairedAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 80}
+        harness: {$ref: "#/components/schemas/AgentHarness"}
+        wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+        paired_at: {type: string, format: date-time}
+        last_contact_at: {type: string, format: date-time}
+        registry_listing: {type: [string, "null"], format: uri}
+        human_backed: {type: boolean}
+        same_person_agent_count: {type: [integer, "null"], minimum: 1}
+    PairedAgentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/PairedAgent"}
+    CheckedInAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count, account]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 80}
+        harness: {$ref: "#/components/schemas/AgentHarness"}
+        wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+        paired_at: {type: string, format: date-time}
+        last_contact_at: {type: string, format: date-time}
+        registry_listing: {type: [string, "null"], format: uri}
+        human_backed: {type: boolean}
+        same_person_agent_count: {type: [integer, "null"], minimum: 1}
+        account: {$ref: "#/components/schemas/PairedAccount"}
+    CheckedInAgentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/CheckedInAgent"}
     PairedAccount:
       description: The existing pairing-derived owner account. No caller-supplied owner ID, provider IDs or wallet authority.
       oneOf:
