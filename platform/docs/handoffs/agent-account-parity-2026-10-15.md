@@ -60,3 +60,30 @@ Evidence directory: `/Users/sean/Documents/regent/artifacts/autolaunch-agent-par
 ## Independent external acceptance reported by coordinator
 
 At 04:38–04:40 UTC on 15 October, Contessa used an existing paired identity through CLI 1.10.2 (with a SOCKS dependency workaround): existing Memestock draft read passed; auction pagination preserved filters and returned a different record; an invalid limit returned a structured error and correct exit; Credits history returned two entries with the old deployed shape. These are live pre-candidate observations, not acceptance of this local response repair. The clean-install CLI dependency problem belongs to the shared CLI owner. No new identity, pairing or draft mutation was reported.
+
+## Independent compatibility and privacy review
+
+The coordinator relayed completion of the independent review by
+`/root/keyfleet_notebook_security` on 15 October 2026. Reviewed candidate:
+`32b96189abe16ee80f447b0637f85e594ef1e4fd`, against released `09b69da`.
+The implementation patch matched SHA-256
+`b5d67a78b97b48948a76cb2fd54921137c0ff1c13cc5fc8161aa6d200448e21f`.
+
+No new authorization bypass or private-data disclosure was found in that diff.
+The Points, balances and history projections match the explicit ash-template
+`c720b2d` reference. This finding covers the reviewed source; it does not establish
+successful signed execution or compatibility with every external consumer.
+
+The material release dependency is confirmed: published unified CLI 1.10.2 still
+describes a top-level history `next` cursor and has no automatic pagination
+descriptor for this operation. Its generic renderer tolerates the new response
+shape, but its guidance would be wrong after this candidate is deployed. The
+candidate also intentionally removes repeated IDs, renames Points fields and
+nests history pagination, as listed above.
+
+**Release remains on hold** until the CLI adopts the corrected guidance or an
+explicitly reviewed shared compatibility plan resolves that dependency. Other
+external consumers and successful signed, nonempty history on this candidate
+remain unverified. Do not describe this candidate as fully compatible or released.
+The reviewed implementation is preserved unchanged; this follow-up only records
+the review. Unchanged implementation checks were not rerun.
