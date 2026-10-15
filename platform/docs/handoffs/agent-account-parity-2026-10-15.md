@@ -138,6 +138,24 @@ Do not copy the history entry fields from template `8e1a60e`: its required
 the pinned shared library. Immutable `28783ed:credits/lib/regent_credits/history.ex`
 in `worktrees/ui-standardization/eu` confirms final entries contain `id`, `kind`,
 `at`, `amount`, `direction` and nullable facts. Autolaunch's `b582404` behaves the
-same. The template owner acknowledged the stale-source mistake and is correcting
-it. Autolaunch retains its generic shared-entry schema pending that correction;
-the pagination envelope and cursor fix are unaffected.
+same. The template owner corrected this in local commit `5654a42`. Autolaunch retains
+its valid generic shared-entry schema; importing more detailed typing is not
+required for this candidate. The pagination envelope and cursor fix are unaffected.
+
+
+## Final independent review and release hold
+
+On 15 October 2026, the coordinator relayed the independent review of
+`ef05f93ccbcce3e45b8faf68a157589ebbd2318d` against `d14263d`, matching follow-up patch
+SHA-256 `5976a87c74e2687dc7047c3908fbba2e9952171c5096690f428823df4fccb217`.
+No concrete regression was found. Review covered cursor-only error classification,
+strict unknown-field rejection, unchanged account-unavailable/authentication/owner
+behavior, 2048-character constraints and canonical installation guidance. The
+generic history-entry schema is valid and needs no expansion for this candidate.
+
+Both original `32b96189` and follow-up `ef05f93` remain local and held for release
+and client adoption. Actual signed private history across a page boundary and
+published CLI compatibility remain unverified. The coordinator will resolve
+release authority separately. This documentation-only update preserves both
+reviewed patches; no unchanged checks were rerun, and nothing was pushed or deployed.
+Unrelated untracked work remains untouched.
