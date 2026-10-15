@@ -4,7 +4,7 @@ These descriptions belong to the unified `regents autolaunch …` CLI. Importing
 `commands.json` into a coordinated CLI release is required before these names are
 available. Server deployment and native signer acceptance are separate checks.
 
-The five public reads need no sign-in and change nothing. Every other command requires
+The six public reads need no sign-in and change nothing. Every other command requires
 per-request SIWA proof for audience `autolaunch`. Private account operations also
 require a current pairing and an Autolaunch account resolved from the owner's verified
 Privy identity. Browser cookies are not agent authority. Read `/agents.md` for pairing
@@ -45,6 +45,17 @@ whatever the other fields say.
 Public. List launched tokens on Base and Robinhood Chain, newest first. Route:
 `GET /api/v1/tokens` (`listTokens`). Flags: `--q`, `--chain`, `--kind`, `--x`,
 `--ens`, `--github`, `--limit` (1 to 100) and `--after`, paged as `auctions list`.
+
+## `token <id>`
+
+Source candidate; requires coordinated unified CLI publication and server deployment.
+Installed `regents 1.10.2` does not include this command. Public route:
+`GET /api/v1/tokens/{id}` (`getToken`). Use a token UUID from `tokens list`.
+Both Base and Robinhood use the list's public visibility rules; hidden, external
+or missing records answer 404. Invalid UUIDs and extra parameters answer 400.
+The response includes the token summary, canonical auction URL, nullable stored
+price and its recording time, quote-token denomination and nullable token supply.
+It makes no chain call and does not promise a live price or executable quote.
 
 ## `treasury security <address>`
 

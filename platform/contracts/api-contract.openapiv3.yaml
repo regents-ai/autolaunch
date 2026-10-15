@@ -340,6 +340,32 @@ paths:
         "500": {$ref: "#/components/responses/InternalError"}
         "429": {$ref: "#/components/responses/TooManyRequests"}
         default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/tokens/{id}:
+    get:
+      operationId: getToken
+      summary: Read a publicly listed token
+      description: A single token from the same public Base and Robinhood listing. Hidden and external-origin tokens are not returned. Prices are stored observations with nullable recording timestamps, not live or executable quotes. This read makes no chain call.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Exact token UUID from the token list, not an auction UUID or contract address. Extra query parameters are rejected.
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Public stored token details
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TokenDetailEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
   /api/v1/treasury-security/{address}:
     get:
       operationId: getTreasurySecurity
@@ -1033,6 +1059,39 @@ components:
           oneOf:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
+    TokenDetail:
+      description: Publicly listed token details from stored records on either chain; no live chain read.
+      type: object
+      additionalProperties: false
+      required: [id, chain, chain_id, address, url, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, treasury_security, auction_url, price_quote, price_updated_at, quote_token, token_supply]
+      properties:
+        id: {type: string, format: uuid}
+        chain: {type: string, enum: [base, robinhood]}
+        chain_id: {type: integer, minimum: 1}
+        address: {type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$", description: "The token contract's address on the indicated chain, when recorded."}
+        url: {type: string, format: uri, description: "The token's canonical page on this site."}
+        auction_id: {type: string, format: uuid}
+        subject_id: {type: [string, "null"]}
+        name: {type: string}
+        symbol: {type: string}
+        summary: {type: [string, "null"]}
+        graduated_at: {type: string, format: date-time}
+        top_rank: {type: [integer, "null"], minimum: 1}
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+        auction_url: {type: string, format: uri}
+        price_quote: {type: [string, "null"], description: "Stored price in quote-token units per token, or null when absent. Not a live or executable quote."}
+        price_updated_at: {type: [string, "null"], format: date-time, description: "When the stored price was recorded, or null when unknown. A null timestamp does not imply freshness."}
+        quote_token: {$ref: "#/components/schemas/QuoteToken"}
+        token_supply: {oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}], description: "Whole token supply, or null when not recorded."}
+    TokenDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/TokenDetail"}
     TreasurySecurityEnvelope:
       type: object
       additionalProperties: false

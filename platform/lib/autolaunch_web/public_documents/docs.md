@@ -94,3 +94,17 @@ Bidding, claiming, launching, trading and staking happen on the website with the
 Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
 
 Unified CLI descriptions name the draft reads `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`. Metadata writes use `save` instead of `show`, reading private JSON stdin. These descriptions need a coordinated CLI release; saves remain refused while prelaunch read-only mode is enabled.
+
+
+## Stored token details
+
+`GET /api/v1/tokens/{id}` reads one token by the token UUID returned in the public
+list. It applies the same hidden/external exclusions on Base and Robinhood. The
+response includes canonical page URLs, the stored price and its nullable recording
+time, quote-token denomination and nullable supply. It does not call the chain;
+a missing timestamp is not evidence of freshness. Hidden, external and missing
+tokens return 404; invalid UUIDs and extra parameters return 400.
+
+The native tool is `autolaunch_token`. The source CLI command is `token <id>`;
+published `regents 1.10.2` does not yet include it. CLI publication and server
+deployment are separate release steps.

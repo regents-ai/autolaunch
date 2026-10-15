@@ -271,3 +271,63 @@ Shared pairing and `/start` decisions remain outside this candidate. The exact
 misleading financial/profile wording was not found in the template guidance
 searched, so these prose fixes stay product-local. The earlier audit findings are
 historical; only these named guidance issues and token URL are addressed here.
+
+
+## Both-chain token detail candidate — above b3a82ba
+
+The Base-only proposal above is superseded by a separate `Token.:listed_by_id`
+read; existing `:public_by_id` callers remain unchanged. The new read uses the
+exact `ListedAuction` and `ShownAuction` preparations used by `:home_market`, plus
+one required UUID filter. Their conditions are `exists(auction, origin == :site)`
+and `exists(auction, not hidden)`. Default list search is empty (sort only), chain
+and kind are `all`, and verification filters are false, so there is no additional
+listing visibility predicate to copy. Both actions have the same public policy.
+The prepared Ash queries were inspected without executing a database read and
+confirmed identical visibility, with only the requested token ID added.
+
+`GET /api/v1/tokens/{id}`, native `autolaunch_token`, standalone `autolaunch token
+<id>` and unified source description `regents autolaunch token <id>` now share that
+read. The response extends the explicit summary with `auction_url`, stored
+`price_quote`, nullable `price_updated_at`, `quote_token` and nullable decimal-string
+`token_supply`. It does not return whole Ash records, creator account data, index
+cursors, wallet state, current pool rewards or executable prices. Malformed UUIDs
+and extra parameters return 400, missing/unlisted records 404 and read failures
+500, using existing API error responses. There is no RPC, polling, new cache,
+background job, data model or migration. The preexisting listed auction relationship
+already supplies the canonical path calculation and its peer lookup.
+
+### What was checked
+
+- Scoped Elixir compilation and formatting, frontend typecheck, CLI syntax/build,
+  exact bundled OpenAPI copy and whitespace checks passed.
+- Existing CLI checks passed (six cases), and the existing adapter comparison for
+  the previous five public operations passed. These were not expanded or treated
+  as coverage for the new operation.
+- A one-off diagnostic prepared actual Ash queries, rejected malformed action UUIDs,
+  confirmed the router target, and exercised actual controller projection/refusal
+  code with only its domain lookup substituted. It checked both chain labels and
+  canonical URLs, exact price strings, missing price/time/supply, absence of an
+  extra private field, and 400/404/500 handling. Read lookup was not reached for
+  invalid or extra inputs. It did not prove database exclusion behavior at runtime.
+- Those actual projected JSON responses validate against the new schema with
+  JSON Schema 2020-12 and format checks. Initial diagnostic runs had missing local
+  chain configuration; the isolated process was then given the chain IDs from
+  previously saved public AIFROG/SANDY responses. No settings files were read.
+- An intercepted fetch checked the new native adapter and standalone CLI request
+  builder target the same URL, omit browser credentials, preserve response JSON
+  and refuse extra native inputs before transport. This is adapter execution,
+  not a live native host or published CLI acceptance claim.
+- The new public command alone passes installed 1.10.2's description checker.
+  The full manifest fails its schema on the same eleven existing `signed_agent` /
+  `paired_agent` authority labels as the `b3a82ba` baseline. The neighboring CLI
+  source checkout has the same checker limitation. No authority labels were changed
+  to silence it. `token-detail-cli-check.json` records both comparisons for the CLI
+  owner. Published 1.10.2 does not expose `token <id>` yet.
+
+Evidence is in the existing artifact directory: `token-detail-diagnostic.exs`,
+its log, `token-detail-responses.json`, `token-detail-contract.json` and
+`token-detail-cli-check.json`. The diagnostic uses in-memory sample values, not
+created database fixtures; no database, signing, wallet or live write occurred.
+No new test suite was added. Live API/native and integrated CLI publication remain
+release acceptance steps. Shared pairing, `/start`, logger and dependency updates
+remain outside this candidate. Prior review commits and immutable patches are intact.

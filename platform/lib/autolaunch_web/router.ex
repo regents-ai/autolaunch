@@ -128,6 +128,7 @@ defmodule AutolaunchWeb.Router do
     get "/auctions/:id", AuctionController, :show
     post "/auctions/:id/bid-quote", AuctionController, :bid_quote
     get "/tokens", TokenController, :index
+    get "/tokens/:id", TokenController, :show
     get "/treasury-security/:address", TreasuryController, :show
   end
 

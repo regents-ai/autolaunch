@@ -41,6 +41,41 @@ defmodule AutolaunchWeb.TokenController do
     }
   end
 
+  def show(conn, %{"id" => id} = params) do
+    with true <- Map.keys(params) == ["id"],
+         {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []) do
+      case Autolaunch.get_listed_token(uuid, actor: nil) do
+        {:ok, nil} ->
+          ApiError.send(conn, :not_found, "not_found", "That token is not publicly listed.")
+
+        {:ok, token} ->
+          json(conn, %{data: token_detail(token)})
+
+        {:error, _error} ->
+          internal_error(conn)
+      end
+    else
+      _invalid -> invalid_request(conn)
+    end
+  end
+
+  defp token_detail(token) do
+    Map.merge(public_token(token), %{
+      auction_url: Paths.auction_url(token.auction),
+      price_quote: token.price_quote,
+      price_updated_at: token.price_updated_at,
+      quote_token: %{
+        address: token.auction.quote_token_address,
+        symbol: token.auction.quote_token_symbol,
+        decimals: token.auction.quote_token_decimals
+      },
+      token_supply: decimal(token.auction.token_supply)
+    })
+  end
+
+  defp decimal(nil), do: nil
+  defp decimal(%Decimal{} = value), do: Decimal.to_string(value, :normal)
+
   defp loaded_report(%{treasury_security_report: %Ash.NotLoaded{}}), do: nil
   defp loaded_report(%{treasury_security_report: report}), do: report
   defp loaded_report(_token), do: nil

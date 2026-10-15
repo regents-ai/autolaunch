@@ -176,6 +176,16 @@ defmodule Autolaunch.Token do
       end
     end
 
+    # One record from the same public listing on either chain.
+    read :listed_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare Autolaunch.Token.Preparations.ListedAuction
+      prepare Autolaunch.Token.Preparations.ShownAuction
+      prepare build(load: [:treasury_security_report, :auction])
+    end
+
     read :public_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
@@ -281,6 +291,7 @@ defmodule Autolaunch.Token do
              :recently_graduated_public,
              :for_subject,
              :public_by_id,
+             :listed_by_id,
              :robinhood_by_address,
              :public_by_auction,
              :latest_price_for_subject
