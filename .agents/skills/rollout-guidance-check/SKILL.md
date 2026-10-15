@@ -33,69 +33,42 @@ template. Regents is one consumer, not the baseline.
 
 ## Find all affected surfaces
 
-Refresh the file index when the repository layout or relevant files change:
+Use the selected revision's complete file tree and exact base/target change metadata
+through the host's repository tools. Initially request path/status metadata only,
+without patch content; request patches only for safe paths selected after exclusions. A saved inventory is dated evidence, not a substitute for
+that tree. Enumerate paths using tree metadata without rename/copy similarity
+detection; those algorithms can read blobs before exclusions. List paths before selecting files to read; do not run a repository program,
+hook or generator to discover guidance. This package deliberately has no inventory
+executable and requires no Python runtime for hosted review.
 
-```sh
-uv run --no-project --no-config --no-env-file --offline python scripts/inventory.py --workspace /absolute/regent --output /absolute/review-output
-```
+Use trusted, revision-aware repository inspection supplied by the review host.
+It must enumerate all paths and entry types, including changed dependency pins and
+submodule entries, without executing repository programs, loading excluded content,
+fetching missing objects, or changing an active checkout/index. This Skill supplies
+no local Git execution recipe; tool safety belongs to the host. If those guarantees
+are unavailable, record the affected coverage as blocked instead of improvising a
+scanner or running repository-configured commands. Keep staged/unstaged local work
+separate from committed evidence; inspect it only through equally safe host tools.
+Missing objects and unavailable repositories remain explicit coverage gaps.
 
-For a specific checkout or a standalone reviewer environment:
+Use the surface map to select affected public source paths from both BASE and TARGET.
+Read deleted content and old names at BASE, and current/new content at TARGET, using
+the host’s revision-aware tools. Apply the same exclusions to both revisions before
+content searches or reads. Never search the whole tree before excluding sensitive
+paths. Use `rg` only for a separately labelled working-tree review, or after verifying
+the selected files match the requested revision with no local edits; it cannot search
+another revision. Search changed identifiers and old/new words. Never read `.env*`
+files except `.env.example`. Exclude private settings, credential/key stores, runtime
+logs and session data. Reject filesystem links before working-tree reads, including linked parent
+directories; record them as uninspected boundaries. Inspect unusual or ambiguous paths deliberately; a filename search is not a
+secret detector or proof of complete coverage.
 
-```sh
-uv run --no-project --no-config --no-env-file --offline python scripts/inventory.py --workspace /absolute/regent \
-  --repo /absolute/checkout --ref COMMIT --no-working-overlay --output /absolute/review-output
-```
-
-Run from this skill's directory or use its script's absolute path. These commands use
-an already installed Python through uv, without loading project configuration.
-Where repository rules permit and uv is unavailable, the standard-library-only helper
-can also run with Python 3.10 or newer directly. Default scans use
-local `origin/main` snapshots (HEAD when absent) plus explicitly distinguished current
-checkout differences, including committed changes and working edits. Explicit missing
-revisions fail instead of substituting HEAD.
-Missing Git objects also fail the run; no fetching or successful coverage is implied.
-Obtain complete local objects before retrying. For release review, pass the actual target
-checkout/ref with `--no-working-overlay`; the default scan is
-not a release inventory. Use a new or empty output directory outside scanned sources
-for each run; previous reports are preserved rather than overwritten or mixed with a
-new selection. Supply real directory paths, not symlinks. The script
-never fetches, executes repository code or follows external symlink targets.
-Working-file reads require POSIX no-follow directory descriptors (Linux/macOS);
-unsupported runtimes can still inventory an explicit Git snapshot with
-`--repo ... --ref ... --no-working-overlay`. It excludes known private filenames
-(including `.env*` except `.env.example`), credential locations
-and key extensions before reading content. Ordinary source configuration is eligible,
-but filename rules can conservatively exclude policy/example files too; those recorded
-boundaries remain manual-review work. Source/prose names containing words such as
-“credentials” are not automatically secrets; inspect only suitable source roots.
-The exact filename denylist is in `exclusion()`; this is not a secret scanner.
-Filename exclusions cannot detect secrets stored under arbitrary names, so select only
-source roots suitable for review. Git-ignored untracked paths are recorded as unreviewed
-boundaries without reading them; excluded directory trees may have one boundary row.
-Default repository discovery honors the workspace's Git ignores. An explicit `--repo`
-selects that repository independently of parent-workspace ignores; its own overlay
-still honors its Git ignores, while the requested commit is a separate source snapshot.
-Current unverified boundaries remain in the overlay even when equality cannot be
-checked; the overlay path count is not an exact changed-file count.
-Staged differences from HEAD are separately listed as unreviewed `index_overlay`
-boundaries; the separate index's content is not read. Eligible working files are
-still read, including when their bytes also happen to be staged. Non-Git loose documentation and Skill roots
-bypass text-search ignore files, so select only suitable source roots.
-These are versioned evidence records, not a reconstructed virtual working tree;
-inspect the staged boundaries and Git diff for case-only renames. Display pages group
-by repository basename; coverage sources and every file record retain the full root
-identity, including when names repeat.
-The expected-root list covers repository containers from the surface map, not every
-module path inside a repository. Inspect affected source paths separately.
-Inspect `coverage.json`: excluded,
-oversized, binary, unknown text and unavailable repositories cannot silently become
-“checked.” The full CSV/JSONL includes candidates and exclusions, not just regex hits.
-
-Use `git diff --name-status BASE HEAD`, changed identifiers and old/new words to search
-the index and source with `rg`. Follow callers, shared pins, route renderers, generators,
-copy buttons and packaged consumers. Then apply [the impact checklist](references/impact-checklist.md).
-Semantic changes often have no matching old string: inspect the owning UI and tool
-descriptions even if text search finds nothing.
+Follow callers, shared pins, route renderers, generators, copy buttons and packaged
+consumers. Apply [the impact checklist](references/impact-checklist.md), updating the
+review's coverage table when the layout changes. Include newly added and removed
+surfaces. Semantic changes often have no matching old string: inspect the owning UI
+and tool descriptions even if text search finds nothing. Record the full repository
+identity and revision so same-named checkouts cannot be confused.
 
 Cover these classes, recording a reason when unaffected:
 

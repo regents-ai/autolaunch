@@ -1,9 +1,9 @@
 # Regent guidance sources and copies
 
-Paths below are relative to the Regent workspace. Use the current inventory for exact
-file names, revisions and line signals; this map describes ownership and propagation.
-The inventory covers first-party text plus a path/status record for exclusions. It is
-not proof that every string in a binary, database or external hosted service was read.
+Paths below are relative to the Regent workspace. Use the selected revision's file
+tree for exact locations; this map describes ownership and propagation. Saved file
+inventories are dated evidence. Record unread/private paths and unavailable owners
+explicitly; neither a file list nor this map proves that every string was reviewed.
 
 ## Shared sources
 
@@ -32,7 +32,7 @@ Inspect these even when the changed file is only a backend action. Do not treat 
 | `repos/patchbay` | `skills/patchbay/SKILL.md`; `platform/lib/patchbay_web/forum/agent_pages.ex`; `controllers/agent_skills_controller.ex`; `platform/priv/public/`; `platform/priv/tool_manifest.json`; `platform/assets/js/webmcp/`; hosted MCP descriptions in application source; free/paid posting and refund recovery copy; site-directory/tool records authored at runtime |
 | `repos/techtree` | `platform/priv/public/`; release/bootstrap source under `platform/lib/techtree/release/`, `platform/lib/techtree_web/release_info.ex`; `platform/priv/release/skills/` and examples; `platform/priv/tool_manifest.json`; `cli/` descriptors; local-versus-hosted execution, publication ownership and installation version claims |
 | `repos/keyfleet` | `platform/priv/public/`; fleet/member/room/workspace components and wallet-button explanations; `platform/lib/keyfleet/capabilities.ex`; `platform/priv/tool_manifest.json`; `cli/` descriptors; launch gates, membership and wallet/agent authority wording |
-| `repos/regents-cli` | `README.md`, `docs/`, `src/regents_cli/{app,auth,doctor,errors,next_steps,output,runner}.py`; `passkey.html`; `schemas/commands.v1.json`; `src/regents_cli/platforms/*/{commands.json,*.json,*.yaml}` bundled contracts; `src/regents_cli/techtree/cli.py`, `techtree/commands/`, packaged Skill/engine resources, installation and completion helpers |
+| `repos/regents-cli` | `README.md`, `docs/`, `src/regents_cli/{app,auth,doctor,errors,next_steps,output,runner}.py`; `src/regents_cli/passkey.html`; `src/regents_cli/schemas/commands.v1.json`; `src/regents_cli/platforms/*/{commands.json,*.json,*.yaml}` bundled contracts; `src/regents_cli/techtree/cli.py`, `src/regents_cli/techtree/commands/`, packaged Skill/engine resources, installation and completion helpers |
 
 The product owns its `cli/commands.json`/`COMMANDS.md` and HTTP contract. The unified CLI
 packages versioned copies; updating the product does not update a published wheel.
@@ -46,9 +46,15 @@ route exists or label an unadvertised candidate's 404 a defect.
 
 ## Other first-party codebases
 
-The complete workspace scan includes these; narrow review only after checking impact:
+These are additional owners to consider when the change affects them. Inspect each
+independently when available; otherwise record the missing repository or workspace
+as an explicit coverage gap. This list does not assert that a scan occurred:
 
-- `repos/ios`: Swift strings/accessibility/help and server tool schemas, prompts and errors.
+- `repos/ios`: Expo/React Native screens in `app/` and shared UI in `components/`,
+  with labels, accessibility/help text, validation and errors in TS/TSX and supporting
+  `hooks/`, `constants/`, `theme/` and `utils/`; native Swift/module surfaces under
+  `modules/` and `targets/`; `server/` tool schemas, prompts and errors; root OpenAPI
+  contracts, README and setup/release guides.
 - `repos/fly-sentinel`, `repos/sentinel-watch`: dashboard/admin copy, monitoring/recovery
   descriptions, notifications, operator runbooks and command/help text.
 - `repos/media-web`: public/admin views, errors, API and deployment documentation.
@@ -61,23 +67,26 @@ The complete workspace scan includes these; narrow review only after checking im
 - `services/videocontrol`: UI/tool/CLI descriptions, product Skills, prompts, generated
   artifacts and workflow docs. Publication/scheduling capabilities are not authority to
   invoke them during a guidance review.
-- `repos/video-creation/`: nested repository and loose guide sources, inventoried
-  separately. They do not become product rollout dependencies merely by existing.
+- `repos/video-creation/`: nested repository and loose guide sources; establish their
+  separate identities and available revisions before inspecting them. They do not become product rollout dependencies merely by existing.
 - Workspace `docs/`, `agent-docs/`, `AGENTS.md`, `CLAUDE.md`: active runbooks, cross-site
   contracts, decision records and dated handoffs. Review current references; preserve
-  historical evidence. Session stores and private runtime settings are not scanned.
+  historical evidence. Exclude session stores and private runtime settings.
 
 ## Boundaries requiring explicit coverage notes
 
-- Root inventories record local Git refs and primary working changes. Other worktrees
-  can contain newer work: use the release owner's exact checkout/ref for its review.
-- Generated vendor copies are first-party outputs; third-party dependencies/submodules
-  are listed as excluded paths. Check upstream usage docs only where the diff needs them.
+- Record the exact inspected refs and any separately reviewed working edits. Other
+  worktrees can contain newer work: use the release owner's exact checkout/ref, or
+  record it as unavailable. A saved inventory records only its dated inspected state.
+- Trace generated first-party vendor copies. Record third-party dependency/submodule
+  pins and whether their content was inspected; never infer coverage from a path
+  listing. Check upstream usage docs only where the diff needs them.
 - Database-authored tool directory descriptions, posts, uploaded Skills and external
   Pages are outside a filesystem inventory. Identify the owning table/publisher and
   public read path; do not export private content or claim it was reviewed.
-- Screenshots, video, icons and other binary assets can contain words. Their file paths
-  are recorded but their text is not extracted. Inspect affected assets visually.
+- Screenshots, video, icons and other binary assets can contain words. Identify
+  affected paths, then inspect them visually when tools permit. Otherwise record the
+  missing visual evidence; a text search does not cover those words.
 - Ignored build artifacts, old exports/backups and transcripts are not canonical copy.
   Live output must still be checked after the authorized release when claiming rollout
   completion.
