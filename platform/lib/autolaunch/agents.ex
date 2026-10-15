@@ -36,7 +36,9 @@ defmodule Autolaunch.Agents do
           {:ok, canonical} when not is_nil(canonical) ->
             %{
               local_account: Accounts.VerifiedSession.current?(account),
-              display_name: account.display_name
+              display_name: account.display_name,
+              wallet_address: account.wallet_address,
+              wallet_addresses: account.wallet_addresses || []
             }
 
           _ ->

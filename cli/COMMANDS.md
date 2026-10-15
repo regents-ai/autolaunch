@@ -84,6 +84,12 @@ Server: verify exact SIWA request → check in the current pairing → return th
 pairing response with the account as Autolaunch's pages name it. Requires the shared
 SIWA broker and Agents schema. Awards no Points and changes no account data.
 
+The check-in is a write to contact metadata. A resolved `data.account` includes
+`local_account`, `display_name`, nullable `wallet_address` and `wallet_addresses`
+(default `[]`). These stored verified wallet facts grant no wallet authority.
+Missing-account recovery keeps its existing shape. This local response addition
+requires site deployment; installed CLI acceptance is not established.
+
 ## `agents pair`
 
 Redeem the owner's short-lived pairing code with the agent's chosen name and actual

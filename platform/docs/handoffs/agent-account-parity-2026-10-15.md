@@ -1,5 +1,39 @@
 # Autolaunch agent account parity — 15 October 2026
 
+## Wallet-only check-in projection follow-up — local, release held
+
+This separate slice follows documentation head `d1373ff6d4130abb807605917eb5e99858d7a090`;
+the frozen token changes below remain intact. It adopts template
+`cd5a5addf0a833d235639f3034b292c8c14e6e34`'s stored wallet facts in Autolaunch's
+existing `paired_account/1` success branch: nullable `wallet_address` and
+`wallet_addresses || []`. Existing `local_account`, `display_name`, recovery/error
+shapes, owner argument, System actor, both account lookups and wallet-evidence rule
+are unchanged. No ENS/World/provider field, query, permission or migration is added.
+
+The actual installed and locked RegentAgents revision remains
+`b5824049d55012f2e8b1e4d7e3e2fcc549d93360`. Its HTTP plug verifies SIWA, calls the
+existing check-in action, then passes the pairing's stored owner ID to the callback.
+The check-in updates contact metadata; CLI and WebMCP now describe it as a write.
+The returned wallet facts neither grant signing authority nor establish provider
+freshness. No before-send revocation guarantee is claimed.
+
+Verification: scoped format and compilation with warnings treated as errors pass;
+frontend typecheck and exact CLI contract-copy check pass. A one-off source-derived
+diagnostic substitutes only the two account reads and exercises nine branches,
+including nil/empty/multiple/unlinked wallets, missing accounts and read errors.
+It verifies original owner/actor arguments, lookup counts, exact output maps and
+the real unchanged wallet-evidence rule. JSON Schema validates all nine outputs
+and refuses extra provider/World fields. No application, database, signature,
+provider request or live check-in was started. Evidence lives in
+`artifacts/autolaunch-agent-parity-1015/wallet-projection-*` at workspace root.
+
+Full pairing/check-in response-envelope documentation is a separate follow-up
+against template `f7f6a0703560647c587c5d63bc7818fb68661711`; it must retain the
+existing pairing ID and HumanBacking fields. This account projection does not
+claim full-envelope coverage or successful signed/native/installed-CLI acceptance.
+No push or deployment. The package-alignment candidates are separate branches and
+have not been integrated into this checkout.
+
 ## Current consolidated state — frozen, release held
 
 This summary supersedes earlier checkpoint wording below. The final frozen

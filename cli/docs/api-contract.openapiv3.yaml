@@ -441,12 +441,24 @@ paths:
     "get":
       "operationId": "agent_status"
       "summary": "Check in as a paired agent"
+      description: Updates the paired agent check-in time, then projects the existing owner account. Wallet fields are stored verified facts, not wallet authority or a fresh provider check.
       "security":
         -
           "SiwaProof": []
       "responses":
         "200":
-          "description": "Success"
+          "description": "Check-in recorded; existing owner account projection"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [account]
+                    properties:
+                      account: {$ref: "#/components/schemas/PairedAccount"}
         "401":
           "description": "Fresh request proof required"
         "404":
@@ -827,6 +839,27 @@ components:
             internalError:
               value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/contact.}}
   schemas:
+    PairedAccount:
+      description: The existing pairing-derived owner account. No caller-supplied owner ID, provider IDs or wallet authority.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [local_account, display_name, wallet_address, wallet_addresses]
+          properties:
+            local_account: {type: boolean, description: "Whether the existing local verified wallet evidence is current under the site's rule."}
+            display_name: {type: [string, "null"]}
+            wallet_address: {type: [string, "null"], description: "Stored primary wallet from verified sign-in evidence; no signing authority."}
+            wallet_addresses:
+              type: array
+              default: []
+              items: {type: string}
+              description: Stored linked wallets from verified sign-in evidence; missing evidence is an empty list.
+        - type: object
+          additionalProperties: false
+          required: [local_account]
+          properties:
+            local_account: {const: false}
+            sign_in: {type: string, format: uri}
     PointsAmount:
       type: string
       pattern: '^-?\d+(?:\.\d{1,2})?$'

@@ -343,7 +343,7 @@
     {
       "name": "agent_status",
       "title": "Check in",
-      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof. The account includes stored verified wallet facts when resolved; these grant no wallet authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -373,10 +373,11 @@
         }
       },
       "annotations": {
-        "untrustedContentHint": true
+        "untrustedContentHint": true,
+        "readOnlyHint": false
       },
       "requires": "siwa_and_pairing",
-      "state_changing": false,
+      "state_changing": true,
       "payment": "none",
       "route": "GET /api/agents/v1/me",
       "scope": "site",

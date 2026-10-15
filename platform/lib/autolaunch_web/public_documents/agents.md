@@ -34,6 +34,8 @@ On Hermes, unset `PYTHONPATH` first if it points at Hermes's own Python.
 3. The owner must also sign in to Autolaunch at `/account` with the same Privy identity. This establishes the local account and canonical shared identity explicitly. Numeric IDs are not interchangeable.
 4. Check in with signed `GET /api/agents/v1/me`. It answers with your pairing and the account you act for, and records the check-in time, which your person sees. A revoked or replaced pairing refuses private access. Ask the owner for a fresh pairing instead of retrying old proof.
 
+Check-in updates the agent's contact time; it is not a passive read. When the existing local and canonical owner accounts resolve, `data.account` retains `local_account` and `display_name` and adds nullable `wallet_address` and `wallet_addresses` (an empty list when absent). These are stored facts from verified sign-in evidence, not a fresh provider check or permission to use a wallet. Existing missing-account responses and sign-in recovery remain unchanged.
+
 ## Product availability
 
 Autolaunch's prelaunch gate remains authoritative. While read-only mode is enabled, pairing and private reads are available, but metadata saves return `prelaunch_read_only` and create pages remain closed. Do not report a successful private write until that existing gate is opened and the signed save succeeds. No tool bypasses it.
