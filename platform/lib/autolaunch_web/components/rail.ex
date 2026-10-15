@@ -1,9 +1,10 @@
 defmodule AutolaunchWeb.Components.Rail do
   @moduledoc false
   use Phoenix.Component
+  use AutolaunchWeb, :verified_routes
 
-  # Explore has two smaller links to its auction and token views. It also
-  # covers their search and detail pages; Docs covers the persistent
+  # Explore has two smaller links, to the auctions list and the tokens list. It
+  # also covers their search and detail pages; Docs covers the persistent
   # information-page navigation. Launch is the last, orange destination.
   @items [
     %{
@@ -21,16 +22,17 @@ defmodule AutolaunchWeb.Components.Rail do
     %{label: "Launch", path: "/create", covers: []}
   ]
 
-  @explore_views [
-    %{label: "Auctions", path: "/", view: "auctions"},
-    %{label: "Tokens", path: "/?view=tokens", view: "tokens"}
-  ]
-
   attr :current_path, :string, required: true
-  attr :market_view, :string, default: nil
 
   def rail(assigns) do
-    assigns = assign(assigns, items: @items, explore_views: @explore_views)
+    assigns =
+      assign(assigns,
+        items: @items,
+        explore_views: [
+          %{label: "Auctions", path: ~p"/auctions", covers: ["/robinhood"]},
+          %{label: "Tokens", path: ~p"/tokens", covers: []}
+        ]
+      )
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
@@ -52,9 +54,9 @@ defmodule AutolaunchWeb.Components.Rail do
           <ul :if={item.path == "/"} class="shell-rail__sublist" aria-label="Explore views">
             <li :for={view <- @explore_views}>
               <.link
-                href={view.path}
+                navigate={view.path}
                 class="rg-button rg-button--primary shell-rail__link shell-rail__sublink"
-                aria-current={if view_current?(@current_path, @market_view, view.view), do: "page"}
+                aria-current={if current?(@current_path, view), do: "page"}
               >
                 {view.label}
               </.link>
@@ -71,12 +73,6 @@ defmodule AutolaunchWeb.Components.Rail do
 
   defp current?(path, %{path: own, covers: covers}),
     do: Enum.any?([own | covers], &under?(path, &1))
-
-  defp view_current?("/", view, target), do: (view || "auctions") == target
-  defp view_current?(path, _view, "tokens"), do: under?(path, "/tokens")
-
-  defp view_current?(path, _view, "auctions"),
-    do: under?(path, "/auctions") or under?(path, "/robinhood")
 
   defp under?(path, "/"), do: path == "/"
 
