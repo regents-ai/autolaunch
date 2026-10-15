@@ -19,8 +19,8 @@ defmodule AutolaunchWeb.ContentSecurityPolicy do
 
   # The development code reloader runs in a frame from this site.
   @own_frames if Application.compile_env(:autolaunch, [AutolaunchWeb.Endpoint, :code_reloader]),
-                 do: ["'self'"],
-                 else: []
+                do: ["'self'"],
+                else: []
 
   @baseline [
     {"default-src", ["'none'"]},

@@ -16,8 +16,6 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["html", "json"]
   end
 
-  # The policy is built by ContentSecurityPolicy; Sobelow cannot evaluate its value.
-  # sobelow_skip ["Config.CSP"]
   pipeline :browser_session do
     plug :fetch_session
     plug :enforce_session_authority
@@ -27,12 +25,10 @@ defmodule AutolaunchWeb.Router do
     plug AutolaunchWeb.Plugs.Panels
     plug :protect_from_forgery
 
-    # Every page can start sign-in from its top bar. Browser agents may use the
-    # tools the pages register, from this site only.
-    plug :put_secure_browser_headers, %{
-      "content-security-policy" => ContentSecurityPolicy.sign_in(),
-      "permissions-policy" => "tools=(self)"
-    }
+    # Browser agents may use the tools the pages register, from this site only.
+    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
+    # Every page can start sign-in from its top bar.
+    plug :put_content_security_policy, :sign_in
   end
 
   pipeline :api do
@@ -50,19 +46,13 @@ defmodule AutolaunchWeb.Router do
   # The saved errors: Credits admins only. Anyone else gets the not-found page under
   # the reading policy; an admin's page replaces it with one carrying this
   # request's nonce (AutolaunchWeb.ErrorsAdmin).
-  # The policy is built by ContentSecurityPolicy; Sobelow cannot evaluate its value.
-  # sobelow_skip ["Config.CSP"]
   pipeline :errors_admin do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :enforce_session_authority
     plug :protect_from_forgery
-
-    plug :put_secure_browser_headers, %{
-      "content-security-policy" => ContentSecurityPolicy.reading(),
-      "referrer-policy" => "no-referrer"
-    }
-
+    plug :put_secure_browser_headers, %{"referrer-policy" => "no-referrer"}
+    plug :put_content_security_policy, :reading
     plug AutolaunchWeb.ErrorsAdmin
   end
 
@@ -74,6 +64,14 @@ defmodule AutolaunchWeb.Router do
 
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
+
+  # Replaces the default policy put_secure_browser_headers sets with the page's
+  # profile, read per request so the router does not compile against it.
+  def put_content_security_policy(conn, :sign_in),
+    do: put_resp_header(conn, "content-security-policy", ContentSecurityPolicy.sign_in())
+
+  def put_content_security_policy(conn, :reading),
+    do: put_resp_header(conn, "content-security-policy", ContentSecurityPolicy.reading())
 
   scope "/", AutolaunchWeb do
     # The platform health check answers before sessions, flash or CSRF.
