@@ -6,6 +6,23 @@
 
 const yearInSeconds = 60 * 60 * 24 * 365
 const cookie = "autolaunch_aside"
+const signedInKey = "autolaunch:signed-in"
+
+// Signing in and out each load the page afresh. This tab notes whether the last
+// page it drew was signed in, so the first page drawn signed out after it
+// (Sign out, here or in another tab, or a sign-in that ended) is known.
+function justSignedOut(scope: Document | HTMLElement): boolean {
+  const signedIn = scope.querySelector("#account-control [data-account-target='profile']") !== null
+  const signedOut = scope.querySelector("#account-control [data-account-target='sign-in']") !== null
+  try {
+    const wasSignedIn = window.sessionStorage.getItem(signedInKey) === "true"
+    if (signedIn) window.sessionStorage.setItem(signedInKey, "true")
+    if (signedOut) window.sessionStorage.removeItem(signedInKey)
+    return wasSignedIn && signedOut
+  } catch {
+    return false
+  }
+}
 
 // The server's value, closed, is the default; only open is kept.
 function remember(value: string) {
@@ -84,6 +101,13 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
   document.addEventListener("keydown", onKeydown)
 
   sync()
+
+  // The panel covers Sign in, so the first page after signing out closes it
+  // and hands Sign in the focus.
+  if (justSignedOut(scope) && asideOpen()) {
+    setAside(false)
+    scope.querySelector<HTMLElement>("#account-control [data-account-target='sign-in']")?.focus()
+  }
 
   return {
     sync,
