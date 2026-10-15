@@ -1,5 +1,97 @@
 # Autolaunch agent account parity — 15 October 2026
 
+## Current consolidated state — frozen for review
+
+This summary supersedes earlier checkpoint wording below. The implementation is
+frozen at **`3312b9225367ebce39693d19f2ad238d24b720b5`**, on
+`sol/agent-account-parity-1015`, in the primary Autolaunch checkout. The last verified
+published/live baseline is **`09b69dada7fe7587a474de8f6c23b18e1ce9da60`**, Fly **130**.
+No candidate here has been pushed or deployed. This consolidation does not recheck
+production or imply the live site has remained unchanged since that observation.
+
+### Exact local chain
+
+| Commit above live baseline | Change | Review / release state |
+| --- | --- | --- |
+| `32b96189abe16ee80f447b0637f85e594ef1e4fd` | Canonical private account response projections and matching contracts | Independent privacy/compatibility review complete; client adoption and signed acceptance held. |
+| `d14263d527b6c30f948e1ff886f4c5e09e5915a9` | Records that review | Documentation only. |
+| `ef05f93ccbcce3e45b8faf68a157589ebbd2318d` | Cursor errors, 2048-character bound and CLI setup guidance | Independent review complete with no concrete regression; release holds remain. |
+| `b5bae84722e8c04725a1c278ff7ccc3c7f25b424` | Records final cursor review | Documentation only. |
+| `b3a82ba71ac50731421d7bdf893f1c808a9a3fdf` | Canonical token list URLs, corrected financial/profile guidance, audit and detail proposal | Coordinator reports product diff review found no concrete issue. External closed-schema adoption caveat remains. |
+| `3312b9225367ebce39693d19f2ad238d24b720b5` | Both-chain stored token-detail read, public route, native adapter, CLI source and contracts | Independent review assigned, pending. Frozen; no further implementation authorized by this checkpoint. |
+
+A later documentation-only commit may record this summary; it does not change the
+frozen implementation. Existing unrelated untracked work is preserved.
+
+### What the evidence establishes
+
+| Evidence level | Established | Does not establish |
+| --- | --- | --- |
+| Actual production native browser calls on the baseline | AIFROG/SANDY discovery and token **lists**, AIFROG auction detail and closed-auction quote; auction-to-token navigation followed by another list read; unsigned draft request preparation and forbidden-field refusal | The new single-token detail tool, signed draft saves, private account candidate responses or wallet execution. |
+| Actual installed CLI 1.10.2 and public HTTP | Earlier public AIFROG/SANDY reads agree on IDs, chains and pagination | Availability of the new `token <id>` command or deployment of the current contracts. |
+| Coordinator-reported external signed acceptance | Existing Memestock draft read and two-entry Credits history succeeded on the **old live response shape**; public pagination/refusal behavior passed | Successful signed execution of the new account projections, a candidate history page boundary, a save or revoked-pairing transition. |
+| Local source and diagnostics | Compile/type/format/contract checks; representative account projection/cursor checks; exact list/detail Ash visibility predicates; actual token controller projection/refusal code with substituted lookup; schema validation and intercepted native/standalone token transport | Real database execution of the new detail action, live native detail acceptance or a published updated CLI. No DB fixture or chain call was used for the token diagnostics. |
+
+The existing six CLI cases and five-operation adapter comparison passed unchanged.
+The new detail operation has separate one-off diagnostics, not coverage claimed
+from that older five-operation check. The initial dependency rebuild emitted an
+existing ErrorTracker attribute warning; subsequent scoped product compilation
+passed. No unchanged checks were rerun for this consolidation.
+
+### Current holds and shared work
+
+- **Independent review:** await the result for exact `3312b92` versus `b3a82ba`.
+  Preliminary source review is not independent clearance or release approval.
+- **Signed/private acceptance:** candidate account success, history pagination
+  across a boundary, saved-draft write/read and a real revocation transition remain
+  unproven. The earlier deletion fixture was automatically rejected and never
+  executed or retried. Do not create shared schemas or mutate production to fill
+  these gaps without applicable authority.
+- **CLI adoption:** installed 1.10.2 has old history cursor wording and no token-detail
+  command. Its description checker rejects eleven preexisting signed authority
+  labels in both the `b3a82ba` baseline and candidate; the new public command alone
+  passes. This is a shared checker/schema issue, not a reason to relabel signed
+  operations as public. SOCKS installation still needs the documented extra.
+- **Consumer compatibility:** private response fields were renamed/restructured;
+  strict consumers of the old closed Token schema may reject the added `url`.
+  Coordinate the API/CLI contract adoption before calling the release complete.
+- **Shared pairing/onboarding:** native pairing-code redemption and template `/start`
+  adoption remain separate template-owned proposals. No new pairing or profile
+  authority was registered. Wallet signing, launch settings/submission and owner
+  profile management remain person-controlled.
+- **Logger:** Autolaunch's returned history-error path does not use the affected
+  `UnexpectedFailure` helper. No local logger change is required by that report;
+  any future adoption must use the corrected canonical implementation. No live
+  incident or broad logging clearance was established.
+- **Dependencies:** the completed rollout receipt remains historical evidence.
+  Later shared-reference alignment patches are separate, under
+  `/Users/sean/Documents/regent/artifacts/dependency-parity-1015-pin-followup/`;
+  they are not integrated into this candidate and carry no release implication.
+- **Release:** no new push, merge, deployment, signing, wallet action, Points
+  activation or production database authority is implied. Live API/native checks
+  and published CLI acceptance belong to the authorized release stage.
+
+The earlier audit's missing-token-URL/detail finding is addressed **locally** by
+`b3a82ba` and `3312b92`; its Base-only proposal was superseded by the separate
+both-chain action. The earlier suggested active-wallet portfolio gap was not
+substantiated by the later source audit. SANDY's suspicious minimum-raise scale
+remains a separate unconfirmed observation, not a finding repaired by this work.
+
+### Immutable review artifacts
+
+All are under `/Users/sean/Documents/regent/artifacts/autolaunch-agent-parity-1015/`.
+Checksums below are the recorded checksums, not a new rerun:
+
+| Patch | SHA-256 |
+| --- | --- |
+| `candidate.patch` | `b5d67a78b97b48948a76cb2fd54921137c0ff1c13cc5fc8161aa6d200448e21f` |
+| `cursor-guidance-followup.patch` | `5976a87c74e2687dc7047c3908fbba2e9952171c5096690f428823df4fccb217` |
+| `token-url-guidance.patch` | `373961d42d2a74093175ecb7c5fb29c71fcd90905e6ac96cebb17f859503feed` |
+| `token-detail.patch` | `4f1aa4eaa0a5e4df88bf88c50d99f01efe2420ee4b46e9d7c03fa961cfea3908` |
+
+The remaining sections preserve the chronological findings, source locations,
+review messages, diagnostic limits and repairs that led to this state.
+
 ## Scope and status
 
 Local candidate on `sol/agent-account-parity-1015`, based on released `09b69da` (Fly 130). No push or deployment. The dependency rollout is complete and separate.
@@ -37,7 +129,7 @@ No caller can supply an account owner or bypass pairing through these edits. Poi
 | SANDY auction/list | Native browser WebMCP on production | 200, graduated, Robinhood, auction `2c2d3ccf-4545-4cc1-a045-fb3d46d1218c`. |
 | AIFROG and SANDY tokens | Native browser WebMCP | Both listed, matching auction IDs and chains. |
 | AIFROG closed-auction quote | Native browser read-only estimator | `auction_not_biddable`, inactive, estimated tokens zero; no wallet action. |
-| Navigation | Auction → token page, refetch native handles, execute token read | Pass; no browser errors. Temporary tab closed. |
+| Navigation | Auction → token page, refetch native handles, execute token-list tool | Pass; no browser errors. Temporary tab closed. |
 | Draft preparation | Native `prepare_agent_request` | Metadata produces PATCH bytes only; chain input refused. No signature or save attempted. |
 | Installed CLI and HTTP | Regents CLI 1.10.2 public reads plus independent HTTP | AIFROG auction and SANDY token identities/pagination match browser results. |
 | Private account success / positions | No signed private request executed | Unverified. Existing isolated test DB lacks both shared Credits and Points schemas. |
