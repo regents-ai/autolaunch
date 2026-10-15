@@ -3,7 +3,19 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v133, 15 October 2026: swaps start at 6% slippage on a bigger machine
+## v135, 15 October 2026 (b830b18): Escape closes swap settings; Autolaunch's own agent skill
+- On a token page, Escape closes the swap settings and returns to the settings button.
+- Revstake wallet payments read a typed amount exactly, digit for digit, the same way bids do.
+- `/skill.md` is now Autolaunch's own guide for agents: what to read, which tool or command fits, and how often to check back. `/agents.md` is unchanged, and `/llms.txt` links both.
+- An unused glass animation and its build steps are gone.
+
+## v134, 15 October 2026 (39c0cc9): sign out stays signed out
+- After Sign out, a sign-in the wallet still remembers no longer signs you back in by itself. Signing out in one tab signs out the others.
+- Every wallet transaction names its chain.
+- Request limits work as ash-template's do, with the same allowances.
+- Pages, files and the X connection window carry ash-template's security rules. The saved-errors page shows nothing to visitors.
+
+## v133, 15 October 2026 (5f0209f): swaps start at 6% slippage on a bigger machine
 - The token page's swap widget starts with a 6% maximum slippage, up from 1%. Swappers can still pick anywhere from 1% to 10%.
 - Production runs on two dedicated processors and 4 GB, up from one and 2 GB. Fly no longer turns visitors away at 150 connections; when the machine fills up, it gets a bigger one.
 
