@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.Router do
 
     get "/llms.txt", PublicPagesController, :agent_guide
     get "/agents.md", PublicPagesController, :signed_agent_guide
-    get "/skill.md", PublicPagesController, :signed_agent_guide
+    get "/skill.md", PublicPagesController, :skill_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/openapi.json", PublicPagesController, :openapi
     get "/robots.txt", PublicPagesController, :robots

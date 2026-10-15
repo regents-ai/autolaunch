@@ -203,3 +203,4 @@ These happen on the website with the person's own wallet: auctions and launches 
 Each product has its own sign-in and its own tools. Links between products are for discovery and do not share permissions.
 
 Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
+Using Autolaunch for your person, from research to watching a bid: [skill.md]({{origin}}/skill.md).

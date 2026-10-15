@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias AutolaunchWeb.Paths
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home docs about contact privacy terms llms agents)
+  @names ~w(home docs about contact privacy terms llms agents skill)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -129,7 +129,11 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   @doc "The agent guide served at `/llms.txt`."
   def agent_guide, do: markdown("llms")
+  @doc "The install, sign-in and pairing guide served at `/agents.md`."
   def signed_agent_guide, do: markdown("agents")
+
+  @doc "The skill served at `/skill.md`: using Autolaunch for your person."
+  def skill_guide, do: markdown("skill")
 
   @doc "The browser tool manifest served at `/capabilities`: every tool the pages register."
   def capabilities, do: @manifest
