@@ -19,8 +19,7 @@ defmodule Autolaunch.Application do
   def children do
     [
       AutolaunchWeb.Telemetry,
-      {Autolaunch.Accounts.BootstrapRateLimiter, []},
-      {Autolaunch.Accounts.RequestRateLimiter, []},
+      Autolaunch.Accounts.RequestRateLimiter,
       AutolaunchWeb.ShareCard.Cache,
       public_auctions_child(),
       Supervisor.child_spec(

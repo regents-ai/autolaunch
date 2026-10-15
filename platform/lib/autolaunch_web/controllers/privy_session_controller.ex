@@ -2,8 +2,7 @@ defmodule AutolaunchWeb.PrivySessionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch.AccessContext
-  alias Autolaunch.Accounts.BootstrapRateLimiter
-  alias Autolaunch.Accounts.{SessionAuthority, VerifiedSession}
+  alias Autolaunch.Accounts.{RequestRateLimiter, SessionAuthority, VerifiedSession}
   alias Autolaunch.Privy
 
   require Logger
@@ -72,13 +71,13 @@ defmodule AutolaunchWeb.PrivySessionController do
     window = Keyword.fetch!(budget, :window_seconds)
     {key, source} = client_key(conn)
 
-    case BootstrapRateLimiter.admit(
+    case RequestRateLimiter.admit(
            {:session_bootstrap, key},
            Keyword.fetch!(budget, :limit),
            window
          ) do
-      :ok -> renew(conn, nil)
-      {:error, :rate_limited} -> rate_limited(conn, source, window)
+      {:ok, _budget} -> renew(conn, nil)
+      {:error, :rate_limited, _budget} -> rate_limited(conn, source, window)
     end
   end
 
