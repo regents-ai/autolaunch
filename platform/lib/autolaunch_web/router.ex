@@ -2,10 +2,14 @@ defmodule AutolaunchWeb.Router do
   use AutolaunchWeb, :router
   use ErrorTracker.Web, :router
 
+  # Format negotiation only; every scope also runs :browser_session for headers.
+  # sobelow_skip ["Config.Headers"]
   pipeline :browser do
     plug :accepts, ["html"]
   end
 
+  # Format negotiation only; every scope also runs :browser_session for headers.
+  # sobelow_skip ["Config.Headers"]
   pipeline :browser_auth do
     plug :accepts, ["html", "json"]
   end
