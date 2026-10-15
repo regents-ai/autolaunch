@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.XOAuthController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Accounts.{SessionAuthority, XOAuth}
+  alias AutolaunchWeb.ContentSecurityPolicy
 
   def create(conn, %{"role" => role} = params) do
     case XOAuth.begin(claim(conn), role, params) do
@@ -46,14 +47,14 @@ defmodule AutolaunchWeb.XOAuthController do
         {:error, _reason} -> %{role: nil, generation: nil, status: "failed"}
       end
 
+    nonce = 18 |> :crypto.strong_rand_bytes() |> Base.encode64()
+
     conn
     |> no_store()
-    |> put_resp_header(
-      "content-security-policy",
-      "default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'"
-    )
+    |> put_resp_header("content-security-policy", ContentSecurityPolicy.x_callback(nonce))
     |> put_root_layout(false)
     |> render(:callback,
+      csp_nonce: nonce,
       origin: XOAuth.origin(),
       status: result.status,
       role: result.role,
@@ -108,7 +109,7 @@ defmodule AutolaunchWeb.XOAuthHTML do
             </Regent.Structure.panel>
           </Regent.Structure.row>
         </Regent.Structure.frame>
-        <script>
+        <script nonce={@csp_nonce}>
           (() => {
             const result = document.getElementById("x-oauth-result");
             const value = (key) => result.dataset[key] || null;

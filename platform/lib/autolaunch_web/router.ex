@@ -2,6 +2,8 @@ defmodule AutolaunchWeb.Router do
   use AutolaunchWeb, :router
   use ErrorTracker.Web, :router
 
+  alias AutolaunchWeb.ContentSecurityPolicy
+
   # Format negotiation only; every scope also runs :browser_session for headers.
   # sobelow_skip ["Config.Headers"]
   pipeline :browser do
@@ -14,6 +16,8 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["html", "json"]
   end
 
+  # The policy is built by ContentSecurityPolicy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
   pipeline :browser_session do
     plug :fetch_session
     plug :enforce_session_authority
@@ -22,9 +26,13 @@ defmodule AutolaunchWeb.Router do
     plug AutolaunchWeb.Plugs.Theme
     plug AutolaunchWeb.Plugs.Panels
     plug :protect_from_forgery
-    # Browser agents may use the tools the pages register, from this site only.
-    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
-    plug :put_content_security_policy
+
+    # Every page can start sign-in from its top bar. Browser agents may use the
+    # tools the pages register, from this site only.
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.sign_in(),
+      "permissions-policy" => "tools=(self)"
+    }
   end
 
   pipeline :api do
@@ -39,16 +47,22 @@ defmodule AutolaunchWeb.Router do
     plug :protect_from_forgery
   end
 
-  # The saved errors: Credits admins only. Anyone else gets the not-found page;
-  # an admin's page carries its own policy with this request's nonce
-  # (AutolaunchWeb.ErrorsAdmin).
+  # The saved errors: Credits admins only. Anyone else gets the not-found page under
+  # the reading policy; an admin's page replaces it with one carrying this
+  # request's nonce (AutolaunchWeb.ErrorsAdmin).
+  # The policy is built by ContentSecurityPolicy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
   pipeline :errors_admin do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :enforce_session_authority
     plug :protect_from_forgery
-    plug :put_secure_browser_headers, %{"referrer-policy" => "no-referrer"}
-    plug :put_content_security_policy
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.reading(),
+      "referrer-policy" => "no-referrer"
+    }
+
     plug AutolaunchWeb.ErrorsAdmin
   end
 
@@ -60,13 +74,6 @@ defmodule AutolaunchWeb.Router do
 
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
-
-  # Replaces the default policy put_secure_browser_headers sets, so each page
-  # carries one.
-  def put_content_security_policy(conn, _opts) do
-    policy = AutolaunchWeb.ContentSecurityPolicy.policy()
-    put_resp_header(conn, "content-security-policy", policy)
-  end
 
   scope "/", AutolaunchWeb do
     # The platform health check answers before sessions, flash or CSRF.
