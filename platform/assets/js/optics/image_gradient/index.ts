@@ -6,9 +6,11 @@
  * size or the site switches between light and dark.
  */
 
+import {prepareShader} from "@vgpu/wgsl/prepare"
+
 import {effect, frame, init, surface} from "vgpu"
 
-const shader = /* wgsl */ `
+const shader = prepareShader(/* wgsl */ `
 struct Params { image: vec4f, theme: vec4f }
 @group(0) @binding(0) var<uniform> params: Params;
 
@@ -18,7 +20,7 @@ struct Params { image: vec4f, theme: vec4f }
   let tint = mix(params.image.rgb, params.theme.rgb, reach);
   return vec4f(mix(params.theme.rgb, tint, 0.6 + 0.4 * vignette), 1.0);
 }
-`
+`, "image_gradient_index.wgsl")
 
 export interface Painter {
   dispose(): void

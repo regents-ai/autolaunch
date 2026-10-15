@@ -70,6 +70,19 @@ a pin, change its ref at the top of `mix.exs` and run `mix deps.update <name>`.
 ash-template's list of required fixes (it needs `gh auth login`).
 Do not clone recursive Solidity submodules for a web-only change.
 
+Shared dependency versions follow ash-template's tested baseline. Run its
+`scripts/check-dependency-parity.py` with the template and all five site roots to
+compare every shared lock entry, including packages used by two sites but absent
+from the template. Keep product-only dependencies; do not update shared versions
+in one site independently. The baseline retains AshPostgres 2.13.0 because later
+versions through 2.14.5 fail the shared-schema upsert check.
+
+Before deploying, `Autolaunch.Release.pending_migrations/0` must report no missing
+shared Agents, Credits or Points migrations. This release also needs Agents'
+`20261014150000` migration. The release checks their ledgers and refuses missing
+prerequisites; it does not apply shared migrations. Publishing a dependency update
+does not enable Points earning.
+
 ## Quickstart
 
 You need Erlang, Elixir, Node, and PostgreSQL at the versions pinned in `.tool-versions`, and

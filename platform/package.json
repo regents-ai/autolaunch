@@ -8,24 +8,28 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@privy-io/react-auth": "3.40.0",
-    "@solana-program/system": "0.14.1",
-    "@solana-program/token": "0.16.1",
-    "@solana/kit": "8.2.0",
+    "@privy-io/react-auth": "3.49.0",
+    "@solana-program/system": "0.15.0",
+    "@solana-program/token": "0.17.0",
+    "@solana/kit": "8.5.0",
     "animejs": "4.5.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "vgpu": "0.4.0",
-    "viem": "2.56.3"
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "vgpu": "0.6.0",
+    "viem": "2.57.7",
+    "@vgpu/wgsl": "0.6.0"
   },
   "overrides": {
-    "axios@^1.0.0": "1.20.0",
-    "ws@^8.0.0": "8.21.3"
+    "ws@^8.0.0": "8.22.0",
+    "axios": "1.20.0",
+    "decode-uri-component": "0.5.0",
+    "uuid": "11.1.1"
   },
   "devDependencies": {
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "typescript": "7.0.2",
-    "vitest": "5.0.0"
+    "vitest": "5.0.4",
+    "@webgpu/types": "0.1.74"
   }
 }

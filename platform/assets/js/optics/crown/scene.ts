@@ -8,6 +8,8 @@
  * convergence state, so one frame is the final picture for a given camera.
  */
 
+import {prepareShader} from "@vgpu/wgsl/prepare"
+
 import {draw, effect, frame, sampler, target} from "vgpu"
 import type {Draw, Effect, Geometry, Gpu, Surface, Target} from "vgpu"
 
@@ -73,17 +75,17 @@ export function createScene(
   label: string,
 ): PrismScene {
   const aspect = output[0] / Math.max(1, output[1])
-  const bloomEffect = (name: string) => effect(gpu, bloomWgsl, {label: `${label}.bloom-${name}`})
+  const bloomEffect = (name: string) => effect(gpu, prepareShader(bloomWgsl), {label: `${label}.bloom-${name}`})
   const bloomUpsampleEffect = (name: string) =>
-    effect(gpu, bloomUpsampleWgsl, {label: `${label}.bloom-upsample-${name}`, blend: "additive"})
+    effect(gpu, prepareShader(bloomUpsampleWgsl), {label: `${label}.bloom-upsample-${name}`, blend: "additive"})
   const crown = crownGeometry(gpu, `${label}.crown`)
   const lightSheet = crownLightGeometry(gpu, variant, [0, 0], aspect, `${label}.light-sheet`)
 
   return {
     gpu,
     outputSize: output,
-    copyToBack: effect(gpu, copyLinearWgsl, {label: `${label}.copy-to-back`}),
-    copyToFront: effect(gpu, copyLinearWgsl, {label: `${label}.copy-to-front`}),
+    copyToBack: effect(gpu, prepareShader(copyLinearWgsl), {label: `${label}.copy-to-back`}),
+    copyToFront: effect(gpu, prepareShader(copyLinearWgsl), {label: `${label}.copy-to-front`}),
     bloomDownsample: [
       bloomEffect("half"),
       bloomEffect("quarter"),
@@ -95,10 +97,10 @@ export function createScene(
       bloomUpsampleEffect("quarter"),
       bloomUpsampleEffect("half"),
     ],
-    present: effect(gpu, presentWgsl, {label: `${label}.present`}),
-    background: effect(gpu, backgroundWgsl, {label: `${label}.background`}),
+    present: effect(gpu, prepareShader(presentWgsl), {label: `${label}.present`}),
+    background: effect(gpu, prepareShader(backgroundWgsl), {label: `${label}.background`}),
     light: draw(gpu, {
-      shader: crownLightWgsl,
+      shader: prepareShader(crownLightWgsl),
       geometry: lightSheet,
       blend: "additive",
       cull: "none",
@@ -106,7 +108,7 @@ export function createScene(
       label: `${label}.light`,
     }),
     glassBack: draw(gpu, {
-      shader: crownGlassBackWgsl,
+      shader: prepareShader(crownGlassBackWgsl),
       geometry: crown,
       cull: "front",
       depth: false,
@@ -114,7 +116,7 @@ export function createScene(
       label: `${label}.glass-back`,
     }),
     glassFront: draw(gpu, {
-      shader: crownGlassFrontWgsl,
+      shader: prepareShader(crownGlassFrontWgsl),
       geometry: crown,
       cull: "back",
       depth: false,

@@ -11,12 +11,14 @@
  * half the line's width of it, which rounds every end and join.
  */
 
+import {prepareShader} from "@vgpu/wgsl/prepare"
+
 import {draw, frame, init, storage, surface} from "vgpu"
 
 // The server thins a long history to this many points.
 const maxPoints = 400
 
-const shader = /* wgsl */ `
+const shader = prepareShader(/* wgsl */ `
 struct Params { color: vec4f, size: vec2f, inset: f32, width: f32, count: u32, dpr: f32 }
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var<storage, read> points: array<vec2f>;
@@ -80,7 +82,7 @@ struct Stroke {
   let alpha = clamp((stroke.radius - away) / params.dpr + 0.5, 0.0, 1.0);
   return vec4f(params.color.rgb * alpha, alpha);
 }
-`
+`, "price_chart_index.wgsl")
 
 export interface Painter {
   update(): void

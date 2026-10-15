@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "a844a8363d76420410f1dece69e2c7b0ebec895a"
+  @elixir_utils_ref "b5824049d55012f2e8b1e4d7e3e2fcc549d93360"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "d3408b5757732e05aaf208d829f65f1bb12147c0"
+  @design_system_ref "fb0542f656f68b30e56f370c8806639ac9067c07"
 
   def project do
     [
@@ -17,7 +17,7 @@ defmodule Autolaunch.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:ash_signals, :phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,
       usage_rules: usage_rules()
@@ -69,13 +69,13 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.34 and >= 3.34.6"},
+      {:ash, "~> 3.36"},
       {:assent, "== 0.3.1"},
-      {:ash_phoenix, "~> 2.3"},
-      # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+      {:ash_phoenix, "~> 2.3.25"},
+      # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
       # repo's prefix that picks Autolaunch's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
-      {:ash_oban, "~> 0.9.0"},
+      {:ash_oban, "~> 0.10.0"},
       {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
@@ -101,7 +101,7 @@ defmodule Autolaunch.MixProject do
       {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
-      {:mdex, "== 0.13.3"},
+      {:mdex, "== 0.14.2"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -118,14 +118,14 @@ defmodule Autolaunch.MixProject do
       {:ex_keccak, "~> 0.7.8"},
       # Signs the transaction that finishes an ended auction.
       {:ex_secp256k1, "~> 0.8.0"},
-      {:decimal, "== 3.1.2"},
+      {:decimal, "== 3.2.0"},
       # IANA zones for the Stocks auction start; compiled in, nothing fetched at runtime.
       {:tz, "~> 0.28"},
-      {:req, "== 0.7.4"},
+      {:req, "== 0.7.5"},
       # Keeps the public auction list for a few seconds, so repeat callers share one read.
       {:cachex, "~> 4.1"},
       {:yaml_elixir, "== 2.12.2"},
-      {:vix, "== 0.41.0"},
+      {:vix, "== 0.42.0"},
       # CVE-2026-105659: upstream fix is not in a Hex release yet.
       {:bandit,
        git: "https://github.com/mtrudel/bandit.git",
@@ -139,7 +139,7 @@ defmodule Autolaunch.MixProject do
        sparse: "credo_ash",
        only: [:dev, :test],
        runtime: false},
-      {:sobelow, "~> 0.15", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -197,11 +197,11 @@ defmodule Autolaunch.MixProject do
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
         # the endpoint naming the public documents its agent-access plug serves.
-        # Nothing else is permitted. The ceiling is thirty-one domain-to-resource
-        # edges (Accounts six, Autolaunch twenty-five), forty
+        # Nothing else is permitted. The ceiling is thirty-two domain-to-resource
+        # edges (Accounts six, Autolaunch twenty-five, Points one), forty
         # resource-to-check edges and the one endpoint edge, and it is re-based
         # per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 77",
+        "xref graph --label compile-connected --fail-above 78",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"

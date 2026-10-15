@@ -56,7 +56,6 @@ config :regent_credits,
   admins: [],
   agent_grants_enabled: false,
   chain_client: Autolaunch.Chain.NodeClient,
-  on_credited: Autolaunch.Credits.Credited,
   chains: %{
     base: %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"},
     ethereum: %{chain_id: 1, name: "Ethereum", rpc_url: "https://ethereum-rpc.publicnode.com"}
@@ -140,7 +139,7 @@ config :spark,
   ]
 
 config :autolaunch,
-  ash_domains: [Autolaunch.Accounts, Autolaunch],
+  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
