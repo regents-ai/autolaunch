@@ -156,7 +156,8 @@ defmodule AutolaunchWeb.BidComponent do
       assign(assigns,
         rate: assigns.usd_rate.result,
         steps: steps(assigns),
-        next_step: next_step(assigns)
+        next_step: next_step(assigns),
+        shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
       )
 
     ~H"""
@@ -240,7 +241,11 @@ defmodule AutolaunchWeb.BidComponent do
             >
               {@notice}
             </p>
-            <.summary prepared={@prepared} rate={@rate} chain_name={@review && @review.chain.name} />
+            <.summary
+              prepared={@shown_prepared}
+              rate={@rate}
+              chain_name={@review && @review.chain.name}
+            />
             <p class="bid-form__note" hidden={signatures_left(@steps, @next_step) < 2}>
               Your wallet asks {times(signatures_left(@steps, @next_step))}: first to let the auction use your <span class="ticker">{approval_currency(@prepared)}</span>, last to place the bid.
             </p>
@@ -448,12 +453,10 @@ defmodule AutolaunchWeb.BidComponent do
     </dl>
     <p class="bid-form__note" hidden={!(@prepared && @prepared.facts.min_stock_out)}>
       <%= if @prepared && @prepared.facts.min_stock_out do %>
-        Your <span class="ticker">USDC</span>
-        buys at least
-        <TokenDisplay.written
-          value={@prepared.facts.min_stock_out}
-          unit={@prepared.facts.currency_symbol}
-        />, 1% below the estimate, or the bid is not placed.
+        <strong>Minimum stock received: {@prepared.facts.min_stock_out}
+          <span class="ticker">{@prepared.facts.currency_symbol}</span></strong>.
+        Slippage: {@prepared.facts.slippage_percent}%. Your USDC must buy at least this much
+        stock to fund the bid, or the transaction reverts.
       <% end %>
     </p>
     """
@@ -500,10 +503,16 @@ defmodule AutolaunchWeb.BidComponent do
     end
   end
 
-  defp request({auction_id, signer, pay_with, amount, max_price}),
+  defp request({auction_id, signer, pay_with, amount, max_price, slippage}),
     do:
       {signer,
-       %{auction_id: auction_id, pay_with: pay_with, amount: amount, max_price: max_price}}
+       %{
+         auction_id: auction_id,
+         pay_with: pay_with,
+         amount: amount,
+         max_price: max_price,
+         slippage_percent: slippage
+       }}
 
   defp reviewed(socket, key, inputs, {:ok, prepared}) do
     review =
@@ -552,6 +561,8 @@ defmodule AutolaunchWeb.BidComponent do
     BidForm.values(
       %{
         "amount" => text(inputs["amount"]),
+        "slippage_percent" =>
+          text(Map.get(inputs, "slippage_percent", assigns.form.slippage_percent)),
         "pay_with" => inputs["pay_with"] || assigns.form.pay_with,
         "basis" => assigns.form.basis,
         "price" => assigns.form.price,
@@ -586,7 +597,7 @@ defmodule AutolaunchWeb.BidComponent do
        when is_binary(signer) do
     with amount when amount != "" <- form.amount,
          max_price when is_binary(max_price) <- max_price(assigns),
-         do: {auction.id, signer, form.pay_with, amount, max_price},
+         do: {auction.id, signer, form.pay_with, amount, max_price, form.slippage_percent},
          else: (_incomplete -> nil)
   end
 
@@ -852,6 +863,9 @@ defmodule AutolaunchWeb.BidComponent do
       do: "The Base fork could not be read just now. Check that it is still running.",
       else: Map.fetch!(@copy, :chain_unavailable)
   end
+
+  defp copy(:invalid_slippage),
+    do: "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 

@@ -30,8 +30,6 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   @new_decimals 18
   @usdg_decimals 6
-  # The lowest STOCK accepted is at most one percent below today's quote.
-  @tolerance_divisor 100
   @deadline_seconds 900
   @uint128_max Integer.pow(2, 128) - 1
   # The last second the calendar can state (year 9999) less the deadline lead,
@@ -47,8 +45,18 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   the page's review shows.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(%{auction: auction, usdg_amount: usdg_amount, max_price: max_price}, address, opts) do
-    with {:ok, actor} <- human(opts),
+  def prepare(
+        %{auction: auction, usdg_amount: usdg_amount, max_price: max_price} = request,
+        address,
+        opts
+      ) do
+    with {:ok, bps} <-
+           refusable(
+             Autolaunch.BidSlippage.parse(
+               Map.get(request, :slippage_percent, Autolaunch.BidSlippage.default())
+             )
+           ),
+         {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, actor, opts),
          {:ok, config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
@@ -59,7 +67,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          :ok <- consistent(discovery, snapshot),
          {:ok, header} <- block_header(snapshot.block, Lab.rpc_opts(config)),
          {:ok, asset} <- listed_stock(snapshot.stock),
-         {:ok, executable} <- executable(usdg_amount, price, snapshot, header),
+         {:ok, executable} <- executable(usdg_amount, price, snapshot, header, bps),
          do: {:ok, build(executable, asset, snapshot, config)}
   end
 
@@ -146,11 +154,11 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   # Executable values
 
-  defp executable(usdg_amount, price, snapshot, header) do
+  defp executable(usdg_amount, price, snapshot, header, bps) do
     with :ok <- biddable(usdg_amount, snapshot),
          {:ok, min_stock_out} <-
            bounded(
-             snapshot.stock_quote - div(snapshot.stock_quote, @tolerance_divisor),
+             Autolaunch.BidSlippage.minimum(snapshot.stock_quote, bps),
              @uint128_max,
              :quote_out_of_range
            ) do
@@ -159,6 +167,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          usdg_amount: usdg_amount,
          stock_quote: snapshot.stock_quote,
          min_stock_out: min_stock_out,
+         slippage_percent: Autolaunch.BidSlippage.percent(bps),
          max_price_entered: price.entered_stock_per_new,
          max_price_q96: snapshot.max_price_q96,
          max_price_adjusted:
@@ -186,6 +195,9 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   # The review
 
   defp build(executable, asset, snapshot, config) do
+    {:ok, minimum_units} =
+      Amounts.format_units(executable.min_stock_out, executable.stock_decimals)
+
     %{
       chain: Client.chain(config),
       steps:
@@ -195,12 +207,13 @@ defmodule Autolaunch.Robinhood.StockBidActions do
         ),
       facts: %{
         usdg_amount: usdg_units(executable.usdg_amount),
+        slippage_percent: executable.slippage_percent,
         stock_symbol: asset.symbol,
         max_price: stock_per_new(executable.max_price_q96, executable),
         max_price_adjusted: executable.max_price_adjusted,
         max_price_entered: executable.max_price_entered,
         stock_quote: stock_units(executable.stock_quote, executable),
-        min_stock_out: stock_units(executable.min_stock_out, executable)
+        min_stock_out: minimum_units
       }
     }
   end

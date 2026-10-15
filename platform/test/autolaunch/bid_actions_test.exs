@@ -236,6 +236,83 @@ defmodule Autolaunch.BidActionsTest do
     assert at.status_band == "borderline"
   end
 
+  defmodule StockQuoteRpc do
+    def post(_url, options) do
+      %{method: method, params: params} = options[:json]
+      result = answer(method, params)
+      {:ok, %{status: 200, body: %{"result" => result}}}
+    end
+
+    defp answer("eth_chainId", _), do: "0x2105"
+    defp answer("eth_getCode", _), do: "0x6080"
+
+    defp answer("eth_getBlockByNumber", _),
+      do: %{
+        "number" => "0x96",
+        "hash" => "0x" <> String.duplicate("ab", 32),
+        "timestamp" => "0x6700"
+      }
+
+    defp answer("eth_call", [%{data: data}, _block]) do
+      words = %{
+        Autolaunch.LabAbi.selector("stockAdmission(address)") => [
+          1,
+          18,
+          0x2222222222222222222222222222222222222222
+        ],
+        Autolaunch.LabAbi.selector("balanceOf(address)") => [100_000_000],
+        Autolaunch.LabAbi.selector("allowance(address,address)") => [100_000_000],
+        Autolaunch.LabAbi.selector("quoteExactIn(address,address,uint256)") => [
+          Integer.pow(2, 128) - 1
+        ]
+      }
+
+      "0x" <>
+        Enum.map_join(
+          Map.fetch!(words, String.slice(data, 0, 10)),
+          &Autolaunch.BaseRpcStub.hex_word/1
+        )
+    end
+  end
+
+  test "the displayed stock minimum equals the signed calldata, for default and edited slippage",
+       %{wallet: wallet, opts: opts} do
+    install()
+    previous = Application.get_env(:autolaunch, :autolaunch_lab_http_client)
+    Application.put_env(:autolaunch, :autolaunch_lab_http_client, StockQuoteRpc)
+
+    on_exit(fn ->
+      if previous,
+        do: Application.put_env(:autolaunch, :autolaunch_lab_http_client, previous),
+        else: Application.delete_env(:autolaunch, :autolaunch_lab_http_client)
+    end)
+
+    auction =
+      memestock_auction!(
+        "0x5555555555555555555555555555555555555555",
+        "0x0f8955a7f09ec713bb71c30e07b512ecee69a044"
+      )
+
+    request = %{auction_id: auction.id, amount: "10", max_price: "3", pay_with: "USDC"}
+
+    for {input, bps} <- [{request, 500}, {Map.put(request, :slippage_percent, "12.50"), 1250}] do
+      assert {:ok, prepared} = BidActions.prepare(input, wallet, opts)
+      bid = Enum.find(prepared.steps, &(&1.step == "usdc_bid"))
+      minimum = bid.data |> String.slice(138, 64) |> String.to_integer(16)
+
+      assert {:ok, ^minimum} =
+               Autolaunch.Stocks.Amounts.parse_units(prepared.facts.min_stock_out, 18)
+
+      assert minimum == Autolaunch.BidSlippage.minimum(Integer.pow(2, 128) - 1, bps)
+      assert prepared.facts.slippage_percent == Autolaunch.BidSlippage.percent(bps)
+    end
+
+    assert {:error, error} =
+             BidActions.prepare(Map.put(request, :slippage_percent, "100"), wallet, opts)
+
+    assert refusal(error) == :invalid_slippage
+  end
+
   defp prepare(auction_id, wallet, amount, max_price, opts),
     do:
       BidActions.prepare(

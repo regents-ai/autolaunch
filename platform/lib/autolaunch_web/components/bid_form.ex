@@ -46,7 +46,15 @@ defmodule AutolaunchWeb.Components.BidForm do
   beat: `stop` is nil until the bidder picks one.
   """
   def blank,
-    do: %{amount: "", pay_with: nil, basis: "stop", stop: nil, fdv: "", price: ""}
+    do: %{
+      amount: "",
+      pay_with: nil,
+      basis: "stop",
+      stop: nil,
+      fdv: "",
+      price: "",
+      slippage_percent: Autolaunch.BidSlippage.default()
+    }
 
   @doc "The form with its max FDV set by a price per token entered from elsewhere on the page."
   def at_price(form, price), do: %{form | basis: "price", price: price}
@@ -61,6 +69,7 @@ defmodule AutolaunchWeb.Components.BidForm do
       form
       | amount: trimmed(params, "amount"),
         pay_with: Map.get(params, "pay_with", form.pay_with),
+        slippage_percent: Map.get(params, "slippage_percent", form.slippage_percent),
         basis: basis(params),
         stop: stop(params["stop"], form.stop),
         fdv: trimmed(params, "fdv"),
@@ -145,6 +154,11 @@ defmodule AutolaunchWeb.Components.BidForm do
     {_unit, factor} = fdv_currency(form.pay_with, price_unit, rate)
     max_price = max_price(form, book, supply, factor)
     fields = %{"amount" => form.amount, "fdv" => shown_fdv(form, max_price, supply, factor)}
+
+    fields =
+      if form.pay_with in @dollars and form.pay_with != price_unit,
+        do: Map.put(fields, "slippage_percent", form.slippage_percent),
+        else: fields
 
     if match?([_, _ | _], pay_with),
       do: Map.put(fields, "pay_with", form.pay_with),
@@ -340,6 +354,24 @@ defmodule AutolaunchWeb.Components.BidForm do
         </p>
         <p :if={@ready && !@beat} class="bid-box__note">
           Bids have reached the highest price this auction takes.
+        </p>
+      </div>
+
+      <div :if={@amount_unit in ["USDC", "USDG"] and @amount_unit != @price_unit} class="bid-box">
+        <label class="bid-box__label" for={"#{@id}-slippage"}>Stock conversion slippage (%)</label>
+        <input
+          id={"#{@id}-slippage"}
+          class="bid-box__figure"
+          name="slippage_percent"
+          value={@form.slippage_percent}
+          data-onchain-input="slippage_percent"
+          inputmode="decimal"
+          autocomplete="off"
+          phx-debounce="400"
+          aria-describedby={"#{@id}-slippage-help"}
+        />
+        <p id={"#{@id}-slippage-help"} class="bid-box__note">
+          5% by default. Enter 0–99.99%. A higher percentage accepts fewer stocks for your budget.
         </p>
       </div>
 

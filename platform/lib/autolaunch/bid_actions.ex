@@ -27,8 +27,6 @@ defmodule Autolaunch.BidActions do
   # the stored auction row records: REGENT's eighteen, or the admitted stock's.
   @usdc_decimals 6
   @new_decimals 18
-  # The USDC route estimate is never binding; the bid demands this much of it.
-  @usdc_tolerance_bps 100
   @usdc_deadline_seconds 900
   @q96 79_228_162_514_264_337_593_543_950_336
   @uint128_max Integer.pow(2, 128) - 1
@@ -133,7 +131,7 @@ defmodule Autolaunch.BidActions do
   adapter it still needs, then the adapter call that buys the stock through
   the admitted route and places the bid as this wallet; the route's estimate is
   shown and never trusted, as the adapter is told to deliver at least the
-  estimate less one percent or revert, and to refuse the call after fifteen
+  estimate less the chosen slippage (5% by default) or revert, and to refuse the call after fifteen
   minutes.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -163,7 +161,12 @@ defmodule Autolaunch.BidActions do
       }
 
       if request[:pay_with] == "USDC",
-        do: usdc_bid(bid, amount),
+        do:
+          usdc_bid(
+            bid,
+            amount,
+            Map.get(request, :slippage_percent, Autolaunch.BidSlippage.default())
+          ),
         else: currency_bid(bid, amount)
     end
   end
@@ -264,12 +267,15 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, typed) do
-    with :ok <- stocks_auction(auction),
+  defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, typed, slippage) do
+    with {:ok, bps} <- refusable(Autolaunch.BidSlippage.parse(slippage)),
+         :ok <- stocks_auction(auction),
          {:ok, usdc_amount} <- refusable(atomic_amount(typed, @usdc_decimals)),
          {:ok, usdc} <- usdc_snapshot(snapshot.currency, signer, usdc_amount),
          :ok <- usdc_affordable(usdc, usdc_amount),
-         {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote),
+         {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote, bps),
+         {:ok, minimum_units} <-
+           Autolaunch.Stocks.Amounts.format_units(min_stock_out, auction.quote_token_decimals),
          {:ok, config} <- lab(StocksLab) do
       deadline = DateTime.to_unix(DateTime.utc_now()) + @usdc_deadline_seconds
 
@@ -300,8 +306,9 @@ defmodule Autolaunch.BidActions do
              bid,
              units(usdc_amount, @usdc_decimals),
              "USDC",
-             units(min_stock_out, auction.quote_token_decimals)
-           ),
+             minimum_units
+           )
+           |> Map.put(:slippage_percent, Autolaunch.BidSlippage.percent(bps)),
          context:
            context(bid, %{
              currency_symbol: "USDC",
@@ -368,12 +375,12 @@ defmodule Autolaunch.BidActions do
   defp usdc_affordable(%{usdc_balance: balance}, amount) when balance >= amount, do: :ok
   defp usdc_affordable(_usdc, _amount), do: unavailable(:amount_above_balance)
 
-  defp min_stock_out(quote) when quote > 0 do
-    minimum = quote - div(quote * @usdc_tolerance_bps, 10_000)
+  defp min_stock_out(quote, bps) when quote > 0 do
+    minimum = Autolaunch.BidSlippage.minimum(quote, bps)
     if minimum in 1..@uint128_max, do: {:ok, minimum}, else: unavailable(:usdc_route_unavailable)
   end
 
-  defp min_stock_out(_quote), do: unavailable(:usdc_route_unavailable)
+  defp min_stock_out(_quote, _bps), do: unavailable(:usdc_route_unavailable)
 
   defp stocks_auction(%{kind: :stocks}), do: :ok
   defp stocks_auction(_auction), do: unavailable(:usdc_bids_unavailable)

@@ -194,7 +194,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         usd_rate: usd_rate,
         rows: rows(assigns),
         steps: steps(assigns),
-        next_step: next_step(assigns)
+        next_step: next_step(assigns),
+        shown_prepared: if(assigns.prepared_for == bid_key(assigns), do: assigns.prepared)
       )
 
     ~H"""
@@ -282,7 +283,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <div class="bid-actions">
             <p class="bid-notice" role="alert" hidden={!@notice}>{@notice}</p>
             <.summary
-              prepared={@prepared}
+              prepared={@shown_prepared}
               token_symbol={@token_symbol}
               chain_name={@review && @review.chain.name}
             />
@@ -455,12 +456,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     </dl>
     <p class="bid-form__note" hidden={!@prepared}>
       <%= if @prepared do %>
-        Your <span class="ticker">USDG</span>
-        buys at least
-        <TokenDisplay.written
-          value={@prepared.facts.min_stock_out}
-          unit={@prepared.facts.stock_symbol}
-        />, 1% below today's quote, or the bid is not placed. Any part the auction does not
+        <strong>Minimum stock received: {@prepared.facts.min_stock_out}
+          <span class="ticker">{@prepared.facts.stock_symbol}</span></strong>.
+        Slippage: {@prepared.facts.slippage_percent}%. Your USDG must buy at least this much
+        stock to fund the bid, or the transaction reverts. Any part the auction does not
         spend comes back as <span class="ticker">{@prepared.facts.stock_symbol}</span>, not <span class="ticker">USDG</span>.
       <% end %>
     </p>
@@ -644,8 +643,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     end
   end
 
-  defp request({auction, signer, amount, max_price}),
-    do: {signer, %{auction: auction, usdg_amount: amount, max_price: max_price}}
+  defp request({auction, signer, amount, max_price, slippage}),
+    do:
+      {signer,
+       %{auction: auction, usdg_amount: amount, max_price: max_price, slippage_percent: slippage}}
 
   defp reviewed(socket, key, inputs, {:ok, prepared}) do
     review =
@@ -680,6 +681,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     BidForm.values(
       %{
         "amount" => text(inputs["amount"]),
+        "slippage_percent" =>
+          text(Map.get(inputs, "slippage_percent", assigns.form.slippage_percent)),
         "basis" => assigns.form.basis,
         "price" => assigns.form.price,
         "fdv" => text(inputs["fdv"]),
@@ -713,7 +716,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
        when is_binary(signer) do
     with amount when amount != "" <- form.amount,
          max_price when is_binary(max_price) <- max_price(assigns),
-         do: {auction, signer, amount, max_price},
+         do: {auction, signer, amount, max_price, form.slippage_percent},
          else: (_incomplete -> nil)
   end
 
@@ -1032,6 +1035,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   end
 
   defp told_outbid(socket), do: socket
+
+  defp copy(:invalid_slippage),
+    do: "Enter a slippage percentage from 0 to 99.99, with at most two decimal places."
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
