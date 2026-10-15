@@ -617,11 +617,8 @@ defmodule Autolaunch.BidActions do
   # Amounts and prices
 
   @doc """
-  The one bid-amount language: exact decimal digits, at most `decimals` places
-  of the auction's own currency.
-
-  The form validates against this, so the page never invites an amount that
-  preparation would refuse.
+  The one typed-amount language, for bids and for the Revstake wallet: exact
+  decimal digits, at most `decimals` places, read straight into an integer.
   """
   @spec atomic_amount(term(), non_neg_integer()) :: {:ok, pos_integer()} | {:error, atom()}
   def atomic_amount(value, decimals) when is_binary(value) and is_integer(decimals) do

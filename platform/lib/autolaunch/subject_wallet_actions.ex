@@ -15,8 +15,8 @@ defmodule Autolaunch.SubjectWalletActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
+  alias Autolaunch.{BidActions, Lab, Subject, SubjectWalletChainClient}
   alias Autolaunch.Chain.{Abi, Client, Rpc, SubjectAbi}
-  alias Autolaunch.{Lab, Subject, SubjectWalletChainClient}
   alias RegentChain.{Address, Review}
 
   @chain_id 8453
@@ -331,32 +331,14 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
-  defp positive_amount(params, asset), do: params |> Map.get("amount") |> atomic_amount(asset)
-
-  @doc """
-  The one amount language for a bound asset: exact digits, at most its decimals.
-
-  The form validates against this, so the page never invites an amount that
-  preparation would refuse.
-  """
-  @spec atomic_amount(term(), atom()) :: {:ok, pos_integer()} | {:error, term()}
-  def atomic_amount(value, asset) when is_binary(value) do
-    decimals = SubjectAbi.decimals(asset)
-    value = String.trim(value)
-
-    with true <- String.match?(value, ~r/^\d+(?:\.\d{1,#{decimals}})?$/),
-         {decimal, ""} <- Decimal.parse(value),
-         scaled <- Decimal.mult(decimal, Decimal.new(Integer.pow(10, decimals))),
-         rounded <- Decimal.round(scaled, 0),
-         :eq <- Decimal.compare(scaled, rounded),
-         amount when amount > 0 <- Decimal.to_integer(rounded) do
-      {:ok, amount}
-    else
-      _refused -> unavailable(:invalid_amount)
+  # Typed amounts are read the one way bids read them: exact digits, at most
+  # the asset's decimals, built as an integer with no rounding.
+  defp positive_amount(params, asset) do
+    case BidActions.atomic_amount(Map.get(params, "amount"), SubjectAbi.decimals(asset)) do
+      {:ok, amount} -> {:ok, amount}
+      {:error, reason} -> unavailable(reason)
     end
   end
-
-  def atomic_amount(_value, _asset), do: unavailable(:invalid_amount)
 
   defp at_most(amount, limit, _reason) when amount <= limit, do: :ok
   defp at_most(_amount, _limit, reason), do: unavailable(reason)
