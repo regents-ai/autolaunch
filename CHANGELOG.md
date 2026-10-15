@@ -3,6 +3,9 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v129, 14 October 2026: HTTP/2 timeout security fix
+- Adopt ash-template's upstream Bandit fix for CVE-2026-105659: tiny connection updates can no longer indefinitely extend a blocked response's timeout.
+
 ## v128, 14 October 2026: page requests no longer crash when JSON is requested
 - HTML pages, including Onchain Stocks, safely refuse JSON requests. Normal browsing, session requests and account linking retain their existing behavior.
 - Regression checks from ash-template protect this distinction and preserve the account-link forgery check.
