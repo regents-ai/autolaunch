@@ -19,6 +19,16 @@
 .autolaunch-exact-value { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
 .chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 .link-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
+/* ENS's own mark: dark blue on a light page, white on a dark one. */
+.link-icon--ens { display: inline-grid; }
+.link-icon--ens img { grid-area: 1 / 1; inline-size: 100%; block-size: 100%; object-fit: contain; }
+.link-icon__ens--light { visibility: hidden; }
+:root[data-theme="light"] .link-icon__ens--light { visibility: visible; }
+:root[data-theme="light"] .link-icon__ens--dark { visibility: hidden; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .link-icon__ens--light { visibility: visible; }
+  :root:not([data-theme]) .link-icon__ens--dark { visibility: hidden; }
+}
 .autolaunch-record-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .autolaunch-record-list > li { min-width: 0; padding: 20px; border: 1px solid var(--hairline); border-radius: 8px; }
 .autolaunch-record-list :is(li > a, article > a) { display: grid; gap: var(--space-1); color: inherit; }

@@ -1,7 +1,8 @@
 defmodule AutolaunchWeb.Components.LinkIcon do
   @moduledoc """
   The small mark in front of a link that says where it goes: X, ENS, GitHub,
-  a website or a wallet. Each takes the text colour.
+  a website or a wallet. Each takes the text colour, apart from ENS, which
+  shows its own mark in the colour that suits the theme.
   """
   use Phoenix.Component
 
@@ -15,11 +16,14 @@ defmodule AutolaunchWeb.Components.LinkIcon do
     """
   end
 
+  # ENS's own mark from its brand kit, served from this site: dark blue on a
+  # light page and white on a dark one, the theme choosing which shows.
   def link_icon(%{kind: :ens} = assigns) do
     ~H"""
-    <svg class="link-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M11.2 1.5 4.6 12.1c-.3.5-.2 1.1.3 1.4l6.3 4.1zm1.6 21 6.6-10.6c.3-.5.2-1.1-.3-1.4l-6.3-4.1z" />
-    </svg>
+    <span class="link-icon link-icon--ens" aria-hidden="true">
+      <img class="link-icon__ens--light" src="/images/ens-mark-dark-blue.svg" alt="" />
+      <img class="link-icon__ens--dark" src="/images/ens-mark-white.svg" alt="" />
+    </span>
     """
   end
 

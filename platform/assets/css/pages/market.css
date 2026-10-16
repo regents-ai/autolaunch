@@ -15,7 +15,17 @@
 .market-identity__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .market-identity__image > span { color: var(--color-fg-muted); font-size: 3rem; }
 .market-identity__body { display: grid; gap: 14px; min-width: 0; }
-.market-identity__symbol { font-size: 1.25rem; margin: 0; overflow-wrap: anywhere; }
+.market-identity__symbol { margin: 0; font-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.5rem); font-weight: var(--font-weight-semibold); line-height: 1.1; overflow-wrap: anywhere; }
+/* The currency after a ticker, as `BITE / AAPLc`. */
+.token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); }
+/* A token's card heads its ticker and pair with its chain's badge at the top right. */
+.market-identity__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-1) var(--space-2); min-width: 0; }
+.chain-badge { display: inline-flex; flex: none; align-items: center; gap: .45em; margin-inline-start: auto; padding: .45em .85em; background: var(--chain-color); color: var(--chain-ink); font: var(--font-weight-semibold) 1.25rem/1 var(--font-family-ui); }
+.chain-badge--base { --chain-color: var(--chain-base); --chain-ink: #fff; }
+.chain-badge--robinhood { --chain-color: var(--chain-robinhood); --chain-ink: #000; }
+.chain-badge .chain-icon { inline-size: 1.1em; block-size: 1.1em; vertical-align: middle; }
+.chain-badge .chain-icon path { fill: currentColor; }
+
 .market-identity__meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--color-fg-muted); font-size: .8125rem; }
 /* The coin overview of a coin whose image has a known colour: a card whose background the ImageGradient hook paints from that colour into the theme's. */
 .market-identity--tinted { position: relative; isolation: isolate; overflow: hidden; padding: 24px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }

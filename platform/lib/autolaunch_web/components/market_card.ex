@@ -862,10 +862,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
     <span class="market-list__label">
       <span class="market-list__name">
         <strong>{@name}</strong>
-        <small>{@symbol}<span :if={@unit}> / {@unit}</span></small>
+        <small><.token_pair symbol={@symbol} unit={@unit} /></small>
       </span>
       <small :if={present?(@detail)} class="market-list__detail">{@detail}</small>
     </span>
+    """
+  end
+
+  attr :symbol, :string, required: true
+  attr :unit, :string, default: nil, doc: "the currency the token is paired with"
+
+  # A token's ticker and the currency it trades against, as `BITE / AAPLc`.
+  defp token_pair(assigns) do
+    ~H"""
+    {@symbol}<span :if={@unit} class="token-pair__unit"> / {@unit}</span>
     """
   end
 
@@ -1212,8 +1222,16 @@ defmodule AutolaunchWeb.Components.MarketCard do
         )}</span>
       </div>
       <div class="market-identity__body">
-        <p class="market-identity__symbol">${@view.symbol}</p>
-        <div class="market-identity__meta">
+        <div class="market-identity__head">
+          <p class="market-identity__symbol">
+            <.token_pair symbol={@view.symbol} unit={@view.metric.unit} />
+          </p>
+          <ChainIcon.chain_badge
+            :if={@kind == :token}
+            chain={if @view.chain == "Robinhood", do: :robinhood, else: :base}
+          />
+        </div>
+        <div :if={@kind == :auction} class="market-identity__meta">
           <.chain_chip chain={@view.chain} label={@view.chain} />
           <Regent.Primitives.status
             tone={state_tone(@status || @view.status)}
@@ -1313,7 +1331,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </span>
         <div class="auction-finished__who">
           <p class="auction-finished__name">
-            <strong>{@view.name}</strong> <span>${@view.symbol}</span>
+            <strong>{@view.name}</strong>
+            <span class="auction-finished__pair">
+              <.token_pair symbol={@view.symbol} unit={@view.metric.unit} />
+            </span>
           </p>
           <p :if={@wallet} class="auction-finished__creator">
             Created by

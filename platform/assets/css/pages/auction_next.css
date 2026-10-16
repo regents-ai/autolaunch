@@ -181,11 +181,12 @@
 .auction-finished__art { display: grid; flex: none; place-items: center; width: 72px; height: 72px; overflow: hidden; border: 1px solid var(--hairline); border-radius: 50%; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-size: 1.5rem; }
 .auction-finished__art img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .auction-finished__who { display: grid; gap: 6px; min-width: 0; }
-.auction-finished__name { margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
-.auction-finished__name span { color: var(--color-fg-muted); font-size: .875rem; }
+.auction-finished__name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-2); margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
+.auction-finished__pair { font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: var(--font-weight-semibold); line-height: 1.1; }
 .auction-finished__creator { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
 .auction-finished__creator a { color: var(--color-fg); }
-.auction-finished .launchpad-card__socials { padding: 0; border: 0; }
+.auction-finished .launchpad-card__socials { gap: var(--space-1) var(--space-3); padding: 0; border: 0; font-size: var(--type-title-size); line-height: var(--type-title-line); }
+.auction-finished .launchpad-card__socials a { display: inline-flex; align-items: center; gap: .4em; }
 .auction-finished__figures { grid-area: figures; display: flex; flex-wrap: wrap; gap: 12px 32px; margin: 0; }
 .auction-finished__figures > div { display: grid; gap: 2px; }
 .auction-finished__figures dt { color: var(--color-fg-muted); font-size: .75rem; }
