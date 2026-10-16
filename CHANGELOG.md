@@ -7,6 +7,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - The token card stacks its picture above the ticker when space is short, so the ticker no longer breaks one letter per line and nothing is cut off at laptop widths.
 - On a phone the trade widget comes first, under the token's name.
 - Copied token details show prices to 18 decimal places.
+- The Account page opens again for people with a paired agent.
 
 ## v139, 16 October 2026 (ce7aa07): a token page you can use at a glance
 - One trade widget: Swap or Stake, plus Unstake once you have a stake. Stake is one button that stakes your whole balance; Unstake keeps 25, 50, 75 and Max.
