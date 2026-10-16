@@ -8,7 +8,9 @@ defmodule AutolaunchWeb.Components.StockSelect do
   Search narrows the cards in the browser as it is typed. Sorting is the
   page's: it puts the cards in order, so keyboard and screen-reader order
   match what is seen. Opening and closing happen in the browser; execution
-  admission remains server-owned.
+  admission remains server-owned. A press anywhere outside the picker closes
+  it, except on its `head` (the page's chain switch), so an open gallery stays
+  open while it fills with the other chain's stocks.
   """
   use Phoenix.Component
 
@@ -42,6 +44,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   attr :sort, :string, default: "alphabetical"
   attr :sort_event, :string, required: true
   attr :form, :string, required: true, doc: "the id of the form the choice saves with"
+  slot :head, doc: "shown above the button, inside the picker"
 
   def stock_select(assigns) do
     stocks =
@@ -66,6 +69,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
       phx-window-keydown={close(@id)}
       phx-key="Escape"
     >
+      {render_slot(@head)}
       <button
         type="button"
         id={"#{@id}-button"}

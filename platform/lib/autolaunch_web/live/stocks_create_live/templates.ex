@@ -116,26 +116,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 />
               </div>
               <div class="memestock__paired">
-                <div class="memestock__paired-head">
-                  <span class="create-page__label" id="stocks-terms-stock-label">Paired stock</span>
-                  <div class="chain-switch" role="group" aria-label="Chain">
-                    <button
-                      :for={chain <- LaunchChain.chains()}
-                      type="button"
-                      class={"chain-switch__option chain-switch__option--#{chain}"}
-                      aria-pressed={to_string(@launch_chain == chain)}
-                      phx-click={
-                        JS.push("choose_chain", value: %{chain: chain})
-                        |> JS.transition("memestock__form--to-#{chain}",
-                          to: "#memestock-form",
-                          time: 700
-                        )
-                      }
-                    >
-                      {LaunchChain.label(chain)}
-                    </button>
-                  </div>
-                </div>
                 <.stock_select
                   id="stocks-terms-stock_address"
                   name="stock_draft[stock_address]"
@@ -144,7 +124,30 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   sort={@stock_sort}
                   sort_event="sort_stocks"
                   form="stocks-terms"
-                />
+                >
+                  <:head>
+                    <div class="memestock__paired-head">
+                      <span class="create-page__label" id="stocks-terms-stock-label">Paired stock</span>
+                      <div class="chain-switch" role="group" aria-label="Chain">
+                        <button
+                          :for={chain <- LaunchChain.chains()}
+                          type="button"
+                          class={"chain-switch__option chain-switch__option--#{chain}"}
+                          aria-pressed={to_string(@launch_chain == chain)}
+                          phx-click={
+                            JS.push("choose_chain", value: %{chain: chain})
+                            |> JS.transition("memestock__form--to-#{chain}",
+                              to: "#memestock-form",
+                              time: 700
+                            )
+                          }
+                        >
+                          {LaunchChain.label(chain)}
+                        </button>
+                      </div>
+                    </div>
+                  </:head>
+                </.stock_select>
                 <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
                   {@draft_errors["stock_address"]}
                 </p>
