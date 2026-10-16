@@ -46,6 +46,7 @@ type OnchainStepsHook = Hook & {
   clicked?: (event: Event) => void
   walletChanged?: () => void
   refresh?: () => void
+  leaving?: AbortController
 }
 
 // How many of a button's presses the wallet still has. The mark comes off when
@@ -76,6 +77,8 @@ export const OnchainSteps: Hook = {
       this.el.closest("#trade")?.scrollIntoView({block: "start"})
     }
     const push: Push = (event, payload) => void this.pushEventTo(this.el, event, payload)
+    // Ends the wait for a sent batch's status when the panel leaves the page.
+    this.leaving = new AbortController()
 
     // Every hook on the page hears this event; keep only this component's review.
     // No review means no eligible wallet: a press then sends nothing.
@@ -99,7 +102,7 @@ export const OnchainSteps: Hook = {
       if (!button || card(button) !== this.el) return
       if (button.hasAttribute("data-onchain-bundle")) {
         const marked = mark(button)
-        void pressCalls(this.review, push).finally(marked)
+        void pressCalls(this.review, push, this.leaving!.signal).finally(marked)
         return
       }
       const name = button.dataset.onchainStep
@@ -148,6 +151,7 @@ export const OnchainSteps: Hook = {
   },
 
   destroyed(this: OnchainStepsHook) {
+    this.leaving?.abort()
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     if (this.walletChanged) window.removeEventListener("autolaunch:wallet-state", this.walletChanged)
     if (this.refresh) {
@@ -199,7 +203,11 @@ export async function press(review: Review | undefined, name: string, push: Push
  * it itself. A wallet that refuses to send the calls atomically sends nothing,
  * and the server goes back to one step at a time.
  */
-export async function pressCalls(review: Review | undefined, push: Push): Promise<PressedCalls> {
+export async function pressCalls(
+  review: Review | undefined,
+  push: Push,
+  leaving: AbortSignal = new AbortController().signal,
+): Promise<PressedCalls> {
   let sending = false
   const started = () => {
     sending = true
@@ -217,7 +225,7 @@ export async function pressCalls(review: Review | undefined, push: Push): Promis
 
     const calls_id = await sendSteps(review.chain, review.signer, review.steps, wallet, started)
     push("calls_sent", {review_id: review.id, calls_id})
-    void followCalls(review, sender.provider, calls_id, push)
+    void followCalls(review, sender.provider, calls_id, push, leaving)
     return {calls_id}
   } catch (error) {
     if (review && sending && refusedAtomic(error)) {
@@ -232,9 +240,17 @@ export async function pressCalls(review: Review | undefined, push: Push): Promis
 }
 
 // The wallet's report on a batch it took: the one transaction it landed in,
-// that it sent nothing, or no final answer while the page waited.
-async function followCalls(review: Review, provider: EthereumProvider, calls_id: string, push: Push): Promise<void> {
-  const landed = await landedCalls(review.signer, provider, calls_id)
+// that it sent nothing, or no final answer while the page waited. Once the
+// panel has left the page there is nobody to tell, so it stops asking.
+async function followCalls(
+  review: Review,
+  provider: EthereumProvider,
+  calls_id: string,
+  push: Push,
+  leaving: AbortSignal,
+): Promise<void> {
+  const landed = await landedCalls(review.signer, provider, calls_id, leaving)
+  if (leaving.aborted) return
   const [transaction_hash, ...more] = landed?.hashes ?? []
   if (transaction_hash && more.length === 0) push("calls_landed", {calls_id, transaction_hash})
   else if (landed?.status === "failure" && !transaction_hash) push("calls_failed", {calls_id})

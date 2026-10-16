@@ -94,18 +94,25 @@ export async function sendsAtomically(chain: StepChain, signer: Address, provide
 
 /**
  * Waits for the wallet's own report on a batch it took (EIP-5792
- * `wallet_getCallsStatus`, every two seconds, for up to three minutes):
- * whether it landed, and the transactions its receipts name. `undefined` when
- * the wallet gave no final answer in that time.
+ * `wallet_getCallsStatus`, asked every quarter second for up to three
+ * minutes): whether it landed, and the transactions its receipts name.
+ * `undefined` when the wallet gave no final answer in that time, or when
+ * `stop` is aborted (the page left), which ends the asking at the next answer.
  */
 export async function landedCalls(
   signer: Address,
   provider: EthereumProvider,
   id: string,
+  stop: AbortSignal,
 ): Promise<{status: "success" | "failure"; hashes: Hash[]} | undefined> {
   try {
-    const {status, receipts} = await waitForCallsStatus(client(provider, signer), {id, pollingInterval: 250, timeout: 180_000})
-    if (status !== "success" && status !== "failure") return undefined
+    const {status, receipts} = await waitForCallsStatus(client(provider, signer), {
+      id,
+      pollingInterval: 250,
+      timeout: 180_000,
+      status: ({statusCode}) => stop.aborted || statusCode === 200 || statusCode >= 300,
+    })
+    if (stop.aborted || (status !== "success" && status !== "failure")) return undefined
     return {status, hashes: (receipts ?? []).map(receipt => receipt.transactionHash)}
   } catch {
     return undefined
