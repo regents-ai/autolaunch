@@ -1222,15 +1222,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
         )}</span>
       </div>
       <div class="market-identity__body">
-        <div class="market-identity__head">
-          <p class="market-identity__symbol">
-            <.token_pair symbol={@view.symbol} unit={@view.metric.unit} />
-          </p>
-          <ChainIcon.chain_badge
-            :if={@kind == :token}
-            chain={if @view.chain == "Robinhood", do: :robinhood, else: :base}
-          />
-        </div>
+        <p class="market-identity__symbol">
+          <.token_pair symbol={@view.symbol} unit={@view.metric.unit} />
+        </p>
         <div :if={@kind == :auction} class="market-identity__meta">
           <.chain_chip chain={@view.chain} label={@view.chain} />
           <Regent.Primitives.status
@@ -1263,6 +1257,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </p>
       </div>
       <div :if={@chart != []} class="market-identity__chart">{render_slot(@chart)}</div>
+      <ChainIcon.chain_badge
+        :if={@kind == :token}
+        chain={if @view.chain == "Robinhood", do: :robinhood, else: :base}
+      />
     </section>
     """
   end
