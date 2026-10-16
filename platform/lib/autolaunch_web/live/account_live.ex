@@ -4,8 +4,9 @@ defmodule AutolaunchWeb.AccountLive do
   the shared signed-out section with the site's own Sign in button, and says
   the sign-in ended when it lapsed while the page was open. Signed in, its
   Profile section says who is signed in, with which wallet, links to their
-  Regents account and offers Sign out. The agents they paired follow, read-only:
-  pairing is managed on regents.sh. Then their Credits, bought from the header's
+  Regents account and offers Sign out. The agents they paired follow, with the
+  box to pair another (`AutolaunchWeb.PairingBox`, the one the side panel holds);
+  unpairing is on regents.sh. Then their Credits, bought from the header's
   Credits button and managed on regents.sh, and their Points: Autolaunch charges
   no Credits and Points earning has not opened here. Their
   connected accounts come last, through the Create page's connections
@@ -13,8 +14,8 @@ defmodule AutolaunchWeb.AccountLive do
 
   Each section is read on its own and shows its own loading and could-not-be-read
   states. The Credits balance is the one every page reads
-  (`AutolaunchWeb.Live.Credits`); a Credits change or a pairing made on any
-  Regent site reads again.
+  (`AutolaunchWeb.Live.Credits`); a Credits change, or an agent pairing, checking
+  in or unpairing on any Regent site (`AutolaunchWeb.Live.Agents`), reads again.
   """
   use AutolaunchWeb, :live_view
 
@@ -34,8 +35,7 @@ defmodule AutolaunchWeb.AccountLive do
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/account"))
      |> assign(regents_account_url: @regents_account_url)
-     |> assign(Map.new(@reads, &{&1, %Read{}}))
-     |> listen()}
+     |> assign(Map.new(@reads, &{&1, %Read{}}))}
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, read_account(socket)}
@@ -48,7 +48,11 @@ defmodule AutolaunchWeb.AccountLive do
   @doc "The Credits activity follows a change to the balance (`AutolaunchWeb.Live.Credits`)."
   def credits_changed(socket), do: read_history(socket, "")
 
-  def handle_info(:agents_changed, socket), do: {:noreply, read_agents(socket)}
+  @doc "The agents and this page's pairing box follow an agent change (`AutolaunchWeb.Live.Agents`)."
+  def agents_changed(socket) do
+    send_update(AutolaunchWeb.PairingBox, id: "account-agents-pair", agents_changed: true)
+    read_agents(socket)
+  end
 
   def handle_event("credits_history", %{"after" => cursor}, socket) do
     {:noreply, read_history(socket, cursor)}
@@ -125,9 +129,13 @@ defmodule AutolaunchWeb.AccountLive do
           your launch drafts. It can never use your wallet, bid or start a launch.
         </:about>
         <:footer>
-          <a href={@regents_account_url} target="_blank" rel="noopener noreferrer">
-            Pair or unpair agents on regents.sh <span aria-hidden="true">↗</span>
-          </a>
+          <.live_component
+            module={AutolaunchWeb.PairingBox}
+            id="account-agents-pair"
+            session_lease={@session_lease}
+            account={signed_in_account(@access_context)}
+          />
+          <a href="https://regents.sh/account#account-agents">Manage Agents</a>
         </:footer>
       </Regent.Account.agents>
       <div :if={@current_human_id} class="autolaunch-account-balances">
@@ -197,14 +205,7 @@ defmodule AutolaunchWeb.AccountLive do
     """
   end
 
-  defp listen(socket) do
-    with true <- connected?(socket),
-         {:human, account} <- socket.assigns.access_context.principal do
-      Phoenix.PubSub.subscribe(Autolaunch.PubSub, RegentAgents.topic(account.privy_user_id))
-    end
-
-    socket
-  end
+  defp signed_in_account(%{principal: {:human, account}}), do: account
 
   defp read_account(socket) do
     socket |> read_agents() |> read_history("") |> read_points()

@@ -162,7 +162,8 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :public_human},
-        {AutolaunchWeb.Live.Credits, :credits}
+        {AutolaunchWeb.Live.Credits, :credits},
+        {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/", HomeLive, :home
     end
@@ -182,7 +183,8 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits}
+        {AutolaunchWeb.Live.Credits, :credits},
+        {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/create", StocksCreateLive, :create
       live "/create/revstake", CreateLive, :create
@@ -210,7 +212,8 @@ defmodule AutolaunchWeb.Router do
       on_mount: [
         {AutolaunchWeb.Showcase, :motion_lab},
         {AutolaunchWeb.Live.Session, :load_human},
-        {AutolaunchWeb.Live.Credits, :credits}
+        {AutolaunchWeb.Live.Credits, :credits},
+        {AutolaunchWeb.Live.Agents, :agents}
       ] do
       live "/animations", AnimationsLive, :index
     end

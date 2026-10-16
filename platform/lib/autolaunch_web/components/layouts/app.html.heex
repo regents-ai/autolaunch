@@ -17,7 +17,16 @@
       <.product_links />
     </div>
   </Regent.Structure.row>
-  <AutolaunchWeb.Components.SidePanel.panel account_control={@account_control} />
+  <AutolaunchWeb.Components.SidePanel.panel account_control={@account_control}>
+    <:pairing :if={pairing_account(assigns[:socket], assigns[:access_context])}>
+      <.live_component
+        module={AutolaunchWeb.PairingBox}
+        id="shell-pairing-box"
+        session_lease={@session_lease}
+        account={pairing_account(@socket, @access_context)}
+      />
+    </:pairing>
+  </AutolaunchWeb.Components.SidePanel.panel>
   <AutolaunchWeb.Components.Credits.dialog
     credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
     session_lease={assigns[:session_lease]}

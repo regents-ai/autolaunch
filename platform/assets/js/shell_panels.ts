@@ -22,7 +22,9 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
   const aside = () => scope.querySelector<HTMLElement>("#shell-aside")
   const asideButton = () => scope.querySelector<HTMLButtonElement>("#shell-aside-button")
   const credits = () => scope.querySelector<HTMLDialogElement>("#shell-credits")
-  const phone = () => window.matchMedia("(max-width: 47.99rem)").matches
+  // Below a wide screen the side panel covers the page's edge; on a wide one it
+  // sits beside the page.
+  const covering = () => window.matchMedia("(max-width: 63.99rem)").matches
 
   // The side panel's own button and the account name in the header both open it.
   const sync = () => {
@@ -36,8 +38,7 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     remember(value)
     sync()
 
-    // This product's panel overlays the page at every width.
-    if (open) {
+    if (open && covering()) {
       aside()?.focus()
     }
   }
@@ -68,8 +69,8 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     if (target.closest("[data-credits-close]")) return closeCredits()
     // A press on a window's own backdrop lands on the dialog itself.
     if (target === credits()) return closeCredits()
-    // On a phone the side bar covers the page, so a page link inside it closes it.
-    if (phone() && target.closest("#shell-aside a")) setAside(false)
+    // Where the side bar covers the page, a page link inside it closes it.
+    if (covering() && target.closest("#shell-aside a")) setAside(false)
   }
 
   const onKeydown = (event: KeyboardEvent) => {

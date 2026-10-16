@@ -2,7 +2,11 @@ defmodule AutolaunchWeb.Components.SidePanel do
   @moduledoc """
   The side panel, the template's: its button sits beside the account name in the
   top bar, and either one opens it. Its top holds the signed-in name with
-  Account and Sign out, then Help. The browser alone opens and closes it
+  Account and Sign out, then the box to pair an agent (the `pairing` slot, the
+  Account page's own `AutolaunchWeb.PairingBox`) and a link to manage agents on
+  the Regents account page, where the person signs in again. On a wide screen
+  it slides in beside the page, which narrows to make room; on a narrower one it
+  slides in over the page's edge. The browser alone opens and closes it
   (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server never
   stores it.
 
@@ -14,13 +18,6 @@ defmodule AutolaunchWeb.Components.SidePanel do
   import AutolaunchWeb.Components.AccountControl, only: [account_name: 1]
 
   alias Phoenix.LiveView.JS
-
-  @help [
-    {"Documentation", "/docs"},
-    {"How it works", "/how-it-works"},
-    {"Agent guide", "/llms.txt"},
-    {"Contact", "/contact"}
-  ]
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
 
@@ -52,10 +49,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   end
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
+  slot :pairing, doc: "The box to pair an agent, on a LiveView page."
 
   def panel(assigns) do
-    assigns = assign(assigns, :help, @help)
-
     ~H"""
     <aside
       :if={@account_control.kind == :signed_in}
@@ -94,11 +90,10 @@ defmodule AutolaunchWeb.Components.SidePanel do
         </div>
       </section>
 
-      <section id="shell-aside-help" aria-labelledby="shell-help-title">
-        <h3 id="shell-help-title">Help</h3>
-        <ul>
-          <li :for={{label, path} <- @help}><a href={path}>{label}</a></li>
-        </ul>
+      <section id="shell-pairing" aria-labelledby="shell-pairing-title">
+        <h3 id="shell-pairing-title">Pair your agent</h3>
+        {render_slot(@pairing)}
+        <a href="https://regents.sh/account#account-agents">Manage Agents</a>
       </section>
     </aside>
     """

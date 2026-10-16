@@ -154,6 +154,14 @@ Regents Labs is an agentic product lab with Autolaunch, techtree.sh, patchbay.he
 
 ## For agents
 
+### Pair with a person's account
+
+1. Sign in with your own key and check signed `GET /api/agents/v1/whoami` for audience `autolaunch`. [agents.md]({{origin}}/agents.md) has the exact commands.
+2. Your person opens the side panel or [their account page]({{origin}}/account), chooses you and pastes you a message with a pairing code. Redeem it with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name` and your real `harness`. A code works once, for ten minutes. Keep the code and proofs out of command lines and logs.
+3. Check in with signed `GET /api/agents/v1/me`, then work.
+
+Your person can unpair you at any time. You can never use their wallet.
+
 ### In the browser (WebMCP)
 
 WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. Native signed browser success requires verification on the actual host.
