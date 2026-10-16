@@ -11,12 +11,12 @@ defmodule AutolaunchWeb.OnchainCalls do
   review was sent on its own, since a batch repeating a sent step could revert.
 
   A press sends every step of the review in one `wallet_sendCalls` request with
-  `atomicRequired`. The page reports the wallet's batch id (`sent/2`), then the
-  one transaction the wallet's `wallet_getCallsStatus` receipts name
-  (`landed/2`), or that the wallet sent nothing (`failed/2`) or gave no receipt
+  `atomicRequired`. The page reports the wallet's batch id (`sent/3`), then the
+  one transaction the wallet's `wallet_getCallsStatus` receipts name, asking
+  the wallet every quarter second (`landed/2`), or that the wallet sent nothing (`failed/2`) or gave no receipt
   in time (`unconfirmed/2`). From the hash on, the server reads that
   transaction at the latest block every two seconds, and only it says what
-  happened (`Autolaunch.Chain.Calls.outcome/2`). Nothing is kept beyond the
+  happened (`Autolaunch.Chain.Calls.outcome/4`). Nothing is kept beyond the
   page.
   """
 
@@ -71,13 +71,18 @@ defmodule AutolaunchWeb.OnchainCalls do
   def state(%{outcome: :reverted}), do: :reverted
   def state(%{outcome: :not_this_step}), do: :other
 
-  @doc "The wallet took a batch from the review on the page; it waits for its receipt."
-  def sent(%{assigns: %{review: %{id: id} = review}} = socket, %{
-        "review_id" => id,
-        "calls_id" => calls_id
-      })
-      when is_binary(calls_id) and byte_size(calls_id) in 1..1024 do
-    entry = %{id: calls_id, review: review, hash: nil, outcome: :sent, reads: 0}
+  @doc """
+  The wallet took a batch from the review on the page; it waits for its
+  receipt. `proof` is the event the batch must write for the signer
+  (`Autolaunch.Chain.Calls.outcome/4`).
+  """
+  def sent(
+        %{assigns: %{review: %{id: id} = review}} = socket,
+        %{"review_id" => id, "calls_id" => calls_id},
+        proof
+      )
+      when is_binary(calls_id) and byte_size(calls_id) in 1..1024 and is_map(proof) do
+    entry = %{id: calls_id, review: review, proof: proof, hash: nil, outcome: :sent, reads: 0}
 
     assign(socket,
       batches:
@@ -86,7 +91,7 @@ defmodule AutolaunchWeb.OnchainCalls do
     )
   end
 
-  def sent(socket, _params), do: socket
+  def sent(socket, _params, _proof), do: socket
 
   @doc """
   The wallet's status report named the batch's transaction; the server reads it
@@ -174,10 +179,10 @@ defmodule AutolaunchWeb.OnchainCalls do
     end
   end
 
-  defp check(socket, %{id: calls_id, hash: hash, reads: reads, review: review}) do
+  defp check(socket, %{id: calls_id, hash: hash, reads: reads, review: review, proof: proof}) do
     start_async(socket, {:onchain_calls, calls_id}, fn ->
       if reads > 0, do: Process.sleep(@recheck_ms)
-      Calls.outcome(review, hash)
+      Calls.outcome(review, hash, proof)
     end)
   end
 end

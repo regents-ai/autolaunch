@@ -13,28 +13,42 @@ defmodule Autolaunch.Chain.Calls do
   account that ran it. Anything else is no answer about the review
   (`{:error, :not_this_step}`).
 
-  A smart account's transaction succeeds even when the account's own calls
-  fail, so its outcome is the entry point's record of the signer's operation.
+  The receipt must also hold the record the batch exists to make (`proof`):
+  the named event, from the named contract, with the signer as its first
+  indexed word. For a claim that is the launch splitter's
+  `Claimed(account, token, amount)` for the signer. A smart account's
+  transaction succeeds even when the account's own calls fail, so its outcome
+  is also the canonical entry point's own record of the signer's operation
+  (EntryPoint v0.6, v0.7 or v0.8); the same event from any other contract is
+  not that record.
   """
 
   alias Autolaunch.Chain.{Abi, Client}
   alias RegentChain.Address
 
   @user_operation "UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)"
+  # The canonical ERC-4337 entry points, at the same address on every chain.
+  @entry_points [
+    "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789",
+    "0x0000000071727de22e5e9d8baf0edac6f37da032",
+    "0x4337084d9e255ff0702461cf8895ce9e3b5ff108"
+  ]
 
   @type outcome :: :pending | :confirmed | :reverted
+  @type proof :: %{emitter: String.t(), event: String.t()}
 
   @doc """
   `:pending` until the receipt exists, then `:confirmed` or `:reverted`.
-  `client` reads at `latest` (`Autolaunch.Chain.Client`).
+  `proof` names the event the batch must write for the signer; `client`
+  reads at `latest` (`Autolaunch.Chain.Client`).
   """
-  @spec outcome(RegentChain.Review.t(), String.t(), module()) ::
+  @spec outcome(RegentChain.Review.t(), String.t(), proof(), module()) ::
           {:ok, outcome()} | {:error, term()}
-  def outcome(%{chain: chain, signer: signer, steps: steps}, hash, client \\ Client) do
+  def outcome(%{chain: chain, signer: signer, steps: steps}, hash, proof, client \\ Client) do
     with {:ok, tx} when is_map(tx) <- client.transaction(chain, hash),
          true <- carries?(tx, chain, signer, steps) || {:error, :not_this_step},
          {:ok, receipt} when is_map(receipt) <- client.receipt(chain, hash) do
-      status(receipt, tx, signer)
+      status(receipt, tx, signer, proof)
     else
       {:ok, nil} -> {:ok, :pending}
       error -> error
@@ -60,33 +74,60 @@ defmodule Autolaunch.Chain.Calls do
     end) != :missing
   end
 
-  defp status(%{"status" => "0x0"}, _tx, _signer), do: {:ok, :reverted}
+  defp status(%{"status" => "0x0"}, _tx, _signer, _proof), do: {:ok, :reverted}
 
-  defp status(%{"status" => "0x1"} = receipt, tx, signer) do
-    if Address.equal?(tx["from"], signer),
-      do: {:ok, :confirmed},
-      else: operation(receipt["logs"], signer)
+  defp status(%{"status" => "0x1"} = receipt, tx, signer, proof) do
+    logs = if is_list(receipt["logs"]), do: receipt["logs"], else: []
+
+    ran =
+      if Address.equal?(tx["from"], signer),
+        do: {:ok, :confirmed},
+        else: operation(logs, signer)
+
+    case ran do
+      {:ok, :confirmed} -> proved(logs, signer, proof)
+      other -> other
+    end
   end
 
-  defp status(_receipt, _tx, _signer), do: {:ok, :pending}
+  defp status(_receipt, _tx, _signer, _proof), do: {:ok, :pending}
 
   # The entry point's record of the signer's operation in this transaction:
   # its `success` word says whether the account's calls ran.
-  defp operation(logs, signer) when is_list(logs) do
+  defp operation(logs, signer) do
     topic = Abi.topic0(@user_operation)
-    sender = "0x" <> String.pad_leading(bare(signer), 64, "0")
+    sender = word(signer)
 
     Enum.find_value(logs, {:error, :not_this_step}, fn
-      %{"topics" => [first, _hash, account | _rest], "data" => "0x" <> data} ->
-        if String.downcase(first) == topic and String.downcase(account) == sender,
-          do: success(data)
+      %{"address" => emitter, "topics" => [first, _hash, account | _rest], "data" => "0x" <> data} ->
+        if String.downcase(emitter) in @entry_points and String.downcase(first) == topic and
+             String.downcase(account) == sender,
+           do: success(data)
 
       _other ->
         nil
     end)
   end
 
-  defp operation(_logs, _signer), do: {:error, :not_this_step}
+  # The batch wrote what it exists to write, for the signer, from the right contract.
+  defp proved(logs, signer, %{emitter: emitter, event: event}) do
+    topic = Abi.topic0(event)
+    account = word(signer)
+
+    written? =
+      Enum.any?(logs, fn
+        %{"address" => from, "topics" => [first, named | _rest]} ->
+          Address.equal?(from, emitter) and String.downcase(first) == topic and
+            String.downcase(named) == account
+
+        _other ->
+          false
+      end)
+
+    if written?, do: {:ok, :confirmed}, else: {:error, :not_this_step}
+  end
+
+  defp word(address), do: "0x" <> String.pad_leading(bare(address), 64, "0")
 
   # `nonce` is the first data word and `success` the second.
   defp success(<<_nonce::binary-size(64), word::binary-size(64), _rest::binary>>),

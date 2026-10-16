@@ -450,13 +450,13 @@
       "group": "Token page",
       "framework": "exunit",
       "file": "test/autolaunch/chain/calls_test.exs",
-      "line": 27,
+      "line": 30,
       "test_name": "BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL",
-      "keep_because": "A batch's transaction goes to the sender's own address or the entry point, never to the reviewed contract, so the usual target and calldata check cannot apply. The page says Claimed only for a transaction carrying every reviewed call in order for the reviewed signer, and a smart account's batch only when the entry point records success; no lab wallet sends batches, so manual review cannot reach this.",
+      "keep_because": "A batch's transaction goes to the sender's own address or the entry point, never to the reviewed contract, so the usual target and calldata check cannot apply. The page says Claimed only for a transaction carrying every reviewed call in order for the reviewed signer whose receipt holds the launch splitter's own Claimed record for the signer, and for a smart account only when the canonical EntryPoint itself records success; the case fails if a log from another contract, or a successful transaction with no claim record, is ever accepted. No lab wallet sends batches, so manual review cannot reach this.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "dc8075368bfb8ab06e8125dc55a3b70fcddb2c3139403b2ba18b127fc0c70f08"
+      "source_sha256": "00d964b572c7a575fa62af86cc7236289aebb08d6d85bacfefa930c6a0f73040"
     }
   ],
   "legacy_folders_to_remove": [

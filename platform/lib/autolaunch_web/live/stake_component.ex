@@ -532,7 +532,9 @@ defmodule AutolaunchWeb.StakeComponent do
     do: {:noreply, OnchainCalls.atomic(socket, params)}
 
   def handle_event("calls_sent", params, socket),
-    do: {:noreply, socket |> OnchainCalls.sent(params) |> assign(notice: nil)}
+    do:
+      {:noreply,
+       socket |> OnchainCalls.sent(params, claim_proof(socket.assigns)) |> assign(notice: nil)}
 
   def handle_event("calls_landed", params, socket),
     do: {:noreply, OnchainCalls.landed(socket, params)}
@@ -730,6 +732,13 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   defp batch_resulted(socket, _calls_id, _logs), do: socket
+
+  # A claim batch is the review's only when the launch's splitter recorded a
+  # claim for the signer in it.
+  defp claim_proof(%{prepared: %{context: context}}),
+    do: %{emitter: context.splitter, event: context.venue.abi.claimed_signature()}
+
+  defp claim_proof(_assigns), do: nil
 
   defp batch_results(_context, names, nil), do: Enum.map(names, fn _name -> nil end)
   defp batch_results(context, names, logs), do: StakeActions.results(context, names, logs)
