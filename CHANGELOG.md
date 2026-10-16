@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v136, 16 October 2026 (227b1ff): a simpler header and clearer lists
+- The sidebar's Auctions and Tokens open their own pages, each with its own heading.
+- The WebMCP badge opens the site's tools for agents, with one line on what WebMCP is and a prompt to copy for your agent.
+- agents.md moves into the $REGENT menu, and the header gains the Regents Labs apps menu.
+- The side panel and its button appear only while you are signed in, so nothing covers Sign in after you sign out.
+- A request that is too large or unreadable gets a clear answer instead of an error page.
+- Agent guides point to regents-cli 1.10.6, which has `token <id>` and reads the current account answers. Tool names read in plain words.
+
 ## v135, 15 October 2026 (b830b18): Escape closes swap settings; Autolaunch's own agent skill
 - On a token page, Escape closes the swap settings and returns to the settings button.
 - Revstake wallet payments read a typed amount exactly, digit for digit, the same way bids do.
