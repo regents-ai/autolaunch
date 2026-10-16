@@ -3,11 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v13x (pending), 16 October 2026: every sign-in has its end recorded
+## v138, 16 October 2026 (0ad2a7f): every sign-in has its end recorded
 - The sign-ins the previous version made while the 30-day rule went out now end too: 30 days after their last refresh before this release, the same rule every sign-in open at that release got.
 - The site's records now refuse a sign-in that doesn't say when it was made.
 
-## v13x (pending), 16 October 2026: a sign-in ends 30 days after it was made
+## v137, 16 October 2026 (06c075f): a sign-in ends 30 days after it was made
 - A sign-in now ends 30 days after you signed in, however often you come back in between. Before, each visit that refreshed the sign-in started the 30 days again, so an account used every week stayed signed in indefinitely (Sean, 15 Oct, decision 2a: every site follows this rule).
 - Sign-ins already open when this ships count from their most recent refresh.
 - Sign-ins made by the previous version in the minutes this one goes out have no end yet. The next release gives them one, so it follows promptly.
