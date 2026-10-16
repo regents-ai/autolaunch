@@ -2,7 +2,9 @@
 // closes, as the template's shell does. The side panel's
 // state lives on <html data-aside>, which the server first draws from the cookie
 // written here (AutolaunchWeb.Plugs.Panels), so LiveView never patches it away;
-// each window's is its own `open`, which LiveView leaves alone.
+// each window's is its own `open`, which LiveView leaves alone. Where the side
+// bar covers the page, it opens only when the person opens it on that page
+// (<html data-aside-here>), never from the remembered state.
 
 const yearInSeconds = 60 * 60 * 24 * 365
 const cookie = "autolaunch_aside"
@@ -15,16 +17,17 @@ function remember(value: string) {
 }
 
 const root = () => document.documentElement
-export const asideOpen = () => root().dataset.aside === "open"
+// Below a wide screen the side panel covers the page's edge; on a wide one it
+// sits beside the page.
+const covering = window.matchMedia("(max-width: 63.99rem)")
+const asideOpen = () =>
+  root().dataset.aside === "open" && (!covering.matches || root().dataset.asideHere !== undefined)
 
 /** Wires the side panel and the Buy Credits window inside `scope`. Returns `sync`, to run after every page update, and `cleanup`. */
 export function installShellPanels(scope: Document | HTMLElement = document) {
   const aside = () => scope.querySelector<HTMLElement>("#shell-aside")
   const asideButton = () => scope.querySelector<HTMLButtonElement>("#shell-aside-button")
   const credits = () => scope.querySelector<HTMLDialogElement>("#shell-credits")
-  // Below a wide screen the side panel covers the page's edge; on a wide one it
-  // sits beside the page.
-  const covering = () => window.matchMedia("(max-width: 63.99rem)").matches
 
   // The side panel's own button and the account name in the header both open it.
   const sync = () => {
@@ -35,10 +38,12 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
   const setAside = (open: boolean) => {
     const value = open ? "open" : "closed"
     root().dataset.aside = value
+    if (open) root().dataset.asideHere = ""
+    else delete root().dataset.asideHere
     remember(value)
     sync()
 
-    if (open && covering()) {
+    if (open && covering.matches) {
       aside()?.focus()
     }
   }
@@ -70,7 +75,7 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     // A press on a window's own backdrop lands on the dialog itself.
     if (target === credits()) return closeCredits()
     // Where the side bar covers the page, a page link inside it closes it.
-    if (covering() && target.closest("#shell-aside a")) setAside(false)
+    if (covering.matches && target.closest("#shell-aside a")) setAside(false)
   }
 
   const onKeydown = (event: KeyboardEvent) => {
@@ -83,6 +88,7 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
 
   scope.addEventListener("click", onClick)
   document.addEventListener("keydown", onKeydown)
+  covering.addEventListener("change", sync)
 
   sync()
 
@@ -91,6 +97,7 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     cleanup: () => {
       scope.removeEventListener("click", onClick)
       document.removeEventListener("keydown", onKeydown)
+      covering.removeEventListener("change", sync)
     },
   }
 }

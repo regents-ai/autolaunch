@@ -47,7 +47,8 @@ body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
   .shell { --shell-aside: 0px; }
   #shell-aside { width: min(22rem, 100%); transition: transform var(--duration-slow) var(--ease-out), visibility var(--duration-slow); }
   #shell-aside > * { min-inline-size: 0; }
-  :root:not([data-aside="open"]) #shell-aside { visibility: hidden; transform: translateX(100%); }
+  /* Covering the page, it opens only when opened on this page, never on arrival. */
+  :root:not([data-aside="open"]) #shell-aside, :root:not([data-aside-here]) #shell-aside { visibility: hidden; transform: translateX(100%); }
   :root[data-aside="open"] #shell-aside { transition: transform var(--duration-slow) var(--ease-out); }
 }
 
