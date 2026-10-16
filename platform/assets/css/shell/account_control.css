@@ -52,12 +52,13 @@ body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
   :root[data-aside="open"][data-aside-here] #shell-aside { transition: transform var(--duration-slow) var(--ease-out); }
 }
 
-/* On phones the name gives way to its picture, and with no picture it shortens. */
-@media (max-width: 47.99rem) {
+/* On a narrow page the name gives way to its picture, and with no picture it shortens. */
+@container shell-page (max-width: 45rem) {
   .account-chip { max-width: 6rem; padding-inline: .5rem; }
   .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  #shell-aside { width: 100%; border-inline-start: 0; }
 }
-/* The narrowest phones: the side panel button beside it opens the same panel, so the name gives way to it. */
-@media (max-width: 23.75rem) { .account-chip { display: none; } }
+/* On phones the side panel takes the whole screen. */
+@media (max-width: 47.99rem) { #shell-aside { width: 100%; border-inline-start: 0; } }
+/* The narrowest pages: the side panel button beside it opens the same panel, so the name gives way to it. */
+@container shell-page (max-width: 21.75rem) { .account-chip { display: none; } }
 @media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }

@@ -40,9 +40,9 @@
 @import "./pages/upcoming.css";
 @import "./pages/animations.css";
 
-/* Phones: the search fills a row, then the $REGENT crown with Sign in (or the account
-   name) and the side panel button beside it. */
-@media (max-width: 42rem) {
+/* A narrow page: the search fills a row, then the $REGENT crown with Sign in (or the
+   account name) and the side panel button beside it. */
+@container shell-page (max-width: 39rem) {
   #home-top .home-top__actions { flex: 1 1 0; gap: var(--space-1); margin-left: 0; }
   #home-top .account-control:has(> .account-control__sign-in) { flex: 1 1 auto; box-sizing: border-box; }
   #home-top .account-control__sign-in { width: 100%; }

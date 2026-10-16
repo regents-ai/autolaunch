@@ -8,7 +8,10 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - 44px); }
 .shell-body { flex: 1 0 auto; }
 .shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
 @media (max-width: 63.99rem) { .shell-body { grid-template-rows: auto 1fr; } }
-.shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; }
+/* The header lives in the page column, so it lays itself out by that column's
+   width (`shell-page`), not the window's: opening the side panel beside a page
+   narrows the column and the header answers as it would on a narrower screen. */
+.shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
 .shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
 .shell-content > main { padding: 0; }
 .shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
@@ -22,12 +25,12 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - 44px); }
   background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer;
 }
 /* The two legal documents stay together, apart from the rest by a hairline where
-   they share its line and on a line of their own on a phone. */
+   they share its line and on a line of their own on a narrow page. */
 .regent-footer__legal { display: flex; column-gap: var(--space-3); }
-@media (min-width: 48rem) {
+@container shell-page (min-width: 45rem) {
   .regent-footer__legal { padding-inline-start: var(--space-3); border-inline-start: 1px solid var(--rg-page-rule); }
 }
-@media (max-width: 47.99rem) { .regent-footer__legal { flex-basis: 100%; } }
+@container shell-page (max-width: 44.99rem) { .regent-footer__legal { flex-basis: 100%; } }
 .regent-footer__guide-body p { margin: 0; color: var(--rg-p-muted); }
 .regent-footer__guide-body a { min-height: 2.75rem; }
 .regent-footer__guide-body:popover-open { display: grid; }
@@ -57,9 +60,9 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - 44px); }
 .rg-button.regent-token-menu__link { --rg-cut-control: 0px; --rg-p-accent: var(--color-surface); --rg-p-on-accent: var(--color-fg); --rg-button-border-color: transparent; width: 100%; min-height: 2.75rem; padding: .625rem; border-radius: 0; font-size: .875rem; font-weight: 400; white-space: nowrap; justify-content: flex-start; text-align: start; }
 .rg-button.regent-token-menu__link::after { content: none; }
 .regent-token-menu :is(summary, a, button):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-@media (max-width: 55rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
-/* Phones keep the crown menu and leave the GitHub icon to the footer. */
-@media (max-width: 42rem) { .regent-header-links > .regent-social-links { display: none; } }
+@container shell-page (max-width: 52rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
+/* A narrow page keeps the crown menu and leaves the GitHub icon to the footer. */
+@container shell-page (max-width: 39rem) { .regent-header-links > .regent-social-links { display: none; } }
 @media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
 /* The shared prism control draws its own box and hover; the row only places it. Its prism
    sits .5rem inside its press target and each icon sits centred in its link box, so this

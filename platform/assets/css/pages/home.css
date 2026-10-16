@@ -183,8 +183,8 @@
 @media (max-width: 100rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 85rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 70rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-/* Below this width the header's buttons leave the search too little room, so it takes its own row. */
-@media (max-width: 72rem) { #home-top { flex-wrap: wrap; gap: 12px; } #home-top .home-search { order: 2; flex-basis: 100%; max-width: none; } }
+/* Below this page width the header's buttons leave the search too little room, so it takes its own row. */
+@container shell-page (max-width: 58rem) { #home-top { flex-wrap: wrap; gap: 12px; } #home-top .home-search { order: 2; flex-basis: 100%; max-width: none; } }
 /* Phones: the sentence takes the width with the button under it, the tabs take a row of their own, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
 @media (max-width: 42rem) {
   #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
@@ -193,8 +193,8 @@
   #home-explore .home-backed__row { grid-auto-columns: 40%; gap: 12px; }
   #home-explore .home-tabs { flex: 1 0 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
   #home-explore .home-filter { margin-left: auto; }
-  #home-top .home-search__shortcut { display: none; }
 }
+@container shell-page (max-width: 39rem) { #home-top .home-search__shortcut { display: none; } }
 @media (max-width: 22rem) { #home-explore .home-coin-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .creator-connections { display: grid; gap: var(--space-3); }
