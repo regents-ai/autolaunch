@@ -8,10 +8,6 @@
 :root[data-theme="light"] { --site-focus: #a33208; }
 @media (prefers-color-scheme: light) { :root:not([data-theme]) { --site-focus: #a33208; } }
 
-/* The shared press shrinks a button's words and fill but not its edge: here the
-   whole button dips instead. */
-.rg-button[data-press="motion"] { --active-scale: 1; }
-.rg-button[data-press="motion"]::before { animation: none; background-image: none; }
 /* The edge light spans the whole button, so the label gives up its own positioning. */
 .rg-button[data-press="motion"] .rg-button__label { position: static; }
 .site-glint {
@@ -25,7 +21,7 @@
 }
 /* Keyboard focus answers at once: the ring and the outline are simply there. */
 .rg-button[data-press="motion"]:focus-visible { outline-color: var(--site-focus); }
-.rg-button[data-press="motion"]:focus-visible::after { transition: none; }
+.rg-button[data-press="motion"]:focus-visible::before { transition: none; }
 
 /* The light: a still glow until the GPU's first frame lands, then the frame. */
 .site-light-stage { position: relative; isolation: isolate; }
@@ -38,7 +34,7 @@
 .site-light[data-light-ready="true"] canvas { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rg-button[data-press="motion"], .rg-button[data-press="motion"]::after, .site-glint { transition: none; }
+  .rg-button[data-press="motion"], .site-glint { transition: none; }
   .site-light canvas { display: none; }
 }
 @media (forced-colors: active) {

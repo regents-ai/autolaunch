@@ -6,7 +6,7 @@ defmodule Autolaunch.MixProject do
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "28783ed77b4c6f5240f35a77146e06611abb23a6"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "fb0542f656f68b30e56f370c8806639ac9067c07"
+  @design_system_ref "9e93f1497f5a014bccd3be0e5c5729f2b866cc54"
 
   def project do
     [

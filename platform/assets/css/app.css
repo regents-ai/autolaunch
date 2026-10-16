@@ -60,7 +60,7 @@ html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::a
 /* Launch a token stays closed until opening, on a gray plate, but keeps the
    corner marks of the header buttons. Closed, it shows no hover change. */
 .rg-button.create-button:disabled { cursor: not-allowed; }
-:root .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--rg-button-active-border); }
+:root .rg-button.create-button:disabled::before { --rg-button-edge-ink: var(--rg-button-active-border); }
 /* Dark shows when chosen, or with no choice on a device that does not ask for light. */
-:root[data-theme="dark"] .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
-@media not all and (prefers-color-scheme: light) { :root:not([data-theme]) .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); } }
+:root[data-theme="dark"] .rg-button.create-button:disabled::before { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
+@media not all and (prefers-color-scheme: light) { :root:not([data-theme]) .rg-button.create-button:disabled::before { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); } }
