@@ -5,6 +5,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   Account and Sign out, then Help. The browser alone opens and closes it
   (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server never
   stores it.
+
+  The panel and its button are there only for someone signed in, as the
+  template's are, so a page signed out has nothing beside the Sign in button.
   """
   use Phoenix.Component
 
@@ -19,10 +22,13 @@ defmodule AutolaunchWeb.Components.SidePanel do
     {"Contact", "/contact"}
   ]
 
+  attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
+
   @doc "The top bar's button for the side panel."
   def button(assigns) do
     ~H"""
     <button
+      :if={@account_control.kind == :signed_in}
       id="shell-aside-button"
       class="shell-tool"
       type="button"
@@ -51,7 +57,12 @@ defmodule AutolaunchWeb.Components.SidePanel do
     assigns = assign(assigns, :help, @help)
 
     ~H"""
-    <aside id="shell-aside" aria-labelledby="shell-aside-title" tabindex="-1">
+    <aside
+      :if={@account_control.kind == :signed_in}
+      id="shell-aside"
+      aria-labelledby="shell-aside-title"
+      tabindex="-1"
+    >
       <div class="shell-aside__head">
         <h2 id="shell-aside-title">For you</h2>
         <button
@@ -73,12 +84,7 @@ defmodule AutolaunchWeb.Components.SidePanel do
         </button>
       </div>
 
-      <section
-        :if={@account_control.kind == :signed_in}
-        id="shell-account"
-        class="shell-account"
-        aria-label="Your account"
-      >
+      <section id="shell-account" class="shell-account" aria-label="Your account">
         <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
         <div class="shell-account__actions">
           <.link navigate="/account" class="rg-button rg-button--secondary">Account</.link>

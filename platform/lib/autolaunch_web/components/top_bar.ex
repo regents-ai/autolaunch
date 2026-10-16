@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         <a href="/agents.md" class="shell-agent-guide">agents.md</a>
         <AutolaunchWeb.Components.Credits.button credits={@credits} />
         <.account_control account_control={@account_control} />
-        <AutolaunchWeb.Components.SidePanel.button />
+        <AutolaunchWeb.Components.SidePanel.button account_control={@account_control} />
       </div>
     </header>
     """
