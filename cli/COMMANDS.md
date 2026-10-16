@@ -1,8 +1,8 @@
 # Autolaunch commands
 
-These descriptions belong to the unified `regents autolaunch …` CLI. Importing
-`commands.json` into a coordinated CLI release is required before these names are
-available. Server deployment and native signer acceptance are separate checks.
+These descriptions belong to the unified `regents autolaunch …` CLI. A command is
+there once a regents-cli release takes `commands.json`; `regents autolaunch --help`
+lists what your installed version has.
 
 The six public reads need no sign-in and change nothing. Every other command requires
 per-request SIWA proof for audience `autolaunch`. Private account operations also
@@ -86,9 +86,8 @@ SIWA broker and Agents schema. Awards no Points and changes no account data.
 The check-in is a write to contact metadata. A resolved `data.account` includes
 `local_account`, `display_name`, nullable `wallet_address` and `wallet_addresses`
 (default `[]`). These stored verified wallet facts grant no wallet authority.
-This local response addition requires site deployment; installed CLI acceptance is
-not established. Before the person's first sign-in on Autolaunch, `data.account`
-holds `local_account: false` and the `sign_in` address to give them.
+Before the person's first sign-in on Autolaunch, `data.account` holds
+`local_account: false` and the `sign_in` address to give them.
 
 ## `agents pair`
 
