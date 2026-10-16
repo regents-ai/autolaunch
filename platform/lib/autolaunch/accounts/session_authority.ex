@@ -54,6 +54,10 @@ defmodule Autolaunch.Accounts.SessionAuthority do
       check_constraint :generation, "session_authorities_generation_nonnegative",
         check: "generation >= 0",
         message: "generation must be nonnegative"
+
+      check_constraint :signed_in_at, "session_authorities_signed_in_when_bound",
+        check: "(human_account_id IS NULL) = (signed_in_at IS NULL)",
+        message: "a bound sign-in records when it was made"
     end
 
     references do
