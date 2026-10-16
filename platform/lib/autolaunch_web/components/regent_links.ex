@@ -43,6 +43,9 @@ defmodule AutolaunchWeb.Components.RegentLinks do
               target="_blank"
               rel="noopener noreferrer"
             >View Chart</a>
+            <a id="regent-agents" class="rg-button regent-token-menu__link" href="/agents.md">
+              agents.md
+            </a>
             <p :if={@local_lab?} class="regent-token-menu__note">
               Public Base mainnet, not this fork’s test REGENT.
             </p>
