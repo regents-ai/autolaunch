@@ -4,7 +4,6 @@
   "platform": "autolaunch",
   "base_url": "https://autolaunch.sh",
   "notes": [
-    "Signed source descriptions require coordinated unified CLI adoption.",
     "No wallet, launch, treasury, spending or profile mutation commands. Private inputs are JSON stdin."
   ],
   "commands": [
