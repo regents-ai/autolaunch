@@ -1,5 +1,5 @@
 {
-  "total": 35,
+  "total": 36,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -457,6 +457,20 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c762e37a14d4df882840eb29ccb4797f359547f443af7d47da6837ca16c961bf"
+
+    },
+    {
+      "id": 55,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/account_live_test.exs",
+      "line": 11,
+      "test_name": "ACCOUNT_SHOWS_A_PAIRED_AGENT",
+      "keep_because": "The Account page builds each paired agent's row for the shared agents list, and a row missing a field the list reads crashed /account for everyone with a paired agent (v140, 16 Oct 2026). A signed-out or unpaired review never sees it. The case fails if /account stops mounting with a paired agent or stops showing its name and kind.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "9f7ad59c2ddef43f45a75829f0f7568335f4e22e1b8ea033331332eba73b8169"
     }
   ],
   "legacy_folders_to_remove": [

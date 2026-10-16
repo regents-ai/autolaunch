@@ -160,7 +160,7 @@ defmodule Autolaunch.MixProject do
         # The migration ledger follows only this flag; operations follow the
         # repo's migration_default_prefix. Both must land in autolaunch_app.
         "ash_postgres.migrate --quiet --prefix autolaunch_app",
-        "autolaunch.identity.migrate"
+        "autolaunch.shared.migrate"
       ],
       test: ["db.setup", "test"],
       "assets.setup": ["esbuild.install --if-missing"],

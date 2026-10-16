@@ -58,8 +58,9 @@ that prefix and never name a schema themselves. `mix autolaunch.schema.create`
 creates the schema on a freshly created database (the `setup` and `test` aliases
 run it between creating the database and migrating), and the release's
 `/app/bin/migrate` creates it the same way, so a new database needs no separate
-initialisation. Regents' identity tables live in their own schema and are
-installed by `mix autolaunch.identity.migrate` locally.
+initialisation. The shared account table and Regents' identity, agents, Credits
+and Points tables live in their own schemas; `mix autolaunch.shared.migrate`
+installs them locally, and `mix db.setup` runs it.
 
 ## Shared dependencies
 
