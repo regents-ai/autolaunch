@@ -14,13 +14,13 @@ defmodule AutolaunchWeb.ContentNegotiationTest do
   # Regression: allowing JSON on a LiveView route sends {:safe, html} to Jason
   # and crashes. Both ways of selecting that format must fail before rendering.
   test "HTML pages reject JSON selected by Accept or _format" do
-    assert_error_sent(406, fn -> request("/upcoming-stocks", "application/json") end)
-    assert_error_sent(406, fn -> request("/upcoming-stocks?_format=json", "text/html") end)
+    assert_error_sent(406, fn -> request("/stock-listing", "application/json") end)
+    assert_error_sent(406, fn -> request("/stock-listing?_format=json", "text/html") end)
   end
 
   test "a browser or an Accept header with an HTML fallback still gets LiveView HTML" do
     for accept <- ["text/html", "application/json, text/html;q=0.9"] do
-      response = request("/upcoming-stocks", accept)
+      response = request("/stock-listing", accept)
       assert response.status == 200
       assert [content_type] = get_resp_header(response, "content-type")
       assert content_type =~ "text/html"

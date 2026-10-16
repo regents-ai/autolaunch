@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.UpcomingLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/upcoming-stocks"))
+     |> assign(AutolaunchWeb.PublicDocuments.page("/stock-listing"))
      |> assign(chains: UpcomingCatalog.chains())}
   end
 

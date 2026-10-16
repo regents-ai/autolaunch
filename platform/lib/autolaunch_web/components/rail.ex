@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.Components.Rail do
       path: "/",
       covers: ["/auctions", "/tokens", "/robinhood"]
     },
-    %{label: "Onchain Stocks", path: "/upcoming-stocks", covers: []},
+    %{label: "Stocks", path: "/stock-listing", covers: []},
     %{label: "Portfolio", path: "/portfolio", covers: []},
     %{
       label: "Docs",

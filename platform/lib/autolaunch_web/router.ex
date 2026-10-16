@@ -167,7 +167,6 @@ defmodule AutolaunchWeb.Router do
       live "/", HomeLive, :home
     end
 
-    get "/upcoming", PublicPagesController, :upcoming_stocks
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
     get "/contact", PublicPagesController, :show
@@ -191,7 +190,7 @@ defmodule AutolaunchWeb.Router do
       live "/auctions/:symbol/:tail", MarketPageLive, :auction
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
-      live "/upcoming-stocks", UpcomingLive, :show
+      live "/stock-listing", UpcomingLive, :show
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid

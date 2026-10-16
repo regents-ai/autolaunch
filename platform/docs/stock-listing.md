@@ -1,6 +1,6 @@
 # Onchain Stocks catalog
 
-The public page is `/upcoming-stocks`. `/upcoming` permanently redirects there.
+The public page is `/stock-listing`; the left menu calls it Stocks.
 The page title and existing section names remain Onchain Stocks, Soon Available
 and Available to Pair. Chainlink Feed Required contains the remaining prospects.
 

@@ -20,9 +20,6 @@ defmodule AutolaunchWeb.PublicPagesController do
 
   def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
 
-  def upcoming_stocks(conn, _params),
-    do: conn |> put_status(301) |> redirect(to: "/upcoming-stocks")
-
   # PublicDocuments escapes every URL and formats timestamps before emitting XML.
   # sobelow_skip ["XSS.SendResp"]
   def sitemap(conn, _params) do
