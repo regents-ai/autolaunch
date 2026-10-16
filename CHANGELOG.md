@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v139, 16 October 2026: a token page you can use at a glance
+- One trade widget: Swap or Stake, plus Unstake once you have a stake. Stake is one button that stakes your whole balance; Unstake keeps 25, 50, 75 and Max.
+- Claim Rewards sits under the widget with what you will receive, beside Settle contract, which moves every trading fee waiting in the pool into the staking contract.
+- "Copy Full Token Details to Agent" holds the long explanations, the supply breakdown and the Uniswap Liquidity Pool details; the page keeps a short details list.
+- The token card shows a large Base or Robinhood badge. Auction pages show the ticker with its pair and no "$", with larger links and the ENS mark.
+- Onchain Stocks is now Stocks, at /stock-listing.
+- "Agents see 17 WebMCP Tools" opens the tool list with a prompt to copy, as in ash-template, and the apps menu reads Regents Products.
+- The price impact box, the rewards chart and the reward walkthrough are gone.
+
 ## v138, 16 October 2026 (0ad2a7f): every sign-in has its end recorded
 - The sign-ins the previous version made while the 30-day rule went out now end too: 30 days after their last refresh before this release, the same rule every sign-in open at that release got.
 - The site's records now refuse a sign-in that doesn't say when it was made.
