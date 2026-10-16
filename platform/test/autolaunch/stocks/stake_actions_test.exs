@@ -1,9 +1,10 @@
 defmodule Autolaunch.Stocks.StakeActionsTest do
   @moduledoc """
-  Protects one invariant: collecting a Base Revstake launch's trading fees is
-  reviewed as exactly one step, `collect(<that launch's lp_token_id>)` on the
-  deployment's `lp_locker`, bound to that locker and showing the fees the
-  locker itself says the call would deposit.
+  Protects one invariant: settling a Base Revstake launch, which has no staker
+  lane to settle, is reviewed as exactly one step,
+  `collect(<that launch's lp_token_id>)` on the deployment's `lp_locker`,
+  bound to that locker and showing the fees the locker itself says the call
+  would deposit.
   """
 
   use AutolaunchWeb.ConnCase, async: false
@@ -25,7 +26,7 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
 
   setup :bidder
 
-  test "collect on a Base Revstake launch is one collect(lp_token_id) step on the lp_locker",
+  test "settle on a Base Revstake launch is one collect(lp_token_id) step on the lp_locker",
        context do
     config = Lab.current!()
     lp_locker = Lab.address!(config, :lp_locker)
@@ -43,9 +44,9 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
       }
     })
 
-    request = %{kind: :collect, launch: %{chain: :base, auction: auction}}
+    request = %{kind: :settle, launch: %{chain: :base, auction: auction}}
 
-    assert {:ok, %{kind: :collect, steps: steps, facts: facts, context: %{locker: ^lp_locker}}} =
+    assert {:ok, %{kind: :settle, steps: steps, facts: facts, context: %{locker: ^lp_locker}}} =
              StakeActions.prepare(request, context.wallet, context.opts)
 
     assert [%{step: "collect_full_range", to: ^lp_locker, data: data}] = steps
