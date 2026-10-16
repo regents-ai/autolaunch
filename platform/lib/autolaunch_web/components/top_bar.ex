@@ -89,7 +89,7 @@ defmodule AutolaunchWeb.Components.TopBar do
   end
 
   # The other Regents Products, each shown with the crown in its own pair of
-  # brand colours, as the template's menu has them, less this site and Account.
+  # brand colours, as the template's menu has them, less this site.
   @regents_apps [
     %{name: "Patchbay", url: "https://patchbay.help", tone: "patchbay"},
     %{name: "Keyfleet", url: "https://keyfleet.ai", tone: "keyfleet"},

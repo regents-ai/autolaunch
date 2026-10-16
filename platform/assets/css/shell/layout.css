@@ -1,8 +1,15 @@
 /* One continuous sheet: the rail and gutter tracks belong to Structure.row. */
-.shell { min-height: 100dvh; }
-.shell-body { min-height: 100dvh; }
-.shell-main { min-width: 0; display: flex; flex-direction: column; }
-.shell-content { min-width: 0; max-width: 100%; flex: 1; padding: var(--rg-panel-padding); }
+/* The shell is at least a screen tall, less the market ticker's bar when it shows,
+   and the page column grows to fill it, so the footer sits at the foot of the
+   screen however short the page is, in the page's own flow. On a narrower screen
+   the rail sits above the page column, which takes the rest. */
+.shell { display: flex; flex-direction: column; min-height: 100dvh; }
+body:has(.market-ticker) .shell { min-height: calc(100dvh - 44px); }
+.shell-body { flex: 1 0 auto; }
+.shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
+@media (max-width: 63.99rem) { .shell-body { grid-template-rows: auto 1fr; } }
+.shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; }
+.shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
 .shell-content > main { padding: 0; }
 .shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
 .shell-skip:focus { transform: none; }
