@@ -12,7 +12,7 @@
  * Nothing here waits for, stops or repeats a press: a wallet button reaches
  * the wallet the moment it is pressed, and the motion plays alongside.
  */
-import {mountButtons} from "./hooks/motion/buttons"
+import {CTA, mountButtons} from "./hooks/motion/buttons"
 import {splitText} from "animejs"
 import {deny, nope, squish} from "./hooks/motion/press"
 import {CASCADE, GRIDS, HEADLINES, onFirstSight} from "./hooks/motion/reveals"
@@ -65,7 +65,7 @@ export function press(event: MouseEvent) {
   }
 
   // Shared CTAs already answered on pointer-down, with a stationary hit area.
-  if (!control.matches(".rg-button:not(.rg-button--quiet):not(.rg-copy):not(.rg-theme-toggle):not([role='tab'])"))
+  if (!control.matches(CTA))
     squish(control.querySelector("[data-press-label]") ?? control)
 
   if (control.getAttribute("aria-expanded") !== "true") return
