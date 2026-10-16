@@ -1,6 +1,6 @@
 /* The token page: the token's card and details beside the trade widget and
-   Claim Rewards. On a phone the widget comes straight after the card. */
-.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
+   Claim Rewards. On a phone the widget comes first, under the token's name. */
+.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "overview" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
 .token-page__overview { grid-area: overview; min-width: 0; }
 .token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
 .token-page__details { grid-area: details; min-width: 0; }

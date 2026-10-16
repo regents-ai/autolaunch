@@ -75,10 +75,9 @@ defmodule AutolaunchWeb.TokenDetails do
       "## Token",
       "- Token address: #{pool.token.address}",
       "- Trades against: #{pool.currency.symbol} #{pool.currency.address} (#{pool.currency.decimals} decimal places)",
-      "- Price now: " <> price(pool.current && pool.current.price, pool),
+      "- Latest recorded price: " <> price_now(details.price, pool),
       pool[:graduation_price] &&
         "- Price when the pool opened: " <> price(pool.graduation_price, pool),
-      details.price && "- Price to 18 decimals: #{details.price} #{pool.currency.symbol}",
       details.supply && "- Total supply: #{whole(details.supply)} #{pool.token.symbol}",
       details[:raised] && "- Raised in its auction: #{details.raised} #{pool.currency.symbol}",
       pool[:unsold] &&
@@ -306,8 +305,13 @@ defmodule AutolaunchWeb.TokenDetails do
 
   defp price(nil, _pool), do: "not readable right now"
 
+  # The pool's exact ratio runs to over a hundred digits; it is cut the one
+  # way the page cuts it.
   defp price(%{value: value}, pool),
-    do: "#{value} #{pool.currency.symbol} per #{pool.token.symbol}"
+    do: "#{Autolaunch.Pool.cut(value)} #{pool.currency.symbol} per #{pool.token.symbol}"
+
+  defp price_now(nil, _pool), do: "not readable right now"
+  defp price_now(price, pool), do: "#{price} #{pool.currency.symbol} per #{pool.token.symbol}"
 
   defp uncollected(nil, _pool), do: "not readable right now"
 

@@ -3,7 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v139, 16 October 2026: a token page you can use at a glance
+## v140, 16 October 2026: the token card fits every width
+- The token card stacks its picture above the ticker when space is short, so the ticker no longer breaks one letter per line and nothing is cut off at laptop widths.
+- On a phone the trade widget comes first, under the token's name.
+- Copied token details show prices to 18 decimal places.
+
+## v139, 16 October 2026 (ce7aa07): a token page you can use at a glance
 - One trade widget: Swap or Stake, plus Unstake once you have a stake. Stake is one button that stakes your whole balance; Unstake keeps 25, 50, 75 and Max.
 - Claim Rewards sits under the widget with what you will receive, beside Settle contract, which moves every trading fee waiting in the pool into the staking contract.
 - "Copy Full Token Details to Agent" holds the long explanations, the supply breakdown and the Uniswap Liquidity Pool details; the page keeps a short details list.

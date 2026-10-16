@@ -164,7 +164,9 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  defp cut(value) do
+  @doc "A pool price cut to 18 decimal places with trailing zeros dropped, as pages and copied text show it."
+  @spec cut(String.t()) :: String.t()
+  def cut(value) do
     case String.split(String.trim_trailing(value, "…"), ".", parts: 2) do
       [whole] ->
         whole

@@ -1,5 +1,5 @@
 {
-  "total": 31,
+  "total": 32,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -405,6 +405,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+    },
+    {
+      "id": 51,
+      "group": "Token page",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/token_details_test.exs",
+      "line": 11,
+      "test_name": "LONG_POOL_PRICES_ARE_CUT_NOT_PARSED",
+      "keep_because": "Real pool prices run past Decimal's 34-digit parsing limit and may end in an ellipsis; parsing one crashed every token page with a pool price in review (Sentinel, 16 Oct 2026), and short test prices miss it. The case fails if copied details parse a price again or cut it differently from the page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "bb1d051a897e90872056baba3e57a6d1e5dd3324532e4381af34d3db197358bd"
     }
   ],
   "legacy_folders_to_remove": [
