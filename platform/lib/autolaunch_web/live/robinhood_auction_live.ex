@@ -288,7 +288,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       launch={@launch}
       ended={AutolaunchWeb.RobinhoodStockBidComponent.ended_copy(@launch)}
       token_symbol={@launch.token_symbol}
-      stake_path={if @launch.state == :graduated, do: Paths.token(@launch) <> "#stake"}
+      stake_path={if @launch.state == :graduated, do: Paths.token_stake(@launch)}
       book={@book}
       supply={AsyncResult.ok(@launch.token_supply)}
       authenticated={@account_control.kind == :signed_in}

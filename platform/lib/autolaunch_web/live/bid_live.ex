@@ -273,7 +273,7 @@ defmodule AutolaunchWeb.BidLive do
     assigns =
       assign(assigns,
         listing: listing,
-        stake_path: if(assigns.bid.position.token, do: Paths.token(listing) <> "#stake")
+        stake_path: if(assigns.bid.position.token, do: Paths.token_stake(listing))
       )
 
     ~H"""

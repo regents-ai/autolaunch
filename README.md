@@ -88,7 +88,7 @@ Each v2 hook rounds its total fee once, then assigns the rounding remainder to t
 launch's splitter share after calculating the other lanes.
 
 The pool's liquidity is locked in a contract that can only collect trading fees. Anyone can press
-"collect", and the fees always go into the token's staking pot.
+"Settle contract" on the token's page, and the fees always go into the token's staking pot.
 
 Both pool types open at the auction's final clearing price. Revstake locks one
 full-range position. Memestock locks a full-range position funded by the stock

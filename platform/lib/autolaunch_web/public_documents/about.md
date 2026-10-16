@@ -63,7 +63,7 @@ Each v2 auction must reach its minimum before it can graduate. It opens at the l
 
 ### Liquidity that can't be pulled
 
-The trading pool's liquidity is locked in a contract that can only collect trading fees. Anyone can press "collect", and the fees always go into the token's staking pot.
+The trading pool's liquidity is locked in a contract that can only collect trading fees. Anyone can press "Settle contract" on the token's page, and the fees always go into the token's staking pot.
 
 ### Free to launch
 

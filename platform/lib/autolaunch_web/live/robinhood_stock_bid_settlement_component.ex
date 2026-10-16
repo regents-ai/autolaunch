@@ -262,7 +262,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       </p>
       <.link
         :if={@stake_path && (@claimed || claimed_bid?(@bid, @graduated?))}
-        navigate={stake_link(@stake_path, @claimed)}
+        navigate={@stake_path}
         class="rg-button rg-button--secondary"
       >
         Memestock {@token_symbol}
@@ -862,13 +862,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp claimed(%{"tokens_claimed_units" => tokens}), do: tokens
   defp claimed(_settled), do: nil
-
-  # The staking panel, with the claimed amount entered when it is known here.
-  defp stake_link(path, nil), do: path
-
-  defp stake_link(path, amount),
-    do:
-      String.replace_suffix(path, "#stake", "?" <> URI.encode_query(%{stake: amount}) <> "#stake")
 
   defp positive?(value) when is_binary(value) and value != "",
     do: Decimal.gt?(Decimal.new(value), 0)

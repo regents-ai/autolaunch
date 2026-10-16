@@ -487,16 +487,8 @@ defmodule AutolaunchWeb.AuctionLive do
       <.launch_trust
         auction={@page_record}
         connections={@creator_connections}
-        token_path={@graduated_token && Paths.token(@page_record) <> "#pool"}
+        token_path={@graduated_token && Paths.token(@page_record)}
       />
-      <p
-        :if={@page_record.state == :graduated && @graduated_token}
-        id="auction-pool-link"
-        class="autolaunch-live-market"
-      >
-        This auction graduated into its pool.
-        <.link navigate={Paths.token(@page_record) <> "#pool"}>View the pool and its trading fees</.link>
-      </p>
       <.treasury_security
         :if={@page_record.kind == :agent && !@lab}
         report={report(@page_record)}

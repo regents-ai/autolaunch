@@ -1,13 +1,12 @@
 defmodule AutolaunchWeb.RobinhoodTokenLive do
   @moduledoc """
   One graduated Robinhood memestock token, read by its token address, which
-  `AutolaunchWeb.MarketPageLive` hands it from the token's page address. The page shows the token and the launch it came
-  from as the Robinhood market feed stored them, with the feed's latest
-  reading of what its auction raised. It names its creator when a signed-up
-  account's wallet launched it, names the auction it graduated from, and
-  hands the signed-in wallet the trading and staking cards, whose figures are
-  read from the chain. When Robinhood cannot be read, the page says so and
-  shows what was last read. Its pieces are in `AutolaunchWeb.Components.TokenNext`.
+  `AutolaunchWeb.MarketPageLive` hands it from the token's page address. The
+  page shows the token as the Robinhood market feed stored it, with its price
+  read from its pool, the trade widget (`AutolaunchWeb.Components.TokenTrade`)
+  with Claim Rewards beneath it, and the launch's details. Everything else
+  about the token is copied for an agent from beside Claim Rewards. When
+  Robinhood cannot be read, the page says so and shows what was last read.
   """
 
   use AutolaunchWeb, :live_view
@@ -18,42 +17,48 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
-  import AutolaunchWeb.Components.StakeSummary
   import AutolaunchWeb.Components.TokenHeading
-  import AutolaunchWeb.Components.TokenNext
+  import AutolaunchWeb.Components.TokenTrade
 
   alias Autolaunch.MarketReadings
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.{LabMarket, Paths, ShareCard, TokenDisplay}
-
-  @reward_assets %{"stock" => :stock, "dollar" => :dollar, "token" => :token}
+  alias AutolaunchWeb.Components.TokenTrade
+  alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
 
   def mount(%{"auction" => auction}, _session, socket),
     do:
       {:ok,
        socket
-       |> assign(open?: Lab.configured?(), swap?: Lab.swap_configured?())
+       |> assign(open?: Lab.configured?(), swap?: Lab.swap_configured?(), staked?: false)
        |> LabMarket.subscribe_market(auction)
        |> assign(:reading, MarketReadings.market(auction))
        |> LabMarket.assign_robinhood_stale()}
 
   # The address is read here so a patch to another token reloads the page
-  # instead of keeping the previous launch on screen.
+  # instead of keeping the previous launch on screen. `?trade=stake` opens the
+  # widget on Stake.
   def handle_params(%{"token" => token} = params, _uri, socket) do
-    amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
-    socket = assign(socket, stake_amount: amount, reward_asset: nil)
-
+    socket = assign(socket, :trade, TokenTrade.pick(params["trade"], tabs(socket.assigns)))
     {:noreply, socket |> assign(:token_address, token) |> load_page()}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
 
-  def handle_event("reward_asset", %{"asset" => asset}, socket),
-    do: {:noreply, assign(socket, :reward_asset, Map.get(@reward_assets, asset))}
+  def handle_event("trade", %{"tab" => tab}, socket),
+    do: {:noreply, assign(socket, :trade, TokenTrade.pick(tab, tabs(socket.assigns)))}
 
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
+
+  # The staking part read the wallet's stake: Unstake is offered only while
+  # there is one.
+  def handle_info({:staked, staked?}, socket) do
+    socket = assign(socket, :staked?, staked?)
+
+    if socket.assigns.trade in tabs(socket.assigns),
+      do: {:noreply, socket},
+      else: {:noreply, assign(socket, :trade, :stake)}
+  end
 
   # The staking card confirmed something that moved the pool's figures, so the
   # pool is read again. The previous figures stay on the page while the chain
@@ -70,14 +75,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   def render(assigns), do: page(assigns)
 
-  # One reward followed from the trade to the claim beside the staking card,
-  # then the market, the locked liquidity and the launch's details.
   defp page(assigns) do
     ~H"""
     <article
       :if={@open? && @token}
       id="autolaunch-robinhood-token"
-      class="autolaunch-page token-page token-next"
+      class="autolaunch-page token-page"
     >
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>
@@ -88,7 +91,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           chain_id={@token.auction.chain_id}
           pool={if(@pool.ok?, do: @pool.result)}
         />
-        <p>{network_copy(Lab.test_chain?())}</p>
+        <p :if={Lab.test_chain?()}>Robinhood test network. Test assets have no real value.</p>
       </header>
       <p :if={@robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this token shows what was last read.
@@ -96,135 +99,84 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <p :if={@token_failed?} class="autolaunch-live-market" role="status">
         This token could not be read again just now, so it shows what was last read.
       </p>
-      <.detail_card kind={:token} record={@token} />
-      <div class="token-next-layout">
-        <div class="token-next-layout__main">
-          <.reward_trace
-            :if={@pool.ok?}
-            id="robinhood-token-reward-trace"
-            pool={@pool.result}
-            supply={@token.auction.token_supply}
-          />
-          <.reward_history
-            :if={@pool.ok?}
-            id="robinhood-token-reward-history"
-            pool={@pool.result}
-            asset={@reward_asset}
-          />
+      <div class="token-page__layout">
+        <div class="token-page__overview">
+          <.detail_card kind={:token} record={@token}>
+            <:chart :if={@pool.ok?}>
+              <.price_chart
+                id="robinhood-token-price-chart"
+                label="Price since the pool opened"
+                history={@pool.result.prices}
+                unit={@pool.result.currency.symbol}
+                color={@token.auction.image_color}
+              />
+            </:chart>
+          </.detail_card>
         </div>
-        <section id="stake" class="token-stake token-next-layout__side" aria-label="Staking">
-          <.stake_summary
-            :if={@pool.ok?}
-            id="robinhood-token-staked"
-            pool={@pool.result}
-            supply={@token.auction.token_supply}
-            label="Memestock"
-            fees={@fee_totals.result}
-            rate={@usd_rate.result}
-          />
+        <div class="token-page__side">
+          <.trade_widget id="trade" tab={@trade} swap={@swap?} staked={@staked?}>
+            <:pane :if={@swap?} tab={:swap}>
+              <.live_component
+                module={AutolaunchWeb.SwapComponent}
+                id={"robinhood-trade-#{@token.auction.auction_address}"}
+                launch={%{chain: :robinhood, auction: @token.auction}}
+                symbol={@token.symbol}
+                currency={@token.auction.quote_token_symbol}
+                authenticated={@account_control.kind == :signed_in}
+                current_human_id={current_human_id(@access_context)}
+                session_lease={@session_lease}
+              />
+            </:pane>
+            <:pane tab={:stake}>
+              <.live_component
+                :if={@pool.ok?}
+                module={AutolaunchWeb.StakeComponent}
+                id={"robinhood-stake-#{@token.auction.auction_address}"}
+                part={:stake}
+                mode={if @trade == :unstake, do: :unstake, else: :stake}
+                launch={%{chain: :robinhood, auction: @token.auction}}
+                pool={@pool.result}
+                share_url={Paths.token_url(@token.auction)}
+                share_image={ShareCard.token_image_url(@token.auction, DateTime.utc_now())}
+                authenticated={@account_control.kind == :signed_in}
+                current_human_id={current_human_id(@access_context)}
+                session_lease={@session_lease}
+              />
+              <.pool_status :if={!@pool.ok?} pool={@pool} />
+            </:pane>
+          </.trade_widget>
           <.live_component
             :if={@pool.ok?}
             module={AutolaunchWeb.StakeComponent}
-            id={"robinhood-stake-#{@token.auction.auction_address}"}
+            id={"robinhood-claim-#{@token.auction.auction_address}"}
+            part={:claim}
             launch={%{chain: :robinhood, auction: @token.auction}}
             pool={@pool.result}
-            initial_amount={@stake_amount}
-            share_url={Paths.token_url(@token.auction)}
-            share_image={ShareCard.token_image_url(@token.auction, DateTime.utc_now())}
+            details={details(assigns)}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
-            supply={@token.auction.token_supply}
           />
-          <p :if={@pool.loading} role="status">Reading the staking figures…</p>
-          <p :if={@pool.failed == {:error, :not_graduated}} class="autolaunch-live-market">
-            This token has not been moved into its pool yet. Staking opens once it is.
-          </p>
-          <div :if={unreadable?(@pool)} role="alert" class="autolaunch-empty">
-            <p>The staking figures could not be read just now.</p>
-            <Regent.Primitives.button phx-click="reload_pool" variant="secondary">
-              Read again
-            </Regent.Primitives.button>
-          </div>
-        </section>
+          <.live_component
+            :if={@pool.ok?}
+            module={AutolaunchWeb.ConvertComponent}
+            id={"robinhood-convert-#{@token.auction.auction_address}"}
+            launch={%{chain: :robinhood, auction: @token.auction}}
+            pool={@pool.result}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+        </div>
+        <div class="token-page__details">
+          <.launch_trust
+            auction={@token.auction}
+            connections={@creator_connections.result}
+            pool={if(@pool.ok?, do: @pool.result)}
+            price={%{amount: @token.price_quote, unit: @token.auction.quote_token_symbol}}
+          />
+        </div>
       </div>
-      <.price_chart
-        :if={@pool.ok?}
-        id="robinhood-token-price-chart"
-        label="Price since the pool opened"
-        history={@pool.result.prices}
-        unit={@pool.result.currency.symbol}
-        color={@token.auction.image_color}
-      />
-      <dl class="autolaunch-live-market" aria-label="Token facts">
-        <div>
-          <dt>Token address</dt>
-          <dd class="autolaunch-exact-value">{@token.auction.token_address}</dd>
-        </div>
-        <div>
-          <dt>Trades against</dt>
-          <dd>
-            <span class="ticker">{@token.auction.quote_token_symbol}</span>
-            · <span class="figure__value">{@token.auction.quote_token_decimals}</span>
-            decimal places
-            <span class="autolaunch-exact-value">{@token.auction.quote_token_address}</span>
-          </dd>
-        </div>
-        <div :if={@reading}>
-          <dt>Raised in its auction</dt>
-          <dd>
-            <TokenDisplay.written
-              value={@reading.currency_raised}
-              unit={@token.auction.quote_token_symbol}
-            />
-          </dd>
-        </div>
-      </dl>
-      <.live_component
-        :if={@swap?}
-        module={AutolaunchWeb.SwapComponent}
-        id={"robinhood-trade-#{@token.auction.auction_address}"}
-        launch={%{chain: :robinhood, auction: @token.auction}}
-        symbol={@token.symbol}
-        currency={@token.auction.quote_token_symbol}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
-      <.live_component
-        :if={@swap? && @pool.ok?}
-        module={AutolaunchWeb.ImpactProbeComponent}
-        id={"robinhood-impact-#{@token.auction.auction_address}"}
-        launch={%{chain: :robinhood, auction: @token.auction}}
-        pool={@pool.result}
-      />
-      <p class="autolaunch-live-market">
-        <.link navigate={Paths.auction(@token.auction)}>
-          Open the auction this token graduated from
-        </.link>
-      </p>
-      <.liquidity :if={@pool.ok?} id="robinhood-token-liquidity" pool={@pool.result} />
-      <.launch_trust
-        auction={@token.auction}
-        connections={@creator_connections.result}
-        pool={if(@pool.ok?, do: @pool.result)}
-      />
-      <.live_component
-        :if={@pool.ok?}
-        module={AutolaunchWeb.ConvertComponent}
-        id={"robinhood-convert-#{@token.auction.auction_address}"}
-        launch={%{chain: :robinhood, auction: @token.auction}}
-        pool={@pool.result}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
-      <p :if={@pool.ok?} class="autolaunch-live-market">
-        Read at block {@pool.result.block.number}.
-        <Regent.Primitives.button phx-click="reload_pool" variant="secondary">
-          Read again
-        </Regent.Primitives.button>
-      </p>
     </article>
     <.states
       open?={@open?}
@@ -233,6 +185,26 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       token_address={@token_address}
     />
     """
+  end
+
+  defp tabs(assigns), do: TokenTrade.tabs(assigns.swap?, assigns.staked?)
+
+  # What Copy Full Token Details to Agent copies, as the page has read it
+  # (`AutolaunchWeb.TokenDetails`).
+  defp details(assigns) do
+    %{token: token, pool: pool, fee_totals: fees, reading: reading} = assigns
+
+    %{
+      name: token.name,
+      symbol: token.symbol,
+      url: Paths.token_url(token.auction),
+      pool: pool.result,
+      fees: fees.result,
+      supply: token.auction.token_supply,
+      price: token.price_quote,
+      treasury: nil,
+      raised: reading && reading.currency_raised
+    }
   end
 
   attr :open?, :boolean, required: true
@@ -303,16 +275,15 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   end
 
   # The pool is its own read of the chain: the token renders from its stored
-  # row at once, and the staking card says when the pool is slow. The fees it
-  # has charged and its stock's dollar price arrive with it. A fresh page
+  # row at once, and the trade widget says when the pool is slow. The fees it
+  # has charged arrive with it. A fresh page
   # starts from nothing; a re-read keeps the last figures until the new ones
   # arrive.
   defp load_pool(%{assigns: %{token: nil}} = socket, _reset?),
     do:
       assign(socket,
         pool: %Phoenix.LiveView.AsyncResult{},
-        fee_totals: %Phoenix.LiveView.AsyncResult{},
-        usd_rate: %Phoenix.LiveView.AsyncResult{}
+        fee_totals: %Phoenix.LiveView.AsyncResult{}
       )
 
   defp load_pool(socket, reset?) do
@@ -320,33 +291,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
     assign_async(
       socket,
-      [:pool, :fee_totals, :usd_rate],
+      [:pool, :fee_totals],
       fn ->
-        with {:ok, facts} <- Pool.read(token.auction) do
-          {:ok,
-           %{
-             pool: facts,
-             fee_totals: PoolFees.totals(facts, token),
-             usd_rate: usd_rate(token.auction.quote_token_symbol)
-           }}
-        end
+        with {:ok, facts} <- Pool.read(token.auction),
+             do: {:ok, %{pool: facts, fee_totals: PoolFees.totals(facts, token)}}
       end,
       reset: reset?
     )
   end
-
-  defp usd_rate(symbol) do
-    if Lab.test_chain?(),
-      do: :test_network,
-      else: MarketData.stock_price(:robinhood, symbol)
-  end
-
-  defp network_copy(true),
-    do: "A Memestock token on the Robinhood test network. Test assets have no real value."
-
-  defp network_copy(false), do: "A Memestock token on Robinhood Chain."
-
-  defp unreadable?(%{failed: nil}), do: false
-  defp unreadable?(%{failed: {:error, :not_graduated}}), do: false
-  defp unreadable?(_failed), do: true
 end

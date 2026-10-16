@@ -49,9 +49,10 @@ const presses = new WeakMap<HTMLElement, number>()
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
-    // Pool data arrives after navigation; the #stake target may not have existed yet.
-    if (this.el.hasAttribute("data-stake-panel") && window.location.hash === "#stake") {
-      this.el.scrollIntoView({block: "start"})
+    // Pool data arrives after navigation, so a link to the token page's trade
+    // widget is scrolled to once its staking part is on the page.
+    if (this.el.hasAttribute("data-stake-panel") && window.location.hash === "#trade") {
+      this.el.closest("#trade")?.scrollIntoView({block: "start"})
     }
     const push: Push = (event, payload) => void this.pushEventTo(this.el, event, payload)
 

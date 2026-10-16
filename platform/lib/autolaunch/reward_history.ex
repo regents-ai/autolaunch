@@ -1,10 +1,8 @@
 defmodule Autolaunch.RewardHistory do
   @moduledoc """
-  A launch splitter's own record of its rewards, read from its events: every
-  arrival it recognized with the stakers' part of it, and what one wallet has
-  claimed. Revstake and Memestock splitters, first and second launchpad and
-  Robinhood alike, emit the same `Claimed` event; their `RevenueRecognized`
-  events differ only in where the stakers' part sits in the data.
+  What one wallet has claimed from a launch splitter, read from the
+  splitter's own `Claimed` events. Revstake and Memestock splitters, first
+  and second launchpad and Robinhood alike, emit the same event.
 
   Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
@@ -12,30 +10,7 @@ defmodule Autolaunch.RewardHistory do
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
 
-  @recognized %{
-    revstake:
-      "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
-    memestock: "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256)"
-  }
-  # The stakers' part in each event's data: [gross, skim, net, stakerShare,
-  # treasuryShare] for Revstake, [gross, protocolShare, stakerShare] for Memestock.
-  @staker_word %{revstake: 3, memestock: 2}
   @claimed "Claimed(address,address,uint256)"
-
-  @doc """
-  Every arrival `splitter` recognized from `from_block` to `block`, oldest
-  first: the asset, the address that sent it, the stakers' part in atomic
-  units, and the block and transaction it arrived in.
-  """
-  @spec recognized(:revstake | :memestock, String.t(), non_neg_integer(), Rpc.block(), keyword()) ::
-          {:ok, [map()]} | {:error, atom()}
-  def recognized(kind, splitter, from_block, block, opts) do
-    topic = LabAbi.topic(Map.fetch!(@recognized, kind))
-
-    with {:ok, logs} <- logs(splitter, from_block, block, [topic], opts) do
-      {:ok, Enum.map(logs, &recognition(&1, Map.fetch!(@staker_word, kind)))}
-    end
-  end
 
   @doc """
   What `account` has claimed from `splitter` from `from_block` to `block`, in
@@ -53,16 +28,6 @@ defmodule Autolaunch.RewardHistory do
          Map.update(sums, address_at(log, 2), amount, &(&1 + amount))
        end)}
     end
-  end
-
-  defp recognition(log, staker_word) do
-    %{
-      asset: address_at(log, 1),
-      source: address_at(log, 2),
-      amount: log |> data_words() |> Enum.at(staker_word),
-      block: quantity(log["blockNumber"]),
-      transaction_hash: String.downcase(log["transactionHash"])
-    }
   end
 
   defp logs(address, from_block, block, topics, opts) do
@@ -94,6 +59,5 @@ defmodule Autolaunch.RewardHistory do
     do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
 
   defp word("0x" <> hex), do: String.to_integer(hex, 16)
-  defp quantity("0x" <> hex), do: String.to_integer(hex, 16)
   defp hex(value), do: "0x" <> Integer.to_string(value, 16)
 end

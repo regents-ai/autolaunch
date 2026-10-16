@@ -20,7 +20,7 @@ defmodule Autolaunch.Pool do
 
   alias Autolaunch.Chain.{Abi, Rpc}
 
-  alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PoolRange, PriceHistory, RewardHistory}
+  alias Autolaunch.{Lab, LabAbi, LabRpc, PoolPrice, PoolRange, PriceHistory}
   alias Autolaunch.Stocks.FeeSchedule
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
@@ -367,14 +367,6 @@ defmodule Autolaunch.Pool do
            ),
          {:ok, fees} <-
            agent_fees(config, distribution, auction, block, opts),
-         {:ok, rewards} <-
-           RewardHistory.recognized(
-             :revstake,
-             distribution.splitter,
-             distribution.migration_block,
-             block,
-             opts
-           ),
          {:ok, treasury_vesting} <- treasury_vesting(config, distribution, block, opts),
          {:ok, prices} <-
            PriceHistory.pool(
@@ -441,7 +433,6 @@ defmodule Autolaunch.Pool do
          },
          uniswap_url: uniswap_url(distribution.pool_id),
          fees: fees,
-         rewards: rewards,
          treasury_vesting: treasury_vesting
        }}
     else
@@ -620,14 +611,6 @@ defmodule Autolaunch.Pool do
            ),
          {:ok, positions} <- stocks_positions(config, launch, current, decimals, block, opts),
          {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts),
-         {:ok, rewards} <-
-           RewardHistory.recognized(
-             :memestock,
-             launch.splitter,
-             launch.migration_block,
-             block,
-             opts
-           ),
          {:ok, prices} <-
            PriceHistory.pool(
              %{
@@ -678,7 +661,6 @@ defmodule Autolaunch.Pool do
          },
          uniswap_url: uniswap_url(launch.pool_id),
          fees: fees,
-         rewards: rewards,
          vesting: launch.vesting
        }}
     else

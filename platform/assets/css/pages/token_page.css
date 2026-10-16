@@ -1,0 +1,50 @@
+/* The token page: the token's card and details beside the trade widget and
+   Claim Rewards. On a phone the widget comes straight after the card. */
+.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
+.token-page__overview { grid-area: overview; min-width: 0; }
+.token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
+.token-page__details { grid-area: details; min-width: 0; }
+@media (min-width: 64rem) {
+  .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem); grid-template-areas: "overview side" "details side"; }
+}
+
+/* The trade widget: a sliding selector over one view at a time. */
+.token-trade { position: relative; display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
+.token-trade__tabs { position: relative; display: inline-flex; justify-self: start; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.5rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: var(--font-weight-semibold) .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+.token-trade__tabs [role="tab"][aria-selected="true"] { color: var(--color-bg); }
+.token-trade__tabs [role="tab"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.token-trade__ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
+/* Until the script places the ink, the chosen tab fills itself. */
+.token-trade__ink:not([style]) { visibility: hidden; }
+.token-trade__tabs:has(.token-trade__ink:not([style])) [aria-selected="true"] { background: var(--color-fg); }
+.token-trade__panes { display: grid; min-width: 0; }
+.token-trade__pane { grid-area: 1 / 1; min-width: 0; }
+.token-trade__pane[inert] { visibility: hidden; }
+.token-trade .token-swap { max-width: none; }
+/* The swap's settings sit at the end of the selector's row. */
+.token-trade .token-swap__bar { position: absolute; top: 2px; right: 0; margin: 0; }
+.token-trade .token-swap__mode { display: none; }
+.token-trade__label { color: var(--color-fg-muted); font-size: 1rem; }
+.token-trade__figure[data-empty] { color: var(--color-fg-muted); }
+.token-trade__reason { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.token-trade__status { display: grid; justify-items: start; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg-muted); }
+.token-trade__status p { margin: 0; }
+
+/* Claim Rewards, and the copy of the token's details above it. */
+.token-claim { display: grid; gap: var(--space-2); min-width: 0; }
+.token-claim__copy { width: 100%; min-height: 2.75rem; }
+.token-claim__card { min-width: 0; padding: clamp(.875rem, 3.5vw, 1.25rem); border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.token-claim__body { display: grid; gap: var(--space-2); min-width: 0; }
+.token-claim__body[inert] { opacity: .45; }
+.token-claim__title { margin: 0; font-size: 1.25rem; }
+.token-claim__rows { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.token-claim__rows > li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--space-2); min-width: 0; padding-block: var(--space-1); border-bottom: 1px solid var(--hairline); }
+.token-claim__what { color: var(--color-fg-muted); font-size: .9375rem; }
+.token-claim__amount { font-size: 1.25rem; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-claim__amount--missing { color: var(--color-fg-muted); font-size: .9375rem; font-weight: var(--font-weight-regular); }
+.token-claim__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.token-claim__more { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.token-claim__settle { display: inline-flex; align-items: center; gap: 2px; }
+.token-claim .token-swap__submit { margin-top: 0; }
+.token-trade .token-swap__leg-head label { white-space: nowrap; }

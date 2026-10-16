@@ -21,7 +21,7 @@ import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
 import {mountMotion} from "./motion"
-import {MotionCascade} from "./hooks/motion/reveals"
+import {MotionCascade, MotionTabs} from "./hooks/motion/reveals"
 import {MotionCount, MotionRefusal} from "./hooks/motion/moments"
 import {MotionPanels} from "./hooks/motion/slides"
 import {Toast} from "./motion/toast"
@@ -49,6 +49,7 @@ const hooks = {
   MotionCount,
   MotionPanels,
   MotionRefusal,
+  MotionTabs,
   HolographicCard,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

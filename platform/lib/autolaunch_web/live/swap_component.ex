@@ -534,7 +534,7 @@ defmodule AutolaunchWeb.SwapComponent do
     result = SwapActions.result(context, signer, logs)
 
     if direction == :buy,
-      do: Map.put(result, "stake_href", purchased_stake_path(socket.assigns.launch, result)),
+      do: Map.put(result, "stake_href", purchased_stake_path(socket.assigns.launch)),
       else: result
   end
 
@@ -567,27 +567,22 @@ defmodule AutolaunchWeb.SwapComponent do
   defp action(%{amount: amount, error: nil}) when amount != "", do: :review
   defp action(_assigns), do: :enter_amount
 
-  defp purchased_stake_path(%{chain: :base, auction: auction}, result) do
+  defp purchased_stake_path(%{chain: :base, auction: auction}) do
     case Autolaunch.get_public_token_by_auction(auction.id, load: [:auction]) do
-      {:ok, %{auction: auction}} -> stake_path(auction, result)
+      {:ok, %{auction: auction}} -> Paths.token_stake(auction)
       _ -> nil
     end
   end
 
-  defp purchased_stake_path(%{chain: :robinhood, auction: auction}, result) do
+  defp purchased_stake_path(%{chain: :robinhood, auction: auction}) do
     case Autolaunch.get_robinhood_auction(auction.auction_address) do
       {:ok, %{token_address: token} = auction} when is_binary(token) ->
-        stake_path(auction, result)
+        Paths.token_stake(auction)
 
       _ ->
         nil
     end
   end
-
-  defp stake_path(auction, result),
-    do:
-      Paths.token(auction) <>
-        "?" <> URI.encode_query(%{stake: result["received_units"]}) <> "#stake"
 
   defp sell(%{direction: :buy, currency: currency}), do: currency
   defp sell(%{symbol: symbol}), do: symbol

@@ -4,38 +4,50 @@ defmodule AutolaunchWeb.TokenLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers
-  import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
-  import AutolaunchWeb.Components.PoolSection
   import AutolaunchWeb.Components.PriceChart
-  import AutolaunchWeb.Components.StakeSummary
   import AutolaunchWeb.Components.TokenHeading
-  import AutolaunchWeb.Components.TokenNext
+  import AutolaunchWeb.Components.TokenTrade
 
   alias Autolaunch.Lab
-  alias Autolaunch.{Pool, PoolFees}
-  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
+  alias Autolaunch.{Pool, PoolFees, TreasurySecurity}
+  alias AutolaunchWeb.Components.TokenTrade
+  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard}
   alias AutolaunchWeb.SwapComponent
 
-  @reward_assets %{"stock" => :stock, "dollar" => :dollar, "token" => :token}
-
   def mount(%{"auction_address" => address}, _session, socket),
-    do: {:ok, socket |> LabMarket.subscribe_market(address) |> LiveListings.subscribe()}
+    do:
+      {:ok,
+       socket
+       |> assign(staked?: false)
+       |> LabMarket.subscribe_market(address)
+       |> LiveListings.subscribe()}
 
   # The identifier is read here so a patch to another token reloads the page
-  # instead of keeping the previous record on screen.
+  # instead of keeping the previous record on screen. `?trade=stake` opens the
+  # widget on Stake.
   def handle_params(%{"token_id" => id} = params, _uri, socket) do
-    amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
-    socket = assign(socket, stake_amount: amount, reward_asset: nil)
+    socket = assign(socket, :trade, TokenTrade.pick(params["trade"], tabs(socket)))
     {:noreply, socket |> assign(:record_id, id) |> load_page()}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
 
-  def handle_event("reward_asset", %{"asset" => asset}, socket),
-    do: {:noreply, assign(socket, :reward_asset, Map.get(@reward_assets, asset))}
+  def handle_event("trade", %{"tab" => tab}, socket),
+    do: {:noreply, assign(socket, :trade, TokenTrade.pick(tab, tabs(socket)))}
 
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
+
+  # The staking part read the wallet's stake: Unstake is offered only while
+  # there is one.
+  def handle_info({:staked, staked?}, socket) do
+    socket = assign(socket, :staked?, staked?)
+
+    if socket.assigns.trade in tabs(socket),
+      do: {:noreply, socket},
+      else: {:noreply, assign(socket, :trade, :stake)}
+  end
 
   # The staking card confirmed something that moved the pool's figures, so the
   # pool is read again. The previous figures stay on the page while the fork
@@ -62,7 +74,6 @@ defmodule AutolaunchWeb.TokenLive do
 
     assigns =
       assign(assigns,
-        local_lab?: Lab.test_chain?(),
         page_record: page_record,
         presentation: page_record && Autolaunch.Token.presentation(page_record),
         page_status: page_status(assigns.page, :error),
@@ -72,14 +83,15 @@ defmodule AutolaunchWeb.TokenLive do
     page(assigns)
   end
 
-  # One reward followed from the trade to the claim beside the staking card,
-  # then the market, the locked liquidity and the launch's details.
+  # The token's card with its price, the trade widget with Claim Rewards
+  # beneath it, and the token's details. Everything else about the token
+  # is copied for an agent from beside Claim Rewards.
   defp page(assigns) do
     ~H"""
     <article
       :if={@page_status == :ready && @page_record}
       id="autolaunch-token-detail"
-      class="autolaunch-page token-page token-next"
+      class="autolaunch-page token-page"
     >
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>
@@ -91,134 +103,133 @@ defmodule AutolaunchWeb.TokenLive do
           pool={if(@pool.ok?, do: @pool.result)}
         />
       </header>
-      <.detail_card kind={:token} record={@page_record} />
-      <div class="token-next-layout">
-        <div class="token-next-layout__main">
-          <.reward_trace
-            :if={@pool.ok?}
-            id="token-reward-trace"
-            pool={@pool.result}
-            supply={@page_record.auction.token_supply}
-          />
-          <.reward_history
-            :if={@pool.ok?}
-            id="token-reward-history"
-            pool={@pool.result}
-            asset={@reward_asset}
-          />
+      <div class="token-page__layout">
+        <div class="token-page__overview">
+          <.detail_card kind={:token} record={@page_record}>
+            <:chart :if={@pool.ok?}>
+              <.price_chart
+                id="token-price-chart"
+                label="Price since the pool opened"
+                history={@pool.result.prices}
+                unit={@pool.result.currency.symbol}
+                color={@presentation.image_color}
+              />
+            </:chart>
+          </.detail_card>
         </div>
-        <section id="stake" class="token-stake token-next-layout__side" aria-label="Staking">
-          <.stake_summary
-            :if={@pool.ok?}
-            id="token-staked"
-            pool={@pool.result}
-            supply={@page_record.auction.token_supply}
-            label={if @page_record.auction.kind == :agent, do: "Revstake", else: "Memestock"}
-            fees={@fee_totals.result}
-            rate={@usd_rate.result}
-          />
+        <div class="token-page__side">
+          <.trade_widget id="trade" tab={@trade} swap staked={@staked?}>
+            <:pane tab={:swap}>
+              <.live_component
+                module={AutolaunchWeb.SwapComponent}
+                id={"token-trade-#{@page_record.id}"}
+                launch={%{chain: :base, auction: @page_record.auction}}
+                symbol={@presentation.symbol}
+                image={@presentation.image}
+                currency={SwapComponent.entry_symbol(@page_record.auction)}
+                authenticated={@account_control.kind == :signed_in}
+                current_human_id={current_human_id(@access_context)}
+                session_lease={@session_lease}
+              />
+            </:pane>
+            <:pane tab={:stake}>
+              <.live_component
+                :if={@pool.ok?}
+                module={AutolaunchWeb.StakeComponent}
+                id={"token-stake-#{@page_record.id}"}
+                part={:stake}
+                mode={if @trade == :unstake, do: :unstake, else: :stake}
+                launch={%{chain: :base, auction: @page_record.auction}}
+                pool={@pool.result}
+                share_url={Paths.token_url(@page_record.auction)}
+                share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
+                authenticated={@account_control.kind == :signed_in}
+                current_human_id={current_human_id(@access_context)}
+                session_lease={@session_lease}
+              />
+              <.pool_status :if={!@pool.ok?} pool={@pool} />
+            </:pane>
+          </.trade_widget>
           <.live_component
             :if={@pool.ok?}
             module={AutolaunchWeb.StakeComponent}
-            id={"token-stake-#{@page_record.id}"}
+            id={"token-claim-#{@page_record.id}"}
+            part={:claim}
             launch={%{chain: :base, auction: @page_record.auction}}
             pool={@pool.result}
-            initial_amount={@stake_amount}
-            share_url={Paths.token_url(@page_record.auction)}
-            share_image={ShareCard.token_image_url(@page_record.auction, DateTime.utc_now())}
+            details={details(assigns)}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
-            supply={@page_record.auction.token_supply}
           />
-        </section>
+          <.live_component
+            :if={
+              @pool.ok? && @pool.result.kind == :agent && !Lab.test_chain?() &&
+                !Autolaunch.Prelaunch.read_only?()
+            }
+            module={AutolaunchWeb.SubjectWalletComponent}
+            id={"token-payment-#{@page_record.id}"}
+            subject_id={Autolaunch.LabProjection.subject_identity(@pool.result.token.address)}
+            symbol={@presentation.symbol}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+            client_key={@client_key}
+          />
+          <.live_component
+            :if={@pool.ok? && @pool.result.kind == :stocks}
+            module={AutolaunchWeb.ConvertComponent}
+            id={"token-convert-#{@page_record.id}"}
+            launch={%{chain: :base, auction: @page_record.auction}}
+            pool={@pool.result}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+        </div>
+        <div class="token-page__details">
+          <.launch_trust
+            auction={@page_record.auction}
+            connections={@creator_connections}
+            pool={if(@pool.ok?, do: @pool.result)}
+            price={
+              %{
+                amount: @page_record.price_quote,
+                unit: SwapComponent.entry_symbol(@page_record.auction)
+              }
+            }
+          />
+        </div>
       </div>
-      <.price_chart
-        :if={@pool.ok?}
-        id="token-price-chart"
-        label="Price since the pool opened"
-        history={@pool.result.prices}
-        unit={@pool.result.currency.symbol}
-        color={@presentation.image_color}
-      />
-      <.exact_price
-        id="token-exact-price"
-        summary="Price to 18 decimals"
-        amount={@page_record.price_quote}
-        unit={SwapComponent.entry_symbol(@page_record.auction)}
-      />
-      <.live_component
-        module={AutolaunchWeb.SwapComponent}
-        id={"token-trade-#{@page_record.id}"}
-        launch={%{chain: :base, auction: @page_record.auction}}
-        symbol={@presentation.symbol}
-        image={@presentation.image}
-        currency={SwapComponent.entry_symbol(@page_record.auction)}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
-      <.live_component
-        :if={@pool.ok? && SwapComponent.entry_symbol(@page_record.auction)}
-        module={AutolaunchWeb.ImpactProbeComponent}
-        id={"token-impact-#{@page_record.id}"}
-        launch={%{chain: :base, auction: @page_record.auction}}
-        pool={@pool.result}
-      />
-      <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
-        <.link navigate={Paths.auction(@page_record.auction)}>
-          Open the auction this token graduated from
-        </.link>
-      </p>
-      <.liquidity :if={@pool.ok?} id="token-liquidity" pool={@pool.result} />
-      <.treasury_vesting
-        :if={@pool.ok? && @pool.result.kind == :agent}
-        id="token-treasury-vesting"
-        pool={@pool.result}
-      />
-      <.launch_trust
-        auction={@page_record.auction}
-        connections={@creator_connections}
-        pool={if(@pool.ok?, do: @pool.result)}
-      />
-      <.pool_facts pool={@pool} />
-      <.live_component
-        :if={
-          @pool.ok? && @pool.result.kind == :agent && !@local_lab? &&
-            !Autolaunch.Prelaunch.read_only?()
-        }
-        module={AutolaunchWeb.SubjectWalletComponent}
-        id={"token-payment-#{@page_record.id}"}
-        subject_id={Autolaunch.LabProjection.subject_identity(@pool.result.token.address)}
-        symbol={@presentation.symbol}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-        client_key={@client_key}
-      />
-      <.live_component
-        :if={@pool.ok? && @pool.result.kind == :stocks}
-        module={AutolaunchWeb.ConvertComponent}
-        id={"token-convert-#{@page_record.id}"}
-        launch={%{chain: :base, auction: @page_record.auction}}
-        pool={@pool.result}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
-      <.treasury_security
-        :if={@page_record.auction.kind == :agent && !@local_lab?}
-        report={report(@page_record)}
-        surface="token-detail"
-      />
-      <.lab_treasury_unavailable
-        :if={@page_record.auction.kind == :agent && @local_lab?}
-        surface="token-detail"
-      />
     </article>
     <.states page_status={@page_status} record_id={@record_id} />
     """
   end
+
+  defp tabs(socket), do: TokenTrade.tabs(true, socket.assigns.staked?)
+
+  # What Copy Full Token Details to Agent copies, as the page has read it
+  # (`AutolaunchWeb.TokenDetails`).
+  defp details(assigns) do
+    record = assigns.page_record
+
+    %{
+      name: assigns.presentation.name,
+      symbol: assigns.presentation.symbol,
+      url: Paths.token_url(record.auction),
+      pool: assigns.pool.result,
+      fees: assigns.fee_totals.result,
+      supply: record.auction.token_supply,
+      price: record.price_quote,
+      treasury: treasury(record)
+    }
+  end
+
+  defp treasury(%{auction: %{kind: :agent}} = record) do
+    if Lab.test_chain?(), do: :unverified, else: TreasurySecurity.public_view(report(record))
+  end
+
+  defp treasury(_record), do: nil
 
   attr :page_status, :atom, required: true
   attr :record_id, :string, required: true
@@ -277,9 +288,9 @@ defmodule AutolaunchWeb.TokenLive do
   defp page_auction_id(_page), do: nil
 
   # The pool is its own read of the chain: the token record renders as soon as
-  # the database answers, and the pool section says when the chain is slow.
-  # The fees it has charged and its currency's dollar price arrive with it. A
-  # site without a Base deployment has no pool to read. A fresh page starts
+  # the database answers, and the trade widget says when the chain is slow.
+  # The fees it has charged arrive with it. A site without a Base deployment
+  # has no pool to read. A fresh page starts
   # from nothing; a re-read keeps the last figures until the new ones arrive.
   defp load_pool(socket, reset?) do
     if Lab.configured?(),
@@ -287,8 +298,7 @@ defmodule AutolaunchWeb.TokenLive do
       else:
         assign(socket,
           pool: %Phoenix.LiveView.AsyncResult{},
-          fee_totals: %Phoenix.LiveView.AsyncResult{},
-          usd_rate: %Phoenix.LiveView.AsyncResult{}
+          fee_totals: %Phoenix.LiveView.AsyncResult{}
         )
   end
 
@@ -297,17 +307,12 @@ defmodule AutolaunchWeb.TokenLive do
 
     assign_async(
       socket,
-      [:pool, :fee_totals, :usd_rate],
+      [:pool, :fee_totals],
       fn ->
         with {:ok, %{page: %{record: %{auction: auction} = token}}} when is_map(auction) <-
                load_token_page(id),
              {:ok, facts} <- Pool.read(auction) do
-          {:ok,
-           %{
-             pool: facts,
-             fee_totals: PoolFees.totals(facts, token),
-             usd_rate: if(Lab.test_chain?(), do: :test_network, else: UsdValue.rate(auction))
-           }}
+          {:ok, %{pool: facts, fee_totals: PoolFees.totals(facts, token)}}
         else
           {:ok, _no_record} -> {:error, :not_graduated}
           {:error, reason} -> {:error, reason}

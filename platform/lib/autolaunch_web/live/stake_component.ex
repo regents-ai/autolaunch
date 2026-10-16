@@ -1,23 +1,28 @@
 defmodule AutolaunchWeb.StakeComponent do
   @moduledoc """
-  The staking card of a graduated launch, on its Base or Robinhood token page:
-  what the launch's staking contract holds, what this wallet has in it, an
-  amount to stake or unstake, and the open actions (claim, collect the locked
-  liquidity's trading fees, and for a memestock launch settle for stakers and,
-  when it vests to its creator, release the creator's tokens; a Revstake
-  launch's swap fee reaches its splitter on the trade itself). A
-  panel over the card walks the wallet through each reviewed action and
-  closes itself when the chain confirms it.
+  The staking actions of a graduated launch on its Base or Robinhood token
+  page, in one of two places, named by `part`:
+
+    * `:stake` - the Stake and Unstake views of the page's trade widget, the
+      one showing named by `mode`. Stake sends the wallet's whole balance;
+      Unstake sends an amount typed or picked as a share of the stake. It
+      tells the page whether the wallet has a stake (`{:staked, boolean}`), so
+      the widget offers Unstake only to a wallet that has one.
+    * `:claim` - Claim Rewards under the widget: what the wallet can claim in
+      each asset its staking pays, the claim itself, Settle contract (every
+      trading fee waiting for stakers moved into the staking contract, open to
+      anyone) and, for a launch that vests to its creator, the release of the
+      creator's tokens. Above it, a button copies the token's full details
+      (`details`, see `AutolaunchWeb.TokenDetails`) with this wallet's own
+      figures for the person to paste to their agent.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
-  `%{chain: :robinhood, auction: record}`; `pool` is its current facts.
-  The card shows the wallet's rewards one asset to a row, its stake apart
-  from them, and what staking the typed amount would change
-  (`AutolaunchWeb.Components.TokenNext`); `supply` is the token's whole
-  supply, which a Revstake share is of.
+  `%{chain: :robinhood, auction: record}`; `pool` is its current facts. A
+  panel over the part walks the wallet through each reviewed action and closes
+  itself when the chain confirms it.
 
   The wallet that acts is Privy's active wallet when the signed-in account
-  links it (`AutolaunchWeb.OnchainSteps`); the card shows that wallet's
+  links it (`AutolaunchWeb.OnchainSteps`); the part shows that wallet's
   figures, or the signed-in wallet's until Privy reports one, and a note names
   both while the wallet app has another one open.
 
@@ -28,16 +33,18 @@ defmodule AutolaunchWeb.StakeComponent do
   """
   use AutolaunchWeb, :live_component
 
+  import AutolaunchWeb.Components.InfoTip
+
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
-  alias Autolaunch.Stocks.{FeeSchedule, StakeActions}
-  alias AutolaunchWeb.Components.{ShareDialog, SwapForm, TokenNext}
+  alias Autolaunch.Stocks.{Amounts, StakeActions}
+  alias AutolaunchWeb.Components.{ShareDialog, SwapForm}
   alias AutolaunchWeb.Live.Session
-  alias AutolaunchWeb.{OnchainSteps, TokenDisplay}
+  alias AutolaunchWeb.{OnchainSteps, TokenDetails, TokenDisplay}
   alias RegentChain.{Presses, Review}
 
   @copy %{
-    authentication_required: "Sign in to stake from your wallet.",
+    authentication_required: "Sign in to use your wallet here.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
     wrong_signer: "Your wallet changed during the review, so nothing was prepared. Review again.",
@@ -47,22 +54,19 @@ defmodule AutolaunchWeb.StakeComponent do
       "The staking contract gave an incomplete answer. Try again in a moment.",
     lab_config_changed: "The network changed while this was prepared. Try again.",
     stake_unavailable: "Staking is not available for this token yet.",
+    nothing_to_stake: "This wallet holds none of this token.",
+    nothing_to_settle: "No trading fees are waiting to be settled.",
     amount_required: "Enter an amount above zero.",
     invalid_amount: "Enter an amount above zero.",
     invalid_decimal: "Enter an amount above zero.",
     amount_not_representable: "That amount has more decimal places than this token supports.",
     amount_too_large: "That amount is too large to move at once.",
-    amount_above_balance: "This wallet holds less than that.",
     amount_above_stake: "You have less than that staked."
   }
   @generic "That did not go through. Try again in a moment."
   @kinds %{
-    "stake" => :stake,
-    "unstake" => :unstake,
-    "claim" => :claim,
-    "settle" => :settle,
-    "collect" => :collect,
-    "release" => :release
+    stake: %{"stake" => :stake, "unstake" => :unstake},
+    claim: %{"claim" => :claim, "settle" => :settle, "release" => :release}
   }
 
   @impl true
@@ -71,28 +75,37 @@ defmodule AutolaunchWeb.StakeComponent do
      socket
      |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
-     |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
+     |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0, told: nil)}
   end
 
   @impl true
   def update(assigns, socket) do
+    mode = socket.assigns[:mode]
+
     socket =
       socket
       |> assign(assigns)
+      |> assign_new(:mode, fn -> nil end)
+      |> assign_new(:details, fn -> nil end)
       |> assign_new(:authenticated, fn -> false end)
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
       |> assign_new(:share_url, fn -> nil end)
       |> assign_new(:share_image, fn -> nil end)
-      |> assign_new(:supply, fn -> nil end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> scoped()
       |> OnchainSteps.adopt()
 
+    # Another view of the widget closes a review opened from the one before.
+    socket =
+      if mode && mode != socket.assigns.mode && socket.assigns.review,
+        do: socket |> assign(notice: nil) |> closed(),
+        else: socket
+
     {:ok, followed(socket)}
   end
 
-  # Another launch or another sign-in starts the card again.
+  # Another launch or another sign-in starts the part again.
   defp scoped(%{assigns: assigns} = socket) do
     scope =
       {assigns.launch.chain, launch_key(assigns.launch), assigns.current_human_id,
@@ -104,7 +117,7 @@ defmodule AutolaunchWeb.StakeComponent do
       socket
       |> assign(
         scope: scope,
-        amount: limited(Map.get(assigns, :initial_amount, "")),
+        amount: "",
         error: nil,
         position: nil,
         read_for: nil,
@@ -119,14 +132,14 @@ defmodule AutolaunchWeb.StakeComponent do
 
   # The account as it reads now, before each event and background result
   # (`Session.check_component_lease/2`): a change to its wallets moves the
-  # card onto them.
+  # part onto them.
   defp take_account(socket, account),
     do: OnchainSteps.take_account(socket, account, &followed/1)
 
-  # The card follows the wallet that may act. A review is built for one
-  # signer, so another one closes it; the figures on the card are that
-  # signer's, or the signed-in wallet's while no wallet on the account is
-  # active, and a pool read at a new block reads them again.
+  # The part follows the wallet that may act. A review is built for one
+  # signer, so another one closes it; the figures are that signer's, or the
+  # signed-in wallet's while no wallet on the account is active, and a pool
+  # read at a new block reads them again.
   defp followed(socket) do
     %{linked: linked, active: active, signed_in: signed_in} = socket.assigns
     signer = OnchainSteps.signer(linked, active)
@@ -140,7 +153,7 @@ defmodule AutolaunchWeb.StakeComponent do
     socket =
       if wallet == socket.assigns.wallet,
         do: socket,
-        else: assign(socket, wallet: wallet, position: nil)
+        else: socket |> assign(wallet: wallet) |> positioned_as(nil)
 
     read_for = {socket.assigns.pool.block, wallet}
 
@@ -154,15 +167,9 @@ defmodule AutolaunchWeb.StakeComponent do
   defp reviewed_for_signer(socket, _signer), do: closed(socket)
 
   @impl true
-  def render(assigns) do
+  def render(%{part: :stake} = assigns) do
     ~H"""
-    <section
-      id={@id}
-      class="token-swap token-stake"
-      data-stake-panel
-      phx-hook="OnchainSteps"
-      aria-labelledby={@id <> "-title"}
-    >
+    <div id={@id} class="token-trade__stake" phx-hook="OnchainSteps" data-stake-panel>
       <.stake_done
         :if={@done}
         id={"#{@id}-done"}
@@ -172,50 +179,70 @@ defmodule AutolaunchWeb.StakeComponent do
         target={@myself}
       />
 
-      <h2 id={@id <> "-title"} class="token-stake__title">
-        {stake_name(@pool)} <span class="ticker">{@pool.token.symbol}</span>
-      </h2>
-      <p class="token-stake__lead">
-        Tokens are not locked. You can unstake at any time after the block in which you staked.
-      </p>
-      <p :if={@wallet} class="token-stake__lead">
-        Figures for
-        <span class="token-stake__wallet" title={@wallet}>{RegentFormat.short_address(@wallet)}</span>
-      </p>
-      <details>
-        <summary>How rewards work</summary>
-        <p>
-          <TokenDisplay.marked
-            text={lead(@pool)}
-            tickers={[@pool.token.symbol, @pool.currency.symbol, @pool.fees.splitter.dollar.symbol]}
-          />
-        </p>
-      </details>
-
-      <TokenNext.stake_figures
-        id={"#{@id}-figures"}
-        pool={@pool}
-        position={@position}
-      />
-
       <div class="token-swap__stack">
+        <div :if={@mode != :unstake} class="token-swap__form" inert={!is_nil(@review)}>
+          <div class="token-swap__leg">
+            <div class="token-swap__leg-head">
+              <span class="token-trade__label">You stake</span>
+            </div>
+            <div
+              id={@id <> "-stake-figure"}
+              class="token-swap__amount-row"
+              phx-hook="MotionCount"
+              data-variant={AutolaunchWeb.Motion.standard("count")}
+            >
+              <output
+                class="token-trade__figure"
+                title={balance(@position) && "#{balance(@position).shown} #{@pool.token.symbol}"}
+                data-empty={!balance(@position)}
+                data-count
+              >
+                {big(balance(@position))}
+              </output>
+              <span class="token-swap__currency" title={@pool.token.symbol}>
+                <span>{@pool.token.symbol}</span>
+              </span>
+            </div>
+            <p class="token-swap__leg-foot">{stake_foot(@position)}</p>
+          </div>
+
+          <Regent.Primitives.button
+            :if={action(assigns) == :act}
+            type="button"
+            class="token-swap__submit"
+            phx-click="review"
+            phx-value-kind="stake"
+            phx-target={@myself}
+            disabled={nothing_to_stake?(@position)}
+          >
+            Stake {@pool.token.symbol}
+          </Regent.Primitives.button>
+          <p :if={action(assigns) == :act && nothing_to_stake?(@position)} class="token-trade__reason">
+            No {@pool.token.symbol} in this wallet
+          </p>
+          <.idle_button action={action(assigns)} />
+          <.refusal_line id={"#{@id}-stake-refusal"} text={@error || (is_nil(@review) && @notice)} />
+        </div>
+
         <form
+          :if={@mode == :unstake}
           id={"#{@id}-form-#{@revision}"}
-          class="token-swap__form token-stake__form"
-          aria-label={"Stake or unstake #{@pool.token.symbol}"}
+          class="token-swap__form"
+          aria-label={"Unstake #{@pool.token.symbol}"}
           phx-change={"form-#{@revision}"}
           phx-submit="review"
           phx-target={@myself}
           inert={!is_nil(@review)}
         >
+          <input type="hidden" name="kind" value="unstake" />
           <div class="token-swap__leg">
             <div class="token-swap__leg-head">
-              <label for={@id <> "-amount"}>Amount</label>
+              <label for={@id <> "-amount"}>You unstake</label>
               <div
                 :if={is_map(@position)}
                 class="token-swap__portions"
                 role="group"
-                aria-label="Part of your balance"
+                aria-label="Part of your stake"
               >
                 <button
                   :for={{label, percent} <- [{"25%", 25}, {"50%", 50}, {"75%", 75}, {"Max", 100}]}
@@ -238,7 +265,7 @@ defmodule AutolaunchWeb.StakeComponent do
                 autocomplete="off"
                 spellcheck="false"
                 placeholder="0"
-                aria-label={"Amount of #{@pool.token.symbol}"}
+                aria-label={"Amount of #{@pool.token.symbol} to unstake"}
                 aria-invalid={to_string(!is_nil(@error))}
                 phx-debounce="300"
               />
@@ -248,132 +275,183 @@ defmodule AutolaunchWeb.StakeComponent do
             </div>
             <p class="token-swap__leg-foot">
               <span :if={is_map(@position)}>
-                <TokenDisplay.tokens amount={@position.balance.shown} unit={@pool.token.symbol} />
-                in your wallet
+                <TokenDisplay.tokens amount={@position.staked.shown} unit={@pool.token.symbol} />
+                staked
               </span>
             </p>
           </div>
 
-          <div :if={action(assigns) == :act && is_map(@position)} class="token-stake__actions">
-            <Regent.Primitives.button
-              type="button"
-              variant="secondary"
-              phx-click="review_all"
-              phx-value-kind="stake"
-              phx-target={@myself}
-            >
-              {stake_name(@pool)} all
-            </Regent.Primitives.button>
-            <Regent.Primitives.button
-              type="button"
-              variant="secondary"
-              phx-click="review_all"
-              phx-value-kind="unstake"
-              phx-target={@myself}
-            >
-              Unstake all
-            </Regent.Primitives.button>
-          </div>
-          <div :if={action(assigns) == :act} class="token-stake__actions">
-            <Regent.Primitives.button
-              type="submit"
-              name="kind"
-              value="stake"
-              class="token-swap__submit"
-            >
-              {stake_name(@pool)} {@pool.token.symbol}
-            </Regent.Primitives.button>
-            <Regent.Primitives.button
-              type="submit"
-              name="kind"
-              value="unstake"
-              variant="secondary"
-              class="token-swap__submit"
-            >
-              Unstake
-            </Regent.Primitives.button>
-          </div>
-          <div :if={action(assigns) == :act} class="token-stake__actions token-stake__actions--open">
-            <Regent.Primitives.button type="submit" name="kind" value="claim" variant="secondary">
-              Claim rewards
-            </Regent.Primitives.button>
-            <Regent.Primitives.button
-              :if={@pool.kind == :stocks}
-              type="submit"
-              name="kind"
-              value="settle"
-              variant="secondary"
-            >
-              Settle for stakers
-            </Regent.Primitives.button>
-            <Regent.Primitives.button type="submit" name="kind" value="collect" variant="secondary">
-              Collect trading fees
-            </Regent.Primitives.button>
-            <Regent.Primitives.button
-              :if={@pool.kind == :stocks && @pool.vesting}
-              type="submit"
-              name="kind"
-              value="release"
-              variant="secondary"
-            >
-              Release the creator's tokens
-            </Regent.Primitives.button>
-          </div>
           <Regent.Primitives.button
-            :if={action(assigns) == :sign_in}
-            type="button"
+            :if={action(assigns) == :act}
+            type="submit"
             class="token-swap__submit"
-            data-account-target="sign-in"
           >
-            Sign in
+            Unstake {@pool.token.symbol}
           </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={action(assigns) == :closed}
-            type="button"
-            variant="secondary"
-            class="token-swap__submit token-swap__submit--idle"
-            disabled
-          >
-            Staking opens after launch
-          </Regent.Primitives.button>
-
-          <p
-            :if={@error || (is_nil(@review) && @notice)}
-            id={"#{@id}-refusal"}
-            class="token-swap__error"
-            role="alert"
-            phx-hook="MotionRefusal"
-            data-refused
-          >
-            {@error || @notice}
-          </p>
+          <.idle_button action={action(assigns)} />
+          <.refusal_line id={"#{@id}-unstake-refusal"} text={@error || (is_nil(@review) && @notice)} />
         </form>
 
-        <.stake_review
-          id={"#{@id}-review"}
-          open={!!@review}
-          title={@review && title(@prepared.kind)}
-          facts={(@review && @prepared.facts) || []}
-          steps={steps(assigns)}
-          next_step={next_step(assigns)}
-          reverted={reverted(assigns)}
-          notice={@press_note}
-          target={@myself}
-          signer={@review && @review.signer}
-          chain_name={@review && @review.chain.name}
-          mismatch={@mismatch}
-        />
+        <.stake_review {review_assigns(assigns)} />
       </div>
-
-      <TokenNext.stake_impact
-        id={"#{@id}-impact"}
-        pool={@pool}
-        amount={@amount}
-        position={@position}
-        supply={@supply}
-      />
-    </section>
+    </div>
     """
+  end
+
+  def render(%{part: :claim} = assigns) do
+    assigns = assign(assigns, rows: claim_rows(assigns.pool, assigns.position))
+
+    ~H"""
+    <div id={@id} class="token-claim" phx-hook="OnchainSteps">
+      <.stake_done
+        :if={@done}
+        id={"#{@id}-done"}
+        done={@done}
+        dismiss_event="dismiss_done"
+        target={@myself}
+      />
+
+      <Regent.Primitives.copy_button
+        :if={@details}
+        id={@id <> "-copy"}
+        text={TokenDetails.text(@details, @wallet, @position)}
+        variant="secondary"
+        class="token-claim__copy"
+      >
+        Copy Full Token Details to Agent
+      </Regent.Primitives.copy_button>
+
+      <section class="token-claim__card" aria-labelledby={@id <> "-title"}>
+        <div class="token-swap__stack">
+          <div class="token-claim__body" inert={!is_nil(@review)}>
+            <h2 id={@id <> "-title"} class="token-claim__title">Claim Rewards</h2>
+            <ul
+              id={@id <> "-rows"}
+              class="token-claim__rows"
+              phx-hook="MotionCount"
+              data-variant={AutolaunchWeb.Motion.standard("count")}
+            >
+              <li :for={row <- @rows}>
+                <span class="token-claim__what">{row.label}</span>
+                <span :if={row.amount} class="token-claim__amount">
+                  <TokenDisplay.tokens amount={row.amount} unit={row.symbol} />
+                </span>
+                <span :if={!row.amount} class="token-claim__amount token-claim__amount--missing">
+                  {row.symbol}
+                </span>
+              </li>
+            </ul>
+            <p :if={!is_map(@position)} class="token-claim__note">{missing(@position)}</p>
+
+            <Regent.Primitives.button
+              :if={action(assigns) == :act}
+              type="button"
+              class="token-swap__submit"
+              phx-click="review"
+              phx-value-kind="claim"
+              phx-target={@myself}
+            >
+              Claim rewards
+            </Regent.Primitives.button>
+            <.idle_button action={action(assigns)} />
+
+            <div :if={action(assigns) == :act} class="token-claim__more">
+              <span class="token-claim__settle">
+                <Regent.Primitives.button
+                  type="button"
+                  variant="secondary"
+                  phx-click="review"
+                  phx-value-kind="settle"
+                  phx-target={@myself}
+                >
+                  Settle contract
+                </Regent.Primitives.button>
+                <.info_tip
+                  id={@id <> "-settle-tip"}
+                  text="Moves the trading fees waiting in the pool into the staking contract, where they become rewards for everyone staked. Anyone can do this."
+                >
+                  <span class="visually-hidden">Settle contract</span>
+                </.info_tip>
+              </span>
+              <Regent.Primitives.button
+                :if={@pool.kind == :stocks && @pool.vesting}
+                type="button"
+                variant="secondary"
+                phx-click="review"
+                phx-value-kind="release"
+                phx-target={@myself}
+              >
+                Release creator tokens
+              </Regent.Primitives.button>
+            </div>
+            <.refusal_line id={"#{@id}-refusal"} text={is_nil(@review) && @notice} />
+          </div>
+
+          <.stake_review {review_assigns(assigns)} />
+        </div>
+      </section>
+    </div>
+    """
+  end
+
+  attr :action, :atom, required: true
+
+  defp idle_button(%{action: :sign_in} = assigns) do
+    ~H"""
+    <Regent.Primitives.button type="button" class="token-swap__submit" data-account-target="sign-in">
+      Sign in
+    </Regent.Primitives.button>
+    """
+  end
+
+  defp idle_button(%{action: :closed} = assigns) do
+    ~H"""
+    <Regent.Primitives.button
+      type="button"
+      variant="secondary"
+      class="token-swap__submit token-swap__submit--idle"
+      disabled
+    >
+      Staking opens after launch
+    </Regent.Primitives.button>
+    """
+  end
+
+  defp idle_button(assigns), do: ~H""
+
+  attr :id, :string, required: true
+  attr :text, :any, required: true
+
+  defp refusal_line(assigns) do
+    ~H"""
+    <p
+      :if={@text}
+      id={@id}
+      class="token-swap__error"
+      role="alert"
+      phx-hook="MotionRefusal"
+      data-refused
+    >
+      {@text}
+    </p>
+    """
+  end
+
+  defp review_assigns(assigns) do
+    %{
+      id: "#{assigns.id}-review",
+      open: !!assigns.review,
+      title: assigns.review && title(assigns.prepared.kind),
+      facts: (assigns.review && assigns.prepared.facts) || [],
+      steps: steps(assigns),
+      next_step: next_step(assigns),
+      reverted: reverted(assigns),
+      notice: assigns.press_note,
+      target: assigns.myself,
+      signer: assigns.review && assigns.review.signer,
+      chain_name: assigns.review && assigns.review.chain.name,
+      mismatch: assigns.mismatch
+    }
   end
 
   @impl true
@@ -397,8 +475,8 @@ defmodule AutolaunchWeb.StakeComponent do
   def handle_event("fill", %{"percent" => percent}, socket)
       when percent in ["25", "50", "75", "100"] do
     case socket.assigns.position do
-      %{balance: balance} ->
-        amount = StakeActions.portion(balance, String.to_integer(percent))
+      %{staked: staked} ->
+        amount = StakeActions.portion(staked, String.to_integer(percent))
 
         {:noreply,
          assign(socket,
@@ -413,21 +491,10 @@ defmodule AutolaunchWeb.StakeComponent do
     end
   end
 
-  def handle_event("review_all", %{"kind" => kind}, %{assigns: %{position: position}} = socket)
-      when kind in ["stake", "unstake"] and is_map(position) do
-    balance = if kind == "stake", do: position.balance, else: position.staked
-
-    handle_event(
-      "review",
-      %{"kind" => kind, "amount" => StakeActions.portion(balance, 100)},
-      socket
-    )
-  end
-
-  def handle_event("review", %{"kind" => name} = params, socket) when is_map_key(@kinds, name) do
-    case reviewed(socket, name, params) do
-      {:ok, socket} -> {:noreply, socket}
-      {:error, socket} -> {:noreply, socket}
+  def handle_event("review", %{"kind" => name} = params, socket) do
+    case Map.fetch(@kinds[socket.assigns.part], name) do
+      {:ok, kind} -> {:noreply, reviewed(socket, kind, params)}
+      :error -> {:noreply, socket}
     end
   end
 
@@ -462,9 +529,9 @@ defmodule AutolaunchWeb.StakeComponent do
   @impl true
   def handle_async(:position, {:ok, {wallet, read}}, %{assigns: %{wallet: wallet}} = socket) do
     case {read, socket.assigns.position} do
-      {{:ok, position}, _shown} -> {:noreply, assign(socket, position: position)}
+      {{:ok, position}, _shown} -> {:noreply, positioned_as(socket, position)}
       {{:error, _reason}, %{} = _last_read} -> {:noreply, socket}
-      {{:error, _reason}, _none} -> {:noreply, assign(socket, position: :unread)}
+      {{:error, _reason}, _none} -> {:noreply, positioned_as(socket, :unread)}
     end
   end
 
@@ -473,7 +540,7 @@ defmodule AutolaunchWeb.StakeComponent do
   def handle_async(:position, {:exit, _reason}, socket) do
     if is_map(socket.assigns.position),
       do: {:noreply, socket},
-      else: {:noreply, assign(socket, position: :unread)}
+      else: {:noreply, positioned_as(socket, :unread)}
   end
 
   def handle_async({:onchain_step, hash}, result, socket),
@@ -489,34 +556,26 @@ defmodule AutolaunchWeb.StakeComponent do
     {:noreply, resulted(socket, hash, logs)}
   end
 
-  defp reviewed(%{assigns: %{signer: nil}} = socket, _name, params) do
+  defp reviewed(%{assigns: %{signer: nil}} = socket, _kind, params) do
     socket = entered(socket, params)
-    {:error, assign(socket, notice: no_signer(socket.assigns))}
+    assign(socket, notice: no_signer(socket.assigns))
   end
 
-  defp reviewed(socket, name, params) do
+  defp reviewed(socket, kind, params) do
     socket = entered(socket, params)
-
-    request = %{
-      kind: Map.fetch!(@kinds, name),
-      launch: socket.assigns.launch,
-      amount: socket.assigns.amount
-    }
+    request = %{kind: kind, launch: socket.assigns.launch, amount: socket.assigns.amount}
 
     case StakeActions.prepare(request, socket.assigns.signer, opts(socket)) do
       {:ok, prepared} ->
         review =
           Review.new(socket.assigns.id, socket.assigns.signer, prepared.chain, prepared.steps)
 
-        socket =
-          socket
-          |> assign(prepared: prepared, results: %{}, notice: nil, press_note: nil, done: nil)
-          |> OnchainSteps.put_review(review)
-
-        {:ok, socket}
+        socket
+        |> assign(prepared: prepared, results: %{}, notice: nil, press_note: nil, done: nil)
+        |> OnchainSteps.put_review(review)
 
       {:error, error} ->
-        {:error, assign(socket, notice: copy(refusal(error)))}
+        assign(socket, notice: copy(refusal(error)))
     end
   end
 
@@ -540,7 +599,21 @@ defmodule AutolaunchWeb.StakeComponent do
   defp positioned(%{assigns: %{wallet: wallet, pool: pool}} = socket) when is_binary(wallet),
     do: start_async(socket, :position, fn -> {wallet, StakeActions.position(pool, wallet)} end)
 
-  defp positioned(socket), do: assign(socket, position: nil)
+  defp positioned(socket), do: positioned_as(socket, nil)
+
+  # The wallet's position as last read. The widget's part tells the page
+  # whether the wallet has a stake, once per change.
+  defp positioned_as(socket, position) do
+    socket = assign(socket, position: position)
+    staked? = match?(%{staked: %{atomic: atomic}} when atomic > 0, position)
+
+    if socket.assigns.part == :stake and socket.assigns.told != staked? do
+      send(self(), {:staked, staked?})
+      assign(socket, told: staked?)
+    else
+      socket
+    end
+  end
 
   # A step landed: every figure it touched is read again, and what it moved is
   # read from its receipt. An approval moves nothing to show.
@@ -553,7 +626,7 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   # When every step of the open review has landed, the review closes and the
-  # card says what moved; a receipt that could not be read leaves its line out.
+  # part says what moved; a receipt that could not be read leaves its line out.
   defp resulted(%{assigns: %{review: %{} = review, prepared: prepared}} = socket, hash, logs) do
     case Enum.find(Presses.shown(socket.assigns.presses), &(&1.hash == hash)) do
       %{review: %{id: id}, name: name} when id == review.id ->
@@ -572,8 +645,8 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp resulted(socket, _hash, _logs), do: socket
 
-  # Every figure on the card moved, so the page reads the pool again and the
-  # wallet's own figures follow from that read.
+  # Every figure moved, so the page reads the pool again and the wallet's own
+  # figures follow from that read.
   defp finished(%{assigns: %{review: review, prepared: prepared, results: results}} = socket) do
     send(self(), :reload_pool)
 
@@ -609,13 +682,44 @@ defmodule AutolaunchWeb.StakeComponent do
   defp action(%{authenticated: false}), do: :sign_in
   defp action(_assigns), do: :act
 
-  defp lead(%{kind: :agent} = pool),
-    do:
-      "Stakers share this launch's revenue as it arrives: 2% of every trade, the locked liquidity's trading fees once anyone collects them, and anything else paid to the staking contract, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
+  defp balance(%{balance: balance}), do: balance
+  defp balance(_unread), do: nil
 
-  defp lead(%{kind: :stocks} = pool),
-    do:
-      "Stakers share this launch's trading fees: #{FeeSchedule.lane(pool.chain, pool.version, :stakers).rate} of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
+  # The whole balance as the big figure: four significant digits, grouped.
+  defp big(nil), do: "0"
+
+  defp big(%{shown: shown}),
+    do: shown |> TokenDisplay.short(:down) |> Amounts.grouped() |> TokenDisplay.zeros()
+
+  defp stake_foot(:unread), do: "Your balance can't be read right now"
+  defp stake_foot(_position), do: "All of it, in one step"
+
+  # The server's own read says the wallet holds none, so a stake is certain
+  # to be refused.
+  defp nothing_to_stake?(%{balance: %{atomic: 0}}), do: true
+  defp nothing_to_stake?(_position), do: false
+
+  defp missing(:unread), do: "Your rewards can't be read right now."
+  defp missing(_signed_out), do: "Sign in to see your rewards."
+
+  # One row for each asset this launch's staking pays, and for any other
+  # asset the wallet happens to have to claim.
+  defp claim_rows(pool, position) do
+    for {key, label, symbol} <- [
+          {:token, "Token rewards", pool.token.symbol},
+          {:stock, "Trading fees", pool.currency.symbol},
+          {:dollar, "Revenue", pool.fees.splitter.dollar.symbol}
+        ],
+        key in TokenDetails.paid_assets(pool) or claimable?(position, key) do
+      %{label: label, symbol: symbol, amount: claimable(position, key)}
+    end
+  end
+
+  defp claimable(%{claimable: claimable}, key), do: Map.fetch!(claimable, key).shown
+  defp claimable(_unread, _key), do: nil
+
+  defp claimable?(%{claimable: claimable}, key), do: Map.fetch!(claimable, key).atomic > 0
+  defp claimable?(_unread, _key), do: false
 
   defp steps(%{review: nil}), do: []
 
@@ -638,14 +742,14 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("token_approval", prepared),
     do: "Approve #{prepared.context.token_symbol}"
 
-  defp step_label("stake", _review), do: "Confirm stake"
-  defp step_label("unstake", _review), do: "Confirm unstake"
-  defp step_label("claim", _review), do: "Confirm claim"
-  defp step_label("settle", _review), do: "Confirm settlement"
-  defp step_label("collect_full_range", _review), do: "Collect the full-range fees"
-  defp step_label("collect_stock_only", _review), do: "Collect the one-sided fees"
-  defp step_label("collect_new_only", _review), do: "Collect the one-sided fees"
-  defp step_label("release", _review), do: "Confirm release"
+  defp step_label("stake", _prepared), do: "Confirm stake"
+  defp step_label("unstake", _prepared), do: "Confirm unstake"
+  defp step_label("claim", _prepared), do: "Confirm claim"
+  defp step_label("settle", _prepared), do: "Settle the pool's fees"
+  defp step_label("collect_full_range", _prepared), do: "Collect the full-range fees"
+  defp step_label("collect_stock_only", _prepared), do: "Collect the one-sided fees"
+  defp step_label("collect_new_only", _prepared), do: "Collect the one-sided fees"
+  defp step_label("release", _prepared), do: "Confirm release"
 
   defp step_state(nil), do: :ready
 
@@ -671,9 +775,9 @@ defmodule AutolaunchWeb.StakeComponent do
       "That did not go through and nothing moved. Staking and leaving in the same block is not allowed: wait a moment and try again."
 
   defp reverted_copy(:settle),
-    do: "Nothing was waiting for stakers, so there was nothing to settle."
+    do: "That did not go through. Close this and review again for what is waiting now."
 
-  defp reverted_copy(kind) when kind in [:collect, :release], do: @generic
+  defp reverted_copy(:release), do: @generic
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
@@ -699,7 +803,7 @@ defmodule AutolaunchWeb.StakeComponent do
   attr :mismatch, :string, default: nil
 
   @doc """
-  The review panel over a staking card: the reviewed facts and the wallet
+  The review panel over a staking part: the reviewed facts and the wallet
   steps, one button at a time. It stays in the page and is only hidden while
   nothing is reviewed, so its wallet button is never replaced.
   """
@@ -813,9 +917,6 @@ defmodule AutolaunchWeb.StakeComponent do
     """
   end
 
-  defp stake_name(%{kind: :agent}), do: "Revstake"
-  defp stake_name(_pool), do: "Memestock"
-
   defp share(%{share_url: url, share_image: image, pool: pool, launch: launch})
        when is_binary(url) and is_binary(image) do
     chain = if launch.chain == :robinhood, do: "Robinhood", else: "Base"
@@ -831,15 +932,13 @@ defmodule AutolaunchWeb.StakeComponent do
   defp title(:stake), do: "You’re staking"
   defp title(:unstake), do: "You’re unstaking"
   defp title(:claim), do: "You’re claiming"
-  defp title(:settle), do: "Settling for stakers"
-  defp title(:collect), do: "Collecting trading fees"
+  defp title(:settle), do: "Settling the contract"
   defp title(:release), do: "Releasing the creator's tokens"
 
   defp done_title(:stake), do: "Staked"
   defp done_title(:unstake), do: "Unstaked"
   defp done_title(:claim), do: "Claimed"
-  defp done_title(:settle), do: "Settled for stakers"
-  defp done_title(:collect), do: "Trading fees collected"
+  defp done_title(:settle), do: "Contract settled"
   defp done_title(:release), do: "Released to the creator"
 
   defp done_lines(%{results: results}) do

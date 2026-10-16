@@ -592,6 +592,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       assign(assigns,
         token: token,
         path: token && Paths.token(token.auction),
+        stake_path: token && Paths.token_stake(token.auction),
         image: token && Token.presentation(token).image,
         tradable?: token && tradable?(token, assigns.robinhood_swap?)
       )
@@ -638,7 +639,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               Sell
             </Regent.Primitives.button>
-            <.link navigate={@path <> "#stake"} class="rg-button rg-button--secondary">
+            <.link navigate={@stake_path} class="rg-button rg-button--secondary">
               {if @holding.claimable != [], do: "Stake or claim rewards", else: "Stake"}
             </.link>
           </div>
@@ -704,7 +705,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         mode: mode,
         ended:
           if(listing && mode == "settle", do: RobinhoodStockBidComponent.ended_copy(listing)),
-        stake_path: if(listing && position.token, do: Paths.token(listing) <> "#stake")
+        stake_path: if(listing && position.token, do: Paths.token_stake(listing))
       )
 
     ~H"""

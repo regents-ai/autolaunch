@@ -27,6 +27,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   attr :token_path, :string, default: nil, doc: "the launched token's page, from an auction page"
 
+  attr :price, :map,
+    default: nil,
+    doc: "on a token's page, its stored price to every digit: `%{amount: string, unit: string}`"
+
   def launch_trust(assigns) do
     auction = assigns.auction
     chain = if RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base
@@ -115,6 +119,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
             <dt>Launch type</dt>
             <dd><strong>{@split.name}</strong> · {@split.about}</dd>
           </div>
+          <div :if={@price && @price.amount}>
+            <dt>Price to 18 decimals</dt>
+            <dd class="autolaunch-exact-value">{@price.amount} {@price.unit}</dd>
+          </div>
         </dl>
 
         <h3 class="autolaunch-micro">Contracts</h3>
@@ -151,7 +159,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
           <.link navigate="/how-it-works">How every {@split.name} token is split</.link>
         </p>
 
-        <h3 class="autolaunch-micro">Liquidity</h3>
+        <h3 class="autolaunch-micro">Uniswap Liquidity Pool</h3>
         <.liquidity
           liquidity={@liquidity}
           split={@split}

@@ -334,7 +334,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       </p>
       <.link
         :if={@stake_path && @claimed}
-        navigate={stake_link(@stake_path, @claimed)}
+        navigate={@stake_path}
         class="rg-button rg-button--primary"
       >
         {stake_label(@auction)} {@auction.token_symbol}
@@ -881,7 +881,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   # Where claimed tokens are staked, once the auction's token exists.
   defp stake_path(%{state: :graduated, id: id} = auction) do
     case Autolaunch.get_public_token_by_auction(id) do
-      {:ok, %{}} -> Paths.token(auction) <> "#stake"
+      {:ok, %{}} -> Paths.token_stake(auction)
       _ -> nil
     end
   end
@@ -896,11 +896,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp claimed(_settled, %{tokens_claimed: tokens}) do
     if positive?(tokens), do: tokens
   end
-
-  # The staking panel, with the claimed amount entered.
-  defp stake_link(path, amount),
-    do:
-      String.replace_suffix(path, "#stake", "?" <> URI.encode_query(%{stake: amount}) <> "#stake")
 
   # The exact action the position's status admits. A failed auction returns
   # the whole bid; a graduated one returns what the fill did not spend.

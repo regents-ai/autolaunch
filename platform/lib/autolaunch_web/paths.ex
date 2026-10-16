@@ -24,6 +24,9 @@ defmodule AutolaunchWeb.Paths do
   @doc "The page of the token the auction launched."
   def token(auction), do: ~p"/tokens/#{symbol(auction)}/#{auction.path_tail}"
 
+  @doc "The token's page with its trade widget open on Stake."
+  def token_stake(auction), do: token(auction) <> "?trade=stake#trade"
+
   @doc "The auction's page, with the site's address."
   def auction_url(auction), do: url(~p"/auctions/#{symbol(auction)}/#{auction.path_tail}")
 
