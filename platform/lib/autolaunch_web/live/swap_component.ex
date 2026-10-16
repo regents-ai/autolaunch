@@ -75,9 +75,12 @@ defmodule AutolaunchWeb.SwapComponent do
   end
 
   def update(assigns, socket) do
+    asked = socket.assigns[:balances_read]
+
     socket =
       socket
       |> assign(assigns)
+      |> assign_new(:balances_read, fn -> 0 end)
       |> assign_new(:authenticated, fn -> false end)
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
@@ -88,9 +91,14 @@ defmodule AutolaunchWeb.SwapComponent do
     scope = {assigns.launch.chain, launch_key(assigns.launch), assigns.currency}
 
     if socket.assigns.scope == scope,
-      do: {:ok, followed(socket)},
+      do: {:ok, socket |> followed() |> reread(asked)},
       else: {:ok, socket |> fresh(scope) |> followed() |> estimated()}
   end
+
+  # The page asked for the wallet's figures again (Refresh balances, or a
+  # staking or claim step that landed).
+  defp reread(%{assigns: %{balances_read: asked}} = socket, asked), do: socket
+  defp reread(socket, _before), do: balanced(socket)
 
   defp fresh(socket, scope) do
     socket

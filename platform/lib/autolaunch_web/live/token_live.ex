@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.TokenLive do
     do:
       {:ok,
        socket
-       |> assign(staked?: false)
+       |> assign(staked?: false, balances_read: 0)
        |> LabMarket.subscribe_market(address)
        |> LiveListings.subscribe()}
 
@@ -39,6 +39,8 @@ defmodule AutolaunchWeb.TokenLive do
 
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
+  def handle_event("refresh_balances", _params, socket), do: {:noreply, balances_read(socket)}
+
   # The staking part read the wallet's stake: Unstake is offered only while
   # there is one.
   def handle_info({:staked, staked?}, socket) do
@@ -49,10 +51,14 @@ defmodule AutolaunchWeb.TokenLive do
       else: {:noreply, assign(socket, :trade, :stake)}
   end
 
-  # The staking card confirmed something that moved the pool's figures, so the
+  # A swap or a conversion landed and moved the pool's figures, so the
   # pool is read again. The previous figures stay on the page while the fork
   # answers, so the card that asked keeps its wallet, position and notice.
   def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
+
+  # A staking or claim step landed, so every wallet figure on the page is read
+  # again, as Refresh balances does.
+  def handle_info(:refresh_balances, socket), do: {:noreply, balances_read(socket)}
 
   # The market feed read a new figure for this token's auction: a trade moved
   # its pool, so the price and the pool are read again.
@@ -130,6 +136,7 @@ defmodule AutolaunchWeb.TokenLive do
                 authenticated={@account_control.kind == :signed_in}
                 current_human_id={current_human_id(@access_context)}
                 session_lease={@session_lease}
+                balances_read={@balances_read}
               />
             </:pane>
             <:pane tab={:stake}>
@@ -146,6 +153,7 @@ defmodule AutolaunchWeb.TokenLive do
                 authenticated={@account_control.kind == :signed_in}
                 current_human_id={current_human_id(@access_context)}
                 session_lease={@session_lease}
+                balances_read={@balances_read}
               />
               <.pool_status :if={!@pool.ok?} pool={@pool} />
             </:pane>
@@ -161,6 +169,7 @@ defmodule AutolaunchWeb.TokenLive do
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
+            balances_read={@balances_read}
           />
           <.live_component
             :if={
@@ -283,6 +292,12 @@ defmodule AutolaunchWeb.TokenLive do
 
   defp page_auction_id(%{ok?: true, result: %{record: %{auction: %{id: id}}}}), do: id
   defp page_auction_id(_page), do: nil
+
+  # Refresh balances: the pool is read again at the latest block, and the swap
+  # and staking parts read the wallet's balances, stake and rewards again,
+  # once now and again when the new pool arrives.
+  defp balances_read(socket),
+    do: socket |> update(:balances_read, &(&1 + 1)) |> load_pool(false)
 
   # The pool is its own read of the chain: the token record renders as soon as
   # the database answers, and the trade widget says when the chain is slow.

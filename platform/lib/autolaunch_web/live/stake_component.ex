@@ -91,6 +91,7 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:session_lease, fn -> nil end)
       |> assign_new(:share_url, fn -> nil end)
       |> assign_new(:share_image, fn -> nil end)
+      |> assign_new(:balances_read, fn -> 0 end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> scoped()
       |> OnchainSteps.adopt()
@@ -138,7 +139,7 @@ defmodule AutolaunchWeb.StakeComponent do
   # The part follows the wallet that may act. A review is built for one
   # signer, so another one closes it; the figures are that signer's, or the
   # signed-in wallet's while no wallet on the account is active, and a pool
-  # read at a new block reads them again.
+  # read at a new block, or the page's Refresh balances, reads them again.
   defp followed(socket) do
     %{linked: linked, active: active, signed_in: signed_in} = socket.assigns
     signer = OnchainSteps.signer(linked, active)
@@ -154,7 +155,7 @@ defmodule AutolaunchWeb.StakeComponent do
         do: socket,
         else: socket |> assign(wallet: wallet) |> positioned_as(nil)
 
-    read_for = {socket.assigns.pool.block, wallet}
+    read_for = {socket.assigns.pool.block, wallet, socket.assigns.balances_read}
 
     if socket.assigns.read_for == read_for,
       do: socket,
@@ -652,10 +653,10 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp resulted(socket, _hash, _logs), do: socket
 
-  # Every figure moved, so the page reads the pool again and the wallet's own
-  # figures follow from that read.
+  # Every figure moved, so the page reads the pool again and every part reads
+  # the wallet's balances, stake and rewards again (`:refresh_balances`).
   defp finished(%{assigns: %{review: review, prepared: prepared, results: results}} = socket) do
-    send(self(), :reload_pool)
+    send(self(), :refresh_balances)
 
     socket
     |> assign(

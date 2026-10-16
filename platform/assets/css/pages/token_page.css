@@ -24,8 +24,13 @@
 .token-trade__views[data-resizing] { overflow: clip; }
 .token-trade__pane { min-width: 0; }
 .token-trade .token-swap { max-width: none; }
-/* The swap's settings sit at the end of the selector's row. */
-.token-trade .token-swap__bar { position: absolute; top: 2px; right: 0; margin: 0; }
+/* Refresh balances ends the selector's row, with the swap's settings before it. */
+.token-trade__refresh { position: absolute; top: 2px; right: 0; min-width: 44px; min-height: 44px; padding: .5rem; color: var(--color-fg-muted); }
+.token-trade__refresh:hover { color: var(--color-fg); }
+.token-trade__refresh--turn svg { animation: token-trade-turn 600ms var(--ease-out); }
+@keyframes token-trade-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .token-trade__refresh--turn svg { animation: none; } }
+.token-trade .token-swap__bar { position: absolute; top: 2px; right: 44px; margin: 0; }
 .token-trade .token-swap__mode { display: none; }
 .token-trade__label { color: var(--color-fg-muted); font-size: 1rem; }
 .token-trade__figure[data-empty] { color: var(--color-fg-muted); }

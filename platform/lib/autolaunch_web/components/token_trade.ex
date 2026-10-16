@@ -4,7 +4,9 @@ defmodule AutolaunchWeb.Components.TokenTrade do
   selector of Swap, Stake and, for a wallet that has a stake, Unstake, over
   one view at a time. Each view takes its own height, and the widget eases
   between them (`TradeViews`). The page owns the choice (`tab`) and the views;
-  `tabs/2` and `pick/2` keep both pages choosing the same way.
+  `tabs/2` and `pick/2` keep both pages choosing the same way. A small button
+  at the end of the selector asks the page to read the wallet's figures again
+  (`refresh_balances`).
   """
   use Phoenix.Component
 
@@ -67,6 +69,27 @@ defmodule AutolaunchWeb.Components.TokenTrade do
           {label(tab)}
         </button>
       </div>
+      <Regent.Primitives.button
+        type="button"
+        variant="quiet"
+        class="token-trade__refresh"
+        phx-click={
+          Phoenix.LiveView.JS.push("refresh_balances")
+          |> Phoenix.LiveView.JS.transition("token-trade__refresh--turn", time: 600)
+        }
+        aria-label="Refresh balances"
+        title="Refresh balances"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+          <path
+            d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </Regent.Primitives.button>
       <div
         id={"#{@id}-panel"}
         class="token-trade__panes"

@@ -30,7 +30,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     do:
       {:ok,
        socket
-       |> assign(open?: Lab.configured?(), swap?: Lab.swap_configured?(), staked?: false)
+       |> assign(
+         open?: Lab.configured?(),
+         swap?: Lab.swap_configured?(),
+         staked?: false,
+         balances_read: 0
+       )
        |> LabMarket.subscribe_market(auction)
        |> assign(:reading, MarketReadings.market(auction))
        |> LabMarket.assign_robinhood_stale()}
@@ -50,6 +55,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
+  def handle_event("refresh_balances", _params, socket), do: {:noreply, balances_read(socket)}
+
   # The staking part read the wallet's stake: Unstake is offered only while
   # there is one.
   def handle_info({:staked, staked?}, socket) do
@@ -60,10 +67,14 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       else: {:noreply, assign(socket, :trade, :stake)}
   end
 
-  # The staking card confirmed something that moved the pool's figures, so the
+  # A swap or a conversion landed and moved the pool's figures, so the
   # pool is read again. The previous figures stay on the page while the chain
   # answers, so the card that asked keeps its wallet, position and notice.
   def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
+
+  # A staking or claim step landed, so every wallet figure on the page is read
+  # again, as Refresh balances does.
+  def handle_info(:refresh_balances, socket), do: {:noreply, balances_read(socket)}
 
   # The feed read a new figure for this token's auction: the stored token and
   # its reading move together.
@@ -125,6 +136,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
                 authenticated={@account_control.kind == :signed_in}
                 current_human_id={current_human_id(@access_context)}
                 session_lease={@session_lease}
+                balances_read={@balances_read}
               />
             </:pane>
             <:pane tab={:stake}>
@@ -141,6 +153,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
                 authenticated={@account_control.kind == :signed_in}
                 current_human_id={current_human_id(@access_context)}
                 session_lease={@session_lease}
+                balances_read={@balances_read}
               />
               <.pool_status :if={!@pool.ok?} pool={@pool} />
             </:pane>
@@ -156,6 +169,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
+            balances_read={@balances_read}
           />
           <.live_component
             :if={@pool.ok?}
@@ -275,6 +289,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       {:error, _reason} -> assign(socket, :token_failed?, true)
     end
   end
+
+  # Refresh balances: the pool is read again at the latest block, and the swap
+  # and staking parts read the wallet's balances, stake and rewards again,
+  # once now and again when the new pool arrives.
+  defp balances_read(socket),
+    do: socket |> update(:balances_read, &(&1 + 1)) |> load_pool(false)
 
   # The pool is its own read of the chain: the token renders from its stored
   # row at once, and the trade widget says when the pool is slow. The fees it
