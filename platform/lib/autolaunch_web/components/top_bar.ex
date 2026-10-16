@@ -38,6 +38,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         <:trail><.theme_toggle /></:trail>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
+        <.apps_menu />
         <AutolaunchWeb.Components.Credits.button credits={@credits} />
         <.account_control account_control={@account_control} />
         <AutolaunchWeb.Components.SidePanel.button account_control={@account_control} />
@@ -135,6 +136,67 @@ defmodule AutolaunchWeb.Components.TopBar do
       "Use #{AutolaunchWeb.Endpoint.host()}'s WebMCP tools in my browser to research " <>
       "auctions and tokens and watch my bids; where they aren't available, use the " <>
       "Regents CLI instead. Never sign or send a transaction for me."
+  end
+
+  # The other Regents Labs apps, each shown with the crown in its own pair of
+  # brand colours, as the template's menu has them, less this site and Account.
+  @regents_apps [
+    %{name: "Patchbay", url: "https://patchbay.help", tone: "patchbay"},
+    %{name: "Keyfleet", url: "https://keyfleet.ai", tone: "keyfleet"},
+    %{name: "Techtree", url: "https://techtree.sh", tone: "techtree"},
+    %{name: "$REGENT Staking", url: "https://regents.sh/stake", tone: "protocol"}
+  ]
+
+  # The template's Regents apps menu. The browser opens and closes the panel
+  # itself (`popover`), so it closes on Escape or a press anywhere else, and a
+  # page update never shuts it.
+  defp apps_menu(assigns) do
+    assigns = assign(assigns, :apps, @regents_apps)
+
+    ~H"""
+    <button
+      id="shell-apps-button"
+      class="shell-tool"
+      type="button"
+      popovertarget="shell-apps"
+      aria-label="Regents apps"
+    >
+      <svg class="shell-icon shell-icon--apps" viewBox="0 0 24 24" aria-hidden="true">
+        <g fill="currentColor">
+          <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
+        </g>
+      </svg>
+      <span class="shell-tool__tip" aria-hidden="true">Regents apps</span>
+    </button>
+    <nav id="shell-apps" class="shell-apps" popover aria-labelledby="shell-apps-title">
+      <h2 id="shell-apps-title">Regents Labs apps</h2>
+      <ul>
+        <li :for={app <- @apps}>
+          <a href={app.url} target="_blank" rel="noopener">
+            <span class="shell-apps__tile" data-tone={app.tone}><.crown /></span>
+            <span>{app.name}</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    """
+  end
+
+  # The Regents crown: thirteen blocks, drawn in the current text colour.
+  defp crown(assigns) do
+    ~H"""
+    <svg class="shell-apps__crown" viewBox="31 46 178 106" fill="currentColor" aria-hidden="true">
+      <rect :for={{x, y} <- crown_blocks()} x={x} y={y} width="34" height="34" />
+    </svg>
+    """
+  end
+
+  defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
+
+  defp crown_blocks do
+    top = for x <- [31, 103, 175], do: {x, 46}
+    rows = for y <- [82, 118], x <- [31, 67, 103, 139, 175], do: {x, y}
+    top ++ rows
   end
 
   # The switch names the theme showing by itself, from the page's theme or the

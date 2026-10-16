@@ -34,3 +34,29 @@
   .shell-webmcp__head { padding-inline-start: var(--space-2); }
   .shell-webmcp__body { padding: var(--space-2); }
 }
+/* The template's Regents apps menu: a nine-dot button whose panel hangs straight
+   under it, its right edge lined up with the button's. The browser places it
+   above everything else and closes it on Escape or a press outside. */
+.shell-icon--apps { width: 1.5rem; height: 1.5rem; }
+#shell-apps-button { flex: 0 0 auto; anchor-name: --shell-apps-button; }
+#home-top:has(#shell-apps:popover-open) #shell-apps-button { background: color-mix(in oklch, var(--color-fg) 10%, transparent); color: var(--color-fg); }
+/* A name for the icon, shown on hover and on keyboard focus. */
+.shell-tool__tip { position: absolute; inset-block-start: calc(100% + .35rem); inset-inline-start: 50%; z-index: 8; padding: .25rem .5rem; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); font-size: .75rem; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(-50%); transition: opacity var(--duration-fast) var(--ease-out); }
+.shell-tool:is(:hover, :focus-visible) > .shell-tool__tip { opacity: 1; }
+#home-top:has(#shell-apps:popover-open) .shell-tool__tip { opacity: 0; }
+.shell-apps { position: fixed; position-anchor: --shell-apps-button; inset: anchor(bottom) anchor(right) auto auto; width: min(16rem, calc(100% - 2rem)); max-height: calc(100dvh - 5rem); margin: .25rem 0 0; padding: 1rem; overflow: auto; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); }
+.shell-apps h2 { margin: 0 0 .75rem; font-size: 1.1rem; }
+/* Four apps here, so two rows of two rather than the template's rows of three. */
+.shell-apps ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.shell-apps a { display: grid; justify-items: center; gap: .45rem; padding: .75rem .25rem; color: inherit; font-size: .85rem; text-align: center; text-decoration: none; }
+.shell-apps a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+@media (hover: hover) { .shell-apps a:hover { background: color-mix(in oklch, var(--color-fg) 6%, transparent); } }
+.shell-apps__tile { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border: 1px solid var(--hairline-strong); }
+.shell-apps__crown { width: 70%; }
+/* Each app's crown in its own pair of the four brand colours. */
+.shell-apps__tile[data-tone="patchbay"] { background: var(--palette-platinum); color: var(--palette-charcoal); }
+.shell-apps__tile[data-tone="keyfleet"] { background: var(--palette-charcoal); color: var(--palette-powder-blue); }
+.shell-apps__tile[data-tone="techtree"] { background: var(--palette-powder-blue); color: var(--palette-charcoal); }
+.shell-apps__tile[data-tone="protocol"] { background: var(--palette-charcoal); color: var(--palette-tangerine-tango); }
+/* On a phone the panel spans the screen, still straight under the button. */
+@media (max-width: 47.99rem) { .shell-apps { inset: anchor(bottom) .5rem auto; width: auto; } }
