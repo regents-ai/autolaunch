@@ -286,8 +286,8 @@
     },
     {
       "name": "agent_whoami",
-      "title": "Read my signed identity and current pairing",
-      "description": "Read my signed identity and current pairing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Check my identity and pairing",
+      "description": "Check my identity and pairing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -398,8 +398,8 @@
     },
     {
       "name": "autolaunch_revstake_draft",
-      "title": "Read my revstake token metadata draft",
-      "description": "Read my revstake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Read my Revstake token draft",
+      "description": "Read my Revstake token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -454,8 +454,8 @@
     },
     {
       "name": "autolaunch_revstake_draft_save",
-      "title": "Save my revstake token metadata; no treasury, chain, launch terms or wallet actions",
-      "description": "Save my revstake token metadata; no treasury, chain, launch terms or wallet actions. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
+      "title": "Save my Revstake token draft text, never treasury, chain, launch terms or wallet settings",
+      "description": "Save my Revstake token draft text, never treasury, chain, launch terms or wallet settings. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -566,8 +566,8 @@
     },
     {
       "name": "autolaunch_memestock_draft",
-      "title": "Read my memestock token metadata draft",
-      "description": "Read my memestock token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Read my Memestock token draft",
+      "description": "Read my Memestock token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -622,8 +622,8 @@
     },
     {
       "name": "autolaunch_memestock_draft_save",
-      "title": "Save my memestock token metadata; no treasury, chain, launch terms or wallet actions",
-      "description": "Save my memestock token metadata; no treasury, chain, launch terms or wallet actions. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
+      "title": "Save my Memestock token draft text, never treasury, chain, launch terms or wallet settings",
+      "description": "Save my Memestock token draft text, never treasury, chain, launch terms or wallet settings. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -734,8 +734,8 @@
     },
     {
       "name": "autolaunch_my_positions",
-      "title": "Read the owner verified wallet bids and holdings; chain availability required",
-      "description": "Read the owner verified wallet bids and holdings; chain availability required. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Read my bids and holdings, when the chain can be read",
+      "description": "Read my bids and holdings, when the chain can be read. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -790,8 +790,8 @@
     },
     {
       "name": "account_balances",
-      "title": "Read canonical Credits balance and current budget",
-      "description": "Read canonical Credits balance and current budget. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Read Credits",
+      "description": "Read Credits. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -968,7 +968,7 @@
     },
     {
       "name": "prepare_agent_request",
-      "title": "Prepare a signed agent request",
+      "title": "Prepare a signed request",
       "description": "Prepare exact bytes for a manifest-listed operation. No private read or product mutation. Sign with your existing SIWA signer, then call the named tool with input, request and proof. Never substitute browser credentials.",
       "input_schema": {
         "type": "object",

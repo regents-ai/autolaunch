@@ -325,7 +325,7 @@
     },
     {
       "command": "agents whoami",
-      "description": "Read my signed identity and current pairing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Check my identity and pairing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "agent_whoami",
       "method": "GET",
       "path": "/api/agents/v1/whoami",
@@ -372,7 +372,7 @@
     },
     {
       "command": "drafts revstake show",
-      "description": "Read my revstake token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Revstake token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_revstake_draft",
       "method": "GET",
       "path": "/api/agent/v1/drafts/revstake",
@@ -381,7 +381,7 @@
     },
     {
       "command": "drafts revstake save",
-      "description": "Save my revstake token metadata; no treasury, chain, launch terms or wallet actions. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
+      "description": "Save my Revstake token draft text, never treasury, chain, launch terms or wallet settings. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
       "operation_id": "autolaunch_revstake_draft_save",
       "method": "PATCH",
       "path": "/api/agent/v1/drafts/revstake",
@@ -446,7 +446,7 @@
     },
     {
       "command": "drafts memestock show",
-      "description": "Read my memestock token metadata draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Memestock token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_memestock_draft",
       "method": "GET",
       "path": "/api/agent/v1/drafts/memestock",
@@ -455,7 +455,7 @@
     },
     {
       "command": "drafts memestock save",
-      "description": "Save my memestock token metadata; no treasury, chain, launch terms or wallet actions. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
+      "description": "Save my Memestock token draft text, never treasury, chain, launch terms or wallet settings. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
       "operation_id": "autolaunch_memestock_draft_save",
       "method": "PATCH",
       "path": "/api/agent/v1/drafts/memestock",
@@ -520,7 +520,7 @@
     },
     {
       "command": "positions",
-      "description": "Read the owner verified wallet bids and holdings; chain availability required. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my bids and holdings, when the chain can be read. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "autolaunch_my_positions",
       "method": "GET",
       "path": "/api/agent/v1/positions",
@@ -535,7 +535,7 @@
     },
     {
       "command": "account balances",
-      "description": "Read canonical Credits balance and current budget. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read Credits. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "operation_id": "account_balances",
       "method": "GET",
       "path": "/api/agent/v1/account/balances",

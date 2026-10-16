@@ -422,7 +422,7 @@ paths:
   /api/agents/v1/whoami:
     "get":
       "operationId": "agent_whoami"
-      "summary": "Read my signed identity and current pairing"
+      "summary": "Check my identity and pairing"
       "security":
         -
           "SiwaProof": []
@@ -499,7 +499,7 @@ paths:
   /api/agent/v1/drafts/revstake:
     "get":
       "operationId": "autolaunch_revstake_draft"
-      "summary": "Read my revstake token metadata draft"
+      "summary": "Read my Revstake token draft"
       "security":
         -
           "SiwaProof": []
@@ -516,7 +516,7 @@ paths:
           "description": "Dependency unavailable"
     "patch":
       "operationId": "autolaunch_revstake_draft_save"
-      "summary": "Save my revstake token metadata; no treasury, chain, launch terms or wallet actions"
+      "summary": "Save my Revstake token draft text, never treasury, chain, launch terms or wallet settings"
       "security":
         -
           "SiwaProof": []
@@ -561,7 +561,7 @@ paths:
   /api/agent/v1/drafts/memestock:
     "get":
       "operationId": "autolaunch_memestock_draft"
-      "summary": "Read my memestock token metadata draft"
+      "summary": "Read my Memestock token draft"
       "security":
         -
           "SiwaProof": []
@@ -578,7 +578,7 @@ paths:
           "description": "Dependency unavailable"
     "patch":
       "operationId": "autolaunch_memestock_draft_save"
-      "summary": "Save my memestock token metadata; no treasury, chain, launch terms or wallet actions"
+      "summary": "Save my Memestock token draft text, never treasury, chain, launch terms or wallet settings"
       "security":
         -
           "SiwaProof": []
@@ -623,7 +623,7 @@ paths:
   /api/agent/v1/positions:
     "get":
       "operationId": "autolaunch_my_positions"
-      "summary": "Read the owner verified wallet bids and holdings; chain availability required"
+      "summary": "Read my bids and holdings, when the chain can be read"
       "security":
         -
           "SiwaProof": []
@@ -641,7 +641,7 @@ paths:
   /api/agent/v1/account/balances:
     "get":
       "operationId": "account_balances"
-      "summary": "Read canonical Credits balance and current budget"
+      "summary": "Read Credits"
       "security":
         -
           "SiwaProof": []
