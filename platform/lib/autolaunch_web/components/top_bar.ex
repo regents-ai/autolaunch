@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.Components.TopBar do
           stroke-width="1.5"
           aria-hidden="true"
         ><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
-        <span class="home-search__prompt">Search coins, stocks, creators and addresses…</span>
+        <span class="home-search__prompt">Search</span>
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
       </button>
       <AutolaunchWeb.Components.RegentLinks.header_links>
