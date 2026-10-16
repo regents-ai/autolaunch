@@ -371,7 +371,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
     <span :if={@lane.loading} class="regent-next-muted">Reading the chain…</span>
     <span :if={@lane.failed} class="regent-next-muted">Unavailable just now.</span>
     <span :if={@lane.ok? && @lane.result}>{render_slot(@inner_block, @lane.result)}</span>
-    <span :if={@lane.ok? && !@lane.result} class="regent-next-muted">Not on this site.</span>
+    <span :if={@lane.ok? && !@lane.result} class="regent-next-muted">Memestock isn’t running on this chain yet.</span>
     """
   end
 
