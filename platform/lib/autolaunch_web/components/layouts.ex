@@ -48,9 +48,13 @@ defmodule AutolaunchWeb.Layouts do
   def credits(_socket, _access_context, _read), do: nil
 
   @doc """
-  The signed-in account, for the side panel's pairing box; nil signed out, and
-  on a page served without LiveView, which cannot hold the box.
+  The signed-in account, for the side panel's pairing box; nil signed out, on
+  the Account page, which shows its own, and on a page served without LiveView,
+  which cannot hold the box.
   """
+  def pairing_account(%Phoenix.LiveView.Socket{view: AutolaunchWeb.AccountLive}, _access_context),
+    do: nil
+
   def pairing_account(%Phoenix.LiveView.Socket{}, %{principal: {:human, account}}), do: account
   def pairing_account(_socket, _access_context), do: nil
 

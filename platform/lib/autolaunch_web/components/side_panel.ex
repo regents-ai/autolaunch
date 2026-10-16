@@ -4,7 +4,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   top bar, and either one opens it. Its top holds the signed-in name with
   Account and Sign out, then the box to pair an agent (the `pairing` slot, the
   Account page's own `AutolaunchWeb.PairingBox`) and a link to manage agents on
-  the Regents account page, where the person signs in again. On a wide screen
+  the Regents account page, where the person signs in again. A page that shows
+  its own pairing box, or is served without LiveView and so cannot hold one,
+  leaves the slot out, and the panel then has neither. On a wide screen
   it slides in beside the page, which narrows to make room; on a narrower one it
   slides in over the page's edge. The browser alone opens and closes it
   (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server never
@@ -49,7 +51,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   end
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
-  slot :pairing, doc: "The box to pair an agent, on a LiveView page."
+
+  slot :pairing,
+    doc: "The box to pair an agent, on a LiveView page; left out on a page with its own."
 
   def panel(assigns) do
     ~H"""
@@ -90,7 +94,7 @@ defmodule AutolaunchWeb.Components.SidePanel do
         </div>
       </section>
 
-      <section id="shell-pairing" aria-labelledby="shell-pairing-title">
+      <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
         <h3 id="shell-pairing-title">Pair your agent</h3>
         {render_slot(@pairing)}
         <a href="https://regents.sh/account#account-agents">Manage Agents</a>

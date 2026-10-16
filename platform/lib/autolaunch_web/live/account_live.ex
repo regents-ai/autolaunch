@@ -5,8 +5,8 @@ defmodule AutolaunchWeb.AccountLive do
   the sign-in ended when it lapsed while the page was open. Signed in, its
   Profile section says who is signed in, with which wallet, links to their
   Regents account and offers Sign out. The agents they paired follow, with the
-  box to pair another (`AutolaunchWeb.PairingBox`, the one the side panel holds);
-  unpairing is on regents.sh. Then their Credits, bought from the header's
+  box to pair another (`AutolaunchWeb.PairingBox`), which the side panel then
+  leaves out; unpairing is on regents.sh. Then their Credits, bought from the header's
   Credits button and managed on regents.sh, and their Points: Autolaunch charges
   no Credits and Points earning has not opened here. Their
   connected accounts come last, through the Create page's connections
