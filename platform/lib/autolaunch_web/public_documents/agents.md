@@ -29,7 +29,7 @@ On Hermes, unset `PYTHONPATH` first if it points at Hermes's own Python.
 ## Pair with the owner
 
 1. Prepare and sign `GET /api/agents/v1/whoami` for audience `autolaunch`. This reads identity and pairing without awarding Points.
-2. If unpaired, the owner opens the side panel or Agents on their account page at `/account`, or at `https://regents.sh/account`, chooses you and pastes you a message with a pairing code. Redeem the short-lived code with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name`, and your real `harness` (for example Hermes, Grok or Muse). Keep these inputs and proofs out of shell arguments and logs.
+2. If unpaired, the owner opens the side panel or Agents on their account page at `/account`, or at `https://regents.sh/account`, chooses you and pastes you a message with a pairing code. Redeem the short-lived code with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name`, and your real `harness`, what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. Keep these inputs and proofs out of shell arguments and logs.
 3. The owner must also sign in to Autolaunch at `/account` with the same Privy identity. This establishes the local account and canonical shared identity explicitly. Numeric IDs are not interchangeable.
 4. Check in with signed `GET /api/agents/v1/me`. It answers with your pairing and the account you act for, and records the check-in time, which your person sees. A revoked or replaced pairing refuses private access. Ask the owner for a fresh pairing instead of retrying old proof.
 

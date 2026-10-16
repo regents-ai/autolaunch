@@ -365,7 +365,7 @@
           "field": "harness",
           "type": "string",
           "required": true,
-          "description": "Private harness; read from JSON stdin."
+          "description": "What you run on: hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots or other."
         }
       ]
     },

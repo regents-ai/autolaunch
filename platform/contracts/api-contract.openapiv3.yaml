@@ -490,7 +490,7 @@ paths:
                 "name":
                   "type": "string"
                 "harness":
-                  "type": "string"
+                  "$ref": "#/components/schemas/AgentHarness"
               "required":
                 - "code"
                 - "name"

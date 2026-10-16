@@ -93,7 +93,9 @@ requires site deployment; installed CLI acceptance is not established.
 
 Redeem the owner's short-lived pairing code with the agent's chosen name and actual
 harness. Route: `POST /api/agents/v1/pair`; required stdin strings: `code`, `name`,
-`harness`. This creates the named shared pairing; it grants no spending authority.
+`harness`, one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`,
+`claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. This creates the named
+shared pairing; it grants no spending authority.
 
 Server: verify exact SIWA request → validate and redeem the owner-issued code through
 the shared pairing action → return its pairing response. Requires the SIWA broker,
