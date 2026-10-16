@@ -17,7 +17,7 @@
 .market-identity__body { display: grid; gap: 14px; min-width: 0; }
 .market-identity__symbol { margin: 0; font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem); font-weight: var(--font-weight-semibold); line-height: 1.1; overflow-wrap: anywhere; }
 /* The currency after a ticker, as `BITE / AAPLc`. */
-.token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); }
+.token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); white-space: nowrap; }
 /* A token's card heads its ticker and pair with its chain's badge at the top right. */
 .market-identity__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); min-width: 0; }
 .market-identity__head .market-identity__symbol { min-width: 0; }
