@@ -40,12 +40,14 @@
 @import "./pages/upcoming.css";
 @import "./pages/animations.css";
 
-/* A narrow page: the search fills a row, then the $REGENT crown with Sign in (or the
-   account name) and the side panel button beside it. */
-@container shell-page (max-width: 39rem) {
-  #home-top .home-top__actions { flex: 1 1 0; gap: var(--space-1); margin-left: 0; }
-  #home-top .account-control:has(> .account-control__sign-in) { flex: 1 1 auto; box-sizing: border-box; }
-  #home-top .account-control__sign-in { width: 100%; }
+/* A narrow page: the search's magnifier, then the $REGENT crown, and Sign in (or the
+   account's picture) with the side panel button, on one row. */
+@container shell-page (max-width: 39rem) { #home-top .home-top__actions { gap: var(--space-1); } }
+/* The narrowest pages: tighter presses keep the whole header on one row, down to 360px. */
+@container shell-page (max-width: 24rem) {
+  #home-top { gap: var(--space-1); }
+  #home-top :is(.shell-tool, .home-search) { width: 2rem; }
+  #home-top .account-control__sign-in { padding-inline: var(--space-1); }
 }
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
