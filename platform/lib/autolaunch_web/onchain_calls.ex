@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.OnchainCalls do
   def state(%{outcome: outcome}) when outcome in [:sent, :unconfirmed], do: :sent
   def state(%{outcome: :pending, reads: reads}) when reads >= @read_limit, do: :stalled
   def state(%{outcome: :pending}), do: :sent
-  def state(%{outcome: :confirmed}), do: :done
+  def state(%{outcome: outcome}) when outcome in [:confirmed, :nothing], do: :done
   def state(%{outcome: :reverted}), do: :reverted
   def state(%{outcome: :not_this_step}), do: :other
 
@@ -156,13 +156,15 @@ defmodule AutolaunchWeb.OnchainCalls do
 
       cond do
         entry.outcome == :pending and entry.reads < @read_limit -> {entry, &check(&1, entry)}
-        entry.outcome == :confirmed -> {entry, &confirmed.(&1, entry)}
+        entry.outcome in [:confirmed, :nothing] -> {entry, &confirmed.(&1, entry)}
         true -> {entry, nil}
       end
     end)
   end
 
-  defp outcome({:ok, outcome}) when outcome in [:pending, :confirmed, :reverted], do: outcome
+  defp outcome({:ok, outcome}) when outcome in [:pending, :confirmed, :nothing, :reverted],
+    do: outcome
+
   defp outcome({:error, :not_this_step}), do: :not_this_step
   defp outcome(_unanswered), do: :pending
 

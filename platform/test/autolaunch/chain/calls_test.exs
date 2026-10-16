@@ -7,10 +7,11 @@ defmodule Autolaunch.Chain.CallsTest do
   # BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL: a transaction the wallet names
   # for a batch is the review's only when it carries every reviewed call's
   # target and calldata, in order, on the review's chain, for the review's
-  # signer, and its receipt holds the splitter's own claim record for the
-  # signer; a smart account's batch is done only when the canonical entry
-  # point says the signer's operation succeeded. Any other transaction is no
-  # answer about the claim, so the page never says "Claimed" for it.
+  # signer; a smart account's batch ran only when the canonical entry point
+  # says the signer's operation succeeded. Any other transaction is no answer
+  # about the claim. One that is the review's and ran is "Claimed" only when
+  # its receipt holds the splitter's own claim record for the signer, and
+  # otherwise claimed nothing, so the page never says "Claimed" for it.
 
   defmodule Chain do
     def transaction(_chain, _hash), do: {:ok, Process.get(:tx)}
@@ -48,12 +49,16 @@ defmodule Autolaunch.Chain.CallsTest do
     assert outcome(review, tx(@signer, batched), "0x0") == {:ok, :reverted}
     assert outcome(review, tx(@signer, batched), nil) == {:ok, :pending}
 
-    # A receipt with no claim record for the signer from the splitter itself is
-    # not the claim: none at all, one from another contract, or one for
-    # another account.
-    refute_review(review, tx(@signer, batched))
-    refute_review(review, tx(@signer, batched), [claimed(@bundler, @signer)])
-    refute_review(review, tx(@signer, batched), [claimed(@splitter, @bundler)])
+    # The review's batch ran, but with no claim record for the signer from the
+    # splitter itself it claimed nothing: none at all, one from another
+    # contract, or one for another account.
+    assert outcome(review, tx(@signer, batched), "0x1") == {:ok, :nothing}
+
+    assert outcome(review, tx(@signer, batched), "0x1", [claimed(@bundler, @signer)]) ==
+             {:ok, :nothing}
+
+    assert outcome(review, tx(@signer, batched), "0x1", [claimed(@splitter, @bundler)]) ==
+             {:ok, :nothing}
 
     # A call left out, the calls in another order, another chain, or another
     # account's batch is not this review's.
@@ -79,7 +84,8 @@ defmodule Autolaunch.Chain.CallsTest do
       claimed(@splitter, @signer)
     ])
 
-    refute_review(review, from_bundler, [operation(@entry_point, @signer, 1)])
+    assert outcome(review, from_bundler, "0x1", [operation(@entry_point, @signer, 1)]) ==
+             {:ok, :nothing}
   end
 
   defp outcome(review, tx, status, logs \\ []) do

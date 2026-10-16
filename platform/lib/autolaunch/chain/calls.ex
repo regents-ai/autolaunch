@@ -13,9 +13,11 @@ defmodule Autolaunch.Chain.Calls do
   account that ran it. Anything else is no answer about the review
   (`{:error, :not_this_step}`).
 
-  The receipt must also hold the record the batch exists to make (`proof`):
-  the named event, from the named contract, with the signer as its first
-  indexed word. For a claim that is the launch splitter's
+  A batch that is the review's and ran is `:confirmed` when its receipt holds
+  the record the batch exists to make (`proof`): the named event, from the
+  named contract, with the signer as its first indexed word. Without it the
+  batch is `:nothing`: it ran, but the contract made no such record for the
+  signer (a claim with nothing owed pays nothing and records nothing). For a claim that is the launch splitter's
   `Claimed(account, token, amount)` for the signer. A smart account's
   transaction succeeds even when the account's own calls fail, so its outcome
   is also the canonical entry point's own record of the signer's operation
@@ -34,11 +36,12 @@ defmodule Autolaunch.Chain.Calls do
     "0x4337084d9e255ff0702461cf8895ce9e3b5ff108"
   ]
 
-  @type outcome :: :pending | :confirmed | :reverted
+  @type outcome :: :pending | :confirmed | :nothing | :reverted
   @type proof :: %{emitter: String.t(), event: String.t()}
 
   @doc """
-  `:pending` until the receipt exists, then `:confirmed` or `:reverted`.
+  `:pending` until the receipt exists, then `:confirmed`, `:nothing` or
+  `:reverted`.
   `proof` names the event the batch must write for the signer; `client`
   reads at `latest` (`Autolaunch.Chain.Client`).
   """
@@ -124,7 +127,7 @@ defmodule Autolaunch.Chain.Calls do
           false
       end)
 
-    if written?, do: {:ok, :confirmed}, else: {:error, :not_this_step}
+    if written?, do: {:ok, :confirmed}, else: {:ok, :nothing}
   end
 
   defp word(address), do: "0x" <> String.pad_leading(bare(address), 64, "0")

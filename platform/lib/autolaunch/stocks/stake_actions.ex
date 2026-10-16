@@ -573,6 +573,8 @@ defmodule Autolaunch.Stocks.StakeActions do
 
     %{
       "kind" => "claim",
+      # A claim with nothing owed pays nothing and records nothing.
+      "paid" => per_token != %{},
       "dollar_units" => units(claimed(per_token, context.dollar), context.dollar_decimals),
       "token_units" => units(claimed(per_token, context.token), @token_decimals),
       "stock_units" => units(claimed(per_token, context.currency), context.currency_decimals),

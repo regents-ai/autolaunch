@@ -721,10 +721,10 @@ defmodule AutolaunchWeb.StakeComponent do
          logs
        ) do
     case OnchainCalls.newest(socket.assigns.batches, review) do
-      %{id: ^calls_id} ->
+      %{id: ^calls_id, outcome: outcome} ->
         names = Enum.map(review.steps, & &1.step)
         results = Map.new(Enum.zip(names, batch_results(prepared.context, names, logs)))
-        socket |> assign(results: results) |> finished()
+        socket |> assign(results: unpaid(results, outcome)) |> finished()
 
       _other ->
         socket
@@ -733,8 +733,15 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp batch_resulted(socket, _calls_id, _logs), do: socket
 
-  # A claim batch is the review's only when the launch's splitter recorded a
-  # claim for the signer in it.
+  # The server's read of the batch found no claim record for the signer, so the
+  # claim paid nothing, whatever its receipt could be read for.
+  defp unpaid(results, :nothing),
+    do: Map.put(results, "claim", %{"kind" => "claim", "paid" => false})
+
+  defp unpaid(results, :confirmed), do: results
+
+  # The record a claim batch exists to make: the launch splitter's claim for
+  # the signer. Without it the batch claimed nothing.
   defp claim_proof(%{prepared: %{context: context}}),
     do: %{emitter: context.splitter, event: context.venue.abi.claimed_signature()}
 
@@ -765,19 +772,24 @@ defmodule AutolaunchWeb.StakeComponent do
 
   # Every figure moved, so the page reads the pool again and every part reads
   # the wallet's balances, stake and rewards again (`:refresh_balances`). A
-  # claim also tells the page, which opens Stake and sends a light into it.
+  # claim that paid something also tells the page, which opens Stake and sends
+  # a light into it; one with nothing owed says so plainly.
   defp finished(%{assigns: %{review: review, prepared: prepared, results: results}} = socket) do
     send(self(), :refresh_balances)
+    kind = done_kind(prepared.kind, results["claim"])
 
     socket
-    |> claimed(prepared.kind)
+    |> claimed(kind)
     |> assign(
       amount: "",
       notice: nil,
-      done: %{kind: prepared.kind, results: Enum.map(review.steps, &results[&1.step])}
+      done: %{kind: kind, results: Enum.map(review.steps, &results[&1.step])}
     )
     |> closed()
   end
+
+  defp done_kind(:claim, %{"paid" => false}), do: :nothing_claimed
+  defp done_kind(kind, _claim), do: kind
 
   defp claimed(socket, :claim) do
     send(self(), {:claimed, socket.assigns.id <> "-claim"})
@@ -1082,11 +1094,14 @@ defmodule AutolaunchWeb.StakeComponent do
   defp done_title(:stake), do: "Staked"
   defp done_title(:unstake), do: "Unstaked"
   defp done_title(:claim), do: "Claimed"
+  defp done_title(:nothing_claimed), do: "Nothing was waiting for you, so nothing was claimed."
   defp done_title(:settle), do: "Contract settled"
   defp done_title(:release), do: "Released to the creator"
 
+  # A claim that paid nothing has no line of its own; what the review's other
+  # steps moved into the staking contract still shows.
   defp done_lines(%{results: results}) do
-    for %{} = result <- results, do: done_line(result)
+    for %{} = result <- results, result["paid"] != false, do: done_line(result)
   end
 
   defp done_line(%{"kind" => kind, "amount_units" => amount, "token_symbol" => symbol})
