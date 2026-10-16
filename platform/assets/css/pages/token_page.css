@@ -18,9 +18,11 @@
 /* Until the script places the ink, the chosen tab fills itself. */
 .token-trade__ink:not([style]) { visibility: hidden; }
 .token-trade__tabs:has(.token-trade__ink:not([style])) [aria-selected="true"] { background: var(--color-fg); }
-.token-trade__panes { display: grid; min-width: 0; }
-.token-trade__pane { grid-area: 1 / 1; min-width: 0; }
-.token-trade__pane[inert] { visibility: hidden; }
+.token-trade__panes { min-width: 0; }
+.token-trade__views { min-width: 0; }
+/* While the widget eases to another view's height, what does not fit yet is clipped. */
+.token-trade__views[data-resizing] { overflow: clip; }
+.token-trade__pane { min-width: 0; }
 .token-trade .token-swap { max-width: none; }
 /* The swap's settings sit at the end of the selector's row. */
 .token-trade .token-swap__bar { position: absolute; top: 2px; right: 0; margin: 0; }

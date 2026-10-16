@@ -31,6 +31,7 @@ import {installRegentTokenMenu} from "./regent_token_menu"
 import {installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
 import {SiteButtons, SiteLight} from "./hooks/site_buttons"
+import {TradeViews} from "./hooks/trade_views"
 
 // The motion lab's own hooks load only on its page.
 const labHooks = window.location.pathname === "/animations"
@@ -53,6 +54,7 @@ const hooks = {
   MotionTabs,
   SiteButtons,
   SiteLight,
+  TradeViews,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

@@ -2,8 +2,8 @@ defmodule AutolaunchWeb.Components.TokenTrade do
   @moduledoc """
   The trade widget of a token page, on Base and Robinhood alike: a sliding
   selector of Swap, Stake and, for a wallet that has a stake, Unstake, over
-  one view at a time. Every view shares one cell, so choosing another never
-  changes the widget's height. The page owns the choice (`tab`) and the views;
+  one view at a time. Each view takes its own height, and the widget eases
+  between them (`TradeViews`). The page owns the choice (`tab`) and the views;
   `tabs/2` and `pick/2` keep both pages choosing the same way.
   """
   use Phoenix.Component
@@ -74,12 +74,20 @@ defmodule AutolaunchWeb.Components.TokenTrade do
         aria-labelledby={"#{@id}-tab-#{@tab}"}
       >
         <div
-          :for={pane <- @pane}
-          class="token-trade__pane"
-          data-pane={pane.tab}
-          inert={!showing?(pane.tab, @tab)}
+          id={"#{@id}-views"}
+          class="token-trade__views"
+          phx-hook="TradeViews"
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style", "data-resizing"])}
+          data-active={@tab}
         >
-          {render_slot(pane)}
+          <div
+            :for={pane <- @pane}
+            class="token-trade__pane"
+            data-pane={pane.tab}
+            hidden={!showing?(pane.tab, @tab)}
+          >
+            {render_slot(pane)}
+          </div>
         </div>
       </div>
     </section>
