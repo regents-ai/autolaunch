@@ -214,8 +214,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
       >
         Enter an amount
       </Regent.Primitives.button>
-      <Regent.Primitives.button :if={@action == :review} type="submit" class="token-swap__submit">
-        Review
+      <Regent.Primitives.button
+        :if={@action == :review}
+        type="submit"
+        class="token-swap__submit"
+        data-press="motion"
+        phx-mounted={JS.ignore_attributes("style")}
+      >
+        <span class="site-glint" aria-hidden="true"></span>Review
       </Regent.Primitives.button>
       <Regent.Primitives.button
         :if={@action == :sign_in}

@@ -35,18 +35,25 @@ defmodule AutolaunchWeb.Components.SwapModal do
           Close
         </Regent.Primitives.button>
       </header>
-      <.live_component
-        module={SwapComponent}
-        id={@id <> "-input"}
-        launch={@pool.launch}
-        symbol={@presentation.symbol}
-        image={@presentation.image}
-        currency={@pool.currency}
-        start_direction={@direction}
-        authenticated={@authenticated}
-        current_human_id={@current_human_id}
-        session_lease={@session_lease}
-      />
+      <%!-- The swap's Review button dips as the token page's does (`SiteButtons`). --%>
+      <div
+        id={@id <> "-buttons"}
+        phx-hook="SiteButtons"
+        phx-mounted={Phoenix.LiveView.JS.ignore_attributes("data-input")}
+      >
+        <.live_component
+          module={SwapComponent}
+          id={@id <> "-input"}
+          launch={@pool.launch}
+          symbol={@presentation.symbol}
+          image={@presentation.image}
+          currency={@pool.currency}
+          start_direction={@direction}
+          authenticated={@authenticated}
+          current_human_id={@current_human_id}
+          session_lease={@session_lease}
+        />
+      </div>
     </dialog>
     """
   end

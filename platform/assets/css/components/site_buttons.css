@@ -1,0 +1,46 @@
+/* The site's main buttons with the template's motion, as its motion-lab study has
+   Autolaunch's (ash-template design-motion b3b913e, "Create the launch", With
+   motion): a light behind them (`SiteLight`), a fine edge light on hover under a
+   mouse, a whole-button press dip (`SiteButtons`), an instant focus ring, and
+   nothing that loops while a button sits still. A button takes part with
+   `data-press="motion"`. */
+:root { --site-light: var(--palette-tangerine-tango, #ff5b19); --site-focus: #aecacd; }
+:root[data-theme="light"] { --site-focus: #a33208; }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) { --site-focus: #a33208; } }
+
+/* The shared press shrinks a button's words and fill but not its edge: here the
+   whole button dips instead. */
+.rg-button[data-press="motion"] { --active-scale: 1; }
+.rg-button[data-press="motion"]::before { animation: none; background-image: none; }
+/* The edge light spans the whole button, so the label gives up its own positioning. */
+.rg-button[data-press="motion"] .rg-button__label { position: static; }
+.site-glint {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+  clip-path: polygon(var(--rg-cut-control) 0, 100% 0, 100% calc(100% - var(--rg-cut-control)), calc(100% - var(--rg-cut-control)) 100%, 0 100%, 0 var(--rg-cut-control));
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--site-light) 22%, transparent));
+  transition: opacity 140ms cubic-bezier(.23, 1, .32, 1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rg-button[data-press="motion"]:not(:disabled):not([aria-busy="true"]):hover .site-glint { opacity: 1; }
+}
+/* Keyboard focus answers at once: the ring and the outline are simply there. */
+.rg-button[data-press="motion"]:focus-visible { outline-color: var(--site-focus); }
+.rg-button[data-press="motion"]:focus-visible::after { transition: none; }
+
+/* The light: a still glow until the GPU's first frame lands, then the frame. */
+.site-light-stage { position: relative; isolation: isolate; }
+.site-light {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-color: var(--color-bg); color: var(--site-light);
+  background-image: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--site-light) 14%, transparent), transparent 62%);
+}
+.site-light canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 200ms cubic-bezier(.23, 1, .32, 1); }
+.site-light[data-light-ready="true"] canvas { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rg-button[data-press="motion"], .rg-button[data-press="motion"]::after, .site-glint { transition: none; }
+  .site-light canvas { display: none; }
+}
+@media (forced-colors: active) {
+  .site-glint, .site-light { display: none; }
+}

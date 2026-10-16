@@ -113,7 +113,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             </:chart>
           </.detail_card>
         </div>
-        <div class="token-page__side">
+        <.buttons_stage id="token-side" class="token-page__side">
           <.trade_widget id="trade" tab={@trade} swap={@swap?} staked={@staked?}>
             <:pane :if={@swap?} tab={:swap}>
               <.live_component
@@ -167,7 +167,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
-        </div>
+        </.buttons_stage>
         <div class="token-page__details">
           <.launch_trust
             auction={@token.auction}

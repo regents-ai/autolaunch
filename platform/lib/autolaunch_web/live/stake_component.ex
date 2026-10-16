@@ -214,8 +214,10 @@ defmodule AutolaunchWeb.StakeComponent do
             phx-value-kind="stake"
             phx-target={@myself}
             disabled={nothing_to_stake?(@position)}
+            data-press="motion"
+            phx-mounted={JS.ignore_attributes("style")}
           >
-            Stake {@pool.token.symbol}
+            <span class="site-glint" aria-hidden="true"></span>Stake {@pool.token.symbol}
           </Regent.Primitives.button>
           <p :if={action(assigns) == :act && nothing_to_stake?(@position)} class="token-trade__reason">
             No {@pool.token.symbol} in this wallet
@@ -285,8 +287,10 @@ defmodule AutolaunchWeb.StakeComponent do
             :if={action(assigns) == :act}
             type="submit"
             class="token-swap__submit"
+            data-press="motion"
+            phx-mounted={JS.ignore_attributes("style")}
           >
-            Unstake {@pool.token.symbol}
+            <span class="site-glint" aria-hidden="true"></span>Unstake {@pool.token.symbol}
           </Regent.Primitives.button>
           <.idle_button action={action(assigns)} />
           <.refusal_line id={"#{@id}-unstake-refusal"} text={@error || (is_nil(@review) && @notice)} />
@@ -350,8 +354,10 @@ defmodule AutolaunchWeb.StakeComponent do
               phx-click="review"
               phx-value-kind="claim"
               phx-target={@myself}
+              data-press="motion"
+              phx-mounted={JS.ignore_attributes("style")}
             >
-              Claim rewards
+              <span class="site-glint" aria-hidden="true"></span>Claim rewards
             </Regent.Primitives.button>
             <.idle_button action={action(assigns)} />
 
@@ -363,8 +369,10 @@ defmodule AutolaunchWeb.StakeComponent do
                   phx-click="review"
                   phx-value-kind="settle"
                   phx-target={@myself}
+                  data-press="motion"
+                  phx-mounted={JS.ignore_attributes("style")}
                 >
-                  Settle contract
+                  <span class="site-glint" aria-hidden="true"></span>Settle contract
                 </Regent.Primitives.button>
                 <.info_tip
                   id={@id <> "-settle-tip"}
