@@ -104,7 +104,7 @@ export async function landedCalls(
   id: string,
 ): Promise<{status: "success" | "failure"; hashes: Hash[]} | undefined> {
   try {
-    const {status, receipts} = await waitForCallsStatus(client(provider, signer), {id, pollingInterval: 2_000, timeout: 180_000})
+    const {status, receipts} = await waitForCallsStatus(client(provider, signer), {id, pollingInterval: 250, timeout: 180_000})
     if (status !== "success" && status !== "failure") return undefined
     return {status, hashes: (receipts ?? []).map(receipt => receipt.transactionHash)}
   } catch {
