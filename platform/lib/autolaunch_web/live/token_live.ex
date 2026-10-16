@@ -188,16 +188,12 @@ defmodule AutolaunchWeb.TokenLive do
           />
         </.buttons_stage>
         <div class="token-page__details">
-          <.launch_trust
+          <.token_facts
             auction={@page_record.auction}
             connections={@creator_connections}
             pool={if(@pool.ok?, do: @pool.result)}
-            price={
-              %{
-                amount: @page_record.price_quote,
-                unit: SwapComponent.entry_symbol(@page_record.auction)
-              }
-            }
+            price={@page_record.price_quote}
+            unit={SwapComponent.entry_symbol(@page_record.auction)}
           />
         </div>
       </div>
@@ -217,6 +213,7 @@ defmodule AutolaunchWeb.TokenLive do
       name: assigns.presentation.name,
       symbol: assigns.presentation.symbol,
       url: Paths.token_url(record.auction),
+      auction: record.auction,
       pool: assigns.pool.result,
       fees: assigns.fee_totals.result,
       supply: record.auction.token_supply,

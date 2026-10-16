@@ -169,11 +169,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           />
         </.buttons_stage>
         <div class="token-page__details">
-          <.launch_trust
+          <.token_facts
             auction={@token.auction}
             connections={@creator_connections.result}
             pool={if(@pool.ok?, do: @pool.result)}
-            price={%{amount: @token.price_quote, unit: @token.auction.quote_token_symbol}}
+            price={@token.price_quote}
+            unit={@token.auction.quote_token_symbol}
           />
         </div>
       </div>
@@ -198,6 +199,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       name: token.name,
       symbol: token.symbol,
       url: Paths.token_url(token.auction),
+      auction: token.auction,
       pool: pool.result,
       fees: fees.result,
       supply: token.auction.token_supply,

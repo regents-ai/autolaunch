@@ -9,6 +9,7 @@ defmodule AutolaunchWeb.TokenDetails do
   `details` is what the page has read:
 
     * `:name`, `:symbol`, `:url` - the token as the page presents it;
+    * `:auction` - the launch's auction record;
     * `:pool` - its pool facts (`Autolaunch.Pool` or
       `Autolaunch.Robinhood.Pool`);
     * `:fees` - `Autolaunch.PoolFees.totals/2` for the pool;
@@ -22,7 +23,7 @@ defmodule AutolaunchWeb.TokenDetails do
   """
 
   alias Autolaunch.Stocks.{Amounts, FeeSchedule}
-  alias AutolaunchWeb.Components.AutolaunchHelpers
+  alias AutolaunchWeb.Components.{AutolaunchHelpers, LaunchTrust}
 
   @bps 10_000
   # RegentFeeHook's Regent lane on every Revstake trade, beside the stakers' lane.
@@ -45,6 +46,7 @@ defmodule AutolaunchWeb.TokenDetails do
     [
       head(details),
       token(details),
+      supply(details),
       staking(details),
       trade_fees(pool),
       liquidity(pool),
@@ -81,6 +83,20 @@ defmodule AutolaunchWeb.TokenDetails do
       details[:raised] && "- Raised in its auction: #{details.raised} #{pool.currency.symbol}",
       pool[:unsold] &&
         "- Unsold tokens: #{pool.unsold.amount} #{pool.token.symbol}, #{unsold(pool.unsold)} #{pool.unsold.address}",
+      ""
+    ]
+  end
+
+  # How the launch's supply is split, as its launch type fixes it.
+  defp supply(%{auction: auction} = details) do
+    %{name: name, rows: rows, explained_at: path} = LaunchTrust.supply_rows(auction)
+
+    [
+      "## Supply",
+      Enum.map(rows, fn {label, amount, after_auction} ->
+        "- #{label}: #{amount}; #{after_auction}"
+      end),
+      "- How every #{name} token is split: #{URI.merge(details.url, path)}",
       ""
     ]
   end
@@ -162,6 +178,7 @@ defmodule AutolaunchWeb.TokenDetails do
       pool.current &&
         "- Current tick #{pool.current.tick}, current liquidity #{grouped(pool.current.liquidity)}",
       "- Locked forever: the launch's locker holds every position and can never take it out. It is not a price floor.",
+      "- Uniswap shows the pool as it is now. Trades move the amounts on each side and other people can add their own liquidity, so Uniswap's numbers can differ from what was deposited at opening.",
       Enum.map(pool.positions, &position(&1, pool)),
       ""
     ]

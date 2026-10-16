@@ -6,7 +6,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   itself": its contracts, its launch type, how its supply is split and where
   its liquidity stands. Liquidity reads as deposited only once the launch is
   recorded as launched, and as locked only once the pool has been read from
-  the chain. Shown on auction and token pages on both chains.
+  the chain. Shown on auction pages on both chains (`launch_trust/1`); a
+  token's page shows the same creator and a short list of the launch's facts
+  (`token_facts/1`), the rest going into the details its page copies for an
+  agent (`supply_rows/1` and `AutolaunchWeb.TokenDetails`).
   """
   use Phoenix.Component
 
@@ -27,23 +30,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   attr :token_path, :string, default: nil, doc: "the launched token's page, from an auction page"
 
-  attr :price, :map,
-    default: nil,
-    doc: "on a token's page, its stored price to every digit: `%{amount: string, unit: string}`"
-
   def launch_trust(assigns) do
     auction = assigns.auction
-    chain = if RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base
 
     assigns =
       assign(assigns,
-        chain: chain,
-        wallet: auction.creator_address,
-        accounts: accounts(assigns.connections),
-        website: MarketCard.web_link(auction.website),
-        telegram: named_link(auction.telegram),
-        discord: named_link(auction.discord),
-        links: Enum.flat_map(auction.links, &List.wrap(MarketCard.web_link(&1))),
+        chain: chain(auction),
         contracts: contracts(auction, assigns.pool),
         split: split(auction),
         supply: supply(auction.token_supply),
@@ -52,63 +44,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
     ~H"""
     <div class="launch-trust">
-      <section class="launch-trust__block" aria-labelledby="launch-trust-who">
-        <h2 id="launch-trust-who">
-          Launch Creator
-        </h2>
-        <p class="launch-trust__note">
-          A checked account means the creator proved they own it. It is not an endorsement of the project.
-        </p>
-        <dl class="launch-trust__rows">
-          <div :if={@wallet}>
-            <dt>Launch wallet</dt>
-            <dd>
-              <a
-                class="autolaunch-exact-value"
-                href={BidPlaced.address_url(@chain, @wallet)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >{@wallet}</a>
-            </dd>
-          </div>
-          <div :for={{label, account} <- @accounts || []}>
-            <dt>{label}</dt>
-            <dd :if={account}>
-              <a href={account.url} target="_blank" rel="noopener noreferrer">{account.handle}</a>
-              <span class="launch-trust__checked">
-                <span aria-hidden="true">✓</span> Ownership checked
-              </span>
-            </dd>
-            <dd :if={!account} class="launch-trust__muted">Not connected</dd>
-          </div>
-          <div :if={@website}>
-            <dt>Website</dt>
-            <dd>
-              <a href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
-                {@website.label}
-              </a>
-              <span class="launch-trust__muted">Named by the creator, not checked</span>
-            </dd>
-          </div>
-          <div :for={{label, link} <- [{"Telegram", @telegram}, {"Discord", @discord}]} :if={link}>
-            <dt>{label}</dt>
-            <dd>
-              <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">{link.label}</a>
-              <span class="launch-trust__muted">Named by the creator, not checked</span>
-            </dd>
-          </div>
-          <div :for={link <- @links}>
-            <dt>Link</dt>
-            <dd>
-              <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">{link.label}</a>
-              <span class="launch-trust__muted">Named by the creator, not checked</span>
-            </dd>
-          </div>
-        </dl>
-        <p :if={!@accounts} class="launch-trust__muted" role="status">
-          Reading the creator's connected accounts…
-        </p>
-      </section>
+      <.creator auction={@auction} connections={@connections} />
 
       <section class="launch-trust__block" aria-labelledby="launch-trust-launch">
         <h2 id="launch-trust-launch">
@@ -118,10 +54,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
           <div>
             <dt>Launch type</dt>
             <dd><strong>{@split.name}</strong> · {@split.about}</dd>
-          </div>
-          <div :if={@price && @price.amount}>
-            <dt>Price to 18 decimals</dt>
-            <dd class="autolaunch-exact-value">{@price.amount} {@price.unit}</dd>
           </div>
         </dl>
 
@@ -171,6 +103,169 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     </div>
     """
   end
+
+  attr :auction, :map, required: true, doc: "the launch's auction record"
+  attr :connections, :map, default: nil
+  attr :pool, :map, default: nil, doc: "the launched pool as read from the chain, once read"
+  attr :price, :string, default: nil, doc: "its stored price to every digit"
+  attr :unit, :string, default: nil, doc: "the currency the price is in"
+
+  @doc """
+  A launched token's facts on its own page: who launched it, then a short list
+  of its launch type, price to every digit, contracts, total supply and its
+  Uniswap Liquidity Pool.
+  """
+  def token_facts(assigns) do
+    auction = assigns.auction
+
+    assigns =
+      assign(assigns,
+        chain: chain(auction),
+        name: split(auction).name,
+        contracts: contracts(auction, assigns.pool),
+        supply: supply(auction.token_supply),
+        uniswap: assigns.pool && uniswap_url(assigns.pool)
+      )
+
+    ~H"""
+    <div class="launch-trust">
+      <.creator auction={@auction} connections={@connections} />
+
+      <section class="launch-trust__block" aria-labelledby="launch-trust-launch">
+        <h2 id="launch-trust-launch">Additional Details</h2>
+        <dl class="launch-trust__rows">
+          <div>
+            <dt>Launch type</dt>
+            <dd>{@name}</dd>
+          </div>
+          <div :if={@price}>
+            <dt>Price to 18 decimals</dt>
+            <dd class="autolaunch-exact-value">{@price} {@unit}</dd>
+          </div>
+          <div :for={{label, address} <- @contracts}>
+            <dt>{label}</dt>
+            <dd>
+              <a
+                class="autolaunch-exact-value"
+                href={BidPlaced.address_url(@chain, address)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >{address}</a>
+            </dd>
+          </div>
+          <div :if={@pool}>
+            <dt>Pool</dt>
+            <dd class="autolaunch-exact-value">{@pool.pool_id}</dd>
+          </div>
+          <div :if={@supply}>
+            <dt>Total supply</dt>
+            <dd><span class="figure__value">{@supply}</span></dd>
+          </div>
+          <div :if={@uniswap}>
+            <dt>Uniswap Liquidity Pool</dt>
+            <dd>
+              <a href={@uniswap} target="_blank" rel="noopener noreferrer">View on Uniswap ↗</a>
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+    """
+  end
+
+  @doc """
+  How a launch's supply is split, as `{label, amount, what happens to it}`
+  rows, with the launch type's name and where the whole split is explained.
+  """
+  def supply_rows(auction) do
+    split = split(auction)
+    %{name: split.name, rows: split.rows, explained_at: "/how-it-works"}
+  end
+
+  attr :auction, :map, required: true
+  attr :connections, :map, default: nil
+
+  # Who launched it: the launching wallet and the accounts its creator proved
+  # they own, with anything else they named, unchecked.
+  defp creator(assigns) do
+    auction = assigns.auction
+
+    assigns =
+      assign(assigns,
+        chain: chain(auction),
+        wallet: auction.creator_address,
+        accounts: accounts(assigns.connections),
+        website: MarketCard.web_link(auction.website),
+        telegram: named_link(auction.telegram),
+        discord: named_link(auction.discord),
+        links: Enum.flat_map(auction.links, &List.wrap(MarketCard.web_link(&1)))
+      )
+
+    ~H"""
+    <section class="launch-trust__block" aria-labelledby="launch-trust-who">
+      <h2 id="launch-trust-who">Launch Creator</h2>
+      <dl class="launch-trust__rows">
+        <div :if={@wallet}>
+          <dt>Launch wallet</dt>
+          <dd>
+            <a
+              class="autolaunch-exact-value"
+              href={BidPlaced.address_url(@chain, @wallet)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >{@wallet}</a>
+          </dd>
+        </div>
+        <div :for={{label, account} <- @accounts || []}>
+          <dt>{label}</dt>
+          <dd :if={account}>
+            <a href={account.url} target="_blank" rel="noopener noreferrer">{account.handle}</a>
+            <span class="launch-trust__checked">
+              <span aria-hidden="true">✓</span> Ownership checked
+            </span>
+          </dd>
+          <dd :if={!account} class="launch-trust__muted">Not connected</dd>
+        </div>
+        <div :if={@website}>
+          <dt>Website</dt>
+          <dd>
+            <a href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
+              {@website.label}
+            </a>
+            <span class="launch-trust__muted">Named by the creator, not checked</span>
+          </dd>
+        </div>
+        <div :for={{label, link} <- [{"Telegram", @telegram}, {"Discord", @discord}]} :if={link}>
+          <dt>{label}</dt>
+          <dd>
+            <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">{link.label}</a>
+            <span class="launch-trust__muted">Named by the creator, not checked</span>
+          </dd>
+        </div>
+        <div :for={link <- @links}>
+          <dt>Link</dt>
+          <dd>
+            <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">{link.label}</a>
+            <span class="launch-trust__muted">Named by the creator, not checked</span>
+          </dd>
+        </div>
+      </dl>
+      <p :if={!@accounts} class="launch-trust__muted" role="status">
+        Reading the creator's connected accounts…
+      </p>
+    </section>
+    """
+  end
+
+  # The pool on Uniswap's public site; a test network's pool is on none.
+  defp uniswap_url(%{uniswap_url: url}), do: url
+
+  defp uniswap_url(%{chain: :robinhood, pool_id: pool_id}) do
+    unless RobinhoodLab.test_chain?(),
+      do: "https://app.uniswap.org/explore/pools/robinhood/#{pool_id}"
+  end
+
+  defp chain(auction), do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)
 
   attr :liquidity, :atom, required: true
   attr :split, :map, required: true
