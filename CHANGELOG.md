@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v143, 16 October 2026: buttons with cut corners and a footer at the bottom
+- Main buttons cut two corners again, with Powder Blue and Tangerine marks in Autolaunch's own colours in light and dark. Their arrow nudges when you point at them and they give a little when pressed.
+- The footer reads About, Developer docs, Agent guide, Contact, Privacy policy and Terms of use. Agent guide opens the two plain-text guides to give your agent.
+- On a short page the footer sits at the bottom of the screen.
+- Opening the side panel on a laptop screen no longer pushes the page down: the header stays on one line.
+- Agents are told which agent kinds they can name when they pair, and that their person may need to sign in on Autolaunch once. The agent guides point to regents-cli 1.10.12.
+- The web server and several packages are on their latest fixed versions.
+
 ## v142, 16 October 2026: claim everything in one press
 - Claim rewards also moves the trading fees still waiting in the pool, so one press claims everything. A wallet that can send several steps together does it in one go; others confirm each step in turn.
 - After a claim, a green light swirls into the Stake button, with a line saying staking is the only way to receive the stock (or REGENT) from fees.
@@ -11,7 +19,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - On Create, the stock list stays open when you switch chain.
 - A claim with nothing owed says so plainly.
 
-## v141, 16 October 2026: pair an agent from the side panel
+## v141, 16 October 2026 (901ca8e): pair an agent from the side panel
 - The side panel holds the box to pair an agent, the same one the Account page shows: choose your agent, copy the message with its code, make a new code, and see your agent's name as soon as it pairs, from any Regent site. On the Account page the box shows once, in the Agents section.
 - "Manage Agents" opens your Regents account at its agents, from the side panel and from the Account page.
 - Help leaves the side panel; Docs and Contact stay at the bottom of every page.
@@ -19,7 +27,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - Opening the side panel moves you into it, and Escape closes it and takes you back to its button. Its Account and Sign out buttons no longer break mid-word.
 - An agent that isn't paired yet is told it can get a code from the side panel or Account page here, or on regents.sh, and the agent guide has the steps.
 
-## v140, 16 October 2026: the token card fits every width
+## v140, 16 October 2026 (78de400): the token card fits every width
 - The token card stacks its picture above the ticker when space is short, so the ticker no longer breaks one letter per line and nothing is cut off at laptop widths.
 - On a phone the trade widget comes first, under the token's name.
 - Copied token details show prices to 18 decimal places.
