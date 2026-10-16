@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v142, 16 October 2026: claim everything in one press
+- Claim rewards also moves the trading fees still waiting in the pool, so one press claims everything. A wallet that can send several steps together does it in one go; others confirm each step in turn.
+- After a claim, a green light swirls into the Stake button, with a line saying staking is the only way to receive the stock (or REGENT) from fees.
+- A refresh button in the trade widget reads your balances again, and it happens on its own after any claim, settle, release, stake or unstake.
+- The Base or Robinhood badge sits at the bottom right of the token card.
+- On Create, the stock list stays open when you switch chain.
+- A claim with nothing owed says so plainly.
+
 ## v141, 16 October 2026: pair an agent from the side panel
 - The side panel holds the box to pair an agent, the same one the Account page shows: choose your agent, copy the message with its code, make a new code, and see your agent's name as soon as it pairs, from any Regent site. On the Account page the box shows once, in the Agents section.
 - "Manage Agents" opens your Regents account at its agents, from the side panel and from the Account page.
