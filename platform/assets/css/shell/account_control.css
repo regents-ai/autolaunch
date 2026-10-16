@@ -21,15 +21,15 @@
 .shell { --shell-aside-open: 20rem; --shell-aside: var(--shell-aside-open); padding-inline-end: var(--shell-aside); transition: --shell-aside var(--duration-slow) var(--ease-out); }
 /* Closed, or signed out with no side panel at all, it keeps no room. */
 :root:not([data-aside="open"]) .shell, .shell:not(:has(#shell-aside)) { --shell-aside: 0px; }
-/* It stops above the market ticker, which runs along the bottom of every page. */
+/* It stops above the market ticker, which runs along the bottom of every page,
+   and is hidden only once it has slid shut. */
 #shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; display: grid; align-content: start; width: var(--shell-aside); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
 body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
 /* Its parts keep their width while it slides, so nothing inside rewraps. */
 #shell-aside > * { min-inline-size: calc(var(--shell-aside-open) - 1px); }
-/* Shown at once on opening, so focus can move into it, and hidden only once it
-   has slid shut. */
-:root:not([data-aside="open"]) #shell-aside { visibility: hidden; }
+/* Shown at once on opening, so focus can move into it. */
 :root[data-aside="open"] #shell-aside { transition: none; }
+:root:not([data-aside="open"]) #shell-aside { visibility: hidden; }
 #shell-aside:focus { outline: none; }
 .shell-aside__head { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding-inline-start: 1rem; border-block-end: 1px solid var(--color-border); }
 .shell-aside__head h2 { margin: 0; font-family: var(--font-family-ui); font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
@@ -49,7 +49,7 @@ body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
   #shell-aside > * { min-inline-size: 0; }
   /* Covering the page, it opens only when opened on this page, never on arrival. */
   :root:not([data-aside="open"]) #shell-aside, :root:not([data-aside-here]) #shell-aside { visibility: hidden; transform: translateX(100%); }
-  :root[data-aside="open"] #shell-aside { transition: transform var(--duration-slow) var(--ease-out); }
+  :root[data-aside="open"][data-aside-here] #shell-aside { transition: transform var(--duration-slow) var(--ease-out); }
 }
 
 /* On phones the name gives way to its picture, and with no picture it shortens. */
@@ -60,4 +60,4 @@ body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
 }
 /* The narrowest phones: the side panel button beside it opens the same panel, so the name gives way to it. */
 @media (max-width: 23.75rem) { .account-chip { display: none; } }
-@media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"] #shell-aside { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }

@@ -43,9 +43,9 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     remember(value)
     sync()
 
-    if (open && covering.matches) {
-      aside()?.focus()
-    }
+    // Opened, focus moves into it, so Escape closes it and returns focus to the
+    // button that opened it.
+    if (open) aside()?.focus()
   }
 
   // Opening Buy Credits reads the wallet's funds again, so Buy is held back
