@@ -111,8 +111,7 @@ graph, admits the fixture routes, and writes
 ```
 
 Addresses are lowercase. The website refuses a file whose `rpc_url` is not an admitted door for
-the chain mode (loopback in `base` mode; `Autolaunch.LabRpcUrl` and [fork-preview.md](fork-preview.md)
-for `fork` mode, where `public_rpc_url` is required as well and must equal the Agent lab's) answering
+the chain mode (loopback in `base` mode; `Autolaunch.LabRpcUrl` for `fork` mode, where `public_rpc_url` is required as well and must equal the Agent lab's) answering
 whose chain id or RPC doors differ from the Base description it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, or whose ABI set lacks a function or event the site
@@ -135,7 +134,7 @@ and must name the same Base description; `AUTOLAUNCH_CHAIN_MODE=fork` requires i
 
 ## Faucet
 
-Fork sites only (local lab or hosted preview), rendered as a "Test funds" panel on `/create/stocks`
+Fork sites only (a local lab), rendered as a "Test funds" panel on `/create/stocks`
 and on auction pages for a signed-in account whose selected wallet the account holds.
 `Autolaunch.Stocks.Faucet` performs one fork transaction per press using `anvil_impersonateAccount`
 on the site's own `rpc_url` of a validated lab configuration (the private door; never the public

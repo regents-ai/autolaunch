@@ -7,7 +7,7 @@ addresses are not the current launch terms. New launches use v2; see
 The lab is the current site running against an isolated Anvil fork of Base (chain 31337)
 that carries a locally deployed copy of the contract graph, so the launch, auction and bid
 flow can be tried with test assets. Launching and bidding need `AUTOLAUNCH_CHAIN_MODE=fork`
-(see [fork-preview.md](fork-preview.md)): in the default `base` chain mode a lab site is
+(see "Chain mode" in [the platform README](../README.md)): in the default `base` chain mode a lab site is
 read-only, lists what the fork holds, answers 404 on `/create`, and refuses a fork
 endpoint that is not a loopback URL answering as chain 31337. Everything else on a lab site
 is labelled rather than switched: the REGENT facts panel and

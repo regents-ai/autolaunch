@@ -44,10 +44,10 @@ implement those products automatically. Deployment and migrations are separate a
 | Value | What it is |
 | --- | --- |
 | `base` (default when unset) | Real Base. Exactly the behaviour above: production is read-only until the explicit configuration change, and the lab configurations are refused in production. |
-| `fork` | A hosted Base fork (chain 31337) carrying the lab contract graph, for a public preview with test assets and no mainnet value. Admitted in every environment, production included. Both lab configurations are required, `prelaunch_read_only` resolves to `false` without any script, the Base log ledger stays off, both lab market feeds run, and the test-funds faucet applies a per-wallet, per-asset cooldown. |
+| `fork` | A Base fork (chain 31337) carrying the lab contract graph, with test assets and no mainnet value. Admitted in every environment, production included. Both lab configurations are required, `prelaunch_read_only` resolves to `false` without any script, the Base log ledger stays off, both lab market feeds run, and the test-funds faucet applies a per-wallet, per-asset cooldown. |
 
-Any other value stops the boot. The fork mode's two RPC doors, its environment, its
-faucet cooldown and how a preview image is built are in [docs/fork-preview.md](docs/fork-preview.md).
+Any other value stops the boot. Running a lab site in fork mode is in
+[docs/local-base-lab.md](docs/local-base-lab.md).
 
 ## Database schema
 
@@ -156,8 +156,8 @@ Set `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongs
 description variables, in every environment (it is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`
 and must name the same Base description). This turns on `/create/stocks`, USDC
 bids on Stocks auctions, the Stocks market feed and the test-funds panel. Details are in
-[docs/stocks.md](docs/stocks.md). The same two files, with the fork's private and public RPC
-doors, drive a hosted preview in `fork` chain mode ([docs/fork-preview.md](docs/fork-preview.md)).
+[docs/stocks.md](docs/stocks.md). The same two files drive a lab site in `fork` chain mode
+([docs/local-base-lab.md](docs/local-base-lab.md)).
 
 ## Protected paths
 
@@ -209,8 +209,7 @@ The image is built from `Dockerfile` with the repository root as its context. Do
 installs `mix.lock` and `package-lock.json` dependencies, including the pinned shared
 libraries from GitHub, for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
-`fly.staging.toml` (`autolaunch-staging`); `fly.preview.toml` (`autolaunch-preview`) and
-`Dockerfile.preview` describe the fork preview ([docs/fork-preview.md](docs/fork-preview.md)).
+`fly.staging.toml` (`autolaunch-staging`).
 
 The Platform GitHub workflow compiles, checks and tests the application and builds the
 Linux release image (without pushing) whenever application or blog files change.
@@ -263,7 +262,7 @@ verification and the remaining release checks.
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
-| `AUTOLAUNCH_CHAIN_MODE` | Optional | `base` (default) or `fork`; see "Chain mode" above and [docs/fork-preview.md](docs/fork-preview.md) for the variables fork mode adds. |
+| `AUTOLAUNCH_CHAIN_MODE` | Optional | `base` (default) or `fork`; see "Chain mode" above and [docs/local-base-lab.md](docs/local-base-lab.md) for the variables fork mode adds. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using

@@ -1,4 +1,0 @@
-# Anvil reads this from /app so the fork address is passed by name ("--fork-url base") and never
-# appears in the machine's process list.
-[rpc_endpoints]
-base = "${FORK_UPSTREAM_RPC_URL}"
