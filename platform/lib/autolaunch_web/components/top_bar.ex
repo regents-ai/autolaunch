@@ -92,10 +92,6 @@ defmodule AutolaunchWeb.Components.TopBar do
       >
         <header class="shell-webmcp__head">
           <h2 id="shell-webmcp-title">{@host} : {length(@tools)} WebMCP Tools</h2>
-          <a href="/agents.md" class="shell-webmcp__link" target="_blank" rel="noopener noreferrer">
-            Open agents.md
-            <span aria-hidden="true">↗</span><span class="visually-hidden">, opens in a new tab</span>
-          </a>
           <form method="dialog">
             <button type="submit" class="shell-webmcp__close" aria-label="Close">
               <svg viewBox="0 0 16 16" aria-hidden="true">
