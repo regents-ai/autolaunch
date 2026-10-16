@@ -7,10 +7,12 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   Six actions, each one review of the steps the wallet sends in turn: stake
   (the wallet's whole token balance: the exact token allowance to the splitter
-  when it is short, then the stake), unstake, claim (every reward the splitter
-  holds for the wallet), settle (every trading fee waiting for stakers moved
-  into the splitter, open to anyone: a memestock hook's staker lane, then each
-  locked position's fees), convert (a memestock hook's REGENT lane sold
+  when it is short, then the stake), unstake, claim (settle's steps, then every
+  reward the splitter holds for the wallet, so the fees still waiting in the
+  pool are claimed too; a wallet that can send calls together sends them as one
+  atomic batch, see `AutolaunchWeb.OnchainCalls`), settle (every trading fee
+  waiting for stakers moved into the splitter, open to anyone: a memestock
+  hook's staker lane, then each locked position's fees), convert (a memestock hook's REGENT lane sold
   through the stock's route into REGENT's revenue, only by the wallet the Safe
   named as the hook's executor) and release (the vested part of a
   second-launchpad memestock launch's creator allocation, paid to its creator,
@@ -382,12 +384,14 @@ defmodule Autolaunch.Stocks.StakeActions do
     ]
   end
 
-  defp review(:claim, pool, wallet, _amount) do
+  # What the wallet can claim now, then the fees the same review moves into
+  # the splitter first, which every staker shares.
+  defp review(:claim, pool, wallet, amount) do
     [
       [pool.fees.splitter.dollar.symbol, wallet.claimable.dollar.shown],
       [pool.token.symbol, wallet.claimable.token.shown],
       [pool.currency.symbol, wallet.claimable.stock.shown]
-    ]
+    ] ++ review(:settle, pool, wallet, amount)
   end
 
   defp review(:settle, pool, _wallet, _amount) do
@@ -454,12 +458,21 @@ defmodule Autolaunch.Stocks.StakeActions do
       )
     ]
 
-  defp reviewed_steps(:claim, pool, {venue, config, _contracts}, _wallet, _amount),
-    do: [
-      step("claim", pool.fees.splitter.address, splitter_data(venue, config, "claimAll()", []))
-    ]
+  # Settle's steps first, so the claim takes this wallet's share of them too.
+  # `claimAll()` pays the sender, the wallet the review is built for.
+  defp reviewed_steps(:claim, pool, {venue, config, contracts}, wallet, amount),
+    do:
+      reviewed_steps(:settle, pool, {venue, config, contracts}, wallet, amount) ++
+        [
+          step(
+            "claim",
+            pool.fees.splitter.address,
+            splitter_data(venue, config, "claimAll()", [])
+          )
+        ]
 
-  # The staker lane first, then each locked position's fees.
+  # The staker lane first, then each locked position's fees, which the locker
+  # deposits into the launch's own splitter.
   defp reviewed_steps(:settle, pool, {_venue, _config, contracts}, _wallet, _amount) do
     lane =
       if settle_lane?(pool),
@@ -519,6 +532,28 @@ defmodule Autolaunch.Stocks.StakeActions do
   def result(_context, "token_approval", _logs), do: nil
   def result(context, name, logs), do: moved(String.to_existing_atom(name), context, logs)
 
+  @doc """
+  What each step of a review sent as one batch moved, from the batch's one
+  receipt, in step order. The locker records one deposit per collect, in the
+  order the batch ran them; when that count is not the review's, the collects
+  are left out.
+  """
+  @spec results(map(), [String.t()], [map()]) :: [map() | nil]
+  def results(context, names, logs) do
+    deposits = emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
+    collects = Enum.filter(names, &String.starts_with?(&1, "collect_"))
+    deposits = if length(deposits) == length(collects), do: deposits, else: []
+
+    {results, _left} =
+      Enum.map_reduce(names, deposits, fn
+        "collect_" <> _position, [deposit | left] -> {collected(context, deposit), left}
+        "collect_" <> _position, [] -> {nil, []}
+        name, left -> {result(context, name, logs), left}
+      end)
+
+    results
+  end
+
   defp moved(step, context, _logs) when step in [:stake, :unstake] do
     %{
       "kind" => Atom.to_string(step),
@@ -574,9 +609,25 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp moved(step, context, logs)
        when step in [:collect_full_range, :collect_stock_only, :collect_new_only] do
-    [{_topics, [currency0, _currency1, amount0, amount1]}] =
-      emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
+    [deposit] = emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
+    collected(context, deposit)
+  end
 
+  defp moved(:convert, context, logs) do
+    [{_topics, [converted, deposited]}] = emitted(logs, context.hook, context.venue.converted)
+
+    %{
+      "kind" => "convert",
+      "converted_units" => units(converted, context.currency_decimals),
+      "currency_symbol" => context.currency_symbol,
+      "dollar_units" => units(deposited, context.dollar_decimals),
+      "dollar_symbol" => context.dollar_symbol
+    }
+  end
+
+  # One deposit the locker recorded for a collect: the token's and the
+  # currency's fees, whichever side of the pool each is on.
+  defp collected(context, {_topics, [currency0, _currency1, amount0, amount1]}) do
     {:ok, currency0} = Abi.word_address(currency0)
 
     {token, currency} =
@@ -590,18 +641,6 @@ defmodule Autolaunch.Stocks.StakeActions do
       "currency_units" => units(currency, context.currency_decimals),
       "token_symbol" => context.token_symbol,
       "currency_symbol" => context.currency_symbol
-    }
-  end
-
-  defp moved(:convert, context, logs) do
-    [{_topics, [converted, deposited]}] = emitted(logs, context.hook, context.venue.converted)
-
-    %{
-      "kind" => "convert",
-      "converted_units" => units(converted, context.currency_decimals),
-      "currency_symbol" => context.currency_symbol,
-      "dollar_units" => units(deposited, context.dollar_decimals),
-      "dollar_symbol" => context.dollar_symbol
     }
   end
 

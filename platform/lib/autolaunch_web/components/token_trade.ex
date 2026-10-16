@@ -124,7 +124,8 @@ defmodule AutolaunchWeb.Components.TokenTrade do
   @doc """
   The ground the trade widget and Claim Rewards stand on: the soft light behind
   their buttons (`SiteLight`) and the press their buttons make (`SiteButtons`),
-  as the template's study of the site's buttons has them.
+  as the template's study of the site's buttons has them, and the layer the
+  light swirls across after a claim, which page updates leave alone.
   """
   def buttons_stage(assigns) do
     ~H"""
@@ -143,6 +144,8 @@ defmodule AutolaunchWeb.Components.TokenTrade do
         aria-hidden="true"
       >
         <canvas data-light-canvas></canvas>
+      </div>
+      <div id={@id <> "-swirl"} class="stake-light-layer" phx-update="ignore" aria-hidden="true">
       </div>
       {render_slot(@inner_block)}
     </div>

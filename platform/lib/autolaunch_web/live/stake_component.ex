@@ -9,10 +9,15 @@ defmodule AutolaunchWeb.StakeComponent do
       tells the page whether the wallet has a stake (`{:staked, boolean}`), so
       the widget offers Unstake only to a wallet that has one.
     * `:claim` - Claim Rewards under the widget: what the wallet can claim in
-      each asset its staking pays, the claim itself, Settle contract (every
-      trading fee waiting for stakers moved into the staking contract, open to
-      anyone) and, for a launch that vests to its creator, the release of the
-      creator's tokens. Above it, a button copies the token's full details
+      each asset its staking pays, the claim itself (Settle contract's steps
+      first, so the fees still waiting in the pool are claimed too: one press
+      when the wallet can send them together, `AutolaunchWeb.OnchainCalls`,
+      and otherwise one step at a time), Settle contract (every trading fee
+      waiting for stakers moved into the staking contract, open to anyone) and,
+      for a launch that vests to its creator, the release of the creator's
+      tokens. A confirmed claim tells the page (`{:claimed, button_id}`),
+      which opens Stake, sends a light from the claim button into the Stake
+      button and has the Stake view say why to stake (`fee_asset`). Above it, a button copies the token's full details
       (`details`, see `AutolaunchWeb.TokenDetails`) with this wallet's own
       figures for the person to paste to their agent.
 
@@ -40,7 +45,7 @@ defmodule AutolaunchWeb.StakeComponent do
   alias Autolaunch.Stocks.{Amounts, StakeActions}
   alias AutolaunchWeb.Components.{ShareDialog, SwapForm}
   alias AutolaunchWeb.Live.Session
-  alias AutolaunchWeb.{OnchainSteps, TokenDetails, TokenDisplay}
+  alias AutolaunchWeb.{OnchainCalls, OnchainSteps, TokenDetails, TokenDisplay}
   alias RegentChain.{Presses, Review}
 
   @copy %{
@@ -74,6 +79,7 @@ defmodule AutolaunchWeb.StakeComponent do
      socket
      |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
+     |> OnchainCalls.init()
      |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0, told: nil)}
   end
 
@@ -92,6 +98,7 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:share_url, fn -> nil end)
       |> assign_new(:share_image, fn -> nil end)
       |> assign_new(:balances_read, fn -> 0 end)
+      |> assign_new(:fee_asset, fn -> nil end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
       |> scoped()
       |> OnchainSteps.adopt()
@@ -215,10 +222,20 @@ defmodule AutolaunchWeb.StakeComponent do
             phx-target={@myself}
             disabled={nothing_to_stake?(@position)}
             data-press="motion"
+            data-stake-button
             phx-mounted={JS.ignore_attributes("style")}
           >
             <span class="site-glint" aria-hidden="true"></span>Stake {@pool.token.symbol}
           </Regent.Primitives.button>
+          <p
+            :if={@fee_asset}
+            id={@id <> "-fee-note"}
+            class="token-trade__fee-note"
+            role="status"
+            data-fee-note
+          >
+            Staking is the only way to receive {@fee_asset} from fees.
+          </p>
           <p :if={action(assigns) == :act && nothing_to_stake?(@position)} class="token-trade__reason">
             No {@pool.token.symbol} in this wallet
           </p>
@@ -306,7 +323,7 @@ defmodule AutolaunchWeb.StakeComponent do
     assigns = assign(assigns, rows: claim_rows(assigns.pool, assigns.position))
 
     ~H"""
-    <div id={@id} class="token-claim" phx-hook="OnchainSteps">
+    <div id={@id} class="token-claim" phx-hook="OnchainSteps" data-onchain-bundle>
       <.stake_done
         :if={@done}
         id={"#{@id}-done"}
@@ -349,6 +366,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
             <Regent.Primitives.button
               :if={action(assigns) == :act}
+              id={@id <> "-claim"}
               type="button"
               class="token-swap__submit"
               phx-click="review"
@@ -458,7 +476,8 @@ defmodule AutolaunchWeb.StakeComponent do
       target: assigns.myself,
       signer: assigns.review && assigns.review.signer,
       chain_name: assigns.review && assigns.review.chain.name,
-      mismatch: assigns.mismatch
+      mismatch: assigns.mismatch,
+      bundle: OnchainCalls.offered?(assigns)
     }
   end
 
@@ -509,6 +528,37 @@ defmodule AutolaunchWeb.StakeComponent do
   def handle_event("step_sent", params, socket),
     do: {:noreply, socket |> OnchainSteps.sent(params) |> assign(notice: nil)}
 
+  def handle_event("onchain_atomic", params, socket),
+    do: {:noreply, OnchainCalls.atomic(socket, params)}
+
+  def handle_event("calls_sent", params, socket),
+    do: {:noreply, socket |> OnchainCalls.sent(params) |> assign(notice: nil)}
+
+  def handle_event("calls_landed", params, socket),
+    do: {:noreply, OnchainCalls.landed(socket, params)}
+
+  def handle_event("calls_failed", params, socket) do
+    AutolaunchWeb.Telemetry.wallet_failed(:stake, "calls_failed")
+
+    {:noreply,
+     socket
+     |> OnchainCalls.failed(params)
+     |> assign(press_note: "Your wallet didn't send these, so nothing moved. Press again.")}
+  end
+
+  def handle_event("calls_unconfirmed", params, socket) do
+    chain_name =
+      if socket.assigns.review, do: socket.assigns.review.chain.name, else: "The network"
+
+    {:noreply,
+     socket
+     |> OnchainCalls.unconfirmed(params)
+     |> assign(
+       press_note:
+         "#{chain_name} has not confirmed this yet. Look in your wallet activity, then press Refresh balances."
+     )}
+  end
+
   def handle_event("step_failed", params, socket) do
     case Presses.failed(params) do
       {:ok, _name, reason} ->
@@ -520,8 +570,11 @@ defmodule AutolaunchWeb.StakeComponent do
     end
   end
 
-  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
-    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash) do
+    if OnchainCalls.follows?(socket.assigns.batches, hash),
+      do: {:noreply, OnchainCalls.check_again(socket, hash)},
+      else: {:noreply, OnchainSteps.check_again(socket, hash)}
+  end
 
   def handle_event("close_review", _params, socket),
     do: {:noreply, socket |> assign(notice: nil) |> closed()}
@@ -553,6 +606,19 @@ defmodule AutolaunchWeb.StakeComponent do
 
   def handle_async({:onchain_step, hash}, result, socket),
     do: {:noreply, OnchainSteps.checked(socket, hash, result, &confirmed/2)}
+
+  def handle_async({:onchain_calls, calls_id}, result, socket),
+    do: {:noreply, OnchainCalls.checked(socket, calls_id, result, &batch_confirmed/2)}
+
+  def handle_async({:batch_result, calls_id}, result, socket) do
+    logs =
+      case result do
+        {:ok, {:ok, %{"logs" => logs}}} when is_list(logs) -> logs
+        _unread -> nil
+      end
+
+    {:noreply, batch_resulted(socket, calls_id, logs)}
+  end
 
   def handle_async({:result, hash}, result, socket) do
     logs =
@@ -633,6 +699,41 @@ defmodule AutolaunchWeb.StakeComponent do
       else: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
   end
 
+  # A batch from the open review landed: what each of its steps moved is read
+  # from its one receipt. One from a review the page has since left still
+  # moved the wallet's figures, so they are read again.
+  defp batch_confirmed(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}} = entry),
+    do:
+      start_async(socket, {:batch_result, entry.id}, fn ->
+        Client.receipt(entry.review.chain, entry.hash)
+      end)
+
+  defp batch_confirmed(socket, _earlier_review) do
+    send(self(), :refresh_balances)
+    socket
+  end
+
+  defp batch_resulted(
+         %{assigns: %{review: %{} = review, prepared: prepared}} = socket,
+         calls_id,
+         logs
+       ) do
+    case OnchainCalls.newest(socket.assigns.batches, review) do
+      %{id: ^calls_id} ->
+        names = Enum.map(review.steps, & &1.step)
+        results = Map.new(Enum.zip(names, batch_results(prepared.context, names, logs)))
+        socket |> assign(results: results) |> finished()
+
+      _other ->
+        socket
+    end
+  end
+
+  defp batch_resulted(socket, _calls_id, _logs), do: socket
+
+  defp batch_results(_context, names, nil), do: Enum.map(names, fn _name -> nil end)
+  defp batch_results(context, names, logs), do: StakeActions.results(context, names, logs)
+
   # When every step of the open review has landed, the review closes and the
   # part says what moved; a receipt that could not be read leaves its line out.
   defp resulted(%{assigns: %{review: %{} = review, prepared: prepared}} = socket, hash, logs) do
@@ -654,11 +755,13 @@ defmodule AutolaunchWeb.StakeComponent do
   defp resulted(socket, _hash, _logs), do: socket
 
   # Every figure moved, so the page reads the pool again and every part reads
-  # the wallet's balances, stake and rewards again (`:refresh_balances`).
+  # the wallet's balances, stake and rewards again (`:refresh_balances`). A
+  # claim also tells the page, which opens Stake and sends a light into it.
   defp finished(%{assigns: %{review: review, prepared: prepared, results: results}} = socket) do
     send(self(), :refresh_balances)
 
     socket
+    |> claimed(prepared.kind)
     |> assign(
       amount: "",
       notice: nil,
@@ -666,6 +769,13 @@ defmodule AutolaunchWeb.StakeComponent do
     )
     |> closed()
   end
+
+  defp claimed(socket, :claim) do
+    send(self(), {:claimed, socket.assigns.id <> "-claim"})
+    socket
+  end
+
+  defp claimed(socket, _kind), do: socket
 
   defp closed(socket) do
     socket
@@ -731,19 +841,27 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp steps(%{review: nil}), do: []
 
-  defp steps(%{review: review, prepared: prepared, presses: presses}) do
+  # A review sent as one batch shows the batch's state on every step.
+  defp steps(%{review: review, prepared: prepared, presses: presses} = assigns) do
+    batched? = OnchainCalls.offered?(assigns)
+    batch = OnchainCalls.newest(assigns.batches, review)
+
     Enum.map(review.steps, fn %{step: name} ->
-      entry = OnchainSteps.entry(presses, review, name)
-      %{name: name, label: step_label(name, prepared), state: step_state(entry), entry: entry}
+      entry = if batched?, do: batch, else: OnchainSteps.entry(presses, review, name)
+      state = if batched?, do: OnchainCalls.state(batch), else: step_state(entry)
+      %{name: name, label: step_label(name, prepared), state: state, entry: entry}
     end)
   end
 
   # One button at a time: the first step the wallet has not sent from this
   # review yet, or one that did not go through. A sent step moves the button on
   # at once; nothing waits for the network before the next press can reach the
-  # wallet.
-  defp next_step(%{review: %{}} = assigns),
-    do: Enum.find(steps(assigns), &(&1.state in [:ready, :reverted, :other]))
+  # wallet. A batch has one button for every step, named by the last one.
+  defp next_step(%{review: %{}} = assigns) do
+    steps = steps(assigns)
+    pressable = if OnchainCalls.offered?(assigns), do: Enum.take(steps, -1), else: steps
+    Enum.find(pressable, &(&1.state in [:ready, :reverted, :other]))
+  end
 
   defp next_step(_assigns), do: nil
 
@@ -778,9 +896,13 @@ defmodule AutolaunchWeb.StakeComponent do
     do:
       "The stake did not go through and nothing moved. Press again, or close this and review again."
 
-  defp reverted_copy(kind) when kind in [:unstake, :claim],
+  defp reverted_copy(:unstake),
     do:
       "That did not go through and nothing moved. Staking and leaving in the same block is not allowed: wait a moment and try again."
+
+  defp reverted_copy(:claim),
+    do:
+      "That did not go through and nothing moved. Close this, wait a moment, and press Claim rewards again for what is waiting now."
 
   defp reverted_copy(:settle),
     do: "That did not go through. Close this and review again for what is waiting now."
@@ -809,6 +931,7 @@ defmodule AutolaunchWeb.StakeComponent do
   attr :signer, :string, default: nil
   attr :chain_name, :string, default: nil
   attr :mismatch, :string, default: nil
+  attr :bundle, :boolean, default: false, doc: "whether the wallet sends every step at once"
 
   @doc """
   The review panel over a staking part: the reviewed facts and the wallet
@@ -845,18 +968,21 @@ defmodule AutolaunchWeb.StakeComponent do
       </dl>
 
       <p class="token-swap__review-rule"><span>Continue in your wallet</span></p>
+      <p class="token-swap__review-from" hidden={!@bundle}>
+        Your wallet sends these together, in one go.
+      </p>
 
       <ol class="token-swap__steps" role="list">
         <li
           :for={{step, index} <- Enum.with_index(@steps, 1)}
           data-step={step.name}
           data-state={step.state}
-          data-current={@next_step && @next_step.name == step.name}
+          data-current={@next_step && (@bundle || @next_step.name == step.name)}
         >
           <span class="token-swap__step-mark" aria-hidden="true"></span>
           <span>{step.label}</span>
           <span class="token-swap__step-note">
-            {SwapForm.step_note(step, index, length(@steps), @next_step)}
+            {SwapForm.step_note(step, index, length(@steps), !@bundle && @next_step)}
           </span>
         </li>
       </ol>
@@ -868,6 +994,7 @@ defmodule AutolaunchWeb.StakeComponent do
         signer={@signer}
         chain_name={@chain_name}
         mismatch={@mismatch}
+        bundle={@bundle}
         check_event="check_again"
         target={@target}
       />

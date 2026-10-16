@@ -444,16 +444,22 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :signer, :string, default: nil, doc: "the review's signer; nil before there is a review"
   attr :chain_name, :string, default: nil
   attr :mismatch, :string, default: nil
+
+  attr :bundle, :boolean,
+    default: false,
+    doc: "the button sends every step at once (`AutolaunchWeb.OnchainCalls`)"
+
   attr :check_event, :string, required: true
   attr :target, :any, default: nil
 
   @doc """
   The wallet button of a review panel, with the lines above it and "Check
-  again" for a step the page stopped reading. The lines stay in the page and
-  are only hidden, so one appearing never moves the button a person is
-  pressing. The button has no `phx-click`: the `OnchainSteps` hook sends its
-  step. It names the next step to send; once every step is sent it stays on
-  the last one, and a press sends that step again.
+  again" for a transaction the page stopped reading. The lines stay in the
+  page and are only hidden, so one appearing never moves the button a person
+  is pressing. The button has no `phx-click`: the `OnchainSteps` hook sends its
+  step, or with `bundle` every step in one request. It names the next step to
+  send; once every step is sent it stays on the last one, and a press sends
+  that step, or the whole batch, again.
   """
   def wallet_step(assigns) do
     assigns = assign(assigns, shown: pressable(assigns.next_step, assigns.steps))
@@ -467,7 +473,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
     <Regent.Primitives.button
       type="button"
       class="token-swap__submit token-swap__wallet-step"
-      data-onchain-step={@shown && @shown.name}
+      data-onchain-step={!@bundle && @shown && @shown.name}
+      data-onchain-bundle={@bundle && !!@shown}
       data-state={@shown && Map.get(@shown, :state)}
       hidden={!@shown}
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-awaiting-wallet"])}
@@ -480,8 +487,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
       </span>
     </Regent.Primitives.button>
     <Regent.Primitives.button
-      :for={step <- @steps}
-      :if={step.state == :stalled}
+      :for={step <- Enum.uniq_by(Enum.filter(@steps, &(&1.state == :stalled)), & &1.entry.hash)}
       type="button"
       variant="secondary"
       class="token-swap__submit"

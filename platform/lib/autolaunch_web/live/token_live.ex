@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.TokenLive do
     do:
       {:ok,
        socket
-       |> assign(staked?: false, balances_read: 0)
+       |> assign(staked?: false, claimed?: false, balances_read: 0)
        |> LabMarket.subscribe_market(address)
        |> LiveListings.subscribe()}
 
@@ -59,6 +59,15 @@ defmodule AutolaunchWeb.TokenLive do
   # A staking or claim step landed, so every wallet figure on the page is read
   # again, as Refresh balances does.
   def handle_info(:refresh_balances, socket), do: {:noreply, balances_read(socket)}
+
+  # Claim Rewards confirmed a claim: the widget opens Stake, which says why to
+  # stake, and a light swirls from the claim button (`from`) into it.
+  def handle_info({:claimed, from}, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(claimed?: true, trade: :stake)
+       |> push_event("stake-light", %{from: from})}
 
   # The market feed read a new figure for this token's auction: a trade moved
   # its pool, so the price and the pool are read again.
@@ -145,6 +154,7 @@ defmodule AutolaunchWeb.TokenLive do
                 module={AutolaunchWeb.StakeComponent}
                 id={"token-stake-#{@page_record.id}"}
                 part={:stake}
+                fee_asset={if @claimed?, do: @pool.result.currency.symbol}
                 mode={if @trade == :unstake, do: :unstake, else: :stake}
                 launch={%{chain: :base, auction: @page_record.auction}}
                 pool={@pool.result}

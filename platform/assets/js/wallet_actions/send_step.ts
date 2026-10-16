@@ -1,4 +1,5 @@
-import {getAddress, type Address, type Hash, type Hex} from "viem"
+import {createWalletClient, custom, defineChain, getAddress, type Address, type Hash, type Hex, type WalletClient} from "viem"
+import {getCapabilities, sendCalls, waitForCallsStatus} from "viem/actions"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
@@ -50,6 +51,85 @@ export async function sendStep(
   }
   return hash as Hash
 }
+
+/**
+ * Sends every step in one atomic batch (EIP-5792 `wallet_sendCalls` with
+ * `atomicRequired`), after the same chain and account checks as one step, and
+ * returns the wallet's id for the batch. A wallet that cannot send them
+ * atomically must refuse rather than send them one by one.
+ */
+export async function sendSteps(
+  chain: StepChain,
+  signer: Address,
+  steps: TransactionStep[],
+  wallet: () => SelectedWallet | null,
+  sending: () => void,
+): Promise<string> {
+  const provider = await ready(chain, signer, wallet)
+
+  sending()
+  const {id} = await sendCalls(client(provider, signer), {
+    chain: viemChain(chain),
+    calls: steps.map(step => ({to: getAddress(step.to), data: step.data, value: BigInt(step.value)})),
+    forceAtomic: true,
+  })
+  return id
+}
+
+/**
+ * Whether the wallet says it can send calls together, atomically, on the
+ * chain (EIP-5792 `wallet_getCapabilities`: `atomic` is "supported", or
+ * "ready" for an account it would upgrade first). A wallet that does not
+ * answer the question cannot.
+ */
+export async function sendsAtomically(chain: StepChain, signer: Address, provider: EthereumProvider): Promise<boolean> {
+  try {
+    const capabilities = await getCapabilities(client(provider, signer), {account: getAddress(signer), chainId: chain.chain_id})
+    const status = (capabilities as {atomic?: {status?: unknown}} | undefined)?.atomic?.status
+    return status === "supported" || status === "ready"
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Waits for the wallet's own report on a batch it took (EIP-5792
+ * `wallet_getCallsStatus`, every two seconds, for up to three minutes):
+ * whether it landed, and the transactions its receipts name. `undefined` when
+ * the wallet gave no final answer in that time.
+ */
+export async function landedCalls(
+  signer: Address,
+  provider: EthereumProvider,
+  id: string,
+): Promise<{status: "success" | "failure"; hashes: Hash[]} | undefined> {
+  try {
+    const {status, receipts} = await waitForCallsStatus(client(provider, signer), {id, pollingInterval: 2_000, timeout: 180_000})
+    if (status !== "success" && status !== "failure") return undefined
+    return {status, hashes: (receipts ?? []).map(receipt => receipt.transactionHash)}
+  } catch {
+    return undefined
+  }
+}
+
+/** The wallet refused the batch because it cannot send these calls atomically on this chain. */
+export function refusedAtomic(error: unknown): boolean {
+  // EIP-5792: 5700 a required capability, 5710 the chain, 5760 atomicity; EIP-1193 4200 the method.
+  return [4200, 5700, 5710, 5760].some(code => hasCode(error, code)) ||
+    causes(error).some(e => (e as {name?: unknown}).name === "AtomicityNotSupportedError")
+}
+
+const client = (provider: EthereumProvider, signer: Address): WalletClient =>
+  createWalletClient({account: getAddress(signer), transport: custom(provider)})
+
+// The step's chain as viem names one; the wallet already switched to it.
+const viemChain = (chain: StepChain) =>
+  defineChain({
+    id: chain.chain_id,
+    name: chain.name,
+    nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
+    rpcUrls: {default: {http: [chain.rpc_url]}},
+  })
 
 /** Why a press ended without a hash. After `sending`, the wallet may have sent it. */
 export function failure(sending: boolean, error: unknown): Failure {

@@ -2,7 +2,19 @@ import type {Address} from "viem"
 
 import type {Hook} from "../hook_composition"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
-import {failure, NothingSent, sendStep, type Failure, type Step, type StepChain} from "../wallet_actions/send_step"
+import type {EthereumProvider} from "../wallet_actions/connected_wallet"
+import {
+  failure,
+  landedCalls,
+  NothingSent,
+  refusedAtomic,
+  sendsAtomically,
+  sendStep,
+  sendSteps,
+  type Failure,
+  type Step,
+  type StepChain,
+} from "../wallet_actions/send_step"
 
 /**
  * Who sends, on which chain, the steps the buttons name, and the on-screen
@@ -20,6 +32,9 @@ export type Review = {
 
 /** What the wallet answered one press: the hash, or why nothing was sent. */
 export type Pressed = {transaction_hash: string} | {reason: Failure}
+
+/** What the wallet answered a press that sends every step at once: its id for the batch, or why nothing was sent. */
+export type PressedCalls = {calls_id: string} | {reason: Failure}
 
 type Push = (event: string, payload: unknown) => void
 
@@ -42,6 +57,12 @@ const presses = new WeakMap<HTMLElement, number>()
  * hook and a DOM id; each button names its step with `data-onchain-step`, and
  * each form field the review depends on is marked `data-onchain-input="name"`.
  *
+ * A root marked `data-onchain-bundle` asks the wallet, for each review of
+ * several steps, whether it can send them together atomically on the review's
+ * chain, and tells the server (`onchain_atomic`). The server then shows one
+ * button marked `data-onchain-bundle`, whose press sends every step in one
+ * `wallet_sendCalls` request, or the steps one at a time as before.
+ *
  * A root marked `data-refresh-funds` also asks the server to read its funds
  * again (`refresh_funds`) when the wallet changes, when the page comes back
  * into view, when the window holding it opens (`autolaunch:refresh-funds` on
@@ -60,7 +81,13 @@ export const OnchainSteps: Hook = {
     // No review means no eligible wallet: a press then sends nothing.
     this.handleEvent("onchain-steps:review", payload => {
       const {component_id, review} = payload as {component_id: string; review: Review | null}
-      if (component_id === this.el.id) this.review = review ?? undefined
+      if (component_id !== this.el.id) return
+      this.review = review ?? undefined
+      if (review && review.steps.length > 1 && this.el.hasAttribute("data-onchain-bundle")) {
+        void atomically(review).then(atomic => {
+          if (this.review?.id === review.id) push("onchain_atomic", {review_id: review.id, atomic})
+        })
+      }
     })
 
     // Every press runs on its own and reaches the wallet, even while an earlier
@@ -68,9 +95,15 @@ export const OnchainSteps: Hook = {
     // yet, or whose review no longer matches the form on screen, asks the
     // server for the matching review and sends what comes back.
     this.clicked = event => {
-      const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step]")
-      const name = button?.dataset.onchainStep
-      if (!button || !name || card(button) !== this.el) return
+      const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step], [data-onchain-bundle]")
+      if (!button || card(button) !== this.el) return
+      if (button.hasAttribute("data-onchain-bundle")) {
+        const marked = mark(button)
+        void pressCalls(this.review, push).finally(marked)
+        return
+      }
+      const name = button.dataset.onchainStep
+      if (!name) return
       const marked = mark(button)
       // The press may have spent funds or changed what the wallet allows.
       const release = () => {
@@ -156,6 +189,63 @@ export async function press(review: Review | undefined, name: string, push: Push
     push("step_failed", {step: name, reason})
     return {reason}
   }
+}
+
+/**
+ * Sends every step of the review in one atomic batch from Privy's active
+ * wallet, when it is the review's signer, and reports the wallet's id for it.
+ * The wallet's own report on the batch is then awaited without holding the
+ * press: the one transaction its receipts name goes to the server, which reads
+ * it itself. A wallet that refuses to send the calls atomically sends nothing,
+ * and the server goes back to one step at a time.
+ */
+export async function pressCalls(review: Review | undefined, push: Push): Promise<PressedCalls> {
+  let sending = false
+  const started = () => {
+    sending = true
+  }
+
+  try {
+    if (!activeEthereumWallet()) throw new NothingSent("wallet_unavailable")
+    if (!review) throw new NothingSent("step_unknown")
+    const wallet = () => {
+      const active = activeEthereumWallet()
+      return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
+    }
+    const sender = wallet()
+    if (!sender) throw new NothingSent("wallet_unavailable")
+
+    const calls_id = await sendSteps(review.chain, review.signer, review.steps, wallet, started)
+    push("calls_sent", {review_id: review.id, calls_id})
+    void followCalls(review, sender.provider, calls_id, push)
+    return {calls_id}
+  } catch (error) {
+    if (review && sending && refusedAtomic(error)) {
+      push("onchain_atomic", {review_id: review.id, atomic: false})
+      push("step_failed", {step: "calls", reason: "step_unknown"})
+      return {reason: "step_unknown"}
+    }
+    const reason = failure(sending, error)
+    push("step_failed", {step: "calls", reason})
+    return {reason}
+  }
+}
+
+// The wallet's report on a batch it took: the one transaction it landed in,
+// that it sent nothing, or no final answer while the page waited.
+async function followCalls(review: Review, provider: EthereumProvider, calls_id: string, push: Push): Promise<void> {
+  const landed = await landedCalls(review.signer, provider, calls_id)
+  const [transaction_hash, ...more] = landed?.hashes ?? []
+  if (transaction_hash && more.length === 0) push("calls_landed", {calls_id, transaction_hash})
+  else if (landed?.status === "failure" && !transaction_hash) push("calls_failed", {calls_id})
+  else push("calls_unconfirmed", {calls_id})
+}
+
+// Whether Privy's active wallet, as the review's signer, can send its steps together.
+async function atomically(review: Review): Promise<boolean> {
+  const active = activeEthereumWallet()
+  if (active?.address.toLowerCase() !== review.signer.toLowerCase()) return false
+  return sendsAtomically(review.chain, review.signer, active.provider)
 }
 
 /**

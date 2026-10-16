@@ -55,3 +55,5 @@
 .token-claim__settle { display: inline-flex; align-items: center; gap: 2px; }
 .token-claim .token-swap__submit { margin-top: 0; }
 .token-trade .token-swap__leg-head label { white-space: nowrap; }
+/* After a claim: why to stake, under the Stake button. */
+.token-trade__fee-note { margin: 0; color: var(--color-fg); font-size: .9375rem; }

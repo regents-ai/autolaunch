@@ -44,3 +44,22 @@
 @media (forced-colors: active) {
   .site-glint, .site-light { display: none; }
 }
+
+/* After a claim, a green light swirls from Claim rewards into the Stake button
+   (`SiteLight`'s `stake-light`): the light behind the buttons turns green and
+   leads a short trail of glows, then lands in the button. */
+:root { --stake-light: #2fd67b; }
+.site-light[data-swirl] { color: var(--stake-light); }
+.stake-light-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: visible; }
+.stake-light {
+  --size: 24px;
+  position: absolute; top: 0; left: 0; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, #effff5 0 18%, var(--stake-light) 42%, color-mix(in srgb, var(--stake-light) 0%, transparent) 72%);
+}
+.stake-light[data-trail="1"] { --size: 20px; }
+.stake-light[data-trail="2"] { --size: 16px; }
+.stake-light[data-trail="3"] { --size: 13px; }
+.stake-light[data-trail="4"] { --size: 10px; }
+.stake-light[data-trail="5"] { --size: 8px; }
+@media (prefers-reduced-motion: reduce) { .stake-light { display: none; } }

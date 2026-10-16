@@ -116,7 +116,7 @@ defmodule AutolaunchWeb.TokenDetails do
       "- Trading fees charged, all time: " <>
         fee_total(details.fees && details.fees.all_time, pool),
       "- Tokens are not locked: unstake any time after the block you staked in. Claiming opens from that block too, and staking more starts the wait again.",
-      "- Claim rewards sends every reward the staking contract has counted for you, in one transaction. Settle contract moves trading fees still waiting in the pool into the staking contract first; anyone can press it.",
+      "- Claim rewards first moves the trading fees still waiting in the pool into the staking contract, then sends every reward it has counted for you: in one wallet request when your wallet can send calls together, otherwise one step at a time. Settle contract does only the first part; anyone can press it.",
       ""
     ]
   end

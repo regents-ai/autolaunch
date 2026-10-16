@@ -34,6 +34,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
          open?: Lab.configured?(),
          swap?: Lab.swap_configured?(),
          staked?: false,
+         claimed?: false,
          balances_read: 0
        )
        |> LabMarket.subscribe_market(auction)
@@ -75,6 +76,15 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   # A staking or claim step landed, so every wallet figure on the page is read
   # again, as Refresh balances does.
   def handle_info(:refresh_balances, socket), do: {:noreply, balances_read(socket)}
+
+  # Claim Rewards confirmed a claim: the widget opens Stake, which says why to
+  # stake, and a light swirls from the claim button (`from`) into it.
+  def handle_info({:claimed, from}, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(claimed?: true, trade: :stake)
+       |> push_event("stake-light", %{from: from})}
 
   # The feed read a new figure for this token's auction: the stored token and
   # its reading move together.
@@ -145,6 +155,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
                 module={AutolaunchWeb.StakeComponent}
                 id={"robinhood-stake-#{@token.auction.auction_address}"}
                 part={:stake}
+                fee_asset={if @claimed?, do: @pool.result.currency.symbol}
                 mode={if @trade == :unstake, do: :unstake, else: :stake}
                 launch={%{chain: :robinhood, auction: @token.auction}}
                 pool={@pool.result}

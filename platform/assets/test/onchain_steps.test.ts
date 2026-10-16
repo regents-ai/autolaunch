@@ -1,7 +1,7 @@
 import {getAddress, type Hash, type Hex} from "viem"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {press, type Review} from "../js/hooks/onchain_steps"
+import {press, pressCalls, type Review} from "../js/hooks/onchain_steps"
 import {replaceActiveEthereumWallet, type EthereumProvider} from "../js/wallet_actions/connected_wallet"
 
 const signer = getAddress("0x1111111111111111111111111111111111111111")
@@ -165,5 +165,65 @@ describe("a wallet button sends only the step the server built", () => {
     activate(provider)
 
     await expect(press(review, "bid", vi.fn())).resolves.toEqual({reason: "step_unknown"})
+  })
+})
+
+// BATCH_SENDS_ONLY_THE_REVIEW_ATOMICALLY: a batch press hands the wallet every
+// reviewed call, unchanged and in order, from the reviewed signer, with
+// atomicity required; a wallet that cannot send them atomically sends nothing.
+describe("a batch press sends the review's calls together or not at all", () => {
+  const claim = getAddress("0x3333333333333333333333333333333333333333")
+  const batch: Review = {
+    ...review,
+    id: "review-batch",
+    steps: [
+      {kind: "transaction", step: "collect_full_range", to: target, data: "0xddc1f59d01" as Hex, value: "0x0" as Hex},
+      {kind: "transaction", step: "claim", to: claim, data: "0xd1058e59" as Hex, value: "0x0" as Hex},
+    ],
+  }
+  const receipt = {logs: [], status: "0x1", blockHash: firstHash, blockNumber: "0x1", gasUsed: "0x1", transactionHash: firstHash}
+
+  it("hands wallet_sendCalls exactly the reviewed calls, atomically, after the chain read", async () => {
+    const provider = wallet({
+      wallet_sendCalls: () => ({id: "batch-1"}),
+      wallet_getCallsStatus: () => ({version: "2.0.0", id: "batch-1", chainId: "0x2105", status: 200, atomic: true, receipts: [receipt]}),
+    })
+    activate(provider)
+    const push = vi.fn()
+
+    await expect(pressCalls(batch, push)).resolves.toEqual({calls_id: "batch-1"})
+
+    const sent = provider.request.mock.calls.find(([call]) => call.method === "wallet_sendCalls")?.[0]
+    expect(sent?.params).toEqual([{
+      atomicRequired: true,
+      calls: [{to: target, data: "0xddc1f59d01", value: undefined}, {to: claim, data: "0xd1058e59", value: undefined}],
+      capabilities: undefined,
+      chainId: "0x2105",
+      from: signer,
+      id: undefined,
+      version: "2.0.0",
+    }])
+    // The chain is the last thing read before the batch.
+    const order = methods(provider)
+    expect(order[order.indexOf("wallet_sendCalls") - 1]).toEqual("eth_chainId")
+    await vi.waitFor(() => expect(push).toHaveBeenCalledWith("calls_landed", {calls_id: "batch-1", transaction_hash: firstHash}))
+    expect(push.mock.calls[0]).toEqual(["calls_sent", {review_id: "review-batch", calls_id: "batch-1"}])
+  })
+
+  it("sends nothing when the wallet cannot send the calls atomically, and says so", async () => {
+    const provider = wallet({
+      wallet_sendCalls: () => {
+        throw Object.assign(new Error("Atomicity not supported"), {code: 5760})
+      },
+    })
+    activate(provider)
+    const push = vi.fn()
+
+    await expect(pressCalls(batch, push)).resolves.toEqual({reason: "step_unknown"})
+    expect(methods(provider)).not.toContain("eth_sendTransaction")
+    expect(push.mock.calls).toEqual([
+      ["onchain_atomic", {review_id: "review-batch", atomic: false}],
+      ["step_failed", {step: "calls", reason: "step_unknown"}],
+    ])
   })
 })

@@ -1,5 +1,5 @@
 {
-  "total": 32,
+  "total": 35,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -418,6 +418,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "1f751712e9f32433b4e89d28ae081cc4597dd693ca71db90e799d977e13b05f6"
+    },
+    {
+      "id": 52,
+      "group": "Browser wallet boundary",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 186,
+      "test_name": "hands wallet_sendCalls exactly the reviewed calls, atomically, after the chain read",
+      "keep_because": "BATCH_SENDS_ONLY_THE_REVIEW_ATOMICALLY: one Claim rewards press sends settle, every collect and claimAll together; the wallet must get exactly the server's calls, in order, from the reviewed signer, with atomicity required and the chain read last. A lab without a batching wallet cannot show this.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+    },
+    {
+      "id": 53,
+      "group": "Browser wallet boundary",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 213,
+      "test_name": "sends nothing when the wallet cannot send the calls atomically, and says so",
+      "keep_because": "BATCH_SENDS_ONLY_THE_REVIEW_ATOMICALLY: a wallet that cannot send the calls atomically must send none of them, and the page must go back to one step at a time, where each press shows what it sends.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+    },
+    {
+      "id": 54,
+      "group": "Token page",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain/calls_test.exs",
+      "line": 27,
+      "test_name": "BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL",
+      "keep_because": "A batch's transaction goes to the sender's own address or the entry point, never to the reviewed contract, so the usual target and calldata check cannot apply. The page says Claimed only for a transaction carrying every reviewed call in order for the reviewed signer, and a smart account's batch only when the entry point records success; no lab wallet sends batches, so manual review cannot reach this.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "dc8075368bfb8ab06e8125dc55a3b70fcddb2c3139403b2ba18b127fc0c70f08"
     }
   ],
   "legacy_folders_to_remove": [
