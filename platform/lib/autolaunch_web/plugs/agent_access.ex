@@ -100,7 +100,7 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
           conn,
           :forbidden,
           "owner_not_local",
-          "The owner must sign in to Autolaunch to establish verified account access."
+          "Your person needs to sign in on Autolaunch once before you can do this."
         )
 
       _ ->

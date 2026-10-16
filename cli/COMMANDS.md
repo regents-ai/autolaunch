@@ -86,8 +86,9 @@ SIWA broker and Agents schema. Awards no Points and changes no account data.
 The check-in is a write to contact metadata. A resolved `data.account` includes
 `local_account`, `display_name`, nullable `wallet_address` and `wallet_addresses`
 (default `[]`). These stored verified wallet facts grant no wallet authority.
-Missing-account recovery keeps its existing shape. This local response addition
-requires site deployment; installed CLI acceptance is not established.
+This local response addition requires site deployment; installed CLI acceptance is
+not established. Before the person's first sign-in on Autolaunch, `data.account`
+holds `local_account: false` and the `sign_in` address to give them.
 
 ## `agents pair`
 

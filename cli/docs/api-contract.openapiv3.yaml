@@ -432,7 +432,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -468,7 +468,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -509,7 +509,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -526,7 +526,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -571,7 +571,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -588,7 +588,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -633,7 +633,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -654,7 +654,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":
@@ -675,7 +675,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
           content:
@@ -712,7 +712,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Pairing or local identity required"
+          "description": "Needs a pairing, and your person's first sign-in on this site"
         "422":
           "description": "Invalid input"
         "503":

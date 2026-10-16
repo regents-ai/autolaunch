@@ -46,7 +46,8 @@ defmodule AutolaunchWeb.ApiError do
       "Ask the owner for a code from the side panel or their account page at #{PublicDocuments.url("/account")}, or at https://regents.sh/account, then redeem it with POST /api/agents/v1/pair."
 
   defp hint("owner_not_local"),
-    do: "The owner must sign in at https://autolaunch.sh/account using the same Privy account."
+    do:
+      "Ask your person to sign in once at https://autolaunch.sh/account, as they sign in on any Regent site, then send the request again."
 
   defp hint("authentication_required"),
     do:
