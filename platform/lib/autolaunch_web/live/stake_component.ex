@@ -55,7 +55,6 @@ defmodule AutolaunchWeb.StakeComponent do
     lab_config_changed: "The network changed while this was prepared. Try again.",
     stake_unavailable: "Staking is not available for this token yet.",
     nothing_to_stake: "This wallet holds none of this token.",
-    nothing_to_settle: "No trading fees are waiting to be settled.",
     amount_required: "Enter an amount above zero.",
     invalid_amount: "Enter an amount above zero.",
     invalid_decimal: "Enter an amount above zero.",

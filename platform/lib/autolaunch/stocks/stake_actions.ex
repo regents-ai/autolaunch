@@ -143,7 +143,6 @@ defmodule Autolaunch.Stocks.StakeActions do
          true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          :ok <- converter(kind, pool, signer),
          :ok <- vests(kind, pool),
-         :ok <- waiting(kind, pool),
          {:ok, config} <- lab(venue(pool)),
          {:ok, contracts} <- contracts(pool, venue(pool), config),
          {:ok, wallet} <- position(pool, signer),
@@ -217,31 +216,12 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp vests(:release, %{vesting: nil}), do: unavailable(:unknown_action)
   defp vests(_kind, _pool), do: :ok
 
-  # A settle with nothing waiting would send nothing, so it is refused before
-  # any review exists.
-  defp waiting(:settle, pool) do
-    if settle_lane?(pool) or collectable(pool) != [],
-      do: :ok,
-      else: unavailable(:nothing_to_settle)
-  end
-
-  defp waiting(_kind, _pool), do: :ok
-
   # The hook refuses to settle an empty staker lane, so the lane is settled
-  # only while it holds something. A Revstake hook has no staker lane.
+  # only while it holds something. A Revstake hook has no staker lane. A
+  # locker's collect with no fees waiting succeeds and moves nothing, so every
+  # position is collected.
   defp settle_lane?(%{kind: :stocks} = pool), do: pool.fees.stakers.accrued_atomic > 0
   defp settle_lane?(_pool), do: false
-
-  # The locked positions a collection would move something from: every one
-  # whose fees could not be read, and every one holding some.
-  defp collectable(pool) do
-    Enum.filter(pool.positions, fn
-      %{uncollected: nil} -> true
-      %{uncollected: fees} -> positive?(fees.token_amount) or positive?(fees.currency_amount)
-    end)
-  end
-
-  defp positive?(amount), do: Decimal.gt?(Decimal.new(amount), 0)
 
   # The stock amount to sell from REGENT's lane and the least the sale may
   # bring. With the floor, that is 95% of what the stock's route says it is
@@ -417,7 +397,7 @@ defmodule Autolaunch.Stocks.StakeActions do
         else: []
 
     lane ++
-      Enum.map(collectable(pool), fn position ->
+      Enum.map(pool.positions, fn position ->
         [position.label <> " position", uncollected_copy(position.uncollected, pool)]
       end)
   end
@@ -479,7 +459,7 @@ defmodule Autolaunch.Stocks.StakeActions do
       step("claim", pool.fees.splitter.address, splitter_data(venue, config, "claimAll()", []))
     ]
 
-  # The staker lane first, then each locked position with fees to collect.
+  # The staker lane first, then each locked position's fees.
   defp reviewed_steps(:settle, pool, {_venue, _config, contracts}, _wallet, _amount) do
     lane =
       if settle_lane?(pool),
@@ -493,7 +473,7 @@ defmodule Autolaunch.Stocks.StakeActions do
         else: []
 
     lane ++
-      Enum.map(collectable(pool), fn position ->
+      Enum.map(pool.positions, fn position ->
         step(
           "collect_" <> Atom.to_string(position.key),
           contracts.locker,
