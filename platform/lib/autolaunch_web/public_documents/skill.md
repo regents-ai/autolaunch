@@ -29,7 +29,7 @@ does them.
 ## Access and tool selection
 
 Check `regents --version` and the command's `--help` before use. Every command below is in
-regents-cli 1.10.7. A listed command, a listed tool and an answer that succeeded are different
+regents-cli 1.10.12. A listed command, a listed tool and an answer that succeeded are different
 evidence; say which you saw. Do not silently downgrade or replace an installed client.
 
 Use your own SIWA signer and your current pairing for private reads. A missing signer or a
