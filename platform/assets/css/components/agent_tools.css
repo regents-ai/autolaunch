@@ -1,0 +1,89 @@
+/* How many tools agents see (`AgentTools.button`), which opens their list. A
+   phone shows only the count. */
+.agent-tools-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .agent-tools-button:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .agent-tools-button {
+    padding-inline: 0.5rem;
+  }
+
+  .agent-tools-button__lead {
+    display: none;
+  }
+}
+
+/* The list itself wears a face's card (`code_cube.css`). Its copy press holds
+   the place a face's guide link has, in the card's colours in either theme. */
+.code-card__copy {
+  margin-inline-start: auto;
+}
+
+.code-card__copy .rg-button {
+  --rg-local-fill: rgb(7 8 12 / 0.72);
+  --rg-local-ink: var(--code-card-ink);
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.code-card__copy .rg-button:is(:hover, :focus-visible) {
+  --rg-local-ink: var(--code-card-accent);
+}
+
+/* Autolaunch's addition, for the template to take back: the dialog's `intro`,
+   what WebMCP is and a prompt to copy, above the list. */
+.agent-tools__intro {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.agent-tools__prompt {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--code-card-accent) 30%, transparent);
+}
+
+.agent-tools__prompt h3,
+.agent-tools__prompt p {
+  margin: 0;
+}
+
+.agent-tools__prompt h3 {
+  font-family: var(--font-family-title);
+  font-size: 1.0625rem;
+  font-weight: 400;
+}
+
+.agent-tools__prompt p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.agent-tools__prompt .rg-button {
+  --rg-local-fill: rgb(7 8 12 / 0.72);
+  --rg-local-ink: var(--code-card-ink);
+  min-height: 2.75rem;
+}

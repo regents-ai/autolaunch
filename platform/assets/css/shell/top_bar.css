@@ -3,37 +3,9 @@
 .shell-search__label { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
 .shell-search__input::placeholder { color: var(--color-fg-muted); }
 .theme-control { display: flex; }
+/* How many tools agents see, under the top bar (`AgentTools`). */
 .shell-tools { padding: var(--space-2) var(--rg-panel-padding) 0; }
-.shell-tools__badge { display: inline-block; --rg-cut-panel: 8px; max-width: 100%; font-size: .8125rem; }
-.shell-tools__badge .rg-holo__content { padding: .65rem 1rem; }
-/* The badge is the button that opens the WebMCP tools window. */
-.shell-tools__badge .rg-holo__content { padding: 0; }
-.shell-tools__open { display: block; min-height: 2.75rem; padding: .65rem 1rem; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
-.shell-tools__open:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-/* The window keeps its padding on its parts, so a press on the dialog itself
-   is always its backdrop. */
-.shell-webmcp { box-sizing: border-box; width: min(40rem, calc(100vw - 2rem)); max-height: calc(100dvh - 4rem); padding: 0; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); }
-.shell-webmcp::backdrop { background: color-mix(in oklch, var(--palette-charcoal) 45%, transparent); }
-.shell-webmcp__head { position: sticky; inset-block-start: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-1) var(--space-2) var(--space-3); border-bottom: 1px solid var(--hairline); background: var(--color-surface); }
-.shell-webmcp__head h2 { flex: 1 1 14rem; margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
-.shell-webmcp__head form { margin: 0 0 0 auto; }
-.shell-webmcp__close { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
-.shell-webmcp__close svg { width: 1rem; height: 1rem; }
-.shell-webmcp__body { display: grid; gap: var(--space-3); padding: var(--space-3); }
-.shell-webmcp__about { margin: 0; color: var(--color-fg-muted); font-size: .9375rem; line-height: 1.5; }
-.shell-webmcp__prompt { display: grid; justify-items: start; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--hairline); }
-.shell-webmcp__prompt h3 { margin: 0; font-size: .9375rem; }
-.shell-webmcp__prompt p { margin: 0; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
-.shell-webmcp__list { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
-.shell-webmcp__tool { display: grid; gap: .125rem; padding: .625rem 0; border-bottom: 1px solid var(--hairline); }
-.shell-webmcp__tool h3 { margin: 0; font-size: .9375rem; }
-.shell-webmcp__tool code { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .8125rem; overflow-wrap: anywhere; }
-@media (max-width: 47.99rem) {
-  .shell-webmcp { width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); }
-  .shell-webmcp__head { padding-inline-start: var(--space-2); }
-  .shell-webmcp__body { padding: var(--space-2); }
-}
-/* The template's Regents apps menu: a nine-dot button whose panel hangs straight
+/* The template's Regents Products menu: a nine-dot button whose panel hangs straight
    under it, its right edge lined up with the button's. The browser places it
    above everything else and closes it on Escape or a press outside. */
 .shell-icon--apps { width: 1.5rem; height: 1.5rem; }

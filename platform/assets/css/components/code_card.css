@@ -1,0 +1,142 @@
+/* The card the tool list (`AgentTools.dialog`) wears: ash-template's code card
+   (components/code_cube.css), less its cube faces' accents and guide link,
+   which this site does not show. */
+.code-card {
+  --code-card-ink: #e5e3d2;
+  --code-card-accent: #2ff07a;
+  width: min(46rem, calc(100vw - 2 * var(--space-3)));
+  max-height: min(42rem, calc(100dvh - 2 * var(--space-4)));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--code-card-accent) 45%, transparent);
+  background: #0a0c11;
+  color: var(--code-card-ink);
+}
+
+.code-card[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.code-card::backdrop {
+  background: rgb(4 5 8 / 0.62);
+  backdrop-filter: blur(6px);
+}
+
+/* The guide link and the close button hold the top right corner. On a phone the
+   site's name and count sit under them; on a wider screen, beside them. */
+.code-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--code-card-accent) 30%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--code-card-accent) 14%, transparent),
+    transparent
+  );
+}
+
+.code-card__head h2 {
+  order: 1;
+  flex-basis: 100%;
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+@media (min-width: 48rem) {
+  .code-card__head h2 {
+    order: 0;
+    flex: 1;
+  }
+}
+
+/* The close button, in the card's colours. */
+.code-card__close {
+  color: var(--code-card-ink);
+  background: transparent;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.code-card__close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.code-card__body {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.code-card__note {
+  margin: 0;
+  color: color-mix(in srgb, var(--code-card-ink) 78%, transparent);
+}
+
+.code-card__list {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.code-card__tool {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border-left: 2px solid var(--code-card-accent);
+  background: color-mix(in srgb, var(--code-card-ink) 5%, transparent);
+}
+
+.code-card__tool h3,
+.code-card__tool p,
+.code-card__tool pre {
+  margin: 0;
+}
+
+.code-card__tool h3 {
+  font-family: var(--font-family-title);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.code-card__tool code {
+  color: var(--code-card-accent);
+  font: 0.75rem/1.4 var(--font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.code-card__tool p {
+  color: color-mix(in srgb, var(--code-card-ink) 82%, transparent);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.code-card__tool pre {
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.code-card__tool pre code {
+  color: var(--code-card-ink);
+  overflow-wrap: normal;
+}

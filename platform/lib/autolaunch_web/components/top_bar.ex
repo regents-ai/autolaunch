@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.Components.TopBar do
 
   import AutolaunchWeb.Components.AccountControl
 
-  alias Phoenix.LiveView.JS
+  alias AutolaunchWeb.Components.AgentTools
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
   attr :credits, :map, required: true, doc: "As for `AutolaunchWeb.Components.Credits.button/1`."
@@ -48,81 +48,35 @@ defmodule AutolaunchWeb.Components.TopBar do
   end
 
   @doc """
-  The badge naming how many tools the site offers agents in the browser. It
-  opens a window listing them, with a line on what WebMCP is and a prompt to
-  copy for the person's agent. The browser opens the window
-  (`assets/js/shell_panels.ts`), so it works on every page, LiveView or not.
+  How many tools agents see in the browser, under the top bar: the template's
+  `AgentTools` button and dialog, the dialog opening with a line on what WebMCP
+  is and a prompt to copy for the person's agent. The browser opens and closes
+  it (`assets/js/agent_tools.ts`), so it works on every page, LiveView or not.
   """
-  def webmcp_badge(assigns) do
-    tools =
-      Enum.filter(AutolaunchWeb.PublicDocuments.capabilities()["tools"], &(&1["scope"] == "site"))
-
-    assigns =
-      assign(assigns,
-        tools: tools,
-        host: AutolaunchWeb.Endpoint.host(),
-        prompt: agent_prompt()
-      )
+  def webmcp_tools(assigns) do
+    assigns = assign(assigns, host: AutolaunchWeb.Endpoint.host(), prompt: agent_prompt())
 
     ~H"""
     <div class="shell-tools">
-      <Regent.HolographicCard.card
-        id="shell-webmcp-badge"
-        class="shell-tools__badge"
-        phx-hook="HolographicCard"
-        data-webmcp-badge
-        data-holo-crown="false"
-        data-holo-tilt="0"
-      >
-        <button
-          id="shell-webmcp-button"
-          class="shell-tools__open"
-          type="button"
-          aria-haspopup="dialog"
-          aria-controls="shell-webmcp"
-        >
-          {length(@tools)} WebMCP Tools Available
-        </button>
-      </Regent.HolographicCard.card>
-      <dialog
-        id="shell-webmcp"
-        class="shell-webmcp"
-        aria-labelledby="shell-webmcp-title"
-        phx-mounted={JS.ignore_attributes(["open"])}
-      >
-        <header class="shell-webmcp__head">
-          <h2 id="shell-webmcp-title">{@host} : {length(@tools)} WebMCP Tools</h2>
-          <form method="dialog">
-            <button type="submit" class="shell-webmcp__close" aria-label="Close">
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.5" />
-              </svg>
-            </button>
-          </form>
-        </header>
-        <div class="shell-webmcp__body">
-          <p class="shell-webmcp__about">
+      <AgentTools.button id="shell-agent-tools-button" dialog="shell-agent-tools" />
+      <AgentTools.dialog id="shell-agent-tools">
+        <:intro>
+          <p class="code-card__note">
             WebMCP lets an AI agent in your browser use this site's tools directly: open {@host} in a browser that supports it, and your agent can read auctions and tokens for you, and your bids once it is paired with your account.
           </p>
-          <section class="shell-webmcp__prompt" aria-labelledby="shell-webmcp-prompt-title">
-            <h3 id="shell-webmcp-prompt-title">Prompt for your agent</h3>
-            <p id="shell-webmcp-prompt-text">{@prompt}</p>
+          <section class="agent-tools__prompt" aria-labelledby="shell-agent-tools-prompt-title">
+            <h3 id="shell-agent-tools-prompt-title">Prompt for your agent</h3>
+            <p id="shell-agent-tools-prompt-text">{@prompt}</p>
             <Regent.Primitives.copy_button
-              id="shell-webmcp-copy"
-              target="shell-webmcp-prompt-text"
+              id="shell-agent-tools-prompt-copy"
+              target="shell-agent-tools-prompt-text"
               variant="secondary"
             >
               Copy prompt
             </Regent.Primitives.copy_button>
           </section>
-          <ol class="shell-webmcp__list" aria-label="Tools">
-            <li :for={tool <- @tools} class="shell-webmcp__tool">
-              <h3>{tool["title"]}</h3>
-              <code>{tool["name"]}</code>
-            </li>
-          </ol>
-        </div>
-      </dialog>
+        </:intro>
+      </AgentTools.dialog>
     </div>
     """
   end
@@ -134,7 +88,7 @@ defmodule AutolaunchWeb.Components.TopBar do
       "Regents CLI instead. Never sign or send a transaction for me."
   end
 
-  # The other Regents Labs apps, each shown with the crown in its own pair of
+  # The other Regents Products, each shown with the crown in its own pair of
   # brand colours, as the template's menu has them, less this site and Account.
   @regents_apps [
     %{name: "Patchbay", url: "https://patchbay.help", tone: "patchbay"},
@@ -143,7 +97,7 @@ defmodule AutolaunchWeb.Components.TopBar do
     %{name: "$REGENT Staking", url: "https://regents.sh/stake", tone: "protocol"}
   ]
 
-  # The template's Regents apps menu. The browser opens and closes the panel
+  # The template's Regents Products menu. The browser opens and closes the panel
   # itself (`popover`), so it closes on Escape or a press anywhere else, and a
   # page update never shuts it.
   defp apps_menu(assigns) do
@@ -155,17 +109,17 @@ defmodule AutolaunchWeb.Components.TopBar do
       class="shell-tool"
       type="button"
       popovertarget="shell-apps"
-      aria-label="Regents apps"
+      aria-label="Regents Products"
     >
       <svg class="shell-icon shell-icon--apps" viewBox="0 0 24 24" aria-hidden="true">
         <g fill="currentColor">
           <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
         </g>
       </svg>
-      <span class="shell-tool__tip" aria-hidden="true">Regents apps</span>
+      <span class="shell-tool__tip" aria-hidden="true">Regents Products</span>
     </button>
     <nav id="shell-apps" class="shell-apps" popover aria-labelledby="shell-apps-title">
-      <h2 id="shell-apps-title">Regents Labs apps</h2>
+      <h2 id="shell-apps-title">Regents Products</h2>
       <ul>
         <li :for={app <- @apps}>
           <a href={app.url} target="_blank" rel="noopener">
