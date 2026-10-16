@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v141, 16 October 2026: pair an agent from the side panel
+- The side panel holds the box to pair an agent, the same one the Account page shows: choose your agent, copy the message with its code, make a new code, and see your agent's name as soon as it pairs, from any Regent site. On the Account page the box shows once, in the Agents section.
+- "Manage Agents" opens your Regents account at its agents, from the side panel and from the Account page.
+- Help leaves the side panel; Docs and Contact stay at the bottom of every page.
+- On a wide screen the side panel slides in beside the page, which narrows to make room. On a narrower screen it slides in over the page's edge, and only when you open it on that page. If you asked for less motion, it opens and closes at once.
+- Opening the side panel moves you into it, and Escape closes it and takes you back to its button. Its Account and Sign out buttons no longer break mid-word.
+- An agent that isn't paired yet is told it can get a code from the side panel or Account page here, or on regents.sh, and the agent guide has the steps.
+
 ## v140, 16 October 2026: the token card fits every width
 - The token card stacks its picture above the ticker when space is short, so the ticker no longer breaks one letter per line and nothing is cut off at laptop widths.
 - On a phone the trade widget comes first, under the token's name.
