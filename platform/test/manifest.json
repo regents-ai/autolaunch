@@ -1,5 +1,5 @@
 {
-  "total": 30,
+  "total": 31,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -34,26 +34,26 @@
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
-      "line": 13,
+      "line": 16,
       "test_name": "COMPLETE_PAIR_REQUIRED: a half, blank, duplicated or unverifiable pair is refused before a write",
       "keep_because": "Incomplete, swapped, mismatched or invalid authentication evidence is refused without changing account evidence.",
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "eb60d21d9703e170ba19d0b32e1b5796ac8454503aad0b1991bd8f8b04de20f5"
+      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
     },
     {
       "id": 5,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
-      "line": 98,
+      "line": 101,
       "test_name": "CSRF is required for both session creation and deletion",
       "keep_because": "A cross-site request cannot create or delete the browser session without CSRF protection.",
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "eb60d21d9703e170ba19d0b32e1b5796ac8454503aad0b1991bd8f8b04de20f5"
+      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
     },
     {
       "id": 7,
@@ -392,6 +392,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+    },
+    {
+      "id": 50,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
+      "line": 118,
+      "test_name": "SIGN_IN_ENDS_30_DAYS_AFTER_IT_WAS_MADE: a refresh never extends a sign-in",
+      "keep_because": "A sign-in ends 30 days after the bind that made it, however recently it was refreshed (Sean, 15 Oct 2026, decision 2a). A manual check cannot wait 30 days; the case fails if the bind stops recording the sign-in, if a refresh moves it, or if the end is counted from the last refresh again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
     }
   ],
   "legacy_folders_to_remove": [

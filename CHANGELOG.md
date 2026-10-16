@@ -3,6 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v13x (pending), 16 October 2026: a sign-in ends 30 days after it was made
+- A sign-in now ends 30 days after you signed in, however often you come back in between. Before, each visit that refreshed the sign-in started the 30 days again, so an account used every week stayed signed in indefinitely (Sean, 15 Oct, decision 2a: every site follows this rule).
+- Sign-ins already open when this ships count from their most recent refresh.
+- Sign-ins made by the previous version in the minutes this one goes out have no end yet. The next release gives them one, so it follows promptly.
+
 ## v136, 16 October 2026 (227b1ff): a simpler header and clearer lists
 - The sidebar's Auctions and Tokens open their own pages, each with its own heading.
 - The WebMCP badge opens the site's tools for agents, with one line on what WebMCP is and a prompt to copy for your agent.

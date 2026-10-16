@@ -1,9 +1,12 @@
 defmodule AutolaunchWeb.PrivySessionControllerTest do
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.Accounts
+  import Ecto.Query, only: [from: 2]
 
+  alias Autolaunch.Accounts
+  alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.System
+  alias Autolaunch.Repo
 
   @identity Autolaunch.TestPrivyVerifier.identity_token("valid")
 
@@ -112,6 +115,22 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     end
   end
 
+  test "SIGN_IN_ENDS_30_DAYS_AFTER_IT_WAS_MADE: a refresh never extends a sign-in" do
+    account = Autolaunch.TestSupport.register_creator!()
+    {:ok, :bind, bound} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
+
+    # A minute short of thirty days the sign-in still holds, and refreshes.
+    age_sign_in!(bound, 30 * 86_400 - 60)
+    assert SessionAuthority.exact(bound) == {:ok, account.id}
+    assert {:ok, :refresh, refreshed} = SessionAuthority.sign_in(bound, account.id)
+
+    # That refresh does not move the end: a minute later the sign-in is over.
+    age_sign_in!(refreshed, 60)
+    assert SessionAuthority.exact(refreshed) == {:error, :reset}
+    assert SessionAuthority.leased_account(refreshed.lineage, account.id) == nil
+    assert SessionAuthority.sign_in(refreshed, account.id) == {:error, :reset}
+  end
+
   # A browser that reached signed-in state through the real HTTP flow, so its
   # session travels only as a cookie and no test-side write marks it dirty.
 
@@ -144,6 +163,19 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
 
   defp enforce_csrf(conn),
     do: %{conn | private: Map.delete(conn.private, :plug_skip_csrf_protection)}
+
+  # Moves the recorded sign-in `seconds` into the past. A bind that recorded no
+  # sign-in stays empty here, so that sign-in would never end and the case fails.
+  defp age_sign_in!(%{lineage: lineage}, seconds) do
+    {1, nil} =
+      from(row in "session_authorities",
+        where: row.lineage_digest == ^:crypto.hash(:sha256, lineage),
+        update: [
+          set: [signed_in_at: fragment("? - ? * interval '1 second'", row.signed_in_at, ^seconds)]
+        ]
+      )
+      |> Repo.update_all([])
+  end
 
   defp account_evidence(nil), do: nil
 

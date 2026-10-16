@@ -12,8 +12,9 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   a verified sign-in binds it, and first bind and every same-account refresh
   advance the generation exactly once, so the cookie that carried the previous
   generation is stale for every later request and mount. Revocation is terminal,
-  and a sign-in lapses thirty days after its last sign-in or refresh, after which
-  the lineage is treated as revoked.
+  and a sign-in lapses the cookie's `max_age` (30 days) after it was made:
+  refreshes keep it current until then, never beyond. A lapsed lineage is treated
+  as revoked.
 
   Every transition runs inside one transaction that inserts the operation's row
   when it is absent, locks it `FOR UPDATE`, and applies at most one legal
@@ -38,7 +39,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   @lineage_bytes 32
   @maximum_generation 9_223_372_036_854_775_807
   @topic_prefix "session_authority:"
-  @sign_in_lifetime_seconds 30 * 86_400
+  @sign_in_lifetime_seconds Application.compile_env!(:autolaunch, [:session_options, :max_age])
   @canonical_keys ["session_lineage", "session_generation", "live_socket_id"]
 
   @typedoc "Everything a browser carries. There is no account here by design."
@@ -81,6 +82,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
       argument :account_id, :integer, allow_nil?: false
       validate absent([:revoked_at, :human_account_id])
       change set_attribute(:human_account_id, arg(:account_id))
+      change set_attribute(:signed_in_at, &DateTime.utc_now/0)
       change atomic_update(:generation, expr(generation + 1))
     end
 
@@ -110,6 +112,8 @@ defmodule Autolaunch.Accounts.SessionAuthority do
     attribute :lineage_digest, :binary, allow_nil?: false, sensitive?: true
     attribute :generation, :integer, allow_nil?: false, default: 0, constraints: [min: 0]
     attribute :revoked_at, :utc_datetime_usec
+    # When a verified sign-in bound this lineage to its account.
+    attribute :signed_in_at, :utc_datetime_usec
     timestamps()
   end
 
@@ -337,13 +341,13 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   defp generation_state(_row, _claim), do: :reset
 
-  # A sign-in lasts thirty days from the last sign-in or refresh. Those are the
-  # only transitions that write a bound row short of revoking it, so its
-  # `updated_at` is when it was last signed in.
-  defp lapsed?(%{human_account_id: nil}), do: false
+  # A sign-in lasts from the bind that made it; a refresh never extends it. An
+  # unbound row confers nothing, so it has no lifetime to outlive.
+  defp lapsed?(%{signed_in_at: nil}), do: false
+  defp lapsed?(row), do: not DateTime.before?(DateTime.utc_now(), lapses_at(row))
 
-  defp lapsed?(%{updated_at: signed_in_at}),
-    do: DateTime.diff(DateTime.utc_now(), signed_in_at) > @sign_in_lifetime_seconds
+  defp lapses_at(%{signed_in_at: signed_in_at}),
+    do: DateTime.add(signed_in_at, @sign_in_lifetime_seconds)
 
   defp leased?(row, account_id),
     do: match?(%{revoked_at: nil, human_account_id: ^account_id}, row) and not lapsed?(row)
