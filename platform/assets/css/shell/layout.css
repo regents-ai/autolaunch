@@ -80,6 +80,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 @media (max-width: 42rem) { .autolaunch-account-balances { grid-template-columns: minmax(0, 1fr); } }
 .autolaunch-error { min-height: 60dvh; display: grid; align-content: center; gap: var(--space-4); }
 .autolaunch-error .rg-button { justify-self: start; }
+.autolaunch-error__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* Real routes retain one section heading and sibling navigation. No tab or entrance motion. */
 .learn-navigation { max-width: 1040px; margin-block-end: var(--space-4); border-bottom: 1px solid var(--rg-page-rule); }

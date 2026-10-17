@@ -1,5 +1,5 @@
 {
-  "total": 36,
+  "total": 38,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -14,7 +14,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/launch_draft_test.exs",
       "original_source_sha256": "823152e1b43565d158d7a991dde866a296f2894a56cd3367a662e645035dced7",
-      "source_sha256": "9d2a023f0a435bf01ef9377e05647eadb012a13519b3ee95c2fbc6170bb2a8c8"
+      "source_sha256": "e7f3b397caa3600c2dc989a6b5a2267e5efd29df12ecd6e9fb97108493bed170"
     },
     {
       "id": 3,
@@ -457,7 +457,6 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c762e37a14d4df882840eb29ccb4797f359547f443af7d47da6837ca16c961bf"
-
     },
     {
       "id": 55,
@@ -471,6 +470,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "9f7ad59c2ddef43f45a75829f0f7568335f4e22e1b8ea033331332eba73b8169"
+    },
+    {
+      "id": 56,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch/launch_draft_test.exs",
+      "line": 65,
+      "test_name": "a draft refuses hidden characters in a field, and a website must be a full link to launch",
+      "keep_because": "A null byte in a draft field reached the database and failed the save with no field marked, and a website that was not a link passed launch review and would be written into the token (found 17 Oct 2026). The case fails if a hidden character is saved instead of marked on its field, if a description loses its line breaks, or if a non-link website counts as complete.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e7f3b397caa3600c2dc989a6b5a2267e5efd29df12ecd6e9fb97108493bed170"
+    },
+    {
+      "id": 57,
+      "group": "Pages that degrade",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_page_test.exs",
+      "line": 14,
+      "test_name": "an auction page whose auction cannot be read is a 503 with Try again, not a 404",
+      "keep_because": "A failed read of an auction or token page answered the site's 404, telling people and search engines a live page was gone, and logged nothing (found 17 Oct 2026). The case fails if a failed read stops answering 503 with Try again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a6438109590ccad11513879746671c3570d1f093742ef5c0577fbd79c9c3b965"
     }
   ],
   "legacy_folders_to_remove": [

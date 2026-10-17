@@ -12,6 +12,8 @@ defmodule AutolaunchWeb.Paths do
   """
   use AutolaunchWeb, :verified_routes
 
+  require Logger
+
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias RegentChain.Address
 
@@ -46,13 +48,15 @@ defmodule AutolaunchWeb.Paths do
 
   @doc """
   The one listed auction a page address names, or `:error` when none does or
-  the tail is too short to name only one.
+  the tail is too short to name only one. A read that fails is logged and
+  raises `AutolaunchWeb.UnavailableError`, never passing for a missing page.
   """
   @spec find_auction(String.t(), String.t()) :: {:ok, struct()} | :error
   def find_auction(symbol, tail) do
     case Autolaunch.list_auctions_by_path(symbol, tail, actor: nil, load: [:fdv]) do
       {:ok, [auction]} -> {:ok, auction}
-      _none_or_several -> :error
+      {:ok, _none_or_several} -> :error
+      {:error, error} -> unavailable!(error)
     end
   end
 
@@ -76,13 +80,23 @@ defmodule AutolaunchWeb.Paths do
     cond do
       not RobinhoodLab.chain?(auction.chain_id) ->
         Autolaunch.get_public_token_by_auction(auction.id, actor: nil, load: [:market_cap])
+        |> read!()
 
       is_binary(auction.token_address) ->
         Autolaunch.get_robinhood_token(auction.token_address, actor: nil, load: [:market_cap])
+        |> read!()
 
       true ->
         :error
     end
+  end
+
+  defp read!({:error, error}), do: unavailable!(error)
+  defp read!(found), do: found
+
+  defp unavailable!(error) do
+    Logger.warning("a market page's record could not be read: #{inspect(error)}")
+    raise AutolaunchWeb.UnavailableError
   end
 
   @doc """
