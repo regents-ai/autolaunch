@@ -25,6 +25,23 @@ defmodule Autolaunch.Release do
     end)
   end
 
+  @doc """
+  Undoes this site's own migrations from the newest back to and including
+  `version`, the way `migrate/0` applies them. The database is shared by every Regent site,
+  so going back to an earlier version is done this way, never by restoring it.
+  """
+  def rollback(version) when is_integer(version) do
+    load_app()
+    Application.put_env(@app, Autolaunch.Repo, migration_config!())
+
+    Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
+      Ecto.Migrator.run(repo, migrations_path(), :down,
+        to: version,
+        prefix: repo.default_prefix()
+      )
+    end)
+  end
+
   # The Agents, Credits and Points code this release carries reads tables and columns
   # from every migration its pinned library ships, so each must already be in
   # that schema's own ledger. Every missing version is named at once.
