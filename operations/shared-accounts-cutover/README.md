@@ -15,7 +15,7 @@ matched by Privy ID, and the copy is dropped. Six migrations do it:
 | `20261017022825_drop_human_accounts` | Drops the copy | one, `lock_timeout` 2s |
 
 Each step can be run again after a failure. The site must not serve while
-they run: v144 reads these columns as Autolaunch account numbers, and after the
+they run: v145 reads these columns as Autolaunch account numbers, and after the
 move the same number can name a different person.
 
 Rehearsed on local copies shaped like production (people from other sites in
