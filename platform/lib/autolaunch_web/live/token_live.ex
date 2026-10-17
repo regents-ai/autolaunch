@@ -217,7 +217,7 @@ defmodule AutolaunchWeb.TokenLive do
         </div>
       </div>
     </article>
-    <.states page_status={@page_status} record_id={@record_id} />
+    <.states page_status={@page_status} />
     """
   end
 
@@ -248,7 +248,6 @@ defmodule AutolaunchWeb.TokenLive do
   defp treasury(_record), do: nil
 
   attr :page_status, :atom, required: true
-  attr :record_id, :string, required: true
 
   defp states(assigns) do
     ~H"""
@@ -265,8 +264,10 @@ defmodule AutolaunchWeb.TokenLive do
       <Regent.Structure.section_bar>
         <h1 class="rg-section-bar__label">Token not found</h1>
       </Regent.Structure.section_bar>
-      <p>No public token exists at {@record_id}.</p>
-      <.link navigate="/tokens">Return to Tokens</.link>
+      <p>This token is no longer listed.</p>
+      <.link navigate="/tokens" class="rg-button rg-button--primary">
+        <span class="rg-button__label">Return to Tokens</span>
+      </.link>
     </section>
 
     <section

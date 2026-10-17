@@ -582,6 +582,7 @@ defmodule AutolaunchWeb.HomeLive do
               >Clear filters</.link>
             <% @tab in [:live, :finished, :tokens] -> %>
               <h2>{empty_title(@tab)}</h2>
+              <p>{empty_line(@tab)}</p>
               <div class="home-empty__routes">
                 <.link
                   :for={{tab, label} <- empty_routes(@tab)}
@@ -590,7 +591,8 @@ defmodule AutolaunchWeb.HomeLive do
                 >{label}</.link>
               </div>
             <% true -> %>
-              <h2>No launches yet. Be the first.</h2>
+              <h2>No launches yet</h2>
+              <p>Be the first: a token you launch opens here for bids.</p>
               <.launch_button />
           <% end %>
         </div>
@@ -650,6 +652,10 @@ defmodule AutolaunchWeb.HomeLive do
   defp empty_title(:live), do: "Nothing is live right now."
   defp empty_title(:finished), do: "No auction has finished yet."
   defp empty_title(:tokens), do: "No tokens have launched yet."
+
+  defp empty_line(:live), do: "New auctions show here while bidding is open."
+  defp empty_line(:finished), do: "Auctions show here once their bidding closes."
+  defp empty_line(:tokens), do: "Tokens appear here once their auction launches."
 
   # With nothing live, the way on is what already happened: finished auctions
   # and launched tokens.

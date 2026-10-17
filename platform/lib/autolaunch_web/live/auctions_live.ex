@@ -166,6 +166,10 @@ defmodule AutolaunchWeb.AuctionsLive do
   defp empty_title("active"), do: "No live auctions"
   defp empty_title(_state), do: "No auctions with this status"
 
+  defp empty_line("all"), do: "Auctions appear here once someone launches a token."
+  defp empty_line("active"), do: "New auctions show here while bidding is open."
+  defp empty_line(_state), do: "Try another status, or see every auction."
+
   # With nothing live, the way on is what already happened: graduated auctions
   # and launched tokens.
   defp empty_routes(%{state: "active"} = options, _all),
@@ -246,6 +250,7 @@ defmodule AutolaunchWeb.AuctionsLive do
             >Clear filters</.link>
           <% else %>
             <h2>{empty_title(@options.state)}</h2>
+            <p>{empty_line(@options.state)}</p>
             <div :if={@options.state != "all"} class="market-list__routes">
               <.link
                 :for={{path, label} <- empty_routes(@options, @all)}
@@ -253,6 +258,16 @@ defmodule AutolaunchWeb.AuctionsLive do
                 class="rg-button rg-button--secondary"
               >{label}</.link>
             </div>
+            <.link
+              :if={@options.state == "all" && !Autolaunch.Prelaunch.read_only?()}
+              navigate="/create"
+              class="rg-button rg-button--secondary"
+            >Launch auction</.link>
+            <.link
+              :if={@options.state == "all" && Autolaunch.Prelaunch.read_only?()}
+              navigate="/how-it-works"
+              class="rg-button rg-button--secondary"
+            >How it works</.link>
           <% end %>
         </div>
 

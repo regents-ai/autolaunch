@@ -344,7 +344,7 @@ defmodule AutolaunchWeb.AuctionLive do
       </div>
       <.details page_record={@page_record} usd_rate={@usd_rate} market_snapshot={@market_snapshot} />
     </article>
-    <.page_states page_status={@page_status} record_id={@record_id} />
+    <.page_states page_status={@page_status} />
     """
   end
 
@@ -580,11 +580,13 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   attr :page_status, :atom, required: true
-  attr :record_id, :string, required: true
 
   defp page_states(assigns) do
     ~H"""
-    <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
+    <AutolaunchWeb.Components.Loading.placeholder
+      :if={@page_status == :loading}
+      label="Reading the auction"
+    />
 
     <section
       :if={@page_status == :empty}
@@ -594,8 +596,10 @@ defmodule AutolaunchWeb.AuctionLive do
       <Regent.Structure.section_bar>
         <h1 class="rg-section-bar__label">Auction not found</h1>
       </Regent.Structure.section_bar>
-      <p>No public auction exists at {@record_id}.</p>
-      <.link navigate="/auctions">Return to Auctions</.link>
+      <p>This auction is no longer listed.</p>
+      <.link navigate="/auctions" class="rg-button rg-button--primary">
+        <span class="rg-button__label">Return to Auctions</span>
+      </.link>
     </section>
 
     <section

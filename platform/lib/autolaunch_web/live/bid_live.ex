@@ -138,9 +138,13 @@ defmodule AutolaunchWeb.BidLive do
         <p :if={@bid.failed && is_nil(@bid.result)} class="bid-page__note" role="alert">
           Your bid could not be read just now. Try again in a moment.
         </p>
-        <p :if={@bid.ok? && @bid.result == :missing} class="bid-page__note">
-          The wallet you signed in with has no bid here.
-        </p>
+        <div :if={@bid.ok? && @bid.result == :missing} class="autolaunch-empty" role="status">
+          <h2>No bid here</h2>
+          <p>The wallet you signed in with has no bid at this address.</p>
+          <.link navigate="/portfolio" class="rg-button rg-button--primary">
+            <span class="rg-button__label">See your bids</span>
+          </.link>
+        </div>
         <.bid
           :if={is_map(@bid.result)}
           bid={@bid.result}

@@ -169,9 +169,13 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:opening, LaunchActions.opening())
 
     ~H"""
-    <p :if={@status == :error} class="autolaunch-empty">
-      Your draft could not be loaded. Refresh and try again.
-    </p>
+    <div :if={@status == :error} class="autolaunch-empty" role="alert">
+      <h2>Your draft didn’t open</h2>
+      <p>It could not be read just now. Nothing you saved is lost.</p>
+      <a href="/create/revstake" class="rg-button rg-button--primary">
+        <span class="rg-button__label">Try again</span>
+      </a>
+    </div>
 
     <div
       :if={@status != :error}

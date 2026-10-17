@@ -1,6 +1,9 @@
 defmodule AutolaunchWeb.CreatorConnectionsComponent do
   @moduledoc false
   use AutolaunchWeb, :live_component
+
+  require Logger
+
   import AutolaunchWeb.Components.XConnections
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.Human
@@ -13,18 +16,16 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
     socket = assign_scope(socket, assigns)
     actor = %Human{human_account_id: assigns.current_human_id}
 
-    x =
-      case Accounts.list_my_x_connections(actor: actor) do
-        {:ok, records} -> records
-        _ -> []
-      end
+    x = Accounts.list_my_x_connections(actor: actor)
+    linked = Accounts.list_my_linked_identities(actor: actor)
 
     {:ok,
      socket
      |> assign(assigns)
      |> assign(
-       identities: identities(actor),
-       x_connections: x,
+       identities: identities_from(linked),
+       x_connections: records(x),
+       unread?: unread?([x, linked]),
        x_enabled: Autolaunch.Accounts.XOAuth.enabled?()
      )
      |> assign_new(:notify, fn -> false end)
@@ -39,10 +40,23 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
   defp take_account(socket, account), do: assign(socket, current_human_id: account.id)
 
   @doc "The accounts other than X that a person has linked, by provider."
-  def identities(actor) do
-    case Accounts.list_my_linked_identities(actor: actor) do
-      {:ok, records} -> Map.new(records, &{&1.provider, &1})
-      _ -> %{}
+  def identities(actor), do: identities_from(Accounts.list_my_linked_identities(actor: actor))
+
+  defp identities_from(linked), do: linked |> records() |> Map.new(&{&1.provider, &1})
+
+  defp records({:ok, records}), do: records
+  defp records({:error, _error}), do: []
+
+  # A read that failed shows nothing as connected, so the panel says so in a
+  # line instead of passing it off as nothing connected; the failure is logged.
+  defp unread?(reads) do
+    case Enum.filter(reads, &match?({:error, _error}, &1)) do
+      [] ->
+        false
+
+      failed ->
+        Logger.warning("creator connections could not be read: #{inspect(failed)}")
+        true
     end
   end
 
@@ -126,6 +140,9 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
       </header>
       <p :if={!@optional}>
         Gain credibility by connecting reputation to your stablecoin / agent business
+      </p>
+      <p :if={@unread?} role="alert">
+        Your connections could not be read just now. Refresh this page to try again.
       </p>
       <Regent.Primitives.disclosure
         :if={@optional}

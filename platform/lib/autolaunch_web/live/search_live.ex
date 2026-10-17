@@ -189,9 +189,17 @@ defmodule AutolaunchWeb.SearchLive do
           <p :if={@failed?} class="search-dialog__note" role="alert">
             Search is unavailable right now. Try again in a moment.
           </p>
-          <p :if={@empty?} class="search-dialog__note">
-            {if @results_q == "", do: "Nothing here yet.", else: "Nothing matches “#{@results_q}”."}
-          </p>
+          <div :if={@empty?} class="autolaunch-empty" role="status">
+            <%= if @results_q == "" do %>
+              <h3>Nothing here yet</h3>
+              <p>Auctions and tokens appear here once someone launches a token.</p>
+              <.link navigate="/create" class="rg-button rg-button--secondary">Launch a token</.link>
+            <% else %>
+              <h3>Nothing matches “{@results_q}”</h3>
+              <p>Check the spelling, or search by ticker, name or creator address.</p>
+              <.link navigate="/auctions" class="rg-button rg-button--secondary">Browse auctions</.link>
+            <% end %>
+          </div>
 
           <section
             :if={@results && @results.auctions != [] && !@failed?}
@@ -220,7 +228,7 @@ defmodule AutolaunchWeb.SearchLive do
           </section>
 
           <.link
-            :if={@q != ""}
+            :if={@q != "" and not @empty?}
             navigate={all_results_path(@q, @category, @chain)}
             class="search-dialog__all"
             data-search-all
