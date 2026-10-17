@@ -3,6 +3,15 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v145, 17 October 2026: a phone layout built like the rest of Regents
+- On a phone the top bar matches the other Regents sites: the Autolaunch mark and Menu on the left; search, Regents Products and Sign in (or your picture) on the right. It stays on one line even on the smallest phones.
+- Menu now slides in from the left, under the bar. Escape, a tap beside it, Back, a link or another page closes it, and the page behind it stays still.
+- Every button and link you press on its own is at least 44 pixels, and no page scrolls sideways on any phone, tablet or laptop.
+- On a phone, Place bid and the Launch button stay at the bottom of the screen while you fill in their form.
+- Cards, tags and the Base and Robinhood labels look the same everywhere, on phone and desktop.
+- Pages that take a moment to load their figures show the shape of what's coming instead of a blank line.
+- A very long ticker no longer pushes an auction card off the screen.
+
 ## v144, 17 October 2026: a phone layout that gets out of the way
 - On a phone the top of every page is one slim bar: Autolaunch on the left, then Menu and Sign in (or your picture). Pages start right under it, and the bar stays at the top as you scroll.
 - Menu opens a panel from the right with Explore, Auctions, Tokens, Stocks, Portfolio and Docs as plain rows, and Launch as the one big button. Search is there too once the site opens. Tap beside it, press Close navigation or go to another page to close it.
