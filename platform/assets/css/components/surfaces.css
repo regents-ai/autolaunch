@@ -162,23 +162,26 @@
 }
 
 /* On a phone a page's main action stays in reach: a bid's wallet button, and
-   Launch (or what it still needs) under the create form, ride at the foot of the
-   screen, above the market ticker, while their form is on screen. Only where
-   they move; what they do is unchanged. A launch's own review, which is taller
-   than a screen, scrolls as it is. */
+   Launch (or what it still needs, or Sign in) under the create form, ride at
+   the foot of the screen, above the market ticker, on a band of the card's
+   surface, while their form is on screen. Only the button rides; the notes
+   around it stay where they are, and what it does is unchanged. Their row
+   steps aside (`display: contents`) so the whole form is the button's track. */
 @media (max-width: 47.99rem) {
-  .bid-actions,
+  .bid-entry > .bid-actions,
   .create-page__launch:has(> .create-page__launch-button) {
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
-    margin-inline: calc(-1 * var(--space-2));
-    padding: var(--space-2);
-    border-block-start: 1px solid var(--hairline);
-    background: var(--color-surface);
+    display: contents;
   }
 
-  body:has(.market-ticker) :is(.bid-actions, .create-page__launch:has(> .create-page__launch-button)) {
-    bottom: var(--market-ticker-height);
+  .bid-actions > .token-swap__wallet-step,
+  .create-page__launch > .create-page__launch-button {
+    position: sticky;
+    bottom: var(--space-2);
+    z-index: 5;
+    box-shadow: 0 0 0 var(--space-2) var(--color-surface);
+  }
+
+  body:has(.market-ticker) :is(.bid-actions > .token-swap__wallet-step, .create-page__launch > .create-page__launch-button) {
+    bottom: calc(var(--market-ticker-height) + var(--space-2));
   }
 }

@@ -17,8 +17,8 @@ defmodule AutolaunchWeb.Components.TopBar do
            and Menu, which opens the rail folded into a drawer. --%>
       <a id="shell-brand" class="shell-brand" href="/" aria-label="Autolaunch home">
         <svg viewBox="0 0 512 512" aria-hidden="true">
-          <rect width="512" height="512" fill="var(--palette-charcoal)" />
-          <g fill="var(--palette-tangerine-tango)">
+          <rect width="512" height="512" fill="#000000" />
+          <g fill="#FF5B19">
             <rect :for={{x, y} <- mark_blocks()} x={x} y={y} width="64" height="64" />
           </g>
         </svg>
@@ -165,7 +165,7 @@ defmodule AutolaunchWeb.Components.TopBar do
 
   defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
 
-  # The site's mark, its favicon: the crown's thirteen blocks on a charcoal square.
+  # The site's mark, drawn as its favicon is: the crown's thirteen blocks on black.
   defp mark_blocks do
     top = for x <- [76.8, 224, 371.2], do: {x, 150.4}
     rows = for y <- [224, 297.6], x <- [76.8, 150.4, 224, 297.6, 371.2], do: {x, y}
