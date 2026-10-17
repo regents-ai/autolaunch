@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.PointsLive do
   @moduledoc """
   `/account/points`: the signed-in person's Points, the template's page. The
   balance and recent activity come from the shared Points ledger under their
-  Regents account, never this site's own account number. The NFT bonus tier is
+  Regent account. The NFT bonus tier is
   read from Base once per page open, against the same per-account allowance as
   the wallet reads. What earns points follows; until earning opens it names the
   ways to earn with no amounts.
