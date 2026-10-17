@@ -22,4 +22,9 @@ defmodule AutolaunchWeb.MarketPageTest do
     {503, _headers, body} = assert_error_sent(503, fn -> get(conn, Paths.auction(auction)) end)
     assert body =~ "Try again"
   end
+
+  test "an address that cannot name an auction is the not-found page", %{conn: conn} do
+    {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/tokens/NOPE/zzzzz") end)
+    {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/auctions/NOPE/zzzzz") end)
+  end
 end

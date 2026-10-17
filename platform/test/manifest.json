@@ -495,7 +495,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a6438109590ccad11513879746671c3570d1f093742ef5c0577fbd79c9c3b965"
+      "source_sha256": "f3cc6076e81f8fb8927e4f390a054f1581573613de834e23198f8da5f5bc561f"
+    },
+    {
+      "id": 58,
+      "group": "Pages that degrade",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_page_test.exs",
+      "line": 26,
+      "test_name": "an address that cannot name an auction is the not-found page",
+      "keep_because": "v146 answered an address that cannot name any auction (a tail that is not hex) with the 503 Try again page instead of not found (found live 17 Oct 2026). The case fails if such an address stops answering 404.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f3cc6076e81f8fb8927e4f390a054f1581573613de834e23198f8da5f5bc561f"
     }
   ],
   "legacy_folders_to_remove": [

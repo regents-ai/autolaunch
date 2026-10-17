@@ -48,14 +48,16 @@ defmodule AutolaunchWeb.Paths do
 
   @doc """
   The one listed auction a page address names, or `:error` when none does or
-  the tail is too short to name only one. A read that fails is logged and
-  raises `AutolaunchWeb.UnavailableError`, never passing for a missing page.
+  the tail is too short to name only one. An address that cannot name an
+  auction is `:error` too; a read that fails is logged and raises
+  `AutolaunchWeb.UnavailableError`, never passing for a missing page.
   """
   @spec find_auction(String.t(), String.t()) :: {:ok, struct()} | :error
   def find_auction(symbol, tail) do
     case Autolaunch.list_auctions_by_path(symbol, tail, actor: nil, load: [:fdv]) do
       {:ok, [auction]} -> {:ok, auction}
       {:ok, _none_or_several} -> :error
+      {:error, %Ash.Error.Invalid{}} -> :error
       {:error, error} -> unavailable!(error)
     end
   end
