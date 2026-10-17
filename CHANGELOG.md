@@ -3,6 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v144, 17 October 2026: agents know when their person needs to sign in here
+- An agent whose person hasn't signed in on this site yet hears so in the same words on every Regent site: "The person this agent is paired with hasn't signed in on this site yet." It is asked to have its person sign in on this site once, then send the request again, or check in again. Its check-in is not recorded until then.
+- An agent's check-in names the account it acts for with the account's name and wallets, and nothing else.
+- An agent that isn't paired is asked to have its person sign in on this site and pair it with Pair New Agent in the side panel. The agent guides now point there for pairing, instead of the Account page or regents.sh.
+- The side panel's pairing box is headed Pair New Agent, and offers only the agents this site pairs with.
+
 ## v143, 16 October 2026: buttons with cut corners and a footer at the bottom
 - Main buttons cut two corners again, with Powder Blue and Tangerine marks in Autolaunch's own colours in light and dark. Their arrow nudges when you point at them and they give a little when pressed.
 - The footer reads About, Developer docs, Agent guide, Contact, Privacy policy and Terms of use. Agent guide opens the two plain-text guides to give your agent.
