@@ -485,6 +485,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       <strong>Create a 2-of-3 Safe on Base</strong>
       <a
         href="https://app.safe.global/new-safe/create?chain=base"
+        class="standalone-link"
         target="_blank"
         rel="noopener noreferrer"
       >

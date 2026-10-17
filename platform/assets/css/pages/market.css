@@ -14,8 +14,9 @@
 .market-identity__image { width: 100%; max-width: 240px; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius); background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
 .market-identity__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .market-identity__image > span { color: var(--color-fg-muted); font-size: 3rem; }
-.market-identity__body { display: grid; gap: 14px; min-width: 0; }
-.market-identity__symbol { margin: 0; font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem); font-weight: var(--font-weight-semibold); line-height: 1.1; overflow-wrap: break-word; }
+/* One column that may shrink, so a long unbroken ticker wraps rather than widening the page. */
+.market-identity__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.market-identity__symbol { margin: 0; font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem); font-weight: var(--font-weight-semibold); line-height: 1.1; overflow-wrap: anywhere; }
 /* The currency after a ticker, as `BITE / AAPLc`. */
 .token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); white-space: nowrap; }
 
