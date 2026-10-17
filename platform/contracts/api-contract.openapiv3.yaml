@@ -432,7 +432,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The sign-in service refused this signed request"
         "422":
           "description": "Invalid input"
         "503":
@@ -476,7 +476,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The sign-in service refused this signed request"
         "422":
           "description": "Invalid input"
         "503":
