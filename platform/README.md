@@ -54,13 +54,17 @@ Any other value stops the boot. Running a lab site in fork mode is in
 Every Autolaunch table, sequence and the migration ledger live in the
 `autolaunch_app` schema of the database, in every environment; the shared
 production database holds other products' tables beside it. Migrations run under
-that prefix and never name a schema themselves. `mix autolaunch.schema.create`
+that prefix and name no other schema, except where a record points at a person's
+shared Regent account, `regent_names.platform_human_users`. Autolaunch keeps no
+account table of its own: every Regent site reads and writes that one row per
+person (`Autolaunch.Accounts.HumanAccount`). `mix autolaunch.schema.create`
 creates the schema on a freshly created database (the `setup` and `test` aliases
 run it between creating the database and migrating), and the release's
 `/app/bin/migrate` creates it the same way, so a new database needs no separate
 initialisation. The shared account table and Regents' identity, agents, Credits
 and Points tables live in their own schemas; `mix autolaunch.shared.migrate`
-installs them locally, and `mix db.setup` runs it.
+installs them locally, and `mix db.setup` runs it before this site's own
+migrations, which point at the shared account table.
 
 ## Shared dependencies
 

@@ -9,8 +9,7 @@ defmodule AutolaunchWeb.PointsLive do
   """
   use AutolaunchWeb, :live_view
 
-  alias Autolaunch.Accounts
-  alias Autolaunch.Actors.{Human, System}
+  alias Autolaunch.Actors.Human
   alias AutolaunchWeb.Read
   alias RegentPoints.{Amount, Rules}
 
@@ -241,14 +240,7 @@ defmodule AutolaunchWeb.PointsLive do
     """
   end
 
-  # Points belong to the shared account, never this site's own account number.
-  defp account_id(%{principal: {:human, account}}) do
-    case Accounts.canonical_by_privy_id(account.privy_user_id, actor: %System{}) do
-      {:ok, %{id: id}} -> id
-      _missing -> nil
-    end
-  end
-
+  defp account_id(%{principal: {:human, account}}), do: account.id
   defp account_id(_signed_out), do: nil
 
   defp signed_in?(access_context), do: match?({:human, _}, access_context.principal)

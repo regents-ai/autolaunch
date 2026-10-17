@@ -115,12 +115,12 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   actions do
     read :agent_read do
       get? true
-      filter expr(human_account_id == ^actor(:local_human_account_id))
+      filter expr(human_account_id == ^actor(:human_account_id))
     end
 
     create :agent_create do
       accept []
-      change set_attribute(:human_account_id, actor(:local_human_account_id))
+      change set_attribute(:human_account_id, actor(:human_account_id))
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
       upsert? true
@@ -231,7 +231,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     end
 
     policy action(:agent_save) do
-      authorize_if expr(human_account_id == ^actor(:local_human_account_id))
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
     policy action([

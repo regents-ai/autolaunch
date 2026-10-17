@@ -21,8 +21,8 @@ defmodule AutolaunchWeb.AccountLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
-  alias Autolaunch.{Accounts, Credits}
-  alias Autolaunch.Actors.{Human, System}
+  alias Autolaunch.Actors.Human
+  alias Autolaunch.Credits
   alias AutolaunchWeb.Read
   alias RegentAgents.{Harness, Person}
 
@@ -224,7 +224,7 @@ defmodule AutolaunchWeb.AccountLive do
   defp read_points(socket) do
     with_person(socket, fn account ->
       Read.start(socket, :points_read, account.privy_user_id, fn ->
-        points_summary(account.privy_user_id)
+        points_summary(account.id)
       end)
     end)
   end
@@ -247,16 +247,8 @@ defmodule AutolaunchWeb.AccountLive do
     end
   end
 
-  # Points belong to the shared account, never this site's own account number.
-  defp points_summary(privy_user_id) do
-    case Accounts.canonical_by_privy_id(privy_user_id, actor: %System{}) do
-      {:ok, canonical} when not is_nil(canonical) ->
-        RegentPoints.summary(actor: %Human{human_account_id: canonical.id})
-
-      _missing ->
-        {:error, :account_unavailable}
-    end
-  end
+  defp points_summary(account_id),
+    do: RegentPoints.summary(actor: %Human{human_account_id: account_id})
 
   defp clear_reads(socket), do: Enum.reduce(@reads, socket, &Read.clear(&2, &1))
 

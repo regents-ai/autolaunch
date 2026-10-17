@@ -1,24 +1,12 @@
 defmodule Autolaunch.Accounts do
+  @moduledoc "The shared Regent account, its verified sessions, linked social identities, X connections and ENS names."
+
   use Ash.Domain
 
   resources do
-    resource Autolaunch.Accounts.CanonicalAccount do
-      define :canonical_by_privy_id,
-        action: :by_privy_id,
-        args: [:privy_user_id],
-        not_found_error?: false
-
-      define :canonical_by_id, action: :by_id, args: [:id], not_found_error?: false
-      define :register_canonical_verified, action: :register_verified
-      define :refresh_canonical_verified, action: :refresh_verified
-    end
-
     resource Autolaunch.Accounts.HumanAccount do
-      define :get_by_privy_did,
-        action: :by_privy_did,
-        args: [:privy_did],
-        not_found_error?: false
-
+      define :points_account, action: :points_account, args: [:id]
+      define :get_by_privy_did, action: :by_privy_did, args: [:privy_did], not_found_error?: false
       define :get_human_account, action: :read_self, args: [:id]
 
       define :list_human_accounts_by_signed_in_wallets,
@@ -27,15 +15,14 @@ defmodule Autolaunch.Accounts do
 
       define :register_verified,
         action: :register_verified,
-        args: [:privy_did, :wallet_address, :wallet_addresses]
+        args: [:privy_user_id, :wallet_address, :wallet_addresses]
 
       define :refresh_verified,
         action: :refresh_verified,
         args: [:wallet_address, :wallet_addresses]
-
-      define :set_display_name, action: :set_display_name
-      define :set_avatar, action: :set_avatar
     end
+
+    resource Autolaunch.Accounts.SharedProfile
 
     resource Autolaunch.Accounts.EnsIdentity do
       define :request_ens_lookup,

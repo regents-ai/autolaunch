@@ -1,5 +1,5 @@
 defmodule Autolaunch.Accounts.VerifiedSession do
-  @moduledoc "Establishes local and shared accounts from verified Privy evidence."
+  @moduledoc "Establishes the shared Regent account from verified Privy evidence."
 
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.EnsIdentity
@@ -13,22 +13,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
 
     case linked_wallet_evidence(verified) do
       {:ok, primary, addresses} ->
-        with {:ok, canonical} <-
-               Accounts.register_canonical_verified(
-                 %{
-                   privy_user_id: did,
-                   wallet_address: primary,
-                   wallet_addresses: addresses
-                 },
-                 actor: actor
-               ),
-             {:ok, _canonical} <-
-               Accounts.refresh_canonical_verified(
-                 canonical,
-                 %{wallet_address: primary, wallet_addresses: addresses},
-                 actor: actor
-               ),
-             {:ok, account} <-
+        with {:ok, account} <-
                Accounts.register_verified(did, primary, addresses, actor: actor),
              {:ok, account} <-
                Accounts.refresh_verified(account, primary, addresses, actor: actor),
