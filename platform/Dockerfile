@@ -78,6 +78,13 @@ RUN groupadd --system --gid 1001 app \
 
 COPY --from=build --chown=app:app /workspace/platform/_build/prod/rel/autolaunch ./
 
+# The commit this image is built from, as ash-template stamps it. The release
+# build passes it (--build-arg SOURCE_COMMIT=<full sha>); a build without it stops here.
+ARG SOURCE_COMMIT
+RUN test -n "$SOURCE_COMMIT"
+ENV SOURCE_COMMIT=$SOURCE_COMMIT
+LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
+
 USER app
 
 EXPOSE 4000

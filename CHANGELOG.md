@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v143, 16 October 2026: buttons with cut corners and a footer at the bottom
+## v143, 17 October 2026 (1c4e5d5): buttons with cut corners and a footer at the bottom
 - Main buttons cut two corners again, with Powder Blue and Tangerine marks in Autolaunch's own colours in light and dark. Their arrow nudges when you point at them and they give a little when pressed.
 - The footer reads About, Developer docs, Agent guide, Contact, Privacy policy and Terms of use. Agent guide opens the two plain-text guides to give your agent.
 - On a short page the footer sits at the bottom of the screen.
@@ -11,7 +11,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - Agents are told which agent kinds they can name when they pair, and that their person may need to sign in on Autolaunch once. The agent guides point to regents-cli 1.10.12.
 - The web server and several packages are on their latest fixed versions.
 
-## v142, 16 October 2026: claim everything in one press
+## v142, 16 October 2026 (811a5b9): claim everything in one press
 - Claim rewards also moves the trading fees still waiting in the pool, so one press claims everything. A wallet that can send several steps together does it in one go; others confirm each step in turn.
 - After a claim, a green light swirls into the Stake button, with a line saying staking is the only way to receive the stock (or REGENT) from fees.
 - A refresh button in the trade widget reads your balances again, and it happens on its own after any claim, settle, release, stake or unstake.
