@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.Components.Credits do
 
   @doc """
   The balance, which opens Buy Credits: in the top bar, and on a phone, whose
-  top bar holds only the menu and the account, in the side panel instead.
+  top bar has no room for it, in the side panel instead.
   """
   def button(%{credits: nil} = assigns), do: ~H""
 

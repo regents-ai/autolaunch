@@ -66,22 +66,20 @@ defmodule AutolaunchWeb.Components.Rail do
   @doc """
   On a phone the rail folds into this drawer behind the top bar's Menu button,
   as the template's rail and sidebar do (ash-template `Shell`, `#shell-drawer`):
-  the same destinations as plain rows, with Launch as the one main button, and
-  Search first while the site has it. It covers the page from the right edge,
-  where the Menu button is, and its Close navigation bar lies over the top bar.
-  The browser opens and closes it (`assets/js/shell_menu.ts`), so the server
-  always draws it closed.
+  the same destinations as plain rows, with Launch as the one main button. It
+  comes in from the left edge under the top bar, which stays in place, and its
+  Close navigation bar is its first row. The browser opens and closes it
+  (`assets/js/shell_menu.ts`), so the server always draws it closed.
   """
   def drawer(assigns) do
     assigns =
       assign(assigns,
         rows: Enum.reject(@items, &(&1.path == "/create")),
-        explore_views: explore_views(),
-        search?: !Autolaunch.Prelaunch.read_only?()
+        explore_views: explore_views()
       )
 
     ~H"""
-    <div id="shell-drawer" role="dialog" aria-modal="true" aria-label="Menu" tabindex="-1">
+    <div id="shell-drawer" tabindex="-1">
       <Regent.Primitives.button
         variant="quiet"
         type="button"
@@ -92,17 +90,6 @@ defmodule AutolaunchWeb.Components.Rail do
       </Regent.Primitives.button>
       <nav class="shell-drawer__nav" aria-label="Site">
         <ul>
-          <li :if={@search?}>
-            <button
-              type="button"
-              class="shell-drawer__row"
-              data-open-search
-              aria-haspopup="dialog"
-              aria-controls="search-dialog"
-            >
-              Search
-            </button>
-          </li>
           <li :for={item <- @rows}>
             <.link
               href={item.path}

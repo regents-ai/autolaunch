@@ -50,7 +50,10 @@ export function installShellMenu() {
 
     if (target.closest("#mobile-menu-button")) return setMenu(!menuOpen(), false)
     if (target.closest("[data-shell-menu-scrim], [data-shell-menu-close]")) return setMenu(false, true)
-    if (menuOpen() && target.closest("#shell-drawer a")) setMenu(false, true)
+    if (menuOpen() && target.closest("#shell-drawer a")) return setMenu(false, true)
+    // The top bar stays usable beside the menu; anything else pressed there
+    // (search, Regents Products, the account) takes over from it.
+    if (menuOpen() && target.closest("#home-top")) setMenu(false, false)
   }
 
   const onKeydown = (event: KeyboardEvent) => {

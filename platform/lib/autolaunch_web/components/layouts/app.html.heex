@@ -1,12 +1,6 @@
 <Regent.Structure.frame class="shell">
   <a class="shell-skip" href="#shell-content">Skip to content</a>
-  <%!-- While the phone menu is open everything behind it is inert, which the
-       browser sets (assets/js/shell_menu.ts) and LiveView keeps. --%>
-  <Regent.Structure.row
-    class="shell-body"
-    data-shell-behind-menu
-    phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["inert"])}
-  >
+  <Regent.Structure.row class="shell-body">
     <:rail_content>
       <.rail current_path={@current_path} />
     </:rail_content>
@@ -16,11 +10,24 @@
         credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
       />
       <.webmcp_tools />
-      <div id="shell-content" class="shell-content" tabindex="-1">
+      <%!-- While the phone menu is open the page and footer behind it are inert,
+           which the browser sets (assets/js/shell_menu.ts) and LiveView keeps;
+           the top bar stays usable, as in the template's shell. --%>
+      <div
+        id="shell-content"
+        class="shell-content"
+        tabindex="-1"
+        data-shell-behind-menu
+        phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["inert"])}
+      >
         <AutolaunchWeb.Components.LearnNavigation.navigation current_path={@current_path} />
         {@inner_content}
       </div>
-      <.product_links>
+      <.product_links
+        id="shell-footer"
+        data-shell-behind-menu
+        phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["inert"])}
+      >
         <:phone>
           <AutolaunchWeb.Components.AgentTools.button
             id="shell-footer-agent-tools-button"

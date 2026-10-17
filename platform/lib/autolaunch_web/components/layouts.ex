@@ -66,10 +66,11 @@ defmodule AutolaunchWeb.Layouts do
   agents see and the theme switch, where the template's bottom bar has them.
   """
   slot :phone, doc: "What a phone's footer shows first; a page without the shell leaves it out."
+  attr :rest, :global
 
   def product_links(assigns) do
     ~H"""
-    <footer class="regent-footer">
+    <footer class="regent-footer" {@rest}>
       <div :if={@phone != []} class="regent-footer__phone">{render_slot(@phone)}</div>
       <AutolaunchWeb.Components.RegentLinks.social_links />
       <nav class="regent-footer__links" aria-label="About Autolaunch">

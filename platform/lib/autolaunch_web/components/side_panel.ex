@@ -8,9 +8,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   its own pairing box, or is served without LiveView and so cannot hold one,
   leaves the slot out, and the panel then has neither. On a wide screen
   it slides in beside the page, which narrows to make room; on a narrower one it
-  slides in over the page's edge, and on a phone it takes the whole screen. A
-  phone's top bar holds only the menu and the account's picture, so there the
-  panel also shows the Credits balance. The browser alone opens and closes it
+  slides in over the page's edge, and on a phone it takes the whole screen under
+  the top bar. A phone's top bar has no room for the Credits balance, so there
+  the panel shows it. The browser alone opens and closes it
   (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server never
   stores it.
 

@@ -13,8 +13,27 @@ defmodule AutolaunchWeb.Components.TopBar do
   def top_bar(assigns) do
     ~H"""
     <header class="shell-top home-top" id="home-top">
-      <%!-- On a phone the rail, which holds the wordmark, folds into the menu drawer. --%>
-      <a class="shell-wordmark shell-brand" href="/">Autolaunch</a>
+      <%!-- On a phone, as in the template's shell, the bar starts with the mark
+           and Menu, which opens the rail folded into a drawer. --%>
+      <a id="shell-brand" class="shell-brand" href="/" aria-label="Autolaunch home">
+        <svg viewBox="0 0 512 512" aria-hidden="true">
+          <rect width="512" height="512" fill="var(--palette-charcoal)" />
+          <g fill="var(--palette-tangerine-tango)">
+            <rect :for={{x, y} <- mark_blocks()} x={x} y={y} width="64" height="64" />
+          </g>
+        </svg>
+      </a>
+      <Regent.Primitives.button
+        variant="quiet"
+        id="mobile-menu-button"
+        class="mobile-menu-button"
+        type="button"
+        aria-controls="shell-drawer"
+        aria-expanded="false"
+        phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+      >
+        Menu
+      </Regent.Primitives.button>
       <%!-- Hidden until opening: before then there is nothing to search. --%>
       <button
         :if={!Autolaunch.Prelaunch.read_only?()}
@@ -43,17 +62,6 @@ defmodule AutolaunchWeb.Components.TopBar do
       <div class="home-top__actions">
         <.apps_menu />
         <AutolaunchWeb.Components.Credits.button id="shell-credits-button" credits={@credits} />
-        <Regent.Primitives.button
-          variant="quiet"
-          id="mobile-menu-button"
-          class="mobile-menu-button"
-          type="button"
-          aria-controls="shell-drawer"
-          aria-expanded="false"
-          phx-mounted={JS.ignore_attributes(["aria-expanded"])}
-        >
-          Menu
-        </Regent.Primitives.button>
         <.account_control account_control={@account_control} />
         <AutolaunchWeb.Components.SidePanel.button account_control={@account_control} />
       </div>
@@ -156,6 +164,13 @@ defmodule AutolaunchWeb.Components.TopBar do
   end
 
   defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
+
+  # The site's mark, its favicon: the crown's thirteen blocks on a charcoal square.
+  defp mark_blocks do
+    top = for x <- [76.8, 224, 371.2], do: {x, 150.4}
+    rows = for y <- [224, 297.6], x <- [76.8, 150.4, 224, 297.6, 371.2], do: {x, y}
+    top ++ rows
+  end
 
   defp crown_blocks do
     top = for x <- [31, 103, 175], do: {x, 46}
