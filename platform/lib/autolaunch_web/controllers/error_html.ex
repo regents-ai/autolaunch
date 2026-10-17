@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.ErrorHTML do
     <html lang="en" data-brand="autolaunch" data-theme={@theme}>
       <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="color-scheme" content={@theme || "dark light"} />
         <title>{@message} · Autolaunch</title>
         <link rel="icon" href={~p"/favicon.svg"} />

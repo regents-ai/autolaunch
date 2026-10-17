@@ -23,8 +23,8 @@
 :root:not([data-aside="open"]) .shell, .shell:not(:has(#shell-aside)) { --shell-aside: 0px; }
 /* It stops above the market ticker, which runs along the bottom of every page,
    and is hidden only once it has slid shut. */
-#shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; display: grid; align-content: start; width: var(--shell-aside); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
-body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
+#shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; display: grid; align-content: start; width: var(--shell-aside); padding-block-start: env(safe-area-inset-top, 0px); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
+body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-height); }
 /* Its parts keep their width while it slides, so nothing inside rewraps. */
 #shell-aside > * { min-inline-size: calc(var(--shell-aside-open) - 1px); }
 /* Shown at once on opening, so focus can move into it. */

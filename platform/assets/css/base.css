@@ -2,6 +2,11 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { min-height: 100%; background: var(--color-bg); color: var(--color-fg); }
 body { margin: 0; min-height: 100dvh; background: var(--color-bg); font-family: var(--font-family-ui); font-size: 1rem; line-height: 1.5; }
+/* The page reaches the screen's edges (`viewport-fit=cover`); its content keeps
+   clear of a phone's notch and rounded corners held sideways. The top bar, the
+   side panel, the phone menu and the market ticker keep clear of the rest. */
+:root { --market-ticker-height: calc(44px + env(safe-area-inset-bottom, 0px)); }
+body { padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); }
 button, input, select, textarea { font: inherit; font-family: var(--font-family-ui); }
 strong, b { font-weight: 600; }
 :where(h1, h2, h3, h4, h5, h6, summary) { font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; color: inherit; overflow-wrap: anywhere; }

@@ -4,7 +4,7 @@
    screen however short the page is, in the page's own flow. On a narrower screen
    the rail sits above the page column, which takes the rest. */
 .shell { display: flex; flex-direction: column; min-height: 100dvh; }
-body:has(.market-ticker) .shell { min-height: calc(100dvh - 44px); }
+body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-height)); }
 .shell-body { flex: 1 0 auto; }
 .shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
 @media (max-width: 63.99rem) { .shell-body { grid-template-rows: auto 1fr; } }

@@ -209,9 +209,9 @@
 .creator-connections > p { margin: 0; font-size: .875rem; color: var(--color-fg-muted); }
 .creator-connections > p:empty { display: none; }
 
-body:has(.market-ticker) { padding-bottom: 44px; }
+body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 .market-ticker {
-  position: fixed; inset: auto 0 0; z-index: 30; display: flex; height: 44px; border-top: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg);
+  position: fixed; inset: auto 0 0; z-index: 30; display: flex; height: var(--market-ticker-height); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); border-top: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg);
 }
 .market-ticker__pause { flex: none; min-width: 56px; min-height: 44px; padding: 0 10px; border: 0; border-right: 1px solid var(--hairline); background: var(--color-surface); color: var(--color-fg-muted); font: inherit; font-size: .8125rem; cursor: pointer; }
 .market-ticker__window { overflow: hidden; min-width: 0; }
