@@ -61,11 +61,16 @@ defmodule AutolaunchWeb.Layouts do
   @doc """
   The footer of every page, the same on every Regent site: the social links,
   Buy $REGENT, the site's documents and its two plain-text guides for agents,
-  which open in the browser's popover from "Agent guide".
+  which open in the browser's popover from "Agent guide". On a phone, whose top
+  bar has no room for them, the footer starts with the `phone` slot: the tools
+  agents see and the theme switch, where the template's bottom bar has them.
   """
+  slot :phone, doc: "What a phone's footer shows first; a page without the shell leaves it out."
+
   def product_links(assigns) do
     ~H"""
     <footer class="regent-footer">
+      <div :if={@phone != []} class="regent-footer__phone">{render_slot(@phone)}</div>
       <AutolaunchWeb.Components.RegentLinks.social_links />
       <nav class="regent-footer__links" aria-label="About Autolaunch">
         <a

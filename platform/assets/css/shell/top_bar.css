@@ -29,5 +29,3 @@
 .shell-apps__tile[data-tone="keyfleet"] { background: var(--palette-charcoal); color: var(--palette-powder-blue); }
 .shell-apps__tile[data-tone="techtree"] { background: var(--palette-powder-blue); color: var(--palette-charcoal); }
 .shell-apps__tile[data-tone="protocol"] { background: var(--palette-charcoal); color: var(--palette-tangerine-tango); }
-/* On a phone the panel spans the screen, still straight under the button. */
-@media (max-width: 47.99rem) { .shell-apps { inset: anchor(bottom) .5rem auto; width: auto; } }

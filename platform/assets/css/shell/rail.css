@@ -33,10 +33,3 @@
   .shell-rail__list { grid-template-columns: repeat(5, minmax(0,1fr)); }
   .rg-button.shell-rail__link { justify-content: center; text-align: center; }
 }
-/* Phones: two rows of two, slightly shorter links. They are there from the
-   first frame. */
-@media (max-width: 35rem) {
-  .shell-rail__list { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .rg-button.shell-rail__link { min-height: 2.75rem; font-size: .9375rem; }
-  .rg-button.shell-rail__sublink { min-height: 2.0625rem; font-size: .75rem; }
-}

@@ -28,6 +28,7 @@ import {MotionPanels} from "./hooks/motion/slides"
 import {Toast} from "./motion/toast"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
+import {installShellMenu} from "./shell_menu"
 import {installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
 import {SiteButtons, SiteLight} from "./hooks/site_buttons"
@@ -83,6 +84,7 @@ installRegentTokenMenu()
 // A page drawn after navigation starts with its panel toggles closed; they follow the panel.
 const shellPanels = installShellPanels()
 window.addEventListener("phx:page-loading-stop", shellPanels.sync)
+installShellMenu()
 installCopyButtons()
 installAgentTools()
 installTheme()

@@ -1,0 +1,265 @@
+/* The phone shell, the template's (ash-template platform/assets/css/components/shell.css,
+   "Phones: the rail and sidebar fold into the menu drawer"): one top bar with the
+   wordmark, Menu and the account, and the rail folded into a drawer behind Menu
+   (`Rail.drawer/1`, `assets/js/shell_menu.ts`). A wider screen keeps the rail and
+   the full top bar, and has none of these. */
+#home-top .shell-brand,
+.rg-button.mobile-menu-button,
+#shell-drawer,
+.rg-button.shell-menu-scrim,
+.regent-footer__phone,
+#shell-aside .shell-credits {
+  display: none;
+}
+
+@media (max-width: 47.99rem) {
+  /* The page behind the open menu stays where it is. */
+  :root[data-menu="open"] {
+    overflow: hidden;
+  }
+
+  /* The rail lives in the drawer, so the page column takes the whole sheet. */
+  .shell-body > .rg-sheet-row__rail {
+    display: none;
+  }
+
+  .shell-body {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* One compact bar that stays at the top, clear of the notch: the wordmark,
+     then Menu and the account, each a full 44px press. */
+  #home-top {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+    min-height: calc(3.5rem + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) var(--space-2) 0 var(--space-3);
+  }
+
+  #home-top .home-top__actions {
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+  }
+
+  #home-top .shell-brand {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-inline-end: auto;
+    font-size: 1.2rem;
+    white-space: nowrap;
+  }
+
+  /* Everything else in the bar is on a wider screen only: search and the
+     tools agents see are in the menu and the footer, the balance is in the
+     side panel, and the account's picture opens that panel itself. */
+  #home-top :is(.home-search, .regent-header-links, #shell-apps-button, .shell-credits, #shell-aside-button),
+  #shell-agent-tools-button {
+    display: none;
+  }
+
+  .shell-tools {
+    padding: 0;
+  }
+
+  .rg-button.mobile-menu-button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    color: var(--color-fg);
+    font-family: var(--font-family-ui);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .rg-button.mobile-menu-button[aria-expanded="true"],
+  .rg-button.mobile-menu-button:active {
+    background: color-mix(in oklch, var(--color-fg) 10%, transparent);
+  }
+
+  #home-top .account-control__sign-in {
+    flex: 0 0 auto;
+  }
+
+  /* The drawer comes in from the right edge, where Menu is, over the page and
+     the top bar; its Close navigation bar takes the top bar's place. */
+  #shell-drawer {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    width: min(22rem, calc(100% - 3rem));
+    padding-block-end: env(safe-area-inset-bottom, 0px);
+    padding-inline-end: env(safe-area-inset-right, 0px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-inline-start: 1px solid var(--hairline-strong);
+    background: var(--color-bg);
+    color: var(--color-fg);
+    visibility: hidden;
+    transform: translateX(100%);
+    transition:
+      transform var(--duration-slow) var(--ease-out),
+      visibility var(--duration-slow);
+  }
+
+  /* Shown at once on opening, so focus can move into it; hidden only once it
+     has slid shut. */
+  :root[data-menu="open"] #shell-drawer {
+    visibility: visible;
+    transform: none;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  #shell-drawer:focus {
+    outline: none;
+  }
+
+  .rg-button.shell-menu-close {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    min-height: calc(3.5rem + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) var(--space-3) 0;
+    border: 0;
+    border-block-end: 1px solid var(--color-border);
+    border-radius: 0;
+    color: var(--color-fg-muted);
+    font-family: var(--font-family-ui);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    touch-action: manipulation;
+  }
+
+  .shell-drawer__nav ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .shell-drawer__row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-block-end: 1px solid var(--hairline);
+    background: transparent;
+    color: var(--color-fg);
+    font: inherit;
+    font-size: 1.0625rem;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .shell-drawer__row--sub {
+    min-height: 2.75rem;
+    padding-inline-start: calc(var(--space-3) + 1rem);
+    color: var(--color-fg-muted);
+    font-size: 0.9375rem;
+  }
+
+  /* The page you are on: heavier, with the brand's mark at its edge. */
+  .shell-drawer__row[aria-current="page"] {
+    color: var(--color-fg);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--palette-tangerine-tango);
+  }
+
+  .shell-drawer__row:active {
+    background: color-mix(in oklch, var(--color-fg) 10%, transparent);
+  }
+
+  .shell-drawer__row:focus-visible,
+  .rg-button.shell-menu-close:focus-visible {
+    outline: 2px solid var(--color-fg);
+    outline-offset: -2px;
+  }
+
+  .rg-button.shell-drawer__launch {
+    display: flex;
+    margin: var(--space-4) var(--space-3);
+  }
+
+  /* The page beside the open drawer dims, and a press on it closes the drawer. */
+  .rg-button.shell-menu-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: color-mix(in oklch, var(--color-bg) 72%, transparent);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--duration-slow) var(--ease-out),
+      visibility var(--duration-slow);
+  }
+
+  :root[data-menu="open"] .rg-button.shell-menu-scrim {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* The tools agents see and the theme switch start the footer, on a row of
+     their own, as the template's bottom bar has them. */
+  .regent-footer__phone {
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  /* The side panel, which covers the whole screen here, shows the balance the
+     top bar has no room for. */
+  #shell-aside .shell-credits {
+    display: inline-flex;
+    justify-self: start;
+    margin: 0;
+  }
+}
+
+@media (hover: hover) and (max-width: 47.99rem) {
+  .shell-drawer__row:hover,
+  .rg-button.mobile-menu-button:hover,
+  .rg-button.shell-menu-close:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+    text-decoration: none;
+  }
+}
+
+/* Reduced motion: the drawer is there at once; the page beside it still dims. */
+@media (prefers-reduced-motion: reduce) {
+  #shell-drawer,
+  :root[data-menu="open"] #shell-drawer {
+    transition: none;
+  }
+}

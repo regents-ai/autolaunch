@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.Components.TopBar do
   import AutolaunchWeb.Components.AccountControl
 
   alias AutolaunchWeb.Components.AgentTools
+  alias Phoenix.LiveView.JS
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
   attr :credits, :map, required: true, doc: "As for `AutolaunchWeb.Components.Credits.button/1`."
@@ -12,6 +13,8 @@ defmodule AutolaunchWeb.Components.TopBar do
   def top_bar(assigns) do
     ~H"""
     <header class="shell-top home-top" id="home-top">
+      <%!-- On a phone the rail, which holds the wordmark, folds into the menu drawer. --%>
+      <a class="shell-wordmark shell-brand" href="/">Autolaunch</a>
       <%!-- Hidden until opening: before then there is nothing to search. --%>
       <button
         :if={!Autolaunch.Prelaunch.read_only?()}
@@ -35,11 +38,22 @@ defmodule AutolaunchWeb.Components.TopBar do
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
       </button>
       <AutolaunchWeb.Components.RegentLinks.header_links>
-        <:trail><.theme_toggle /></:trail>
+        <:trail><.theme_toggle id="theme-control" /></:trail>
       </AutolaunchWeb.Components.RegentLinks.header_links>
       <div class="home-top__actions">
         <.apps_menu />
-        <AutolaunchWeb.Components.Credits.button credits={@credits} />
+        <AutolaunchWeb.Components.Credits.button id="shell-credits-button" credits={@credits} />
+        <Regent.Primitives.button
+          variant="quiet"
+          id="mobile-menu-button"
+          class="mobile-menu-button"
+          type="button"
+          aria-controls="shell-drawer"
+          aria-expanded="false"
+          phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+        >
+          Menu
+        </Regent.Primitives.button>
         <.account_control account_control={@account_control} />
         <AutolaunchWeb.Components.SidePanel.button account_control={@account_control} />
       </div>
@@ -149,14 +163,19 @@ defmodule AutolaunchWeb.Components.TopBar do
     top ++ rows
   end
 
-  # The switch names the theme showing by itself, from the page's theme or the
-  # device's setting, so the server passes no theme. The browser owns the press:
-  # it writes the theme cookie the server reads on the next render and restyles
-  # the page, so LiveView leaves the switch alone.
-  defp theme_toggle(assigns) do
+  attr :id, :string, required: true
+
+  @doc """
+  The colour theme switch: in the top bar, and on a phone in the footer. It
+  names the theme showing by itself, from the page's theme or the device's
+  setting, so the server passes no theme. The browser owns the press: it writes
+  the theme cookie the server reads on the next render and restyles the page,
+  so LiveView leaves the switch alone.
+  """
+  def theme_toggle(assigns) do
     ~H"""
-    <div id="theme-control" class="theme-control" phx-update="ignore">
-      <Regent.ThemeToggle.button id="theme-control-button" data-theme-toggle />
+    <div id={@id} class="theme-control" phx-update="ignore">
+      <Regent.ThemeToggle.button id={"#{@id}-button"} data-theme-toggle />
     </div>
     """
   end

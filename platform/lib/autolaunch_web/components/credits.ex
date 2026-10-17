@@ -9,20 +9,27 @@ defmodule AutolaunchWeb.Components.Credits do
 
   alias Phoenix.LiveView.JS
 
+  attr :id, :string, required: true
+
   attr :credits, :map,
     required: true,
     doc: "The account and its Credits reading (`AutolaunchWeb.Layouts.credits/3`), or nil."
 
+  @doc """
+  The balance, which opens Buy Credits: in the top bar, and on a phone, whose
+  top bar holds only the menu and the account, in the side panel instead.
+  """
   def button(%{credits: nil} = assigns), do: ~H""
 
   def button(assigns) do
     ~H"""
     <button
-      id="shell-credits-button"
+      id={@id}
       class="shell-credits"
       type="button"
       aria-haspopup="dialog"
       aria-controls="shell-credits"
+      data-credits-open
       aria-label={label(@credits.read)}
       phx-hook="MotionCount"
       data-variant="flash"
@@ -72,7 +79,7 @@ defmodule AutolaunchWeb.Components.Credits do
 
   attr :read, AutolaunchWeb.Read, required: true
 
-  # "12.40 Credits", whose unit a phone's header leaves out for room. Only a
+  # "12.40 Credits", whose figure counts to each new balance. Only a
   # balance just read shows; while it is read again, or when it can't be, the
   # figure is a dash. The button and the Buy Credits panel behind it are there
   # either way.
@@ -81,13 +88,13 @@ defmodule AutolaunchWeb.Components.Credits do
     assigns = assign(assigns, number: number, unit: unit)
 
     ~H"""
-    <span data-count>{@number}</span> <span class="shell-credits__unit">{@unit}</span>
+    <span data-count>{@number}</span> {@unit}
     """
   end
 
   defp amount(assigns) do
     ~H"""
-    <span data-count>—</span> <span class="shell-credits__unit">Credits</span>
+    <span data-count>—</span> Credits
     """
   end
 end

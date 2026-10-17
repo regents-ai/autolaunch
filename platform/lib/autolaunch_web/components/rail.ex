@@ -25,14 +25,7 @@ defmodule AutolaunchWeb.Components.Rail do
   attr :current_path, :string, required: true
 
   def rail(assigns) do
-    assigns =
-      assign(assigns,
-        items: @items,
-        explore_views: [
-          %{label: "Auctions", path: ~p"/auctions", covers: ["/robinhood"]},
-          %{label: "Tokens", path: ~p"/tokens", covers: []}
-        ]
-      )
+    assigns = assign(assigns, items: @items, explore_views: explore_views())
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
@@ -66,6 +59,93 @@ defmodule AutolaunchWeb.Components.Rail do
       </ul>
     </nav>
     """
+  end
+
+  attr :current_path, :string, required: true
+
+  @doc """
+  On a phone the rail folds into this drawer behind the top bar's Menu button,
+  as the template's rail and sidebar do (ash-template `Shell`, `#shell-drawer`):
+  the same destinations as plain rows, with Launch as the one main button, and
+  Search first while the site has it. It covers the page from the right edge,
+  where the Menu button is, and its Close navigation bar lies over the top bar.
+  The browser opens and closes it (`assets/js/shell_menu.ts`), so the server
+  always draws it closed.
+  """
+  def drawer(assigns) do
+    assigns =
+      assign(assigns,
+        rows: Enum.reject(@items, &(&1.path == "/create")),
+        explore_views: explore_views(),
+        search?: !Autolaunch.Prelaunch.read_only?()
+      )
+
+    ~H"""
+    <div id="shell-drawer" role="dialog" aria-modal="true" aria-label="Menu" tabindex="-1">
+      <Regent.Primitives.button
+        variant="quiet"
+        type="button"
+        class="shell-menu-close"
+        data-shell-menu-close
+      >
+        Close navigation
+      </Regent.Primitives.button>
+      <nav class="shell-drawer__nav" aria-label="Site">
+        <ul>
+          <li :if={@search?}>
+            <button
+              type="button"
+              class="shell-drawer__row"
+              data-open-search
+              aria-haspopup="dialog"
+              aria-controls="search-dialog"
+            >
+              Search
+            </button>
+          </li>
+          <li :for={item <- @rows}>
+            <.link
+              href={item.path}
+              class="shell-drawer__row"
+              aria-current={if row_current?(@current_path, item), do: "page"}
+            >
+              {item.label}
+            </.link>
+            <ul :if={item.path == "/"} aria-label="Explore views">
+              <li :for={view <- @explore_views}>
+                <.link
+                  navigate={view.path}
+                  class="shell-drawer__row shell-drawer__row--sub"
+                  aria-current={if current?(@current_path, view), do: "page"}
+                >
+                  {view.label}
+                </.link>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <.link
+          href={~p"/create"}
+          class="rg-button rg-button--primary shell-rail__launch shell-drawer__launch"
+          aria-current={if under?(@current_path, "/create"), do: "page"}
+        >
+          Launch
+        </.link>
+      </nav>
+    </div>
+    """
+  end
+
+  # A row marks only the page you are on: Explore is the home page, and its
+  # two views mark themselves.
+  defp row_current?(path, %{path: "/"}), do: path == "/"
+  defp row_current?(path, item), do: current?(path, item)
+
+  defp explore_views do
+    [
+      %{label: "Auctions", path: ~p"/auctions", covers: ["/robinhood"]},
+      %{label: "Tokens", path: ~p"/tokens", covers: []}
+    ]
   end
 
   defp current?(path, %{label: "Docs"}),

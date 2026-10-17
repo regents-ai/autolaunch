@@ -59,6 +59,4 @@ body:has(.market-ticker) #shell-aside { inset-block-end: 44px; }
 }
 /* On phones the side panel takes the whole screen. */
 @media (max-width: 47.99rem) { #shell-aside { width: 100%; border-inline-start: 0; } }
-/* The narrowest pages: the side panel button beside it opens the same panel, so the name gives way to it. */
-@container shell-page (max-width: 21.75rem) { .account-chip { display: none; } }
 @media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }

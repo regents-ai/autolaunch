@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
   The WebMCP tools every page offers an agent, read when this module compiles
   from `priv/tool_manifest.json`, the file the pages register them from
   (`assets/js/public_tools.ts` offers the entries scoped to the site). The
-  button under the top bar says how many there are and opens a dialog listing
+  button under the top bar (on a phone, in the footer) says how many there are and opens a dialog listing
   each tool with its description, which copies the whole list as Markdown.
 
   The same component as ash-template's (64bd92c), with one addition the

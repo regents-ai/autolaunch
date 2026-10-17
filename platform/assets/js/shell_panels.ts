@@ -70,7 +70,8 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
       setAside(false)
       return asideButton()?.focus()
     }
-    if (target.closest("#shell-credits-button")) return openCredits()
+    // The top bar's balance, and the side panel's on a phone, open the one window.
+    if (target.closest("[data-credits-open]")) return openCredits()
     if (target.closest("[data-credits-close]")) return closeCredits()
     // A press on a window's own backdrop lands on the dialog itself.
     if (target === credits()) return closeCredits()

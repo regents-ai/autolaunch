@@ -280,9 +280,10 @@
   stroke-linecap: round;
 }
 
-/* The header's Credits balance, which opens Buy Credits. It sits here, outside
-   the product layer, so it wins over the site's plain button rules. */
-#home-top .shell-credits {
+/* The Credits balance, which opens Buy Credits: in the top bar, and on a phone
+   in the side panel. It sits here, outside the product layer, so it wins over
+   the site's plain button rules. */
+:is(#home-top, #shell-aside) .shell-credits {
   display: inline-flex;
   align-items: center;
   gap: 0.25em;
@@ -303,21 +304,7 @@
 }
 
 @media (hover: hover) {
-  #home-top .shell-credits:hover {
+  :is(#home-top, #shell-aside) .shell-credits:hover {
     background: color-mix(in oklch, var(--color-fg) 6%, transparent);
-  }
-}
-
-@media (max-width: 47.99rem) {
-  /* The balance keeps its full width and leaves its unit out for room. */
-  #home-top .shell-credits {
-    flex: 0 0 auto;
-    margin-inline-end: 0;
-    padding-inline: 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  #home-top .shell-credits__unit {
-    display: none;
   }
 }

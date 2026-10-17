@@ -8,7 +8,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   its own pairing box, or is served without LiveView and so cannot hold one,
   leaves the slot out, and the panel then has neither. On a wide screen
   it slides in beside the page, which narrows to make room; on a narrower one it
-  slides in over the page's edge. The browser alone opens and closes it
+  slides in over the page's edge, and on a phone it takes the whole screen. A
+  phone's top bar holds only the menu and the account's picture, so there the
+  panel also shows the Credits balance. The browser alone opens and closes it
   (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server never
   stores it.
 
@@ -52,6 +54,10 @@ defmodule AutolaunchWeb.Components.SidePanel do
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
 
+  attr :credits, :map,
+    required: true,
+    doc: "As for `AutolaunchWeb.Components.Credits.button/1`; shown here only on a phone."
+
   slot :pairing,
     doc: "The box to pair an agent, on a LiveView page; left out on a page with its own."
 
@@ -86,6 +92,7 @@ defmodule AutolaunchWeb.Components.SidePanel do
 
       <section id="shell-account" class="shell-account" aria-label="Your account">
         <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
+        <AutolaunchWeb.Components.Credits.button id="shell-aside-credits-button" credits={@credits} />
         <div class="shell-account__actions">
           <.link navigate="/account" class="rg-button rg-button--secondary">Account</.link>
           <Regent.Primitives.button variant="secondary" type="button" data-account-target="sign-out">
