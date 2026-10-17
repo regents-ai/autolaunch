@@ -95,12 +95,12 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
           "Pair this named agent with your account before private work."
         )
 
-      {:error, :owner_not_local} ->
+      {:error, :person_not_here} ->
         refuse(
           conn,
           :forbidden,
-          "owner_not_local",
-          "Your person needs to sign in on Autolaunch once before you can do this."
+          "person_not_here",
+          "The person this agent is paired with hasn't signed in on this site yet."
         )
 
       _ ->

@@ -543,7 +543,7 @@
     },
     {
       "command": "account credits-history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing and your person's first sign-in on this site. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "operation_id": "account_credits_history",
       "method": "POST",
       "path": "/api/agent/v1/account/credits/history",
@@ -560,7 +560,7 @@
     },
     {
       "command": "account points",
-      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing and your person's first sign-in on this site. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
       "operation_id": "account_points",
       "method": "GET",
       "path": "/api/agent/v1/account/points",

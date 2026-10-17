@@ -20,8 +20,8 @@ defmodule Autolaunch.Agents do
          local_human_account_id: local.id
        }, local}
     else
-      {:ok, nil} -> {:error, :owner_not_local}
-      false -> {:error, :owner_not_local}
+      {:ok, nil} -> {:error, :person_not_here}
+      false -> {:error, :person_not_here}
       error -> error
     end
   end

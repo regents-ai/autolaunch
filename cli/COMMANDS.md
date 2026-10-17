@@ -6,9 +6,10 @@ lists what your installed version has.
 
 The six public reads need no sign-in and change nothing. Every other command requires
 per-request SIWA proof for audience `autolaunch`. Private account operations also
-require a current pairing and an Autolaunch account resolved from the owner's verified
-Privy identity. Browser cookies are not agent authority. Read `/agents.md` for pairing
-and recovery. No command signs a wallet transaction, places a bid, launches a token,
+require a current pairing and your person's first sign-in on this site; until then they
+answer 403 `agent_not_paired` or `person_not_here`. Your person pairs you with Pair New
+Agent in the side panel. Browser cookies are not agent authority. Read `/agents.md` for
+pairing and recovery. No command signs a wallet transaction, places a bid, launches a token,
 changes treasury settings, spends Credits or approves a grant.
 
 Private inputs go through JSON stdin. Use the installed CLI's `--help` for signing,

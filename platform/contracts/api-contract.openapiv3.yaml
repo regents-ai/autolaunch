@@ -517,7 +517,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
@@ -534,7 +534,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
@@ -579,7 +579,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
@@ -596,7 +596,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
@@ -641,7 +641,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
@@ -662,7 +662,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
@@ -683,7 +683,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
           content:
@@ -720,7 +720,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
         "422":
           "description": "Invalid input"
         "503":
