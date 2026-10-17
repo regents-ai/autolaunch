@@ -26,27 +26,19 @@ defmodule Autolaunch.Agents do
     end
   end
 
+  # How a check-in (`GET /api/agents/v1/me`) names the person's account: nil until
+  # the person first signs in here, and the check-in then answers `person_not_here`.
   def paired_account(privy_id) do
     case Accounts.get_by_privy_did(privy_id, actor: %System{}) do
+      {:ok, %{} = account} ->
+        %{
+          display_name: account.display_name,
+          wallet_address: account.wallet_address,
+          wallet_addresses: account.wallet_addresses || []
+        }
+
       {:ok, nil} ->
-        %{local_account: false, sign_in: "https://autolaunch.sh/account"}
-
-      {:ok, account} ->
-        case Accounts.canonical_by_privy_id(privy_id, actor: %System{}) do
-          {:ok, canonical} when not is_nil(canonical) ->
-            %{
-              local_account: Accounts.VerifiedSession.current?(account),
-              display_name: account.display_name,
-              wallet_address: account.wallet_address,
-              wallet_addresses: account.wallet_addresses || []
-            }
-
-          _ ->
-            %{local_account: false, sign_in: "https://autolaunch.sh/account"}
-        end
-
-      _ ->
-        %{local_account: false}
+        nil
     end
   end
 end

@@ -453,6 +453,14 @@ paths:
               schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
         "401":
           "description": "Fresh request proof required"
+        "403":
+          description: The person this agent is paired with hasn't signed in on this site yet (person_not_here). Ask your person to sign in on this site once, then check in again.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Error"}
+              examples:
+                personNotHere:
+                  value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then check in again."}}
         "404":
           "description": "This agent is not paired with an account"
         "503":
@@ -879,26 +887,18 @@ components:
       properties:
         data: {$ref: "#/components/schemas/CheckedInAgent"}
     PairedAccount:
-      description: The existing pairing-derived owner account. No caller-supplied owner ID, provider IDs or wallet authority.
-      oneOf:
-        - type: object
-          additionalProperties: false
-          required: [local_account, display_name, wallet_address, wallet_addresses]
-          properties:
-            local_account: {type: boolean, description: "Whether the existing local verified wallet evidence is current under the site's rule."}
-            display_name: {type: [string, "null"]}
-            wallet_address: {type: [string, "null"], description: "Stored primary wallet from verified sign-in evidence; no signing authority."}
-            wallet_addresses:
-              type: array
-              default: []
-              items: {type: string}
-              description: Stored linked wallets from verified sign-in evidence; missing evidence is an empty list.
-        - type: object
-          additionalProperties: false
-          required: [local_account]
-          properties:
-            local_account: {const: false}
-            sign_in: {type: string, format: uri}
+      description: The account of the person the agent is paired with, from the pairing itself. No caller-supplied owner ID, provider IDs or wallet authority.
+      type: object
+      additionalProperties: false
+      required: [display_name, wallet_address, wallet_addresses]
+      properties:
+        display_name: {type: [string, "null"]}
+        wallet_address: {type: [string, "null"], description: "Stored primary wallet from verified sign-in evidence; no signing authority."}
+        wallet_addresses:
+          type: array
+          default: []
+          items: {type: string}
+          description: Stored linked wallets from verified sign-in evidence; missing evidence is an empty list.
     PointsAmount:
       type: string
       pattern: '^-?\d+(?:\.\d{1,2})?$'

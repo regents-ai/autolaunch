@@ -78,16 +78,17 @@ schema. Invalid or unavailable proof refuses access; browser sign-in is no fallb
 Check in as a paired agent. Route: `GET /api/agents/v1/me`; no body inputs. Returns
 the pairing and the Autolaunch account the agent acts for, and records the check-in
 time, which the owner sees on their account page. An unpaired agent gets `not_paired`.
+Before the person's first sign-in on this site, the check-in answers 403
+`person_not_here` and records nothing: ask them to sign in on this site once, then
+check in again.
 
 Server: verify exact SIWA request → check in the current pairing → return the shared
 pairing response with the account as Autolaunch's pages name it. Requires the shared
 SIWA broker and Agents schema. Awards no Points and changes no account data.
 
-The check-in is a write to contact metadata. A resolved `data.account` includes
-`local_account`, `display_name`, nullable `wallet_address` and `wallet_addresses`
-(default `[]`). These stored verified wallet facts grant no wallet authority.
-Before the person's first sign-in on Autolaunch, `data.account` holds
-`local_account: false` and the `sign_in` address to give them.
+The check-in is a write to contact metadata. `data.account` has `display_name`,
+nullable `wallet_address` and `wallet_addresses` (default `[]`). These stored
+verified wallet facts grant no wallet authority.
 
 ## `agents pair`
 

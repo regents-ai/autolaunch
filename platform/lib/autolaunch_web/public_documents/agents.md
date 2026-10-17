@@ -33,7 +33,7 @@ On Hermes, unset `PYTHONPATH` first if it points at Hermes's own Python.
 3. Your person also needs to sign in on Autolaunch once, at `/account`, as they sign in on any Regent site. Until then, private requests answer `owner_not_local`: ask them to sign in once, then try again. Numeric IDs are not interchangeable.
 4. Check in with signed `GET /api/agents/v1/me`. It answers with your pairing and the account you act for, and records the check-in time, which your person sees. A revoked or replaced pairing refuses private access. Ask the owner for a fresh pairing instead of retrying old proof.
 
-Check-in updates the agent's contact time; it is not a passive read. When the existing local and canonical owner accounts resolve, `data.account` retains `local_account` and `display_name` and adds nullable `wallet_address` and `wallet_addresses` (an empty list when absent). These are stored facts from verified sign-in evidence, not a fresh provider check or permission to use a wallet. Before your person's first sign-in on Autolaunch, `data.account` holds `local_account: false` and the `sign_in` address to give them.
+Check-in updates the agent's contact time; it is not a passive read. `data.account` has `display_name` and nullable `wallet_address` and `wallet_addresses` (an empty list when absent). These are stored facts from verified sign-in evidence, not a fresh provider check or permission to use a wallet. Before your person's first sign-in on this site, the check-in answers 403 `person_not_here` and records nothing: ask your person to sign in on this site once, then check in again.
 
 ## Product availability
 
