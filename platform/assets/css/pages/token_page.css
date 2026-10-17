@@ -11,7 +11,7 @@
 /* The trade widget: a sliding selector over one view at a time. */
 .token-trade { position: relative; display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
 .token-trade__tabs { position: relative; display: inline-flex; justify-self: start; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
-.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.5rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: var(--font-weight-semibold) .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+.token-trade__tabs [role="tab"] { position: relative; z-index: 1; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); border: 0; background: none; color: var(--color-fg-muted); font: var(--font-weight-semibold) .9375rem/1 var(--font-family-ui); cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
 .token-trade__tabs [role="tab"][aria-selected="true"] { color: var(--color-bg); }
 .token-trade__tabs [role="tab"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .token-trade__ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
@@ -35,13 +35,13 @@
 .token-trade__label { color: var(--color-fg-muted); font-size: 1rem; }
 .token-trade__figure[data-empty] { color: var(--color-fg-muted); }
 .token-trade__reason { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
-.token-trade__status { display: grid; justify-items: start; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg-muted); }
+.token-trade__status { display: grid; justify-items: start; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); }
 .token-trade__status p { margin: 0; }
 
 /* Claim Rewards, and the copy of the token's details above it. */
 .token-claim { display: grid; gap: var(--space-2); min-width: 0; }
 .token-claim__copy { width: 100%; min-height: 2.75rem; }
-.token-claim__card { min-width: 0; padding: clamp(.875rem, 3.5vw, 1.25rem); border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.token-claim__card { min-width: 0; }
 .token-claim__body { display: grid; gap: var(--space-2); min-width: 0; }
 .token-claim__body[inert] { opacity: .45; }
 .token-claim__title { margin: 0; font-size: 1.25rem; }

@@ -47,7 +47,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       <section class="fact-page__section" aria-labelledby="upcoming-available">
         <h2 id="upcoming-available" class="upcoming__pairing">
           <span>Available to Pair:</span>
-          <a href="/create">Memestock</a>
+          <a href="/create" class="standalone-link">Memestock</a>
           <span aria-hidden="true">|</span>
           <span
             class="upcoming__pairing-soon"

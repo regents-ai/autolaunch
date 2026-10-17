@@ -101,9 +101,12 @@ defmodule AutolaunchWeb.RegentLive do
         </.link>
       </nav>
 
-      <p :if={@facts.loading} id="regent-next-loading" class="regent-status">
-        Loading REGENT figures…
-      </p>
+      <AutolaunchWeb.Components.Loading.placeholder
+        :if={@facts.loading}
+        id="regent-next-loading"
+        shape={:figures}
+        label="Reading the REGENT figures"
+      />
       <p :if={@facts.failed} id="regent-next-unavailable" class="regent-status">
         REGENT figures are unavailable right now.
       </p>

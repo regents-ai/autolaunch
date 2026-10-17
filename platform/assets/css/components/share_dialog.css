@@ -10,7 +10,7 @@
   padding: 0;
   overflow: auto;
   border: 1px solid var(--hairline-strong);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--color-surface);
   color: var(--color-fg);
   overscroll-behavior: contain;
@@ -28,7 +28,7 @@
   height: auto;
   aspect-ratio: 1200 / 630;
   border: 1px solid var(--hairline);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: #111110;
 }
 .share-x__label { font-weight: 600; }

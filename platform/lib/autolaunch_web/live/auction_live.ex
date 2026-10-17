@@ -226,9 +226,11 @@ defmodule AutolaunchWeb.AuctionLive do
         return_to={if @page_record.minimum_reached, do: "autolaunch-position-#{@outbid.id}"}
       />
       <section class="auction-next-overview" aria-label="Where this auction is">
-        <p :if={!@snapshot && !@snapshot_unread?} class="auction-next-note" role="status">
-          Reading the auction from the chain…
-        </p>
+        <AutolaunchWeb.Components.Loading.placeholder
+          :if={!@snapshot && !@snapshot_unread?}
+          shape={:figures}
+          label="Reading the auction from the chain"
+        />
         <p :if={@snapshot_unread?} class="auction-next-note" role="status">
           {if @snapshot,
             do: "The auction could not be read again just now, so this is the last reading.",

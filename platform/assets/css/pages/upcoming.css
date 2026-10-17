@@ -1,11 +1,11 @@
 /* Upcoming stocks: a Base column and a Robinhood column, each in its chain's own colour. */
 .upcoming__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.upcoming-column { min-width: 0; overflow: hidden; border: 2px solid var(--chain-color); border-radius: 8px; background: color-mix(in srgb, var(--chain-color) 10%, var(--color-bg)); }
+.upcoming-column { min-width: 0; overflow: hidden; border: 2px solid var(--chain-color); border-radius: var(--radius); background: color-mix(in srgb, var(--chain-color) 10%, var(--color-bg)); }
 .upcoming-column--base { --chain-color: var(--chain-base); --chain-ink: #fff; }
 .upcoming-column--robinhood { --chain-color: var(--chain-robinhood); --chain-ink: #000; }
 .upcoming-column > h3 { display: flex; justify-content: space-between; gap: var(--space-2); margin: 0; padding: var(--space-1) var(--space-2); background: var(--chain-color); color: var(--chain-ink); font-size: 1rem; line-height: 1.4; }
 .upcoming-column__stocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: var(--space-1); margin: 0; padding: var(--space-2); list-style: none; }
-.upcoming-stock { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 var(--space-1); min-width: 0; padding: var(--space-1); border: 1px solid var(--hairline); border-radius: 8px; background: var(--color-bg); }
+.upcoming-stock { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0 var(--space-1); min-width: 0; padding: var(--space-1); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-bg); }
 .upcoming-stock > .stock-logo { grid-row: span 2; }
 .upcoming-column__none { margin: 0; padding: var(--space-2); color: var(--color-fg-muted); font-size: .875rem; }
 @media (max-width: 42rem) {
@@ -24,7 +24,7 @@
 
 /* Native modal dialogs escape the chain columns' clipping and handle focus
    containment, Escape dismissal and returning focus to the stock button. */
-.upcoming-details { position: fixed; inset: 5rem 0 auto; margin: 0 auto; box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 6rem); overflow: auto; overscroll-behavior: contain; padding: var(--space-3); border: 2px solid var(--hairline); border-radius: 8px; background: var(--color-bg); color: var(--color-fg); box-shadow: 0 12px 40px #0003; }
+.upcoming-details { position: fixed; inset: 5rem 0 auto; margin: 0 auto; box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 6rem); overflow: auto; overscroll-behavior: contain; padding: var(--space-3); border: 2px solid var(--hairline); border-radius: var(--radius); background: var(--color-bg); color: var(--color-fg); box-shadow: 0 12px 40px #0003; }
 .upcoming-details::backdrop { background: #0006; }
 .upcoming-details__heading, .upcoming-details__pool > header { display: flex; align-items: start; justify-content: space-between; gap: var(--space-2); }
 .upcoming-details h3, .upcoming-details h4, .upcoming-details__heading p { margin: 0; }

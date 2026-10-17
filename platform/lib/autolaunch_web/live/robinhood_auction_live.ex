@@ -168,9 +168,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         This auction could not be read again just now, so it shows what was last read.
       </p>
       <section class="auction-next-overview" aria-label="Where this auction is">
-        <p :if={!@snapshot.ok? && @snapshot.loading} class="auction-next-note" role="status">
-          Reading the auction from the chain…
-        </p>
+        <AutolaunchWeb.Components.Loading.placeholder
+          :if={!@snapshot.ok? && @snapshot.loading}
+          shape={:figures}
+          label="Reading the auction from the chain"
+        />
         <p :if={@snapshot.failed} class="auction-next-note" role="status">
           {if @snapshot.ok?,
             do: "The auction could not be read again just now, so this is the last reading.",

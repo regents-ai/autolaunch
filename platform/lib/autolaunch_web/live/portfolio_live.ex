@@ -214,7 +214,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           class="account-control__sign-in"
           data-account-target="sign-in"
         >Sign in</Regent.Primitives.button>
-        <.link navigate="/">Keep exploring</.link>
+        <.link navigate="/" class="standalone-link">Keep exploring</.link>
       </section>
 
       <section
@@ -252,7 +252,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             />
             <tbody :if={unread?(@robinhood?, @robinhood_positions)}>
               <tr class="market-list__skeleton" aria-hidden="true">
-                <td colspan="5"></td>
+                <td colspan="5"><span class="loading-block"></span></td>
               </tr>
             </tbody>
           </table>
@@ -340,7 +340,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             />
             <tbody :if={unread?(true, @token_holdings)}>
               <tr class="market-list__skeleton" aria-hidden="true">
-                <td colspan="4"></td>
+                <td colspan="4"><span class="loading-block"></span></td>
               </tr>
             </tbody>
           </table>

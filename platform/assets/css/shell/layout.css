@@ -19,7 +19,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
 .regent-footer p { margin: 0; }
 .regent-footer__links { display: flex; flex-wrap: wrap; column-gap: var(--space-3); }
-.regent-footer__links a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; }
+.regent-footer__links a { display: inline-flex; align-items: center; min-width: 2.75rem; min-height: 2.75rem; color: inherit; }
 .regent-footer__links .regent-footer__guide {
   display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0; border: 0;
   background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer;
@@ -37,7 +37,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
 /* The crown, GitHub and the theme switch sit together beside Sign in. */
 #home-top .regent-header-links { margin-left: auto; }
-.regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
+.regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; color: inherit; }
 .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
 .regent-header-links svg { width: 1.5rem; height: 1.5rem; }
 /* Sign in, the closed Launch a token button and Copy to Agent match the regents.sh App
@@ -63,7 +63,6 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 @container shell-page (max-width: 52rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
 /* A narrow page keeps the crown menu and leaves the GitHub icon to the footer. */
 @container shell-page (max-width: 39rem) { .regent-header-links > .regent-social-links { display: none; } }
-@media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
 /* The shared prism control draws its own box and hover; the row only places it. Its prism
    sits .5rem inside its press target and each icon sits centred in its link box, so this
    margin leaves the same space before the prism as between the icons themselves. */
@@ -86,7 +85,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .learn-navigation { max-width: 1040px; margin-block-end: var(--space-4); border-bottom: 1px solid var(--rg-page-rule); }
 .learn-navigation__title { margin: 0 0 var(--space-1); font-family: var(--font-family-title); font-size: 1.25rem; }
 .learn-navigation nav { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); }
-.learn-navigation a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-fg-muted); text-decoration: none; }
+.learn-navigation a { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--color-fg-muted); text-decoration: none; }
 .learn-navigation a[aria-current="page"] { color: var(--color-fg); text-decoration: underline; text-underline-offset: .4em; }
 .learn-navigation a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
 .shell-content:has(> .learn-navigation) > :is(main, article) { max-width: 1040px; }

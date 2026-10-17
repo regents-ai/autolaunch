@@ -4,23 +4,24 @@
 .market-list__header h1 { margin: 0; font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 650; letter-spacing: -.02em; }
 .market-list__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .market-list__filters { display: flex; flex-wrap: wrap; gap: 8px; }
-.market-list__search input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .8125rem; }
+.market-list__search input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .8125rem; }
 /* The dropdowns are the shared pills (rg-pill-select), at the list's smaller type. */
 .market-list__filters .rg-pill-select > :is(select, summary) { font-size: .8125rem; }
 .market-list__verified-menu.is-active summary { border-color: var(--color-fg); }
-.market-list__verified-menu fieldset { position: absolute; left: 0; top: calc(100% + 8px); transform-origin: top left; z-index: 3; display: grid; gap: 10px; width: 240px; margin: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; }
+.market-list__verified-menu fieldset { position: absolute; left: 0; top: calc(100% + 8px); transform-origin: top left; z-index: 3; display: grid; gap: 10px; width: min(240px, calc(100vw - 2rem)); margin: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; }
 .market-list__verified-menu legend { float: left; margin-bottom: 2px; color: var(--color-fg-muted); font-size: .75rem; }
-.market-list__verified-menu label { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; }
+.market-list__verified-menu label { display: flex; align-items: center; gap: 8px; min-height: 2.75rem; cursor: pointer; }
 .market-list__verified-menu small { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }
 .market-list__search { flex: 1 1 240px; max-width: 360px; }
 .market-list__search label { display: block; }
 .market-list__search input { width: 100%; }
 .market-list__pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.market-list__pills a { display: inline-flex; align-items: center; min-height: 36px; padding: 4px 14px; border: 1px solid var(--hairline); border-radius: 999px; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
+.market-list__pills a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 4px 14px; border: 1px solid var(--hairline); border-radius: 999px; color: var(--color-fg-muted); font-size: .8125rem; text-decoration: none; }
 .market-list__pills a:hover { color: var(--color-fg); border-color: var(--hairline-strong); }
 .market-list__pills a[aria-current] { border-color: var(--color-fg); background: var(--color-fg); color: var(--color-surface); }
 .market-list { display: grid; gap: 16px; }
-.market-list__scroll { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 8px; background: var(--color-surface); }
+/* Positioned, so the words kept for screen readers stay inside it rather than widening the page. */
+.market-list__scroll { position: relative; overflow-x: auto; }
 .market-list__table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: .875rem; text-align: right; font-variant-numeric: tabular-nums; }
 .market-list__table--tokens { min-width: 560px; }
 .market-list__table thead th { padding: 12px 16px; border-bottom: 1px solid var(--hairline); color: var(--color-fg-muted); font-size: .75rem; font-weight: 500; white-space: nowrap; }
@@ -32,35 +33,33 @@
 .market-list__row td small { display: block; margin-top: 2px; color: var(--color-fg-muted); font-size: .75rem; }
 /* The line naming the minimum stays on one line, so a row keeps its height when it appears. */
 .market-list__row td small[data-from] { white-space: nowrap; }
-.market-list__token { display: flex; align-items: center; gap: 12px; min-width: 0; color: inherit; text-decoration: none; }
+.market-list__token { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 2.75rem; color: inherit; text-decoration: none; }
 .market-list__token:hover strong { text-decoration: underline; text-underline-offset: 3px; }
 .market-list__art { position: relative; display: grid; flex-shrink: 0; place-items: center; width: 40px; height: 40px; border: 1px solid var(--hairline); border-radius: 50%; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-weight: 500; }
 /* Pinned to the circle's inside edge, so a tall or wide picture is cropped to the circle in every browser. */
 .market-list__art img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.market-list__art .market-list__chain { position: absolute; right: -4px; bottom: -4px; box-sizing: border-box; inline-size: 18px; block-size: 18px; padding: 2px; border-radius: 5px; background: var(--color-surface); }
+.market-list__art .market-list__chain { position: absolute; right: -4px; bottom: -4px; box-sizing: border-box; inline-size: 18px; block-size: 18px; padding: 2px; border-radius: var(--radius); background: var(--color-surface); }
 /* The name, then its ticker on the same line; a long name is cut short, the ticker always shows. */
 .market-list__label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
 .market-list__name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .market-list__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg-muted); font-size: .75rem; }
 /* A row's one button sits last, as narrow as its label. */
 .market-list__table .market-list__action { width: 1%; padding-left: 0; }
-.market-list__action .rg-button { min-height: 36px; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
+.market-list__action .rg-button { min-height: 2.75rem; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
 /* Between a token and its price: Buy shows while the row is pointed at or focused, its room always kept; the viewer's own Claim or Refund always shows. */
 .market-list__table .market-list__quick { width: 1%; padding-left: 0; white-space: nowrap; }
-.market-list__quick .rg-button { min-height: 36px; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
+.market-list__quick .rg-button { min-height: 2.75rem; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
 .market-list__quick .rg-button + .rg-button { margin-left: 8px; }
 .market-list__buy { opacity: 0; transition: opacity .12s ease; }
 .market-list__row:is(:hover, :focus-within) .market-list__buy { opacity: 1; }
 .market-list__name strong { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); font-weight: 600; }
 .market-list__name small { flex-shrink: 0; color: var(--color-fg-muted); font-size: .8125rem; white-space: nowrap; }
-.market-list__skeleton td { height: 64px; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
-.market-list__empty { padding: 48px 16px; text-align: center; }
-.market-list__empty h2 { margin: 0 0 8px; font-size: 1.125rem; }
-.market-list__empty p { margin: 0 0 20px; color: var(--color-fg-muted); font-size: .875rem; }
+.market-list__skeleton td { height: 64px; }
+.market-list__skeleton .loading-block { height: 1rem; }
 .market-list__routes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
 .market-list__more { display: flex; justify-content: center; }
 /* A live auction's time bar, filling from its opening to its end in its chain's colour, over the time left. */
-.auction-figures__time { display: block; width: 112px; height: 4px; margin: 0 0 4px auto; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
+.auction-figures__time { display: block; width: 112px; height: 4px; margin: 0 0 4px auto; overflow: hidden; border-radius: var(--radius); background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
 .auction-figures__time span { display: block; height: 100%; border-radius: inherit; background: var(--time-color); }
 .auction-figures__time--base { --time-color: #2970ff; }
 .auction-figures__time--robinhood { --time-color: #00e606; }

@@ -67,12 +67,10 @@ defmodule AutolaunchWeb.PointsLive do
           </Regent.Primitives.button>
         </:sign_in>
       </Regent.Account.signed_out>
-      <p
+      <AutolaunchWeb.Components.Loading.placeholder
         :if={@signed_in? && is_nil(@points.value) && @points.state in [:idle, :loading]}
-        role="status"
-      >
-        Reading your points…
-      </p>
+        label="Reading your points"
+      />
       <Regent.Primitives.notice :if={@points.state == :error} tone="error">
         Points could not be read. Try refreshing this page.
       </Regent.Primitives.notice>

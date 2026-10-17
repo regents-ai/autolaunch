@@ -2,8 +2,7 @@ defmodule AutolaunchWeb.Components.ChainIcon do
   @moduledoc """
   A chain's small mark beside text: Base's blue square and Robinhood's
   feather, both from the chains' own brand kits. The feather is always
-  Robinhood green, the same green as the chain's chip. Inside a chain badge
-  the mark takes the badge's ink.
+  Robinhood green, the same green as the chain's pill (`chain_chip/1`).
   """
   use Phoenix.Component
 
@@ -44,18 +43,22 @@ defmodule AutolaunchWeb.Components.ChainIcon do
     """
   end
 
-  attr :chain, :atom, required: true, values: [:base, :robinhood]
+  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
+  attr :label, :string, required: true, doc: "What the pill shows, such as Base or RH."
 
   @doc """
-  A chain's filled badge, its mark and its name together: white on Base blue,
-  black on Robinhood green. It heads a token's card on the token page.
+  A chain's pill, the shared status pill edged in the chain's colour: on the
+  market cards, and on an auction's and a token's card. Its full name is there
+  for screen readers when the label is short.
   """
-  def chain_badge(assigns) do
+  def chain_chip(assigns) do
     ~H"""
-    <span class={["chain-badge", "chain-badge--#{@chain}"]}>
-      <.chain_icon chain={@chain} class="chain-badge__mark" />
-      <span aria-hidden="true">{if @chain == :base, do: "Base", else: "Robinhood"}</span>
-    </span>
+    <Regent.Primitives.status
+      class={["chain-chip", "chain-chip--#{String.downcase(@chain)}"]}
+      title={@chain}
+    >
+      <span aria-hidden="true">{@label}</span><span class="visually-hidden">{@chain}</span>
+    </Regent.Primitives.status>
     """
   end
 end

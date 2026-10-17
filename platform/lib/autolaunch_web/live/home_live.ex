@@ -501,8 +501,8 @@ defmodule AutolaunchWeb.HomeLive do
           aria-hidden="true"
         >
           <div :for={index <- 1..12} id={"home-skeleton-#{index}"} class="home-skeleton">
-            <div class="home-skeleton__image"></div><div class="home-skeleton__line"></div><div class="home-skeleton__line home-skeleton__line--short">
-            </div>
+            <div class="loading-block home-skeleton__image"></div><div class="loading-block home-skeleton__line">
+            </div><div class="loading-block home-skeleton__line home-skeleton__line--short"></div>
           </div>
         </div>
         <p :if={@market_loading} class="visually-hidden" role="status">Loading launches</p>

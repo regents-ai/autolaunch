@@ -9,8 +9,8 @@
 :where(.portfolio, .token-page, .auction-page, dialog) .ticker { color: var(--ticker-ink); font-weight: 500; }
 :where(.portfolio, .token-page, .auction-page, dialog) .token-name { color: var(--color-fg); font-weight: 600; }
 
-/* A state word (Ready, Completed, Outbid) is a micro-label chip; its tone gives the colour. The Create pages' launch steps read the same way. */
-:where(.portfolio, .token-page, .auction-page, dialog, .launch-wallet) .rg-status { align-items: center; font-size: .6875rem; font-weight: 600; letter-spacing: var(--tracking-microlabel); line-height: 1.6; text-transform: uppercase; white-space: nowrap; }
+/* Every status pill on every page, a state word (Ready, Completed, Outbid), a tag or a chain, is the same micro-label chip; its tone gives the colour. */
+.rg-status { align-items: center; font-size: .6875rem; font-weight: 600; letter-spacing: var(--tracking-microlabel); line-height: 1.6; text-transform: uppercase; white-space: nowrap; }
 
 /* An auction's state word, before it opens and while it waits to finish. */
 :where(.portfolio, .token-page, .auction-page, dialog) .auction-state { font-weight: 600; }

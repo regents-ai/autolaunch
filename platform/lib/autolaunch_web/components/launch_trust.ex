@@ -88,7 +88,9 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
           </div>
         </dl>
         <p class="launch-trust__note">
-          <.link navigate="/how-it-works">How every {@split.name} token is split</.link>
+          <.link navigate="/how-it-works" class="standalone-link">
+            How every {@split.name} token is split
+          </.link>
         </p>
 
         <h3 class="autolaunch-micro">Uniswap Liquidity Pool</h3>

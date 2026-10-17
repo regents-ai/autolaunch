@@ -778,7 +778,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     <section id={@id} class="auction-next-card auction-next-ladder" aria-labelledby={"#{@id}-title"}>
       <header class="auction-next-card__head">
         <h2 id={"#{@id}-title"}>Where bids are waiting</h2>
-        <span class="auction-next-tag">Price per 1M {@token_symbol}</span>
+        <Regent.Primitives.status>Price per 1M {@token_symbol}</Regent.Primitives.status>
       </header>
       <p class="auction-next-lead">
         Each row is a maximum price bids are waiting at. "More bidding needed" is how much

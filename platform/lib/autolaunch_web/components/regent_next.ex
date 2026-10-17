@@ -46,7 +46,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
     >
       <header class="regent-next-card__head">
         <h2 id="regent-next-allocation-title">Where the USDC went</h2>
-        <span class="regent-next-tag">Since staking opened</span>
+        <Regent.Primitives.status>Since staking opened</Regent.Primitives.status>
       </header>
       <p class="regent-next-lead">
         Every USDC deposit is split when it arrives. Only the stakers' part is staking rewards.
@@ -120,7 +120,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
     >
       <header class="regent-next-card__head">
         <h2 id="regent-next-sources-title">The last seven days, by source</h2>
-        <span class="regent-next-tag">USDC only</span>
+        <Regent.Primitives.status>USDC only</Regent.Primitives.status>
       </header>
       <p class="regent-next-lead">
         {deposit_count(@deposits.count)} recorded in the last {grouped(@facts.window_blocks)} Base blocks,
@@ -213,7 +213,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
     <section id="regent-next-split" class="regent-next-card" aria-labelledby="regent-next-split-title">
       <header class="regent-next-card__head">
         <h2 id="regent-next-split-title">How the next deposit splits</h2>
-        <span class="regent-next-tag">Right now</span>
+        <Regent.Primitives.status>Right now</Regent.Primitives.status>
       </header>
       <p>
         Stakers share the USDC paid into staking. Each staker's cut is their share of all REGENT.
@@ -425,7 +425,7 @@ defmodule AutolaunchWeb.Components.RegentNext do
     >
       <header class="regent-next-card__head">
         <h2 id="regent-next-emissions-title">REGENT emissions</h2>
-        <span class="regent-next-tag">Paid in REGENT</span>
+        <Regent.Primitives.status>Paid in REGENT</Regent.Primitives.status>
       </header>
       <p>
         Currently <strong>{@facts.emission_apr_percent}%</strong>

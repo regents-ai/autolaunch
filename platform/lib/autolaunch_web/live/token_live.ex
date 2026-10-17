@@ -252,7 +252,10 @@ defmodule AutolaunchWeb.TokenLive do
 
   defp states(assigns) do
     ~H"""
-    <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
+    <AutolaunchWeb.Components.Loading.placeholder
+      :if={@page_status == :loading}
+      label="Reading the token"
+    />
 
     <section
       :if={@page_status == :empty}

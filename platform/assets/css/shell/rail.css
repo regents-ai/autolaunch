@@ -10,7 +10,7 @@
    the others. */
 .rg-button.shell-rail__link { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); width: 100%; min-height: 3rem; padding: .25rem var(--space-2); gap: .25rem; justify-content: start; font-size: 1.0625rem; line-height: 1.15; text-align: start; text-wrap: balance; }
 .shell-rail__sublist { display: grid; gap: var(--space-1); width: 75%; margin: var(--space-1) 0 0 auto; padding: 0; list-style: none; }
-.rg-button.shell-rail__sublink { min-height: 2.25rem; padding-inline: .5rem; font-size: .796875rem; }
+.rg-button.shell-rail__sublink { min-height: 2.75rem; padding-inline: .5rem; font-size: .796875rem; }
 .rg-button.shell-rail__launch { --rg-p-accent: var(--palette-tangerine-tango); --rg-p-on-accent: var(--palette-charcoal); }
 @media (forced-colors: none) {
   :root .rg-button.shell-rail__link[aria-current="page"]::before {

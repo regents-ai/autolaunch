@@ -260,7 +260,9 @@ defmodule AutolaunchWeb.Components.CreateNext do
         the dead address. Reported total supply stays unchanged.
       </p>
       <p class="create-next__note">
-        <.link navigate={~p"/how-it-works#how-it-works-auction"}>How the auction works</.link>
+        <.link navigate={~p"/how-it-works#how-it-works-auction"} class="standalone-link">
+          How the auction works
+        </.link>
       </p>
     </section>
     """

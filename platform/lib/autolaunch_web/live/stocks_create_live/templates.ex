@@ -152,7 +152,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   {@draft_errors["stock_address"]}
                 </p>
                 <p class="create-page__hint">
-                  <.link navigate="/stock-listing">Onchain Stocks</.link>
+                  <.link navigate="/stock-listing" class="standalone-link">Onchain Stocks</.link>
                 </p>
                 <p class="create-page__hint">{pay_line(@launch_chain, @stock)}</p>
                 <p

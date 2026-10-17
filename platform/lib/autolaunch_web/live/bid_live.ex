@@ -131,9 +131,10 @@ defmodule AutolaunchWeb.BidLive do
       </section>
 
       <%= if @account_control.kind != :sign_in do %>
-        <p :if={@bid.loading && is_nil(@bid.result)} class="bid-page__note" role="status">
-          Reading your bid…
-        </p>
+        <AutolaunchWeb.Components.Loading.placeholder
+          :if={@bid.loading && is_nil(@bid.result)}
+          label="Reading your bid"
+        />
         <p :if={@bid.failed && is_nil(@bid.result)} class="bid-page__note" role="alert">
           Your bid could not be read just now. Try again in a moment.
         </p>

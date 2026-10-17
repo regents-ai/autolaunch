@@ -135,7 +135,7 @@ defmodule AutolaunchWeb.AccountLive do
             session_lease={@session_lease}
             account={signed_in_account(@access_context)}
           />
-          <a href="https://regents.sh/account#account-agents">Manage Agents</a>
+          <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents</a>
         </:footer>
       </Regent.Account.agents>
       <div :if={@current_human_id} class="autolaunch-account-balances">
@@ -147,7 +147,7 @@ defmodule AutolaunchWeb.AccountLive do
           held={@credits_read.value && RegentCredits.Amount.format(@credits_read.value.held)}
           state={read_state(@credits_read)}
         >
-          <a href="https://regents.sh/account">Manage Credits on regents.sh</a>
+          <a href="https://regents.sh/account" class="standalone-link">Manage Credits on regents.sh</a>
         </Regent.Account.credits_summary>
         <Regent.Account.points_summary
           id="account-points"
@@ -191,7 +191,9 @@ defmodule AutolaunchWeb.AccountLive do
           />
           <p :if={@points_read.value && @points_read.value.more?}>Showing the latest 50 entries.</p>
           <p>Earning hasn’t opened on Autolaunch yet.</p>
-          <.link navigate="/account/points">Your bonus and what earns points</.link>
+          <.link navigate="/account/points" class="standalone-link">
+            Your bonus and what earns points
+          </.link>
         </section>
       </div>
       <.live_component

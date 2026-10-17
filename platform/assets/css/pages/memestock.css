@@ -4,8 +4,8 @@
 /* Paired stock: Base or Robinhood, then the chain's stocks in one dropdown. */
 .memestock__paired { display: grid; gap: var(--space-2); }
 .memestock__paired-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.chain-switch { display: inline-flex; padding: 3px; border: 1px solid var(--hairline-strong); border-radius: 999px; }
-.chain-switch__option { min-height: 2rem; padding: 0 var(--space-3); border: 0; border-radius: 999px; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; transition: background-color var(--duration-base) ease, color var(--duration-base) ease; }
+.chain-switch { display: inline-flex; padding: 3px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); }
+.chain-switch__option { min-height: 2.75rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius); background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; transition: background-color var(--duration-base) ease, color var(--duration-base) ease; }
 .chain-switch__option:hover { color: var(--color-fg); }
 .chain-switch__option:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .chain-switch__option--base[aria-pressed="true"] { background: var(--memestock-base); color: #fff; }
@@ -25,7 +25,7 @@
 @keyframes memestock-wash { from { background-position: 100% 0, 0 0; } to { background-position: 0 0, 0 0; } }
 
 .stock-select { position: relative; display: grid; gap: var(--space-2); min-width: 0; }
-.stock-select__button { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 3rem; padding: 0 var(--space-3); border: 1px solid var(--hairline-strong); border-radius: 10px; background: var(--color-surface); color: var(--color-fg); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--duration-fast) ease; }
+.stock-select__button { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 3rem; padding: 0 var(--space-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--duration-fast) ease; }
 .stock-select__button:hover, .stock-select__button[aria-expanded="true"] { border-color: var(--color-fg); }
 .stock-select__button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .stock-select__placeholder { flex: 1; color: var(--color-fg-muted); }
@@ -33,22 +33,22 @@
 .stock-select__name { flex: 1; min-width: 0; overflow: hidden; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
 .stock-select__chevron { flex: none; color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
 .stock-select__button[aria-expanded="true"] .stock-select__chevron { transform: rotate(180deg); }
-.stock-select__list { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); border-radius: 10px; background: var(--color-surface-elevated); box-shadow: 0 12px 32px color-mix(in srgb, #000 22%, transparent); transform-origin: top center; }
+.stock-select__list { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); box-shadow: 0 12px 32px color-mix(in srgb, #000 22%, transparent); transform-origin: top center; }
 .stock-select__list[hidden] { display: none; }
 
 /* The gallery: search, three sorts, then the cards, which scroll on their own. */
 .stock-gallery__body { display: grid; gap: var(--space-2); min-width: 0; }
-.stock-gallery__search { width: 100%; min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--hairline-strong); border-radius: 8px; background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .875rem; }
+.stock-gallery__search { width: 100%; min-height: 2.75rem; padding: 0 var(--space-3); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .875rem; }
 .stock-gallery__search:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
 .stock-gallery__sorts { display: flex; flex-wrap: wrap; gap: 4px; }
-.stock-gallery__sort { min-height: 2rem; padding: 0 var(--space-2); border: 1px solid var(--hairline); border-radius: 999px; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .75rem; cursor: pointer; }
+.stock-gallery__sort { min-height: 2.75rem; padding: 0 var(--space-2); border: 1px solid var(--hairline); border-radius: 999px; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: .75rem; cursor: pointer; }
 .stock-gallery__sort[aria-pressed="true"] { border-color: var(--color-fg); background: var(--color-fg); color: var(--color-bg); }
 .stock-gallery__sort:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .stock-gallery__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 6px; max-height: min(22rem, 55vh); margin: 0; padding: 2px; overflow-y: auto; border: 0; overscroll-behavior: contain; }
 .stock-gallery__empty { margin: 0; padding: var(--space-3) var(--space-2); color: var(--color-fg-muted); font-size: .8125rem; text-align: center; }
 .stock-gallery__empty[hidden] { display: none; }
 
-.stock-card { position: relative; display: grid; min-width: 0; border: 1px solid var(--hairline); border-radius: 8px; }
+.stock-card { position: relative; display: grid; min-width: 0; border: 1px solid var(--hairline); border-radius: var(--radius); }
 .stock-card[hidden] { display: none; }
 .stock-card:hover { border-color: var(--hairline-strong); }
 .stock-card:has(input:checked) { border-color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 8%, transparent); }

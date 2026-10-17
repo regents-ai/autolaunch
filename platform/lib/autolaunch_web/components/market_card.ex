@@ -336,7 +336,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <.coin_art view={@view} />
       <p class="home-coin__pair">
         <span class="home-coin__ticker" title={@pair}>{@view.symbol}<span :if={@view.metric.unit}> /<wbr /> {@view.metric.unit}</span></span>
-        <.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
+        <ChainIcon.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
       </p>
       <h2 class="home-coin__name">{@view.name}</h2>
     </.link>
@@ -547,7 +547,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan={if @trade_event, do: "7", else: "6"}></td>
+            <td colspan={if @trade_event, do: "7", else: "6"}><span class="loading-block"></span></td>
           </tr>
         </tbody>
       </table>
@@ -688,7 +688,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan={if @trade_event, do: "4", else: "3"}></td>
+            <td colspan={if @trade_event, do: "4", else: "3"}><span class="loading-block"></span></td>
           </tr>
         </tbody>
       </table>
@@ -1225,15 +1225,16 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <p class="market-identity__symbol">
           <.token_pair symbol={@view.symbol} unit={@view.metric.unit} />
         </p>
-        <div :if={@kind == :auction} class="market-identity__meta">
-          <.chain_chip chain={@view.chain} label={@view.chain} />
+        <div class="market-identity__meta">
+          <ChainIcon.chain_chip chain={@view.chain} label={@view.chain} />
           <Regent.Primitives.status
+            :if={@kind == :auction}
             tone={state_tone(@status || @view.status)}
             class={graduated(@status || @view.status)}
           >
             {@status || @view.status}
           </Regent.Primitives.status>
-          <span :if={@view.age}>{@view.age}</span>
+          <span :if={@kind == :auction && @view.age}>{@view.age}</span>
         </div>
         <div class="market-identity__price">
           <span>{@view.metric_label}</span><TokenDisplay.price
@@ -1257,10 +1258,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </p>
       </div>
       <div :if={@chart != []} class="market-identity__chart">{render_slot(@chart)}</div>
-      <ChainIcon.chain_badge
-        :if={@kind == :token}
-        chain={if @view.chain == "Robinhood", do: :robinhood, else: :base}
-      />
     </section>
     """
   end
@@ -1363,17 +1360,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </div>
       </dl>
     </section>
-    """
-  end
-
-  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
-  attr :label, :string, required: true
-
-  defp chain_chip(assigns) do
-    ~H"""
-    <span class={["chain-chip", "chain-chip--#{String.downcase(@chain)}"]} title={@chain}>
-      <span aria-hidden="true">{@label}</span><span class="visually-hidden">{@chain}</span>
-    </span>
     """
   end
 

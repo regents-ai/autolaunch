@@ -89,9 +89,10 @@ defmodule AutolaunchWeb.ConvertLive do
     <section id={@id} class="autolaunch-convert" aria-label={@title}>
       <h2 class="autolaunch-convert__title">{@title}</h2>
       <p :if={!@open?}>Memestock launches are not open on this network yet.</p>
-      <p :if={@open? && @rows.loading && is_nil(@rows.result)} role="status">
-        Reading the launches…
-      </p>
+      <AutolaunchWeb.Components.Loading.placeholder
+        :if={@open? && @rows.loading && is_nil(@rows.result)}
+        label="Reading the launches"
+      />
       <p :if={@open? && @rows.failed && is_nil(@rows.result)} role="alert">
         The launches could not be read just now.
       </p>

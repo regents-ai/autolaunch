@@ -1,0 +1,184 @@
+/* One card, one empty state and one loading placeholder for every page, the same
+   on a phone and a wide screen: a square, flat surface edged by a hairline, as the
+   design system's panels are (STYLE.md, "Shape and spacing"). Each page's own
+   rule sets only what sits inside. Pills are the shared ones: the status pill
+   (`Regent.Primitives.status`, styled once in figures.css) for a state, a tag or a
+   chain, and the rounded filter pill (`rg-pill-select`) for a filter. */
+:root {
+  --card-padding: 1.25rem;
+}
+
+@media (max-width: 29.99rem) {
+  :root {
+    --card-padding: 1rem;
+  }
+}
+
+/* Cards. The padded ones hold words and figures; the others hold a table, a
+   chart or a picture that reaches their edges. */
+:where(
+  .auction-next-card,
+  .regent-next-card,
+  .create-next__card,
+  .launch-trust__block,
+  .token-claim__card,
+  .token-trade__status,
+  .auction-finished,
+  .market-identity--tinted,
+  .auction-next-figure,
+  .price-chart,
+  .auction-layout__bid,
+  .market-list__scroll,
+  .home-coin,
+  .autolaunch-empty,
+  .home-empty,
+  .market-list__empty,
+  .loading-card,
+  .loading-figures__figure
+) {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+:where(
+  .auction-next-card,
+  .regent-next-card,
+  .create-next__card,
+  .launch-trust__block,
+  .token-claim__card,
+  .token-trade__status,
+  .auction-finished,
+  .market-identity--tinted,
+  .autolaunch-empty,
+  .loading-card,
+  .loading-figures__figure
+) {
+  padding: var(--card-padding);
+}
+
+/* Empty states: what is missing, why in a line, and where to go next, centred
+   in a card. A page that is itself the message keeps its heading at the left. */
+:where(.home-empty, .market-list__empty, .autolaunch-empty) {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--card-padding);
+  color: var(--color-fg-muted);
+  text-align: center;
+}
+
+:where(.home-empty, .market-list__empty, .autolaunch-empty) > :where(h2, h3, p) {
+  max-width: 30rem;
+  margin: 0;
+}
+
+:where(.home-empty, .market-list__empty, .autolaunch-empty) > :where(h2, h3) {
+  color: var(--color-fg);
+  font-size: 1.125rem;
+}
+
+:where(.autolaunch-page.autolaunch-empty) {
+  justify-items: start;
+  padding: var(--card-padding);
+  text-align: start;
+}
+
+/* A link on a line of its own is a full 44px press; a link inside a sentence
+   stays part of the sentence. */
+:where(.standalone-link, .shell-wordmark, .market-back, .auction-next-link, .fact-table th > a, .regent-contracts dd > a) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+/* A choice and its words are one 44px press. */
+:where(label:has(> input:is([type="radio"], [type="checkbox"]))) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 2.75rem;
+}
+
+/* Loading: the shape of what is coming, in a faint block that breathes, so the
+   page does not jump when it arrives. Still under reduced motion. */
+.loading-block {
+  display: block;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .loading-block {
+    animation: loading-block-breathe 1.6s var(--ease-in-out) infinite;
+  }
+}
+
+@keyframes loading-block-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* `AutolaunchWeb.Components.Loading.placeholder/1`: a card of lines, or a row of figures. */
+.loading-card {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.loading-card__title {
+  width: 40%;
+  height: 1.25rem;
+  margin-block-end: var(--space-1);
+}
+
+.loading-card__line {
+  height: 0.75rem;
+}
+
+.loading-card__line:last-child {
+  width: 60%;
+}
+
+.loading-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-2);
+}
+
+.loading-figures__figure {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.loading-figures__label {
+  width: 50%;
+  height: 0.75rem;
+}
+
+.loading-figures__value {
+  width: 70%;
+  height: 1.5rem;
+}
+
+/* On a phone a page's main action stays in reach: a bid's wallet button, and
+   Launch (or what it still needs) under the create form, ride at the foot of the
+   screen, above the market ticker, while their form is on screen. Only where
+   they move; what they do is unchanged. A launch's own review, which is taller
+   than a screen, scrolls as it is. */
+@media (max-width: 47.99rem) {
+  .bid-actions,
+  .create-page__launch:has(> .create-page__launch-button) {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin-inline: calc(-1 * var(--space-2));
+    padding: var(--space-2);
+    border-block-start: 1px solid var(--hairline);
+    background: var(--color-surface);
+  }
+
+  body:has(.market-ticker) :is(.bid-actions, .create-page__launch:has(> .create-page__launch-button)) {
+    bottom: var(--market-ticker-height);
+  }
+}
