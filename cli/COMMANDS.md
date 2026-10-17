@@ -83,11 +83,10 @@ Server: verify exact SIWA request → check in the current pairing → return th
 pairing response with the account as Autolaunch's pages name it. Requires the shared
 SIWA broker and Agents schema. Awards no Points and changes no account data.
 
-The check-in is a write to contact metadata. A resolved `data.account` includes
-`local_account`, `display_name`, nullable `wallet_address` and `wallet_addresses`
-(default `[]`). These stored verified wallet facts grant no wallet authority.
-Before the person's first sign-in on Autolaunch, `data.account` holds
-`local_account: false` and the `sign_in` address to give them.
+The check-in is a write to contact metadata. `data.account` is the person's Regent
+account, the same on every Regent site: nullable `display_name` and `ens_name`,
+nullable `wallet_address` and `wallet_addresses` (default `[]`). These stored
+verified wallet facts grant no wallet authority.
 
 ## `agents pair`
 

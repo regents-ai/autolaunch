@@ -432,7 +432,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -441,7 +441,7 @@ paths:
     "get":
       "operationId": "agent_status"
       "summary": "Check in as a paired agent"
-      description: Updates the paired agent check-in time, then projects the existing owner account. Wallet fields are stored verified facts, not wallet authority or a fresh provider check.
+      description: Updates the paired agent check-in time, then projects the paired person's Regent account. Wallet fields are stored verified facts, not wallet authority or a fresh provider check.
       "security":
         -
           "SiwaProof": []
@@ -468,7 +468,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -509,7 +509,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -526,7 +526,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -571,7 +571,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -588,7 +588,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -633,7 +633,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -654,7 +654,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -675,7 +675,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
           content:
@@ -712,7 +712,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing, and your person's first sign-in on this site"
+          "description": "Needs a pairing"
         "422":
           "description": "Invalid input"
         "503":
@@ -879,26 +879,19 @@ components:
       properties:
         data: {$ref: "#/components/schemas/CheckedInAgent"}
     PairedAccount:
-      description: The existing pairing-derived owner account. No caller-supplied owner ID, provider IDs or wallet authority.
-      oneOf:
-        - type: object
-          additionalProperties: false
-          required: [local_account, display_name, wallet_address, wallet_addresses]
-          properties:
-            local_account: {type: boolean, description: "Whether the existing local verified wallet evidence is current under the site's rule."}
-            display_name: {type: [string, "null"]}
-            wallet_address: {type: [string, "null"], description: "Stored primary wallet from verified sign-in evidence; no signing authority."}
-            wallet_addresses:
-              type: array
-              default: []
-              items: {type: string}
-              description: Stored linked wallets from verified sign-in evidence; missing evidence is an empty list.
-        - type: object
-          additionalProperties: false
-          required: [local_account]
-          properties:
-            local_account: {const: false}
-            sign_in: {type: string, format: uri}
+      description: The Regent account of the person the agent is paired with, the same on every Regent site, from the pairing itself. No caller-supplied owner ID, provider IDs or wallet authority.
+      type: object
+      additionalProperties: false
+      required: [display_name, ens_name, wallet_address, wallet_addresses]
+      properties:
+        display_name: {type: [string, "null"], description: "The name in the person's shared Regent profile."}
+        ens_name: {type: [string, "null"], description: "The ENS name of the stored primary wallet, when one was read for it."}
+        wallet_address: {type: [string, "null"], description: "Stored primary wallet from verified sign-in evidence; no signing authority."}
+        wallet_addresses:
+          type: array
+          default: []
+          items: {type: string}
+          description: Stored linked wallets from verified sign-in evidence; missing evidence is an empty list.
     PointsAmount:
       type: string
       pattern: '^-?\d+(?:\.\d{1,2})?$'

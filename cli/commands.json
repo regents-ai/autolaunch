@@ -333,7 +333,7 @@
     },
     {
       "command": "agents status",
-      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof. The account includes stored verified wallet facts when resolved; these grant no wallet authority.",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
       "operation_id": "agent_status",
       "method": "GET",
       "path": "/api/agents/v1/me",

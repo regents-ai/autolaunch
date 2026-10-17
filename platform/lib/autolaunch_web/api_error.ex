@@ -43,11 +43,7 @@ defmodule AutolaunchWeb.ApiError do
 
   defp hint("agent_not_paired"),
     do:
-      "Ask the owner for a code from the side panel or their account page at #{PublicDocuments.url("/account")}, or at https://regents.sh/account, then redeem it with POST /api/agents/v1/pair."
-
-  defp hint("owner_not_local"),
-    do:
-      "Ask your person to sign in once at https://autolaunch.sh/account, as they sign in on any Regent site, then send the request again."
+      "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
 
   defp hint("authentication_required"),
     do:
