@@ -16,10 +16,18 @@ defmodule Autolaunch.Search do
   @match 0.45
   @limit 80
 
-  @doc "The one form a search takes: single spaces, no spaces at either end, at most eighty characters."
+  @doc """
+  The one form a search takes: readable text without control or hidden
+  characters, single spaces, no spaces at either end, at most eighty
+  characters. Bytes that are not text and hidden characters (a null byte, or
+  a mark that reverses reading direction) become spaces, so a pasted search
+  still finds what its words name.
+  """
   @spec normalize(term()) :: String.t()
   def normalize(value) when is_binary(value) do
     value
+    |> String.replace_invalid(" ")
+    |> String.replace(~r/[\x{0}-\x{1F}\x{7F}-\x{9F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u, " ")
     |> String.split()
     |> Enum.join(" ")
     |> String.graphemes()
