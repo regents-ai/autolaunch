@@ -39,8 +39,10 @@ defmodule Autolaunch.LaunchDraft do
       if(image_complete?(draft), do: [], else: [:image])
   end
 
+  # The website is optional; one that is given is a full https:// link, as the
+  # token carries it.
   defp website_complete?(website) when website in [nil, ""], do: true
-  defp website_complete?(website), do: within?(website, 256)
+  defp website_complete?(website), do: LaunchLinks.web_link?(website)
 
   @doc "Whether the persisted treasury stage is ready for launch review."
   def treasury_complete?(draft) do

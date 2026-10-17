@@ -62,6 +62,36 @@ defmodule Autolaunch.LaunchDraftTest do
     assert persisted.treasury == "0x123"
   end
 
+  test "a draft refuses hidden characters in a field, and a website must be a full link to launch" do
+    actor = %Human{human_account_id: account!("hidden-text").id}
+    draft = Autolaunch.create_launch_draft!(%{}, actor: actor)
+
+    for {field, value} <- [{"name", "Bad\u0000Name"}, {"description", "\u202Eevil"}] do
+      assert {:error, %Ash.Error.Invalid{errors: [%{field: refused, message: message}]}} =
+               Autolaunch.autosave_launch_token_details(draft, %{field => value}, actor: actor)
+
+      assert {to_string(refused), message} == {field, "Remove the hidden characters from this."}
+    end
+
+    assert {:ok, lines} =
+             Autolaunch.autosave_launch_token_details(
+               draft,
+               %{"description" => "Line one\nLine two", "website" => "javascript:alert(1)"},
+               actor: actor
+             )
+
+    assert :website in LaunchDraft.missing_token_details(lines)
+
+    assert {:ok, linked} =
+             Autolaunch.autosave_launch_token_details(
+               lines,
+               %{"website" => "https://example.com"},
+               actor: actor
+             )
+
+    refute :website in LaunchDraft.missing_token_details(linked)
+  end
+
   defp account!(suffix) do
     Accounts.register_verified!(
       "did:privy:autolaunch-draft:#{suffix}:#{Elixir.System.unique_integer([:positive])}",

@@ -42,11 +42,21 @@ defmodule Autolaunch.LaunchLinks do
   defp link?(field, value) when field in [:telegram, :discord],
     do: byte_size(value) <= 256 and value =~ Map.fetch!(@patterns, field)
 
-  defp link?(_other, value) do
+  defp link?(_other, value), do: web_link?(value)
+
+  @doc """
+  Whether `value` is a full https:// web link: what a launch's website and its
+  other links must be once they are filled in.
+  """
+  @spec web_link?(String.t()) :: boolean()
+  def web_link?(value) do
     byte_size(value) <= 256 and
       match?(%URI{scheme: "https", host: host} when host not in [nil, ""], URI.parse(value)) and
       not String.contains?(value, [" ", "\n", "\t"])
   end
+
+  @doc "What a website or other link that is not a full web link says beside it."
+  def web_link_hint, do: @other_hint
 
   defp hint(field), do: Map.get(@hints, field, @other_hint)
 end

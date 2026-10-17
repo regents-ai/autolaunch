@@ -11,6 +11,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   use AutolaunchWeb, :live_view
 
+  require Logger
+
   alias Autolaunch.Actors.Human
   alias Autolaunch.{ImageColor, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
@@ -231,7 +233,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
           assign(socket,
             draft_values: Map.merge(socket.assigns.draft_values, values),
             draft_errors: errors,
-            draft_notice: unsaved_notice(socket)
+            draft_notice: unsaved_notice(socket, errors)
           )
       end
 
@@ -289,9 +291,17 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp saved_notice(%{assigns: %{current_human_id: nil}}), do: nil
   defp saved_notice(_socket), do: %{tone: :success, message: "Saved"}
 
-  defp unsaved_notice(%{assigns: %{current_human_id: nil}}), do: nil
+  defp unsaved_notice(%{assigns: %{current_human_id: nil}}, _errors), do: nil
 
-  defp unsaved_notice(_socket),
+  # A save refused for a field marks that field; one that failed for any other
+  # reason marks nothing, so the note says to try again instead.
+  defp unsaved_notice(_socket, errors) when errors == %{},
+    do: %{
+      tone: :error,
+      message: "That change could not be saved just now. Try again in a moment."
+    }
+
+  defp unsaved_notice(_socket, _errors),
     do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
 
   defp taken?(%{assigns: %{status: status}}), do: status != :error
@@ -307,7 +317,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
     |> assign(
       draft_values: Map.merge(socket.assigns.draft_values, unsaved),
       draft_errors: errors,
-      draft_notice: if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket))
+      draft_notice:
+        if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket, errors))
     )
     |> choose_linked_stock()
     |> assign_market()
@@ -483,18 +494,28 @@ defmodule AutolaunchWeb.StocksCreateLive do
     end
   end
 
-  defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
+  defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}} = failure) do
     params = Templates.draft_field_params()
 
-    for %{field: field} = error <- errors,
-        to_string(field) in params,
-        into: %{},
-        do: {to_string(field), error_message(error)}
+    marked =
+      for %{field: field} = error <- errors,
+          to_string(field) in params,
+          into: %{},
+          do: {to_string(field), error_message(error)}
+
+    if marked == %{}, do: unmarked(failure), else: marked
   end
 
-  defp draft_field_errors(_error), do: %{}
+  defp draft_field_errors(failure), do: unmarked(failure)
 
-  defp error_message(%Ash.Error.Changes.Required{}), do: "is required"
+  # Anything but a refused field is not the creator's to fix: it is logged,
+  # and the page says to try again.
+  defp unmarked(failure) do
+    Logger.warning("launch draft could not be saved: #{inspect(failure)}")
+    %{}
+  end
+
+  defp error_message(%Ash.Error.Changes.Required{}), do: "Fill this in."
   defp error_message(%{message: message}), do: message
 
   defp human_actor(%{assigns: %{access_context: %{principal: {:human, %{id: id}}}}})

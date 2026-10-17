@@ -1,8 +1,8 @@
 defmodule AutolaunchWeb.DraftMarks do
   @moduledoc """
   What both create pages mark beside a field whose text is saved as typed but
-  that a launch cannot use yet: a link that is not a link of its kind, or a
-  ticker outside the ticker rule. A field the save itself refused keeps that
+  that a launch cannot use yet: a website or link that is not a link of its
+  kind, or a ticker outside the ticker rule. A field the save itself refused keeps that
   message instead. And what a draft still needs before its launch review.
   """
 
@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.DraftMarks do
   def marked(errors, values) do
     links = Map.new(LaunchLinks.fields(), &{&1, values[Atom.to_string(&1)]})
     symbol = values["symbol"]
+    website = values["website"]
 
     LaunchLinks.problems(links)
     |> Map.new(fn {field, hint} -> {Atom.to_string(field), hint} end)
@@ -21,6 +22,11 @@ defmodule AutolaunchWeb.DraftMarks do
         do: marks,
         else: Map.put(marks, "symbol", Ticker.hint())
     end)
+    |> then(fn marks ->
+      if website in [nil, ""] or LaunchLinks.web_link?(website),
+        do: marks,
+        else: Map.put(marks, "website", LaunchLinks.web_link_hint())
+    end)
     |> Map.merge(errors)
   end
 
@@ -28,7 +34,7 @@ defmodule AutolaunchWeb.DraftMarks do
     name: "name",
     symbol: "ticker",
     description: "description",
-    website: "website",
+    website: "a full https:// website",
     telegram: "a t.me Telegram link",
     discord: "a Discord invite link",
     other_link_1: "a full https:// link",

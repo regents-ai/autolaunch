@@ -37,13 +37,15 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   defp missing_token_details(draft) do
     for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
       if(Ticker.complete?(Map.get(draft, :symbol)), do: [], else: [:symbol]) ++
-      if(optional_within?(Map.get(draft, :website), 256), do: [], else: [:website]) ++
+      if(website_complete?(Map.get(draft, :website)), do: [], else: [:website]) ++
       Keyword.keys(LaunchLinks.problems(draft)) ++
       if(image_complete?(draft), do: [], else: [:image])
   end
 
-  defp optional_within?(value, _limit) when value in [nil, ""], do: true
-  defp optional_within?(value, limit), do: within?(value, limit)
+  # The website is optional; one that is given is a full https:// link, as the
+  # token carries it.
+  defp website_complete?(website) when website in [nil, ""], do: true
+  defp website_complete?(website), do: LaunchLinks.web_link?(website)
 
   @doc "The website a launch writes into its token: the creator's, or this site's."
   def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
