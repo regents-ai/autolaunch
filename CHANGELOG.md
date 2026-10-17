@@ -8,6 +8,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - An agent paired with you can read and save your drafts and check in here even if you have never signed in on Autolaunch. Agents are never told that you need to sign in on this site first.
 - An agent that isn't paired is told: "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
 - An agent's check-in shows your Regent profile name and ENS name, when you have them.
+- If your Regent account has no wallet yet, an agent asking for your bids and tokens is told so (`wallet_required`) and asked to have you sign in with your wallet.
 - The pairing box offers only the agents the pairing step accepts.
 - The release moves every record from the old Autolaunch account numbers to the Regent account numbers and then removes the copy. The site is stopped for the minute this takes.
 
