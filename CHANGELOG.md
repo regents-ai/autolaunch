@@ -3,6 +3,14 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v145 (pending): a phone layout that gets out of the way
+- On a phone the top of every page is one slim bar: Autolaunch on the left, then Menu and Sign in (or your picture). Pages start right under it, and the bar stays at the top as you scroll.
+- Menu opens a panel from the right with Explore, Auctions, Tokens, Stocks, Portfolio and Docs as plain rows, and Launch as the one big button. Search is there too once the site opens. Tap beside it, press Close navigation or go to another page to close it.
+- Your picture opens the side panel, which now also shows your Credits balance on a phone.
+- The WebMCP tools button and the light and dark switch are at the top of the footer on a phone.
+- Pages reach the edges of the screen and keep clear of the notch and the home bar.
+- Tablets and laptops look as they did.
+
 ## v143, 17 October 2026 (1c4e5d5): buttons with cut corners and a footer at the bottom
 - Main buttons cut two corners again, with Powder Blue and Tangerine marks in Autolaunch's own colours in light and dark. Their arrow nudges when you point at them and they give a little when pressed.
 - The footer reads About, Developer docs, Agent guide, Contact, Privacy policy and Terms of use. Agent guide opens the two plain-text guides to give your agent.
