@@ -3,7 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v146, 17 October 2026: empty pages that point the way, and plain field messages
+## v147, 17 October 2026: a mistyped token or auction address is not found again
+- An address that can't belong to any auction or token, such as a mistyped link, shows the not-found page again. Since v146 it said the page didn't open.
+
+## v146, 17 October 2026 (0eda7c0): empty pages that point the way, and plain field messages
 - Empty lists, searches with no matches, a bid page with no bid and a draft that won't open each say why in one line and offer a button to move on.
 - An auction or token that is no longer listed says so, instead of showing a long internal number.
 - If an auction or token page can't be read for a moment, it says the page didn't open and offers Try again, instead of claiming the page doesn't exist.
