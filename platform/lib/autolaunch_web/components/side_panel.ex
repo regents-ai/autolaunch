@@ -102,7 +102,7 @@ defmodule AutolaunchWeb.Components.SidePanel do
       </section>
 
       <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
-        <h3 id="shell-pairing-title">Pair your agent</h3>
+        <h3 id="shell-pairing-title">Pair New Agent</h3>
         {render_slot(@pairing)}
         <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents</a>
       </section>
