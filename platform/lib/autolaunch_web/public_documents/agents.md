@@ -42,7 +42,7 @@ Autolaunch's prelaunch gate remains authoritative. While read-only mode is enabl
 
 Signed `GET /api/agent/v1/drafts/revstake` and `/drafts/memestock` read the paired owner's metadata draft. `PATCH` to the same address saves one or more text fields: `name`, `symbol`, `description`, `website`, `telegram`, `discord`, `other_link_1`, `other_link_2`, `other_link_3`. It preserves the existing draft identity and attributes the edit to the current pairing. Unknown fields, treasury settings, chain selection, launch terms, wallet fields and non-text values are rejected. If a save loses its response, read the draft before retrying the same metadata with fresh proof. Concurrent saves use last-write-wins behavior.
 
-Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable; it cannot trade or settle anything.
+Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable, and answers 409 `wallet_required` when your person's account has no verified wallet; it cannot trade or settle anything.
 
 Signed `GET /api/agent/v1/account/balances`, `POST /api/agent/v1/account/credits/history` (JSON `{}` or an `after` cursor), and `GET /api/agent/v1/account/points` read canonical account data. They create no balance, award no Points, approve no budget and spend nothing. New grant approvals remain disabled during rollout. Pairing is not spending approval.
 

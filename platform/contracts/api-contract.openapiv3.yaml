@@ -634,6 +634,8 @@ paths:
           "description": "Fresh request proof required"
         "403":
           "description": "Needs a pairing"
+        "409":
+          "description": "Your person's Regent account has no verified wallet to read (wallet_required)"
         "422":
           "description": "Invalid input"
         "503":

@@ -82,7 +82,7 @@ or chain settings.
    and maximum price you assumed. It is never an executable quote or a placed bid. Robinhood
    auctions answer `estimate_not_offered`; read their figures with `auction ID`.
 4. For private positions, check your pairing. `positions` reads your person's verified primary
-   wallet, not every linked wallet.
+   wallet, not every linked wallet; `wallet_required` means their account has no verified wallet.
    Report bids and each token's `held`, `staked` and `claimable` only as returned, with chain,
    token and units attached. If the chain cannot be read, say the read failed, never that the
    portfolio is empty.

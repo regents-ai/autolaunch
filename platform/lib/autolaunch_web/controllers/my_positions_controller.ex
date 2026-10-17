@@ -9,6 +9,7 @@ defmodule AutolaunchWeb.MyPositionsController do
 
   use AutolaunchWeb, :controller
 
+  alias Autolaunch.Accounts.VerifiedSession
   alias Autolaunch.Actors.Human
   alias Autolaunch.{AuctionBook, TokenHoldings}
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
@@ -31,8 +32,21 @@ defmodule AutolaunchWeb.MyPositionsController do
     respond(conn, actor, account)
   end
 
-  def signed(conn, _params),
-    do: respond(conn, conn.assigns.actor, conn.assigns.agent_owner_account)
+  # An agent's person may have signed in without a wallet; then there is no
+  # wallet to read.
+  def signed(conn, _params) do
+    account = conn.assigns.agent_owner_account
+
+    if VerifiedSession.current?(account),
+      do: respond(conn, conn.assigns.actor, account),
+      else:
+        ApiError.send(
+          conn,
+          :conflict,
+          "wallet_required",
+          "Your person's Regent account has no verified wallet to read."
+        )
+  end
 
   defp respond(conn, actor, account) do
     {:ok, wallet} = Address.normalize(account.wallet_address)
