@@ -1,7 +1,8 @@
--- Read-only checks after the shared-account migrations (v144), before the new
+-- Read-only checks after the shared-account migrations, before the new
 -- release takes traffic. Every digest must equal the one checks-before.sql
--- printed for the same table: each record still names the same person, now
--- through the shared Regent account.
+-- printed: every Autolaunch person has a shared Regent account, the ones
+-- created hold the Privy ID and wallets Autolaunch held, and each record still
+-- names the same person, now through the shared Regent account.
 BEGIN TRANSACTION READ ONLY;
 
 -- 1. The six migrations are recorded. Must be 6.
@@ -17,7 +18,21 @@ FROM pg_constraint
 WHERE contype = 'f' AND confrelid = 'regent_names.platform_human_users'::regclass
   AND connamespace = 'autolaunch_app'::regnamespace;
 
--- 4. Per table, as before: the digests must match checks-before.sql's.
+-- 4. Every person who had an Autolaunch account, as the first migration
+-- recorded them: how many (checks-before.sql check 1's people), how many it
+-- created a shared account for (its to_create), how many have no shared
+-- account (must be 0), and the two digests, which must equal check 1's
+-- people_digest and to_create_digest.
+SELECT count(*) AS people,
+       count(*) FILTER (WHERE c.created) AS created,
+       count(*) FILTER (WHERE p.id IS NULL) AS no_shared_account,
+       md5(string_agg(p.privy_user_id, ',' ORDER BY p.privy_user_id)) AS people_digest,
+       md5(string_agg(p.privy_user_id || ':' || p.wallet_address || ':' || array_to_string(p.wallet_addresses, ' '),
+                      ',' ORDER BY p.privy_user_id) FILTER (WHERE c.created)) AS to_create_digest
+FROM autolaunch_app.shared_accounts_cutover c
+LEFT JOIN regent_names.platform_human_users p ON p.id = c.human_account_id;
+
+-- 5. Per table, as before: the digests must match checks-before.sql check 6's.
 WITH named AS (
   SELECT 'account_ens_identities' AS tbl, r.id::text AS id, r.human_account_id IS NULL AS nobody, a.privy_user_id AS who
   FROM autolaunch_app.account_ens_identities r LEFT JOIN regent_names.platform_human_users a ON a.id = r.human_account_id

@@ -10,6 +10,7 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - An agent's check-in shows your Regent profile name and ENS name, when you have them.
 - If your Regent account has no wallet yet, an agent asking for your bids and tokens is told so (`wallet_required`) and asked to have you sign in with your wallet.
 - The pairing box offers only the agents the pairing step accepts.
+- If you have only ever signed in on Autolaunch, the release first gives you your Regent account, holding the same sign-in and wallets Autolaunch has for you, as your first sign-in on any other Regent site would have.
 - The release moves every record from the old Autolaunch account numbers to the Regent account numbers and then removes the copy. The site is stopped for the minute this takes.
 
 ## v150, 18 October 2026: share videos wait their turn, three of your own a day

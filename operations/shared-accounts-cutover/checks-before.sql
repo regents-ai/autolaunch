@@ -1,18 +1,33 @@
--- Read-only checks before the shared-account migrations (v144). Run against
+-- Read-only checks before the shared-account migrations. Run against
 -- regents_prod with any login that can read autolaunch_app and regent_names.
--- Nothing here writes, and no Privy ID or wallet leaves the database: the last
--- query prints counts and one digest per table. Keep its output; the same
--- digests must come back from checks-after.sql.
+-- Nothing here writes, and no Privy ID or wallet leaves the database: checks 1
+-- and 6 print counts and digests. Keep their output; the same digests must
+-- come back from checks-after.sql.
 -- Replace :migration_login with the login the migrations app connects as
 -- (psql -v migration_login="'name'").
 BEGIN TRANSACTION READ ONLY;
 
--- 1. People with an Autolaunch account and no shared Regent account. Must be 0.
-SELECT count(*) AS no_shared_account
+-- 1. People with an Autolaunch account; those with no shared Regent account,
+-- for whom the first migration creates one from their Privy ID and the wallets
+-- Autolaunch holds; those of them whose wallets are not as a sign-in records
+-- them (distinct lowercase addresses holding the signed-in wallet), which must
+-- be 0; a digest of every person's Privy ID; and a digest of the Privy ID and
+-- wallets of each person to be given a shared account.
+SELECT count(*) AS people,
+       count(*) FILTER (WHERE p.id IS NULL) AS to_create,
+       count(*) FILTER (WHERE p.id IS NULL AND (
+         h.wallet_address ~ '^0x[0-9a-f]{40}$'
+         AND h.wallet_address = ANY (h.wallet_addresses)
+         AND NOT EXISTS (
+           SELECT 1 FROM unnest(h.wallet_addresses) w WHERE w IS NULL OR w !~ '^0x[0-9a-f]{40}$')
+         AND cardinality(h.wallet_addresses) =
+           (SELECT count(DISTINCT w) FROM unnest(h.wallet_addresses) w)
+       ) IS NOT TRUE) AS wallets_not_as_signed_in,
+       md5(string_agg(h.privy_user_id, ',' ORDER BY h.privy_user_id)) AS people_digest,
+       md5(string_agg(h.privy_user_id || ':' || h.wallet_address || ':' || array_to_string(h.wallet_addresses, ' '),
+                      ',' ORDER BY h.privy_user_id) FILTER (WHERE p.id IS NULL)) AS to_create_digest
 FROM autolaunch_app.human_accounts h
-WHERE NOT EXISTS (
-  SELECT 1 FROM regent_names.platform_human_users p WHERE p.privy_user_id = h.privy_user_id
-);
+LEFT JOIN regent_names.platform_human_users p ON p.privy_user_id = h.privy_user_id;
 
 -- 2. Values only Autolaunch's copy holds, which the move would lose. All must be 0.
 SELECT count(*) FILTER (WHERE display_name IS NOT NULL) AS names,
@@ -39,10 +54,18 @@ SELECT count(*) AS people,
 FROM autolaunch_app.human_accounts h
 JOIN regent_names.platform_human_users p USING (privy_user_id);
 
--- 5. The migrations login may read the shared account table and point keys at
--- it. Both must be true.
+-- 5. The migrations login may read the shared account table, point keys at
+-- it, add accounts to it (taking their numbers from its sequence) and, going
+-- down, remove the ones it added; and may write the wallet record Points keeps
+-- for every new account (its trigger on the shared table runs as the login
+-- that adds the row). All must be true.
 SELECT has_table_privilege(:migration_login, 'regent_names.platform_human_users', 'SELECT') AS can_read,
-       has_table_privilege(:migration_login, 'regent_names.platform_human_users', 'REFERENCES') AS can_reference;
+       has_table_privilege(:migration_login, 'regent_names.platform_human_users', 'REFERENCES') AS can_reference,
+       has_table_privilege(:migration_login, 'regent_names.platform_human_users', 'INSERT') AS can_add,
+       has_sequence_privilege(:migration_login, pg_get_serial_sequence('regent_names.platform_human_users', 'id'), 'USAGE') AS can_number,
+       has_table_privilege(:migration_login, 'regent_names.platform_human_users', 'DELETE') AS can_remove,
+       has_table_privilege(:migration_login, 'regent_points.wallet_snapshots', 'INSERT') AS can_record_wallets,
+       has_sequence_privilege(:migration_login, pg_get_serial_sequence('regent_points.wallet_snapshots', 'id'), 'USAGE') AS can_number_wallets;
 
 -- 6. Per table: rows, rows naming nobody, rows naming a missing account (must
 -- be 0), and a digest of every row with the Privy ID of the person it names.
