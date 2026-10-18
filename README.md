@@ -173,6 +173,8 @@ every bid, trade, stake and claim is a transaction you approve in your own walle
   public auction and token data for scripts and AI agents.
 - Developers: [website](platform/README.md) and [contracts](contracts/README.md)
   setup.
+- [Releasing the site](operations/RELEASE.md): the steps every release follows before a table is
+  deleted or a protected table's lock is lifted.
 
 Autolaunch is part of the Regent family, with [Regents](https://regents.sh),
 [Patchbay](https://patchbay.help) and [Techtree](https://techtree.sh). An account or payment on one
