@@ -127,9 +127,9 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Request limits work as on every Regent site, with the same allowances.
 - Pages, files and the X connection window carry the same security rules as every Regent site. The saved-errors page shows nothing to visitors.
 
-## 15 October 2026: swaps start at 6% slippage on a bigger machine
+## 15 October 2026: swaps start at 6% slippage, and room for more visitors
 - The token page's swap widget starts with a 6% maximum slippage, up from 1%. Swappers can still pick anywhere from 1% to 10%.
-- Production runs on two dedicated processors and 4 GB, up from one and 2 GB. Fly no longer turns visitors away at 150 connections; when the machine fills up, it gets a bigger one.
+- The site handles more people at once, and no visitor is turned away when it is busy.
 
 ## 15 October 2026: stock bids let you set slippage
 - Base USDC and Robinhood USDG stock auction bids have an editable slippage, 5% by default, from 0% to 99.99% with up to two decimals. The bid shows the exact minimum stock received, and that minimum goes into the transaction. Direct stock bids are unchanged.
@@ -242,16 +242,13 @@ What changed on autolaunch.sh for people and agents, newest first.
 - "Buy at" on a stock names its trading venues with more than $10,000, the two deepest.
 - An auction names its minimum only when it is about to miss it, and an auctions list with
   nothing in a status says so instead of reporting a failed search.
-- For about five minutes after this release (21:41Z to 21:46Z) the create page answered an
-  error and stock prices were not read, and the stock picker was empty until 21:50Z: the
-  release went out before its two database changes were applied. They were applied at
-  21:46Z.
+- For about ten minutes on 13 October (21:41 to 21:50 UTC) the create page showed an error,
+  stock prices were not read and the stock picker was empty.
 
 ## 13 October 2026: an open page's connection holds less memory
 - The connection behind each open page now gives back the memory it used to send the
   page. Before, it kept it for as long as the tab stayed open. With 50 pages open on a
   practice copy of the site, a connection held about 0.09 MB, down from about 1.67 MB.
-  The limit of 150 connections at Fly's door is unchanged.
 
 ## 13 October 2026: open pages are told only when something they show changed
 - An open page is sent an update only when something it shows changed. Before, every open
@@ -266,14 +263,12 @@ What changed on autolaunch.sh for people and agents, newest first.
   between the launch and the first block of bidding, the page said the auction could not be
   read from the chain.
 
-## 13 October 2026: a limit on connections at Fly's door
-- Fly now hands the site at most 150 connections at once; newcomers beyond that wait at
-  Fly's door and open pages keep their connection. This does not by itself make open pages
-  faster.
+## 13 October 2026: open pages keep working when the site is busy
+- When the site is very busy, new visitors wait a moment to get in and pages already open
+  keep working.
 
-## 13 October 2026: a dedicated processor, and commands say who may run them
-- The site runs on a dedicated processor. On the shared one it was held back once its
-  allowance ran out, which made pages and clicks slow about 40 minutes after each release.
+## 13 October 2026: pages stay quick after each release, and commands say who may run them
+- Pages and clicks no longer slow down about 40 minutes after each release.
 - Every agent command now says who may run it: any signed-in agent, or an agent paired
   with a person.
 
@@ -485,8 +480,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 9 October 2026
 - The public auction list (`GET /api/v1/auctions`) is kept for five seconds, so callers
-  asking for the same list again share one answer. The site now runs on a shared
-  2 CPU / 2 GB machine.
+  asking for the same list again share one answer.
 
 ## 9 October 2026
 - On the Revstake Create page, a Safe treasury address is now read on Base as it is
@@ -958,17 +952,6 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ### Live trades
 - The bottom ticker shows token buys and sells from each launched token's pool next to the bids.
-
-### Database changes
-Five, all applied before the switch-over:
-- `20260924171619_auction_market_figures`: amount raised, floor price and token supply for each
-  auction.
-- `20260924183803_token_trades`: the trades table behind the ticker.
-- `20260924183957_allow_many_open_bid_reviews` and
-  `20260924191532_allow_many_open_settlement_and_launch_reviews`: remove the one-open-review
-  limits.
-- `20260924193836_record_the_auction_price`: lets a settlement include the step that records
-  the price.
 
 ## 24 September 2026
 - Each auction page lists its bids with wallets, a price-over-time chart, and bids placed against

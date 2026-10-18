@@ -24,7 +24,7 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 | v136 | 16 October 2026 | `227b1ff` | a simpler header and clearer lists |
 | v135 | 15 October 2026 | `b830b18` | Escape closes swap settings; Autolaunch's own agent skill |
 | v134 | 15 October 2026 | `39c0cc9` | sign out stays signed out |
-| v133 | 15 October 2026 | `5f0209f` | swaps start at 6% slippage on a bigger machine |
+| v133 | 15 October 2026 | `5f0209f` | swaps start at 6% slippage, and room for more visitors |
 | v132 | 15 October 2026 | `0db69a6` | stock bids let you set slippage |
 | v131 | 15 October 2026 | `e055673` | agent account answers match the template |
 | v130 | 15 October 2026 | not recorded | shared dependency baseline |
@@ -53,8 +53,8 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 | v107 | 13 October 2026 | `27c5135` | an open page's connection holds less memory |
 | v106 | 13 October 2026 | `ca358ae` | open pages are told only when something they show changed |
 | v105 | 13 October 2026 | `3bd5639` | an auction page shows its price before bidding opens |
-| v104 | 13 October 2026 | `13094a2` | a limit on connections at Fly's door |
-| v103 | 13 October 2026 | `19db73f` | a dedicated processor, and commands say who may run them |
+| v104 | 13 October 2026 | `13094a2` | open pages keep working when the site is busy |
+| v103 | 13 October 2026 | `19db73f` | pages stay quick after each release, and commands say who may run them |
 | v102 | 13 October 2026 | `9b85b31` | faster pages, and clearer answers to refused agents |
 | v101 | 13 October 2026 | `38bb67b` | agent sign-in checks the request body |
 | v100 | 13 October 2026 | `370a738` | a page for each bid |
