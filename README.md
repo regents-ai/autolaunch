@@ -162,7 +162,7 @@ every bid, trade, stake and claim is a transaction you approve in your own walle
 | Revstake on Base | V2 deployed and open for new launches ([deployment records](contracts/revstake-v2/deployments/base-mainnet/README.md)) |
 | Memestock on Base | V2 deployed and open, with ten admitted stocks ([deployment records](contracts/stocks-v2/deployments/base-mainnet/README.md)) |
 | Memestock on Robinhood Chain | V2 deployed and open, with 25 admitted stocks ([deployment records](contracts/robinhood-v2/deployments/robinhood-mainnet/README.md)) |
-| autolaunch.sh | Live. Launching, bidding and trading opened on 24 September 2026, 15:00 UTC. What changed in each release is in [CHANGELOG.md](CHANGELOG.md) |
+| autolaunch.sh | Live. Launching, bidding and trading opened on 24 September 2026, 15:00 UTC. What changed for people and agents is in [CHANGELOG.md](CHANGELOG.md); which release carried which commit is in [RELEASES.md](RELEASES.md) |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
 
 ## More
