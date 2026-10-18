@@ -3,7 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v148, 18 October 2026: share a token as a short video
+## v149, 18 October 2026: share a video any time, from any launch
+- Token and auction pages, on Base and Robinhood, have a Share button by the title, and each row in Portfolio has one too.
+- A launch still in its auction has its own share video, and a signed-in bidder can share a video of their own bids. Only you can open your own video.
+- Once an auction graduates, its video link leads to the token's video.
+
+## v148, 18 October 2026 (e690353): share a token as a short video
 - A graduated token's share card has a short video version anyone can open, and its ticker reads "$TOKEN / STOCK".
 - After you stake, the share window offers Share video: a video of your own bids, trades, stake and earnings in that token. Only you can open your own video.
 - A new stake, unstake, buy or sell shows in your video straight away.
