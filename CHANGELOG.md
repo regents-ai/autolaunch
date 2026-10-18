@@ -3,7 +3,12 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v147, 17 October 2026: a mistyped token or auction address is not found again
+## v148, 18 October 2026: share a token as a short video
+- A graduated token's share card has a short video version anyone can open, and its ticker reads "$TOKEN / STOCK".
+- After you stake, the share window offers Share video: a video of your own bids, trades, stake and earnings in that token. Only you can open your own video.
+- A new stake, unstake, buy or sell shows in your video straight away.
+
+## v147, 17 October 2026 (f38d9f5): a mistyped token or auction address is not found again
 - An address that can't belong to any auction or token, such as a mistyped link, shows the not-found page again. Since v146 it said the page didn't open.
 
 ## v146, 17 October 2026 (0eda7c0): empty pages that point the way, and plain field messages
