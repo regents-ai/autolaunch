@@ -16,9 +16,10 @@ defmodule AutolaunchWeb.ShareVideo do
   `Autolaunch.ShareVideoRequest`, once however many ask, which queues it to be
   made one at a time (`AutolaunchWeb.ShareVideo.Render`), and answers how many
   videos are ahead of it; asking again answers the video once it is made. Each
-  account makes at most three new videos of its own in any 24 hours, counted
-  from its requests; a video already made, and every launch's own video, never
-  count.
+  account makes at most three new videos of its own in any 24 hours, however
+  many of its requests arrive at once, counted by the request's own write
+  (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a video already made,
+  and every launch's own video, never count.
   """
   alias Autolaunch.{TokenTrades, WalletHistory}
   require Ash.Query
@@ -29,7 +30,6 @@ defmodule AutolaunchWeb.ShareVideo do
 
   @cache :share_videos
   @kept 24
-  @daily 3
   @failed_ms 30_000
 
   @doc "The kept videos' cache and how many it keeps, for the application's supervisor."
@@ -57,9 +57,6 @@ defmodule AutolaunchWeb.ShareVideo do
   @spec wallet_url(struct(), String.t(), DateTime.t()) :: String.t()
   def wallet_url(auction, wallet, now),
     do: Paths.wallet_video_url(auction, String.downcase(wallet), bucket(now))
-
-  @doc "How many videos of its own an account may make in any 24 hours."
-  def daily, do: @daily
 
   @doc """
   The video as it stands: its MP4 bytes once made, or how many videos are
@@ -107,7 +104,6 @@ defmodule AutolaunchWeb.ShareVideo do
   defp kept_or_queued(auction, phase, wallet, account, key) do
     with :none <- kept(key),
          :none <- requested(key),
-         :ok <- allowed(account, key),
          :none <- kept(key) do
       request(auction, phase, wallet, account, key)
     end
@@ -144,33 +140,27 @@ defmodule AutolaunchWeb.ShareVideo do
     |> Ash.count!(actor: %System{})
   end
 
-  # A video made before never counts again, so making it once more after it
-  # left the cache is free.
-  defp allowed(nil, _key), do: :ok
-
-  defp allowed(account, key) do
-    made = Autolaunch.share_videos_made_today!(account, actor: %System{})
-    keys = MapSet.new(made, & &1.key)
-
-    if MapSet.member?(keys, key) or MapSet.size(keys) < @daily,
-      do: :ok,
-      else: {:error, :daily_limit}
-  end
-
+  # An account past its videos for the day is told so (`DailyLimit`).
   defp request(auction, phase, wallet, account, key) do
-    request =
-      Autolaunch.request_share_video!(
-        %{
-          key: key,
-          kind: phase,
-          auction_id: auction.id,
-          human_account_id: account,
-          wallet: wallet
-        },
-        actor: %System{}
-      )
+    case Autolaunch.request_share_video(
+           %{
+             key: key,
+             kind: phase,
+             auction_id: auction.id,
+             human_account_id: account,
+             wallet: wallet
+           },
+           actor: %System{}
+         ) do
+      {:ok, request} ->
+        {:waiting, ahead(request)}
 
-    {:waiting, ahead(request)}
+      {:error, %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :daily_limit}]}} ->
+        {:error, :daily_limit}
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   @doc false

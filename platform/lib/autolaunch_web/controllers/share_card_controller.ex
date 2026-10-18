@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.ShareCardController do
   use AutolaunchWeb, :controller
 
+  alias Autolaunch.ShareVideoRequest.Changes.DailyLimit
   alias AutolaunchWeb.{NotFoundError, Paths, ShareCard, ShareVideo, UnavailableError}
   alias RegentChain.Address
 
@@ -134,7 +135,7 @@ defmodule AutolaunchWeb.ShareCardController do
     conn
     |> put_resp_header("cache-control", "no-store")
     |> put_status(:too_many_requests)
-    |> json(%{daily: ShareVideo.daily()})
+    |> json(%{daily: DailyLimit.daily()})
   end
 
   defp send_video(_conn, _reach, {:error, _reason}), do: raise(UnavailableError)

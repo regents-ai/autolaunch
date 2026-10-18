@@ -1,5 +1,5 @@
 {
-  "total": 39,
+  "total": 40,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -522,6 +522,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "36593ed9ea1116609b5525df327c39e30901067e849662a7e3f2b3b901d8560f"
+    },
+    {
+      "id": 60,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 40,
+      "test_name": "share video cap holds under concurrent requests",
+      "keep_because": "One account asking for share videos from several tabs at once still makes at most three videos of its own in 24 hours, and each video is queued once however many ask for it together (after-read fix, 18 Oct 2026). The asks run in their own processes and commit on their own connections, which no manual check can time. It fails if either part is undone: with the count moved back before the write it failed 10 of 10 runs (four videos made), and with the queued-once index also removed, 10 of 10 (one video queued twice).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e7fccae667090f50fd7e8971d15329e66ea6a69930138628340613c31c2ac674"
     }
   ],
   "legacy_folders_to_remove": [

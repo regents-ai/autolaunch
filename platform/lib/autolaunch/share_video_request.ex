@@ -10,9 +10,12 @@ defmodule Autolaunch.ShareVideoRequest do
   queued before a row is its place in line. A render that succeeds keeps the
   video and marks the row ready; one that fails marks it failed.
 
-  An account makes at most three new videos of its own in any 24 hours: its
-  requests in that time, apart from failed ones, one per video. Rows are
-  forgotten after a week.
+  A video is queued once: a request for a video already queued is that queued
+  row, however many ask at once (the `:queued_key` identity). An account makes
+  at most three new videos of its own in any 24 hours: its requests in that
+  time, apart from failed ones, one per video, counted inside the request's own
+  write (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`). Rows are forgotten
+  after a week.
   """
 
   use Ash.Resource,
@@ -56,14 +59,21 @@ defmodule Autolaunch.ShareVideoRequest do
       index [:state, :inserted_at]
       index [:human_account_id, :inserted_at]
     end
+
+    identity_wheres_to_sql queued_key: "state = 'queued'"
   end
 
   actions do
     defaults [:read, :destroy]
 
+    # A video already queued answers with its queued row and changes nothing.
     create :request do
       accept [:key, :kind, :auction_id, :human_account_id, :wallet]
+      upsert? true
+      upsert_identity :queued_key
+      upsert_fields []
       change set_attribute(:state, :queued)
+      change Autolaunch.ShareVideoRequest.Changes.DailyLimit
       change run_oban_trigger(:render)
     end
 
@@ -129,5 +139,9 @@ defmodule Autolaunch.ShareVideoRequest do
       constraints: [one_of: [:queued, :ready, :failed]]
 
     timestamps()
+  end
+
+  identities do
+    identity :queued_key, [:key], where: expr(state == :queued)
   end
 end
