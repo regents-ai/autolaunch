@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.ShareVideo.Story do
     with {:ok, supply} <- supply(auction),
          {:ok, pool} <- pool(auction),
          %{points: [_ | _] = history} <- pool.prices || {:error, :no_trading_history},
-         {:ok, venue} <- venue(auction),
+         {:ok, venue} <- TokenTrades.venue(auction),
          {:ok, opened} <- opened(pool, venue),
          {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil),
          {:ok, bids} <- Autolaunch.auction_bids(auction.id, actor: nil),
@@ -114,13 +114,6 @@ defmodule AutolaunchWeb.ShareVideo.Story do
          | marks: Enum.sort_by(bid_marks ++ trade_marks, & &1.at),
            stake: stake(stakes, position, trades, story, clock)
        }}
-    end
-  end
-
-  defp venue(auction) do
-    case TokenTrades.venue(auction) do
-      {:ok, venue} -> {:ok, venue}
-      _other -> {:error, :chain_unavailable}
     end
   end
 

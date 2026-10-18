@@ -184,6 +184,8 @@ defmodule Autolaunch.TokenTrades do
           else: module.rpc_opts(config)
 
       {:ok, %{module: module, config: config, opts: opts}}
+    else
+      _unavailable -> {:error, :chain_unavailable}
     end
   end
 

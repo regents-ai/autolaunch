@@ -1,5 +1,5 @@
 {
-  "total": 38,
+  "total": 39,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -509,6 +509,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "f3cc6076e81f8fb8927e4f390a054f1581573613de834e23198f8da5f5bc561f"
+    },
+    {
+      "id": 59,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_test.exs",
+      "line": 13,
+      "test_name": "WALLET_VIDEO_ONLY_FOR_ITS_OWNER: anyone else finds nothing at the address",
+      "keep_because": "A wallet's share video shows its bids, trades, stake and earnings, so only the signed-in account that links the wallet may fetch it (share video, 18 Oct 2026). Signed out or signed in as another account, the address is not found. A manual check sees only the owner's own view. The case fails if the wallet check is dropped or loosened.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b1fc04813734cbf36c7957bcd22a01f5133461ca916fe870c54302e7ab95df57"
     }
   ],
   "legacy_folders_to_remove": [

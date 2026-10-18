@@ -6,12 +6,15 @@ defmodule AutolaunchWeb.ShareVideo do
   `AutolaunchWeb.ShareVideo.Film`).
 
   A video is made once for each fifteen minutes and kept (`cache/0`, at most
-  24 videos, the oldest written leaving first). Making one takes the
+  24 videos, the oldest written leaving first). A wallet's video is also made
+  again as soon as the wallet's holding of the token changes, so a new stake,
+  unstake, buy or sell shows straight away. Making one takes the
   machine's attention for a few seconds, so videos are made one at a time on
   their own job queue (`AutolaunchWeb.ShareVideo.Render`) and a request waits
   for its video: the job keeps the finished video and tells every waiting
   request through PubSub.
   """
+  alias Autolaunch.{TokenTrades, WalletHistory}
   alias AutolaunchWeb.Paths
   alias AutolaunchWeb.ShareVideo.Render
 
@@ -37,10 +40,17 @@ defmodule AutolaunchWeb.ShareVideo do
   nil, `wallet`'s otherwise.
   """
   @spec fetch(struct(), String.t() | nil, DateTime.t()) :: {:ok, binary()} | {:error, term()}
-  def fetch(auction, wallet, now) do
-    wallet = wallet && String.downcase(wallet)
-    key = key(auction, wallet, now)
+  def fetch(auction, nil, now), do: kept_or_made(auction, nil, key(auction, [], now))
 
+  def fetch(auction, wallet, now) do
+    wallet = String.downcase(wallet)
+
+    with {:ok, venue} <- TokenTrades.venue(auction),
+         {:ok, holding} <- WalletHistory.holding(auction.token_address, wallet, venue.opts),
+         do: kept_or_made(auction, wallet, key(auction, [wallet, holding], now))
+  end
+
+  defp kept_or_made(auction, wallet, key) do
     case Cachex.get(@cache, key) do
       {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
       _missing -> made(auction, wallet, key)
@@ -103,8 +113,8 @@ defmodule AutolaunchWeb.ShareVideo do
         {:share_video, key, {:failed, reason}}
       )
 
-  defp key(auction, wallet, now),
-    do: Enum.join([auction.id, wallet, bucket(now)], ":")
+  defp key(auction, wallet_parts, now),
+    do: Enum.join([auction.id | wallet_parts] ++ [bucket(now)], ":")
 
   defp topic(key), do: "share_video:" <> key
 

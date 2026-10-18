@@ -15,6 +15,22 @@ defmodule Autolaunch.WalletHistory do
 
   @transfer "Transfer(address,address,uint256)"
   @staked "Staked(address,uint256)"
+  @balance_of "balanceOf(address)"
+
+  @doc """
+  How much of `token` `wallet` holds at the newest block, in atomic units.
+  Every stake, unstake, buy and sell moves it.
+  """
+  @spec holding(String.t(), String.t(), keyword()) :: {:ok, non_neg_integer()} | {:error, atom()}
+  def holding(token, wallet, opts) do
+    data = LabAbi.selector(@balance_of) <> String.trim_leading(address_topic(wallet), "0x")
+
+    case Rpc.request("eth_call", [%{to: token, data: data}, "latest"], opts) do
+      {:ok, "0x" <> word} when byte_size(word) == 64 -> {:ok, String.to_integer(word, 16)}
+      {:ok, _other} -> {:error, :invalid_chain_response}
+      error -> error
+    end
+  end
 
   @doc """
   The transactions from `from_block` to `block` in which `token` moved into
