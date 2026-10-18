@@ -12,10 +12,12 @@ defmodule AutolaunchWeb.ShareCard.Draw do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.MarketData
   alias Autolaunch.StoredImage
+  alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
   alias Vix.Vips.{Image, Operation}
 
   @tangerine "#ff5b19"
+  @platinum "#e5e3d2"
   @chains %{
     base: %{name: "Base", width: 1280, height: 323.84},
     robinhood: %{name: "Robinhood Chain", width: 1576, height: 207}
@@ -87,6 +89,27 @@ defmodule AutolaunchWeb.ShareCard.Draw do
     |> Decimal.to_string(:normal)
     |> TokenDisplay.zeros()
   end
+
+  @doc """
+  How long bidding has left at `now`, or where the auction stands once that
+  cannot be told: `{label, value, colour}`.
+  """
+  def standing(%{state: :active, estimated_end_at: %DateTime{} = ends} = auction, now) do
+    case DateTime.diff(ends, now) do
+      left when left > 0 -> {"Time left", duration(left), @tangerine}
+      _over -> {"Status", MarketCard.state_label(auction.state), @platinum}
+    end
+  end
+
+  def standing(auction, _now), do: {"Status", MarketCard.state_label(auction.state), @platinum}
+
+  defp duration(seconds) when seconds >= 86_400,
+    do: "#{div(seconds, 86_400)}d #{div(rem(seconds, 86_400), 3_600)}h"
+
+  defp duration(seconds) when seconds >= 3_600,
+    do: "#{div(seconds, 3_600)}h #{div(rem(seconds, 3_600), 60)}m"
+
+  defp duration(seconds), do: "#{max(div(seconds, 60), 1)}m"
 
   @doc "A stored colour in its one shape, `#rrggbb`, or the card's tangerine."
   def color(color) when is_binary(color) do

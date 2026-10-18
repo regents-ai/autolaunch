@@ -109,16 +109,21 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   # --- what the frames share --------------------------------------------------
 
+  # A launch that has graduated splits the chart between its auction and its
+  # trading at graduation; one still in its auction gives the auction the
+  # whole chart, up to now.
   defp prepare(story, link) do
     auction? = match?([_ | _], story.auction_line)
-    graduated_at = story.trade_line |> hd() |> elem(0)
+    graduates? = match?([_ | _], story.trade_line)
+    graduated_at = if graduates?, do: story.trade_line |> hd() |> elem(0), else: story.now
     started_at = if auction?, do: story.auction_line |> hd() |> elem(0), else: graduated_at
-    series = smooth(story.trade_line, graduated_at, story.now)
+    series = if graduates?, do: smooth(story.trade_line, graduated_at, story.now), else: []
     prices = Enum.map(story.auction_line, &elem(&1, 1)) ++ Enum.map(series, &elem(&1, 1))
 
     film = %{
       story: story,
       auction?: auction?,
+      graduates?: graduates?,
       started_at: started_at,
       graduated_at: graduated_at,
       series: series,
@@ -218,12 +223,15 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp labels(film) do
     span = film.story.now - film.started_at
     format = if span >= 4 * 86_400, do: "%b %-d", else: "%b %-d %H:%M"
-    trading = film.story.now - film.graduated_at
+
+    {from, shares} =
+      if film.graduates?,
+        do: {film.graduated_at, [0.0, 0.34, 0.67, 1.0]},
+        else: {film.started_at, [0.34, 0.67, 1.0]}
 
     times =
       if(film.auction?, do: [film.started_at], else: []) ++
-        [film.graduated_at] ++
-        for(share <- [0.34, 0.67, 1.0], do: film.graduated_at + trading * share)
+        for(share <- shares, do: from + (film.story.now - from) * share)
 
     times
     |> Enum.reduce([], fn at, kept ->
@@ -262,13 +270,11 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     do: at |> round() |> DateTime.from_unix!() |> Calendar.strftime(format)
 
   defp words(story) do
-    earning = "Staked · earning " <> story.earn_symbol
-
     %{
       phases: %{
         auction: text!("Auction", :bold, 40, @blue),
         trading: text!("Trading", :bold, 40, @tangerine),
-        staked: text!(earning, :bold, 40, @gold)
+        staked: story.stake && text!("Staked · earning " <> story.earn_symbol, :bold, 40, @gold)
       },
       graduated: text!("Graduated", :bold, 24, @field),
       stake:
@@ -398,7 +404,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   defp frame(film, index) do
     tip = tip(film, index)
-    graduated? = tip >= film.graduated_at
+    graduated? = film.graduates? and tip >= film.graduated_at
     staked? = film.stake != nil and tip >= film.stake.at
     price = price_at(film, tip)
     {tip_x, tip_y} = {x(film, tip), y(film, price)}
@@ -453,7 +459,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         stake_layers(film, tip, index, staked?) ++
         [box_text(tag_box, tag)] ++
         if(earned_box, do: [box_text(earned_box, earned_tag)], else: []) ++
-        stat_layers(film, price, earned, graduated?, staked?, index) ++
+        stat_layers(film, price, earned, graduated?, staked?, index, tip) ++
         stamp_layers(film, index)
 
     flat(still, layers)
@@ -477,6 +483,11 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   # When the tip stands where on the timeline: through the auction, held at
   # graduation, through the trading, then still at now.
+  defp tip(%{graduates?: false} = film, index),
+    do:
+      film.started_at +
+        ease(progress(index, @auction_from, @trading_to)) * (film.story.now - film.started_at)
+
   defp tip(film, index) do
     from = if film.auction?, do: @trading_from, else: @auction_from
 
@@ -505,7 +516,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   end
 
   defp price_at(film, at) do
-    if at < film.graduated_at,
+    if at < film.graduated_at or not film.graduates?,
       do: step_value(film.story.auction_line, at),
       else: between(film.series, at)
   end
@@ -523,7 +534,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   defp x(film, at) do
     plot = @x1 - @x0
-    auction_w = if film.auction?, do: plot * @auction_share, else: 0
+
+    auction_w =
+      cond do
+        not film.auction? -> 0
+        film.graduates? -> plot * @auction_share
+        true -> plot
+      end
 
     if at <= film.graduated_at and film.auction? do
       span = max(film.graduated_at - film.started_at, 1)
@@ -767,7 +784,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   # higher, or below it, wherever it clears the Graduated tag and every note
   # showing at the same time.
   defp placed(marks, film) do
-    taken = if film.auction?, do: [graduated_box(film)], else: []
+    taken = if film.auction? and film.graduates?, do: [graduated_box(film)], else: []
 
     {placed, _taken} =
       Enum.map_reduce(marks, taken, fn mark, taken ->
@@ -883,32 +900,41 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     end)
   end
 
-  defp stat_layers(film, price, earned, graduated?, staked?, index) do
+  # The card's two figures as the line stands: a stake's own figures in
+  # gold, the FDV and price once trading, and through an auction its clearing
+  # price with, while it still runs, the time left as of the line's tip.
+  defp stat_layers(film, price, earned, graduated?, staked?, index, tip) do
     story = film.story
+    fdv = money(story, price * story.supply)
 
-    {labels, values, color} =
+    rows =
       cond do
         staked? ->
-          since = index - film.stake_frame
-          counted = film.stake.staked * min(since / 18, 1.0)
+          counted = film.stake.staked * min((index - film.stake_frame) / 18, 1.0)
+          [staked, earned_label] = film.words.labels.staked
 
-          {film.words.labels.staked,
-           ["#{amount(counted)} #{story.token_symbol}", "#{amount(earned)} #{story.earn_symbol}"],
-           @gold}
+          [
+            {staked, "#{amount(counted)} #{story.token_symbol}", @gold},
+            {earned_label, "#{amount(earned)} #{story.earn_symbol}", @gold}
+          ]
 
         graduated? ->
-          {film.words.labels.trading, [money(story, price * story.supply), money(story, price)],
-           @platinum}
+          [fdv_label, price_label] = film.words.labels.trading
+          [{fdv_label, fdv, @platinum}, {price_label, money(story, price), @platinum}]
+
+        film.graduates? ->
+          [clearing, price_label] = film.words.labels.auction
+          [{clearing, fdv, @platinum}, {price_label, money(story, price), @platinum}]
 
         true ->
-          {film.words.labels.auction, [money(story, price * story.supply), money(story, price)],
-           @platinum}
+          [clearing, _price_label] = film.words.labels.auction
+          {label, value, color} = Draw.standing(story.auction, DateTime.from_unix!(round(tip)))
+          [{clearing, fdv, @platinum}, {text!(label, :regular, 26, @muted), value, color}]
       end
 
-    labels
-    |> Enum.zip(values)
+    rows
     |> Enum.with_index()
-    |> Enum.flat_map(fn {{label, value}, row} ->
+    |> Enum.flat_map(fn {{label, value, color}, row} ->
       value = fit!(value, :bold, 50, color, 360)
       top = @strip_y + 40 + row * 124
 

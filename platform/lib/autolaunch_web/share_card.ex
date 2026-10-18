@@ -21,7 +21,6 @@ defmodule AutolaunchWeb.ShareCard do
 
   import AutolaunchWeb.ShareCard.Draw
 
-  alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{Paths, PublicDocuments}
   alias AutolaunchWeb.ShareCard.Cache
   alias Vix.Vips.{Image, Operation}
@@ -216,25 +215,6 @@ defmodule AutolaunchWeb.ShareCard do
       now: now
     })
   end
-
-  # How long bidding has left, or where the auction stands once it cannot
-  # be told.
-  defp standing(%{state: :active, estimated_end_at: %DateTime{} = ends} = auction, now) do
-    case DateTime.diff(ends, now) do
-      left when left > 0 -> {"Time left", duration(left), @tangerine}
-      _over -> {"Status", MarketCard.state_label(auction.state), @platinum}
-    end
-  end
-
-  defp standing(auction, _now), do: {"Status", MarketCard.state_label(auction.state), @platinum}
-
-  defp duration(seconds) when seconds >= 86_400,
-    do: "#{div(seconds, 86_400)}d #{div(rem(seconds, 86_400), 3_600)}h"
-
-  defp duration(seconds) when seconds >= 3_600,
-    do: "#{div(seconds, 3_600)}h #{div(rem(seconds, 3_600), 60)}m"
-
-  defp duration(seconds), do: "#{max(div(seconds, 60), 1)}m"
 
   # The clearing price at every recorded change, then as it stands now; no
   # line until the price has at least two points.

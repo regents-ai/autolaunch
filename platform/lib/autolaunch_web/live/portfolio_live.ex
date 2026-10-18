@@ -47,6 +47,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
+  alias AutolaunchWeb.Components.ShareLaunch
 
   alias AutolaunchWeb.{
     BidSettlementComponent,
@@ -243,12 +244,14 @@ defmodule AutolaunchWeb.PortfolioLive do
               signed_in?={@signed_in?}
               human_id={@human_id}
               session_lease={@session_lease}
+              account_control={@account_control}
             />
             <.robinhood_bid
               :for={position <- @robinhood_current}
               position={position}
               rates={@rates}
               opens={@opens}
+              account_control={@account_control}
             />
             <tbody :if={unread?(@robinhood?, @robinhood_positions)}>
               <tr class="market-list__skeleton" aria-hidden="true">
@@ -293,12 +296,14 @@ defmodule AutolaunchWeb.PortfolioLive do
                 signed_in?={@signed_in?}
                 human_id={@human_id}
                 session_lease={@session_lease}
+                account_control={@account_control}
               />
               <.robinhood_bid
                 :for={position <- @robinhood_history}
                 position={position}
                 rates={@rates}
                 opens={@opens}
+                account_control={@account_control}
               />
             </table>
           </div>
@@ -337,6 +342,7 @@ defmodule AutolaunchWeb.PortfolioLive do
               holding={holding}
               robinhood_swap?={@robinhood_swap?}
               opens={@opens}
+              account_control={@account_control}
             />
             <tbody :if={unread?(true, @token_holdings)}>
               <tr class="market-list__skeleton" aria-hidden="true">
@@ -383,6 +389,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   end
 
   attr :position, :map, required: true, doc: "a stored Base bid with its auction and token"
+  attr :account_control, :map, required: true
 
   attr :price, :map,
     default: nil,
@@ -463,6 +470,11 @@ defmodule AutolaunchWeb.PortfolioLive do
             <.link navigate={Paths.bid(@position.bid_id)} class="rg-button rg-button--quiet">
               Details
             </.link>
+            <ShareLaunch.share_launch
+              id={"portfolio-share-#{@position.id}"}
+              auction={@auction}
+              account_control={@account_control}
+            />
           </div>
         </td>
         <td><.auction_status id={"portfolio-time-#{@position.id}"} auction={@auction} /></td>
@@ -491,6 +503,8 @@ defmodule AutolaunchWeb.PortfolioLive do
   attr :position, :map,
     required: true,
     doc: "a Robinhood bid from `Autolaunch.Robinhood.Positions`"
+
+  attr :account_control, :map, required: true
 
   attr :rates, :any, required: true
   attr :opens, :string, default: nil
@@ -562,6 +576,12 @@ defmodule AutolaunchWeb.PortfolioLive do
             >
               Details
             </.link>
+            <ShareLaunch.share_launch
+              :if={@listing}
+              id={"portfolio-share-#{@position.auction}-#{@position.bid_id}"}
+              auction={@listing}
+              account_control={@account_control}
+            />
           </div>
         </td>
         <td>
@@ -579,6 +599,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   attr :id, :string, required: true
   attr :holding, :map, required: true, doc: "a token from `Autolaunch.TokenHoldings`"
+  attr :account_control, :map, required: true
   attr :robinhood_swap?, :boolean, required: true
   attr :opens, :string, default: nil
 
@@ -642,6 +663,11 @@ defmodule AutolaunchWeb.PortfolioLive do
             <.link navigate={@stake_path} class="rg-button rg-button--secondary">
               {if @holding.claimable != [], do: "Stake or claim rewards", else: "Stake"}
             </.link>
+            <ShareLaunch.share_launch
+              id={"portfolio-share-#{@id}"}
+              auction={@token.auction}
+              account_control={@account_control}
+            />
           </div>
         </td>
       </tr>

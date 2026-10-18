@@ -87,6 +87,7 @@ defmodule AutolaunchWeb.Router do
     # The pictures shared auction and token links show, read by sites without
     # a session.
     get "/auctions/:symbol/:tail/share.png", ShareCardController, :auction
+    get "/auctions/:symbol/:tail/share.mp4", ShareCardController, :auction_video
     get "/tokens/:symbol/:tail/share.png", ShareCardController, :token
     get "/tokens/:symbol/:tail/share.mp4", ShareCardController, :token_video
 
@@ -156,6 +157,10 @@ defmodule AutolaunchWeb.Router do
     pipe_through :session_video
 
     get "/tokens/:symbol/:tail/wallets/:wallet/share.mp4", ShareCardController, :wallet_video
+
+    get "/auctions/:symbol/:tail/wallets/:wallet/share.mp4",
+        ShareCardController,
+        :auction_wallet_video
   end
 
   scope "/", AutolaunchWeb do

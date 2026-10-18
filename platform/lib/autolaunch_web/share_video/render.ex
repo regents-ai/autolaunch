@@ -35,26 +35,41 @@ defmodule AutolaunchWeb.ShareVideo.Render do
       reraise error, __STACKTRACE__
   end
 
-  defp make(%{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
-    with {:ok, auction, token} <- found(Paths.find_token(symbol, tail)),
-         {:ok, story} <- story(auction, token, wallet),
-         {:ok, mp4, measured} <- Film.render(story, link(auction)) do
+  defp make(%{"phase" => phase, "symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
+    with {:ok, story, address} <- story(phase, symbol, tail, wallet),
+         {:ok, mp4, measured} <- Film.render(story, String.replace(address, ~r{\Ahttps?://}, "")) do
       :telemetry.execute(
         [:autolaunch, :share_video, :rendered],
         Map.take(measured, [:ms, :bytes, :peak_bytes]),
-        %{kind: if(wallet, do: :wallet, else: :token)}
+        %{kind: kind(phase, wallet)}
       )
 
       {:ok, mp4}
     end
   end
 
-  defp found({:ok, auction, token}), do: {:ok, auction, token}
+  # The story with the address the video's band names: the token's page, or
+  # the auction's while it runs.
+  defp story("token", symbol, tail, wallet) do
+    with {:ok, auction, token} <- found(Paths.find_token(symbol, tail)),
+         {:ok, story} <- token_story(auction, token, wallet),
+         do: {:ok, story, Paths.token_url(auction)}
+  end
+
+  defp story("auction", symbol, tail, wallet) do
+    with {:ok, auction} <- found(Paths.find_auction(symbol, tail)),
+         {:ok, story} <- Story.auction(auction, wallet),
+         do: {:ok, story, Paths.auction_url(auction)}
+  end
+
   defp found(:error), do: {:error, :not_found}
+  defp found(found), do: found
 
-  defp story(auction, token, nil), do: Story.token(auction, token)
-  defp story(auction, token, wallet), do: Story.wallet(auction, token, wallet)
+  defp token_story(auction, token, nil), do: Story.token(auction, token)
+  defp token_story(auction, token, wallet), do: Story.wallet(auction, token, wallet)
 
-  # The token's address as the band shows it, without its scheme.
-  defp link(auction), do: auction |> Paths.token_url() |> String.replace(~r{\Ahttps?://}, "")
+  defp kind("token", nil), do: :token
+  defp kind("token", _wallet), do: :wallet
+  defp kind("auction", nil), do: :auction
+  defp kind("auction", _wallet), do: :auction_wallet
 end

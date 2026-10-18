@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.Components.ShareDialog do
   @moduledoc """
-  A "Share on X" button and the window it opens over the page: the post,
+  A share button ("Share on X" unless a page names it otherwise) and the
+  window it opens over the page: the post,
   which the reader can edit, the picture X will show with it, and a button
   that opens X's own composer with the post filled in. Nothing is ever
   posted for the reader.
@@ -22,6 +23,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   attr :image, :string, required: true, doc: "the address of the page's share picture"
   attr :video, :string, default: nil, doc: "the address of a share video, or nil for none"
   attr :video_name, :string, default: "autolaunch.mp4", doc: "the name the video is saved under"
+  attr :label, :string, default: "Share on X", doc: "the opening button's words"
   attr :rest, :global, doc: "for the opening button, such as `phx-click` to read an X account"
 
   slot :account, doc: "who the reader is on X, above the post"
@@ -36,7 +38,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
         data-share-open
         {@rest}
       >
-        Share on X
+        {@label}
       </Regent.Primitives.button>
       <dialog
         id={"#{@id}-dialog"}

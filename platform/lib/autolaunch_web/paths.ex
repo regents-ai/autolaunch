@@ -50,6 +50,17 @@ defmodule AutolaunchWeb.Paths do
   def token_video_url(auction, version),
     do: url(~p"/tokens/#{symbol(auction)}/#{auction.path_tail}/share.mp4?#{[v: version]}")
 
+  @doc "The running auction's share video for everyone; `version` moves on as its figures do."
+  def auction_video_url(auction, version),
+    do: url(~p"/auctions/#{symbol(auction)}/#{auction.path_tail}/share.mp4?#{[v: version]}")
+
+  @doc "One wallet's share video of the running auction, for that wallet's signed-in owner."
+  def auction_wallet_video_url(auction, wallet, version),
+    do:
+      url(
+        ~p"/auctions/#{symbol(auction)}/#{auction.path_tail}/wallets/#{wallet}/share.mp4?#{[v: version]}"
+      )
+
   @doc "One wallet's share video of the token, for that wallet's signed-in owner."
   def wallet_video_url(auction, wallet, version),
     do:

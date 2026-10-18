@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.ShareCardController do
   def token_video(conn, %{"symbol" => symbol, "tail" => tail}) do
     case Paths.find_token(symbol, tail) do
       {:ok, auction, _token} ->
-        send_video(conn, "public", ShareVideo.fetch(auction, nil, DateTime.utc_now()))
+        send_video(conn, "public", ShareVideo.fetch(auction, :token, nil, DateTime.utc_now()))
 
       :error ->
         raise NotFoundError
@@ -40,10 +40,48 @@ defmodule AutolaunchWeb.ShareCardController do
     with {:ok, wallet} <- Address.normalize(wallet),
          true <- linked?(conn.assigns[:current_human_account], wallet),
          {:ok, auction, _token} <- Paths.find_token(symbol, tail) do
-      send_video(conn, "private", ShareVideo.fetch(auction, wallet, DateTime.utc_now()))
+      send_video(conn, "private", ShareVideo.fetch(auction, :token, wallet, DateTime.utc_now()))
     else
       _not_theirs -> raise NotFoundError
     end
+  end
+
+  @doc """
+  The running auction's share video for everyone. Once the auction has
+  graduated its address moves on for good to the token's video.
+  """
+  def auction_video(conn, %{"symbol" => symbol, "tail" => tail}) do
+    case Paths.find_auction(symbol, tail) do
+      {:ok, %{state: :graduated} = auction} ->
+        moved(conn, ShareVideo.url(auction, nil, DateTime.utc_now()))
+
+      {:ok, auction} ->
+        send_video(conn, "public", ShareVideo.fetch(auction, :auction, nil, DateTime.utc_now()))
+
+      :error ->
+        raise NotFoundError
+    end
+  end
+
+  @doc "One wallet's share video of the auction, on the same terms as `wallet_video/2`."
+  def auction_wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
+    with {:ok, wallet} <- Address.normalize(wallet),
+         true <- linked?(conn.assigns[:current_human_account], wallet),
+         {:ok, auction} <- Paths.find_auction(symbol, tail) do
+      now = DateTime.utc_now()
+
+      if auction.state == :graduated,
+        do: moved(conn, ShareVideo.url(auction, wallet, now)),
+        else: send_video(conn, "private", ShareVideo.fetch(auction, :auction, wallet, now))
+    else
+      _not_theirs -> raise NotFoundError
+    end
+  end
+
+  defp moved(conn, address) do
+    conn
+    |> put_status(:moved_permanently)
+    |> redirect(external: address)
   end
 
   defp linked?(%{wallet_addresses: wallets}, wallet) when is_list(wallets),

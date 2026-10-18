@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   alias Autolaunch.MarketReadings
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.Components.TokenTrade
+  alias AutolaunchWeb.Components.{ShareLaunch, TokenTrade}
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
 
   def mount(%{"auction" => auction}, _session, socket),
@@ -111,6 +111,11 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           currency={@token.auction.quote_token_symbol}
           chain_id={@token.auction.chain_id}
           pool={if(@pool.ok?, do: @pool.result)}
+        />
+        <ShareLaunch.share_launch
+          id="share-launch"
+          auction={@token.auction}
+          account_control={@account_control}
         />
         <p :if={Lab.test_chain?()}>Robinhood test network. Test assets have no real value.</p>
       </header>

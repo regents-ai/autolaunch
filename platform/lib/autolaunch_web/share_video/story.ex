@@ -3,7 +3,8 @@ defmodule AutolaunchWeb.ShareVideo.Story do
   What a share video tells, read once before it is drawn: the launch's
   clearing price through its auction, its pool price since graduation, and,
   for a wallet, that wallet's own bids, buys, sells, first stake and
-  earnings.
+  earnings. While the auction still runs, the story is its clearing price so
+  far, carried to now, and the wallet's bids.
 
   Prices are whole currency per whole token, as floats; they only draw the
   line and count the figures. Every moment is a unix time. Records and
@@ -34,6 +35,79 @@ defmodule AutolaunchWeb.ShareVideo.Story do
   @doc "The token's story with `wallet`'s own moves in it."
   @spec wallet(struct(), struct(), String.t()) :: {:ok, t()} | {:error, term()}
   def wallet(auction, token, wallet), do: read(auction, token, String.downcase(wallet))
+
+  @doc "An auction's story while it runs, with `wallet`'s bids in it when one is given."
+  @spec auction(struct(), String.t() | nil) :: {:ok, t()} | {:error, term()}
+  def auction(auction, wallet) do
+    wallet = wallet && String.downcase(wallet)
+
+    with {:ok, supply} <- supply(auction),
+         {:ok, venue} <- TokenTrades.venue(auction),
+         {:ok, head} <- Rpc.latest_block(venue.opts),
+         {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil),
+         {:ok, bids} <- Autolaunch.auction_bids(auction.id, actor: nil),
+         {:ok, first} <- first_point(points, venue),
+         clock = clock(bids, [], first ++ [{head.number, head.timestamp}]),
+         {:ok, line} <- running_line(auction, points, clock, head) do
+      story = %{
+        auction: auction,
+        ticker: Draw.ticker(auction),
+        token_symbol: auction.token_symbol,
+        rate: Draw.rate(auction),
+        supply: supply,
+        auction_line: line,
+        trade_line: [],
+        now: head.timestamp,
+        marks: [],
+        stake: nil
+      }
+
+      {:ok, %{story | marks: bid_marks(story, bids, wallet, clock)}}
+    end
+  end
+
+  # The block of the auction's first recorded price, with its time.
+  defp first_point([], _venue), do: {:ok, []}
+
+  defp first_point([point | _later], venue) do
+    with {:ok, time} <- block_time(point.block_number, venue),
+         do: {:ok, [{point.block_number, time}]}
+  end
+
+  # Each recorded clearing price, then the price as it stands now. Before the
+  # first bid moves it, the auction stands at its floor from the moment it
+  # opened.
+  defp running_line(auction, [], _clock, head) do
+    with %DateTime{} = opened <- auction.opened_at || {:error, :not_open},
+         {:ok, floor} <- price(auction.floor_price) do
+      {:ok, [{DateTime.to_unix(opened), floor}, {head.timestamp, now_price(auction, floor)}]}
+    end
+  end
+
+  defp running_line(auction, points, clock, head) do
+    line = Enum.map(points, &{clock.(&1.block_number), float(&1.clearing_price)})
+    {:ok, line ++ [{head.timestamp, now_price(auction, line |> List.last() |> elem(1))}]}
+  end
+
+  defp now_price(auction, standing) do
+    case price(auction.current_clearing_price) do
+      {:ok, current} when current > 0 -> current
+      _unknown -> standing
+    end
+  end
+
+  defp price(value) when is_binary(value),
+    do: {:ok, value |> Decimal.new(max_digits: :infinity) |> Decimal.to_float()}
+
+  defp price(_value), do: {:error, :price_unknown}
+
+  defp bid_marks(_story, _bids, nil, _clock), do: []
+
+  defp bid_marks(story, bids, wallet, clock) do
+    for bid <- bids, bid.bidder == wallet do
+      %{at: clock.(bid.block_number), side: :buy, verb: "Bid", amount: bid_amount(bid, story)}
+    end
+  end
 
   defp read(auction, token, wallet) do
     with {:ok, supply} <- supply(auction),
@@ -95,10 +169,7 @@ defmodule AutolaunchWeb.ShareVideo.Story do
              venue.opts
            ),
          {:ok, position} <- StakeActions.position(pool, wallet) do
-      bid_marks =
-        for bid <- bids, bid.bidder == wallet do
-          %{at: clock.(bid.block_number), side: :buy, verb: "Bid", amount: bid_amount(bid, story)}
-        end
+      bid_marks = bid_marks(story, bids, wallet, clock)
 
       trade_marks =
         for trade <- trades, mark = trade_mark(trade, moved), mark do
@@ -119,19 +190,18 @@ defmodule AutolaunchWeb.ShareVideo.Story do
 
   # The block the pool opened in, with its time.
   defp opened(pool, venue) do
+    with {:ok, time} <- block_time(pool.logs_from, venue), do: {:ok, {pool.logs_from, time}}
+  end
+
+  defp block_time(number, venue) do
     case Rpc.request(
            "eth_getBlockByNumber",
-           ["0x" <> Integer.to_string(pool.logs_from, 16), false],
+           ["0x" <> Integer.to_string(number, 16), false],
            venue.opts
          ) do
-      {:ok, %{"timestamp" => "0x" <> seconds}} ->
-        {:ok, {pool.logs_from, String.to_integer(seconds, 16)}}
-
-      {:ok, _other} ->
-        {:error, :invalid_chain_response}
-
-      error ->
-        error
+      {:ok, %{"timestamp" => "0x" <> seconds}} -> {:ok, String.to_integer(seconds, 16)}
+      {:ok, _other} -> {:error, :invalid_chain_response}
+      error -> error
     end
   end
 
@@ -197,8 +267,8 @@ defmodule AutolaunchWeb.ShareVideo.Story do
   end
 
   # A block's time: between the two nearest blocks of known time, or along
-  # the nearest two at either end. The pool's opening block and the block it
-  # was read at are always known, and they are never the same block.
+  # the nearest two at either end. The block the chain was read at is always
+  # known; when it is the only one, every block sits at its time.
   defp clock(bids, trades, blocks) do
     known =
       (Enum.map(bids, &{&1.block_number, DateTime.to_unix(&1.occurred_at)}) ++
@@ -209,6 +279,8 @@ defmodule AutolaunchWeb.ShareVideo.Story do
 
     fn number -> place(known, number) end
   end
+
+  defp place({{_block, time}}, _number), do: time
 
   defp place(known, number) do
     last = tuple_size(known) - 1

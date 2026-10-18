@@ -1,14 +1,16 @@
 defmodule AutolaunchWeb.ShareVideo do
   @moduledoc """
-  The share videos of a graduated token: one for everyone, with the token's
-  own story, and one for a signed-in wallet, with that wallet's bids, trades,
+  The share videos of a launch: one for everyone, with the launch's own
+  story, and one for a signed-in wallet, with that wallet's bids, trades,
   stake and earnings on it too (`AutolaunchWeb.ShareVideo.Story`, drawn by
-  `AutolaunchWeb.ShareVideo.Film`).
+  `AutolaunchWeb.ShareVideo.Film`). A launch still in its auction has its
+  video at the auction's address; a graduated one at its token's.
 
   A video is made once for each fifteen minutes and kept (`cache/0`, at most
   24 videos, the oldest written leaving first). A wallet's video is also made
-  again as soon as the wallet's holding of the token changes, so a new stake,
-  unstake, buy or sell shows straight away. Making one takes the
+  again as soon as the wallet's holding of the token changes, or during the
+  auction as soon as it bids again, so a new bid, stake, unstake, buy or sell
+  shows straight away. Making one takes the
   machine's attention for a few seconds, so videos are made one at a time on
   their own job queue (`AutolaunchWeb.ShareVideo.Render`) and a request waits
   for its video: the job keeps the finished video and tells every waiting
@@ -26,6 +28,19 @@ defmodule AutolaunchWeb.ShareVideo do
   def cache, do: @cache
   def kept, do: @kept
 
+  @doc """
+  Where the launch's video is served as it stands at `now`: the auction's
+  while it runs, the token's once it has graduated; `wallet`'s own when one
+  is given.
+  """
+  @spec url(struct(), String.t() | nil, DateTime.t()) :: String.t()
+  def url(%{state: :graduated} = auction, nil, now), do: token_url(auction, now)
+  def url(%{state: :graduated} = auction, wallet, now), do: wallet_url(auction, wallet, now)
+  def url(auction, nil, now), do: Paths.auction_video_url(auction, bucket(now))
+
+  def url(auction, wallet, now),
+    do: Paths.auction_wallet_video_url(auction, String.downcase(wallet), bucket(now))
+
   @doc "Where the token's video for everyone is served, as its figures stand at `now`."
   @spec token_url(struct(), DateTime.t()) :: String.t()
   def token_url(auction, now), do: Paths.token_video_url(auction, bucket(now))
@@ -36,30 +51,48 @@ defmodule AutolaunchWeb.ShareVideo do
     do: Paths.wallet_video_url(auction, String.downcase(wallet), bucket(now))
 
   @doc """
-  The video's MP4 bytes, kept or made now: the token's own when `wallet` is
-  nil, `wallet`'s otherwise.
+  The video's MP4 bytes, kept or made now: the token's (`:token`) or the
+  running auction's (`:auction`), everyone's when `wallet` is nil and
+  `wallet`'s otherwise.
   """
-  @spec fetch(struct(), String.t() | nil, DateTime.t()) :: {:ok, binary()} | {:error, term()}
-  def fetch(auction, nil, now), do: kept_or_made(auction, nil, key(auction, [], now))
+  @spec fetch(struct(), :token | :auction, String.t() | nil, DateTime.t()) ::
+          {:ok, binary()} | {:error, term()}
+  def fetch(auction, phase, nil, now),
+    do: kept_or_made(auction, phase, nil, key(auction, phase, [], now))
 
-  def fetch(auction, wallet, now) do
+  def fetch(auction, phase, wallet, now) do
     wallet = String.downcase(wallet)
 
-    with {:ok, venue} <- TokenTrades.venue(auction),
-         {:ok, holding} <- WalletHistory.holding(auction.token_address, wallet, venue.opts),
-         do: kept_or_made(auction, wallet, key(auction, [wallet, holding], now))
+    with {:ok, state} <- wallet_state(auction, phase, wallet),
+         do: kept_or_made(auction, phase, wallet, key(auction, phase, [wallet, state], now))
   end
 
-  defp kept_or_made(auction, wallet, key) do
+  # What a wallet has in the launch now, read cheaply: its holding of the
+  # token, or during the auction how many bids it has placed and their total.
+  defp wallet_state(auction, :token, wallet) do
+    with {:ok, venue} <- TokenTrades.venue(auction),
+         do: WalletHistory.holding(auction.token_address, wallet, venue.opts)
+  end
+
+  defp wallet_state(auction, :auction, wallet) do
+    with {:ok, bids} <- Autolaunch.auction_bids(auction.id, actor: nil) do
+      own = Enum.filter(bids, &(&1.bidder == wallet))
+
+      {:ok,
+       "#{length(own)}-#{own |> Enum.map(& &1.amount) |> Enum.reduce(Decimal.new(0), &Decimal.add/2)}"}
+    end
+  end
+
+  defp kept_or_made(auction, phase, wallet, key) do
     case Cachex.get(@cache, key) do
       {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
-      _missing -> made(auction, wallet, key)
+      _missing -> made(auction, phase, wallet, key)
     end
   end
 
   # Subscribed before the job is queued and the cache read once more, so a
   # video finished in between is never missed.
-  defp made(auction, wallet, key) do
+  defp made(auction, phase, wallet, key) do
     :ok = Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(key))
 
     try do
@@ -68,6 +101,7 @@ defmodule AutolaunchWeb.ShareVideo do
           Render.new(%{
             "symbol" => auction.token_symbol,
             "tail" => auction.path_tail,
+            "phase" => Atom.to_string(phase),
             "wallet" => wallet,
             "key" => key
           })
@@ -113,8 +147,8 @@ defmodule AutolaunchWeb.ShareVideo do
         {:share_video, key, {:failed, reason}}
       )
 
-  defp key(auction, wallet_parts, now),
-    do: Enum.join([auction.id | wallet_parts] ++ [bucket(now)], ":")
+  defp key(auction, phase, wallet_parts, now),
+    do: Enum.join([auction.id, phase | wallet_parts] ++ [bucket(now)], ":")
 
   defp topic(key), do: "share_video:" <> key
 
