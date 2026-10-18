@@ -3,7 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v151, 18 October 2026: one Regent account, no Autolaunch copy
+## v152, 18 October 2026: share-video requests kept in order, and the old account copy removed
+- Each share video request is kept in its own list, so the place in line and the three-a-day count stay right however many people ask at once. What you see is unchanged.
+- Autolaunch's old copy of each account, unused since v151, is deleted. Every account now lives only in the one shared Regents account list.
+
+## v151, 18 October 2026 (960fcd7): one Regent account, no Autolaunch copy
 - Autolaunch no longer keeps its own copy of your account. It reads and writes your one Regent account, the same one every Regent site uses, so your drafts, X and social links, ENS name and sign-ins here belong to that account.
 - An agent paired with you can read and save your drafts and check in here even if you have never signed in on Autolaunch. Agents are never told that you need to sign in on this site first.
 - An agent that isn't paired is told: "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
