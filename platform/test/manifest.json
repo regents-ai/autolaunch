@@ -517,11 +517,11 @@
       "file": "test/autolaunch_web/controllers/share_video_test.exs",
       "line": 13,
       "test_name": "WALLET_VIDEO_ONLY_FOR_ITS_OWNER: anyone else finds nothing at the address",
-      "keep_because": "A wallet's share video shows its bids, trades, stake and earnings, so only the signed-in account that links the wallet may fetch it (share video, 18 Oct 2026). Signed out or signed in as another account, the address is not found. A manual check sees only the owner's own view. The case fails if the wallet check is dropped or loosened.",
+      "keep_because": "A wallet's share video shows its bids, trades, stake and earnings, so only the signed-in account that links the wallet may fetch it, at the token's address and at the auction's (share video, 18 Oct 2026). Signed out or signed in as another account, both addresses are not found. A manual check sees only the owner's own view. The case fails if either wallet check is dropped or loosened.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "b1fc04813734cbf36c7957bcd22a01f5133461ca916fe870c54302e7ab95df57"
+      "source_sha256": "36593ed9ea1116609b5525df327c39e30901067e849662a7e3f2b3b901d8560f"
     }
   ],
   "legacy_folders_to_remove": [

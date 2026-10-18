@@ -24,18 +24,27 @@ defmodule AutolaunchWeb.ShareVideoTest do
 
     owner = TestSupport.register_creator!()
     other = TestSupport.register_creator!()
-    path = URI.parse(Paths.wallet_video_url(auction, owner.wallet_address, "1")).path
+    wallet = String.downcase(owner.wallet_address)
+    token_path = URI.parse(Paths.wallet_video_url(auction, wallet, "1")).path
 
-    for session <- [%{}, %{human_account_id: other.id}] do
+    auction_path =
+      URI.parse(Paths.auction_wallet_video_url(auction, wallet, "1")).path
+
+    for path <- [token_path, auction_path], session <- [%{}, %{human_account_id: other.id}] do
       {404, _headers, _body} =
         assert_error_sent(404, fn -> conn |> init_test_session(session) |> get(path) end)
     end
 
-    # The owner is let through; with no chain to read in tests, the video
-    # cannot be made, which is the try-again page rather than not found.
+    # The owner is let through both. The token's video cannot be made with no
+    # chain to read in tests, which is the try-again page rather than not
+    # found; the graduated auction's address moves on to the token's.
     {503, _headers, _body} =
       assert_error_sent(503, fn ->
-        conn |> init_test_session(%{human_account_id: owner.id}) |> get(path)
+        conn |> init_test_session(%{human_account_id: owner.id}) |> get(token_path)
       end)
+
+    moved = conn |> init_test_session(%{human_account_id: owner.id}) |> get(auction_path)
+    assert moved.status == 301
+    assert URI.parse(redirected_to(moved, 301)).path == token_path
   end
 end
