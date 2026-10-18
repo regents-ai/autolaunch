@@ -4,8 +4,8 @@ defmodule Autolaunch.Repo.Migrations.SharedAccountsMapToSharedIds do
   negated becomes the number of the same person's shared Regent account, the
   one with the same Privy ID. Only negative numbers are moved, so running this
   again moves only what is left. It finishes by checking that nothing is left;
-  `SharedAccountsReleaseSiteAccounts` already refused to start unless every
-  person had a shared account.
+  `SharedAccountsReleaseSiteAccounts` already gave a shared account to every
+  person who had none.
 
   Going down turns each shared account number back into the negated number of
   the Autolaunch account with the same Privy ID.
