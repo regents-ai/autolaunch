@@ -3,7 +3,11 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v149, 18 October 2026: share a video any time, from any launch
+## v150, 18 October 2026: share videos wait their turn, three of your own a day
+- Share videos are made one at a time. While yours is being made, the share window says "Preparing your video…" and how many are ahead of it.
+- Each person can make three videos of their own in any 24 hours. After that the share window offers the launch's video everyone sees.
+
+## v149, 18 October 2026 (4d05325): share a video any time, from any launch
 - Token and auction pages, on Base and Robinhood, have a Share button by the title, and each row in Portfolio has one too.
 - A launch still in its auction has its own share video, and a signed-in bidder can share a video of their own bids. Only you can open your own video.
 - Once an auction graduates, its video link leads to the token's video.
