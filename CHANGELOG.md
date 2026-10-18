@@ -2,9 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
-## 18 October 2026: three share videos a day, even from several tabs at once
+## 18 October 2026: three share videos a day, even from several tabs at once, and easier taps
 - Asking for share videos from several tabs or windows at the same moment still counts toward your three a day. Before, asks that arrived together could make a fourth.
 - A share video that several people ask for at the same moment is made once, and everyone waits for that one.
+- On token and auction pages, every link and control you tap on its own is easy to hit on a phone.
+- The auction chart's replay slider and price-limit slider work again.
 
 ## 18 October 2026: share-video requests kept in order, and the old account copy removed
 - Your place in line for a share video and your three-a-day count stay right however many people ask at once.
