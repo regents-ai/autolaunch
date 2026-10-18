@@ -86,7 +86,7 @@
 
 /* A link on a line of its own is a full 44px press; a link inside a sentence
    stays part of the sentence. */
-:where(.standalone-link, .shell-wordmark, .market-back, .auction-next-link, .fact-table th > a, .regent-contracts dd > a) {
+:where(.standalone-link, .shell-wordmark, .market-back, .auction-next-link, .fact-table th > a, .regent-contracts dd > a, .launch-trust__rows dd > a:not(.autolaunch-exact-value), .auction-history__table td > a, .auction-finished .launchpad-card__socials a) {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;

@@ -71,7 +71,7 @@
 .auction-next-film__scrubber { display: grid; gap: 6px; margin: 0; }
 .auction-next-film__scrubber label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: .875rem; font-weight: 600; }
 .auction-next-film__scrubber label span { color: var(--color-fg-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
-.auction-next-film__scrubber input { width: 100%; accent-color: var(--brand-accent); }
+.auction-next-film__scrubber input { width: 100%; height: 2.75rem; margin: 0; accent-color: var(--brand-accent); }
 .auction-next-film__reading { margin: 0; font-size: .875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .auction-next-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: .75rem; color: var(--color-fg-muted); }
 .auction-next-legend li { display: inline-flex; align-items: center; gap: 6px; }
@@ -129,7 +129,7 @@
 /* The bid lookup. */
 .auction-next-check { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; margin: 0; }
 .auction-next-check label { flex-basis: 100%; font-size: .875rem; font-weight: 600; }
-.auction-next-check input { width: 8rem; padding: 8px 10px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-bg); color: var(--color-fg); font: inherit; font-variant-numeric: tabular-nums; }
+.auction-next-check input { width: 8rem; min-height: 2.75rem; padding: 8px 10px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-bg); color: var(--color-fg); font: inherit; font-variant-numeric: tabular-nums; }
 .auction-next-check input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
 
 /* The charts' tables. */
@@ -161,7 +161,7 @@
 /* The price-limit handle: drag or arrow keys, one allowed price a step. */
 .auction-next-handle { display: grid; gap: 8px; margin: 0; padding: 12px; border: 1px dashed var(--color-link, var(--color-fg)); border-radius: var(--radius); }
 .auction-next-handle label { font-size: .875rem; font-weight: 600; }
-.auction-next-handle input[type="range"] { width: 100%; accent-color: var(--color-link, var(--brand-accent)); }
+.auction-next-handle input[type="range"] { width: 100%; height: 2.75rem; margin: 0; accent-color: var(--color-link, var(--brand-accent)); }
 .auction-next-handle input[type="range"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .auction-next-handle__reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .auction-next-handle__reading dt { color: var(--color-fg-muted); font-size: .75rem; }
