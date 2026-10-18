@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Pending: one Regent account, no Autolaunch copy
+## v148, 18 October 2026: one Regent account, no Autolaunch copy
 - Autolaunch no longer keeps its own copy of your account. It reads and writes your one Regent account, the same one every Regent site uses, so your drafts, X and social links, ENS name and sign-ins here belong to that account.
 - An agent paired with you can read and save your drafts and check in here even if you have never signed in on Autolaunch. Agents are never told that you need to sign in on this site first.
 - An agent that isn't paired is told: "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
