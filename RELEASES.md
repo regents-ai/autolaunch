@@ -20,26 +20,26 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 | v140 | 16 October 2026 | `78de400` | the token card fits every width |
 | v139 | 16 October 2026 | `ce7aa07` | a token page you can use at a glance |
 | v138 | 16 October 2026 | `0ad2a7f` | every sign-in has its end recorded |
-| v137 | 16 October 2026 | `06c075f` | a sign-in ends 30 days after it was made |
+| v137 | 16 October 2026 | `06c075f` | a sign-in ends 30 days after it was made. Approved: Sean, 15 Oct, decision 2a (every site follows this rule) |
 | v136 | 16 October 2026 | `227b1ff` | a simpler header and clearer lists |
 | v135 | 15 October 2026 | `b830b18` | Escape closes swap settings; Autolaunch's own agent skill |
 | v134 | 15 October 2026 | `39c0cc9` | sign out stays signed out |
 | v133 | 15 October 2026 | `5f0209f` | swaps start at 6% slippage, and room for more visitors |
 | v132 | 15 October 2026 | `0db69a6` | stock bids let you set slippage |
-| v131 | 15 October 2026 | `e055673` | agent account answers match the template |
-| v130 | 15 October 2026 | not recorded | shared dependency baseline |
-| v129 | 14 October 2026 | not recorded | HTTP/2 timeout security fix |
-| v128 | 14 October 2026 | not recorded | page requests no longer crash when JSON is requested |
+| v131 | 15 October 2026 | `e055673` | agent account answers match every Regent site |
+| v130 | 15 October 2026 | not recorded | behind-the-scenes updates |
+| v129 | 14 October 2026 | not recorded | a security fix |
+| v128 | 14 October 2026 | not recorded | pages answer data requests with a clear refusal |
 | v127 | 14 October 2026 | not recorded | Credits stays easy to tap |
 | v126 | 14 October 2026 | not recorded | mobile auction names and pool charts stay readable |
 | v125 | 14 October 2026 | not recorded | launch and agent tools are easier to find |
 | v124 | 14 October 2026 | not recorded | stock details and clearer Explore navigation |
 | v123 | 14 October 2026 | `d787d04` | token pages quote prices again |
-| v122 | 14 October 2026 | `d8e3135` | the stock watcher always moves on to the next stocks |
+| v122 | 14 October 2026 | `d8e3135` | steadier stock checks behind the scenes |
 | v121 | 14 October 2026 | `c51d0a9` | finished auctions lead on to their token |
-| v120 | 14 October 2026 | `28d2cb6` | the trades health reading follows the token furthest behind |
-| v119 | 14 October 2026 | `06bfa91` | shared library update |
-| v118 | 14 October 2026 | `f3e0524` | a failed ENS lookup keeps its reason |
+| v120 | 14 October 2026 | `28d2cb6` | a closer watch on token trades behind the scenes |
+| v119 | 14 October 2026 | `06bfa91` | ENS pictures are tried again, and Points share one daily limit |
+| v118 | 14 October 2026 | `f3e0524` | ENS lookup problems noted behind the scenes |
 | v117 | 14 October 2026 | `80523b6` | your Claim or Refund button on the Auctions list, and outcome pictures in search |
 | v116 | 14 October 2026 | `d379c58` | auction figures are read once for everyone |
 | v115 | 14 October 2026 | `9fbf1d8` | the menu says "Onchain Stocks" |
@@ -50,11 +50,11 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 | v110 | 13 October 2026 | `c54c0e4` | logos for GLD, ORCL and ASML |
 | v109 | 13 October 2026 | `28a45d8` | a page of upcoming stocks |
 | v108 | 13 October 2026 | `38c4edf` | the stock list comes from the chain, and the create and bid pages show more |
-| v107 | 13 October 2026 | `27c5135` | an open page's connection holds less memory |
+| v107 | 13 October 2026 | `27c5135` | lighter open pages behind the scenes |
 | v106 | 13 October 2026 | `ca358ae` | open pages are told only when something they show changed |
 | v105 | 13 October 2026 | `3bd5639` | an auction page shows its price before bidding opens |
 | v104 | 13 October 2026 | `13094a2` | open pages keep working when the site is busy |
-| v103 | 13 October 2026 | `19db73f` | pages stay quick after each release, and commands say who may run them |
+| v103 | 13 October 2026 | `19db73f` | pages stay quick, and commands say who may run them |
 | v102 | 13 October 2026 | `9b85b31` | faster pages, and clearer answers to refused agents |
 | v101 | 13 October 2026 | `38bb67b` | agent sign-in checks the request body |
 | v100 | 13 October 2026 | `370a738` | a page for each bid |
@@ -63,10 +63,10 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 | v97 | 12 October 2026 | `1833c5b` | bid estimates on finished auctions |
 | v96 | 12 October 2026 | `1db2f96` | agent reads and a steadier volume schedule |
 | v95 | 12 October 2026 | `372881a` | stock trading volumes |
-| v94 | 12 October 2026 | `5a93551` | errors kept on the site, side panel, Points, Credits |
-| v93 | 12 October 2026 | `a82c114` | Portfolio refresh, create page layout, shared dropdowns |
-| v92 | 12 October 2026 | `5649093` | (entry under this date) |
-| v91 | 12 October 2026 | `df4a9e7` | (entry under this date) |
+| v94 | 12 October 2026 | `5a93551` | side panel, Points and Credits |
+| v93 | 12 October 2026 | `a82c114` | Portfolio refresh, create page layout, shared dropdowns. Approved: Sean, 89 a (shared rounded dropdowns) |
+| v92 | 12 October 2026 | `5649093` | (entry under this date). Approved: Sean, 66 a (shared sign-in check on the Account page), 70 a (wallet balance allowance), 67 a (signed-out Revstake panel), 71 a (sign in and sign out) |
+| v91 | 12 October 2026 | `df4a9e7` | (entry under this date). Approved: Sean, 45 a (card lists settle in once) |
 | v90 | 12 October 2026 | `9cabd3a` | (entry under this date) |
 | v89 | 12 October 2026 | `0cad4ad` | (entry under this date) |
 | v88 | 12 October 2026 | `60a0dd9` | (entry under this date) |

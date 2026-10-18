@@ -3,8 +3,8 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 18 October 2026: share-video requests kept in order, and the old account copy removed
-- Each share video request is kept in its own list, so the place in line and the three-a-day count stay right however many people ask at once. What you see is unchanged.
-- Autolaunch's old copy of each account, no longer used, is deleted. Every account now lives only in the one shared Regents account list.
+- Your place in line for a share video and your three-a-day count stay right however many people ask at once.
+- Autolaunch's old, unused copy of your account is deleted. Your account now lives only in your one Regent account.
 
 ## 18 October 2026: one Regent account, no Autolaunch copy
 - Autolaunch no longer keeps its own copy of your account. It reads and writes your one Regent account, the same one every Regent site uses, so your drafts, X and social links, ENS name and sign-ins here belong to that account.
@@ -13,8 +13,8 @@ What changed on autolaunch.sh for people and agents, newest first.
 - An agent's check-in shows your Regent profile name and ENS name, when you have them.
 - If your Regent account has no wallet yet, an agent asking for your bids and tokens is told so (`wallet_required`) and asked to have you sign in with your wallet.
 - The pairing box offers only the agents the pairing step accepts.
-- If you have only ever signed in on Autolaunch, the release first gives you your Regent account, holding the same sign-in and wallets Autolaunch has for you, as your first sign-in on any other Regent site would have.
-- The release moves every record from the old Autolaunch account numbers to the Regent account numbers and then removes the copy. The site is stopped for the minute this takes.
+- If you have only ever signed in on Autolaunch, you now have your Regent account, holding the same sign-in and wallets Autolaunch has for you, as your first sign-in on any other Regent site would have given you.
+- The site paused for about a minute while everything moved over to your Regent account.
 
 ## 18 October 2026: share videos wait their turn, three of your own a day
 - Share videos are made one at a time. While yours is being made, the share window says "Preparing your video…" and how many are ahead of it.
@@ -64,8 +64,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The footer reads About, Developer docs, Agent guide, Contact, Privacy policy and Terms of use. Agent guide opens the two plain-text guides to give your agent.
 - On a short page the footer sits at the bottom of the screen.
 - Opening the side panel on a laptop screen no longer pushes the page down: the header stays on one line.
-- Agents are told which agent kinds they can name when they pair, and that their person may need to sign in on Autolaunch once. The agent guides point to regents-cli 1.10.12.
-- The web server and several packages are on their latest fixed versions.
+- Agents are told which agent kinds they can name when they pair, and that their person may need to sign in on Autolaunch once. The agent guides point to the latest Regents command-line tool.
 
 ## 16 October 2026: claim everything in one press
 - Claim rewards also moves the trading fees still waiting in the pool, so one press claims everything. A wallet that can send several steps together does it in one go; others confirm each step in turn.
@@ -99,13 +98,11 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The price impact box, the rewards chart and the reward walkthrough are gone.
 
 ## 16 October 2026: every sign-in has its end recorded
-- The sign-ins the previous version made while the 30-day rule went out now end too: 30 days after their last refresh before this release, the same rule every sign-in open at that release got.
-- The site's records now refuse a sign-in that doesn't say when it was made.
+- The few sign-ins made in the minutes the 30-day rule arrived now end too, 30 days after their last refresh, the same as every other sign-in.
 
 ## 16 October 2026: a sign-in ends 30 days after it was made
-- A sign-in now ends 30 days after you signed in, however often you come back in between. Before, each visit that refreshed the sign-in started the 30 days again, so an account used every week stayed signed in indefinitely (Sean, 15 Oct, decision 2a: every site follows this rule).
-- Sign-ins already open when this ships count from their most recent refresh.
-- Sign-ins made by the previous version in the minutes this one goes out have no end yet. The next release gives them one, so it follows promptly.
+- A sign-in now ends 30 days after you signed in, however often you come back in between. Before, each visit that refreshed the sign-in started the 30 days again, so an account used every week stayed signed in indefinitely. Every Regent site follows this rule.
+- Sign-ins that were already open count from their most recent refresh.
 
 ## 16 October 2026: a simpler header and clearer lists
 - The sidebar's Auctions and Tokens open their own pages, each with its own heading.
@@ -113,19 +110,18 @@ What changed on autolaunch.sh for people and agents, newest first.
 - agents.md moves into the $REGENT menu, and the header gains the Regents Labs apps menu.
 - The side panel and its button appear only while you are signed in, so nothing covers Sign in after you sign out.
 - A request that is too large or unreadable gets a clear answer instead of an error page.
-- Agent guides point to regents-cli 1.10.6, which has `token <id>` and reads the current account answers. Tool names read in plain words.
+- Agent guides point to a newer Regents command-line tool, which has `token <id>` and reads the current account answers. Tool names read in plain words.
 
 ## 15 October 2026: Escape closes swap settings; Autolaunch's own agent skill
 - On a token page, Escape closes the swap settings and returns to the settings button.
 - Revstake wallet payments read a typed amount exactly, digit for digit, the same way bids do.
 - `/skill.md` is now Autolaunch's own guide for agents: what to read, which tool or command fits, and how often to check back. `/agents.md` is unchanged, and `/llms.txt` links both.
-- An unused glass animation and its build steps are gone.
 
 ## 15 October 2026: sign out stays signed out
 - After Sign out, a sign-in the wallet still remembers no longer signs you back in by itself. Signing out in one tab signs out the others.
 - Every wallet transaction names its chain.
 - Request limits work as on every Regent site, with the same allowances.
-- Pages, files and the X connection window carry the same security rules as every Regent site. The saved-errors page shows nothing to visitors.
+- Pages and the X connection window follow the same security rules as every Regent site.
 
 ## 15 October 2026: swaps start at 6% slippage, and room for more visitors
 - The token page's swap widget starts with a 6% maximum slippage, up from 1%. Swappers can still pick anywhere from 1% to 10%.
@@ -134,19 +130,19 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 15 October 2026: stock bids let you set slippage
 - Base USDC and Robinhood USDG stock auction bids have an editable slippage, 5% by default, from 0% to 99.99% with up to two decimals. The bid shows the exact minimum stock received, and that minimum goes into the transaction. Direct stock bids are unchanged.
 
-## 15 October 2026: agent account answers match the template
+## 15 October 2026: agent account answers match every Regent site
 - Signed agent reads of Points, Credits balances and Credits history answer in the same shape as every Regent site: Points as two-decimal amounts with daily allowances, Credits history paged by `pagination.next_cursor`, and a short note when Points earning or agent spending is off. An invalid history cursor is refused by name.
 - Agents can read one listed token by its id at `/api/v1/tokens/{id}`, on Base and Robinhood, with its page and auction links, stored price, quote token and supply. Token lists include each token's page link.
 - An agent's check-in includes the account's stored wallets. They give the agent no wallet authority.
 
-## 15 October 2026: shared dependency baseline
-- Behind-the-scenes updates only; nothing changes for people or agents.
+## 15 October 2026: behind-the-scenes updates
+- Behind-the-scenes updates only.
 
-## 14 October 2026: HTTP/2 timeout security fix
-- A security fix: a slow connection can no longer hold a page open indefinitely.
+## 14 October 2026: a security fix
+- A security fix. Nothing changes on the pages.
 
-## 14 October 2026: page requests no longer crash when JSON is requested
-- HTML pages, including Onchain Stocks, safely refuse JSON requests. Normal browsing, session requests and account linking retain their existing behavior.
+## 14 October 2026: pages answer data requests with a clear refusal
+- Asking one of the site's pages, such as Onchain Stocks, for data instead of a page now gets a clear refusal instead of an error. Browsing, signing in and linking accounts work as before.
 
 ## 14 October 2026: Credits stays easy to tap
 - The header's Credits button is at least 44 pixels wide and tall, including when its balance is unavailable. It lines up with the account control, as on every Regent site.
@@ -158,7 +154,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 14 October 2026: launch and agent tools are easier to find
 - Available to Pair links Memestock to the create page and shows Dual Stock Token greyed out with a Coming soon hint.
-- The sidebar ends with an orange Launch button. The header links to agents.md, and a glossy vgpu badge below it shows the tool count from the site's manifest.
+- The sidebar ends with an orange Launch button. The header links to agents.md, and a badge below it shows how many tools agents can use.
 
 ## 14 October 2026: stock details and clearer Explore navigation
 - Onchain Stocks moves to `/upcoming-stocks`; `/upcoming` redirects there. Clicking a stock opens its token and Chainlink addresses, company and stock links, and dated pool details. Escape closes the dialog.
@@ -171,8 +167,8 @@ What changed on autolaunch.sh for people and agents, newest first.
 - A Base Memestock auction now shows its token's address under Additional Details and in the site's token list for agents, as Robinhood ones already did. AIFROG, BITE, JollyBoi and two earlier auctions now show theirs too.
 - The "Uniswap Pool" button at the top of a Base token page opens the token's pool on Uniswap, as it already did on Robinhood.
 
-## 14 October 2026: the stock watcher always moves on to the next stocks
-- The site's ten-minute check of stocks waiting to be added now marks each stock's turn before it starts. A check that runs out of time sends that stock to the back of the line, so a few slow stocks can no longer hold up the rest. Visitors see no change.
+## 14 October 2026: steadier stock checks behind the scenes
+- Behind-the-scenes updates only.
 
 ## 14 October 2026: finished auctions lead on to their token
 - An auction that ended below its minimum says "Minimum not met" on the lists, in place of an empty bar.
@@ -183,15 +179,16 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The lists send an open page only what changed on screen.
 - Every stock Chainlink prices on Base or Robinhood now has a logo: CleanSpark, the iShares South Korea fund, IonQ and Rigetti join the rest, so no stock on the Onchain Stocks page shows letters in place of a logo.
 
-## 14 October 2026: the trades health reading follows the token furthest behind
-- The site's health reading for token trades now shows, for each chain, the token whose trades are furthest behind, so one token that is up to date no longer hides another that is catching up. Visitors see no change.
+## 14 October 2026: a closer watch on token trades behind the scenes
+- Behind-the-scenes updates only.
 
-## 14 October 2026: shared library update
-- Brings in the latest shared fixes: a slow or busy ENS picture service counts as a failed read and is tried again, rather than leaving a wallet with no picture; Credits holds keep their cause; refund decisions and history read the same way on every site; Points share one daily limit; and a refused signed request gets one answer everywhere.
-- A release now stops, naming what is missing, if the shared database hasn't yet been given a change the Credits or Points code needs.
+## 14 October 2026: ENS pictures are tried again, and Points share one daily limit
+- When a wallet's ENS picture can't be read because the picture service is slow or busy, it is tried again instead of leaving the wallet with no picture.
+- Refunds and their history read the same way on every Regent site, and Points share one daily limit.
+- An agent's refused signed request gets the same answer on every Regent site.
 
-## 14 October 2026: a failed ENS lookup keeps its reason
-- When the site can't read a wallet's ENS name or picture, the reason is now kept with the site's saved errors, so the team can see why. Visitors see no change; the site tries again later as before.
+## 14 October 2026: ENS lookup problems noted behind the scenes
+- Behind-the-scenes updates only.
 
 ## 14 October 2026: your Claim or Refund button on the Auctions list, and outcome pictures in search
 - On the Auctions list, a signed-in wallet with something to collect from a finished Base auction sees its own button on that row: "Claim", "Withdraw", or "Refund" with the amount. It opens the same card as on the home page. Signed out, or with nothing to collect, the list looks as before.
@@ -232,11 +229,9 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 13 October 2026: the stock list comes from the chain, and the create and bid pages show more
 - The stocks a Memestock token can be paired with are now read from each chain's launchpad
   every five minutes. A stock the Safe admits shows in the picker within about six minutes,
-  with its dollar price, and a stock it revokes leaves the picker. Before, either needed a
-  site release.
+  with its dollar price, and a stock it revokes leaves the picker. Before, either waited for
+  a site update.
 - The picker shows a company's short name: "Apple", "Microsoft", "Meta Platforms".
-- Once an hour the site notes which stocks not yet admitted have a Chainlink price and more
-  than $10,000 in a dollar pool. This is a record only: it changes no page, launch or bid.
 - Both create pages show the gallery card for the token beside the form as it is filled in.
 - A bid window shows the auction's picture and the wallet's balances.
 - "Buy at" on a stock names its trading venues with more than $10,000, the two deepest.
@@ -245,18 +240,13 @@ What changed on autolaunch.sh for people and agents, newest first.
 - For about ten minutes on 13 October (21:41 to 21:50 UTC) the create page showed an error,
   stock prices were not read and the stock picker was empty.
 
-## 13 October 2026: an open page's connection holds less memory
-- The connection behind each open page now gives back the memory it used to send the
-  page. Before, it kept it for as long as the tab stayed open. With 50 pages open on a
-  practice copy of the site, a connection held about 0.09 MB, down from about 1.67 MB.
+## 13 October 2026: lighter open pages behind the scenes
+- Behind-the-scenes updates only.
 
 ## 13 October 2026: open pages are told only when something they show changed
-- An open page is sent an update only when something it shows changed. Before, every open
-  page was told on each pass of the site's readers, whether or not anything had moved. On
-  the live site an open page now receives about 24 updates a minute, down from about 70.
-- An auction's page reads its auction again when a reading names that auction, and the
-  price strip sends its list only when the list differs from the last one.
-- Claims on finished auctions reach the lists on the ten-minute pass.
+- An open page updates only when something it shows has changed, instead of many times a
+  minute whether or not anything had moved.
+- Claims on finished auctions show on the lists within ten minutes.
 
 ## 13 October 2026: an auction page shows its price before bidding opens
 - An auction's page shows its price and schedule from the moment it is launched. Before,
@@ -267,23 +257,19 @@ What changed on autolaunch.sh for people and agents, newest first.
 - When the site is very busy, new visitors wait a moment to get in and pages already open
   keep working.
 
-## 13 October 2026: pages stay quick after each release, and commands say who may run them
-- Pages and clicks no longer slow down about 40 minutes after each release.
+## 13 October 2026: pages stay quick, and commands say who may run them
+- Pages and clicks no longer slow down about 40 minutes after each site update.
 - Every agent command now says who may run it: any signed-in agent, or an agent paired
   with a person.
 
 ## 13 October 2026: faster pages, and clearer answers to refused agents
-- Pages and clicks answer faster. The site reads the description of its contracts once
-  and keeps it, where before it read the files again for every request, and it hashes with
-  a faster routine. Its steady background work is about half what it was.
-- An agent whose signed request is refused is told why in the sign-in service's own words,
-  such as a body that changed after signing or a request that was already sent, as on every
-  Regent site.
+- Pages and clicks answer faster.
+- An agent whose signed request is refused is told why, such as a body that changed after
+  signing or a request that was already sent, as on every Regent site.
 
 ## 13 October 2026: agent sign-in checks the request body
-- When an agent signs a request, the site now sends a digest of the request's body along
-  with the proof it checks, as every Regent site does from today. Nothing changes on the
-  pages, and agents keep signing the same way.
+- A signed agent request is now refused if its body was changed after signing, as on every
+  Regent site from today. Nothing changes on the pages, and agents keep signing the same way.
 
 ## 13 October 2026: a page for each bid
 - Every bid has its own page, opened from Details on the portfolio. It shows what is yours,
@@ -331,25 +317,18 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The Regents command-line tool can read Autolaunch's auctions, one auction, a bid estimate,
   launched tokens and a treasury's security report without signing in, once the tool's next
   version picks them up. None of them places a bid or changes anything.
-- Choosing which stocks' volumes to read next no longer waits behind a slow read.
+- Stock trading volumes keep updating when one of them is slow to read.
 
 ## 12 October 2026: stock trading volumes
 - Trading volumes for Robinhood stocks update again. Since early on 12 October, 16 of them
   had stopped updating after a new exchange's pools began to be listed.
 
-## 12 October 2026: errors kept on the site, side panel, Points, Credits
-- Errors the site meets are saved in Autolaunch's own database and cleared a week after
-  they were last seen, the way the template does it; Sentry is no longer used. Credits
-  admins (named in REGENT_CREDITS_ADMINS) read them at /admin/errors; anyone else gets
-  the ordinary not-found page.
-- The motion lab at /animations shows every version of each movement the site uses, side
-  by side, the same page as the template's. AUTOLAUNCH_SHOWCASE="public" opens it; on the
-  live site it stays off until that is set.
+## 12 October 2026: side panel, Points and Credits
 - The account dropdown in the header is gone. A side panel button sits beside your name,
   and either one opens the side panel: your name with Account and Sign out at the top,
   then Help. It stays open or closed as you left it. On the narrowest phones only the
   panel button shows.
-- A Points page at /account/points, the template's: your balance, your NFT bonus, recent
+- A Points page at /account/points: your balance, your NFT bonus, recent
   activity and what earns points. Earning hasn't opened on Autolaunch, so it says so.
   The Account page links to it.
 - A Credits button in the header on every page shows your Regents Credits balance and
@@ -364,21 +343,18 @@ What changed on autolaunch.sh for people and agents, newest first.
 - "More links" is now "Community Links" and "Socials (optional)" is now "Connect Socials",
   each in a bordered box. Community Links changes on the Revstake create page too.
 - The token image hint reads "400x400 optimal".
-- The list dropdowns use the rounded style every Regent site now shares (Sean, 89 a).
+- The list dropdowns use the rounded style every Regent site now shares.
 
 ## 12 October 2026
-- The Account page relies on the sign-in check every Regent site shares (Sean, 66 a).
 - Wallet balance reads count against an allowance of 30 a minute: the account's when signed
-  in, the visitor's address when signed out. Past it, figures already shown stay
-  (Sean, 70 a).
+  in, the visitor's address when signed out. Past it, figures already shown stay.
 - Signed out, the Revstake token panel shows the open wallet's balances, the same figures
-  as signed in, with a Sign in to pay button (Sean, 67 a).
-- Sign in always opens Privy's window, and any Privy session the browser still remembers
-  is logged out first, so you sign in with the wallet your wallet app is on now (Sean, 71 a).
-- Sign out finishes Privy's logout on the page where you pressed it. One that can't finish
-  in time is finished by the next page, never dropped (Sean, 71 a).
-- Whether you're signed in is never kept by your browser or a network cache, so a page
-  always asks fresh.
+  as signed in, with a Sign in to pay button.
+- Sign in always opens the sign-in window, and any earlier sign-in the browser still
+  remembers is ended first, so you sign in with the wallet your wallet app is on now.
+- Sign out finishes on the page where you pressed it. One that can't finish in time is
+  finished by the next page, never dropped.
+- Whether you're signed in is always checked fresh, never remembered from an earlier page.
 - The Tokens list shows each ticker with the currency it trades against, such as RDOG / SPCX.
 - A token's picture always fits its circle in the lists, however tall or wide the picture is.
 - An auction that ended below its minimum reads "Minimum unmet" instead of "Failed".
@@ -386,32 +362,26 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 12 October 2026
 - Lists of cards settle in once, the first time they scroll into view; one already in view
-  when the page opens is simply there (Sean, 45 a).
-- An error report sent to Sentry leaves without the values the failing code was handling
-  and without a crashed process's saved state or last message.
-- An open page re-checks the sign-in before every update it receives and every background
-  result, not only on a click or a page change. When the sign-in has ended, the update is
-  dropped and the page shows that the sign-in ended.
-- Wallet panels re-check it before each press and each result of their own, and act with
-  the wallets the account links at that moment.
+  when the page opens is simply there.
+- An open page checks you are still signed in before each update it shows, not only on a
+  click or a page change. When the sign-in has ended, the page says so.
+- Wallet panels check it again before each press, and act with the wallets the account
+  links at that moment.
 - The Revstake token panel and the Robinhood launch card keep showing the account's own
   wallet when the open wallet isn't linked to the account, instead of going empty.
 - Agents are offered only the signed tools as signed operations, each with its own inputs.
 
 ## 12 October 2026
-- Site errors can be reported to Sentry. Nothing is sent until a Sentry project is set.
+- Behind-the-scenes updates only.
 
 ## 12 October 2026
-- The site connects to its database only through the direct connection, which its live
-  updates and database upgrades need.
-- New versions start beside the running one and take over once healthy.
+- Behind-the-scenes updates only.
 
 ## 12 October 2026
-- Each page carries one security policy, the site's own.
-- Shared design and library versions match the Regents template.
+- Behind-the-scenes updates only.
 
 ## 12 October 2026
-- Memestake is now called Memestock everywhere on the site, in its links and in stored launches.
+- Memestake is now called Memestock everywhere on the site, including its links and earlier launches.
 - Create Memestock picks the paired stock from a searchable gallery, sorted Alphabetical,
   by Trading Volume or Recently Added. Each stock shows its past week of trading volume;
   a figure ending in "+" is at least that much. A picked stock carries over to the other
@@ -423,12 +393,11 @@ What changed on autolaunch.sh for people and agents, newest first.
   wallets and asks for a switch.
 - Agents pair and act over signed requests only. The in-page wallet tools for bidding,
   trading, staking and launching are removed; the page's read tools stay.
-- Shared motion, design-system and library pins match the other Regent sites.
 
 ## 11 October 2026
 - The header shows the signed-in wallet's ENS name and picture when the wallet has a primary
   ENS name that points back to it. Each sign-in reads it again from Ethereum mainnet.
-- decimal 3.1.2 (security fix EEF-CVE-2026-97853).
+- A security fix.
 
 ## 10 October 2026
 - Nine Learn pages keep the same navigation and content position, with the current page marked.
@@ -472,8 +441,6 @@ What changed on autolaunch.sh for people and agents, newest first.
   minute; past that it says how many seconds to wait. One address that read it every
   2.3 seconds is refused. The developer guide and API description say so, and the
   browser tools pass the wait on to agents.
-- The site's engine measurements (memory, run queues, process counts) now reach the
-  monitoring dashboard.
 
 ## 9 October 2026
 - Auctions finish automatically once their finish block has passed.
@@ -532,11 +499,10 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 7 October 2026
 - The site now always opens over a secure connection, and browsers remember to use one.
-- A new browser safety rule watches what each page loads. For now it only reports; pages work as before.
 - Security reports now go to build@regents.sh.
 
 ## 6 October 2026
-- A security update to the site's underlying software. Nothing changes on the pages.
+- A security fix. Nothing changes on the pages.
 - When you open your profile without signing in, the message now says what went wrong and what to do next.
 
 ## 5 October 2026
@@ -557,17 +523,16 @@ What changed on autolaunch.sh for people and agents, newest first.
   the key facts also appear in llms.txt.
 
 ## 29 September 2026
-- The site monitor now notices if the site stops reading new launches, bids or trades.
-- Shared Regent libraries updated, including how ENS names are read.
+- Behind-the-scenes updates only.
 
 ## 28 September 2026
 - New Terms page, with the Autolaunch and blockchain-risk sections from the Regents Labs
   terms. The footer links it, and the privacy page points to it.
 - The developer guide moves to /docs (the old /developers address forwards there) and
   explains errors, versions and request limits.
-- The public API and health check allow 120 requests a minute from each visitor.
+- The public API allows 120 requests a minute from each visitor.
 - Files that help agents find the site: security contact, API catalog and tool list.
-- Security update to a web library the site uses.
+- A security fix.
 
 ## 27 September 2026
 - Buttons and menus move the same way as on the other Regent sites, from their shared
@@ -586,8 +551,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - A dollar estimate never carries over from one auction to the next.
 
 ## 27 September 2026
-- Behind-the-scenes tidying only: unused styles removed and the site's checks moved to
-  the standard places. Nothing changes for visitors.
+- Behind-the-scenes updates only.
 
 ## 27 September 2026
 - Every page's browser tab title and link preview name the page, then "Autolaunch", from
@@ -611,11 +575,7 @@ What changed on autolaunch.sh for people and agents, newest first.
   "3 minutes ago" or "in 2 hours" everywhere, from the shared Regent formatting.
 
 ## 27 September 2026
-- The site now uses Regent's shared sign-in, design and blog code at fixed published
-  versions, the same ones every Regent site checks against, so the release no longer
-  depends on copies kept next to it.
 - Signing in with one of several linked wallets keeps that wallet as the signed-in one.
-- Sign-in checks against Privy's one current key.
 
 ## 27 September 2026
 - Create now starts with a clear choice between a Memestake and a Revstake token, and each
@@ -624,8 +584,8 @@ What changed on autolaunch.sh for people and agents, newest first.
   and the two 1.00% fees for REGENT stakers and the token's stakers. The trade review now
   lists the fees already included in the quote.
 - Portfolio says while it is refreshing, when it last read everything, and which part could
-  not be read, keeping that part's last figures with their time. A burst of updates now
-  causes one extra read instead of one each. Signing out elsewhere clears the page.
+  not be read, keeping that part's last figures with their time. Signing out elsewhere
+  clears the page.
 - Auction figures show in the auction's own currency when there is no dollar price, and a
   figure that isn't known yet says so instead of showing a dash.
 - An auction counts as ended from the auction itself, not from the clock.
@@ -643,8 +603,8 @@ What changed on autolaunch.sh for people and agents, newest first.
   available at autolaunch.sh/api/v1/me/positions.
 - Each of these calls now says plainly what happened: sent, not sent and why (including the
   wallet being on the wrong account or refusing to switch networks), or unknown.
-- Signing in with an agent wallet and looking up ENS names use corrected address hashing.
-- A security update to the data layer the site is built on.
+- A fix to signing in with an agent wallet and to looking up ENS names.
+- A security fix.
 - The leftover opening countdown is gone.
 
 ## 26 September 2026
@@ -652,7 +612,6 @@ What changed on autolaunch.sh for people and agents, newest first.
   one place, and the developer guide and agent guide list all eight of them, including the
   three that manage a signed-in person's profile (they previously named only five).
 - Pages now tell browsers that only Autolaunch's own pages may offer these tools.
-- Setup notes no longer mention browser tests and commands that were retired earlier.
 
 ## 26 September 2026
 - New Developers, About, Contact and Privacy pages, linked from every page's footer.
@@ -664,17 +623,14 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The homepage arrives with its coins already listed instead of filling them in a moment later.
 
 ## 26 September 2026
-- Reading from the blockchain no longer prints an outdated-setting notice on every request
-  (about 9 a second before), and the server log is quiet again. Connection behaviour is
-  unchanged.
+- Behind-the-scenes updates only.
 
 ## 26 September 2026
 - Pressing a button, opening a menu or copying the address again while its animation is still
   playing no longer leaves it stuck half-faded or half-sized; every animation finishes cleanly.
 
 ## 26 September 2026
-- The chain reader and the auction activity refresh no longer fill the server log with
-  missed-notification warnings (about 300 every two minutes before; none after).
+- Behind-the-scenes updates only.
 
 ## 26 September 2026
 - Buttons give a small squish when pressed, and a short shake when the action isn't available.
@@ -692,7 +648,6 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Each launch step on the Create pages shows its state as a coloured label.
 - Signed out, both Create pages say X, GitHub and ENS can be connected after signing in.
 - Information labels take their colour from the shared design, matching the other sites.
-- Refreshing token trades no longer fills the server log with missed-notification warnings.
 
 ## 25 September 2026
 - Both launch pages open without signing in. Visitors can fill in the whole form, pick a stock
@@ -748,7 +703,6 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The API, the command-line tool and the browser tools for AI agents call the two launch types
   `revstake` and `memestake`, in what they return as well as in the filter. The old names
   `agent` and `stocks` are gone.
-- Two database indexes the auction list no longer uses were removed (run 11:29 UTC).
 
 ## 25 September 2026
 
@@ -775,13 +729,12 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Bid, withdraw and Buy/Sell windows stay open while prices update behind them; before, an
   update could close them.
 - Finishing a Buy or Sell from a home page card no longer breaks the home page.
-- The bottom ticker's Robinhood trades are read from where each auction starts, and one shared
-  reader feeds every open page.
+- The bottom ticker shows Robinhood trades from the start of each auction.
 
 ### For agents
-- The API, CLI and browser tools list auctions and tokens with the website's own search,
-  filters and sort, and each auction carries its page address, time left, amounts raised and
-  how much of its minimum is met.
+- The API, the command-line tool and the browser tools list auctions and tokens with the
+  website's own search, filters and sort, and each auction carries its page address, time
+  left, amounts raised and how much of its minimum is met.
 
 ## 25 September 2026
 - After you launch a memestock, "Launch memestock" starts from an empty form instead of showing
