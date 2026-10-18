@@ -95,7 +95,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - "Copy Full Token Details to Agent" holds the long explanations, the supply breakdown and the Uniswap Liquidity Pool details; the page keeps a short details list.
 - The token card shows a large Base or Robinhood badge. Auction pages show the ticker with its pair and no "$", with larger links and the ENS mark.
 - Onchain Stocks is now Stocks, at /stock-listing.
-- "Agents see 17 WebMCP Tools" opens the tool list with a prompt to copy, as in ash-template, and the apps menu reads Regents Products.
+- "Agents see 17 WebMCP Tools" opens the tool list with a prompt to copy, as on every Regent site, and the apps menu reads Regents Products.
 - The price impact box, the rewards chart and the reward walkthrough are gone.
 
 ## 16 October 2026: every sign-in has its end recorded
@@ -124,8 +124,8 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 15 October 2026: sign out stays signed out
 - After Sign out, a sign-in the wallet still remembers no longer signs you back in by itself. Signing out in one tab signs out the others.
 - Every wallet transaction names its chain.
-- Request limits work as ash-template's do, with the same allowances.
-- Pages, files and the X connection window carry ash-template's security rules. The saved-errors page shows nothing to visitors.
+- Request limits work as on every Regent site, with the same allowances.
+- Pages, files and the X connection window carry the same security rules as every Regent site. The saved-errors page shows nothing to visitors.
 
 ## 15 October 2026: swaps start at 6% slippage on a bigger machine
 - The token page's swap widget starts with a 6% maximum slippage, up from 1%. Swappers can still pick anywhere from 1% to 10%.
@@ -135,25 +135,21 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Base USDC and Robinhood USDG stock auction bids have an editable slippage, 5% by default, from 0% to 99.99% with up to two decimals. The bid shows the exact minimum stock received, and that minimum goes into the transaction. Direct stock bids are unchanged.
 
 ## 15 October 2026: agent account answers match the template
-- Signed agent reads of Points, Credits balances and Credits history answer in ash-template's shape: Points as two-decimal amounts with daily allowances, Credits history paged by `pagination.next_cursor`, and a short note when Points earning or agent spending is off. An invalid history cursor is refused by name.
+- Signed agent reads of Points, Credits balances and Credits history answer in the same shape as every Regent site: Points as two-decimal amounts with daily allowances, Credits history paged by `pagination.next_cursor`, and a short note when Points earning or agent spending is off. An invalid history cursor is refused by name.
 - Agents can read one listed token by its id at `/api/v1/tokens/{id}`, on Base and Robinhood, with its page and auction links, stored price, quote token and supply. Token lists include each token's page link.
 - An agent's check-in includes the account's stored wallets. They give the agent no wallet authority.
-- Shared libraries and graphics dependencies match ash-template.
 
 ## 15 October 2026: shared dependency baseline
-- Match ash-template's tested shared package versions, including the current browser, wallet and graphics libraries. Keep the verified database compatibility hold.
-- Update graphics rendering and Credits event wiring for those libraries. Points earning remains off.
-- Check all required shared database migration records before release; no database changes are included.
+- Behind-the-scenes updates only; nothing changes for people or agents.
 
 ## 14 October 2026: HTTP/2 timeout security fix
-- Adopt ash-template's upstream Bandit fix for CVE-2026-105659: tiny connection updates can no longer indefinitely extend a blocked response's timeout.
+- A security fix: a slow connection can no longer hold a page open indefinitely.
 
 ## 14 October 2026: page requests no longer crash when JSON is requested
 - HTML pages, including Onchain Stocks, safely refuse JSON requests. Normal browsing, session requests and account linking retain their existing behavior.
-- Regression checks from ash-template protect this distinction and preserve the account-link forgery check.
 
 ## 14 October 2026: Credits stays easy to tap
-- The header's Credits button is at least 44 pixels wide and tall, including when its balance is unavailable. It aligns with the account control, matching ash-template.
+- The header's Credits button is at least 44 pixels wide and tall, including when its balance is unavailable. It lines up with the account control, as on every Regent site.
 
 ## 14 October 2026: mobile auction names and pool charts stay readable
 - Phone auction rows put the token name and ticker above actions and status, so wallet buttons no longer squeeze names out.
@@ -454,8 +450,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Site copy, creator reviews, token and pool explanations, public agent guidance and
   contract docs match the final v2 allocations, fees and destinations, liquidity positions,
   fixed auction minimums, vesting from graduation and token retirement.
-- Deployment guides identify completed v2 deployments. Historical v1 terms and lab records
-  are labelled clearly; the four existing v1 auctions keep their original terms.
+- The four existing v1 auctions keep their original terms.
 - The Robinhood-to-Base bridge remains unbuilt; protocol USDG stays in its inbox.
 
 ## 9 October 2026
@@ -475,9 +470,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Finish refreshes on a new block from the auction's own network.
 - Hidden Robinhood auctions keep withdrawal and claim controls without public token links.
   Failed auctions show full refunds, and receipts handle bids exactly at the clearing price.
-- Release source includes the final deployed v2 contracts, deployment records and
-  5 October fee terms. New launches use v2; the four existing v1 auctions keep working.
-- Ash is updated to the patched 3.34.6 version.
+- New launches use the 5 October fee terms; the four existing v1 auctions keep working.
 
 ## 9 October 2026
 - The public auction list (`GET /api/v1/auctions`) answers each address 6 times a
@@ -568,7 +561,6 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 30 September 2026
 - New About page: the team behind Autolaunch, how it works and key facts come first, and
   the key facts also appear in llms.txt.
-- The automated GitHub checks are switched off; the same checks run before every release.
 
 ## 29 September 2026
 - The site monitor now notices if the site stops reading new launches, bids or trades.
@@ -757,8 +749,6 @@ What changed on autolaunch.sh for people and agents, newest first.
   price could not get its unspent money back.
 - An ended auction says how long ago it ended, such as "Ended 24m ago", instead of how long ago
   it was listed.
-- The site reports its health (indexer lag, job age, wallet send failures, database wait) to
-  Fly Sentinel on a private port.
 
 ## 25 September 2026
 - The API, the command-line tool and the browser tools for AI agents call the two launch types
@@ -804,7 +794,6 @@ What changed on autolaunch.sh for people and agents, newest first.
   the token you just launched.
 - While your Memestake auction is live, the form is grayed out under "Only one Memestake auction
   can be live per account". It opens again once that auction ends.
-- Every change to the site is now checked and test-built on GitHub before release.
 
 ## 25 September 2026
 - Search works as you type. Every word you type must appear somewhere in the auction: its name,
