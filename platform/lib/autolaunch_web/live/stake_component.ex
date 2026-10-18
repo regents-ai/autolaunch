@@ -1058,6 +1058,7 @@ defmodule AutolaunchWeb.StakeComponent do
           message={@share.message}
           image={@share.image}
           video={@share.video}
+          video_everyone={@share.video_everyone}
           video_name={@share.video_name}
         />
       </div>
@@ -1085,6 +1086,7 @@ defmodule AutolaunchWeb.StakeComponent do
       message: "I just staked $#{pool.token.symbol} on Autolaunch (#{chain}). #{url}",
       image: image,
       video: ShareVideo.wallet_url(launch.auction, wallet, DateTime.utc_now()),
+      video_everyone: ShareVideo.token_url(launch.auction, DateTime.utc_now()),
       video_name: "#{pool.token.symbol}-autolaunch.mp4"
     }
   end

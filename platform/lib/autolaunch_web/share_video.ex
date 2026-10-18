@@ -10,11 +10,14 @@ defmodule AutolaunchWeb.ShareVideo do
   24 videos, the oldest written leaving first). A wallet's video is also made
   again as soon as the wallet's holding of the token changes, or during the
   auction as soon as it bids again, so a new bid, stake, unstake, buy or sell
-  shows straight away. Making one takes the
-  machine's attention for a few seconds, so videos are made one at a time on
-  their own job queue (`AutolaunchWeb.ShareVideo.Render`) and a request waits
-  for its video: the job keeps the finished video and tells every waiting
-  request through PubSub.
+  shows straight away.
+
+  Videos are made one at a time on their own job queue
+  (`AutolaunchWeb.ShareVideo.Render`). Asking for one that is not made yet
+  queues it, once however many ask, and answers how many videos are ahead of
+  it; asking again answers the video once it is made. Each account makes at
+  most three new videos of its own in any 24 hours, counted from its jobs on
+  the queue; a video already made, and every launch's own video, never count.
   """
   alias Autolaunch.{TokenTrades, WalletHistory}
   alias AutolaunchWeb.Paths
@@ -22,7 +25,8 @@ defmodule AutolaunchWeb.ShareVideo do
 
   @cache :share_videos
   @kept 24
-  @wait_ms 150_000
+  @daily 3
+  @failed_ms 30_000
 
   @doc "The kept videos' cache and how many it keeps, for the application's supervisor."
   def cache, do: @cache
@@ -50,21 +54,34 @@ defmodule AutolaunchWeb.ShareVideo do
   def wallet_url(auction, wallet, now),
     do: Paths.wallet_video_url(auction, String.downcase(wallet), bucket(now))
 
-  @doc """
-  The video's MP4 bytes, kept or made now: the token's (`:token`) or the
-  running auction's (`:auction`), everyone's when `wallet` is nil and
-  `wallet`'s otherwise.
-  """
-  @spec fetch(struct(), :token | :auction, String.t() | nil, DateTime.t()) ::
-          {:ok, binary()} | {:error, term()}
-  def fetch(auction, phase, nil, now),
-    do: kept_or_made(auction, phase, nil, key(auction, phase, [], now))
+  @doc "How many videos of its own an account may make in any 24 hours."
+  def daily, do: @daily
 
-  def fetch(auction, phase, wallet, now) do
+  @doc """
+  The video as it stands: its MP4 bytes once made, or how many videos are
+  queued ahead of it. The token's (`:token`) or the running auction's
+  (`:auction`), everyone's when `wallet` is nil and otherwise `wallet`'s,
+  asked for by the signed-in `account` that links it.
+  """
+  @spec fetch(struct(), :token | :auction, String.t() | nil, integer() | nil, DateTime.t()) ::
+          {:ok, binary()}
+          | {:waiting, non_neg_integer()}
+          | {:error, :daily_limit | :render_failed | term()}
+  def fetch(auction, phase, nil, nil, now),
+    do: kept_or_queued(auction, phase, nil, nil, key(auction, phase, [], now))
+
+  def fetch(auction, phase, wallet, account, now) when is_integer(account) do
     wallet = String.downcase(wallet)
 
     with {:ok, state} <- wallet_state(auction, phase, wallet),
-         do: kept_or_made(auction, phase, wallet, key(auction, phase, [wallet, state], now))
+         do:
+           kept_or_queued(
+             auction,
+             phase,
+             wallet,
+             account,
+             key(auction, phase, [wallet, state], now)
+           )
   end
 
   # What a wallet has in the launch now, read cheaply: its holding of the
@@ -83,74 +100,67 @@ defmodule AutolaunchWeb.ShareVideo do
     end
   end
 
-  defp kept_or_made(auction, phase, wallet, key) do
+  defp kept_or_queued(auction, phase, wallet, account, key) do
+    with :none <- kept(key),
+         :none <- pending(key),
+         :ok <- allowed(account),
+         :none <- kept(key) do
+      queue(auction, phase, wallet, account, key)
+    end
+  end
+
+  defp kept(key) do
     case Cachex.get(@cache, key) do
       {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
-      _missing -> made(auction, phase, wallet, key)
+      {:ok, :failed} -> {:error, :render_failed}
+      _missing -> :none
     end
   end
 
-  # Subscribed before the job is queued and the cache read once more, so a
-  # video finished in between is never missed.
-  defp made(auction, phase, wallet, key) do
-    :ok = Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(key))
-
-    try do
-      {:ok, _job} =
-        Oban.insert(
-          Render.new(%{
-            "symbol" => auction.token_symbol,
-            "tail" => auction.path_tail,
-            "phase" => Atom.to_string(phase),
-            "wallet" => wallet,
-            "key" => key
-          })
-        )
-
-      case Cachex.get(@cache, key) do
-        {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
-        _missing -> await(key)
-      end
-    after
-      Phoenix.PubSub.unsubscribe(Autolaunch.PubSub, topic(key))
+  defp pending(key) do
+    case Render.pending(key) do
+      nil -> :none
+      job -> {:waiting, Render.ahead(job)}
     end
   end
 
-  defp await(key) do
-    receive do
-      {:share_video, ^key, :made} ->
-        case Cachex.get(@cache, key) do
-          {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
-          _gone -> {:error, :video_unavailable}
-        end
+  defp allowed(nil), do: :ok
 
-      {:share_video, ^key, {:failed, reason}} ->
-        {:error, reason}
-    after
-      @wait_ms -> {:error, :video_timeout}
-    end
+  defp allowed(account),
+    do: if(Render.made_today(account) < @daily, do: :ok, else: {:error, :daily_limit})
+
+  defp queue(auction, phase, wallet, account, key) do
+    args =
+      %{
+        "symbol" => auction.token_symbol,
+        "tail" => auction.path_tail,
+        "phase" => Atom.to_string(phase),
+        "wallet" => wallet,
+        "key" => key
+      }
+
+    args = if account, do: Map.put(args, "account", account), else: args
+    {:ok, job} = Oban.insert(Render.new(args))
+    {:waiting, Render.ahead(job)}
   end
 
   @doc false
-  # The finished video, kept and announced to every request waiting for it.
+  # The finished video, kept for every request that asks for it next.
   def made!(key, mp4) do
     {:ok, true} = Cachex.put(@cache, key, mp4)
-    Phoenix.PubSub.broadcast(Autolaunch.PubSub, topic(key), {:share_video, key, :made})
+    :ok
   end
 
   @doc false
-  def failed(key, reason),
-    do:
-      Phoenix.PubSub.broadcast(
-        Autolaunch.PubSub,
-        topic(key),
-        {:share_video, key, {:failed, reason}}
-      )
+  # A video that could not be made answers so for a short while; asking again
+  # after that queues it again.
+  def failed(key) do
+    {:ok, true} = Cachex.put(@cache, key, :failed, expire: @failed_ms)
+    :ok
+  end
 
   defp key(auction, phase, wallet_parts, now),
     do: Enum.join([auction.id, phase | wallet_parts] ++ [bucket(now)], ":")
-
-  defp topic(key), do: "share_video:" <> key
 
   defp bucket(now), do: now |> DateTime.to_unix() |> div(900) |> Integer.to_string()
 end

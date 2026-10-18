@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.Components.ShareLaunch do
         message: message(auction, symbol, chain),
         image: image(auction, now),
         video: ShareVideo.url(auction, wallet(assigns.account_control), now),
+        video_everyone: wallet(assigns.account_control) && ShareVideo.url(auction, nil, now),
         video_name: "#{symbol}-autolaunch.mp4"
       )
 
@@ -41,6 +42,7 @@ defmodule AutolaunchWeb.Components.ShareLaunch do
       message={@message}
       image={@image}
       video={@video}
+      video_everyone={@video_everyone}
       video_name={@video_name}
     />
     """

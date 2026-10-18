@@ -25,7 +25,11 @@ defmodule AutolaunchWeb.ShareCardController do
   def token_video(conn, %{"symbol" => symbol, "tail" => tail}) do
     case Paths.find_token(symbol, tail) do
       {:ok, auction, _token} ->
-        send_video(conn, "public", ShareVideo.fetch(auction, :token, nil, DateTime.utc_now()))
+        send_video(
+          conn,
+          "public",
+          ShareVideo.fetch(auction, :token, nil, nil, DateTime.utc_now())
+        )
 
       :error ->
         raise NotFoundError
@@ -37,10 +41,16 @@ defmodule AutolaunchWeb.ShareCardController do
   wallet; for anyone else there is nothing at the address.
   """
   def wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
+    account = conn.assigns[:current_human_account]
+
     with {:ok, wallet} <- Address.normalize(wallet),
-         true <- linked?(conn.assigns[:current_human_account], wallet),
+         true <- linked?(account, wallet),
          {:ok, auction, _token} <- Paths.find_token(symbol, tail) do
-      send_video(conn, "private", ShareVideo.fetch(auction, :token, wallet, DateTime.utc_now()))
+      send_video(
+        conn,
+        "private",
+        ShareVideo.fetch(auction, :token, wallet, account.id, DateTime.utc_now())
+      )
     else
       _not_theirs -> raise NotFoundError
     end
@@ -56,7 +66,11 @@ defmodule AutolaunchWeb.ShareCardController do
         moved(conn, ShareVideo.url(auction, nil, DateTime.utc_now()))
 
       {:ok, auction} ->
-        send_video(conn, "public", ShareVideo.fetch(auction, :auction, nil, DateTime.utc_now()))
+        send_video(
+          conn,
+          "public",
+          ShareVideo.fetch(auction, :auction, nil, nil, DateTime.utc_now())
+        )
 
       :error ->
         raise NotFoundError
@@ -65,14 +79,21 @@ defmodule AutolaunchWeb.ShareCardController do
 
   @doc "One wallet's share video of the auction, on the same terms as `wallet_video/2`."
   def auction_wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
+    account = conn.assigns[:current_human_account]
+
     with {:ok, wallet} <- Address.normalize(wallet),
-         true <- linked?(conn.assigns[:current_human_account], wallet),
+         true <- linked?(account, wallet),
          {:ok, auction} <- Paths.find_auction(symbol, tail) do
       now = DateTime.utc_now()
 
       if auction.state == :graduated,
         do: moved(conn, ShareVideo.url(auction, wallet, now)),
-        else: send_video(conn, "private", ShareVideo.fetch(auction, :auction, wallet, now))
+        else:
+          send_video(
+            conn,
+            "private",
+            ShareVideo.fetch(auction, :auction, wallet, account.id, now)
+          )
     else
       _not_theirs -> raise NotFoundError
     end
@@ -89,13 +110,31 @@ defmodule AutolaunchWeb.ShareCardController do
 
   defp linked?(_signed_out, _wallet), do: false
 
-  # A video's address moves on with its figures, like the picture's.
+  # A video's address moves on with its figures, like the picture's. Until
+  # it is made, the answer says how many videos are ahead of it, and the
+  # share window asks again; an account past its videos for the day is told
+  # so, and the window offers the launch's own video.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp send_video(conn, reach, {:ok, mp4}) do
     conn
     |> put_resp_header("cache-control", "#{reach}, max-age=900")
     |> put_resp_content_type("video/mp4", nil)
     |> send_resp(200, mp4)
+  end
+
+  defp send_video(conn, _reach, {:waiting, ahead}) do
+    conn
+    |> put_resp_header("cache-control", "no-store")
+    |> put_resp_header("retry-after", "2")
+    |> put_status(:accepted)
+    |> json(%{ahead: ahead})
+  end
+
+  defp send_video(conn, _reach, {:error, :daily_limit}) do
+    conn
+    |> put_resp_header("cache-control", "no-store")
+    |> put_status(:too_many_requests)
+    |> json(%{daily: ShareVideo.daily()})
   end
 
   defp send_video(_conn, _reach, {:error, _reason}), do: raise(UnavailableError)

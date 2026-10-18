@@ -3,8 +3,8 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   Makes one share video and keeps it (`AutolaunchWeb.ShareVideo`). The
   `share_videos` queue runs one at a time, so the machine never draws two
   videos at once, and one job runs for each video however many requests ask
-  for it. A video that cannot be made is not tried again; the requests
-  waiting for it are told, and the next request asks again.
+  for it. A video that cannot be made is not tried again; it answers so for
+  a short while, and the next request after that queues it again.
 
   Each video made reports what it took as `[:autolaunch, :share_video,
   :rendered]`: the milliseconds, the MP4's bytes and the most memory the BEAM
@@ -15,8 +15,12 @@ defmodule AutolaunchWeb.ShareVideo.Render do
     max_attempts: 1,
     unique: [keys: [:key], period: :infinity, states: :incomplete]
 
+  import Ecto.Query
+
+  alias Autolaunch.Repo
   alias AutolaunchWeb.{Paths, ShareVideo}
   alias AutolaunchWeb.ShareVideo.{Film, Story}
+  alias Oban.Job
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"key" => key} = args}) do
@@ -26,14 +30,55 @@ defmodule AutolaunchWeb.ShareVideo.Render do
         :ok
 
       {:error, reason} ->
-        ShareVideo.failed(key, reason)
+        ShareVideo.failed(key)
         {:cancel, reason}
     end
   rescue
     error ->
-      ShareVideo.failed(key, :render_failed)
+      ShareVideo.failed(key)
       reraise error, __STACKTRACE__
   end
+
+  @waiting ~w(available scheduled executing retryable)
+
+  @doc "The job still making the video `key`, or nil."
+  def pending(key) do
+    from(job in Job,
+      where: job.queue == "share_videos" and job.state in @waiting,
+      where: fragment("? @> ?", job.args, ^%{"key" => key}),
+      limit: 1
+    )
+    # Oban's own job table, which no Ash resource covers.
+    |> Repo.one(prefix: prefix())
+  end
+
+  @doc "How many videos the queue makes before `job`'s."
+  def ahead(%Job{id: id}) do
+    from(job in Job,
+      where: job.queue == "share_videos" and job.state in @waiting and job.id < ^id
+    )
+    # Oban's own job table, which no Ash resource covers.
+    |> Repo.aggregate(:count, prefix: prefix())
+  end
+
+  @doc """
+  How many videos of its own `account` has had made in the last 24 hours:
+  its jobs on the queue, apart from those that made nothing. Oban's pruner
+  keeps finished jobs for a week.
+  """
+  def made_today(account) do
+    since = DateTime.add(DateTime.utc_now(), -86_400)
+
+    from(job in Job,
+      where: job.queue == "share_videos" and job.state not in ~w(cancelled discarded),
+      where: fragment("? @> ?", job.args, ^%{"account" => account}),
+      where: job.inserted_at > ^since
+    )
+    # Oban's own job table, which no Ash resource covers.
+    |> Repo.aggregate(:count, prefix: prefix())
+  end
+
+  defp prefix, do: Oban.config().prefix
 
   defp make(%{"phase" => phase, "symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
     with {:ok, story, address} <- story(phase, symbol, tail, wallet),

@@ -23,6 +23,12 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   attr :image, :string, required: true, doc: "the address of the page's share picture"
   attr :video, :string, default: nil, doc: "the address of a share video, or nil for none"
   attr :video_name, :string, default: "autolaunch.mp4", doc: "the name the video is saved under"
+
+  attr :video_everyone, :string,
+    default: nil,
+    doc:
+      "for a person's own video, the launch's video for everyone, offered once they have made their videos for the day"
+
   attr :label, :string, default: "Share on X", doc: "the opening button's words"
   attr :rest, :global, doc: "for the opening button, such as `phx-click` to read an X account"
 
@@ -75,6 +81,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
               type="button"
               class="rg-button rg-button--secondary"
               data-share-video={@video}
+              data-share-video-everyone={@video_everyone}
               data-share-video-name={@video_name}
               disabled
             >
@@ -84,6 +91,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
               <span class="rg-button__label">Close</span>
             </button>
           </div>
+          <p :if={@video} class="share-x__note" role="status" data-share-video-status hidden></p>
           <p :if={@video} class="share-x__note" data-share-video-note hidden>
             Your video couldn't be made just now. Try again in a moment.
           </p>
@@ -100,8 +108,41 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const message = dialog.querySelector("[data-share-message]")
           const post = dialog.querySelector("[data-share-post]")
           const video = dialog.querySelector("[data-share-video]")
+          const status = dialog.querySelector("[data-share-video-status]")
+          let address = video && video.dataset.shareVideo
           let file = null
           let loading = null
+
+          const say = (words) => {
+            status.textContent = words
+            status.hidden = !words
+          }
+
+          // Asks for the video until it is made. While it waits in line the
+          // answer says how many videos are ahead of it; a person who has
+          // made their videos for the day gets the launch's video instead.
+          const ask = (until) =>
+            fetch(address, {credentials: "same-origin"}).then(async (response) => {
+              if (response.status === 200) return response.blob()
+
+              if (response.status === 202 && Date.now() < until) {
+                const {ahead} = await response.json()
+                if (!video.dataset.limited)
+                  say(ahead > 0 ? `${ahead} ${ahead === 1 ? "video" : "videos"} ahead of yours` : "Making your video now")
+                await new Promise((resolve) => setTimeout(resolve, 2000))
+                return ask(until)
+              }
+
+              if (response.status === 429 && video.dataset.shareVideoEveryone) {
+                const {daily} = await response.json()
+                address = video.dataset.shareVideoEveryone
+                video.dataset.limited = "true"
+                say(`You've made your ${daily} videos for today, so this is the video everyone sees.`)
+                return ask(until)
+              }
+
+              throw new Error(String(response.status))
+            })
 
           // The video is fetched once the window opens, so it is ready to hand
           // over the moment it is asked for.
@@ -112,17 +153,15 @@ defmodule AutolaunchWeb.Components.ShareDialog do
             video.disabled = true
             label.textContent = "Preparing your video…"
             note.hidden = true
-            loading = fetch(video.dataset.shareVideo, {credentials: "same-origin"})
-              .then((response) => {
-                if (!response.ok) throw new Error(String(response.status))
-                return response.blob()
-              })
+            loading = ask(Date.now() + 5 * 60 * 1000)
               .then((blob) => {
+                if (!video.dataset.limited) say("")
                 file = new File([blob], video.dataset.shareVideoName, {type: "video/mp4"})
                 label.textContent = "Share video"
               })
               .catch(() => {
                 label.textContent = "Try the video again"
+                if (!video.dataset.limited) say("")
                 note.hidden = false
               })
               .finally(() => {
