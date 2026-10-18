@@ -164,7 +164,11 @@ defmodule Autolaunch.TokenTrades do
 
   def decode_swap(_log, _token_is_currency0?), do: {:error, :invalid_swap}
 
-  defp venue(%{chain_id: chain, kind: kind}) do
+  @doc """
+  The deployment a launch is read from and the RPC options its chain is read
+  with: `%{module: lab_module, config: config, opts: opts}`.
+  """
+  def venue(%{chain_id: chain, kind: kind}) do
     module =
       cond do
         Autolaunch.Robinhood.Lab.chain?(chain) -> Autolaunch.Robinhood.Lab

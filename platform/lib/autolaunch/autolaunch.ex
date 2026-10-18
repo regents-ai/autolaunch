@@ -17,7 +17,9 @@ defmodule Autolaunch do
       define :bid_settlements, action: :for_bid, args: [:auction_id, :bid_id]
     end
 
-    resource Autolaunch.TokenTrade
+    resource Autolaunch.TokenTrade do
+      define :token_trades, action: :for_token, args: [:token_id]
+    end
 
     resource Autolaunch.AuctionPricePoint do
       define :auction_price_points, action: :for_auction, args: [:auction_id]

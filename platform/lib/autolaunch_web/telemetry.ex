@@ -182,6 +182,20 @@ defmodule AutolaunchWeb.Telemetry do
       counter("autolaunch.auction_page.ladder_stopped.total",
         event_name: [:autolaunch, :auction_page, :ladder_stopped]
       ),
+      distribution("autolaunch.share_video.render.seconds",
+        event_name: [:autolaunch, :share_video, :rendered],
+        measurement: :ms,
+        unit: {:millisecond, :second},
+        tags: [:kind],
+        description: "Seconds to draw and encode one share video",
+        reporter_options: [buckets: [1, 2, 5, 10, 20, 30, 60]]
+      ),
+      last_value("autolaunch.share_video.peak_memory.bytes",
+        event_name: [:autolaunch, :share_video, :rendered],
+        measurement: :peak_bytes,
+        tags: [:kind],
+        description: "The most memory the BEAM held while the last share video was made"
+      ),
       last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
       last_value("vm.memory.processes.bytes",
         event_name: [:vm, :memory],

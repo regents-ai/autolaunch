@@ -46,6 +46,17 @@ defmodule AutolaunchWeb.Paths do
   def token_image_url(auction, version),
     do: url(~p"/tokens/#{symbol(auction)}/#{auction.path_tail}/share.png?#{[v: version]}")
 
+  @doc "The token's share video for everyone; `version` moves on as its figures do."
+  def token_video_url(auction, version),
+    do: url(~p"/tokens/#{symbol(auction)}/#{auction.path_tail}/share.mp4?#{[v: version]}")
+
+  @doc "One wallet's share video of the token, for that wallet's signed-in owner."
+  def wallet_video_url(auction, wallet, version),
+    do:
+      url(
+        ~p"/tokens/#{symbol(auction)}/#{auction.path_tail}/wallets/#{wallet}/share.mp4?#{[v: version]}"
+      )
+
   @doc """
   The one listed auction a page address names, or `:error` when none does or
   the tail is too short to name only one. An address that cannot name an

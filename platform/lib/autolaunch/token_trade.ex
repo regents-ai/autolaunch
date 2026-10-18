@@ -28,6 +28,13 @@ defmodule Autolaunch.TokenTrade do
       filter expr(occurred_at > ago(1, :hour))
     end
 
+    # Every trade in one token's pool, in chain order.
+    read :for_token do
+      argument :token_id, :uuid, allow_nil?: false
+      filter expr(token_id == ^arg(:token_id))
+      prepare build(sort: [block_number: :asc, log_index: :asc])
+    end
+
     create :record do
       accept [
         :token_id,
@@ -58,7 +65,7 @@ defmodule Autolaunch.TokenTrade do
   end
 
   policies do
-    policy action(:recent) do
+    policy action([:recent, :for_token]) do
       authorize_if always()
     end
 

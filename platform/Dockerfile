@@ -73,6 +73,13 @@ WORKDIR /app
 COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
 COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
 
+# ffmpeg encodes the share videos (AutolaunchWeb.ShareVideo.Film) with x264.
+# The build stops here if the package ever comes without that encoder.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/* \
+  && ffmpeg -hide_banner -encoders | grep -q libx264
+
 RUN groupadd --system --gid 1001 app \
   && useradd --system --uid 1001 --gid app --home-dir /app app
 

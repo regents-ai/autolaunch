@@ -43,6 +43,12 @@ defmodule AutolaunchWeb.Router do
     plug :protect_from_forgery
   end
 
+  # The signed-in person's own share video: the session names the account.
+  pipeline :session_video do
+    plug :fetch_session
+    plug :enforce_session_authority
+  end
+
   # The saved errors: Credits admins only. Anyone else gets the not-found page under
   # the reading policy; an admin's page replaces it with one carrying this
   # request's nonce (AutolaunchWeb.ErrorsAdmin).
@@ -81,6 +87,7 @@ defmodule AutolaunchWeb.Router do
     # a session.
     get "/auctions/:symbol/:tail/share.png", ShareCardController, :auction
     get "/tokens/:symbol/:tail/share.png", ShareCardController, :token
+    get "/tokens/:symbol/:tail/share.mp4", ShareCardController, :token_video
 
     # Addresses the site gave auctions and tokens before they were named by
     # ticker. Links to them were shared, so each moves permanently to the
@@ -141,6 +148,13 @@ defmodule AutolaunchWeb.Router do
     pipe_through :session_api
 
     get "/me/positions", MyPositionsController, :show
+  end
+
+  # A wallet's own share video, for the signed-in account that links it.
+  scope "/", AutolaunchWeb do
+    pipe_through :session_video
+
+    get "/tokens/:symbol/:tail/wallets/:wallet/share.mp4", ShareCardController, :wallet_video
   end
 
   scope "/", AutolaunchWeb do

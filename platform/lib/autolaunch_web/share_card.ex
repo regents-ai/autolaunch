@@ -4,7 +4,8 @@ defmodule AutolaunchWeb.ShareCard do
   other sites.
 
   The picture is one strip on a dark field, like X's own token cards: the
-  token's round logo, its name, $TICKER and chain, and on the right its FDV
+  token's round logo, its name, its ticker line ($TOKEN / STOCK, or $TOKEN for
+  a launch paired with no stock token) and chain, and on the right its FDV
   with the time left in the auction or, once launched, its price. An auction
   also draws its clearing price so far as a thin line. A figure the site does
   not know yet is left out, never shown as zero.
@@ -18,12 +19,10 @@ defmodule AutolaunchWeb.ShareCard do
 
   use AutolaunchWeb, :verified_routes
 
-  alias Autolaunch.Lab
-  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.Stocks.MarketData
-  alias Autolaunch.StoredImage
+  import AutolaunchWeb.ShareCard.Draw
+
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.{Paths, PublicDocuments, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.{Paths, PublicDocuments}
   alias AutolaunchWeb.ShareCard.Cache
   alias Vix.Vips.{Image, Operation}
 
@@ -55,10 +54,6 @@ defmodule AutolaunchWeb.ShareCard do
 
   @chain_mark_h 28
   @pill_h 42
-  @chains %{
-    base: %{name: "Base", mark_w: round(@chain_mark_h * 1280 / 323.84)},
-    robinhood: %{name: "Robinhood Chain", mark_w: round(@chain_mark_h * 1576 / 207)}
-  }
 
   @doc "The page details for an auction's page: its title, words, address and picture."
   @spec meta(struct()) :: map()
@@ -66,7 +61,7 @@ defmodule AutolaunchWeb.ShareCard do
     %{
       title: "#{auction.title} (#{auction.token_symbol}) auction on Autolaunch",
       description:
-        "Bid on #{auction.token_symbol} on #{@chains[chain(auction)].name}. Everyone pays the same price.",
+        "Bid on #{auction.token_symbol} on #{chain_name(chain(auction))}. Everyone pays the same price.",
       url: Paths.auction_url(auction),
       image: auction_image_url(auction, DateTime.utc_now()),
       image_alt: "#{auction.title} (#{auction.token_symbol}) auction figures on Autolaunch"
@@ -93,7 +88,7 @@ defmodule AutolaunchWeb.ShareCard do
     %{
       title: "#{auction.title} (#{auction.token_symbol}) on Autolaunch",
       description:
-        "Trade and stake #{auction.token_symbol} on #{@chains[chain(auction)].name}. Graduated from an Autolaunch auction.",
+        "Trade and stake #{auction.token_symbol} on #{chain_name(chain(auction))}. Graduated from an Autolaunch auction.",
       url: Paths.token_url(auction),
       image: token_image_url(auction, DateTime.utc_now()),
       image_alt: "#{auction.title} (#{auction.token_symbol}) token figures on Autolaunch"
@@ -222,22 +217,6 @@ defmodule AutolaunchWeb.ShareCard do
     })
   end
 
-  defp chain(auction),
-    do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)
-
-  # No dollar value is shown for a test network's coins.
-  defp rate(auction) do
-    case chain(auction) do
-      :robinhood ->
-        if RobinhoodLab.test_chain?(),
-          do: nil,
-          else: UsdValue.stock_rate(MarketData.prices(:robinhood), auction.quote_token_symbol)
-
-      :base ->
-        if Lab.test_chain?(), do: nil, else: UsdValue.rate(auction)
-    end
-  end
-
   # How long bidding has left, or where the auction stands once it cannot
   # be told.
   defp standing(%{state: :active, estimated_end_at: %DateTime{} = ends} = auction, now) do
@@ -257,32 +236,6 @@ defmodule AutolaunchWeb.ShareCard do
 
   defp duration(seconds), do: "#{max(div(seconds, 60), 1)}m"
 
-  # Dollars at the currency's market price, or the currency itself where no
-  # price is known.
-  defp money(nil, _rate, _auction), do: nil
-  defp money(amount, %Decimal{} = rate, _auction), do: "$" <> short(Decimal.mult(amount, rate))
-  defp money(amount, _rate, auction), do: short(amount) <> " " <> auction.quote_token_symbol
-
-  @scales [{1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
-
-  defp short(amount) do
-    case Enum.find(@scales, fn {scale, _suffix} -> Decimal.gte?(amount, scale) end) do
-      {scale, suffix} -> amount |> Decimal.div(scale) |> figure() |> Kernel.<>(suffix)
-      nil -> figure(amount)
-    end
-  end
-
-  # Three significant digits, with a long run of zeros after the point counted.
-  defp figure(%Decimal{coef: coef, exp: exp} = amount) do
-    places = max(3 - length(Integer.digits(coef)) - exp, 0)
-
-    amount
-    |> Decimal.round(places)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-    |> TokenDisplay.zeros()
-  end
-
   # The clearing price at every recorded change, then as it stands now; no
   # line until the price has at least two points.
   defp line(points, current) do
@@ -301,7 +254,7 @@ defmodule AutolaunchWeb.ShareCard do
     color = color(auction.image_color)
 
     with {:ok, words} <- words(auction, card),
-         {:ok, logo} <- logo(auction),
+         {:ok, logo} <- logo(auction, @logo),
          layout = layout(words, card.line),
          {:ok, {canvas, _flags}} <-
            Operation.svgload_buffer(svg(chain, color, logo, card, layout)),
@@ -309,13 +262,6 @@ defmodule AutolaunchWeb.ShareCard do
       Image.write_to_buffer(picture, ".png")
     end
   end
-
-  # A stored colour is drawn only in its one shape, `#rrggbb`.
-  defp color(color) when is_binary(color) do
-    if Regex.match?(~r/\A#[0-9a-fA-F]{6}\z/, color), do: color, else: @tangerine
-  end
-
-  defp color(_color), do: @tangerine
 
   # Every line of words drawn once, so the strip can be laid out around their
   # widths.
@@ -331,7 +277,7 @@ defmodule AutolaunchWeb.ShareCard do
              24,
              @muted
            ),
-         {:ok, ticker} <- fit("$" <> plain(auction.token_symbol), :regular, 40, @muted, 440),
+         {:ok, ticker} <- fit(ticker(auction), :regular, 40, @muted, 440),
          {:ok, badge} <- layer(badge, :bold, 24, badge_color),
          {:ok, initial} <- initial(auction.token_symbol),
          {:ok, stats} <- stat_layers(stats) do
@@ -470,7 +416,7 @@ defmodule AutolaunchWeb.ShareCard do
         fill="#{@strip}" stroke="#{@edge}" stroke-width="2"/>
       #{logo_svg(logo, color)}
       #{badge_svg(badge_color, layout.badge_w)}
-      <image x="#{badge_x() + layout.badge_w + 6}" y="#{chain_row_y() + div(@pill_h - @chain_mark_h, 2)}" width="#{@chains[chain].mark_w}"
+      <image x="#{badge_x() + layout.badge_w + 6}" y="#{chain_row_y() + div(@pill_h - @chain_mark_h, 2)}" width="#{mark_width(chain, @chain_mark_h)}"
         height="#{@chain_mark_h}" href="data:image/svg+xml;base64,#{Base.encode64(chain_mark(chain))}"/>
       #{line_svg(card.line, layout.line_x)}
     </svg>
@@ -523,88 +469,10 @@ defmodule AutolaunchWeb.ShareCard do
     """
   end
 
-  defp logo(auction) do
-    case StoredImage.bytes(auction.image) do
-      {:ok, bytes} ->
-        with {:ok, image} <-
-               Operation.thumbnail_buffer(bytes, @logo,
-                 height: @logo,
-                 crop: :VIPS_INTERESTING_CENTRE
-               ),
-             do: Image.write_to_buffer(image, ".png")
-
-      :error ->
-        {:ok, nil}
-    end
-  end
-
-  # A mark shipped with the site; the chain is :base or :robinhood, never a request's input.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp chain_mark(chain), do: File.read!(share_file("#{chain}.svg"))
-
-  # A creator's words without control characters or the pictographs the
-  # picture's fonts cannot draw, on one line.
-  defp plain(words) do
-    words
-    |> String.replace(
-      ~r/[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{So}\x{FE00}-\x{FE0F}\x{1F3FB}-\x{1F3FF}]/u,
-      ""
-    )
-    |> String.replace(~r/\s+/u, " ")
-    |> String.trim()
-  end
-
   defp initial(symbol) do
     case symbol |> plain() |> String.first() do
       nil -> {:ok, nil}
       letter -> layer(String.upcase(letter), :pixel, 84, @field)
     end
   end
-
-  # The words on one line no wider than `max`, cut short with an ellipsis
-  # where they run over.
-  defp fit(words, weight, size, color, max) do
-    with {:ok, layer} <- layer(words, weight, size, color) do
-      if Image.width(layer) <= max or String.length(words) <= 1,
-        do: {:ok, layer},
-        else: shorter(words, weight, size, color, max, Image.width(layer))
-    end
-  end
-
-  defp shorter(words, weight, size, color, max, width) do
-    graphemes = String.graphemes(words)
-    keep = min(floor(length(graphemes) * max / width), length(graphemes) - 1)
-    cut(graphemes, keep, weight, size, color, max)
-  end
-
-  defp cut(graphemes, keep, weight, size, color, max) do
-    words = (graphemes |> Enum.take(max(keep, 1)) |> Enum.join() |> String.trim_trailing()) <> "…"
-
-    with {:ok, layer} <- layer(words, weight, size, color) do
-      if Image.width(layer) <= max or keep <= 1,
-        do: {:ok, layer},
-        else: cut(graphemes, keep - 1, weight, size, color, max)
-    end
-  end
-
-  defp layer(words, weight, size, color) do
-    {face, file} = font(weight)
-
-    with {:ok, {layer, _flags}} <-
-           Operation.text(~s|<span foreground="#{color}">#{escape(words)}</span>|,
-             font: "#{face} #{size}",
-             fontfile: file,
-             rgba: true,
-             dpi: 72
-           ),
-         do: {:ok, layer}
-  end
-
-  defp font(:bold), do: {"Geist SemiBold", share_file("Geist-SemiBold.ttf")}
-  defp font(:regular), do: {"Geist", share_file("Geist-Regular.ttf")}
-  defp font(:pixel), do: {"Geist Pixel Square", share_file("GeistPixel-Square.ttf")}
-
-  defp share_file(name), do: Application.app_dir(:autolaunch, ["priv", "share_card", name])
-
-  defp escape(words), do: words |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
 end

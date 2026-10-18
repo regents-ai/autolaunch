@@ -31,6 +31,7 @@ config :autolaunch, Oban,
     outside_calls: 3,
     stock_volume: 1,
     stock_admissions: 1,
+    share_videos: 1,
     default: 1,
     regent_credits: 3
   ],
