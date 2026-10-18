@@ -12,16 +12,20 @@ defmodule AutolaunchWeb.ShareVideo do
   auction as soon as it bids again, so a new bid, stake, unstake, buy or sell
   shows straight away.
 
-  Videos are made one at a time on their own job queue
-  (`AutolaunchWeb.ShareVideo.Render`). Asking for one that is not made yet
-  queues it, once however many ask, and answers how many videos are ahead of
-  it; asking again answers the video once it is made. Each account makes at
-  most three new videos of its own in any 24 hours, counted from its jobs on
-  the queue; a video already made, and every launch's own video, never count.
+  Asking for a video that is not made yet records an
+  `Autolaunch.ShareVideoRequest`, once however many ask, which queues it to be
+  made one at a time (`AutolaunchWeb.ShareVideo.Render`), and answers how many
+  videos are ahead of it; asking again answers the video once it is made. Each
+  account makes at most three new videos of its own in any 24 hours, counted
+  from its requests; a video already made, and every launch's own video, never
+  count.
   """
   alias Autolaunch.{TokenTrades, WalletHistory}
+  require Ash.Query
+
+  alias Autolaunch.Actors.System
+  alias Autolaunch.ShareVideoRequest
   alias AutolaunchWeb.Paths
-  alias AutolaunchWeb.ShareVideo.Render
 
   @cache :share_videos
   @kept 24
@@ -102,60 +106,77 @@ defmodule AutolaunchWeb.ShareVideo do
 
   defp kept_or_queued(auction, phase, wallet, account, key) do
     with :none <- kept(key),
-         :none <- pending(key),
-         :ok <- allowed(account),
+         :none <- requested(key),
+         :ok <- allowed(account, key),
          :none <- kept(key) do
-      queue(auction, phase, wallet, account, key)
+      request(auction, phase, wallet, account, key)
     end
   end
 
   defp kept(key) do
     case Cachex.get(@cache, key) do
       {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
-      {:ok, :failed} -> {:error, :render_failed}
       _missing -> :none
     end
   end
 
-  defp pending(key) do
-    case Render.pending(key) do
-      nil -> :none
-      job -> {:waiting, Render.ahead(job)}
+  # A request still queued gives its place in line; one that failed moments
+  # ago says so, and after that the next ask queues it again.
+  defp requested(key) do
+    case Autolaunch.latest_share_video_request(key, actor: %System{}) do
+      {:ok, %{state: :queued} = request} -> {:waiting, ahead(request)}
+      {:ok, %{state: :failed} = request} -> failed_lately(request)
+      {:ok, _ready_or_none} -> :none
+      error -> error
     end
   end
 
-  defp allowed(nil), do: :ok
+  defp failed_lately(request) do
+    if DateTime.diff(DateTime.utc_now(), request.updated_at, :millisecond) < @failed_ms,
+      do: {:error, :render_failed},
+      else: :none
+  end
 
-  defp allowed(account),
-    do: if(Render.made_today(account) < @daily, do: :ok, else: {:error, :daily_limit})
+  defp ahead(request) do
+    ShareVideoRequest
+    |> Ash.Query.for_read(:queued, %{}, actor: %System{})
+    |> Ash.Query.filter(inserted_at < ^request.inserted_at)
+    |> Ash.count!(actor: %System{})
+  end
 
-  defp queue(auction, phase, wallet, account, key) do
-    args =
-      %{
-        "symbol" => auction.token_symbol,
-        "tail" => auction.path_tail,
-        "phase" => Atom.to_string(phase),
-        "wallet" => wallet,
-        "key" => key
-      }
+  # A video made before never counts again, so making it once more after it
+  # left the cache is free.
+  defp allowed(nil, _key), do: :ok
 
-    args = if account, do: Map.put(args, "account", account), else: args
-    {:ok, job} = Oban.insert(Render.new(args))
-    {:waiting, Render.ahead(job)}
+  defp allowed(account, key) do
+    made = Autolaunch.share_videos_made_today!(account, actor: %System{})
+    keys = MapSet.new(made, & &1.key)
+
+    if MapSet.member?(keys, key) or MapSet.size(keys) < @daily,
+      do: :ok,
+      else: {:error, :daily_limit}
+  end
+
+  defp request(auction, phase, wallet, account, key) do
+    request =
+      Autolaunch.request_share_video!(
+        %{
+          key: key,
+          kind: phase,
+          auction_id: auction.id,
+          human_account_id: account,
+          wallet: wallet
+        },
+        actor: %System{}
+      )
+
+    {:waiting, ahead(request)}
   end
 
   @doc false
   # The finished video, kept for every request that asks for it next.
   def made!(key, mp4) do
     {:ok, true} = Cachex.put(@cache, key, mp4)
-    :ok
-  end
-
-  @doc false
-  # A video that could not be made answers so for a short while; asking again
-  # after that queues it again.
-  def failed(key) do
-    {:ok, true} = Cachex.put(@cache, key, :failed, expire: @failed_ms)
     :ok
   end
 

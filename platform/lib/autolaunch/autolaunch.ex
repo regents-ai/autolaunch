@@ -21,6 +21,12 @@ defmodule Autolaunch do
       define :token_trades, action: :for_token, args: [:token_id]
     end
 
+    resource Autolaunch.ShareVideoRequest do
+      define :request_share_video, action: :request
+      define :latest_share_video_request, action: :latest, args: [:key], not_found_error?: false
+      define :share_videos_made_today, action: :made_today, args: [:human_account_id]
+    end
+
     resource Autolaunch.AuctionPricePoint do
       define :auction_price_points, action: :for_auction, args: [:auction_id]
 

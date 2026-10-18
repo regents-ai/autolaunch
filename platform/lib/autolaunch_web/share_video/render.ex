@@ -1,110 +1,59 @@
 defmodule AutolaunchWeb.ShareVideo.Render do
   @moduledoc """
-  Makes one share video and keeps it (`AutolaunchWeb.ShareVideo`). The
-  `share_videos` queue runs one at a time, so the machine never draws two
-  videos at once, and one job runs for each video however many requests ask
-  for it. A video that cannot be made is not tried again; it answers so for
-  a short while, and the next request after that queues it again.
+  Makes the video an `Autolaunch.ShareVideoRequest` asks for, keeps it
+  (`AutolaunchWeb.ShareVideo`) and marks the request ready. A video that
+  cannot be made fails the render, and the trigger marks the request failed.
 
   Each video made reports what it took as `[:autolaunch, :share_video,
   :rendered]`: the milliseconds, the MP4's bytes and the most memory the BEAM
   held while it ran.
   """
-  use Oban.Worker,
-    queue: :share_videos,
-    max_attempts: 1,
-    unique: [keys: [:key], period: :infinity, states: :incomplete]
+  use Ash.Resource.Change
 
-  import Ecto.Query
-
-  alias Autolaunch.Repo
   alias AutolaunchWeb.{Paths, ShareVideo}
   alias AutolaunchWeb.ShareVideo.{Film, Story}
-  alias Oban.Job
 
-  @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"key" => key} = args}) do
-    case make(args) do
-      {:ok, mp4} ->
-        ShareVideo.made!(key, mp4)
-        :ok
+  @impl true
+  def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &render/1)
 
-      {:error, reason} ->
-        ShareVideo.failed(key)
-        {:cancel, reason}
-    end
-  rescue
-    error ->
-      ShareVideo.failed(key)
-      reraise error, __STACKTRACE__
-  end
-
-  @waiting ~w(available scheduled executing retryable)
-
-  @doc "The job still making the video `key`, or nil."
-  def pending(key) do
-    from(job in Job,
-      where: job.queue == "share_videos" and job.state in @waiting,
-      where: fragment("? @> ?", job.args, ^%{"key" => key}),
-      limit: 1
-    )
-    # Oban's own job table, which no Ash resource covers.
-    |> Repo.one(prefix: prefix())
-  end
-
-  @doc "How many videos the queue makes before `job`'s."
-  def ahead(%Job{id: id}) do
-    from(job in Job,
-      where: job.queue == "share_videos" and job.state in @waiting and job.id < ^id
-    )
-    # Oban's own job table, which no Ash resource covers.
-    |> Repo.aggregate(:count, prefix: prefix())
-  end
-
-  @doc """
-  How many videos of its own `account` has had made in the last 24 hours:
-  its jobs on the queue, apart from those that made nothing. Oban's pruner
-  keeps finished jobs for a week.
-  """
-  def made_today(account) do
-    since = DateTime.add(DateTime.utc_now(), -86_400)
-
-    from(job in Job,
-      where: job.queue == "share_videos" and job.state not in ~w(cancelled discarded),
-      where: fragment("? @> ?", job.args, ^%{"account" => account}),
-      where: job.inserted_at > ^since
-    )
-    # Oban's own job table, which no Ash resource covers.
-    |> Repo.aggregate(:count, prefix: prefix())
-  end
-
-  defp prefix, do: Oban.config().prefix
-
-  defp make(%{"phase" => phase, "symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
-    with {:ok, story, address} <- story(phase, symbol, tail, wallet),
-         {:ok, mp4, measured} <- Film.render(story, String.replace(address, ~r{\Ahttps?://}, "")) do
+  defp render(%{data: request} = changeset) do
+    with {:ok, story, address} <- story(request),
+         {:ok, mp4, measured} <-
+           Film.render(story, String.replace(address, ~r{\Ahttps?://}, "")) do
       :telemetry.execute(
         [:autolaunch, :share_video, :rendered],
         Map.take(measured, [:ms, :bytes, :peak_bytes]),
-        %{kind: kind(phase, wallet)}
+        %{kind: kind(request)}
       )
 
-      {:ok, mp4}
+      :ok = ShareVideo.made!(request.key, mp4)
+      Ash.Changeset.force_change_attribute(changeset, :state, :ready)
+    else
+      {:error, reason} ->
+        Ash.Changeset.add_error(changeset, "share video #{request.key}: #{inspect(reason)}")
     end
   end
 
   # The story with the address the video's band names: the token's page, or
   # the auction's while it runs.
-  defp story("token", symbol, tail, wallet) do
-    with {:ok, auction, token} <- found(Paths.find_token(symbol, tail)),
-         {:ok, story} <- token_story(auction, token, wallet),
+  defp story(%{kind: :token} = request) do
+    with {:ok, auction} <- auction(request),
+         {:ok, auction, token} <- found(Paths.find_token(auction.token_symbol, auction.path_tail)),
+         {:ok, story} <- token_story(auction, token, request.wallet),
          do: {:ok, story, Paths.token_url(auction)}
   end
 
-  defp story("auction", symbol, tail, wallet) do
-    with {:ok, auction} <- found(Paths.find_auction(symbol, tail)),
-         {:ok, story} <- Story.auction(auction, wallet),
+  defp story(%{kind: :auction} = request) do
+    with {:ok, auction} <- auction(request),
+         {:ok, story} <- Story.auction(auction, request.wallet),
          do: {:ok, story, Paths.auction_url(auction)}
+  end
+
+  defp auction(request) do
+    case Autolaunch.get_listed_auction(request.auction_id, actor: nil, load: [:path_tail]) do
+      {:ok, %{} = auction} -> {:ok, auction}
+      _unlisted -> {:error, :not_found}
+    end
   end
 
   defp found(:error), do: {:error, :not_found}
@@ -113,8 +62,8 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   defp token_story(auction, token, nil), do: Story.token(auction, token)
   defp token_story(auction, token, wallet), do: Story.wallet(auction, token, wallet)
 
-  defp kind("token", nil), do: :token
-  defp kind("token", _wallet), do: :wallet
-  defp kind("auction", nil), do: :auction
-  defp kind("auction", _wallet), do: :auction_wallet
+  defp kind(%{kind: :token, wallet: nil}), do: :token
+  defp kind(%{kind: :token}), do: :wallet
+  defp kind(%{kind: :auction, wallet: nil}), do: :auction
+  defp kind(%{kind: :auction}), do: :auction_wallet
 end
