@@ -49,7 +49,6 @@ defmodule AutolaunchWeb.ShareVideo.Story do
       story = %{
         auction: auction,
         ticker: Draw.ticker(auction),
-        stock: Draw.stock(auction),
         earn_symbol: pool.currency.symbol,
         token_symbol: pool.token.symbol,
         rate: Draw.rate(auction),

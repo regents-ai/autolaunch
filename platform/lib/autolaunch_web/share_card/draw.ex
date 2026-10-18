@@ -45,10 +45,6 @@ defmodule AutolaunchWeb.ShareCard.Draw do
 
   def ticker(auction), do: "$" <> plain(auction.token_symbol)
 
-  @doc "The stock token a launch is paired with, or nil."
-  def stock(%{kind: :stocks} = auction), do: auction.quote_token_symbol
-  def stock(_auction), do: nil
-
   @doc "Dollars per whole unit of the launch's currency, or nil where none is known."
   # No dollar value is shown for a test network's coins.
   def rate(auction) do
