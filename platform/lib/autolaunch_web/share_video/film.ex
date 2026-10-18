@@ -85,6 +85,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   in milliseconds and the most memory the BEAM held while it ran.
   """
   @spec render(map(), String.t()) :: {:ok, binary(), map()} | {:error, term()}
+  # The path is the site's own temporary file, never named by a request.
+  # sobelow_skip ["Traversal.FileModule"]
   def render(story, link) do
     started = System.monotonic_time(:millisecond)
     film = prepare(story, link)

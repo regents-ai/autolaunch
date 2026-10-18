@@ -47,6 +47,7 @@ defmodule AutolaunchWeb.Router do
   pipeline :session_video do
     plug :fetch_session
     plug :enforce_session_authority
+    plug :protect_from_forgery
   end
 
   # The saved errors: Credits admins only. Anyone else gets the not-found page under
