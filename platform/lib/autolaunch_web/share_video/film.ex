@@ -126,14 +126,28 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
     film =
       Map.merge(film, %{
-        marks: marks(film, story.marks),
         stake_frame: story.stake && first_frame(film, story.stake.at),
+        earnings_h: story.stake && earnings_height(film),
         labels: labels(film),
         stills: stills(story, link),
         words: words(story)
       })
 
-    Map.put(film, :dates, dates(film))
+    film
+    |> Map.put(:dates, dates(film))
+    |> Map.put(:marks, film |> marks(story.marks) |> placed(film))
+  end
+
+  # How high the earnings line may rise: a quarter of the chart, kept clear of
+  # the price line after the stake.
+  defp earnings_height(film) do
+    lowest =
+      film.series
+      |> Enum.filter(fn {at, _price} -> at >= film.stake.at end)
+      |> Enum.map(fn {_at, price} -> y(film, price) end)
+      |> Enum.max(fn -> @floor end)
+
+    max(min(0.25 * (@floor - @top), @floor - lowest - 44), 40)
   end
 
   # The first frame the line's tip stands at or past `at`.
@@ -178,13 +192,15 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     marks
     |> Enum.filter(&(&1.at >= film.started_at))
     |> Enum.take(-16)
-    |> Enum.map(fn mark ->
+    |> Enum.with_index()
+    |> Enum.map(fn {mark, order} ->
       price = price_at(film, mark.at)
       fdv = money(film.story, price * film.story.supply)
       color = if mark.side == :buy, do: @green, else: @red
 
       %{
         at: mark.at,
+        order: order,
         frame: first_frame(film, mark.at),
         x: x(film, mark.at),
         y: y(film, price),
@@ -386,9 +402,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     {tip_x, tip_y} = {x(film, tip), y(film, price)}
     tag = text!("#{money(film.story, price * film.story.supply)} FDV", :bold, 26, @field)
     tag_color = if graduated?, do: @tangerine, else: @blue
-    tag_box = tag_box(tip_x, tip_y, tag)
-
     {earned, earned_tag, earned_box} = earnings(film, tip, tip_x, staked?)
+
+    taken =
+      showing_notes(film, index) ++
+        if(staked?, do: Enum.reject([stake_box(film), earned_box], &is_nil/1), else: [])
+
+    tag_box = tag_box(tip_x, tip_y, tag, taken)
 
     svg = """
     <svg xmlns="http://www.w3.org/2000/svg" width="#{@width}" height="#{@chart_h}" viewBox="0 #{@chart_y} #{@width} #{@chart_h}">
@@ -445,7 +465,12 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp earnings(film, tip, tip_x, true) do
     earned = earned(film, tip)
     tag = text!("#{amount(earned)} #{film.story.earn_symbol}", :bold, 24, @field)
-    {earned, tag, box_beside({tip_x, earned_y(film, tip)}, tag, 14)}
+    box = box_beside({tip_x, earned_y(film, tip)}, tag, 14)
+    stake = stake_box(film)
+
+    # Kept above the stake's tag when the two would meet.
+    box = if meet?(box, stake), do: %{box | y: stake.y - box.h - 8}, else: box
+    {earned, tag, box}
   end
 
   # When the tip stands where on the timeline: through the auction, held at
@@ -519,7 +544,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   defp earned_y(film, at) do
     share = if film.stake.earned > 0, do: earned(film, at) / film.stake.earned, else: 0.0
-    @floor - share * 0.3 * (@floor - @top)
+    @floor - share * film.earnings_h
   end
 
   # --- the chart's moving parts -------------------------------------------------
@@ -563,7 +588,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp graduation_svg(film, index, true) do
     gx = n(x(film, film.graduated_at))
     scale = pop((index - @auction_to) / @pop)
-    {w, h} = {Image.width(film.words.graduated) + 28, 38}
+    %{w: w, h: h} = graduated_box(film)
 
     """
     <line x1="#{gx}" y1="#{@top + 28}" x2="#{gx}" y2="#{@floor}" stroke="#{@tangerine}" stroke-width="2" stroke-dasharray="8 8" opacity="0.8"/>
@@ -682,28 +707,33 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     end)
   end
 
-  # A dot's letter once the dot has nearly reached its size, and its note
-  # while the note shows.
+  # A dot's letter once the dot has nearly reached its size and until a later
+  # dot covers it, and its note while the note shows.
   defp mark_layers(film, index) do
-    film.marks
-    |> Enum.filter(&(index - &1.frame >= div(@pop, 2)))
-    |> Enum.flat_map(fn mark ->
-      letter = mark.letter
-
-      [
+    letters =
+      film.marks
+      |> Enum.filter(&(index - &1.frame >= div(@pop, 2) and not covered?(&1, film.marks, index)))
+      |> Enum.map(fn %{letter: letter} = mark ->
         {letter, round(mark.x) - div(Image.width(letter), 2),
          round(mark.y) - div(Image.height(letter), 2)}
-      ] ++
-        note_layer(mark, index)
-    end)
+      end)
+
+    letters ++ Enum.flat_map(film.marks, &note_layer(&1, index))
   end
+
+  defp covered?(mark, marks, index),
+    do:
+      Enum.any?(marks, fn later ->
+        later.order > mark.order and later.frame <= index and
+          :math.sqrt(:math.pow(later.x - mark.x, 2) + :math.pow(later.y - mark.y, 2)) < 24
+      end)
 
   defp notes_svg(film, index) do
     film.marks
     |> Enum.map(fn mark -> {mark, note_opacity(mark, index)} end)
     |> Enum.filter(fn {_mark, opacity} -> opacity > 0 end)
     |> Enum.map_join("\n", fn {mark, opacity} ->
-      box = note_box(mark)
+      box = mark.box
 
       ~s|<rect x="#{n(box.x)}" y="#{n(box.y)}" width="#{box.w}" height="#{box.h}" rx="12" fill="#{@strip}" stroke="#{mark.color}" stroke-width="2" opacity="#{n(opacity)}"/>|
     end)
@@ -713,7 +743,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     opacity = note_opacity(mark, index)
 
     if opacity > 0 do
-      box = note_box(mark)
+      box = mark.box
       [faded(box_text(box, mark.note), opacity)]
     else
       []
@@ -731,12 +761,55 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     end
   end
 
-  defp note_box(mark) do
+  # Each note's place, chosen once so it never jumps: above its dot, or
+  # higher, or below it, wherever it clears the Graduated tag and every note
+  # showing at the same time.
+  defp placed(marks, film) do
+    taken = if film.auction?, do: [graduated_box(film)], else: []
+
+    {placed, _taken} =
+      Enum.map_reduce(marks, taken, fn mark, taken ->
+        showing = Enum.filter(taken, &overlaps_in_time?(&1, mark))
+        box = mark |> note_boxes() |> Enum.find(&clear?(&1, showing)) || hd(note_boxes(mark))
+        {Map.put(mark, :box, box), [Map.put(box, :frame, mark.frame) | taken]}
+      end)
+
+    placed
+  end
+
+  defp note_boxes(mark) do
     w = Image.width(mark.note) + 28
     h = 40
     x = min(max(mark.x - w / 2, 16), @width - 16 - w)
-    y = if mark.y - 30 - h < @top - 20, do: mark.y + 26, else: mark.y - 30 - h
-    %{x: x, y: y, w: w, h: h}
+
+    above =
+      for y <-
+            Stream.iterate(mark.y - 30 - h, &(&1 - h - 6))
+            |> Enum.take_while(&(&1 >= @chart_y + 4)),
+          do: y
+
+    below =
+      for y <-
+            Stream.iterate(mark.y + 26, &(&1 + h + 6)) |> Enum.take_while(&(&1 + h <= @floor - 4)),
+          do: y
+
+    Enum.map(above ++ below, &%{x: x, y: &1, w: w, h: h})
+  end
+
+  defp overlaps_in_time?(%{frame: frame}, mark),
+    do: abs(frame - mark.frame) < @pop + @note_hold + @note_fade
+
+  defp overlaps_in_time?(_always_there, _mark), do: true
+
+  defp clear?(box, taken), do: not Enum.any?(taken, &meet?(box, &1))
+
+  defp meet?(a, b),
+    do:
+      a.x < b.x + b.w + 6 and b.x < a.x + a.w + 6 and a.y < b.y + b.h + 6 and b.y < a.y + a.h + 6
+
+  defp graduated_box(film) do
+    w = Image.width(film.words.graduated) + 28
+    %{x: x(film, film.graduated_at) - w / 2, y: @top + 9 - 19, w: w, h: 38}
   end
 
   defp tip_svg(x, y, color, index) do
@@ -748,13 +821,23 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     """
   end
 
-  defp tag_box(x, y, tag) do
+  # The tip's tag: above and right of the dot if it fits there, otherwise
+  # at the first other corner clear of the notes showing.
+  defp tag_box(x, y, tag, notes) do
     w = Image.width(tag) + 28
     h = 40
-    left = if x + 18 + w > @width - 16, do: x - 18 - w, else: x + 18
-    top = if y - 26 - h < @chart_y + 4, do: y + 18, else: y - 26 - h
-    %{x: left, y: top, w: w, h: h}
+
+    boxes =
+      for top <- [y - 26 - h, y + 18],
+          left <- [x + 18, x - 18 - w],
+          left >= 16 and left + w <= @width - 16 and top >= @chart_y + 4 and top + h <= @floor,
+          do: %{x: left, y: top, w: w, h: h}
+
+    Enum.find(boxes, &clear?(&1, notes)) || hd(boxes)
   end
+
+  defp showing_notes(film, index),
+    do: for(mark <- film.marks, note_opacity(mark, index) > 0, do: mark.box)
 
   defp box_beside({x, y}, words, gap) do
     w = Image.width(words) + 28

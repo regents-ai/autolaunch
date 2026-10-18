@@ -62,6 +62,27 @@ RUN set -eu; \
   cp /usr/lib/*-linux-gnu/libcrypto.so.3 /runtime-support/; \
   cp /etc/ssl/certs/ca-certificates.crt /runtime-support/
 
+# The share videos (AutolaunchWeb.ShareVideo.Film) need an ffmpeg that takes
+# raw frames in and writes H.264 in MP4, and nothing else. It is built from
+# Debian's own signed source for the runtime's release, against that
+# release's libx264, so the runtime adds only that one library.
+FROM slim AS ffmpeg
+
+WORKDIR /src
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends build-essential dpkg-dev nasm pkg-config libx264-dev \
+  && apt-get source --download-only ffmpeg \
+  && dpkg-source -x ffmpeg_*.dsc ffmpeg
+WORKDIR /src/ffmpeg
+RUN ./configure --disable-everything --disable-autodetect --disable-doc --disable-network \
+    --disable-ffplay --disable-ffprobe --enable-gpl --enable-libx264 \
+    --enable-protocol=file,pipe --enable-demuxer=rawvideo --enable-decoder=rawvideo \
+    --enable-encoder=libx264 --enable-muxer=mp4 --enable-swscale \
+    --enable-filter=scale,format,null,buffer,buffersink \
+  && make -j"$(nproc)" ffmpeg \
+  && strip ffmpeg
+
 FROM slim AS app
 
 # The builder image sets this and the slim base does not. Without it the VM
@@ -73,12 +94,17 @@ WORKDIR /app
 COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
 COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
 
-# ffmpeg encodes the share videos (AutolaunchWeb.ShareVideo.Film) with x264.
-# The build stops here if the package ever comes without that encoder.
+# The share videos' ffmpeg and its one library. The build stops here unless it
+# encodes a clip exactly the way the site does.
+COPY --from=ffmpeg /src/ffmpeg/ffmpeg /usr/local/bin/ffmpeg
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg \
+  && apt-get install -y --no-install-recommends libx264-164 \
   && rm -rf /var/lib/apt/lists/* \
-  && ffmpeg -hide_banner -encoders | grep -q libx264
+  && head -c 13122000 /dev/zero \
+    | ffmpeg -hide_banner -loglevel error -f rawvideo -pix_fmt rgb24 -s 1080x1350 -r 30 \
+      -i pipe:0 -c:v libx264 -preset veryfast -crf 21 -pix_fmt yuv420p -movflags +faststart \
+      -threads 1 -y /tmp/check.mp4 \
+  && rm /tmp/check.mp4
 
 RUN groupadd --system --gid 1001 app \
   && useradd --system --uid 1001 --gid app --home-dir /app app

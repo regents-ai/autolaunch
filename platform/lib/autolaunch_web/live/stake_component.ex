@@ -45,7 +45,7 @@ defmodule AutolaunchWeb.StakeComponent do
   alias Autolaunch.Stocks.{Amounts, StakeActions}
   alias AutolaunchWeb.Components.{ShareDialog, SwapForm}
   alias AutolaunchWeb.Live.Session
-  alias AutolaunchWeb.{OnchainCalls, OnchainSteps, TokenDetails, TokenDisplay}
+  alias AutolaunchWeb.{OnchainCalls, OnchainSteps, ShareVideo, TokenDetails, TokenDisplay}
   alias RegentChain.{Presses, Review}
 
   @copy %{
@@ -1057,6 +1057,8 @@ defmodule AutolaunchWeb.StakeComponent do
           id={"#{@id}-share"}
           message={@share.message}
           image={@share.image}
+          video={@share.video}
+          video_name={@share.video_name}
         />
       </div>
       <Regent.Primitives.button
@@ -1073,13 +1075,17 @@ defmodule AutolaunchWeb.StakeComponent do
     """
   end
 
-  defp share(%{share_url: url, share_image: image, pool: pool, launch: launch})
-       when is_binary(url) and is_binary(image) do
+  # The wallet that staked gets its own video: its bids, trades, stake and
+  # earnings on the token's chart.
+  defp share(%{share_url: url, share_image: image, pool: pool, launch: launch, wallet: wallet})
+       when is_binary(url) and is_binary(image) and is_binary(wallet) do
     chain = if launch.chain == :robinhood, do: "Robinhood", else: "Base"
 
     %{
       message: "I just staked $#{pool.token.symbol} on Autolaunch (#{chain}). #{url}",
-      image: image
+      image: image,
+      video: ShareVideo.wallet_url(launch.auction, wallet, DateTime.utc_now()),
+      video_name: "#{pool.token.symbol}-autolaunch.mp4"
     }
   end
 
