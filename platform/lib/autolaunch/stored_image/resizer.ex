@@ -2,8 +2,8 @@ defmodule Autolaunch.StoredImage.Resizer do
   @moduledoc """
   Makes the sized copies of stored images one at a time. A large image can
   take over a hundred megabytes to decode, so however many copies are asked
-  for at once, only one is being made. A caller that has stopped waiting is
-  skipped when its turn comes.
+  for at once, only one is being made. Each request carries the moment its
+  caller stops waiting; a request whose turn comes after that is skipped.
   """
 
   use GenServer
@@ -22,7 +22,8 @@ defmodule Autolaunch.StoredImage.Resizer do
   """
   @spec webp(binary(), pos_integer()) :: {:ok, binary()} | :error
   def webp(bytes, width) do
-    GenServer.call(__MODULE__, {:webp, bytes, width}, @timeout)
+    deadline = System.monotonic_time(:millisecond) + @timeout
+    GenServer.call(__MODULE__, {:webp, bytes, width, deadline}, @timeout)
   catch
     :exit, _reason -> :error
   end
@@ -31,11 +32,11 @@ defmodule Autolaunch.StoredImage.Resizer do
   def init(nil), do: {:ok, nil}
 
   @impl true
-  def handle_call({:webp, bytes, width}, {caller, _tag}, state) do
-    if Process.alive?(caller) do
+  def handle_call({:webp, bytes, width, deadline}, _from, state) do
+    if System.monotonic_time(:millisecond) < deadline do
       {:reply, resize(bytes, width), state}
     else
-      {:noreply, state}
+      {:reply, :error, state}
     end
   end
 
