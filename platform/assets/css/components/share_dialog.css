@@ -33,8 +33,9 @@
 }
 .share-x__label { font-weight: 600; }
 .share-x__message { width: 100%; min-width: 0; resize: vertical; }
+/* The window's buttons keep their own width and stay on one line each. */
 .share-x__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.share-x__actions > * { flex: 1 1 10rem; }
+.share-x__actions > * { flex: 0 0 auto; white-space: nowrap; }
 .share-x__note { color: var(--color-fg-muted); font-size: .875rem; }
 
 @media (max-width: 480px) {
