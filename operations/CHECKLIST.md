@@ -27,13 +27,14 @@ that proves each one, with the gaps; a release that adds or changes one of them 
 
 ## The release
 
-7. Build the image from a `git archive` export with `SOURCE_COMMIT=<full sha>`, and run the
-   read-only pending-migrations check on its digest.
-8. A release with a migration follows [RELEASE.md](RELEASE.md) first: a fresh backup and its
-   id in the evidence.
+7. A release whose diff from the live commit adds a migration, or moves a shared library
+   pin that ships one, follows [RELEASE.md](RELEASE.md) first: a fresh backup and its id
+   in the evidence. The deploy runs the migrations itself.
+8. Write down the release the site can go back to (`fly releases -a autolaunch-sh`).
 9. Start a `fly logs -a autolaunch-sh` tail before the deploy, saved in the evidence folder,
    and keep it until the checks after the deploy are done.
-10. Push the head to main, deploy, and write down the release the site can go back to.
+10. Push the head to main, then deploy it from a clean checkout with
+    `scripts/deploy.sh autolaunch-sh` ([platform/README.md](../platform/README.md#deployment)).
 
 ## After the release
 

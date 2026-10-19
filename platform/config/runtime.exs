@@ -91,14 +91,20 @@ case System.get_env("AUTOLAUNCH_LAUNCHES_OPEN") do
   other -> raise "AUTOLAUNCH_LAUNCHES_OPEN must be true or unset, got #{inspect(other)}"
 end
 
+# The release sets this on its migration command (fly.toml's release_command),
+# and only on that, so the migration boot takes the release login while the web
+# boot takes the serving one.
+migrating? = System.get_env("AUTOLAUNCH_RELEASE_COMMAND") == "migrate"
+
 # One deployment description per network, in the shape the lab controllers
 # write and the contracts thread writes at mainnet deployment, loaded in every
 # environment. A network whose variable is unset keeps whatever the
-# environment's own config says, which outside ExUnit is no deployment.
+# environment's own config says, which outside ExUnit is no deployment. The
+# migration boot reads none: it starts neither the web nor the chain reads.
 deployment_path = fn name ->
-  case System.get_env(name) do
-    path when is_binary(path) and path != "" -> path
-    _unset -> nil
+  case {migrating?, System.get_env(name)} do
+    {false, path} when is_binary(path) and path != "" -> path
+    _none -> nil
   end
 end
 
@@ -157,11 +163,6 @@ config :autolaunch,
          chain_mode,
          System.get_env("AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS")
        )
-
-# The release sets this on its migration commands, and only on those, so the
-# migration boot can take a direct connection while the web boot takes the
-# pooled one.
-migrating? = System.get_env("AUTOLAUNCH_RELEASE_COMMAND") == "migrate"
 
 database_config =
   if config_env() == :prod and migrating? do

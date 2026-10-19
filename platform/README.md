@@ -182,39 +182,45 @@ to sign. Nothing else may build a transaction.
 
 ## Deployment
 
-> [!WARNING]
-> Database migrations run from the separate `autolaunch-sh-migrations` Fly app, never
-> from a serving machine. Every deployment and migration must name its venue in `AUTOLAUNCH_DEPLOYMENT_ROLE`
-> (`production` or `staging`); boot stops before any database URL is read if it does not.
-> Production boot also fails unless `PHX_HOST` and a 64-byte `SECRET_KEY_BASE` are set.
-> `/app/bin/pending-migrations` reports what a deployed database and the release image
-> disagree about, without applying anything. Confirm the target and its secrets before
-> running a deploy.
-
-Run the exact candidate image once in the migration app, then deploy that same digest to
-the serving app:
+Deploy a commit on origin/main from a clean checkout, from the repository root:
 
 ```sh
-fly machine run registry.fly.io/autolaunch-sh:<revision-tag> /app/bin/migrate \
-  --app autolaunch-sh-migrations \
-  --region iad \
-  --vm-memory 1024 \
-  --env AUTOLAUNCH_DEPLOYMENT_ROLE=production \
-  --rm
-fly deploy --app autolaunch-sh --config fly.toml \
-  --image registry.fly.io/autolaunch-sh@sha256:<digest> --ha=false
+scripts/deploy.sh autolaunch-sh
 ```
 
-`autolaunch-sh-migrations` has no service or standing machine and holds only
-`DATABASE_DIRECT_URL`. `autolaunch-sh` must not hold that secret. The serving app holds
-`DATABASE_URL`, `BASE_READ_RPC_URL`, `ETHEREUM_READ_RPC_URL`, `PHX_HOST`, and `SECRET_KEY_BASE`; the migration app
-does not.
+The script refuses a working tree with any change and a commit that is not on
+origin/main, then builds on Fly's builders with `SOURCE_COMMIT` set to the full
+commit and deploys. Before any machine changes, fly.toml's `release_command` runs
+`/app/bin/migrate` on a temporary machine; a failed migration stops the deploy. The
+new image then starts beside the old one and takes traffic once `/healthz` is green.
+`/healthz` answers `ok <commit>`.
+
+Copy the three deployment descriptions (`base-revstake.json`, `base-memestock.json`,
+`robinhood.json`) into `platform/deployment/` first. They carry the site's private RPC
+door, so git and the image never hold them; fly.toml places them on the machine.
+
+> [!WARNING]
+> Every boot, the migration included, must name its venue in
+> `AUTOLAUNCH_DEPLOYMENT_ROLE` (`production` or `staging`); boot stops before any
+> database URL is read if it does not. Production boot also fails unless `PHX_HOST`
+> and a 64-byte `SECRET_KEY_BASE` are set. `/app/bin/pending-migrations` reports what
+> a deployed database and the release image disagree about, without applying anything.
+
+### Two database logins
+
+The site signs in to the shared production database under two logins, and never uses
+one for the other's work.
+
+- **The serving login** (`DATABASE_URL`, user `autolaunch-runtime`) is what the running
+  site uses.
+- **The release login** (`DATABASE_DIRECT_URL`) is used only by the release command,
+  which runs the migrations with it and exits. The running site never reads it.
 
 The image is built from `Dockerfile` with the repository root as its context. Docker
 installs `mix.lock` and `package-lock.json` dependencies, including the pinned shared
-libraries from GitHub, for the target Linux architecture. Host caches and native binaries
-are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
-`fly.staging.toml` (`autolaunch-staging`).
+libraries from GitHub, for the target Linux architecture. Host caches, native binaries
+and the deployment descriptions are excluded (`.dockerignore`). The Fly configuration is
+`fly.toml`; the deploy script names the app.
 
 The Platform GitHub workflow compiles, checks and tests the application and builds the
 Linux release image (without pushing) whenever application or blog files change.
@@ -258,12 +264,12 @@ verification and the remaining release checks.
 | Variable | Required | What it is for |
 | --- | --- | --- |
 | `AUTOLAUNCH_DEPLOYMENT_ROLE` | Always | The venue: `production` or `staging`. |
-| `DATABASE_URL` | Serving app only | The PostgreSQL URL the web boot connects with. |
-| `DATABASE_DIRECT_URL` | Migration app only | The direct PostgreSQL URL the migrate command connects with. Never install it on the serving app. |
-| `SECRET_KEY_BASE` | Serving app only | At least 64 bytes. |
-| `PHX_HOST` | Serving app only | The public hostname the site generates URLs for. |
-| `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
-| `ETHEREUM_READ_RPC_URL` | Serving app | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
+| `DATABASE_URL` | Yes in production | The serving login: the PostgreSQL URL the web boot connects with. |
+| `DATABASE_DIRECT_URL` | Yes in production | The release login: the direct PostgreSQL URL the release command migrates with. The web boot never reads it. |
+| `SECRET_KEY_BASE` | Yes in production | At least 64 bytes. |
+| `PHX_HOST` | Yes in production | The public hostname the site generates URLs for. |
+| `BASE_READ_RPC_URL` | Yes in production | The Base endpoint the site reads one canonical `safe` block through. |
+| `ETHEREUM_READ_RPC_URL` | Yes in production | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
@@ -272,8 +278,7 @@ verification and the remaining release checks.
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using
 `autolaunch-runtime`; wrong-cluster, wrong-database and administrative runtime logins
-fail before connecting. `DATABASE_DIRECT_URL` on the serving process is also a boot
-error. Serving and migration both refuse the PgBouncer endpoint, because
+fail before connecting. Serving and migration both refuse the PgBouncer endpoint, because
 transaction pooling keeps neither the site's listeners for shared Credits and agent
 changes nor the session-level advisory locks migrations take.
 
