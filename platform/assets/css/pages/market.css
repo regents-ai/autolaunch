@@ -10,6 +10,11 @@
 .autolaunch-convert__row { display: grid; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--hairline); min-width: 0; }
 .autolaunch-convert__row .token-stake { margin-top: var(--space-2); }
 .autolaunch-convert__name { margin: 0; font-size: 1rem; }
+/* On a touch screen a launch's name is a full 44px press, by the design system's
+   touch rule; a mouse keeps the heading's own line. */
+@media (hover: none), (pointer: coarse) {
+  .autolaunch-convert__name a { display: inline-flex; align-items: center; min-block-size: 44px; min-inline-size: 44px; }
+}
 .market-identity { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 24px; align-items: start; max-width: 850px; min-width: 0; }
 .market-identity__image { width: 100%; max-width: 240px; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius); background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
 .market-identity__image img { display: block; width: 100%; height: 100%; object-fit: cover; }
