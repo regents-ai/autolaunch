@@ -32,11 +32,20 @@ defmodule Autolaunch.Chain.NodeClient do
   @impl RegentCredits.ChainClient
   def logs(chain, filter), do: rpc(chain, "eth_getLogs", [filter])
 
-  @doc "One JSON-RPC request to the node; one that gets no answer counts in `health.chain_request_failures.total`."
+  @doc """
+  One JSON-RPC request to the node; one that gets no answer counts in
+  `health.chain_request_failures.total`. A chain the site has no node for gets no
+  answer either: `{:error, :no_node}`, and nothing is sent anywhere.
+  """
   @impl RegentPoints.ChainClient
   def rpc(%{chain_id: chain_id} = chain, method, params) do
-    url = :autolaunch |> Application.fetch_env!(:chain_nodes) |> Map.fetch!(chain_id)
+    case :autolaunch |> Application.fetch_env!(:chain_nodes) |> Map.fetch(chain_id) do
+      {:ok, url} -> post(url, chain, method, params)
+      :error -> failed(chain, method, :no_node)
+    end
+  end
 
+  defp post(url, chain, method, params) do
     case Req.post(url,
            json: %{jsonrpc: "2.0", id: 1, method: method, params: params},
            retry: false,
@@ -60,6 +69,7 @@ defmodule Autolaunch.Chain.NodeClient do
     {:error, reason}
   end
 
+  defp class(:no_node), do: :no_node
   defp class({:rpc, _error}), do: :rpc
   defp class({:http, status}), do: {:http_status, status}
 

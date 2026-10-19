@@ -847,6 +847,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "f4d404a8aecc4497b401f5d19bd19c4b0c2770ad2b438c4ee9a4fda34d59b96a"
+    },
+    {
+      "id": 85,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/credits_panel_test.exs",
+      "line": 12,
+      "test_name": "CREDITS_PANEL_NO_NODE: a chain with no node reads as unavailable, with no crash",
+      "keep_because": "A chain the site has no node for (ExUnit has none for Base) crashed the Buy Credits panel's USDC reads with a KeyError in Autolaunch.Chain.NodeClient. The read now fails as one that got no answer, counted by class no_node, and the panel shows unavailable. It fails while a missing node raises.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7432ea3d9a266c165fc1ee76c472461ce9204a235b77353cbc86fbb5b73c158e"
     }
   ],
   "legacy_folders_to_remove": [
