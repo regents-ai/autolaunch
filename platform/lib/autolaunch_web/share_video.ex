@@ -23,6 +23,7 @@ defmodule AutolaunchWeb.ShareVideo do
   """
   alias Autolaunch.{TokenTrades, WalletHistory}
   require Ash.Query
+  require Logger
 
   alias Autolaunch.Actors.System
   alias Autolaunch.ShareVideoRequest
@@ -206,12 +207,28 @@ defmodule AutolaunchWeb.ShareVideo do
   # starting (57P01 to 57P03). Ash keeps an exception it did not expect only as
   # its formatted text (`Ash.Error.Unknown`), so there the exception and its
   # code are read from the start of that text.
-  defp failure(%Ash.Error.Invalid{}), do: :invalid_request
+  # Every failure is logged where it is sorted, so none passes unseen: a
+  # failed read or write as an error, the other two as warnings.
+  defp failure(error) do
+    kind = kind(error)
 
-  defp failure(%Ash.Error.Unknown{errors: errors}),
+    Logger.log(
+      level(kind),
+      "share video request #{kind}: #{Exception.format_banner(:error, error)}"
+    )
+
+    kind
+  end
+
+  defp level(:failed), do: :error
+  defp level(_kind), do: :warning
+
+  defp kind(%Ash.Error.Invalid{}), do: :invalid_request
+
+  defp kind(%Ash.Error.Unknown{errors: errors}),
     do: if(Enum.any?(errors, &connection_lost?/1), do: :connection_lost, else: :failed)
 
-  defp failure(error), do: if(connection_lost?(error), do: :connection_lost, else: :failed)
+  defp kind(error), do: if(connection_lost?(error), do: :connection_lost, else: :failed)
 
   defp connection_lost?(%DBConnection.ConnectionError{}), do: true
   defp connection_lost?(%Postgrex.Error{postgres: %{pg_code: code}}), do: connection_code?(code)
