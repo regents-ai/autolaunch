@@ -31,6 +31,7 @@ defmodule Autolaunch.Application do
          ]},
         id: Autolaunch.StoredImage.cache()
       ),
+      Autolaunch.StoredImage.Resizer,
       public_auctions_child(),
       Supervisor.child_spec(
         {Cachex,

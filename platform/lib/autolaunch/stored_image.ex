@@ -6,13 +6,14 @@ defmodule Autolaunch.StoredImage do
 
   Pages show each image at the size they draw it, from
   `<address>/<width>.webp`: a square of that width cut from the image's
-  centre, as the pages' square frames show it, made the first time it is
-  asked for and kept in memory. The large pictures offer two widths and the
+  centre, as the pages' square frames show it, never enlarged, made the
+  first time it is asked for (one at a time, by `Autolaunch.StoredImage.Resizer`)
+  and kept in memory. The large pictures offer two widths and the
   browser takes the one the screen needs. The address without a width stays
   the image's own bytes, for share pictures and videos.
   """
 
-  alias Vix.Vips.Operation
+  alias Autolaunch.StoredImage.Resizer
 
   @digest ~r/\A[0-9a-f]{64}\z/
   # Twice the largest size a page draws each kind of picture at: 96 for the
@@ -22,7 +23,6 @@ defmodule Autolaunch.StoredImage do
   # they are drawn at about 150 to 200.
   @widths [96, 160, 320, 640]
   @choices [320, 640]
-  @quality 80
   @cache :autolaunch_stored_image_sizes
   @kept 300
 
@@ -102,18 +102,11 @@ defmodule Autolaunch.StoredImage do
     end
   end
 
-  # An image smaller than the width keeps its own size. Of its metadata only
-  # the colour profile is kept.
+  # The record is read here, so an address with nothing stored answers at
+  # once; only the copy itself waits for the one resizer.
   defp resize({lane, id, digest}, width) do
     with {:ok, %{bytes: bytes}} <- fetch(lane, id, digest),
-         {:ok, image} <-
-           Operation.thumbnail_buffer(bytes, width,
-             height: width,
-             crop: :VIPS_INTERESTING_CENTRE,
-             size: :VIPS_SIZE_DOWN
-           ),
-         {:ok, webp} <-
-           Operation.webpsave_buffer(image, Q: @quality, keep: [:VIPS_FOREIGN_KEEP_ICC]) do
+         {:ok, webp} <- Resizer.webp(bytes, width) do
       {:commit, webp}
     else
       _missing -> {:ignore, :error}
