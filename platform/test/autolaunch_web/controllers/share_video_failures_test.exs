@@ -158,12 +158,30 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
     Logger.configure(level: :debug)
     on_exit(fn -> Logger.configure(level: level) end)
 
+    # A handler on the failed write's query event fails too, so telemetry's own
+    # error line, written as it detaches the handler, is part of what is read.
+    test = self()
+    handler = "failing-#{inspect(test)}"
+
+    :telemetry.attach(
+      handler,
+      [:autolaunch, :repo, :query],
+      fn _event, _measurements, metadata, _config ->
+        if self() == test and match?({:error, _}, metadata.result), do: raise("handler failed")
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
     {failed, log} = with_log([level: :debug], fn -> get(conn, path) end)
     Logger.configure(level: level)
 
     assert json_response(failed, 500)["error"] == "failed"
-    # Every level is captured, the database layer's own query lines included.
+    # Every level is captured: the database layer's own query lines and
+    # telemetry's line for the handler it detached.
     assert log =~ "QUERY ERROR"
+    assert log =~ "has failed and has been detached"
     refute log =~ "alice"
     refute log =~ "0xab1"
     assert log =~ "share video request failed: Ash.Error.Unknown.UnknownError"
