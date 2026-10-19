@@ -1,5 +1,5 @@
 {
-  "total": 65,
+  "total": 64,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -128,19 +128,6 @@
       "line": 29,
       "test_name": "a verified local launch and bid project once under exact deterministic identities",
       "keep_because": "Processing the same verified local launch/bid twice does not create duplicate records. This checks duplicate rows, not every possible replay effect.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/lab_projection_test.exs",
-      "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
-    },
-    {
-      "id": 26,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/lab_projection_test.exs",
-      "line": 68,
-      "test_name": "out-of-order position receipts cannot rewind claimed or graduated chain state",
-      "keep_because": "Late position receipts cannot turn a claimed bid or graduated auction back into an earlier state.",
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
