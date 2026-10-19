@@ -423,12 +423,16 @@ paths:
     "get":
       "operationId": "agent_whoami"
       "summary": "Check my identity and pairing"
+      description: Run this first; it works before pairing. Answers your status on this site (not_paired, person_not_here or paired), what you may do in it and your next step. Changes nothing and awards no Points.
       "security":
         -
           "SiwaProof": []
       "responses":
         "200":
-          "description": "Success"
+          "description": "Your status on this site, what you may do in it and your next step"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentStatusEnvelope"}
         "401":
           "description": "Fresh request proof required"
         "403":
@@ -453,8 +457,8 @@ paths:
               schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
         "401":
           "description": "Fresh request proof required"
-        "404":
-          "description": "This agent is not paired with an account"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired), or its person has no Regent account yet (person_not_here); the error's hint says what the person does next"
         "503":
           "description": "Dependency unavailable"
   /api/agents/v1/pair:
@@ -874,6 +878,43 @@ components:
         human_backed: {type: boolean}
         same_person_agent_count: {type: [integer, "null"], minimum: 1}
         account: {$ref: "#/components/schemas/PairedAccount"}
+    AgentStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/AgentStatus"}
+    AgentStatus:
+      type: object
+      additionalProperties: false
+      required: [agent, audience, authenticated, pairing, status, allowed, next_step]
+      properties:
+        agent:
+          type: object
+          required: [wallet, registry_listing]
+          properties:
+            wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+            registry_listing: {type: [string, "null"], format: uri, description: "The agent's page in the agent registry, or null when it has none."}
+        audience: {type: string, const: autolaunch}
+        authenticated: {type: boolean, const: true}
+        pairing:
+          type: [object, "null"]
+          description: Null until a person pairs this agent.
+          required: [id, paired_at]
+          properties:
+            id: {type: string, format: uuid}
+            paired_at: {type: string, format: date-time}
+        status:
+          type: string
+          enum: [not_paired, person_not_here, paired]
+          description: "not_paired: no person has paired this agent. person_not_here: paired, but its person has no Regent account yet. paired: it acts for its person."
+        allowed:
+          type: array
+          items: {type: string}
+          description: What the agent may do on this site in this status, in short plain sentences.
+        next_step:
+          type: [string, "null"]
+          description: What to do next, in one sentence; null when paired.
     CheckedInAgentEnvelope:
       type: object
       additionalProperties: false
