@@ -20,6 +20,19 @@ defmodule AutolaunchWeb do
   def static_paths,
     do: ~w(assets images fonts apple-touch-icon.png favicon.svg favicon-32.png favicon-192.png)
 
+  @doc """
+  What a file the site serves as it is (a stylesheet, an icon, a launch
+  picture) may do when it is opened directly and the browser reads it as a
+  page: nothing.
+  """
+  def static_headers,
+    do: %{
+      "content-security-policy" => "default-src 'none'; frame-ancestors 'none'",
+      "x-content-type-options" => "nosniff",
+      "x-frame-options" => "DENY",
+      "referrer-policy" => "no-referrer"
+    }
+
   def router do
     quote do
       use Phoenix.Router, helpers: false

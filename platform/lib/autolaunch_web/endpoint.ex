@@ -12,16 +12,6 @@ defmodule AutolaunchWeb.Endpoint do
     websocket: [connect_info: [session: @session_options], fullsweep_after: 0],
     longpoll: [connect_info: [session: @session_options]]
 
-  # A stylesheet, an icon or an image may be opened directly, and the browser
-  # then reads it as a page. These say what a page from this address may do,
-  # which is nothing.
-  @static_headers %{
-    "content-security-policy" => "default-src 'none'; frame-ancestors 'none'",
-    "x-content-type-options" => "nosniff",
-    "x-frame-options" => "DENY",
-    "referrer-policy" => "no-referrer"
-  }
-
   plug AutolaunchWeb.Plugs.CanonicalHost
 
   # Serve at "/" the static files from "priv/static" directory.
@@ -41,7 +31,7 @@ defmodule AutolaunchWeb.Endpoint do
         do: Path.rootname(path) <> "-"
       ),
     raise_on_missing_only: code_reloading?,
-    headers: @static_headers
+    headers: AutolaunchWeb.static_headers()
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
