@@ -7,6 +7,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - A share video that several people ask for at the same moment is made once, and everyone waits for that one.
 - On token and auction pages, every link and control you tap on its own is easy to hit on a phone.
 - The auction chart's replay slider and price-limit slider work again.
+- If a share video can't be made, the share window says why in one line, such as a daily limit or a figure that couldn't be read, with a button to try again.
 
 ## 18 October 2026: share-video requests kept in order, and the old account copy removed
 - Your place in line for a share video and your three-a-day count stay right however many people ask at once.
