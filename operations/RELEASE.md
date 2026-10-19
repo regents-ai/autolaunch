@@ -35,30 +35,7 @@ Whenever a lock is lifted on one table, the release then runs a read-only check 
 guard is still in place: every other listed table still refuses being emptied, having rows deleted
 and being dropped.
 
-## This release: one queued request per share video
+## After every deploy
 
-The migration `20261018232413_share_video_queued_once` adds a unique index on
-`autolaunch_app.share_video_requests` (`key`, for rows still queued). It cannot be built while two
-queued requests share a key. In order:
-
-1. Write the latest Fly Managed Postgres backup id in the evidence.
-2. Count the rows and write the count in the evidence:
-
-   ```sql
-   SELECT count(*) FROM autolaunch_app.share_video_requests;
-   ```
-
-3. Check for a video queued twice:
-
-   ```sql
-   SELECT key, count(*) FROM autolaunch_app.share_video_requests WHERE state = 'queued' GROUP BY key HAVING count(*) > 1;
-   ```
-
-   - No rows: continue.
-   - Any row: stop, and say in one line "Stopped: a share video is queued twice, so the new index
-     can't be built." Delete nothing, don't run it again, and report to the coordinator.
-
-4. Migrate.
-5. Count the rows again with the query in step 2 and write the count beside the first. The
-   migration adds an index only, so the two counts match unless people asked for videos in
-   between.
+`https://autolaunch.sh/healthz` answers `ok <commit>`. The commit must be the full commit the
+release was built from (the image's `SOURCE_COMMIT`); write the answer in the evidence.
