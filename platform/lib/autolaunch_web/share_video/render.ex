@@ -17,9 +17,8 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &render/1)
 
   defp render(%{data: request} = changeset) do
-    with {:ok, story, address} <- story(request),
-         {:ok, mp4, measured} <-
-           Film.render(story, String.replace(address, ~r{\Ahttps?://}, "")) do
+    with {:ok, story} <- story(request),
+         {:ok, mp4, measured} <- Film.render(story) do
       :telemetry.execute(
         [:autolaunch, :share_video, :rendered],
         Map.take(measured, [:ms, :bytes, :peak_bytes]),
@@ -34,19 +33,14 @@ defmodule AutolaunchWeb.ShareVideo.Render do
     end
   end
 
-  # The story with the address the video's band names: the token's page, or
-  # the auction's while it runs.
   defp story(%{kind: :token} = request) do
     with {:ok, auction} <- auction(request),
          {:ok, auction, token} <- found(Paths.find_token(auction.token_symbol, auction.path_tail)),
-         {:ok, story} <- token_story(auction, token, request.wallet),
-         do: {:ok, story, Paths.token_url(auction)}
+         do: token_story(auction, token, request.wallet)
   end
 
   defp story(%{kind: :auction} = request) do
-    with {:ok, auction} <- auction(request),
-         {:ok, story} <- Story.auction(auction, request.wallet),
-         do: {:ok, story, Paths.auction_url(auction)}
+    with {:ok, auction} <- auction(request), do: Story.auction(auction, request.wallet)
   end
 
   defp auction(request) do

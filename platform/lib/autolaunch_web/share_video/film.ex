@@ -5,17 +5,18 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   in yuv420p with its index at the front, so it plays as soon as it starts
   loading.
 
-  The frame is the share card stood upright: a phase word and the date over a
-  chart, the card's strip under it, and a tangerine band with the site's name
-  and the token's address at the foot. The chart draws the auction's clearing
+  The frame is the share card stood upright, inside a tangerine border that
+  widens into a band reading autolaunch.sh at the foot: a phase word over a
+  chart, and the card's strip under it. The chart draws the auction's clearing
   price as blue steps, then the pool's price as a smooth tangerine line from
   graduation, its tip carrying a pulsing dot and the FDV it stands at. A
   wallet's own bids, buys and sells pop in on the line, its first stake drops
   a gold line to the floor, and its earnings rise in gold from there. The card
-  counts along with the line and the video holds on today's figures.
+  counts along with the line, and while an auction runs its pill counts down
+  to the end. The video holds on today's figures.
 
-  What never changes is drawn once: the field, the grid, the strip with its
-  logo and words, and the band. Each frame draws only the chart's moving parts
+  What never changes is drawn once: the border, the field, the grid, the
+  strip with its logo and words, and the band. Each frame draws only the chart's moving parts
   and the figures, lays them over the still layers and hands the pixels to
   ffmpeg, which runs at low priority so pages keep their share of the
   machine.
@@ -40,9 +41,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   @green "#3ddc84"
   @red "#ff4d4d"
 
+  # The tangerine border and the dark panel inside it.
+  @border 28
+  @band_y 1222
+
   # The chart.
-  @x0 64
-  @x1 1016
+  @x0 76
+  @x1 1004
   @top 150
   @floor 700
   @high @top + 70
@@ -53,8 +58,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   @samples 180
 
   # The strip.
-  @strip_x 48
-  @strip_y 812
+  @strip_x 56
+  @strip_y 846
   @strip_w @width - 2 * @strip_x
   @strip_h 300
   @inset 40
@@ -65,17 +70,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   @right @strip_x + @strip_w - @inset
   @pill_h 42
   @chain_mark_h 26
-
-  # The band.
-  @band_y 1230
+  @words_w 340
 
   # The timeline, in frames.
   @auction_from 10
   @auction_to 100
   @trading_from 112
   @trading_to 222
-  @stamp_from 228
-  @stamp_to 246
   @pop 8
   @note_hold 40
   @note_fade 10
@@ -84,12 +85,12 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   The video's MP4 bytes, with what drawing and encoding it took: the time
   in milliseconds and the most memory the BEAM held while it ran.
   """
-  @spec render(map(), String.t()) :: {:ok, binary(), map()} | {:error, term()}
+  @spec render(map()) :: {:ok, binary(), map()} | {:error, term()}
   # The path is the site's own temporary file, never named by a request.
   # sobelow_skip ["Traversal.FileModule"]
-  def render(story, link) do
+  def render(story) do
     started = System.monotonic_time(:millisecond)
-    film = prepare(story, link)
+    film = prepare(story)
     path = Path.join(System.tmp_dir!(), "share-video-#{System.unique_integer([:positive])}.mp4")
 
     try do
@@ -112,7 +113,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   # A launch that has graduated splits the chart between its auction and its
   # trading at graduation; one still in its auction gives the auction the
   # whole chart, up to now.
-  defp prepare(story, link) do
+  defp prepare(story) do
     auction? = match?([_ | _], story.auction_line)
     graduates? = match?([_ | _], story.trade_line)
     graduated_at = if graduates?, do: story.trade_line |> hd() |> elem(0), else: story.now
@@ -136,13 +137,12 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         stake_frame: story.stake && first_frame(film, story.stake.at),
         earnings_h: story.stake && earnings_height(film),
         labels: labels(film),
-        stills: stills(story, link),
+        stills: stills(story),
+        mark_w: Draw.mark_width(Draw.chain(story.auction), @chain_mark_h),
         words: words(story)
       })
 
-    film
-    |> Map.put(:dates, dates(film))
-    |> Map.put(:marks, film |> marks(story.marks) |> placed(film))
+    Map.put(film, :marks, film |> marks(story.marks) |> placed(film))
   end
 
   # How high the earnings line may rise: a quarter of the chart, kept clear of
@@ -256,16 +256,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     |> Enum.reverse()
   end
 
-  # The date the line's tip stands at, for each date the video passes.
-  defp dates(film) do
-    0..(@frames - 1)
-    |> Enum.map(&date(tip(film, &1)))
-    |> Enum.uniq()
-    |> Map.new(&{&1, text!(&1, :regular, 32, @muted)})
-  end
-
-  defp date(at), do: stamp(at, "%b %-d, %Y")
-
   defp stamp(at, format),
     do: at |> round() |> DateTime.from_unix!() |> Calendar.strftime(format)
 
@@ -292,55 +282,59 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         ],
         trading: [text!("FDV", :regular, 26, @muted), text!("Price", :regular, 26, @muted)],
         staked: [text!("Staked", :regular, 26, @muted), text!("Earned", :regular, 26, @muted)]
-      },
-      stamp: text!("As of #{stamp(story.now, "%b %-d, %Y %H:%M")} UTC", :regular, 26, @muted)
+      }
     }
   end
 
-  # The field, the grid, the strip and the band, once with the auction's pill
-  # and once with the graduated one, kept in memory for every frame.
-  defp stills(story, link) do
+  # The border, the field, the grid, the strip and the band, kept in memory
+  # for every frame: with the auction's pill, with the graduated one, and for
+  # an auction still running with the chain's mark alone, its pill counting
+  # down on every frame.
+  defp stills(story) do
     auction = story.auction
     chain = Draw.chain(auction)
     color = Draw.color(auction.image_color)
     {:ok, logo} = Draw.logo(auction, @logo)
     name = name(Draw.plain(auction.title))
-    ticker = fit!(story.ticker, :regular, 34, @muted, 400)
-    wordmark = text!("Autolaunch", :pixel, 44, @field)
-    address = fit!(link, :regular, 28, @field, 640)
+    ticker = fit!(story.ticker, :regular, 34, @muted, @words_w)
+    site = text!("autolaunch.sh", :pixel, 52, @field)
     initial = if logo, do: nil, else: initial(auction.token_symbol)
 
-    for {pill, words, pill_color} <- [
+    words =
+      [
+        {ticker, @words_x, @strip_y + 112},
+        {site, @border + 28, @band_y + div(@height - @band_y - Image.height(site), 2)}
+      ] ++
+        if(name, do: [{name, @words_x, @strip_y + 40}], else: []) ++
+        if(initial,
+          do: [
+            {initial, @logo_x + div(@logo - Image.width(initial), 2),
+             @logo_y + div(@logo - Image.height(initial), 2)}
+          ],
+          else: []
+        )
+
+    for {kind, pill_words, pill_color} <- [
           {:auction, "Auction", @blue},
-          {:graduated, "Graduated", @tangerine}
+          {:graduated, "Graduated", @tangerine},
+          {:running, nil, nil}
         ],
         into: %{} do
-      badge = text!(words, :bold, 24, pill_color)
-      badge_w = Image.width(badge) + 36
-
-      {:ok, {canvas, _flags}} =
-        Operation.svgload_buffer(still_svg(chain, color, logo, pill_color, badge_w))
-
-      layers =
-        [
-          {ticker, @words_x, @strip_y + 112},
-          {badge, badge_x(), pill_y() + div(@pill_h - Image.height(badge), 2)},
-          {wordmark, @strip_x, @band_y + div(@height - @band_y - Image.height(wordmark), 2)},
-          {address, @width - @strip_x - Image.width(address),
-           @band_y + div(@height - @band_y - Image.height(address), 2)}
-        ] ++
-          if(name, do: [{name, @words_x, @strip_y + 40}], else: []) ++
-          if(initial,
-            do: [
-              {initial, @logo_x + div(@logo - Image.width(initial), 2),
-               @logo_y + div(@logo - Image.height(initial), 2)}
-            ],
-            else: []
-          )
-
-      {:ok, still} = Image.copy_memory(flat(canvas, layers))
-      {pill, still}
+      {badge, pill} = still_pill(pill_words, pill_color)
+      {:ok, {canvas, _flags}} = Operation.svgload_buffer(still_svg(chain, color, logo, pill))
+      {:ok, still} = Image.copy_memory(flat(canvas, words ++ badge))
+      {kind, still}
     end
+  end
+
+  defp still_pill(nil, _color), do: {[], nil}
+
+  defp still_pill(words, color) do
+    badge = text!(words, :bold, 24, color)
+    width = Image.width(badge) + 36
+
+    {[{badge, badge_x(), pill_y() + div(@pill_h - Image.height(badge), 2)}],
+     %{color: color, width: width}}
   end
 
   defp name(""), do: nil
@@ -363,9 +357,14 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp badge_x, do: @words_x + 18
   defp pill_y, do: @strip_y + 196
 
-  defp still_svg(chain, color, logo, pill_color, badge_w) do
+  defp still_svg(chain, color, logo, pill) do
     mark_w = Draw.mark_width(chain, @chain_mark_h)
     grid = for row <- 0..3, do: @top + row * div(@floor - @top, 4)
+    # A running auction's mark leads the row, so its counting pill can grow
+    # to the right of it.
+    mark_x = if pill, do: badge_x() + pill.width + 6, else: badge_x() - 18
+    panel_w = @width - 2 * @border
+    panel_h = @band_y - @border
 
     """
     <svg xmlns="http://www.w3.org/2000/svg" width="#{@width}" height="#{@height}">
@@ -376,21 +375,26 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         </radialGradient>
         <clipPath id="round"><circle cx="#{@logo_x + div(@logo, 2)}" cy="#{@logo_y + div(@logo, 2)}" r="#{div(@logo, 2)}"/></clipPath>
       </defs>
-      <rect width="#{@width}" height="#{@height}" fill="#{@field}"/>
-      <rect width="#{@width}" height="#{@height}" fill="url(#glow)"/>
+      <rect width="#{@width}" height="#{@height}" fill="#{@tangerine}"/>
+      <rect x="#{@border}" y="#{@border}" width="#{panel_w}" height="#{panel_h}" rx="48" fill="#{@field}"/>
+      <rect x="#{@border}" y="#{@border}" width="#{panel_w}" height="#{panel_h}" rx="48" fill="url(#glow)"/>
       #{Enum.map_join(grid, "\n", &~s|<line x1="#{@x0}" y1="#{&1}" x2="#{@x1}" y2="#{&1}" stroke="#{@edge}" stroke-width="2" stroke-dasharray="2 9" stroke-linecap="round"/>|)}
       <line x1="#{@x0}" y1="#{@floor}" x2="#{@x1}" y2="#{@floor}" stroke="#{@edge}" stroke-width="2"/>
       <rect x="#{@strip_x}" y="#{@strip_y}" width="#{@strip_w}" height="#{@strip_h}" rx="40"
         fill="#{@strip}" stroke="#{@edge}" stroke-width="2"/>
       #{logo_svg(logo, color)}
-      <rect x="#{badge_x() - 18}" y="#{pill_y()}" width="#{badge_w}" height="#{@pill_h}" rx="#{div(@pill_h, 2)}"
-        fill="none" stroke="#{pill_color}" stroke-width="2"/>
-      <image x="#{badge_x() + badge_w + 6}" y="#{pill_y() + div(@pill_h - @chain_mark_h, 2)}" width="#{mark_w}"
+      #{pill_svg(pill)}
+      <image x="#{mark_x}" y="#{pill_y() + div(@pill_h - @chain_mark_h, 2)}" width="#{mark_w}"
         height="#{@chain_mark_h}" href="data:image/svg+xml;base64,#{Base.encode64(Draw.chain_mark(chain))}"/>
-      <rect x="0" y="#{@band_y}" width="#{@width}" height="#{@height - @band_y}" fill="#{@tangerine}"/>
     </svg>
     """
   end
+
+  defp pill_svg(nil), do: ""
+
+  defp pill_svg(pill),
+    do:
+      ~s|<rect x="#{badge_x() - 18}" y="#{pill_y()}" width="#{pill.width}" height="#{@pill_h}" rx="#{div(@pill_h, 2)}" fill="none" stroke="#{pill.color}" stroke-width="2"/>|
 
   defp logo_svg(nil, color),
     do:
@@ -448,22 +452,27 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     """
 
     {:ok, {chart, _flags}} = Operation.svgload_buffer(svg)
-    still = if graduated?, do: film.stills.graduated, else: film.stills.auction
+
+    still = still(film, graduated?)
 
     layers =
       [{chart, 0, @chart_y}] ++
-        top_row(film, tip, staked?, graduated?) ++
+        top_row(film, staked?, graduated?) ++
         label_layers(film, index) ++
         mark_layers(film, index) ++
         graduated_layers(film, index, graduated?) ++
         stake_layers(film, tip, index, staked?) ++
         [box_text(tag_box, tag)] ++
         if(earned_box, do: [box_text(earned_box, earned_tag)], else: []) ++
-        stat_layers(film, price, earned, graduated?, staked?, index, tip) ++
-        stamp_layers(film, index)
+        stat_layers(film, price, earned, graduated?, staked?, index) ++
+        countdown_layers(film, tip)
 
     flat(still, layers)
   end
+
+  defp still(%{stills: stills}, true), do: stills.graduated
+  defp still(%{graduates?: true, stills: stills}, false), do: stills.auction
+  defp still(%{stills: stills}, false), do: stills.running
 
   # What the wallet has earned by the tip, with its gold tag at the tip of
   # the earnings line once the stake is on the chart.
@@ -876,7 +885,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   # --- the words that move ------------------------------------------------------
 
-  defp top_row(film, tip, staked?, graduated?) do
+  defp top_row(film, staked?, graduated?) do
     phase =
       cond do
         staked? -> film.words.phases.staked
@@ -884,8 +893,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         true -> film.words.phases.auction
       end
 
-    date = Map.fetch!(film.dates, date(tip))
-    [{phase, @strip_x, 46}, {date, @width - @strip_x - Image.width(date), 54}]
+    [{phase, @border + 36, 60}]
   end
 
   # Each date slides up into place as the line reaches it.
@@ -903,7 +911,10 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   # The card's two figures as the line stands: a stake's own figures in
   # gold, the FDV and price once trading, and through an auction its clearing
   # price with, while it still runs, the time left as of the line's tip.
-  defp stat_layers(film, price, earned, graduated?, staked?, index, tip) do
+  # The card's two figures as the line stands: a stake's own figures in
+  # gold, the FDV and price once trading, and through an auction its clearing
+  # price and price per token.
+  defp stat_layers(film, price, earned, graduated?, staked?, index) do
     story = film.story
     fdv = money(story, price * story.supply)
 
@@ -922,20 +933,15 @@ defmodule AutolaunchWeb.ShareVideo.Film do
           [fdv_label, price_label] = film.words.labels.trading
           [{fdv_label, fdv, @platinum}, {price_label, money(story, price), @platinum}]
 
-        film.graduates? ->
+        true ->
           [clearing, price_label] = film.words.labels.auction
           [{clearing, fdv, @platinum}, {price_label, money(story, price), @platinum}]
-
-        true ->
-          [clearing, _price_label] = film.words.labels.auction
-          {label, value, color} = Draw.standing(story.auction, DateTime.from_unix!(round(tip)))
-          [{clearing, fdv, @platinum}, {text!(label, :regular, 26, @muted), value, color}]
       end
 
     rows
     |> Enum.with_index()
     |> Enum.flat_map(fn {{label, value, color}, row} ->
-      value = fit!(value, :bold, 50, color, 360)
+      value = figure(value, color)
       top = @strip_y + 40 + row * 124
 
       [
@@ -945,15 +951,37 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     end)
   end
 
-  defp stamp_layers(film, index) do
-    shown = progress(index, @stamp_from, @stamp_to)
-    stamp = film.words.stamp
+  # A figure steps down in size until it fits beside the name, so a long one
+  # is never cut short.
+  defp figure(value, color) do
+    Enum.find_value([50, 44, 38, 32, 28], fn size ->
+      layer = text!(value, :bold, size, color)
+      if Image.width(layer) <= @words_w, do: layer
+    end) || text!(value, :bold, 28, color)
+  end
 
-    if shown > 0,
-      do: [
-        faded({stamp, @width - @strip_x - Image.width(stamp), @strip_y + @strip_h + 26}, shown)
-      ],
-      else: []
+  # While an auction runs, its pill counts down to the end as of the line's
+  # tip, beside the chain's mark; once it cannot, it names where the auction
+  # stands.
+  defp countdown_layers(%{graduates?: true}, _tip), do: []
+
+  defp countdown_layers(film, tip) do
+    words =
+      case Draw.standing(film.story.auction, DateTime.from_unix!(round(tip))) do
+        {"Time left", left, _color} -> "Ends in " <> left
+        {_label, standing, _color} -> standing
+      end
+
+    badge = text!(words, :bold, 24, @blue)
+    width = Image.width(badge) + 36
+    x = badge_x() - 18 + film.mark_w + 24
+
+    {:ok, {pill, _flags}} =
+      Operation.svgload_buffer(
+        ~s|<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{@pill_h}"><rect x="1" y="1" width="#{width - 2}" height="#{@pill_h - 2}" rx="#{div(@pill_h, 2) - 1}" fill="none" stroke="#{@blue}" stroke-width="2"/></svg>|
+      )
+
+    [{pill, x, pill_y()}, {badge, x + 18, pill_y() + div(@pill_h - Image.height(badge), 2)}]
   end
 
   # --- figures ------------------------------------------------------------------
