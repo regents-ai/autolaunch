@@ -821,6 +821,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "016c6ff09ad24d70bd8d41805ab99d8c56aeee4c45f2dbe96df0ee92f4c32e8e"
+    },
+    {
+      "id": 77,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/launch_image_test.exs",
+      "line": 34,
+      "test_name": "PICTURE_MISSES: each miss on a sized picture's address is refused and never reaches the resizer",
+      "keep_because": "A width pages never ask for, a type other than WebP, an unknown id or another digest answers 404 and a step up (..) is refused, all without reaching the one resizer (Sentinel hold on f23984b2, 19 Oct 2026). A control hit shows the call record sees the resizer.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f4d404a8aecc4497b401f5d19bd19c4b0c2770ad2b438c4ee9a4fda34d59b96a"
+    },
+    {
+      "id": 78,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/launch_image_test.exs",
+      "line": 78,
+      "test_name": "PICTURE_HEADERS: a stored picture and its sized copy say a page from them may do nothing",
+      "keep_because": "Both picture answers carry the strict content policy, DENY framing, no-referrer and nosniff, as the site's other files do (Sentinel hold on f23984b2, 19 Oct 2026). It fails if either answer loses one.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f4d404a8aecc4497b401f5d19bd19c4b0c2770ad2b438c4ee9a4fda34d59b96a"
     }
   ],
   "legacy_folders_to_remove": [
