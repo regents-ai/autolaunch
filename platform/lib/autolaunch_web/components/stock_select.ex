@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   """
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.{Assets, Companies, PriceFeeds}
+  alias Autolaunch.Stocks.{Companies, PriceFeeds}
   alias Phoenix.LiveView.JS
   alias RegentChain.Address
 
@@ -40,16 +40,36 @@ defmodule AutolaunchWeb.Components.StockSelect do
   attr :id, :string, required: true
   attr :name, :string, required: true
   attr :value, :string, default: ""
-  attr :chain, :atom, required: true
+
+  attr :stocks, :any,
+    required: true,
+    doc: "the chain's admitted stocks (`Autolaunch.Stocks.Assets.read/1`), or `:unread`"
+
   attr :sort, :string, default: "alphabetical"
   attr :sort_event, :string, required: true
   attr :form, :string, required: true, doc: "the id of the form the choice saves with"
+  attr :retry_event, :string, required: true, doc: "reads the stock list again"
   slot :head, doc: "shown above the button, inside the picker"
+
+  # A stock list that couldn't be read is said so in place of the gallery, with
+  # Try again; the head (the chain switch) stays, so another chain can be chosen.
+  def stock_select(%{stocks: :unread} = assigns) do
+    ~H"""
+    <div id={"#{@id}-unread"} class="stock-select">
+      {render_slot(@head)}
+      <div class="stock-select__unread" role="alert">
+        <p>The stock list couldn’t be read right now.</p>
+        <button type="button" class="rg-button rg-button--secondary" phx-click={@retry_event}>
+          <span class="rg-button__label">Try again</span>
+        </button>
+      </div>
+    </div>
+    """
+  end
 
   def stock_select(assigns) do
     stocks =
-      assigns.chain
-      |> Assets.all()
+      assigns.stocks
       |> Enum.map(&card/1)
       |> ordered(assigns.sort)
 

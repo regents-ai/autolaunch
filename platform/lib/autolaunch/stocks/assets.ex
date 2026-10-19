@@ -40,16 +40,33 @@ defmodule Autolaunch.Stocks.Assets do
   def stock_chain_id(%{launchpad: :base_memestock}), do: @base_chain_id
   def stock_chain_id(%{launchpad: :robinhood_memestock, chain_id: chain_id}), do: chain_id
 
-  @doc "The stocks a chain's launchpad admits now, by ticker."
+  @doc "The stocks a chain's launchpad admits now, by ticker. A failed read raises."
   @spec all(:base | :robinhood) :: [Stock.t()]
   def all(chain), do: chain |> known() |> Enum.filter(& &1.admitted)
 
-  @doc "The stocks a chain's launchpad admits now or once admitted, by ticker."
-  @spec known(:base | :robinhood) :: [Stock.t()]
-  def known(:base), do: if(StocksLab.configured?(), do: saved(@base_chain_id), else: [])
+  @doc """
+  The stocks a chain's launchpad admits now, by ticker, or the failed read's
+  error: for a page that says the list couldn't be read, where `all/1` raises.
+  """
+  @spec read(:base | :robinhood) :: {:ok, [Stock.t()]} | {:error, term()}
+  def read(chain) do
+    with {:ok, stocks} <- read_known(chain), do: {:ok, Enum.filter(stocks, & &1.admitted)}
+  end
 
-  def known(:robinhood),
-    do: if(RobinhoodLab.configured?(), do: saved(RobinhoodLab.chain_id()), else: [])
+  @doc "The stocks a chain's launchpad admits now or once admitted, by ticker. A failed read raises."
+  @spec known(:base | :robinhood) :: [Stock.t()]
+  def known(chain) do
+    case read_known(chain) do
+      {:ok, stocks} -> stocks
+      {:error, error} -> raise error
+    end
+  end
+
+  defp read_known(:base),
+    do: if(StocksLab.configured?(), do: saved(@base_chain_id), else: {:ok, []})
+
+  defp read_known(:robinhood),
+    do: if(RobinhoodLab.configured?(), do: saved(RobinhoodLab.chain_id()), else: {:ok, []})
 
   @doc """
   The same company's stock on the other launch chain: the stock that chain's
@@ -66,13 +83,16 @@ defmodule Autolaunch.Stocks.Assets do
     end
   end
 
-  @doc "The admitted stock a link names by symbol, in any case, or by address."
-  @spec named(:base | :robinhood, String.t()) :: {:ok, Stock.t()} | :error
-  def named(chain, token) when is_binary(token) do
+  @doc """
+  The stock among `stocks` (a chain's admitted stocks, from `read/1`) a link
+  names by symbol, in any case, or by address.
+  """
+  @spec named([Stock.t()], String.t()) :: {:ok, Stock.t()} | :error
+  def named(stocks, token) when is_list(stocks) and is_binary(token) do
     wanted = String.trim(token)
 
     case Enum.find(
-           all(chain),
+           stocks,
            &(String.downcase(&1.symbol) == String.downcase(wanted) or
                Address.equal?(&1.address, wanted))
          ) do
@@ -114,10 +134,11 @@ defmodule Autolaunch.Stocks.Assets do
   end
 
   # Read in whichever process asks, so a page never waits on another's read
-  # and a failed read is the asker's own. Kept for no time, nothing is kept.
+  # and a failed read is the asker's own. Kept for no time, nothing is kept;
+  # a failed read is never kept.
   defp saved(chain_id) do
     case Application.fetch_env!(:autolaunch, :stock_list_kept_ms) do
-      0 -> Autolaunch.launch_currency_stocks!(chain_id)
+      0 -> Autolaunch.launch_currency_stocks(chain_id)
       kept_ms -> kept(chain_id, kept_ms)
     end
   end
@@ -125,12 +146,13 @@ defmodule Autolaunch.Stocks.Assets do
   defp kept(chain_id, kept_ms) do
     case Cachex.get!(@cache, chain_id) do
       nil ->
-        stocks = Autolaunch.launch_currency_stocks!(chain_id)
-        Cachex.put!(@cache, chain_id, stocks, expire: kept_ms)
-        stocks
+        with {:ok, stocks} <- Autolaunch.launch_currency_stocks(chain_id) do
+          Cachex.put!(@cache, chain_id, stocks, expire: kept_ms)
+          {:ok, stocks}
+        end
 
       stocks ->
-        stocks
+        {:ok, stocks}
     end
   end
 end

@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.{AutolaunchHelpers, StockSelect}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
+  alias AutolaunchWeb.ReadFailure
   alias RegentChain.Address
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
@@ -54,6 +55,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         ticker_taken?: false,
         status: :loading
       )
+      |> assign_stocks()
 
     case human_actor(socket) do
       nil ->
@@ -116,17 +118,35 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # background: the page renders without them and fills them in when they land.
   defp assign_market(socket) do
     chain = socket.assigns.launch_chain
-    stock = chosen_stock(chain, socket.assigns.draft_values["stock_address"])
+    stock = chosen_stock(socket.assigns.stocks, socket.assigns.draft_values["stock_address"])
     start_async(socket, :market, fn -> Stocks.MarketData.overview(chain, stock) end)
   end
 
-  defp chosen_stock(_chain, ""), do: nil
+  defp chosen_stock(:unread, _address), do: nil
+  defp chosen_stock(_stocks, ""), do: nil
 
-  defp chosen_stock(chain, address) do
-    case Stocks.Assets.named(chain, address) do
+  defp chosen_stock(stocks, address) do
+    case Stocks.Assets.named(stocks, address) do
       {:ok, stock} -> stock
       :error -> nil
     end
+  end
+
+  # The draft's chain's stock list, read again each time the draft is, or
+  # `:unread` when it couldn't be read: the picker then says so, with Try
+  # again. A failed read is logged by kind and module only.
+  defp assign_stocks(socket) do
+    stocks =
+      case Stocks.Assets.read(socket.assigns.launch_chain) do
+        {:ok, stocks} ->
+          stocks
+
+        {:error, error} ->
+          ReadFailure.log("stock list read", error)
+          :unread
+      end
+
+    assign(socket, stocks: stocks)
   end
 
   defp refresh_market(%{assigns: %{draft_values: %{"stock_address" => same}}} = socket, same),
@@ -140,6 +160,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
     values = Map.take(params["stock_draft"] || %{}, Templates.section_params(event))
     {:noreply, autosaved(socket, event, values)}
   end
+
+  def handle_event("read_stocks", _params, socket),
+    do: {:noreply, socket |> assign_stocks() |> assign_market()}
 
   def handle_event("sort_stocks", %{"by" => by}, socket) do
     if by in StockSelect.sorts(),
@@ -382,12 +405,14 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   defp assign_sketch(socket, sketch) do
-    assign(socket,
+    socket
+    |> assign(
       sketch: sketch,
       draft_values: Templates.draft_values(sketch),
       launch_chain: sketch.chain,
       status: :ready
     )
+    |> assign_stocks()
   end
 
   defp autosave("autosave_stocks_token_details", draft, values, actor),
@@ -459,7 +484,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # a stock this tab carried over.
   defp choose_linked_stock(%{assigns: %{status: :ready, linked_token: token}} = socket)
        when is_binary(token) do
-    with {:ok, stock} <- Stocks.Assets.named(socket.assigns.launch_chain, token),
+    with stocks when is_list(stocks) <- socket.assigns.stocks,
+         {:ok, stock} <- Stocks.Assets.named(stocks, token),
          false <- Address.equal?(socket.assigns.draft_values["stock_address"], stock.address),
          {:ok, socket} <-
            save_section(socket, "autosave_stocks_terms", %{"stock_address" => stock.address}) do
@@ -483,6 +509,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
       launch_chain: draft.chain,
       status: :ready
     )
+    |> assign_stocks()
   end
 
   # The colour the gallery tints the auction's card with, read again only when

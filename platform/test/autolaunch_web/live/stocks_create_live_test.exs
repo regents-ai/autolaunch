@@ -1,7 +1,9 @@
 defmodule AutolaunchWeb.StocksCreateLiveTest do
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.Accounts
+  import ExUnit.CaptureLog
+
+  alias Autolaunch.{Accounts, Repo}
   alias Autolaunch.Actors.{Human, System}
 
   @aapl "0xb200000000000000000000c2e324d24d7eecd1fb"
@@ -110,6 +112,48 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert Autolaunch.Stocks.LaunchDraft.launch_ready?(complete)
     assert html =~ ~s(id="autolaunch-stocks-launch-wallet-#{complete.id}")
     assert html =~ "Review launch"
+  end
+
+  # STOCK_LIST_UNREAD_SAYS_SO: a stock list the database could not give
+  # crashed /create into the site's "Something went wrong" page.
+  test "STOCK_LIST_UNREAD_SAYS_SO: a stock list that can't be read says so, with Try again", %{
+    conn: conn,
+    account: account
+  } do
+    session = signed_in_session(account.id)
+
+    # Lasts only as long as this case's sandboxed transaction: the stock list
+    # read fails with 42P01 (undefined_table).
+    Repo.query!("ALTER TABLE autolaunch_app.stocks RENAME TO stocks_unreadable")
+
+    {{:ok, view, html}, log} =
+      with_log(fn ->
+        conn
+        |> Phoenix.ConnTest.init_test_session(session)
+        |> connects_with(session)
+        |> live("/create")
+      end)
+
+    assert html =~ "The stock list couldn’t be read right now."
+
+    assert view
+           |> element("#stocks-terms-stock_address-unread button", "Try again")
+           |> has_element?()
+
+    refute html =~ "Something went wrong"
+    assert log =~ "stock list read failed: Ash.Error."
+    refute log =~ "stocks_unreadable"
+
+    # Once the list can be read, Try again shows the gallery.
+    Repo.query!("ALTER TABLE autolaunch_app.stocks_unreadable RENAME TO stocks")
+
+    html =
+      view
+      |> element("#stocks-terms-stock_address-unread button", "Try again")
+      |> render_click()
+
+    refute html =~ "The stock list couldn’t be read right now."
+    assert html =~ "AAPLc"
   end
 
   defp restore(nil), do: Application.delete_env(:autolaunch, :prelaunch_read_only)

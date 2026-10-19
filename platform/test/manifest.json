@@ -925,6 +925,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fc71b62b641e074cf805a4c8f8a9b8b78989188d665469bb1edcb5d70dd8804a"
+    },
+    {
+      "id": 91,
+      "group": "Quiet failures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/stocks_create_live_test.exs",
+      "line": 119,
+      "test_name": "STOCK_LIST_UNREAD_SAYS_SO: a stock list that can't be read says so, with Try again",
+      "keep_because": "A stock list the database could not give crashed /create into the site's Something went wrong page. The page now opens and says the stock list couldn't be read right now, with Try again, logged as stock list read failed with the error's module only; Try again shows the gallery once the list reads. It fails while a failed read crashes the page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "38a1e17dd8d2e4bdbe158fe8d3124f7cca32ecd5108fb8b1a453a1211ab0507f"
     }
   ],
   "legacy_folders_to_remove": [

@@ -51,6 +51,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :stocks_image_upload, :map, default: nil
   attr :market, :map, default: %{prices: %{}, venues: []}
   attr :launch_chain, :atom, required: true
+  attr :stocks, :any, required: true, doc: "the chain's admitted stocks, or `:unread`"
   attr :stock_sort, :string, required: true
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -64,7 +65,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   def create(assigns) do
     draft = assigns.draft
     chain = assigns.launch_chain
-    stock = stock_for(chain, assigns.draft_values["stock_address"])
+    stock = stock_for(assigns.stocks, assigns.draft_values["stock_address"])
 
     assigns =
       assigns
@@ -124,9 +125,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   id="stocks-terms-stock_address"
                   name="stock_draft[stock_address]"
                   value={@draft_values["stock_address"]}
-                  chain={@launch_chain}
+                  stocks={@stocks}
                   sort={@stock_sort}
                   sort_event="sort_stocks"
+                  retry_event="read_stocks"
                   form="stocks-terms"
                 >
                   <:head>
@@ -486,10 +488,11 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       "Bidders pay in USDG, swapped into #{symbol(stock)}. Stakers earn #{symbol(stock)} from every trade."
 
   # The chosen stock as the chain's launchpad admits it, with its decimals.
-  defp stock_for(_chain, address) when address in [nil, ""], do: nil
+  defp stock_for(:unread, _address), do: nil
+  defp stock_for(_stocks, address) when address in [nil, ""], do: nil
 
-  defp stock_for(chain, address) do
-    case Assets.named(chain, address) do
+  defp stock_for(stocks, address) do
+    case Assets.named(stocks, address) do
       {:ok, stock} -> stock
       :error -> nil
     end
