@@ -30,6 +30,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   attr :token_path, :string, default: nil, doc: "the launched token's page, from an auction page"
 
+  attr :locked, :boolean,
+    default: nil,
+    doc: "whether every position of the pool is held by the locker, as the auction page read it"
+
   def launch_trust(assigns) do
     auction = assigns.auction
 
@@ -100,6 +104,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
           chain={@chain}
           pool={@pool}
           token_path={@token_path}
+          locked={@locked}
         />
       </section>
     </div>
@@ -274,6 +279,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   attr :chain, :atom, required: true
   attr :pool, :map, default: nil
   attr :token_path, :string, default: nil
+  attr :locked, :boolean, default: nil
 
   defp liquidity(%{liquidity: :reserved} = assigns) do
     ~H"""
@@ -300,10 +306,13 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
 
   defp liquidity(%{liquidity: :deposited} = assigns) do
     ~H"""
-    <p class="launch-trust__status">Deposited when the auction launched</p>
-    <p class="launch-trust__text">
+    <p class="launch-trust__status">{deposited_status(@locked)}</p>
+    <p :if={is_nil(@locked)} class="launch-trust__text">
       Whether it is locked shows here once the pool has been read.
       <.link :if={@token_path} navigate={@token_path}>See it on the token's page</.link>
+    </p>
+    <p :if={is_boolean(@locked) and is_binary(@token_path)} class="launch-trust__text">
+      <.link navigate={@token_path}>See the amounts on the token's page</.link>
     </p>
     <.uniswap_note split={@split} />
     """
@@ -312,9 +321,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   defp liquidity(%{liquidity: :read} = assigns) do
     ~H"""
     <p class="launch-trust__status">
-      {if Enum.all?(@pool.positions, & &1.locked?),
-        do: "Deposited and locked",
-        else: "Deposited, not all of it locked"}
+      {deposited_status(Enum.all?(@pool.positions, & &1.locked?))}
     </p>
     <ul class="launch-trust__positions">
       <li :for={position <- @pool.positions}>
@@ -337,6 +344,10 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     <.uniswap_note split={@split} />
     """
   end
+
+  defp deposited_status(true), do: "Deposited and locked"
+  defp deposited_status(false), do: "Deposited, not all of it locked"
+  defp deposited_status(nil), do: "Deposited when the auction launched"
 
   attr :split, :map, required: true
 
@@ -436,7 +447,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
         {"Reserved for liquidity", "497.5 million (49.75%)",
          "the stock raised funds a full-range position, apart from protocol rounding dust; remaining reserve is locked in a token-only position above the opening token price"},
         {"Creator", "5 million (0.5%)",
-         "released to the creator block by block over 30 days from when the pool opens; the creator also earns a share of trading fees"}
+         "released to the creator block by block over 30 days from graduation; the creator also earns a share of trading fees"}
       ]
     }
 

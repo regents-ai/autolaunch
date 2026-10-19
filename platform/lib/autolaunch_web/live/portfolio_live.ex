@@ -208,8 +208,8 @@ defmodule AutolaunchWeb.PortfolioLive do
         :if={@account_control.kind == :sign_in}
         class="rg-panel rg-panel--surface portfolio__sign-in"
       >
-        <h2>Connect to your portfolio</h2>
-        <p class="portfolio__hint">Sign in to see the bids and tokens of your wallet.</p>
+        <h2>Sign in to see your portfolio</h2>
+        <p class="portfolio__hint">Your wallet's bids and tokens show here.</p>
         <Regent.Primitives.button
           type="button"
           class="account-control__sign-in"

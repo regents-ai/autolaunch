@@ -1,12 +1,13 @@
-/* Figures on the portfolio, the token and auction pages and in every dialog: the number reads bold in the page's ink, its ticker in the brand's orange, a dollar value quiet beside it. Light pages take a deeper orange for contrast. */
-:root { --ticker-ink: var(--brand-accent); }
-:root[data-theme="light"] { --ticker-ink: #c2410c; }
-@media (prefers-color-scheme: light) { :root:not([data-theme]) { --ticker-ink: #c2410c; } }
+/* Orange text across the site: the brand's orange, deepened on light pages so it reads at 4.5:1 on every light surface. */
+:root { --orange-ink: var(--brand-accent); }
+:root[data-theme="light"] { --orange-ink: #a8380a; }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) { --orange-ink: #a8380a; } }
 
+/* Figures on the portfolio, the token and auction pages and in every dialog: the number reads bold in the page's ink, its ticker in orange, a dollar value quiet beside it. */
 :where(.portfolio, .token-page, .auction-page, dialog) .figure { font-variant-numeric: tabular-nums; }
 :where(.portfolio, .token-page, .auction-page, dialog) .figure__value { color: var(--color-fg); font-weight: 600; }
-:where(.portfolio, .token-page, .auction-page, dialog) .figure__unit { color: var(--ticker-ink); font-weight: 500; }
-:where(.portfolio, .token-page, .auction-page, dialog) .ticker { color: var(--ticker-ink); font-weight: 500; }
+:where(.portfolio, .token-page, .auction-page, dialog) .figure__unit { color: var(--orange-ink); font-weight: 500; }
+:where(.portfolio, .token-page, .auction-page, dialog) .ticker { color: var(--orange-ink); font-weight: 500; }
 :where(.portfolio, .token-page, .auction-page, dialog) .token-name { color: var(--color-fg); font-weight: 600; }
 
 /* Every status pill on every page, a state word (Ready, Completed, Outbid), a tag or a chain, is the same micro-label chip; its tone gives the colour. */

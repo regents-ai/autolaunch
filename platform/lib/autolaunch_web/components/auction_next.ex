@@ -512,7 +512,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         id={"#{@id}-scrub"}
         class="auction-next-film__scrubber"
         phx-change="scrub"
-        onsubmit="return false"
+        phx-submit="scrub"
       >
         <label for={"#{@id}-checkpoint"}>
           Replay the recorded prices <span>Price {@film.index + 1} of {@film.count}</span>
@@ -813,7 +813,7 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         id={"#{@id}-handle"}
         class="auction-next-handle"
         phx-change="price_handle"
-        onsubmit="return false"
+        phx-submit="price_handle"
       >
         <label for={"#{@id}-handle-step"}>Your price limit</label>
         <input

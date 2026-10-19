@@ -115,6 +115,7 @@ defmodule AutolaunchWeb.TokenLive do
           symbol={@presentation.symbol}
           currency={SwapComponent.entry_symbol(@page_record.auction)}
           chain_id={@page_record.auction.chain_id}
+          address={@page_record.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
         />
         <ShareLaunch.share_launch
@@ -126,8 +127,10 @@ defmodule AutolaunchWeb.TokenLive do
       <div class="token-page__layout">
         <div class="token-page__overview">
           <.detail_card kind={:token} record={@page_record}>
-            <:chart :if={@pool.ok?}>
+            <:chart :if={@pool.ok? || @pool.loading}>
+              <.price_chart_reading :if={!@pool.ok?} />
               <.price_chart
+                :if={@pool.ok?}
                 id="token-price-chart"
                 label="Price since the pool opened"
                 history={@pool.result.prices}
@@ -173,6 +176,7 @@ defmodule AutolaunchWeb.TokenLive do
               <.pool_status :if={!@pool.ok?} pool={@pool} />
             </:pane>
           </.trade_widget>
+          <.claim_reading pool={@pool} />
           <.live_component
             :if={@pool.ok?}
             module={AutolaunchWeb.StakeComponent}
@@ -256,10 +260,9 @@ defmodule AutolaunchWeb.TokenLive do
 
   defp states(assigns) do
     ~H"""
-    <AutolaunchWeb.Components.Loading.placeholder
-      :if={@page_status == :loading}
-      label="Reading the token"
-    />
+    <div :if={@page_status == :loading} class="token-page__reading">
+      <AutolaunchWeb.Components.Loading.placeholder label="Reading the token" />
+    </div>
 
     <section
       :if={@page_status == :empty}

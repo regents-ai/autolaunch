@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:fixed_terms, fixed_terms(chain, ticker(assigns.draft_values["symbol"])))
 
     ~H"""
-    <main class="create-page">
+    <div class="create-page">
       <.header />
       <div :if={@status == :error} class="autolaunch-empty" role="alert">
         <h2>Your draft didn’t open</h2>
@@ -409,7 +409,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         key="autolaunch:create:memestock"
         signed_in={@current_human_id != nil}
       />
-    </main>
+    </div>
     """
   end
 

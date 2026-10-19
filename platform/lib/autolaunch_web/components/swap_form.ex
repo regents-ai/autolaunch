@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
 
   use Phoenix.Component
 
+  alias Autolaunch.StoredImage
   alias Phoenix.LiveView.JS
 
   attr :id, :string, required: true
@@ -308,7 +309,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
             <span class="token-swap__review-label">You pay</span>
             <AutolaunchWeb.TokenDisplay.written value={@review.pay} unit={@review.sell_symbol} />
           </p>
-          <img :if={@sell_image} src={@sell_image} width="36" height="36" alt="" />
+          <img
+            :if={@sell_image}
+            src={StoredImage.sized(@sell_image, 96)}
+            width="36"
+            height="36"
+            decoding="async"
+            alt=""
+          />
         </div>
         <svg
           class="token-swap__review-arrow"
@@ -325,7 +333,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
             <span class="token-swap__review-label">You get about</span>
             <AutolaunchWeb.TokenDisplay.written value={@review.receive} unit={@review.buy_symbol} />
           </p>
-          <img :if={@buy_image} src={@buy_image} width="36" height="36" alt="" />
+          <img
+            :if={@buy_image}
+            src={StoredImage.sized(@buy_image, 96)}
+            width="36"
+            height="36"
+            decoding="async"
+            alt=""
+          />
         </div>
 
         <dl class="token-swap__review-facts">
@@ -549,7 +564,14 @@ defmodule AutolaunchWeb.Components.SwapForm do
   defp currency(assigns) do
     ~H"""
     <span class="token-swap__currency" title={@symbol}>
-      <img :if={@image} src={@image} width="28" height="28" alt="" />
+      <img
+        :if={@image}
+        src={StoredImage.sized(@image, 96)}
+        width="28"
+        height="28"
+        decoding="async"
+        alt=""
+      />
       <span>{@symbol}</span>
     </span>
     """

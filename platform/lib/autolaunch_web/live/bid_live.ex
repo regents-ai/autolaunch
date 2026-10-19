@@ -33,6 +33,7 @@ defmodule AutolaunchWeb.BidLive do
   alias Autolaunch.MarketReadings
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.Stocks.Amounts
+  alias Autolaunch.StoredImage
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
   alias AutolaunchWeb.Components.BidPlaced
@@ -121,6 +122,10 @@ defmodule AutolaunchWeb.BidLive do
     <section id="autolaunch-bid" class="bid-page">
       <.link navigate="/portfolio" class="bid-page__back">Portfolio</.link>
 
+      <header :if={!is_map(@bid.result)} class="bid-page__header">
+        <h1>{if @bid.result == :missing, do: "We can’t find that bid", else: "Your bid"}</h1>
+      </header>
+
       <section :if={@account_control.kind == :sign_in} class="rg-account rg-account--signed-out">
         <p>Sign in to see your bid.</p>
         <Regent.Primitives.button
@@ -139,7 +144,6 @@ defmodule AutolaunchWeb.BidLive do
           Your bid could not be read just now. Try again in a moment.
         </p>
         <div :if={@bid.ok? && @bid.result == :missing} class="autolaunch-empty" role="status">
-          <h2>No bid here</h2>
           <p>The wallet you signed in with has no bid at this address.</p>
           <.link navigate="/portfolio" class="rg-button rg-button--primary">
             <span class="rg-button__label">See your bids</span>
@@ -174,7 +178,14 @@ defmodule AutolaunchWeb.BidLive do
     ~H"""
     <header class="bid-page__header">
       <span class="market-list__art">
-        <img :if={@bid.image} src={@bid.image} alt="" />
+        <img
+          :if={@bid.image}
+          src={StoredImage.sized(@bid.image, 96)}
+          width="40"
+          height="40"
+          decoding="async"
+          alt=""
+        />
         <span :if={!@bid.image}>{String.first(@bid.name)}</span>
       </span>
       <div>

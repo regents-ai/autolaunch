@@ -141,7 +141,7 @@ defmodule AutolaunchWeb.TokensLive do
 
   def render(assigns) do
     ~H"""
-    <main class="autolaunch-page market-list-page" id="tokens-list">
+    <div class="autolaunch-page market-list-page" id="tokens-list">
       <header class="market-list__header">
         <h1 id="tokens-list-title">Tokens</h1>
       </header>
@@ -202,7 +202,7 @@ defmodule AutolaunchWeb.TokensLive do
           </Regent.Primitives.button>
         </div>
       </section>
-    </main>
+    </div>
     """
   end
 end

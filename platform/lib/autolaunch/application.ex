@@ -32,6 +32,16 @@ defmodule Autolaunch.Application do
          ]},
         id: AutolaunchWeb.ShareVideo.cache()
       ),
+      # The launch images made at the sizes pages show them
+      # (Autolaunch.StoredImage), the oldest written leaving first past the limit.
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.StoredImage.cache(),
+         hooks: [
+           hook(module: Cachex.Limit.Scheduled, args: {Autolaunch.StoredImage.kept(), [], []})
+         ]},
+        id: Autolaunch.StoredImage.cache()
+      ),
       public_auctions_child(),
       Supervisor.child_spec(
         {Cachex,
