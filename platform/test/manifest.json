@@ -795,6 +795,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
+    },
+    {
+      "id": 75,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch/stored_image/resizer_test.exs",
+      "line": 22,
+      "test_name": "RESIZE_ONE_AT_A_TIME: two copies asked for at once are made one after the other",
+      "keep_because": "A sized copy decodes the whole original, so Autolaunch.StoredImage.Resizer makes one at a time (Sentinel hold on f23984b2, 19 Oct 2026). With both requests queued, the second decode starts only after the first returns; it fails if copies are made side by side.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "016c6ff09ad24d70bd8d41805ab99d8c56aeee4c45f2dbe96df0ee92f4c32e8e"
+    },
+    {
+      "id": 76,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch/stored_image/resizer_test.exs",
+      "line": 55,
+      "test_name": "RESIZE_SKIPS_A_CALLER_THAT_GAVE_UP: a request past its caller's deadline is not made",
+      "keep_because": "A request carries the moment its caller stops waiting, and one whose turn comes after that makes no decode (lead decision, 19 Oct 2026). It fails if the resizer decodes for a caller that has given up.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "016c6ff09ad24d70bd8d41805ab99d8c56aeee4c45f2dbe96df0ee92f4c32e8e"
     }
   ],
   "legacy_folders_to_remove": [
