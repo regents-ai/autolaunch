@@ -502,8 +502,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   defp leased(%{lineage: lineage, account_id: account_id}) do
     case SessionAuthority.leased_account(lineage, account_id) do
-      nil -> unavailable(:session_unavailable)
-      account -> {:ok, account}
+      {:ok, nil} -> unavailable(:session_unavailable)
+      result -> result
     end
   end
 

@@ -4,6 +4,7 @@ defmodule AutolaunchWeb.PrivySessionController do
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.{RequestRateLimiter, SessionAuthority, VerifiedSession}
   alias Autolaunch.Privy
+  alias AutolaunchWeb.{ApiError, ReadFailure}
 
   require Logger
 
@@ -37,6 +38,18 @@ defmodule AutolaunchWeb.PrivySessionController do
     end
   end
 
+  # A sign-in that could not be read is never answered as signed out, so the
+  # browser never takes it for a sign-out made elsewhere.
+  def show(%{assigns: %{current_human_account: :unreadable}} = conn, _params) do
+    conn
+    |> put_resp_header("cache-control", "no-store")
+    |> ApiError.send(
+      :service_unavailable,
+      "account_unavailable",
+      "Your account couldn’t be read just now."
+    )
+  end
+
   def show(conn, _params) do
     conn
     |> put_resp_header("cache-control", "no-store")
@@ -59,11 +72,25 @@ defmodule AutolaunchWeb.PrivySessionController do
   after the claim is exactly current. Anything else — missing, malformed,
   superseded, revoked or absent authority, or an account whose verified evidence
   has lapsed — leaves the request anonymous.
+
+  A sign-in that could not be read just then is neither: the request's account
+  is `:unreadable`, the cookie stays as it is, and the failure is logged by kind
+  and module only (`AutolaunchWeb.ReadFailure`).
   """
   def enforce_authority(conn) do
-    {lineage, account} = conn |> claim() |> SessionAuthority.resolve()
+    claim = claim(conn)
 
-    conn |> assign(:current_lineage, lineage) |> assign(:current_human_account, account)
+    case SessionAuthority.resolve(claim) do
+      {:ok, lineage, account} ->
+        conn |> assign(:current_lineage, lineage) |> assign(:current_human_account, account)
+
+      {:error, error} ->
+        ReadFailure.log("sign-in read", error)
+
+        conn
+        |> assign(:current_lineage, claim.lineage)
+        |> assign(:current_human_account, :unreadable)
+    end
   end
 
   defp admit_bootstrap(conn, nil) do

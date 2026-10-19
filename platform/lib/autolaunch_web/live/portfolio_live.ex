@@ -913,7 +913,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       is_nil(actor) ->
         clear_wallet_state(socket)
 
-      connected?(socket) and not leased?(socket.assigns) ->
+      connected?(socket) and lapsed?(socket.assigns) ->
         socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
 
       true ->
@@ -922,10 +922,12 @@ defmodule AutolaunchWeb.PortfolioLive do
     end
   end
 
-  defp leased?(%{session_lease: %{lineage: lineage, account_id: account_id}}),
-    do: SessionAuthority.leased_account(lineage, account_id) != nil
+  # A read of the lease that fails says nothing about it, so only a lease that
+  # reads as ended counts as lapsed.
+  defp lapsed?(%{session_lease: %{lineage: lineage, account_id: account_id}}),
+    do: SessionAuthority.leased_account(lineage, account_id) == {:ok, nil}
 
-  defp leased?(_assigns), do: false
+  defp lapsed?(_assigns), do: true
 
   defp read_bids(socket, actor, wallet) do
     case Autolaunch.list_wallet_bid_positions(wallet, actor: actor) do
