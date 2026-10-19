@@ -75,7 +75,13 @@ defmodule AutolaunchWeb.QuietPagesTest do
   end
 
   test "the price ticker sends a list only when it differs from the last one" do
-    # The ticker's list may be another case's; settle it on this database first.
+    # The ticker waits, suspended, outside a case that runs it (test_helper.exs).
+    # It is suspended again before this case's connection goes, once any read
+    # it is making has finished.
+    :ok = :sys.resume(MarketTicker)
+    on_exit(fn -> :ok = :sys.suspend(MarketTicker) end)
+
+    # The ticker's list may be from before this case; settle it on this database first.
     reread_ticker()
     Phoenix.PubSub.subscribe(Autolaunch.PubSub, MarketTicker.topic())
 
