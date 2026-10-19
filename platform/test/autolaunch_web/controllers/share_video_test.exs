@@ -36,12 +36,10 @@ defmodule AutolaunchWeb.ShareVideoTest do
     end
 
     # The owner is let through both. The token's video cannot be made with no
-    # chain to read in tests, which is the try-again page rather than not
-    # found; the graduated auction's address moves on to the token's.
-    {503, _headers, _body} =
-      assert_error_sent(503, fn ->
-        conn |> init_test_session(%{human_account_id: owner.id}) |> get(token_path)
-      end)
+    # chain to read in tests, which says so rather than not found; the
+    # graduated auction's address moves on to the token's.
+    unread = conn |> init_test_session(%{human_account_id: owner.id}) |> get(token_path)
+    assert json_response(unread, 502)["error"] == "chain_read_failed"
 
     moved = conn |> init_test_session(%{human_account_id: owner.id}) |> get(auction_path)
     assert moved.status == 301

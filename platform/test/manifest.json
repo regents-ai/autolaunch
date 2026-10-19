@@ -1,5 +1,5 @@
 {
-  "total": 40,
+  "total": 42,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -517,11 +517,11 @@
       "file": "test/autolaunch_web/controllers/share_video_test.exs",
       "line": 13,
       "test_name": "WALLET_VIDEO_ONLY_FOR_ITS_OWNER: anyone else finds nothing at the address",
-      "keep_because": "A wallet's share video shows its bids, trades, stake and earnings, so only the signed-in account that links the wallet may fetch it, at the token's address and at the auction's (share video, 18 Oct 2026). Signed out or signed in as another account, both addresses are not found. A manual check sees only the owner's own view. The case fails if either wallet check is dropped or loosened.",
+      "keep_because": "A wallet's share video shows its bids, trades, stake and earnings, so only the signed-in account that links the wallet may fetch it, at the token's address and at the auction's (share video, 18 Oct 2026). Signed out or signed in as another account, both addresses are not found; the owner reaches the video, whose chain read failing says so (502) rather than not found. A manual check sees only the owner's own view. The case fails if either wallet check is dropped or loosened.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "36593ed9ea1116609b5525df327c39e30901067e849662a7e3f2b3b901d8560f"
+      "source_sha256": "e2dd588de81ddf03f445cadc198a2719f5aa45eebe5b3b616394801ae7f2cacb"
     },
     {
       "id": 60,
@@ -535,6 +535,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "e7fccae667090f50fd7e8971d15329e66ea6a69930138628340613c31c2ac674"
+    },
+    {
+      "id": 61,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
+      "line": 33,
+      "test_name": "SHARE_VIDEO_OUTAGE_ONLY_FOR_A_LOST_CONNECTION: a lost database connection is the try-again page",
+      "keep_because": "The site's try-again page (503) is only for a database that cannot be reached (Sentinel pre-read, 18 Oct 2026). The case cuts its own database connection from a second connection part-way through a share-video request, which no manual check can time, and the request must answer 503. It fails if a lost connection is classed as any other failure (proven by switching the check off: 500 instead of 503).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d1a1149b9321fc90612d63fad492038f4bd600cd9e95085e3ca0f8bd1e5cc9a2"
+    },
+    {
+      "id": 62,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
+      "line": 52,
+      "test_name": "a video that couldn't be made answers with its own line, not the try-again page",
+      "keep_because": "A video whose render failed answers 500 with its own plain line, which the share window shows, instead of the outage page (Sentinel pre-read, 18 Oct 2026). Before this change every share-video failure raised the 503 outage page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d1a1149b9321fc90612d63fad492038f4bd600cd9e95085e3ca0f8bd1e5cc9a2"
     }
   ],
   "legacy_folders_to_remove": [

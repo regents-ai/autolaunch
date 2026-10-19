@@ -9,6 +9,8 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   Given a `video`, the window also offers it: the video is fetched as the
   window opens, and "Share video" hands it to the phone's share sheet, or
   saves it on a computer, where the post is shared from X's own composer.
+  A video that cannot be had says why in one plain line: the site's own words
+  for what went wrong, or that the site could not reach its records.
 
   The window is the browser's own modal dialog, so the page behind it cannot
   be reached while it is open and focus goes back to the button once it
@@ -109,6 +111,8 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const post = dialog.querySelector("[data-share-post]")
           const video = dialog.querySelector("[data-share-video]")
           const status = dialog.querySelector("[data-share-video-status]")
+          const note = dialog.querySelector("[data-share-video-note]")
+          const unmade = note && note.textContent.trim()
           let address = video && video.dataset.shareVideo
           let file = null
           let loading = null
@@ -116,6 +120,18 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const say = (words) => {
             status.textContent = words
             status.hidden = !words
+          }
+
+          // The plain line for a video that cannot be had: the site's own words
+          // for what went wrong, or that the site could not reach its records.
+          // Anything else, such as a dropped connection, keeps the window's own
+          // line.
+          class Unanswered extends Error {}
+          const unanswered = async (response) => {
+            if (response.status === 503)
+              return "The site couldn't reach its records just now. Try again in a moment."
+            const answer = await response.json().catch(() => ({}))
+            return answer.message || unmade
           }
 
           // Asks for the video until it is made. While it waits in line the
@@ -141,7 +157,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
                 return ask(until)
               }
 
-              throw new Error(String(response.status))
+              throw new Unanswered(await unanswered(response))
             })
 
           // The video is fetched once the window opens, so it is ready to hand
@@ -149,7 +165,6 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const prepare = () => {
             if (!video || file || loading) return
             const label = video.querySelector("[data-share-video-label]")
-            const note = dialog.querySelector("[data-share-video-note]")
             video.disabled = true
             label.textContent = "Preparing your video…"
             note.hidden = true
@@ -159,9 +174,10 @@ defmodule AutolaunchWeb.Components.ShareDialog do
                 file = new File([blob], video.dataset.shareVideoName, {type: "video/mp4"})
                 label.textContent = "Share video"
               })
-              .catch(() => {
+              .catch((error) => {
                 label.textContent = "Try the video again"
                 if (!video.dataset.limited) say("")
+                note.textContent = error instanceof Unanswered ? error.message : unmade
                 note.hidden = false
               })
               .finally(() => {

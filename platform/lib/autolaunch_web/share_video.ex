@@ -63,11 +63,24 @@ defmodule AutolaunchWeb.ShareVideo do
   queued ahead of it. The token's (`:token`) or the running auction's
   (`:auction`), everyone's when `wallet` is nil and otherwise `wallet`'s,
   asked for by the signed-in `account` that links it.
+
+  A failure names what went wrong: `:daily_limit` (the account has made its
+  videos for the day), `:render_failed` (the video could not be made moments
+  ago), `:chain_read_failed` (the wallet's holding could not be read from the
+  chain), `:invalid_request` (the request was refused as written),
+  `:connection_lost` (the database could not be reached) or `:failed`
+  (anything else).
   """
   @spec fetch(struct(), :token | :auction, String.t() | nil, integer() | nil, DateTime.t()) ::
           {:ok, binary()}
           | {:waiting, non_neg_integer()}
-          | {:error, :daily_limit | :render_failed | term()}
+          | {:error,
+             :daily_limit
+             | :render_failed
+             | :chain_read_failed
+             | :invalid_request
+             | :connection_lost
+             | :failed}
   def fetch(auction, phase, nil, nil, now),
     do: kept_or_queued(auction, phase, nil, nil, key(auction, phase, [], now))
 
@@ -89,15 +102,23 @@ defmodule AutolaunchWeb.ShareVideo do
   # token, or during the auction how many bids it has placed and their total.
   defp wallet_state(auction, :token, wallet) do
     with {:ok, venue} <- TokenTrades.venue(auction),
-         do: WalletHistory.holding(auction.token_address, wallet, venue.opts)
+         {:ok, holding} <- WalletHistory.holding(auction.token_address, wallet, venue.opts) do
+      {:ok, holding}
+    else
+      {:error, _unread} -> {:error, :chain_read_failed}
+    end
   end
 
   defp wallet_state(auction, :auction, wallet) do
-    with {:ok, bids} <- Autolaunch.auction_bids(auction.id, actor: nil) do
-      own = Enum.filter(bids, &(&1.bidder == wallet))
+    case Autolaunch.auction_bids(auction.id, actor: nil) do
+      {:ok, bids} ->
+        own = Enum.filter(bids, &(&1.bidder == wallet))
 
-      {:ok,
-       "#{length(own)}-#{own |> Enum.map(& &1.amount) |> Enum.reduce(Decimal.new(0), &Decimal.add/2)}"}
+        {:ok,
+         "#{length(own)}-#{own |> Enum.map(& &1.amount) |> Enum.reduce(Decimal.new(0), &Decimal.add/2)}"}
+
+      {:error, error} ->
+        {:error, failure(error)}
     end
   end
 
@@ -120,10 +141,10 @@ defmodule AutolaunchWeb.ShareVideo do
   # ago says so, and after that the next ask queues it again.
   defp requested(key) do
     case Autolaunch.latest_share_video_request(key, actor: %System{}) do
-      {:ok, %{state: :queued} = request} -> {:waiting, ahead(request)}
+      {:ok, %{state: :queued} = request} -> waiting(request)
       {:ok, %{state: :failed} = request} -> failed_lately(request)
       {:ok, _ready_or_none} -> :none
-      error -> error
+      {:error, error} -> {:error, failure(error)}
     end
   end
 
@@ -133,11 +154,16 @@ defmodule AutolaunchWeb.ShareVideo do
       else: :none
   end
 
-  defp ahead(request) do
+  # Its place in line: how many requests still queued were made before it.
+  defp waiting(request) do
     ShareVideoRequest
     |> Ash.Query.for_read(:queued, %{}, actor: %System{})
     |> Ash.Query.filter(inserted_at < ^request.inserted_at)
-    |> Ash.count!(actor: %System{})
+    |> Ash.count(actor: %System{})
+    |> case do
+      {:ok, ahead} -> {:waiting, ahead}
+      {:error, error} -> {:error, failure(error)}
+    end
   end
 
   # An account past its videos for the day is told so (`DailyLimit`).
@@ -153,15 +179,40 @@ defmodule AutolaunchWeb.ShareVideo do
            actor: %System{}
          ) do
       {:ok, request} ->
-        {:waiting, ahead(request)}
+        waiting(request)
 
       {:error, %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :daily_limit}]}} ->
         {:error, :daily_limit}
 
       {:error, error} ->
-        {:error, error}
+        {:error, failure(error)}
     end
+  rescue
+    # A connection lost inside the write's transaction is raised, not returned.
+    error in Ash.Error.Unknown -> {:error, failure(error)}
   end
+
+  # A database read or write that failed: the database could not be reached,
+  # the request was refused as written, or something else went wrong. Ash
+  # keeps an unexpected exception as its formatted text (`Ash.Error.Unknown`),
+  # so a lost connection is told by the exception it names there: a
+  # `DBConnection.ConnectionError`, or a `Postgrex.Error` whose code is a
+  # connection exception (class 08) or a server shutting down or starting
+  # (57P01 to 57P03).
+  @connection_lost ~r/\A\*\* \((DBConnection\.ConnectionError\)|Postgrex\.Error\) \w+ (08\w{3}|57P0[1-3]) )/
+
+  defp failure(%Ash.Error.Invalid{}), do: :invalid_request
+
+  defp failure(%Ash.Error.Unknown{errors: errors}) do
+    if Enum.any?(errors, &connection_lost?/1), do: :connection_lost, else: :failed
+  end
+
+  defp failure(_other), do: :failed
+
+  defp connection_lost?(%Ash.Error.Unknown.UnknownError{error: error}) when is_binary(error),
+    do: Regex.match?(@connection_lost, error)
+
+  defp connection_lost?(_other), do: false
 
   @doc false
   # The finished video, kept for every request that asks for it next.
