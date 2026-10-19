@@ -66,7 +66,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 8,
@@ -79,7 +79,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 9,
@@ -92,7 +92,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 10,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 11,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 12,
@@ -131,7 +131,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 17,
@@ -222,7 +222,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "8da1642209f3339b1c1915c94cf259154cb75fba10563952fae73a0f02895710"
+      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
     },
     {
       "id": 26,
@@ -235,7 +235,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "8da1642209f3339b1c1915c94cf259154cb75fba10563952fae73a0f02895710"
+      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
     },
     {
       "id": 27,
@@ -248,7 +248,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/lab_projection_test.exs",
       "original_source_sha256": "014794cb21b404f3dd4537060dc221220ca7f04c5c713f40c0918462848fc79f",
-      "source_sha256": "8da1642209f3339b1c1915c94cf259154cb75fba10563952fae73a0f02895710"
+      "source_sha256": "6c95bf64a9cc8711155b12bd803e3684f5f07e6b071842217bbe3e3667760553"
     },
     {
       "id": 39,
@@ -261,7 +261,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe"
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
     },
     {
       "id": 40,
@@ -274,7 +274,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe"
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
     },
     {
       "id": 41,
@@ -287,7 +287,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe"
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
     },
     {
       "id": 42,
@@ -300,7 +300,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe"
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
     },
     {
       "id": 43,
@@ -313,7 +313,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe"
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
     },
     {
       "id": 44,
@@ -326,7 +326,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe"
+      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
     },
     {
       "id": 45,
@@ -339,7 +339,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "0a3b8844ec0e682cdf820b1cfad0f15b475b9d29e50ea532420dcc4dc5f43258"
+      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
     },
     {
       "id": 46,
@@ -352,7 +352,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+      "source_sha256": "b5e8b02e0753d894069697a65d754ff7b885283024621595d39fe28669977f2b"
     },
     {
       "id": 47,
@@ -365,7 +365,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+      "source_sha256": "b5e8b02e0753d894069697a65d754ff7b885283024621595d39fe28669977f2b"
     },
     {
       "id": 48,
@@ -378,7 +378,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+      "source_sha256": "b5e8b02e0753d894069697a65d754ff7b885283024621595d39fe28669977f2b"
     },
     {
       "id": 49,
@@ -391,7 +391,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7ffe275291daf762d61e4d80c53c49e01cdfa9bb79b7d6f27f0a06b064da7af2"
+      "source_sha256": "b5e8b02e0753d894069697a65d754ff7b885283024621595d39fe28669977f2b"
     },
     {
       "id": 50,
@@ -537,45 +537,6 @@
       "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
     },
     {
-      "id": 71,
-      "group": "Share videos",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 116,
-      "test_name": "a person's video is kept until three hours have passed, then made again",
-      "keep_because": "A person's made share video is stored and served as made for three hours, a new one is made after that with the old one kept, and once the site has made all of the day's videos a person keeps their saved video while one with none is told so (stored videos, 18 Oct 2026). Checking it by hand means waiting three hours and filling the day's 1000 videos.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
-    },
-    {
-      "id": 72,
-      "group": "Share videos",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 148,
-      "test_name": "SAVED_VIDEO_GOES_AFTER_A_DAY_REQUEST_STAYS: a day-old video is deleted and its request kept",
-      "keep_because": "Sean chose \"Saved videos only\" (19 Oct 2026): the daily sweep deletes a saved video's bytes once it is a day old and keeps the request row. The case fails if the sweep deletes rows or keeps day-old videos.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
-    },
-    {
-      "id": 73,
-      "group": "Share videos",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 215,
-      "test_name": "once saved videos are full, a video is still made, handed over once and never saved",
-      "keep_because": "Once the saved share videos reach their space (5 GB on the site), a new video is still made and handed over once, then let go; no video is ever deleted early (Sean, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if a video made past the space were kept after it was handed over (proven by serving it as a saved one: its bytes stayed).",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
-    },
-    {
       "id": 61,
       "group": "Share videos",
       "framework": "exunit",
@@ -706,6 +667,45 @@
       "source_sha256": "e99aa003afeeefe3424ab329545041f236cd2c726a2f3b0a8ee941ea7bcb2bca"
     },
     {
+      "id": 71,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 116,
+      "test_name": "a person's video is kept until three hours have passed, then made again",
+      "keep_because": "A person's made share video is stored and served as made for three hours, a new one is made after that with the old one kept, and once the site has made all of the day's videos a person keeps their saved video while one with none is told so (stored videos, 18 Oct 2026). Checking it by hand means waiting three hours and filling the day's 1000 videos.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
+    },
+    {
+      "id": 72,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 148,
+      "test_name": "SAVED_VIDEO_GOES_AFTER_A_DAY_REQUEST_STAYS: a day-old video is deleted and its request kept",
+      "keep_because": "Sean chose \"Saved videos only\" (19 Oct 2026): the daily sweep deletes a saved video's bytes once it is a day old and keeps the request row. The case fails if the sweep deletes rows or keeps day-old videos.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
+    },
+    {
+      "id": 73,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 215,
+      "test_name": "once saved videos are full, a video is still made, handed over once and never saved",
+      "keep_because": "Once the saved share videos reach their space (5 GB on the site), a new video is still made and handed over once, then let go; no video is ever deleted early (Sean, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if a video made past the space were kept after it was handed over (proven by serving it as a saved one: its bytes stayed).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
+    },
+    {
       "id": 74,
       "group": "Share videos",
       "framework": "exunit",
@@ -758,7 +758,20 @@
       "source_sha256": "bd1aa633930d0a446d48c30660482ff70c2ef60d3f6e99623232c0ec07ceb1a3"
     },
     {
-      "id": 72,
+      "id": 78,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/launch_image_test.exs",
+      "line": 78,
+      "test_name": "PICTURE_HEADERS: a stored picture and its sized copy say a page from them may do nothing",
+      "keep_because": "Both picture answers carry the strict content policy, DENY framing, no-referrer and nosniff, as the site's other files do (Sentinel hold on f23984b2, 19 Oct 2026). It fails if either answer loses one.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f4d404a8aecc4497b401f5d19bd19c4b0c2770ad2b438c4ee9a4fda34d59b96a"
+    },
+    {
+      "id": 79,
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch/image_validator_test.exs",
@@ -771,11 +784,11 @@
       "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
     },
     {
-      "id": 73,
+      "id": 80,
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch/image_validator_test.exs",
-      "line": 28,
+      "line": 18,
       "test_name": "PIXEL_CAP: JPEG and WebP headers are capped the same way, a moving WebP counting every frame",
       "keep_because": "The cap reads the JPEG frame header and the WebP VP8, VP8L and VP8X headers, counts every frame of a moving WebP, and is not fooled by a one-pixel canvas holding a larger picture. It fails if any format skips the header check.",
       "generated_case": null,
@@ -784,7 +797,7 @@
       "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
     },
     {
-      "id": 74,
+      "id": 81,
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch/image_validator_test.exs",
@@ -797,7 +810,7 @@
       "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
     },
     {
-      "id": 75,
+      "id": 82,
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch/stored_image/resizer_test.exs",
@@ -810,7 +823,7 @@
       "source_sha256": "016c6ff09ad24d70bd8d41805ab99d8c56aeee4c45f2dbe96df0ee92f4c32e8e"
     },
     {
-      "id": 76,
+      "id": 83,
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch/stored_image/resizer_test.exs",
@@ -823,26 +836,13 @@
       "source_sha256": "016c6ff09ad24d70bd8d41805ab99d8c56aeee4c45f2dbe96df0ee92f4c32e8e"
     },
     {
-      "id": 77,
+      "id": 84,
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch_web/launch_image_test.exs",
       "line": 34,
       "test_name": "PICTURE_MISSES: each miss on a sized picture's address is refused and never reaches the resizer",
       "keep_because": "A width pages never ask for, a type other than WebP, an unknown id or another digest answers 404 and a step up (..) is refused, all without reaching the one resizer (Sentinel hold on f23984b2, 19 Oct 2026). A control hit shows the call record sees the resizer.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "f4d404a8aecc4497b401f5d19bd19c4b0c2770ad2b438c4ee9a4fda34d59b96a"
-    },
-    {
-      "id": 78,
-      "group": "Launch pictures",
-      "framework": "exunit",
-      "file": "test/autolaunch_web/launch_image_test.exs",
-      "line": 78,
-      "test_name": "PICTURE_HEADERS: a stored picture and its sized copy say a page from them may do nothing",
-      "keep_because": "Both picture answers carry the strict content policy, DENY framing, no-referrer and nosniff, as the site's other files do (Sentinel hold on f23984b2, 19 Oct 2026). It fails if either answer loses one.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
