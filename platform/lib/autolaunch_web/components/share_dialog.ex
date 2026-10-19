@@ -7,8 +7,10 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   posted for the reader.
 
   Given a `video`, the window also offers it: the video is fetched as the
-  window opens, and "Share video" hands it to the phone's share sheet, or
-  saves it on a computer, where the post is shared from X's own composer.
+  window opens and kept for as long as the page is open, so closing the window
+  never loses it. "Share video" hands it to a phone's share sheet; on a
+  computer "Download video" saves it, and the post is shared from X's own
+  composer.
 
   The window is the browser's own modal dialog, so the page behind it cannot
   be reached while it is open and focus goes back to the button once it
@@ -102,79 +104,110 @@ defmodule AutolaunchWeb.Components.ShareDialog do
       </dialog>
     </div>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".ShareDialog">
+      // Every video this page has asked for, by its address, kept while the page
+      // is open: closing the window, the page drawing it again, or another
+      // window asking for the same video never loses one that is made or on
+      // its way.
+      const videos = new Map()
+
+      const phone = () => window.matchMedia("(pointer: coarse)").matches
+
+      // Asks for the video until it is made. While it waits in line the answer
+      // says how many videos are ahead of it; a person who has made their videos
+      // for the day gets the launch's video instead.
+      const want = (address, everyone, name) => {
+        const kept = videos.get(address)
+        if (kept && kept.state !== "failed") return kept
+
+        const video = {state: "waiting", words: "", file: null, limited: false, watchers: new Set()}
+        videos.set(address, video)
+        const tell = () => video.watchers.forEach((watch) => watch(video))
+        const until = Date.now() + 5 * 60 * 1000
+        let asking = address
+
+        const ask = () =>
+          fetch(asking, {credentials: "same-origin"}).then(async (response) => {
+            if (response.status === 200) return response.blob()
+
+            if (response.status === 202 && Date.now() < until) {
+              const {ahead} = await response.json()
+              if (!video.limited)
+                video.words = ahead > 0 ? `${ahead} ${ahead === 1 ? "video" : "videos"} ahead of yours` : "Making your video now"
+              tell()
+              await new Promise((resolve) => setTimeout(resolve, 2000))
+              return ask()
+            }
+
+            if (response.status === 429 && everyone) {
+              const {daily} = await response.json()
+              asking = everyone
+              video.limited = true
+              video.words = `You've made your ${daily} videos for today, so this is the video everyone sees.`
+              tell()
+              return ask()
+            }
+
+            throw new Error(String(response.status))
+          })
+
+        ask()
+          .then((blob) => {
+            video.file = new File([blob], name, {type: "video/mp4"})
+            video.state = "ready"
+            if (!video.limited) video.words = ""
+          })
+          .catch(() => {
+            video.state = "failed"
+            if (!video.limited) video.words = ""
+          })
+          .finally(tell)
+
+        return video
+      }
+
       export default {
         mounted() {
           const dialog = this.el.querySelector("dialog")
           const message = dialog.querySelector("[data-share-message]")
           const post = dialog.querySelector("[data-share-post]")
-          const video = dialog.querySelector("[data-share-video]")
-          const status = dialog.querySelector("[data-share-video-status]")
-          let address = video && video.dataset.shareVideo
-          let file = null
-          let loading = null
+          const button = () => this.el.querySelector("[data-share-video]")
 
-          const say = (words) => {
-            status.textContent = words
-            status.hidden = !words
+          // What the window shows for its video, drawn again after every update
+          // of the page, so the page never sets it back.
+          this.show = () => {
+            const video = this.video
+            const el = button()
+            if (!el || !video) return
+            const label = el.querySelector("[data-share-video-label]")
+            const status = this.el.querySelector("[data-share-video-status]")
+            const note = this.el.querySelector("[data-share-video-note]")
+            el.disabled = video.state === "waiting"
+            label.textContent =
+              video.state === "ready" ? (phone() ? "Share video" : "Download video")
+              : video.state === "failed" ? "Try the video again"
+              : "Preparing your video…"
+            status.textContent = video.words
+            status.hidden = !video.words
+            note.hidden = video.state !== "failed"
           }
 
-          // Asks for the video until it is made. While it waits in line the
-          // answer says how many videos are ahead of it; a person who has
-          // made their videos for the day gets the launch's video instead.
-          const ask = (until) =>
-            fetch(address, {credentials: "same-origin"}).then(async (response) => {
-              if (response.status === 200) return response.blob()
-
-              if (response.status === 202 && Date.now() < until) {
-                const {ahead} = await response.json()
-                if (!video.dataset.limited)
-                  say(ahead > 0 ? `${ahead} ${ahead === 1 ? "video" : "videos"} ahead of yours` : "Making your video now")
-                await new Promise((resolve) => setTimeout(resolve, 2000))
-                return ask(until)
-              }
-
-              if (response.status === 429 && video.dataset.shareVideoEveryone) {
-                const {daily} = await response.json()
-                address = video.dataset.shareVideoEveryone
-                video.dataset.limited = "true"
-                say(`You've made your ${daily} videos for today, so this is the video everyone sees.`)
-                return ask(until)
-              }
-
-              throw new Error(String(response.status))
-            })
-
-          // The video is fetched once the window opens, so it is ready to hand
-          // over the moment it is asked for.
-          const prepare = () => {
-            if (!video || file || loading) return
-            const label = video.querySelector("[data-share-video-label]")
-            const note = dialog.querySelector("[data-share-video-note]")
-            video.disabled = true
-            label.textContent = "Preparing your video…"
-            note.hidden = true
-            loading = ask(Date.now() + 5 * 60 * 1000)
-              .then((blob) => {
-                if (!video.dataset.limited) say("")
-                file = new File([blob], video.dataset.shareVideoName, {type: "video/mp4"})
-                label.textContent = "Share video"
-              })
-              .catch(() => {
-                label.textContent = "Try the video again"
-                if (!video.dataset.limited) say("")
-                note.hidden = false
-              })
-              .finally(() => {
-                loading = null
-                video.disabled = false
-              })
+          // The video is asked for once the window opens, so it is ready to hand
+          // over the moment it is wanted.
+          this.prepare = () => {
+            const el = button()
+            if (!el) return
+            if (this.video) this.video.watchers.delete(this.show)
+            this.video = want(el.dataset.shareVideo, el.dataset.shareVideoEveryone, el.dataset.shareVideoName)
+            this.video.watchers.add(this.show)
+            this.show()
           }
 
           // A phone hands the video to its share sheet; a computer saves it.
-          const shareVideo = () => {
-            if (!file) return prepare()
-            const phone = window.matchMedia("(pointer: coarse)").matches
-            if (phone && navigator.canShare && navigator.canShare({files: [file]})) {
+          const handOver = () => {
+            if (!this.video || this.video.state === "failed") return this.prepare()
+            const file = this.video.file
+            if (!file) return
+            if (phone() && navigator.canShare && navigator.canShare({files: [file]})) {
               navigator.share({files: [file], text: message.value}).catch(() => {})
             } else {
               const link = document.createElement("a")
@@ -185,19 +218,30 @@ defmodule AutolaunchWeb.Components.ShareDialog do
             }
           }
 
+          // A video this page already has shows as it stands straight away.
+          if (button() && videos.has(button().dataset.shareVideo)) this.prepare()
+
           this.el.addEventListener("click", (event) => {
             if (event.target.closest("[data-share-open]")) {
               dialog.showModal()
-              prepare()
+              this.prepare()
             }
+            if (event.target.closest("[data-share-video]")) handOver()
           })
-          if (video) video.addEventListener("click", shareVideo)
           dialog.addEventListener("click", (event) => {
             if (event.target.closest("[data-share-post], [data-share-close]") || event.target === dialog) dialog.close()
           })
           message.addEventListener("input", () => {
             post.href = "https://x.com/intent/post?" + new URLSearchParams({text: message.value})
           })
+        },
+
+        updated() {
+          this.show && this.show()
+        },
+
+        destroyed() {
+          if (this.video) this.video.watchers.delete(this.show)
         }
       }
     </script>
