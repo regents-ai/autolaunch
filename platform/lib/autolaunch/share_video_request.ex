@@ -1,21 +1,23 @@
 defmodule Autolaunch.ShareVideoRequest do
   @moduledoc """
-  One share video asked for (`AutolaunchWeb.ShareVideo`): the launch, whether
-  it is the token's video or the running auction's, and for a person's own
-  video the signed-in account and its wallet. `key` names the video as it
-  stands, so every request for the same video waits on one row.
+  One share video asked for (`AutolaunchWeb.ShareVideo`) and, once made, the
+  video itself: the launch, whether it is the token's video or the running
+  auction's, and for a person's own video the signed-in account and its wallet.
+  A launch's own video is named by `key`, which moves on every fifteen minutes;
+  a person's are theirs for that launch and kind.
 
   Writing a request queues its `:render` job in the same write. The
   `share_videos` queue renders one at a time, so how many requests are still
-  queued before a row is its place in line. A render that succeeds keeps the
-  video and marks the row ready; one that fails marks it failed.
+  queued before a row is its place in line. A render that succeeds stores the
+  video in the row and marks it ready; one that fails marks it failed.
 
   A video is queued once: a request for a video already queued is that queued
-  row, however many ask at once (the `:queued_key` identity). An account makes
-  at most three new videos of its own in any 24 hours: its requests in that
-  time, apart from failed ones, one per video, counted inside the request's own
-  write (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`). Rows are forgotten
-  after a week.
+  row, however many ask at once (the `:queued_key` identity). The site makes
+  at most 1000 videos in any 24 hours: every request in that time apart from
+  failed ones, counted inside a person's request's own write
+  (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's own videos
+  are always made. A person's videos are kept; a launch's own videos and
+  failed requests are forgotten after a day.
   """
 
   use Ash.Resource,
@@ -41,7 +43,7 @@ defmodule Autolaunch.ShareVideoRequest do
 
       trigger :forget do
         action :destroy
-        where expr(inserted_at < ago(7, :day))
+        where expr(inserted_at < ago(1, :day) and (is_nil(human_account_id) or state == :failed))
         queue :default
         scheduler_cron "41 4 * * *"
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Forget
@@ -58,6 +60,7 @@ defmodule Autolaunch.ShareVideoRequest do
       index [:key, :inserted_at]
       index [:state, :inserted_at]
       index [:human_account_id, :inserted_at]
+      index [:human_account_id, :auction_id, :kind, :inserted_at]
     end
 
     identity_wheres_to_sql queued_key: "state = 'queued'"
@@ -82,7 +85,7 @@ defmodule Autolaunch.ShareVideoRequest do
       get? true
       argument :key, :string, allow_nil?: false
       filter expr(key == ^arg(:key))
-      prepare build(sort: [inserted_at: :desc], limit: 1)
+      prepare build(sort: [inserted_at: :desc], limit: 1, load: [:stored?])
     end
 
     # Requests still waiting for the queue, oldest first.
@@ -91,14 +94,31 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :asc])
     end
 
-    # An account's own videos in the last 24 hours, apart from failed ones.
-    read :made_today do
+    # A person's requests for one launch and kind, newest first.
+    read :own do
       argument :human_account_id, :integer, allow_nil?: false
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: [:token, :auction]]
 
       filter expr(
-               human_account_id == ^arg(:human_account_id) and state != :failed and
-                 inserted_at > ago(24, :hour)
+               human_account_id == ^arg(:human_account_id) and auction_id == ^arg(:auction_id) and
+                 kind == ^arg(:kind)
              )
+
+      prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])
+    end
+
+    # Every video the site has made or is making in the last 24 hours.
+    read :made_today do
+      filter expr(state != :failed and inserted_at > ago(24, :hour))
+    end
+
+    # One made video, with its bytes.
+    read :video do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare build(select: [:id, :mp4])
     end
 
     # Draws and encodes the video, so no database transaction is held open
@@ -134,11 +154,19 @@ defmodule Autolaunch.ShareVideoRequest do
     attribute :human_account_id, :integer
     attribute :wallet, :string
 
+    # The finished MP4, read only by `:video`.
+    attribute :mp4, :binary, select_by_default?: false
+
     attribute :state, :atom,
       allow_nil?: false,
       constraints: [one_of: [:queued, :ready, :failed]]
 
     timestamps()
+  end
+
+  calculations do
+    # Whether the row holds its finished video.
+    calculate :stored?, :boolean, expr(not is_nil(mp4))
   end
 
   identities do

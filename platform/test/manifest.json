@@ -521,20 +521,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e2dd588de81ddf03f445cadc198a2719f5aa45eebe5b3b616394801ae7f2cacb"
+      "source_sha256": "91a78e871d8f50840d6e5c1429d7544554b0f731a4de7e042bbb20fbd7d6329a"
     },
     {
       "id": 60,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 40,
+      "line": 43,
       "test_name": "share video cap holds under concurrent requests",
-      "keep_because": "One account asking for share videos from several tabs at once still makes at most three videos of its own in 24 hours, and each video is queued once however many ask for it together (after-read fix, 18 Oct 2026). The asks run in their own processes and commit on their own connections, which no manual check can time. It fails if either part is undone: with the count moved back before the write it failed 10 of 10 runs (four videos made), and with the queued-once index also removed, 10 of 10 (one video queued twice).",
+      "keep_because": "Share videos asked for by many people at once, and by one person from several tabs at once, still hold the site to 1000 videos in 24 hours, each video is queued once however many ask for it together, and a person's tabs all get the same answer (1000-a-day cap, 18 Oct 2026). The asks run in their own processes and commit on their own connections, which no manual check can time. It fails if either part is undone: with the cap's lock removed it failed 3 of 3 runs (two videos made with room for one), and with a queued video no longer let through at the cap, 3 of 3 (one tab told the day's videos were all made while its video was queued).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "e7fccae667090f50fd7e8971d15329e66ea6a69930138628340613c31c2ac674"
+      "source_sha256": "9d5697752e401242a71eec342c485f7c7996616a6adf7d20a98638d8c8bc544d"
+    },
+    {
+      "id": 71,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 110,
+      "test_name": "a person's video is kept until three hours have passed, then made again",
+      "keep_because": "A person's made share video is stored and served as made for three hours, a new one is made after that with the old one kept, and once the site has made all of the day's videos a person keeps their saved video while one with none is told so (stored videos, 18 Oct 2026). Checking it by hand means waiting three hours and filling the day's 1000 videos.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "9d5697752e401242a71eec342c485f7c7996616a6adf7d20a98638d8c8bc544d"
     },
     {
       "id": 61,

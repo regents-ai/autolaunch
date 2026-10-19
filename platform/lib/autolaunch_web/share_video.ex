@@ -1,27 +1,26 @@
 defmodule AutolaunchWeb.ShareVideo do
   @moduledoc """
   The share videos of a launch: one for everyone, with the launch's own
-  story, and one for a signed-in wallet, with that wallet's bids, trades,
+  story, and one for a signed-in person, with their wallet's bids, trades,
   stake and earnings on it too (`AutolaunchWeb.ShareVideo.Story`, drawn by
   `AutolaunchWeb.ShareVideo.Film`). A launch still in its auction has its
   video at the auction's address; a graduated one at its token's.
 
-  A video is made once for each fifteen minutes and kept (`cache/0`, at most
-  24 videos, the oldest written leaving first). A wallet's video is also made
-  again as soon as the wallet's holding of the token changes, or during the
-  auction as soon as it bids again, so a new bid, stake, unstake, buy or sell
-  shows straight away.
+  Every video is stored once made (`Autolaunch.ShareVideoRequest`). A launch's
+  own video is made again every fifteen minutes it is asked for. A person's
+  video for a launch, its auction's and its token's apart, is kept and served
+  as made until three hours have passed; asking after that makes a new one,
+  and the old ones stay stored.
 
-  Asking for a video that is not made yet records an
-  `Autolaunch.ShareVideoRequest`, once however many ask, which queues it to be
-  made one at a time (`AutolaunchWeb.ShareVideo.Render`), and answers how many
-  videos are ahead of it; asking again answers the video once it is made. Each
-  account makes at most three new videos of its own in any 24 hours, however
-  many of its requests arrive at once, counted by the request's own write
-  (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a video already made,
-  and every launch's own video, never count.
+  Asking for a video that is not made yet records a request, once however
+  many ask, which queues it to be made one at a time
+  (`AutolaunchWeb.ShareVideo.Render`), and answers how many videos are ahead
+  of it; asking again answers the video once it is made. The site makes at
+  most 1000 videos in any 24 hours, however many requests arrive at once
+  (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); past that a person
+  keeps their last video, one who has none is told so and offered the
+  launch's own, and a launch's own video is still made.
   """
-  alias Autolaunch.{TokenTrades, WalletHistory}
   require Ash.Query
   require Logger
 
@@ -29,13 +28,8 @@ defmodule AutolaunchWeb.ShareVideo do
   alias Autolaunch.ShareVideoRequest
   alias AutolaunchWeb.Paths
 
-  @cache :share_videos
-  @kept 24
+  @remake_s 3 * 3600
   @failed_ms 30_000
-
-  @doc "The kept videos' cache and how many it keeps, for the application's supervisor."
-  def cache, do: @cache
-  def kept, do: @kept
 
   @doc """
   Where the launch's video is served as it stands at `now`: the auction's
@@ -65,23 +59,17 @@ defmodule AutolaunchWeb.ShareVideo do
   (`:auction`), everyone's when `wallet` is nil and otherwise `wallet`'s,
   asked for by the signed-in `account` that links it.
 
-  A failure names what went wrong: `:daily_limit` (the account has made its
-  videos for the day), `:render_failed` (the video could not be made moments
-  ago), `:chain_read_failed` (the wallet's holding could not be read from the
-  chain), `:invalid_request` (the request was refused as written),
-  `:connection_lost` (the database could not be reached) or `:failed`
-  (anything else).
+  A failure names what went wrong: `:daily_limit` (the site has made all of
+  the day's videos and the person has none saved), `:render_failed` (the
+  video could not be made moments ago), `:invalid_request` (the request was
+  refused as written), `:connection_lost` (the database could not be
+  reached) or `:failed` (anything else).
   """
   @spec fetch(struct(), :token | :auction, String.t() | nil, integer() | nil, DateTime.t()) ::
           {:ok, binary()}
           | {:waiting, non_neg_integer()}
           | {:error,
-             :daily_limit
-             | :render_failed
-             | :chain_read_failed
-             | :invalid_request
-             | :connection_lost
-             | :failed}
+             :daily_limit | :render_failed | :invalid_request | :connection_lost | :failed}
   def fetch(auction, phase, wallet, account, now) do
     answer(auction, phase, wallet, account, now)
   rescue
@@ -92,93 +80,64 @@ defmodule AutolaunchWeb.ShareVideo do
       {:error, failure(error)}
   end
 
-  defp answer(auction, phase, nil, nil, now),
-    do: kept_or_queued(auction, phase, nil, nil, key(auction, phase, [], now))
+  defp answer(auction, phase, nil, nil, now) do
+    key = key(auction, phase, now)
+    make = fn -> made(auction, phase, nil, nil, key, nil) end
 
-  defp answer(auction, phase, wallet, account, now) when is_integer(account) do
-    wallet = String.downcase(wallet)
-
-    with {:ok, state} <- wallet_state(auction, phase, wallet),
-         do:
-           kept_or_queued(
-             auction,
-             phase,
-             wallet,
-             account,
-             key(auction, phase, [wallet, state], now)
-           )
-  end
-
-  # What a wallet has in the launch now, read cheaply: its holding of the
-  # token, or during the auction how many bids it has placed and their total.
-  defp wallet_state(auction, :token, wallet) do
-    with {:ok, venue} <- TokenTrades.venue(auction),
-         {:ok, holding} <- WalletHistory.holding(auction.token_address, wallet, venue.opts) do
-      {:ok, holding}
-    else
-      {:error, _unread} -> {:error, :chain_read_failed}
+    case Autolaunch.latest_share_video_request(key, actor: %System{}) do
+      {:ok, nil} -> make.()
+      {:ok, request} -> standing(request, make)
+      {:error, error} -> {:error, failure(error)}
     end
   end
 
-  defp wallet_state(auction, :auction, wallet) do
-    case Autolaunch.auction_bids(auction.id, actor: nil) do
-      {:ok, bids} ->
-        own = Enum.filter(bids, &(&1.bidder == wallet))
-
-        {:ok,
-         "#{length(own)}-#{own |> Enum.map(& &1.amount) |> Enum.reduce(Decimal.new(0), &Decimal.add/2)}"}
+  defp answer(auction, phase, wallet, account, now) when is_integer(account) do
+    case Autolaunch.own_share_video_requests(account, auction.id, phase, actor: %System{}) do
+      {:ok, own} ->
+        saved = Enum.find(own, &(&1.state == :ready and &1.stored?))
+        key = own_key(auction, phase, account)
+        remake = fn -> made(auction, phase, String.downcase(wallet), account, key, saved) end
+        own_standing(own, saved, now, remake)
 
       {:error, error} ->
         {:error, failure(error)}
     end
   end
 
-  defp kept_or_queued(auction, phase, wallet, account, key) do
-    with :none <- kept(key),
-         :none <- requested(key),
-         :none <- kept(key) do
-      request(auction, phase, wallet, account, key)
-    end
+  # A person's video as their newest request for it stands: in line, failed
+  # moments ago, or else their saved one until three hours have passed.
+  defp own_standing([%{state: :queued} = request | _older], _saved, _now, _remake),
+    do: waiting(request)
+
+  defp own_standing([%{state: :failed} = request | _older], saved, now, remake),
+    do: failed_lately(request, fn -> kept_or(saved, now, remake) end)
+
+  defp own_standing(_made_or_none, saved, now, remake), do: kept_or(saved, now, remake)
+
+  # A launch's own video as its newest request stands. A ready request that
+  # holds no video is made again.
+  defp standing(%{state: :ready, stored?: true} = request, _make), do: video(request)
+  defp standing(%{state: :ready}, make), do: make.()
+  defp standing(%{state: :queued} = request, _make), do: waiting(request)
+  defp standing(%{state: :failed} = request, make), do: failed_lately(request, make)
+
+  # A person's saved video until three hours have passed; then a new one.
+  defp kept_or(nil, _now, remake), do: remake.()
+
+  defp kept_or(saved, now, remake) do
+    if DateTime.diff(now, saved.inserted_at) < @remake_s, do: video(saved), else: remake.()
   end
 
-  defp kept(key) do
-    case Cachex.get(@cache, key) do
-      {:ok, mp4} when is_binary(mp4) -> {:ok, mp4}
-      _missing -> :none
-    end
-  end
-
-  # A request still queued gives its place in line; one that failed moments
-  # ago says so, and after that the next ask queues it again.
-  defp requested(key) do
-    case Autolaunch.latest_share_video_request(key, actor: %System{}) do
-      {:ok, %{state: :queued} = request} -> waiting(request)
-      {:ok, %{state: :failed} = request} -> failed_lately(request)
-      {:ok, _ready_or_none} -> :none
-      {:error, error} -> {:error, failure(error)}
-    end
-  end
-
-  defp failed_lately(request) do
+  # A video that failed moments ago says so; after that, asking makes it again.
+  defp failed_lately(request, make) do
     if DateTime.diff(DateTime.utc_now(), request.updated_at, :millisecond) < @failed_ms,
       do: {:error, :render_failed},
-      else: :none
+      else: make.()
   end
 
-  # Its place in line: how many requests still queued were made before it.
-  defp waiting(request) do
-    ShareVideoRequest
-    |> Ash.Query.for_read(:queued, %{}, actor: %System{})
-    |> Ash.Query.filter(inserted_at < ^request.inserted_at)
-    |> Ash.count(actor: %System{})
-    |> case do
-      {:ok, ahead} -> {:waiting, ahead}
-      {:error, error} -> {:error, failure(error)}
-    end
-  end
-
-  # An account past its videos for the day is told so (`DailyLimit`).
-  defp request(auction, phase, wallet, account, key) do
+  # A new video, queued once however many ask. Past the site's videos for the
+  # day (`DailyLimit`) a person keeps their last one, or is told so.
+  defp made(auction, phase, wallet, account, key, saved) do
     case Autolaunch.request_share_video(
            %{
              key: key,
@@ -193,10 +152,32 @@ defmodule AutolaunchWeb.ShareVideo do
         waiting(request)
 
       {:error, %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :daily_limit}]}} ->
-        {:error, :daily_limit}
+        limited(saved)
 
       {:error, error} ->
         {:error, failure(error)}
+    end
+  end
+
+  defp limited(nil), do: {:error, :daily_limit}
+  defp limited(saved), do: video(saved)
+
+  defp video(request) do
+    case Autolaunch.share_video_mp4(request.id, actor: %System{}) do
+      {:ok, %{mp4: mp4}} -> {:ok, mp4}
+      {:error, error} -> {:error, failure(error)}
+    end
+  end
+
+  # Its place in line: how many requests still queued were made before it.
+  defp waiting(request) do
+    ShareVideoRequest
+    |> Ash.Query.for_read(:queued, %{}, actor: %System{})
+    |> Ash.Query.filter(inserted_at < ^request.inserted_at)
+    |> Ash.count(actor: %System{})
+    |> case do
+      {:ok, ahead} -> {:waiting, ahead}
+      {:error, error} -> {:error, failure(error)}
     end
   end
 
@@ -256,15 +237,10 @@ defmodule AutolaunchWeb.ShareVideo do
 
   defp connection_lost?(_other), do: false
 
-  @doc false
-  # The finished video, kept for every request that asks for it next.
-  def made!(key, mp4) do
-    {:ok, true} = Cachex.put(@cache, key, mp4)
-    :ok
-  end
+  defp key(auction, phase, now), do: Enum.join([auction.id, phase, bucket(now)], ":")
 
-  defp key(auction, phase, wallet_parts, now),
-    do: Enum.join([auction.id, phase | wallet_parts] ++ [bucket(now)], ":")
+  defp own_key(auction, phase, account),
+    do: Enum.join([auction.id, phase, "account", account], ":")
 
   defp bucket(now), do: now |> DateTime.to_unix() |> div(900) |> Integer.to_string()
 end
