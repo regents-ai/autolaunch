@@ -423,7 +423,7 @@ paths:
     "get":
       "operationId": "agent_whoami"
       "summary": "Check my identity and pairing"
-      description: Run this first; it works before pairing. Answers your status on this site (not_paired, person_not_here or paired), what you may do in it and your next step. Changes nothing and awards no Points.
+      description: Run this first; it works before pairing. Answers your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing and awards no Points.
       "security":
         -
           "SiwaProof": []
@@ -458,7 +458,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "503":
           "description": "Dependency unavailable"
   /api/agents/v1/pair:
@@ -513,7 +513,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -530,7 +530,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -575,7 +575,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -592,7 +592,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -637,7 +637,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "409":
           "description": "Your person's Regent account has no verified wallet to read (wallet_required)"
         "422":
@@ -660,7 +660,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -681,7 +681,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
           content:
@@ -718,7 +718,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -906,8 +906,8 @@ components:
             paired_at: {type: string, format: date-time}
         status:
           type: string
-          enum: [not_paired, person_not_here, paired]
-          description: "not_paired: no person has paired this agent. person_not_here: paired, but its person has never signed in on this site. paired: it acts for its person."
+          enum: [not_paired, paired]
+          description: "not_paired: no person has paired this agent. paired: it acts for its person."
         allowed:
           type: array
           items: {type: string}

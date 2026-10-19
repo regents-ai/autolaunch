@@ -60,10 +60,6 @@ config :regent_agents,
       "Check your status here at any time.",
       "Pair with the code your person makes with Pair New Agent in the side panel."
     ],
-    "person_not_here" => [
-      "Read public auctions, tokens, treasury reports and bid estimates.",
-      "Check your status here at any time."
-    ],
     "paired" => [
       "Read public auctions, tokens, treasury reports and bid estimates.",
       "Check your status here at any time, and check in for your person.",

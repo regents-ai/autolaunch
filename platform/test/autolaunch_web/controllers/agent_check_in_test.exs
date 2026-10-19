@@ -3,9 +3,9 @@ defmodule AutolaunchWeb.AgentCheckInTest do
   An agent's status and check-in on Autolaunch, through the shared agent requests
   this site mounts (`RegentAgents.HTTP`) and its own agent routes
   (`AutolaunchWeb.Plugs.AgentAccess`), with the sign-in service stubbed. An agent
-  paired by a signed-in person is told it is paired; one whose person never signed
-  in is told to have them sign in once; and a person's account that could not be
-  read just now is 503 `account_unavailable`.
+  paired by a signed-in person is told it is paired; one whose pairing names no
+  Regent account is told it is not paired; and a person's account that could not
+  be read just now is 503 `account_unavailable`.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -78,16 +78,21 @@ defmodule AutolaunchWeb.AgentCheckInTest do
     conn |> post_json("/api/agents/v1/pair", body) |> json_response(201)
   end
 
-  test "AGENT_PERSON_NOT_HERE_IS_TOLD_SO: an agent whose person never signed in is not told to retry",
+  test "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED: a pairing that names no Regent account is agent_not_paired",
        %{conn: conn} do
     siwa_verifies()
-    pair!(conn, "did:privy:never-signed-in-#{System.unique_integer([:positive])}")
+    pair!(conn, "did:privy:no-account-#{System.unique_integer([:positive])}")
 
-    assert %{"error" => %{"code" => "person_not_here", "message" => message, "hint" => hint}} =
+    for path <- ["/api/agents/v1/me", "/api/agents/v1/whoami"] do
+      {403, _headers, body} = assert_error_sent(403, fn -> get(conn, path) end)
+      assert %{"error" => %{"code" => "agent_not_paired", "hint" => hint}} = Jason.decode!(body)
+      assert hint =~ "Pair New Agent", path
+    end
+
+    assert %{"error" => %{"code" => "agent_not_paired", "hint" => hint}} =
              conn |> get("/api/agent/v1/positions") |> json_response(403)
 
-    assert message == "The person this agent is paired with hasn't signed in on this site yet."
-    assert hint == "Ask your person to sign in on this site once, then send the request again."
+    assert hint =~ "Pair New Agent"
   end
 
   test "AGENT_PERSON_UNREAD_IS_503: a person's account that can't be read is account_unavailable",

@@ -7,8 +7,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - The side panel's first row holds Account and Sign out. The panel button in the top bar opens and closes it.
 - If your sign-in can't be read for a moment, the page offers Try again, which loads the same page. You stay signed in, and nothing is saved or paired until it can be read. A sign-in that has ended still shows Sign in.
 - Wallet buttons and Connect ENS say "That did not go through. Try again in a moment." when your account can't be read, instead of asking you to sign in or to check the name.
-- Agents can ask their status here first: not paired, paired but their person hasn't signed in on this site yet, or paired. They also hear what they may do here and what to do next.
-- An agent whose person hasn't signed in on this site yet is told so, and asked to have them sign in once, instead of being told to try again later.
+- Agents can ask their status here first: not paired or paired. They also hear what they may do here and what to do next.
 - An agent that checks in before it is paired is told to ask its person to pair it with Pair New Agent.
 
 ## 19 October 2026: filters you can tap, and plainer answers when something can't load

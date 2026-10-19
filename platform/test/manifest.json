@@ -846,7 +846,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "595384ce54bcbcd780c7c3c7c032c3893d68918328ae275441a0a6d8eeb7577b"
+      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
     },
     {
       "id": 93,
@@ -984,25 +984,25 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
       "line": 81,
-      "test_name": "AGENT_PERSON_NOT_HERE_IS_TOLD_SO: an agent whose person never signed in is not told to retry",
-      "keep_because": "An agent paired to a person who never signed in gets 403 person_not_here from the agent routes, with the library's message and a sign-in-once hint. It fails while it got 503 account_unavailable, which told it to retry forever.",
+      "test_name": "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED: a pairing that names no Regent account is agent_not_paired",
+      "keep_because": "A pairing that names no Regent account is 403 agent_not_paired from the check-in, whoami and the agent routes, with the hint to pair again with Pair New Agent. It fails while whoami answered person_not_here and the agent routes told the agent its person hadn't signed in on this site, against the one-account rule.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "595384ce54bcbcd780c7c3c7c032c3893d68918328ae275441a0a6d8eeb7577b"
+      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
     },
     {
       "id": 104,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
-      "line": 93,
+      "line": 98,
       "test_name": "AGENT_PERSON_UNREAD_IS_503: a person's account that can't be read is account_unavailable",
       "keep_because": "A paired person's account that can't be read is 503 account_unavailable from the check-in, whoami and the agent routes. It fails while the check-in and whoami answered 500.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "595384ce54bcbcd780c7c3c7c032c3893d68918328ae275441a0a6d8eeb7577b"
+      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
     },
     {
       "id": 105,

@@ -36,6 +36,8 @@ Map as of 19 October 2026. A release that adds or changes something here updates
 | Action | Check |
 | --- | --- |
 | Sign in and sign out | `autolaunch_web/controllers/privy_session_controller_test.exs` (all three cases); `content_negotiation_test.exs` › "the existing session fetch still returns JSON" |
+| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (both cases) |
+| Side panel: Account, Sign out, your agents with where each was last active, Pair New Agent | `autolaunch_web/live/side_panel_agents_test.exs` (all four cases) |
 | Connect or remove X | `content_negotiation_test.exs` › "JSON account-link requests retain CSRF protection". The connect itself: **gap** |
 | Buy Credits (Approve, then Buy) | Reading the wallet: `autolaunch_web/live/credits_panel_test.exs` › "CREDITS_PANEL_NO_NODE: a chain with no node reads as unavailable, with no crash". The wallet press: see Wallet actions. The purchase check: **gap** |
 
@@ -88,12 +90,12 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above |
 | `autolaunch_treasury` | `GET /api/v1/treasury-security/{address}` | `public_api_failures_test.exs` (same case); `treasury_chain_client_test.exs` (both cases) |
 | `autolaunch_bid_quote` | `POST /api/v1/auctions/{id}/bid-quote` | `bid_actions_test.exs` › "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero"; `public_api_failures_test.exs` (same case) |
-| `agent_whoami` | `GET /api/agents/v1/whoami` | **Gap** |
-| `agent_status` | `GET /api/agents/v1/me` | **Gap** |
+| `agent_whoami` | `GET /api/agents/v1/whoami` | `autolaunch_web/controllers/agent_check_in_test.exs` (all three cases) |
+| `agent_status` | `GET /api/agents/v1/me` | `agent_check_in_test.exs` (all three cases) |
 | (CLI `agents pair`) | `POST /api/agents/v1/pair` | `account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" pairs through the shared library; the signed request: **gap** |
 | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/revstake` | **Gap** |
 | `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/memestock` | **Gap** |
-| `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | **Gap** |
+| `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | Refusals: `agent_check_in_test.exs` › "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED", › "AGENT_PERSON_UNREAD_IS_503"; `sign_in_read_test.exs` › "a lost sign-in read is a 503 for the signed-in wallet's positions and share video". A working read: **gap** |
 | `account_balances` | `GET /api/agent/v1/account/balances` | **Gap** |
 | `account_credits_history` | `POST /api/agent/v1/account/credits/history` | **Gap** |
 | `account_points` | `GET /api/agent/v1/account/points` | **Gap** |
@@ -112,6 +114,6 @@ Home tabs and filter results; list filter results on `/auctions` and `/tokens`; 
 and token page tabs; `/create/revstake`, `/stock-listing`, `/how-it-works`, `/account/points`,
 `/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; the
 Credits purchase check; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
-stake and unstake; Make a payment; selling fee shares; share picture content; every signed
-agent route (whoami, check-in, pairing request, drafts, positions, Credits, Points) and
+stake and unstake; Make a payment; selling fee shares; share picture content; the signed
+agent routes (pairing request, drafts, a working positions read, Credits, Points) and
 `prepare_agent_request`; the shared profile routes.

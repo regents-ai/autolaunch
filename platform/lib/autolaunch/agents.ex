@@ -6,7 +6,7 @@ defmodule Autolaunch.Agents do
   """
   alias Autolaunch.{Accounts, Repo}
   alias Autolaunch.Actors.{Agent, System}
-  alias AutolaunchWeb.{AccountUnavailableError, ReadFailure}
+  alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ReadFailure}
 
   def resolve(wallet) do
     with {:ok, pairing} <- RegentAgents.Authority.resolve(Repo, wallet),
@@ -24,10 +24,10 @@ defmodule Autolaunch.Agents do
 
   # How a check-in (`GET /api/agents/v1/me`) and an agent's status
   # (`GET /api/agents/v1/whoami`) name the person's account: their shared
-  # account, or nil only when the Privy identity has no shared account at all.
-  # The shared requests take an account or nil, so an account that could not
-  # be read just now is the agent's 503 `account_unavailable`
-  # (`AutolaunchWeb.AccountUnavailableError`), never a missing person.
+  # account. A pairing that names no Regent account pairs the agent with
+  # nobody, the 403 `agent_not_paired` (`AutolaunchWeb.AgentNotPairedError`);
+  # an account that could not be read just now is the 503 `account_unavailable`
+  # (`AutolaunchWeb.AccountUnavailableError`).
   def paired_account(privy_id) do
     case person(privy_id) do
       {:ok, account} ->
@@ -38,23 +38,24 @@ defmodule Autolaunch.Agents do
           wallet_addresses: account.wallet_addresses || []
         }
 
-      {:error, :person_not_here} ->
-        nil
+      {:error, :not_paired} ->
+        raise AgentNotPairedError
 
       {:error, :account_unavailable} ->
         raise AccountUnavailableError
     end
   end
 
-  # The person's shared account; a read that fails is logged by kind and
-  # module only and answered as unavailable.
+  # The person's shared account, or `:not_paired` when the pairing names none;
+  # a read that fails is logged by kind and module only and answered as
+  # unavailable.
   defp person(privy_id) do
     case Accounts.get_by_privy_did(privy_id, actor: %System{}) do
       {:ok, %{} = account} ->
         {:ok, account}
 
       {:ok, nil} ->
-        {:error, :person_not_here}
+        {:error, :not_paired}
 
       {:error, error} ->
         ReadFailure.log("agent's person read", error)

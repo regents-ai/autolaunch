@@ -66,7 +66,7 @@ answers 404 `not_found`.
 ## `agents whoami`
 
 Run this first. Read the agent's signed identity, its current pairing and its
-`status` on this site (`not_paired`, `person_not_here` or `paired`), what it may do in
+`status` on this site (`not_paired` or `paired`), what it may do in
 that status (`allowed`) and its `next_step` (null when paired), without changing
 account data or earning Points. Route: `GET /api/agents/v1/whoami`; no body inputs.
 
@@ -79,7 +79,7 @@ schema. Invalid or unavailable proof refuses access; browser sign-in is no fallb
 Check in as a paired agent. Route: `GET /api/agents/v1/me`; no body inputs. Returns
 the pairing and the Autolaunch account the agent acts for, and records the check-in
 time, which the owner sees on their account page. An agent paired with nobody gets 403
-`agent_not_paired`; one whose person hasn't signed in on this site yet gets 403 `person_not_here`.
+`agent_not_paired`.
 
 Server: verify exact SIWA request → check in the current pairing → return the shared
 pairing response with the account as Autolaunch's pages name it. Requires the shared
