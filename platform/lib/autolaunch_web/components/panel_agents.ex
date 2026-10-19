@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.PanelAgents do
   draws them: each agent's picture and name over the Regent site it was last
   active on and how long ago. Pairing is shared by every Regent site, so an agent
   paired on another one is listed too. Its "Your agents" heading leads to the
-  Account page, which lists them and unpairs one.
+  Account page, which lists them; unpairing is on regents.sh.
 
   Where each agent was last active comes from its shared reading
   (`Autolaunch.Agents.ActivityReading`), asked for only for an open panel: the

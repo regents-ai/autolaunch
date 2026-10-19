@@ -50,11 +50,9 @@ defmodule AutolaunchWeb.Components.AccountControl do
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
 
-  @doc """
-  The account's picture and name. The `profile` marker tells the browser the
-  page was drawn for a signed-in account.
-  """
-  def account_name(assigns) do
+  # The account's picture and name. The `profile` marker tells the browser the
+  # page was drawn for a signed-in account.
+  defp account_name(assigns) do
     ~H"""
     <img
       :if={@account_control.avatar_src}

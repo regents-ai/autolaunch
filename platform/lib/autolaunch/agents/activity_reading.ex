@@ -16,7 +16,7 @@ defmodule Autolaunch.Agents.ActivityReading do
 
   Each read that gives no reading is counted in `health.agent_activity_unread.total`
   by its reason, such as `bad_day` for a day from the service in a shape it does
-  not send.
+  not send, or `raised` for a read that raised.
   """
 
   alias RegentAgents.{Activity, PairedAgent}
@@ -30,9 +30,13 @@ defmodule Autolaunch.Agents.ActivityReading do
 
   @spec read(PairedAgent.t()) :: {:ok, Activity.reading()} | {:error, term()}
   def read(%PairedAgent{} = agent) do
-    case Cachex.fetch(@cache, {agent.wallet, agent.paired_at}, fn _key -> fresh(agent) end) do
+    key = {agent.wallet, agent.paired_at}
+
+    case Cachex.fetch(@cache, key, fn _key -> fresh(agent) end) do
       {status, reading} when status in [:ok, :commit] -> reading
-      {:error, reason} -> {:error, reason}
+      # A read that raised, which Cachex hands back as its own error, is a
+      # failed read like any other: counted, and kept for a minute.
+      {:error, %Cachex.Error{}} -> keep(key, {:error, :raised})
     end
   end
 
@@ -40,6 +44,12 @@ defmodule Autolaunch.Agents.ActivityReading do
     reading = Activity.recent(agent)
     measure(reading)
     {:commit, reading, expire: kept(reading)}
+  end
+
+  defp keep(key, failed) do
+    measure(failed)
+    {:ok, true} = Cachex.put(@cache, key, failed, expire: kept(failed))
+    failed
   end
 
   defp kept({:ok, _reading}), do: @kept
@@ -54,7 +64,7 @@ defmodule Autolaunch.Agents.ActivityReading do
       })
 
   defp reason(reason)
-       when reason in [:bad_day, :bad_days, :registration_unreadable, :not_configured],
+       when reason in [:bad_day, :bad_days, :registration_unreadable, :not_configured, :raised],
        do: reason
 
   defp reason({:unexpected_status, _status}), do: :unexpected_status

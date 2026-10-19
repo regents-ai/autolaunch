@@ -148,9 +148,11 @@ end
 
 # Under ExUnit each case says what the shared sign-in service answers
 # (`Req.Test` stubs on RegentAgents.Broker); nothing reaches siwa.regents.sh.
-# A browser or lab server asks the real service, unless AUTOLAUNCH_SIWA_STAND_IN=1
-# hands it the local stand-in (`Autolaunch.SiwaStandIn`), which answers agents'
-# activity. The reader key is a stand-in's too: the real one is production's.
+# A browser or lab server started with AUTOLAUNCH_SIWA_STAND_IN=1 sends every
+# sign-in service request to the local stand-in (`Autolaunch.SiwaStandIn`),
+# which answers agents' activity and refuses the rest. The reader key here is a
+# stand-in's: the real one is production's alone. Without the stand-in a lab
+# holds no reader key, so its side panel shows agents with no activity lines.
 cond do
   System.get_env("AUTOLAUNCH_BROWSER_TEST") != "1" ->
     config :regent_agents,
