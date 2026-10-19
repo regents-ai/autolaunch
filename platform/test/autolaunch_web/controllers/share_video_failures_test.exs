@@ -6,7 +6,9 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
 
   A lost connection is made by cutting the case's own database connection
   (`pg_terminate_backend`, from a second connection) at a chosen point in the
-  request, as it would be if the database went away just then.
+  request, as it would be if the database went away just then. Other database
+  errors are made by the database itself: a trigger, created inside the case's
+  own transaction, that refuses the request's write with a chosen code.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -17,6 +19,7 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
   import ExUnit.CaptureLog
 
   require Ash.Query
+  require Logger
 
   @moduletag :capture_log
 
@@ -82,10 +85,88 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
              "message" => "Your video couldn't be asked for just now. Try again in a moment."
            }
 
-    # The log names what failed and its code, and carries none of the
-    # database's message, which can hold the request's own values.
-    assert log =~ "share video request failed: Postgrex.Error 42P01"
+    # The log names what failed, as Ash hands it over, and carries none of
+    # the database's message, which can hold the request's own values.
+    assert log =~ "share video request failed: Ash.Error.Unknown.UnknownError"
     refute log =~ "share_video_requests"
+    refute log =~ "42P01"
+  end
+
+  test "every lost-connection code the database reports answers the try-again page",
+       %{conn: conn, path: path} do
+    # The connection exceptions (class 08) and the server shutting down or
+    # starting (57P01 to 57P03), each raised by the database on the write.
+    for code <- ~w(08000 08001 08003 08004 08006 08007 08P01 57P01 57P02 57P03) do
+      refuse_writes(code, "refused")
+
+      {503, _headers, body} = assert_error_sent(503, fn -> get(conn, path) end)
+      assert body =~ "Try again", "#{code} did not answer the try-again page"
+    end
+  end
+
+  test "a database code next to a lost connection's answers with its own line",
+       %{conn: conn, path: path} do
+    # Codes beside the lost-connection ones, and a message dressed as one.
+    for {code, message} <- [
+          {"57P04", "refused"},
+          {"57P05", "refused"},
+          {"57014", "refused"},
+          {"0A000", "refused"},
+          {"P0001", "FATAL 57P01 (admin_shutdown) terminating connection"}
+        ] do
+      refuse_writes(code, message)
+
+      failed = get(conn, path)
+      assert failed.status == 500, "#{code} answered #{failed.status}"
+      assert json_response(failed, 500)["error"] == "failed"
+    end
+  end
+
+  test "a connection that waits too long for the database is the try-again page",
+       %{conn: conn, path: path} do
+    # As the request starts reading the video's queue, another caller holds
+    # the case's one connection for four seconds; the request's read is
+    # dropped from the queue after two (`queue_target` in config/test.exs)
+    # with the connection's own error.
+    test = self()
+    handler = "hold-#{inspect(test)}"
+
+    :telemetry.attach(
+      handler,
+      [:ash, :autolaunch, :read, :start],
+      fn _event, _measurements, metadata, _config ->
+        if self() == test and metadata.resource == ShareVideoRequest do
+          :telemetry.detach(handler)
+          holder = Task.async(fn -> Repo.query!("SELECT pg_sleep(4)") end)
+          Process.put(:holder, holder)
+          Process.sleep(200)
+        end
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    {503, _headers, body} = assert_error_sent(503, fn -> get(conn, path) end)
+    assert body =~ "Try again"
+    Task.await(Process.get(:holder), 10_000)
+  end
+
+  test "no word of a database error's message reaches the log", %{conn: conn, path: path} do
+    refuse_writes("P0001", "alice 0xab1")
+    level = Logger.level()
+    Logger.configure(level: :debug)
+    on_exit(fn -> Logger.configure(level: level) end)
+
+    {failed, log} = with_log([level: :debug], fn -> get(conn, path) end)
+    Logger.configure(level: level)
+
+    assert json_response(failed, 500)["error"] == "failed"
+    # Every level is captured, the database layer's own query lines included.
+    assert log =~ "QUERY ERROR"
+    refute log =~ "alice"
+    refute log =~ "0xab1"
+    assert log =~ "share video request failed: Ash.Error.Unknown.UnknownError"
   end
 
   test "a video that couldn't be made answers with its own line, not the try-again page",
@@ -108,6 +189,23 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
              "error" => "render_failed",
              "message" => "Your video couldn't be made. Try again in a moment."
            }
+  end
+
+  # From now on, until the case ends, the database refuses every write of a
+  # share-video request with `code` and `message`.
+  defp refuse_writes(code, message) do
+    Repo.query!("""
+    CREATE OR REPLACE FUNCTION autolaunch_app.share_video_requests_refused() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+      RAISE EXCEPTION '#{message}' USING ERRCODE = '#{code}';
+    END
+    $$
+    """)
+
+    Repo.query!(
+      "CREATE OR REPLACE TRIGGER share_video_requests_refused BEFORE INSERT ON autolaunch_app.share_video_requests FOR EACH ROW EXECUTE FUNCTION autolaunch_app.share_video_requests_refused()"
+    )
   end
 
   # Cuts this case's database connection the first time `event` fires in this

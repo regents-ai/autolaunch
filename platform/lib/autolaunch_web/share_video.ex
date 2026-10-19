@@ -200,65 +200,60 @@ defmodule AutolaunchWeb.ShareVideo do
     end
   end
 
-  # A database read or write that failed: the database could not be reached,
-  # the request was refused as written, or something else went wrong. A lost
-  # connection is a `DBConnection.ConnectionError`, or a `Postgrex.Error` whose
-  # code is a connection exception (class 08) or a server shutting down or
-  # starting (57P01 to 57P03). Ash keeps an exception it did not expect only as
-  # its formatted text (`Ash.Error.Unknown`), so there the exception and its
-  # code are read from the start of that text.
-  # Every failure is logged where it is sorted, so none passes unseen: a
-  # failed read or write as an error, the other two as warnings. The line
-  # names only what failed (the error's kind and, for the database, its code),
-  # never a message, so no wallet, address or other value reaches the log.
+  # A database read or write that failed: the database could not be reached
+  # (`:connection_lost`), the request was refused as written
+  # (`:invalid_request`), or something else went wrong (`:failed`). Every
+  # failure is logged where it is sorted, so none passes unseen: a failed read
+  # or write as an error, the other two as warnings. The line names only the
+  # kind and the module of each error Ash hands over, with the code of a real
+  # `Postgrex.Error`, never any of an error's text, so no wallet, address or
+  # other value reaches the log.
   defp failure(error) do
     kind = kind(error)
     Logger.log(level(kind), "share video request #{kind}: #{named(error)}")
     kind
   end
 
-  defp named(%{errors: errors}) when is_list(errors), do: Enum.map_join(errors, ", ", &named/1)
-  defp named(%Postgrex.Error{postgres: %{pg_code: code}}), do: "Postgrex.Error #{code}"
-
-  defp named(%Ash.Error.Unknown.UnknownError{error: "** (" <> text}) do
-    case Regex.run(~r/\A([\w.]+)\) (?:\w+ (\w{5}) )?/, text) do
-      [_match, module, code] -> "#{module} #{code}"
-      [_match, module] -> module
-      nil -> "Ash.Error.Unknown"
-    end
-  end
-
-  defp named(error), do: inspect(error.__struct__)
+  defp kind(%Ash.Error.Invalid{}), do: :invalid_request
+  defp kind(error), do: if(connection_lost?(error), do: :connection_lost, else: :failed)
 
   defp level(:failed), do: :error
   defp level(_kind), do: :warning
 
-  defp kind(%Ash.Error.Invalid{}), do: :invalid_request
+  defp named(%Postgrex.Error{postgres: %{pg_code: code}}), do: "Postgrex.Error #{code}"
+  defp named(%{errors: errors}) when is_list(errors), do: Enum.map_join(errors, ", ", &named/1)
+  defp named(%struct{}), do: inspect(struct)
 
-  defp kind(%Ash.Error.Unknown{errors: errors}),
-    do: if(Enum.any?(errors, &connection_lost?/1), do: :connection_lost, else: :failed)
+  # A lost connection: the connection's own error, or a Postgres error whose
+  # code is a connection exception (class 08) or a server shutting down or
+  # starting (57P01 to 57P03).
+  @connection_codes ~w(08000 08001 08003 08004 08006 08007 08P01 57P01 57P02 57P03)
 
-  defp kind(error), do: if(connection_lost?(error), do: :connection_lost, else: :failed)
+  # AshPostgres keeps only the formatted text of an exception it did not
+  # expect (`handle_raised_error/4` in deps/ash_postgres/lib/data_layer.ex
+  # hands it to Splode's `to_error/2`, which stores
+  # `Exception.format(:error, exception)` in `Ash.Error.Unknown.UnknownError`),
+  # so for that one error a lost connection is told by the banner the text
+  # starts with. The check gives only true or false.
+  @lost_banners ["** (DBConnection.ConnectionError) "] ++
+                  for(
+                    severity <- ~w(ERROR FATAL PANIC),
+                    code <- @connection_codes,
+                    do: "** (Postgrex.Error) #{severity} #{code} "
+                  )
 
   defp connection_lost?(%DBConnection.ConnectionError{}), do: true
-  defp connection_lost?(%Postgrex.Error{postgres: %{pg_code: code}}), do: connection_code?(code)
 
-  defp connection_lost?(%Ash.Error.Unknown.UnknownError{
-         error: "** (DBConnection.ConnectionError)" <> _rest
-       }),
-       do: true
+  defp connection_lost?(%Postgrex.Error{postgres: %{pg_code: code}}),
+    do: code in @connection_codes
 
-  defp connection_lost?(%Ash.Error.Unknown.UnknownError{error: "** (Postgrex.Error) " <> message}) do
-    case Regex.run(~r/\A\w+ (\w{5}) /, message) do
-      [_line, code] -> connection_code?(code)
-      nil -> false
-    end
-  end
+  defp connection_lost?(%Ash.Error.Unknown.UnknownError{error: text}) when is_binary(text),
+    do: String.starts_with?(text, @lost_banners)
+
+  defp connection_lost?(%{errors: errors}) when is_list(errors),
+    do: Enum.any?(errors, &connection_lost?/1)
 
   defp connection_lost?(_other), do: false
-
-  defp connection_code?("08" <> _class), do: true
-  defp connection_code?(code), do: code in ~w(57P01 57P02 57P03)
 
   @doc false
   # The finished video, kept for every request that asks for it next.
