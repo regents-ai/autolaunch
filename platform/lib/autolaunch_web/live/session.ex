@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.Live.Session do
 
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.{EnsIdentity, SessionAuthority}
-  alias AutolaunchWeb.{ClientAddress, ReadFailure}
+  alias AutolaunchWeb.{ClientAddress, ReadFailedError, ReadFailure}
 
   @public_root "/"
 
@@ -49,7 +49,11 @@ defmodule AutolaunchWeb.Live.Session do
      socket
      |> assign_shell_control(session)
      |> attach_hook(:shell_location, :handle_params, fn _params, uri, socket ->
-       {:cont, Phoenix.Component.assign(socket, current_path: path_of(uri))}
+       {:cont,
+        Phoenix.Component.assign(socket,
+          current_path: path_of(uri),
+          reload_path: reload_path(uri)
+        )}
      end)}
   end
 
@@ -203,6 +207,18 @@ defmodule AutolaunchWeb.Live.Session do
     end)
   end
 
+  @doc """
+  Runs `write`, a page's or component's durable write as its signed-in person,
+  under its `session_lease` read again now and locked
+  (`SessionAuthority.transact_lease/3`). A page that keeps showing its account
+  while the sign-in could not be read therefore writes nothing: `write` runs
+  only for a lease that reads as current, and its answer comes back as it is.
+  """
+  def transact(%{assigns: %{session_lease: %{lineage: lineage, account_id: id}}}, write),
+    do: SessionAuthority.transact_lease(lineage, id, fn _account -> write.() end)
+
+  def transact(_socket, _write), do: {:error, :session_lease_required}
+
   defp component_account(%{assigns: %{session_lease: nil}}), do: :signed_out
 
   defp component_account(%{assigns: %{session_lease: lease}}) do
@@ -262,11 +278,11 @@ defmodule AutolaunchWeb.Live.Session do
     end
   end
 
-  # A sign-in read that failed is logged by kind and module only
-  # (`AutolaunchWeb.ReadFailure`), and is never taken for a sign-in that ended.
+  # A sign-in read that failed (`SessionAuthority` logs it) is never taken for
+  # a sign-in that ended. As everywhere on the site (`AutolaunchWeb.ReadFailure`),
+  # a lost connection is the try-again state; anything else is a real error.
   defp unreadable(error) do
-    ReadFailure.log("sign-in read", error)
-    :unreadable
+    if ReadFailure.lost_connection?(error), do: :unreadable, else: raise(ReadFailedError)
   end
 
   defp rendered_topic(nil), do: %{}
@@ -281,6 +297,14 @@ defmodule AutolaunchWeb.Live.Session do
 
   defp local_route(path, ""), do: path
   defp local_route(path, query), do: path <> "?" <> query
+
+  # The page's own address with its query, which Try again loads.
+  defp reload_path(uri) do
+    case URI.parse(uri) do
+      %URI{query: nil} -> path_of(uri)
+      %URI{query: query} -> local_route(path_of(uri), query)
+    end
+  end
 
   defp assign_principal(socket, account) do
     Phoenix.Component.assign(socket,

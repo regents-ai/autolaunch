@@ -37,17 +37,18 @@ defmodule AutolaunchWeb.Layouts do
       else: "sign-in unavailable"
   end
 
-  attr :current_path, :string, required: true
+  attr :href, :string, required: true, doc: "the page's own address with its query"
 
   @doc """
-  What a page shows while the person's sign-in could not be read just then: a
-  short line and a link that loads the page again. The person stays signed in.
+  What a page shows while the database could not be reached to read the
+  person's sign-in: a short line and a link that loads the same page again.
+  The person stays signed in.
   """
   def sign_in_unread(assigns) do
     ~H"""
     <section id="sign-in-unread" class="autolaunch-empty" role="alert">
       <p>Something didn’t load.</p>
-      <a href={@current_path} class="rg-button rg-button--primary">
+      <a href={@href} class="rg-button rg-button--primary">
         <span class="rg-button__label">Try again</span>
       </a>
     </section>

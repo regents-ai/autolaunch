@@ -34,9 +34,9 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   @doc """
   Reads the signed-in account's wallets once for each session lease the panel
-  is given: `linked`, all of them lowercase (`nil` signed out), and
-  `signed_in`, the one it signed in with, whose figures a panel shows until
-  Privy reports its active wallet.
+  is given: `linked`, all of them lowercase (`nil` signed out, `:unread` while
+  they could not be read), and `signed_in`, the one it signed in with, whose
+  figures a panel shows until Privy reports its active wallet.
   """
   def adopt(%{assigns: assigns} = socket) do
     lease = {assigns[:session_lease], assigns[:current_human_id]}
@@ -49,10 +49,11 @@ defmodule AutolaunchWeb.OnchainSteps do
   defp adopt(socket, lease, {:ok, account}),
     do: socket |> assign(linked_for: lease) |> assign_wallets(account)
 
-  # A read that fails leaves the wallets as they were, and the next update reads
-  # them again.
+  # Wallets that could not be read are unread, never signed out: nothing may
+  # act, a press says to try again, and the next update reads them again. The
+  # failure is logged where it was read (`SessionAuthority`).
   defp adopt(socket, _lease, {:error, _error}),
-    do: socket |> assign_new(:linked, fn -> nil end) |> assign_new(:signed_in, fn -> nil end)
+    do: socket |> assign(linked: :unread) |> assign_new(:signed_in, fn -> nil end)
 
   @doc """
   The account as it reads now, before each of the panel's events and
@@ -94,10 +95,12 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   @doc """
   The wallet that may act: Privy's `active` wallet when the signed-in account
-  links it, lowercased. Signed out (`linked` is `nil`), with no active wallet, or
-  with one the account does not link, nothing may act.
+  links it, lowercased. Signed out (`linked` is `nil`), with the wallets unread,
+  with no active wallet, or with one the account does not link, nothing may act.
   """
-  def signer(nil, _active), do: nil
+  def signer(signed_out_or_unread, _active) when signed_out_or_unread in [nil, :unread],
+    do: nil
+
   def signer(_linked, nil), do: nil
 
   def signer(linked, active) do
@@ -109,8 +112,10 @@ defmodule AutolaunchWeb.OnchainSteps do
   The wallet a panel shows figures for. Signed in, the wallet that may act, or
   with none the account's own wallet (`own`), so a wrong or missing active wallet
   never empties the panel. Signed out (`linked` is `nil`), Privy's active wallet.
+  With the wallets unread, the account's own wallet.
   """
   def shown_wallet(nil, _own, active), do: active
+  def shown_wallet(:unread, own, _active), do: own
   def shown_wallet(linked, own, active), do: signer(linked, active) || own
 
   @doc "Privy's active wallet as the page reported it, or `nil`."
@@ -239,6 +244,10 @@ defmodule AutolaunchWeb.OnchainSteps do
   (`nil` signed out) and Privy's active wallet, as for `signer/2`.
   """
   def failure_note(reason, linked, active, chain_name)
+
+  def failure_note(reason, :unread, _active, _chain_name)
+      when reason in ~w(step_unknown wallet_unavailable),
+      do: "That did not go through. Try again in a moment."
 
   def failure_note(reason, nil, _active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),

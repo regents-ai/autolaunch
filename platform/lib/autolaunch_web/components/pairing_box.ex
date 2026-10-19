@@ -115,9 +115,13 @@ defmodule AutolaunchWeb.PairingBox do
 
   defp after_pairing(socket), do: socket
 
+  # A code is made only under the page's lease read again now, so a page that
+  # keeps showing its account while the sign-in could not be read makes none.
   defp issue(socket, harness) do
     code =
-      case RegentAgents.issue_pairing_code(actor: socket.assigns.person) do
+      case Session.transact(socket, fn ->
+             RegentAgents.issue_pairing_code(actor: socket.assigns.person)
+           end) do
         {:ok, issued} -> issued
         {:error, _error} -> :unavailable
       end

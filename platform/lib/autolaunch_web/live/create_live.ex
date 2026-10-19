@@ -28,6 +28,7 @@ defmodule AutolaunchWeb.CreateLive do
   alias AutolaunchWeb.Components.AutolaunchHelpers
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.UsdValue
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
@@ -202,8 +203,8 @@ defmodule AutolaunchWeb.CreateLive do
         end
 
       actor ->
-        with {:ok, draft} <- current_or_new_draft(actor),
-             {:ok, _saved} <- autosave_draft(event, draft, values, actor),
+        with {:ok, _saved} <-
+               save_draft(socket, actor, &autosave_draft(event, &1, values, actor)),
              {:ok, reloaded} <- reload_draft(actor) do
           {:ok, assign_loaded_draft(socket, reloaded, actor)}
         else
@@ -301,15 +302,7 @@ defmodule AutolaunchWeb.CreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, stored} <-
-           LaunchDraftImageStorage.store_and_attach(
-             draft,
-             bytes,
-             entry.client_type,
-             entry.client_name,
-             actor
-           ) do
+         {:ok, stored} <- attach_image(socket, actor, bytes, entry) do
       {:noreply, assign_saved_image(socket, stored, actor)}
     else
       {:error, :image_changed} ->
@@ -439,6 +432,29 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp checked(%{state: :checking} = check, {:exit, _reason}), do: %{check | state: :unread}
   defp checked(check, _stale), do: check
+
+  # Draft writes run under the page's lease read again now
+  # (`AutolaunchWeb.Live.Session.transact/2`), so a page whose sign-in could not
+  # be read just then writes nothing.
+  defp save_draft(socket, actor, write),
+    do:
+      Session.transact(socket, fn ->
+        with {:ok, draft} <- current_or_new_draft(actor), do: write.(draft)
+      end)
+
+  defp attach_image(socket, actor, bytes, entry),
+    do:
+      save_draft(
+        socket,
+        actor,
+        &LaunchDraftImageStorage.store_and_attach(
+          &1,
+          bytes,
+          entry.client_type,
+          entry.client_name,
+          actor
+        )
+      )
 
   defp current_or_new_draft(actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do

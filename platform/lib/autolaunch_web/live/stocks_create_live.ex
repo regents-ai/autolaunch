@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.{ImageColor, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.{AutolaunchHelpers, StockSelect}
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
   alias AutolaunchWeb.ReadFailure
   alias RegentChain.Address
@@ -286,10 +287,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
         end
 
       actor ->
-        with {:ok, draft} <- current_or_new_draft(actor),
-             {:ok, saved} <- autosave(event, draft, values, actor) do
-          {:ok, assign_draft(socket, saved)}
-        else
+        case save_draft(socket, actor, &autosave(event, &1, values, actor)) do
+          {:ok, saved} -> {:ok, assign_draft(socket, saved)}
           error -> {:error, draft_field_errors(error)}
         end
     end
@@ -303,8 +302,12 @@ defmodule AutolaunchWeb.StocksCreateLive do
                do: {:ok, assign_sketch(socket, sketch)}
 
         actor ->
-          with {:ok, draft} <- current_or_new_draft(actor),
-               {:ok, saved} <- Autolaunch.choose_stocks_launch_chain(draft, chain, actor: actor),
+          with {:ok, saved} <-
+                 save_draft(
+                   socket,
+                   actor,
+                   &Autolaunch.choose_stocks_launch_chain(&1, chain, actor: actor)
+                 ),
                do: {:ok, assign_draft(socket, saved)}
       end
 
@@ -434,15 +437,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, stored} <-
-           LaunchDraftImageStorage.store_and_attach(
-             draft,
-             bytes,
-             entry.client_type,
-             entry.client_name,
-             actor
-           ) do
+         {:ok, stored} <- attach_image(socket, actor, bytes, entry) do
       {:noreply,
        socket
        |> assign_draft(stored.draft)
@@ -519,6 +514,29 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp assign_image_color(socket, image),
     do: assign(socket, image_color: ImageColor.for_url(image))
+
+  # Draft writes run under the page's lease read again now
+  # (`AutolaunchWeb.Live.Session.transact/2`), so a page whose sign-in could not
+  # be read just then writes nothing.
+  defp save_draft(socket, actor, write),
+    do:
+      Session.transact(socket, fn ->
+        with {:ok, draft} <- current_or_new_draft(actor), do: write.(draft)
+      end)
+
+  defp attach_image(socket, actor, bytes, entry),
+    do:
+      save_draft(
+        socket,
+        actor,
+        &LaunchDraftImageStorage.store_and_attach(
+          &1,
+          bytes,
+          entry.client_type,
+          entry.client_name,
+          actor
+        )
+      )
 
   defp current_or_new_draft(actor) do
     case Autolaunch.get_my_stocks_launch_draft(actor: actor) do

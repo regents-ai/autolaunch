@@ -40,13 +40,6 @@ defmodule AutolaunchWeb.ShareCardController do
   One wallet's share video, only for the signed-in account that links the
   wallet; for anyone else there is nothing at the address.
   """
-  def wallet_video(conn, params)
-
-  # A sign-in that could not be read just then is the try-again page, never a
-  # video that isn't there.
-  def wallet_video(%{assigns: %{current_human_account: :unreadable}}, _params),
-    do: raise(UnavailableError)
-
   def wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
     account = conn.assigns[:current_human_account]
 
@@ -85,11 +78,6 @@ defmodule AutolaunchWeb.ShareCardController do
   end
 
   @doc "One wallet's share video of the auction, on the same terms as `wallet_video/2`."
-  def auction_wallet_video(conn, params)
-
-  def auction_wallet_video(%{assigns: %{current_human_account: :unreadable}}, _params),
-    do: raise(UnavailableError)
-
   def auction_wallet_video(conn, %{"symbol" => symbol, "tail" => tail, "wallet" => wallet}) do
     account = conn.assigns[:current_human_account]
 

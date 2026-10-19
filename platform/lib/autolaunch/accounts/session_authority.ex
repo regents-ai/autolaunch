@@ -444,9 +444,19 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   defp lock(digest),
     do: digest |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one!()
 
-  # The row a sign-in is read from. A failed read is handed back as it is, so
-  # a read that fails for a moment is never taken for a sign-in that ended.
-  defp row(lineage), do: lineage |> digest() |> lookup() |> Ash.read_one()
+  # The row a sign-in is read from. A failed read is logged and handed back as
+  # it is, so a read that fails for a moment is never taken for a sign-in that
+  # ended.
+  defp row(lineage), do: lineage |> digest() |> lookup() |> Ash.read_one() |> logged()
+
+  # Every failed sign-in read is logged here, once, by kind and module only
+  # (`AutolaunchWeb.ReadFailure`); callers decide what the person sees.
+  defp logged({:error, error} = failed) do
+    AutolaunchWeb.ReadFailure.log("sign-in read", error)
+    failed
+  end
+
+  defp logged(read), do: read
 
   defp lookup(digest),
     do:
@@ -456,11 +466,21 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   # that one order, and reads the provider evidence only from behind the second
   # lock. A concurrent lapse therefore either waits for the callback to commit or
   # commits first and is seen, and two protected writes cannot deadlock.
+  #
+  # A row or account that cannot be read refuses the write with the read's own
+  # error, logged; so does a database that refuses the transaction itself, which
+  # raises instead of answering (only those two exceptions are turned into an
+  # error here).
   defp guarded(lineage, current?, callback) do
     Repo.transaction(fn ->
-      row = lineage |> digest() |> lock()
-
-      with true <- current?.(row),
+      with {:ok, row} <-
+             lineage
+             |> digest()
+             |> lookup()
+             |> Ash.Query.lock(:for_update)
+             |> Ash.read_one()
+             |> logged(),
+           true <- current?.(row),
            {:ok, %{} = account} <- verified(row.human_account_id, :for_update) do
         commit(callback.(account))
       else
@@ -468,6 +488,8 @@ defmodule Autolaunch.Accounts.SessionAuthority do
         _lapsed -> Repo.rollback(:stale_authority)
       end
     end)
+  rescue
+    failure in [Postgrex.Error, DBConnection.ConnectionError] -> logged({:error, failure})
   end
 
   # The account a sign-in names, while its provider evidence is current:
@@ -484,7 +506,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
            query: [lock: lock]
          ) do
       {:ok, account} -> {:ok, if(account && VerifiedSession.current?(account), do: account)}
-      {:error, error} -> {:error, error}
+      {:error, error} -> logged({:error, error})
     end
   end
 
