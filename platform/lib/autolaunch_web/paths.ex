@@ -12,9 +12,8 @@ defmodule AutolaunchWeb.Paths do
   """
   use AutolaunchWeb, :verified_routes
 
-  require Logger
-
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias AutolaunchWeb.ReadFailure
   alias RegentChain.Address
 
   @doc "The auction's page."
@@ -71,8 +70,10 @@ defmodule AutolaunchWeb.Paths do
   @doc """
   The one listed auction a page address names, or `:error` when none does or
   the tail is too short to name only one. An address that cannot name an
-  auction is `:error` too; a read that fails is logged and raises
-  `AutolaunchWeb.UnavailableError`, never passing for a missing page.
+  auction is `:error` too. A read that fails never passes for a missing page:
+  it is logged and raises `AutolaunchWeb.UnavailableError` (503, Try again)
+  when the database could not be reached, and `AutolaunchWeb.ReadFailedError`
+  (500) for anything else (`AutolaunchWeb.ReadFailure`).
   """
   @spec find_auction(String.t(), String.t()) :: {:ok, struct()} | :error
   def find_auction(symbol, tail) do
@@ -80,7 +81,7 @@ defmodule AutolaunchWeb.Paths do
       {:ok, [auction]} -> {:ok, auction}
       {:ok, _none_or_several} -> :error
       {:error, %Ash.Error.Invalid{}} -> :error
-      {:error, error} -> unavailable!(error)
+      {:error, error} -> ReadFailure.raise!("market page read", error)
     end
   end
 
@@ -115,13 +116,8 @@ defmodule AutolaunchWeb.Paths do
     end
   end
 
-  defp read!({:error, error}), do: unavailable!(error)
+  defp read!({:error, error}), do: ReadFailure.raise!("market page read", error)
   defp read!(found), do: found
-
-  defp unavailable!(error) do
-    Logger.warning("a market page's record could not be read: #{inspect(error)}")
-    raise AutolaunchWeb.UnavailableError
-  end
 
   @doc """
   The page of the Robinhood auction at a contract address, or nil while the

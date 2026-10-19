@@ -489,26 +489,26 @@
       "group": "Pages that degrade",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/market_page_test.exs",
-      "line": 14,
-      "test_name": "an auction page whose auction cannot be read is a 503 with Try again, not a 404",
-      "keep_because": "A failed read of an auction or token page answered the site's 404, telling people and search engines a live page was gone, and logged nothing (found 17 Oct 2026). The case fails if a failed read stops answering 503 with Try again.",
+      "line": 35,
+      "test_name": "MARKET_PAGE_OTHER_FAILURE_IS_A_500: a read that fails another way is the plain error page",
+      "keep_because": "A market page whose auction read fails for any reason but a lost connection (here a missing table, 42P01) answers the plain 500 page, never the 503 Try again page or a 404, and the log names only the kind and module (market page read failed: Ash.Error.Unknown.UnknownError), none of the database's text. It fails while every failed read answers 503.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f3cc6076e81f8fb8927e4f390a054f1581573613de834e23198f8da5f5bc561f"
+      "source_sha256": "007955ad9dc662898d42fb0a47c85a1870e29cae2f9a01ddf2f151495a33a9f4"
     },
     {
       "id": 58,
       "group": "Pages that degrade",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/market_page_test.exs",
-      "line": 26,
+      "line": 76,
       "test_name": "an address that cannot name an auction is the not-found page",
       "keep_because": "v146 answered an address that cannot name any auction (a tail that is not hex) with the 503 Try again page instead of not found (found live 17 Oct 2026). The case fails if such an address stops answering 404.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f3cc6076e81f8fb8927e4f390a054f1581573613de834e23198f8da5f5bc561f"
+      "source_sha256": "007955ad9dc662898d42fb0a47c85a1870e29cae2f9a01ddf2f151495a33a9f4"
     },
     {
       "id": 59,
@@ -860,6 +860,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "7432ea3d9a266c165fc1ee76c472461ce9204a235b77353cbc86fbb5b73c158e"
+    },
+    {
+      "id": 86,
+      "group": "Pages that degrade",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_page_test.exs",
+      "line": 23,
+      "test_name": "MARKET_PAGE_OUTAGE_ONLY_FOR_A_LOST_CONNECTION: a lost connection is a 503 with Try again",
+      "keep_because": "Cutting the case's database connection as the auction read starts answers the 503 Try again page, logged as market page read connection_lost with the error's module only. It is the one failure that may answer 503.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "007955ad9dc662898d42fb0a47c85a1870e29cae2f9a01ddf2f151495a33a9f4"
+    },
+    {
+      "id": 87,
+      "group": "Pages that degrade",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_page_test.exs",
+      "line": 55,
+      "test_name": "a token page whose token cannot be read is the plain error page, not a 404 or a 503",
+      "keep_because": "The second read a token page makes, the token its auction launched, follows the same rule: a failure other than a lost connection answers the plain 500 page and the log carries none of the database's text. It fails while that read answers 503.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "007955ad9dc662898d42fb0a47c85a1870e29cae2f9a01ddf2f151495a33a9f4"
     }
   ],
   "legacy_folders_to_remove": [

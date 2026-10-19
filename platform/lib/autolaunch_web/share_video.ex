@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.ShareVideo do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.ShareVideoRequest
-  alias AutolaunchWeb.Paths
+  alias AutolaunchWeb.{Paths, ReadFailure}
 
   @remake_s 3 * 3600
   @failed_ms 30_000
@@ -206,51 +206,17 @@ defmodule AutolaunchWeb.ShareVideo do
   # other value reaches the log.
   defp failure(error) do
     kind = kind(error)
-    Logger.log(level(kind), "share video request #{kind}: #{named(error)}")
+    Logger.log(level(kind), "share video request #{kind}: #{ReadFailure.named(error)}")
     kind
   end
 
   defp kind(%Ash.Error.Invalid{}), do: :invalid_request
-  defp kind(error), do: if(connection_lost?(error), do: :connection_lost, else: :failed)
+
+  defp kind(error),
+    do: if(ReadFailure.lost_connection?(error), do: :connection_lost, else: :failed)
 
   defp level(:failed), do: :error
   defp level(_kind), do: :warning
-
-  defp named(%Postgrex.Error{postgres: %{pg_code: code}}), do: "Postgrex.Error #{code}"
-  defp named(%{errors: errors}) when is_list(errors), do: Enum.map_join(errors, ", ", &named/1)
-  defp named(%struct{}), do: inspect(struct)
-
-  # A lost connection: the connection's own error, or a Postgres error whose
-  # code is a connection exception (class 08) or a server shutting down or
-  # starting (57P01 to 57P03).
-  @connection_codes ~w(08000 08001 08003 08004 08006 08007 08P01 57P01 57P02 57P03)
-
-  # AshPostgres keeps only the formatted text of an exception it did not
-  # expect (`handle_raised_error/4` in deps/ash_postgres/lib/data_layer.ex
-  # hands it to Splode's `to_error/2`, which stores
-  # `Exception.format(:error, exception)` in `Ash.Error.Unknown.UnknownError`),
-  # so for that one error a lost connection is told by the banner the text
-  # starts with. The check gives only true or false.
-  # The banners assume the database server reports its messages in English.
-  @lost_banners ["** (DBConnection.ConnectionError) "] ++
-                  for(
-                    severity <- ~w(ERROR FATAL PANIC),
-                    code <- @connection_codes,
-                    do: "** (Postgrex.Error) #{severity} #{code} "
-                  )
-
-  defp connection_lost?(%DBConnection.ConnectionError{}), do: true
-
-  defp connection_lost?(%Postgrex.Error{postgres: %{pg_code: code}}),
-    do: code in @connection_codes
-
-  defp connection_lost?(%Ash.Error.Unknown.UnknownError{error: text}) when is_binary(text),
-    do: String.starts_with?(text, @lost_banners)
-
-  defp connection_lost?(%{errors: errors}) when is_list(errors),
-    do: Enum.any?(errors, &connection_lost?/1)
-
-  defp connection_lost?(_other), do: false
 
   defp key(auction, phase, now), do: Enum.join([auction.id, phase, bucket(now)], ":")
 
