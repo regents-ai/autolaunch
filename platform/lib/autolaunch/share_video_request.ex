@@ -17,7 +17,8 @@ defmodule Autolaunch.ShareVideoRequest do
   failed ones, counted inside a person's request's own write
   (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's own videos
   are always made. Every request, and the video it holds, is deleted once it
-  is a day old, within the hour.
+  is a day old, within the hour. Made videos are kept under 5 GB in all: past
+  that, the oldest are deleted as each new one is made (`:keep_under`).
   """
 
   use Ash.Resource,
@@ -113,6 +114,18 @@ defmodule Autolaunch.ShareVideoRequest do
       filter expr(state != :failed and inserted_at > ago(24, :hour))
     end
 
+    # Every made video's size, newest first.
+    read :stored do
+      filter expr(not is_nil(mp4))
+      prepare build(sort: [inserted_at: :desc, id: :desc], select: [:id], load: [:size])
+    end
+
+    # Deletes the oldest made videos until those left hold at most `bytes`.
+    action :keep_under do
+      argument :bytes, :integer, allow_nil?: false
+      run Autolaunch.ShareVideoRequest.Actions.KeepUnder
+    end
+
     # One made video, with its bytes.
     read :video do
       get? true
@@ -167,6 +180,8 @@ defmodule Autolaunch.ShareVideoRequest do
   calculations do
     # Whether the row holds its finished video.
     calculate :stored?, :boolean, expr(not is_nil(mp4))
+    # The finished MP4's size in bytes, read without reading the video.
+    calculate :size, :integer, expr(fragment("octet_length(?)", mp4))
   end
 
   identities do
