@@ -175,7 +175,6 @@
 .auction-finished--tinted { border-color: var(--image-color); background: color-mix(in srgb, var(--image-color) 10%, var(--color-surface)); }
 .auction-finished__next { grid-area: next; display: grid; justify-items: end; gap: 14px; text-align: right; }
 .auction-finished__next h2 { margin: 0; font-size: clamp(1.5rem, 1.1rem + 1.5vw, 2.25rem); font-weight: 650; letter-spacing: -.02em; }
-.auction-finished__go { white-space: normal; }
 .auction-finished__token { grid-area: token; display: flex; align-items: center; gap: 16px; min-width: 0; }
 .auction-finished__art { display: grid; flex: none; place-items: center; width: 72px; height: 72px; overflow: hidden; border: 1px solid var(--hairline); border-radius: 50%; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-size: 1.5rem; }
 .auction-finished__art img { display: block; width: 100%; height: 100%; object-fit: cover; }

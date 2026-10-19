@@ -39,7 +39,6 @@
 .market-identity__chart .price-chart { padding: 0; border: 0; background: none; }
 .market-identity__description { margin: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
 .market-identity__trade { position: relative; justify-self: start; max-width: 100%; overflow: hidden; }
-.market-identity__trade .rg-button__label { overflow-wrap: anywhere; }
 .market-identity__trade::after {
   content: "";
   position: absolute;

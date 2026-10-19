@@ -5,12 +5,10 @@
 .shell-rail__list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
 .shell-rail__item { min-width: 0; }
 /* The links are the header's charcoal buttons: corner marks that close
-   into a full outline on hover, and stay closed on the page you are on.
-   A label too long for its link takes two lines inside the same height as
-   the others. */
-.rg-button.shell-rail__link { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); width: 100%; min-height: 3rem; padding: .25rem var(--space-2); gap: .25rem; justify-content: start; font-size: 1.0625rem; line-height: 1.15; text-align: start; text-wrap: balance; }
+   into a full outline on hover, and stay closed on the page you are on. */
+.rg-button.shell-rail__link { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); width: 100%; padding: .25rem var(--space-2); gap: .25rem; justify-content: start; font-size: 1.0625rem; text-align: start; }
 .shell-rail__sublist { display: grid; gap: var(--space-1); width: 75%; margin: var(--space-1) 0 0 auto; padding: 0; list-style: none; }
-.rg-button.shell-rail__sublink { min-height: 2.75rem; padding-inline: .5rem; font-size: .796875rem; }
+.rg-button.shell-rail__sublink { padding-inline: .5rem; font-size: .796875rem; }
 .rg-button.shell-rail__launch { --rg-p-accent: var(--palette-tangerine-tango); --rg-p-on-accent: var(--palette-charcoal); }
 @media (forced-colors: none) {
   :root .rg-button.shell-rail__link[aria-current="page"]::before {

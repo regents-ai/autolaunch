@@ -45,10 +45,10 @@
 .market-list__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg-muted); font-size: .75rem; }
 /* A row's one button sits last, as narrow as its label. */
 .market-list__table .market-list__action { width: 1%; padding-left: 0; }
-.market-list__action .rg-button { min-height: 2.75rem; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
+.market-list__action .rg-button { padding: 4px 18px; font-size: .8125rem; }
 /* Between a token and its price: Buy shows while the row is pointed at or focused, its room always kept; the viewer's own Claim or Refund always shows. */
 .market-list__table .market-list__quick { width: 1%; padding-left: 0; white-space: nowrap; }
-.market-list__quick .rg-button { min-height: 2.75rem; padding: 4px 18px; font-size: .8125rem; white-space: nowrap; }
+.market-list__quick .rg-button { padding: 4px 18px; font-size: .8125rem; }
 .market-list__quick .rg-button + .rg-button { margin-left: 8px; }
 .market-list__buy { opacity: 0; transition: opacity .12s ease; }
 .market-list__row:is(:hover, :focus-within) .market-list__buy { opacity: 1; }

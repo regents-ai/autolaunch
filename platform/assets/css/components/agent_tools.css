@@ -40,7 +40,6 @@
 .code-card__copy .rg-button {
   --rg-local-fill: rgb(7 8 12 / 0.72);
   --rg-local-ink: var(--code-card-ink);
-  min-height: 2.75rem;
   padding: 0 0.75rem;
   font-size: 0.8125rem;
 }
@@ -85,5 +84,4 @@
 .agent-tools__prompt .rg-button {
   --rg-local-fill: rgb(7 8 12 / 0.72);
   --rg-local-ink: var(--code-card-ink);
-  min-height: 2.75rem;
 }

@@ -42,7 +42,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .regent-header-links svg { width: 1.5rem; height: 1.5rem; }
 /* Sign in, the closed Launch a token button and Copy to Agent match the regents.sh App
    button: a charcoal plate with corner marks that close into a full outline on hover. */
-.rg-button:is(.create-button, .account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+.rg-button:is(.create-button, .account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); }
 .regent-token-menu { position: relative; z-index: 10; }
 .regent-token-menu > summary { list-style: none; cursor: pointer; }
 .regent-token-menu > summary::-webkit-details-marker { display: none; }
@@ -57,7 +57,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .regent-token-menu__copy-icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
 .regent-token-menu__copy:is(:hover, [data-copy-state]) .regent-token-menu__copy-icon { opacity: 1; }
 .regent-token-menu__copy-icon svg { width: .95em; height: .95em; }
-.rg-button.regent-token-menu__link { --rg-cut-control: 0px; --rg-p-accent: var(--color-surface); --rg-p-on-accent: var(--color-fg); --rg-button-border-color: transparent; width: 100%; min-height: 2.75rem; padding: .625rem; border-radius: 0; font-size: .875rem; font-weight: 400; white-space: nowrap; justify-content: flex-start; text-align: start; }
+.rg-button.regent-token-menu__link { --rg-cut-control: 0px; --rg-p-accent: var(--color-surface); --rg-p-on-accent: var(--color-fg); --rg-button-border-color: transparent; width: 100%; padding: var(--space-1) .625rem; border-radius: 0; font-size: .875rem; font-weight: 400; justify-content: flex-start; text-align: start; }
 .rg-button.regent-token-menu__link::after { content: none; }
 .regent-token-menu :is(summary, a, button):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @container shell-page (max-width: 52rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
