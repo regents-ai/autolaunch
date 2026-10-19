@@ -1,9 +1,13 @@
 defmodule AutolaunchWeb.HealthController do
   use AutolaunchWeb, :controller
 
+  # A ready site names the commit it was built from, so a release check can see
+  # which build is answering.
   def show(conn, _params) do
     {status, body} =
-      if database_ready?(), do: {:ok, "ok"}, else: {:service_unavailable, "unavailable"}
+      if database_ready?(),
+        do: {:ok, "ok " <> Application.fetch_env!(:autolaunch, :source_commit)},
+        else: {:service_unavailable, "unavailable"}
 
     conn
     |> put_resp_header("cache-control", "no-store")
