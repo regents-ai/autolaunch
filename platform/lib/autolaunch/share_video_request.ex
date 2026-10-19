@@ -16,8 +16,8 @@ defmodule Autolaunch.ShareVideoRequest do
   at most 1000 videos in any 24 hours: every request in that time apart from
   failed ones, counted inside a person's request's own write
   (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's own videos
-  are always made. A person's videos are kept; a launch's own videos and
-  failed requests are forgotten after a day.
+  are always made. Every request, and the video it holds, is deleted once it
+  is a day old, within the hour.
   """
 
   use Ash.Resource,
@@ -43,9 +43,9 @@ defmodule Autolaunch.ShareVideoRequest do
 
       trigger :forget do
         action :destroy
-        where expr(inserted_at < ago(1, :day) and (is_nil(human_account_id) or state == :failed))
+        where expr(inserted_at < ago(1, :day))
         queue :default
-        scheduler_cron "41 4 * * *"
+        scheduler_cron "41 * * * *"
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Forget
         scheduler_module_name Autolaunch.ShareVideoRequest.Schedulers.Forget
       end
@@ -94,7 +94,7 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :asc])
     end
 
-    # A person's requests for one launch and kind, newest first.
+    # A person's requests for one launch and kind in the last day, newest first.
     read :own do
       argument :human_account_id, :integer, allow_nil?: false
       argument :auction_id, :uuid, allow_nil?: false
@@ -102,7 +102,7 @@ defmodule Autolaunch.ShareVideoRequest do
 
       filter expr(
                human_account_id == ^arg(:human_account_id) and auction_id == ^arg(:auction_id) and
-                 kind == ^arg(:kind)
+                 kind == ^arg(:kind) and inserted_at > ago(1, :day)
              )
 
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])

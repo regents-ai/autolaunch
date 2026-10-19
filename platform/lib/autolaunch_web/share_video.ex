@@ -9,8 +9,8 @@ defmodule AutolaunchWeb.ShareVideo do
   Every video is stored once made (`Autolaunch.ShareVideoRequest`). A launch's
   own video is made again every fifteen minutes it is asked for. A person's
   video for a launch, its auction's and its token's apart, is kept and served
-  as made until three hours have passed; asking after that makes a new one,
-  and the old ones stay stored.
+  as made until three hours have passed; asking after that makes a new one.
+  Every video is deleted once it is a day old.
 
   Asking for a video that is not made yet records a request, once however
   many ask, which queues it to be made one at a time
