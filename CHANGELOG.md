@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 19 October 2026: slimmer buttons
+- Buttons are slimmer, with the label on one line, and filter pills close with Escape or a tap outside.
+
 ## 19 October 2026: your share video is saved, and a new look for share videos and pictures
 - Your share video for a launch is saved. Opening the share window again shows the same video straight away; after three hours you can make a new one. Saved videos are deleted after a day. If the space for saved videos is ever full, your video is still made; it just isn't saved for next time.
 - The daily limit of three videos each is gone. Autolaunch makes up to 1000 videos a day across the site; on a day it reaches that, the share window says "Error making video, try tomorrow"
