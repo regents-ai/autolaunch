@@ -241,6 +241,8 @@ end
 # The shared libraries read Base and Ethereum through the site's own nodes when it
 # has them (Autolaunch.Chain.NodeClient), the same ones its launch reads and ENS use.
 if config_env() == :prod and not migrating? do
+  config :autolaunch, :source_commit, System.fetch_env!("SOURCE_COMMIT")
+
   node_overrides =
     for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}, {1, "ETHEREUM_READ_RPC_URL"}],
         node_url = System.get_env(setting),

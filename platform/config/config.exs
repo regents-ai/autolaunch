@@ -20,6 +20,10 @@ config :ash_oban, pro?: false
 # jobs are unique, so a paused queue holds at most one of each.
 # The web connection may go through PgBouncer, which cannot hold a LISTEN, so
 # jobs are announced between processes instead of through PostgreSQL.
+# The commit the running site was built from, named by /healthz. A release
+# image carries it as SOURCE_COMMIT (runtime.exs); a local build is "local".
+config :autolaunch, :source_commit, "local"
+
 config :autolaunch, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.PG,

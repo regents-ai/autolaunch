@@ -743,6 +743,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "0b4b6737efa8c1afc60274ae0308a2f5eb6d73949d1d08c24bb0d61f28b05a4e"
+    },
+    {
+      "id": 77,
+      "group": "Release checks",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/health_controller_test.exs",
+      "line": 8,
+      "test_name": "HEALTH_NAMES_THE_COMMIT: a ready site answers ok with its build's commit",
+      "keep_because": "The release checklist requires the health endpoint to name the deployed commit; v153's /healthz answered only \"ok\" (Sentinel, 19 Oct 2026). The case fails if a ready site stops naming its build's commit.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "bd1aa633930d0a446d48c30660482ff70c2ef60d3f6e99623232c0ec07ceb1a3"
     }
   ],
   "legacy_folders_to_remove": [

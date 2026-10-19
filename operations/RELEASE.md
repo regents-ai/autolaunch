@@ -36,28 +36,7 @@ Whenever a lock is lifted on one table, the release then runs a read-only check 
 guard is still in place: every other listed table still refuses being emptied, having rows deleted
 and being dropped.
 
-## This release: stored share videos
+## After every deploy
 
-The migration `20261019034325_add_share_video_storage` adds two columns to
-`autolaunch_app.share_video_requests`, `mp4` (binary, empty) and `saved` (boolean, true), and one
-index (`human_account_id`, `auction_id`, `kind`, `inserted_at`). It deletes nothing. In order:
-
-1. Write the latest Fly Managed Postgres backup id in the evidence.
-
-2. Count the rows and write the count in the evidence:
-
-   ```sql
-   SELECT count(*) FROM autolaunch_app.share_video_requests;
-   ```
-
-3. Migrate.
-4. Count the rows again with the query in step 2 and write the count beside the first. It
-   matches unless people asked for videos in between: the hourly cleanup only lets go of the
-   bytes of saved videos a day old and never removes a request.
-5. Once a video has been made on the live site, check it was saved:
-
-   ```sql
-   SELECT state, saved, count(*), sum(octet_length(mp4)) FROM autolaunch_app.share_video_requests GROUP BY 1, 2;
-   ```
-
-   Ready rows show `saved` true and a size of about 200 to 300 KB each.
+`https://autolaunch.sh/healthz` answers `ok <commit>`. The commit must be the full commit the
+release was built from (the image's `SOURCE_COMMIT`); write the answer in the evidence.
