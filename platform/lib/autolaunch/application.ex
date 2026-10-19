@@ -53,6 +53,16 @@ defmodule Autolaunch.Application do
       AutolaunchWeb.Telemetry.Announcements,
       # Reads run apart from the request, so one that fails or hangs is answered, not crashed.
       {Task.Supervisor, name: Autolaunch.TaskSupervisor},
+      # The side panel's agents: each one's activity reading, kept five minutes
+      # (Autolaunch.Agents.ActivityReading), read apart from the page that asked.
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.Agents.ActivityReading.cache(),
+         expiration: expiration(interval: :timer.seconds(30)),
+         hooks: [hook(module: Cachex.Limit.Scheduled, args: {10_000, [], []})]},
+        id: Autolaunch.Agents.ActivityReading.cache()
+      ),
+      {Task.Supervisor, name: Autolaunch.Agents.Reads},
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       Autolaunch.MarketTicker,

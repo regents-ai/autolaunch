@@ -243,6 +243,10 @@ end
 if config_env() == :prod and not migrating? do
   config :autolaunch, :source_commit, System.fetch_env!("SOURCE_COMMIT")
 
+  # The reader key the sign-in service lists for this site, which gives the side
+  # panel where each agent was last active (Autolaunch.Agents.ActivityReading).
+  config :regent_agents, :activity_read_token, System.fetch_env!("SIWA_ACTIVITY_READ_TOKEN")
+
   node_overrides =
     for {chain_id, setting} <- [{8453, "BASE_READ_RPC_URL"}, {1, "ETHEREUM_READ_RPC_URL"}],
         node_url = System.get_env(setting),

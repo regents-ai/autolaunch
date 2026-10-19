@@ -54,6 +54,14 @@
     account_control={@account_control}
     credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
   >
+    <:agents :if={agents_account(assigns[:socket], assigns[:access_context])}>
+      <.live_component
+        module={AutolaunchWeb.PanelAgents}
+        id="shell-agents"
+        session_lease={@session_lease}
+        account={agents_account(@socket, @access_context)}
+      />
+    </:agents>
     <:pairing :if={pairing_account(assigns[:socket], assigns[:access_context])}>
       <.live_component
         module={AutolaunchWeb.PairingBox}

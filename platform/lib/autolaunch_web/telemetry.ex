@@ -162,6 +162,11 @@ defmodule AutolaunchWeb.Telemetry do
         tags: [:kind],
         description: "Shared readings that could not be taken"
       ),
+      counter("health.agent_activity_unread.total",
+        event_name: [:autolaunch, :agents, :activity_unread],
+        tags: [:reason],
+        description: "Agents' activity reads from the sign-in service that gave no reading"
+      ),
       last_value("autolaunch.shared_reading.keys",
         event_name: [:autolaunch, :shared_reading, :kind],
         measurement: :keys,

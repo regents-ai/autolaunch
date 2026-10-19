@@ -23,7 +23,8 @@
 :root:not([data-aside="open"]) .shell, .shell:not(:has(#shell-aside)) { --shell-aside: 0px; }
 /* It stops above the market ticker, which runs along the bottom of every page,
    and is hidden only once it has slid shut. */
-#shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; display: grid; align-content: start; width: var(--shell-aside); padding-block-start: env(safe-area-inset-top, 0px); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
+/* A size container, so the agents list can take a quarter of its height. */
+#shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; container-type: size; display: grid; align-content: start; width: var(--shell-aside); padding-block-start: env(safe-area-inset-top, 0px); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
 body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-height); }
 /* Its parts keep their width while it slides, so nothing inside rewraps. */
 #shell-aside > * { min-inline-size: calc(var(--shell-aside-open) - 1px); }
@@ -31,16 +32,21 @@ body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-hei
 :root[data-aside="open"] #shell-aside { transition: none; }
 :root:not([data-aside="open"]) #shell-aside { visibility: hidden; }
 #shell-aside:focus { outline: none; }
-.shell-aside__head { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding-inline-start: 1rem; border-block-end: 1px solid var(--color-border); }
-.shell-aside__head h2 { margin: 0; font-family: var(--font-family-ui); font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+/* Account and Sign out share one short row; the header's panel button closes
+   the panel. On a touch screen each is a full 44px press. */
+.shell-aside__head { display: flex; align-items: center; gap: .5rem; min-height: 3rem; padding-inline: 1rem; border-block-end: 1px solid var(--color-border); }
+.shell-aside__head .rg-button { min-height: 2rem; padding: .25rem .6rem; font-size: .8125rem; white-space: nowrap; }
 #shell-aside section { display: grid; gap: .6rem; padding: 1rem; border-block-end: 1px solid var(--color-border); }
-#shell-aside h3 { margin: 0; font-size: .95rem; }
+#shell-aside h2 { margin: 0; font-family: var(--font-family-ui); font-size: .95rem; font-weight: 600; }
 #shell-aside p { margin: 0; }
 #shell-aside ul { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
 #shell-aside ul a { color: var(--color-link, inherit); }
-.shell-account__name { display: flex; align-items: center; gap: .6rem; min-width: 0; font-weight: 600; }
-.shell-account__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
-.shell-account__actions .rg-button { width: 100%; justify-content: center; }
+/* The agents list keeps its own rows; the panel's list spacing is for its other lists. */
+#shell-aside .rg-account__brief-list { gap: 0; }
+@media (hover: none), (pointer: coarse) {
+  .shell-aside__head .rg-button { min-height: 2.75rem; }
+  #shell-aside .rg-account__brief h2 a { display: inline-flex; align-items: center; min-height: 2.75rem; }
+}
 
 /* Below a wide screen the side panel slides in over the page's edge. */
 @media (max-width: 63.99rem) {

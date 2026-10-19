@@ -148,8 +148,22 @@ end
 
 # Under ExUnit each case says what the shared sign-in service answers
 # (`Req.Test` stubs on RegentAgents.Broker); nothing reaches siwa.regents.sh.
-unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
-  config :regent_agents, req_options: [plug: {Req.Test, RegentAgents.Broker}]
+# A browser or lab server asks the real service, unless AUTOLAUNCH_SIWA_STAND_IN=1
+# hands it the local stand-in (`Autolaunch.SiwaStandIn`), which answers agents'
+# activity. The reader key is a stand-in's too: the real one is production's.
+cond do
+  System.get_env("AUTOLAUNCH_BROWSER_TEST") != "1" ->
+    config :regent_agents,
+      req_options: [plug: {Req.Test, RegentAgents.Broker}],
+      activity_read_token: "stand-in-reader"
+
+  System.get_env("AUTOLAUNCH_SIWA_STAND_IN") == "1" ->
+    config :regent_agents,
+      req_options: [plug: Autolaunch.SiwaStandIn],
+      activity_read_token: "stand-in-reader"
+
+  true ->
+    :ok
 end
 
 # Every test case here reaches one node holding one anonymous bootstrap budget

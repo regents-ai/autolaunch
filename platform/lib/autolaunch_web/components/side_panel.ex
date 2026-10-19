@@ -1,25 +1,23 @@
 defmodule AutolaunchWeb.Components.SidePanel do
   @moduledoc """
   The side panel, the template's: its button sits beside the account name in the
-  top bar, and either one opens it. Its top holds the signed-in name with
-  Account and Sign out, then the box to pair an agent (the `pairing` slot, the
-  Account page's own `AutolaunchWeb.PairingBox`) and a link to manage agents on
-  the Regents account page, where the person signs in again. A page that shows
-  its own pairing box, or is served without LiveView and so cannot hold one,
-  leaves the slot out, and the panel then has neither. On a wide screen
-  it slides in beside the page, which narrows to make room; on a narrower one it
-  slides in over the page's edge, and on a phone it takes the whole screen under
-  the top bar. A phone's top bar has no room for the Credits balance, so there
-  the panel shows it. The browser alone opens and closes it
-  (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server never
-  stores it.
+  top bar, and either one opens it; the same button closes it. Its first row
+  holds Account and Sign out. Then come the person's agents with where each was
+  last active (the `agents` slot, `AutolaunchWeb.PanelAgents`), then the box to
+  pair a new one (the `pairing` slot, the Account page's own
+  `AutolaunchWeb.PairingBox`). A page that shows its own pairing box leaves that
+  slot out, and a page served without LiveView, which cannot hold either, leaves
+  both out. On a wide screen it slides in beside the page, which narrows to make
+  room; on a narrower one it slides in over the page's edge, and on a phone it
+  takes the whole screen under the top bar. A phone's top bar has no room for
+  the Credits balance, so there the panel shows it. The browser alone opens and
+  closes it (`assets/js/shell_panels.ts`, on `<html data-aside>`), so the server
+  never stores it.
 
   The panel and its button are there only for someone signed in, as the
   template's are, so a page signed out has nothing beside the Sign in button.
   """
   use Phoenix.Component
-
-  import AutolaunchWeb.Components.AccountControl, only: [account_name: 1]
 
   alias Phoenix.LiveView.JS
 
@@ -58,6 +56,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
     required: true,
     doc: "As for `AutolaunchWeb.Components.Credits.button/1`; shown here only on a phone."
 
+  slot :agents,
+    doc: "The agents paired with the account, on a LiveView page; left out on any other."
+
   slot :pairing,
     doc: "The box to pair an agent, on a LiveView page; left out on a page with its own."
 
@@ -66,45 +67,22 @@ defmodule AutolaunchWeb.Components.SidePanel do
     <aside
       :if={@account_control.kind == :signed_in}
       id="shell-aside"
-      aria-labelledby="shell-aside-title"
+      aria-label="Your account and agents"
       tabindex="-1"
     >
-      <div class="shell-aside__head">
-        <h2 id="shell-aside-title">For you</h2>
-        <button
-          class="shell-tool"
-          type="button"
-          aria-controls="shell-aside"
-          aria-label="Close the side panel"
-          data-aside-close
-        >
-          <svg
-            class="shell-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="square"
-            aria-hidden="true"
-          ><path d="M6 6l12 12M18 6 6 18" /></svg>
-        </button>
+      <div id="shell-account" class="shell-aside__head">
+        <AutolaunchWeb.Components.Credits.button id="shell-aside-credits-button" credits={@credits} />
+        <.link navigate="/account" class="rg-button rg-button--secondary">Account</.link>
+        <Regent.Primitives.button variant="secondary" type="button" data-account-target="sign-out">
+          Sign out
+        </Regent.Primitives.button>
       </div>
 
-      <section id="shell-account" class="shell-account" aria-label="Your account">
-        <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
-        <AutolaunchWeb.Components.Credits.button id="shell-aside-credits-button" credits={@credits} />
-        <div class="shell-account__actions">
-          <.link navigate="/account" class="rg-button rg-button--secondary">Account</.link>
-          <Regent.Primitives.button variant="secondary" type="button" data-account-target="sign-out">
-            Sign out
-          </Regent.Primitives.button>
-        </div>
-      </section>
+      {render_slot(@agents)}
 
       <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
-        <h3 id="shell-pairing-title">Pair New Agent</h3>
+        <h2 id="shell-pairing-title">Pair New Agent</h2>
         {render_slot(@pairing)}
-        <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents</a>
       </section>
     </aside>
     """

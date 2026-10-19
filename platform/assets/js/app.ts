@@ -33,6 +33,7 @@ import {installShellMenu} from "./shell_menu"
 import {installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
 import {SiteButtons, SiteLight} from "./hooks/site_buttons"
+import {PanelAgents} from "./hooks/panel_agents"
 import {TradeViews} from "./hooks/trade_views"
 
 // The motion lab's own hooks load only on its page.
@@ -44,6 +45,7 @@ const hooks = {
   AutolaunchSwapDialog,
   ImageGradient,
   OnchainSteps,
+  PanelAgents,
   PriceChart,
   XConnections,
   CreatorConnections,

@@ -20,7 +20,7 @@ const root = () => document.documentElement
 // Below a wide screen the side panel covers the page's edge; on a wide one it
 // sits beside the page.
 const covering = window.matchMedia("(max-width: 63.99rem)")
-const asideOpen = () =>
+export const asideOpen = () =>
   root().dataset.aside === "open" && (!covering.matches || root().dataset.asideHere !== undefined)
 
 /** Wires the side panel and the Buy Credits window inside `scope`. Returns `sync`, to run after every page update, and `cleanup`. */
@@ -44,8 +44,12 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     sync()
 
     // Opened, focus moves into it, so Escape closes it and returns focus to the
-    // button that opened it.
-    if (open) aside()?.focus()
+    // button that opened it, and what it shows is read again.
+    if (!open) return
+    aside()?.focus()
+    aside()
+      ?.querySelectorAll("[data-read-on-open]")
+      .forEach(reader => reader.dispatchEvent(new CustomEvent("autolaunch:aside-opened")))
   }
 
   // Opening Buy Credits reads the wallet's funds again, so Buy is held back
@@ -66,10 +70,6 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     if (!target) return
 
     if (target.closest("[data-aside-toggle]")) return setAside(!asideOpen())
-    if (target.closest("[data-aside-close]")) {
-      setAside(false)
-      return asideButton()?.focus()
-    }
     // The top bar's balance, and the side panel's on a phone, open the one window.
     if (target.closest("[data-credits-open]")) return openCredits()
     if (target.closest("[data-credits-close]")) return closeCredits()

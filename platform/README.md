@@ -207,7 +207,7 @@ fly deploy --app autolaunch-sh --config fly.toml \
 
 `autolaunch-sh-migrations` has no service or standing machine and holds only
 `DATABASE_DIRECT_URL`. `autolaunch-sh` must not hold that secret. The serving app holds
-`DATABASE_URL`, `BASE_READ_RPC_URL`, `ETHEREUM_READ_RPC_URL`, `PHX_HOST`, and `SECRET_KEY_BASE`; the migration app
+`DATABASE_URL`, `BASE_READ_RPC_URL`, `ETHEREUM_READ_RPC_URL`, `PHX_HOST`, `SECRET_KEY_BASE` and `SIWA_ACTIVITY_READ_TOKEN`; the migration app
 does not.
 
 The image is built from `Dockerfile` with the repository root as its context. Docker
@@ -264,6 +264,7 @@ verification and the remaining release checks.
 | `PHX_HOST` | Serving app only | The public hostname the site generates URLs for. |
 | `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
 | `ETHEREUM_READ_RPC_URL` | Serving app | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
+| `SIWA_ACTIVITY_READ_TOKEN` | Serving app only | The reader key the sign-in service (siwa.regents.sh) lists for this site, which gives the side panel where each paired agent was last active. Each agent's reading is kept five minutes (`Autolaunch.Agents.ActivityReading`). The serving boot stops without it. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
