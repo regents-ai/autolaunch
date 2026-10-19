@@ -319,6 +319,12 @@ defmodule AutolaunchWeb.CreateLive do
              "The saved image changed while this one was uploading. Your newer image was kept; choose again to replace it."
          )}
 
+      {:error, :too_many_pixels} ->
+        {:noreply,
+         assign(socket,
+           image_notice: "That picture is too big. Choose one no larger than 4096 by 4096 pixels."
+         )}
+
       _error ->
         {:noreply,
          assign(socket,
