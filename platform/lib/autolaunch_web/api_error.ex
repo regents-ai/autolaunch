@@ -45,6 +45,9 @@ defmodule AutolaunchWeb.ApiError do
     do:
       "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
 
+  defp hint("person_not_here"),
+    do: "Ask your person to sign in on this site once, then send the request again."
+
   defp hint("wallet_required"),
     do:
       "Ask your person to sign in with their wallet on any Regent site, then send the request again."

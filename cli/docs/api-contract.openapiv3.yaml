@@ -413,7 +413,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/ApiError"}
         "503":
-          description: The chain, or the signed-in account, could not be read just now (account_unavailable); nothing is left out, the whole answer is refused
+          description: The chain could not be read; nothing is left out, the whole answer is refused
           content:
             application/json:
               schema: {$ref: "#/components/schemas/ApiError"}
@@ -458,7 +458,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "The agent is paired with nobody (agent_not_paired), or its person has no Regent account yet (person_not_here); the error's hint says what the person does next"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "503":
           "description": "Dependency unavailable"
   /api/agents/v1/pair:
@@ -513,7 +513,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -530,7 +530,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -575,7 +575,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -592,7 +592,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -637,7 +637,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "409":
           "description": "Your person's Regent account has no verified wallet to read (wallet_required)"
         "422":
@@ -660,7 +660,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -681,7 +681,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
           content:
@@ -718,7 +718,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired), or its person hasn't signed in on this site yet (person_not_here); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -907,7 +907,7 @@ components:
         status:
           type: string
           enum: [not_paired, person_not_here, paired]
-          description: "not_paired: no person has paired this agent. person_not_here: paired, but its person has no Regent account yet. paired: it acts for its person."
+          description: "not_paired: no person has paired this agent. person_not_here: paired, but its person has never signed in on this site. paired: it acts for its person."
         allowed:
           type: array
           items: {type: string}

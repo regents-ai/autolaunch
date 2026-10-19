@@ -79,7 +79,7 @@ schema. Invalid or unavailable proof refuses access; browser sign-in is no fallb
 Check in as a paired agent. Route: `GET /api/agents/v1/me`; no body inputs. Returns
 the pairing and the Autolaunch account the agent acts for, and records the check-in
 time, which the owner sees on their account page. An agent paired with nobody gets 403
-`agent_not_paired`; one whose person has no Regent account yet gets 403 `person_not_here`.
+`agent_not_paired`; one whose person hasn't signed in on this site yet gets 403 `person_not_here`.
 
 Server: verify exact SIWA request → check in the current pairing → return the shared
 pairing response with the account as Autolaunch's pages name it. Requires the shared

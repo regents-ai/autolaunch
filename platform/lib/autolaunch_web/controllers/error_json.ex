@@ -5,7 +5,11 @@ defmodule AutolaunchWeb.ErrorJSON do
   every error is JSON, whatever the request asked for.
   """
 
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.{AccountUnavailableError, ApiError}
+
+  # The account an agent's pairing names could not be read just now.
+  def render("503.json", %{reason: %AccountUnavailableError{}}),
+    do: ApiError.body("account_unavailable", "Account access is unavailable.")
 
   def render(template, _assigns), do: ApiError.body(code(template), message(template))
 
