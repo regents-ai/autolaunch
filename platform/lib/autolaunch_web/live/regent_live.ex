@@ -70,7 +70,7 @@ defmodule AutolaunchWeb.RegentLive do
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span class="rg-button__label">Buy REGENT <span aria-hidden="true">↗</span></span>
+          <span class="rg-button__label">Buy REGENT</span>
         </a>
         <.link
           class="rg-button rg-button--secondary"
@@ -79,7 +79,7 @@ defmodule AutolaunchWeb.RegentLive do
           target="_blank"
           rel="noopener noreferrer"
         >
-          Stake REGENT <span aria-hidden="true">↗</span>
+          Stake REGENT
         </.link>
         <a
           id="regent-next-chart"
@@ -88,7 +88,7 @@ defmodule AutolaunchWeb.RegentLive do
           target="_blank"
           rel="noopener noreferrer"
         >
-          View REGENT Chart <span aria-hidden="true">↗</span>
+          View REGENT Chart
         </a>
         <.link
           class="rg-button rg-button--secondary"
@@ -97,7 +97,7 @@ defmodule AutolaunchWeb.RegentLive do
           target="_blank"
           rel="noopener noreferrer"
         >
-          Redeem <span aria-hidden="true">↗</span>
+          Redeem
         </.link>
       </nav>
 

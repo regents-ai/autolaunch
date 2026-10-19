@@ -108,7 +108,7 @@ defmodule AutolaunchWeb.AccountLive do
             rel="noopener noreferrer"
             aria-label="Open regents.sh in a new tab"
           >
-            Open regents.sh <span aria-hidden="true">↗</span>
+            Open regents.sh
           </a>
           <Regent.Primitives.button
             type="button"

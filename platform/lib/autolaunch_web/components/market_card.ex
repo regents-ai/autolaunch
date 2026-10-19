@@ -1306,8 +1306,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="auction-finished__next">
         <h2 id="auction-finished-title">Auction is Finished</h2>
         <.link navigate={@view.token_path} class="rg-button rg-button--primary auction-finished__go">
-          <span class="rg-button__label">Continue to {@view.symbol} Token Page to Buy/Claim/Sell
-          <span aria-hidden="true">→</span></span>
+          <span class="rg-button__label">Buy, claim or sell {@view.symbol}</span>
         </.link>
       </div>
       <div class="auction-finished__token">

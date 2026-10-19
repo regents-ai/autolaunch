@@ -26,7 +26,7 @@ defmodule AutolaunchWeb.Components.TokenLinks do
         target="_blank"
         rel="noopener noreferrer"
       >
-        Buy REGENT{mainnet_suffix(@local_lab?)} <span aria-hidden="true">↗</span>
+        Buy REGENT{mainnet_suffix(@local_lab?)}
       </a>
       <a
         class="rg-button rg-button--secondary"
@@ -35,7 +35,7 @@ defmodule AutolaunchWeb.Components.TokenLinks do
         target="_blank"
         rel="noopener noreferrer"
       >
-        View REGENT Chart{mainnet_suffix(@local_lab?)} <span aria-hidden="true">↗</span>
+        View REGENT Chart{mainnet_suffix(@local_lab?)}
       </a>
       <p :if={@local_lab?} class="regent-token-links__note">
         Both open public Base mainnet. This fork's test REGENT cannot be bought there.
