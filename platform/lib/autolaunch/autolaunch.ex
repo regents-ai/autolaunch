@@ -24,7 +24,12 @@ defmodule Autolaunch do
     resource Autolaunch.ShareVideoRequest do
       define :request_share_video, action: :request
       define :latest_share_video_request, action: :latest, args: [:key], not_found_error?: false
-      define :share_videos_made_today, action: :made_today, args: [:human_account_id]
+
+      define :own_share_video_requests,
+        action: :own,
+        args: [:human_account_id, :auction_id, :kind]
+
+      define :share_video_mp4, action: :video, args: [:id]
     end
 
     resource Autolaunch.AuctionPricePoint do

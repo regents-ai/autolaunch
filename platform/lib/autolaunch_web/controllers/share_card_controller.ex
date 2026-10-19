@@ -1,7 +1,6 @@
 defmodule AutolaunchWeb.ShareCardController do
   use AutolaunchWeb, :controller
 
-  alias Autolaunch.ShareVideoRequest.Changes.DailyLimit
   alias AutolaunchWeb.{NotFoundError, Paths, ShareCard, ShareVideo, UnavailableError}
   alias RegentChain.Address
 
@@ -113,10 +112,11 @@ defmodule AutolaunchWeb.ShareCardController do
 
   # A video's address moves on with its figures, like the picture's. Until
   # it is made, the answer says how many videos are ahead of it, and the
-  # share window asks again; an account past its videos for the day is told
-  # so, and the window offers the launch's own video. Only a database that
-  # cannot be reached is the site's try-again page; every other failure
-  # answers with its own plain line, which the share window shows.
+  # share window asks again; once the site has made all of the day's videos,
+  # a person with none saved is told so, and the window offers the launch's
+  # own video. Only a database that cannot be reached is the site's try-again
+  # page; every other failure answers with its own plain line, which the share
+  # window shows.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp send_video(conn, reach, {:ok, mp4}) do
     conn
@@ -139,10 +139,7 @@ defmodule AutolaunchWeb.ShareCardController do
     conn
     |> put_resp_header("cache-control", "no-store")
     |> put_status(:too_many_requests)
-    |> json(%{
-      daily: DailyLimit.daily(),
-      message: "You've made your #{DailyLimit.daily()} videos for today."
-    })
+    |> json(%{message: "Autolaunch has made all of today's videos. Try again tomorrow."})
   end
 
   defp send_video(conn, _reach, {:error, reason}) do
@@ -156,11 +153,6 @@ defmodule AutolaunchWeb.ShareCardController do
 
   defp failed(:render_failed),
     do: {:internal_server_error, "Your video couldn't be made. Try again in a moment."}
-
-  defp failed(:chain_read_failed),
-    do:
-      {:bad_gateway,
-       "Your wallet's figures couldn't be read from the chain just now. Try again in a moment."}
 
   defp failed(:invalid_request),
     do: {:unprocessable_entity, "A video can't be made for this address."}

@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ShareVideo.Render do
   @moduledoc """
-  Makes the video an `Autolaunch.ShareVideoRequest` asks for, keeps it
-  (`AutolaunchWeb.ShareVideo`) and marks the request ready. A video that
+  Makes the video an `Autolaunch.ShareVideoRequest` asks for, stores it in
+  the request and marks the request ready. A video that
   cannot be made fails the render, and the trigger marks the request failed.
 
   Each video made reports what it took as `[:autolaunch, :share_video,
@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   """
   use Ash.Resource.Change
 
-  alias AutolaunchWeb.{Paths, ShareVideo}
+  alias AutolaunchWeb.Paths
   alias AutolaunchWeb.ShareVideo.{Film, Story}
 
   @impl true
@@ -25,8 +25,9 @@ defmodule AutolaunchWeb.ShareVideo.Render do
         %{kind: kind(request)}
       )
 
-      :ok = ShareVideo.made!(request.key, mp4)
-      Ash.Changeset.force_change_attribute(changeset, :state, :ready)
+      changeset
+      |> Ash.Changeset.force_change_attribute(:mp4, mp4)
+      |> Ash.Changeset.force_change_attribute(:state, :ready)
     else
       {:error, reason} ->
         Ash.Changeset.add_error(changeset, "share video #{request.key}: #{inspect(reason)}")

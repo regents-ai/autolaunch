@@ -1,40 +1,37 @@
 defmodule Autolaunch.ShareVideoRequest.Changes.DailyLimit do
   @moduledoc """
-  Holds an account to three new videos of its own in any 24 hours.
+  Holds the site to 1000 videos in any 24 hours.
 
-  The count is taken inside the request's own write, after a transaction lock
-  held for that account, so an account's requests are written one after
-  another however many arrive at once: each counts every request committed
-  before it. A video the account already asked for today never counts again.
-  The launch's own videos have no account and are never held.
+  A person's request is counted inside its own write, after a transaction lock
+  every person's request takes, so they are written one after another however
+  many arrive at once: each counts every request committed before it. A
+  video already queued is that queued request, so asking for it again is
+  never held. A launch's own videos have no account and are always made,
+  though they count.
   """
   use Ash.Resource.Change
+
+  require Ash.Query
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Repo
   alias Autolaunch.ShareVideoRequest
 
-  @daily 3
-
-  @doc "How many videos of its own an account may make in any 24 hours."
-  def daily, do: @daily
+  @daily 1000
 
   @impl true
   def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &hold/1)
 
   defp hold(changeset) do
-    case Ash.Changeset.get_attribute(changeset, :human_account_id) do
-      nil -> changeset
-      account -> hold(changeset, account)
-    end
+    if is_nil(Ash.Changeset.get_attribute(changeset, :human_account_id)),
+      do: changeset,
+      else: held(changeset)
   end
 
-  defp hold(changeset, account) do
-    lock!(account)
-    key = Ash.Changeset.get_attribute(changeset, :key)
-    made = MapSet.new(Autolaunch.share_videos_made_today!(account, actor: %System{}), & &1.key)
+  defp held(changeset) do
+    lock!()
 
-    if MapSet.member?(made, key) or MapSet.size(made) < @daily,
+    if made_today() < @daily or queued?(Ash.Changeset.get_attribute(changeset, :key)),
       do: changeset,
       else:
         Ash.Changeset.add_error(
@@ -46,9 +43,22 @@ defmodule Autolaunch.ShareVideoRequest.Changes.DailyLimit do
         )
   end
 
+  defp made_today do
+    ShareVideoRequest
+    |> Ash.Query.for_read(:made_today, %{}, actor: %System{})
+    |> Ash.count!(actor: %System{})
+  end
+
+  defp queued?(key) do
+    ShareVideoRequest
+    |> Ash.Query.for_read(:queued, %{}, actor: %System{})
+    |> Ash.Query.filter(key == ^key)
+    |> Ash.exists?(actor: %System{})
+  end
+
   # Held until the request's transaction ends.
-  defp lock!(account) do
-    <<key::signed-64, _rest::binary>> = :crypto.hash(:sha256, "share_video_requests:#{account}")
+  defp lock! do
+    <<key::signed-64, _rest::binary>> = :crypto.hash(:sha256, "share_video_requests:daily")
     Repo.query!("SELECT pg_advisory_xact_lock($1::bigint)", [key])
   end
 end

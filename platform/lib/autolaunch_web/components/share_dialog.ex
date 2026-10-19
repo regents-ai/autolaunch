@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
   attr :video_everyone, :string,
     default: nil,
     doc:
-      "for a person's own video, the launch's video for everyone, offered once they have made their videos for the day"
+      "for a person's own video, the launch's video for everyone, offered once the site has made all of the day's videos and they have none saved"
 
   attr :label, :string, default: "Share on X", doc: "the opening button's words"
   attr :rest, :global, doc: "for the opening button, such as `phx-click` to read an X account"
@@ -124,8 +124,8 @@ defmodule AutolaunchWeb.Components.ShareDialog do
       }
 
       // Asks for the video until it is made. While it waits in line the answer
-      // says how many videos are ahead of it; a person who has made their videos
-      // for the day gets the launch's video instead.
+      // says how many videos are ahead of it; once the site has made all of the
+      // day's videos, a person with none saved gets the launch's video instead.
       const want = (address, everyone, name) => {
         const kept = videos.get(address)
         if (kept && kept.state !== "failed") return kept
@@ -150,10 +150,9 @@ defmodule AutolaunchWeb.Components.ShareDialog do
             }
 
             if (response.status === 429 && everyone) {
-              const {daily} = await response.json()
               asking = everyone
               video.limited = true
-              video.words = `You've made your ${daily} videos for today, so this is the video everyone sees.`
+              video.words = "Autolaunch has made all of today's videos, so this is the video everyone sees."
               tell()
               return ask()
             }
