@@ -73,8 +73,9 @@ Thumbs.db
 *.db
 *.db-*
 
-# Generated from the pinned Regent UI package.
+# Generated from the pinned Regent UI package (`mix regent_ui.assets`).
 /priv/static/fonts/regent-ui/
+/priv/static/images/regent-ui/
 
 /assets/vendor/regent_ui/
 /assets/vendor/regent_identity/
