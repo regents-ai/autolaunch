@@ -756,6 +756,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "bd1aa633930d0a446d48c30660482ff70c2ef60d3f6e99623232c0ec07ceb1a3"
+    },
+    {
+      "id": 72,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch/image_validator_test.exs",
+      "line": 18,
+      "test_name": "PIXEL_CAP: a 40,000 by 40,000 interlaced PNG under 2 MB is refused from its header, never decoded",
+      "keep_because": "An upload decoding to more than 4096 by 4096 pixels is refused from its header before libvips or zlib touches it; a 2 MB interlaced PNG otherwise decodes to 1.6 GB (Sentinel hold on f23984b2, 19 Oct 2026). Without the cap the same file is accepted after an 18-second full decode.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
+    },
+    {
+      "id": 73,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch/image_validator_test.exs",
+      "line": 28,
+      "test_name": "PIXEL_CAP: JPEG and WebP headers are capped the same way, a moving WebP counting every frame",
+      "keep_because": "The cap reads the JPEG frame header and the WebP VP8, VP8L and VP8X headers, counts every frame of a moving WebP, and is not fooled by a one-pixel canvas holding a larger picture. It fails if any format skips the header check.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
+    },
+    {
+      "id": 74,
+      "group": "Launch pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch/image_validator_test.exs",
+      "line": 53,
+      "test_name": "a normal picture still passes, decoded in full",
+      "keep_because": "The cap refuses nothing an ordinary picture needs: the 480 by 720 JPEG and the PNG fixtures pass, fully decoded. It also shows the call record sees a decode, so the never-decoded cases are not vacuous.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7e0d9c1f71071bde86c224373ea9606d778de594a15e5e8e6d5cefc51a740854"
     }
   ],
   "legacy_folders_to_remove": [

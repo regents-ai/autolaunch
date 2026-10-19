@@ -9,22 +9,126 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
   @jpeg_start <<255, 216>>
   @jpeg_frames [0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF]
 
+  # Pages show a launch picture at most 640 pixels wide (Autolaunch.StoredImage).
+  # A picture of up to 4096 by 4096 pixels is plenty for that and decodes in at
+  # most 64 MB (128 MB at 16 bits a channel). Every frame of a moving WebP counts,
+  # because the check below decodes them all.
+  @maximum_pixels 4096 * 4096
+
   @spec maximum_bytes() :: pos_integer()
   def maximum_bytes, do: @maximum_bytes
 
+  @doc """
+  The declared type when `bytes` is a complete PNG, JPEG or WebP picture of at
+  most 2 MB and 4096 by 4096 pixels. The pixel count is read from the header
+  before anything is decoded, so a small file that would decode to a huge
+  picture is refused as `:too_many_pixels` without being decoded.
+  """
   @spec validate(binary(), String.t()) :: {:ok, String.t()} | {:error, atom()}
   def validate(bytes, declared_type)
       when is_binary(bytes) and declared_type in @content_types and
              byte_size(bytes) in 1..@maximum_bytes do
-    if structurally_complete?(bytes, declared_type) and decodes_completely?(bytes, declared_type),
-      do: {:ok, declared_type},
-      else: {:error, :invalid_image}
+    case pixels(bytes, declared_type) do
+      {:ok, pixels} when pixels > @maximum_pixels ->
+        {:error, :too_many_pixels}
+
+      {:ok, _pixels} ->
+        if structurally_complete?(bytes, declared_type) and
+             decodes_completely?(bytes, declared_type),
+           do: {:ok, declared_type},
+           else: {:error, :invalid_image}
+
+      :error ->
+        {:error, :invalid_image}
+    end
   end
 
   def validate(bytes, _declared_type) when is_binary(bytes) and byte_size(bytes) > @maximum_bytes,
     do: {:error, :image_too_large}
 
   def validate(_bytes, _declared_type), do: {:error, :invalid_image}
+
+  # How many pixels the picture decodes to, from its header alone.
+  defp pixels(
+         <<@png_signature, 13::32, "IHDR", width::32, height::32, _rest::binary>>,
+         "image/png"
+       ),
+       do: {:ok, width * height}
+
+  defp pixels(<<@jpeg_start, rest::binary>>, "image/jpeg"), do: jpeg_pixels(rest)
+
+  defp pixels(<<"RIFF", _size::little-32, "WEBP", chunks::binary>>, "image/webp"),
+    do: webp_pixels(chunks)
+
+  defp pixels(_bytes, _declared_type), do: :error
+
+  # The frame header's size, passing the segments before it unread.
+  defp jpeg_pixels(<<255, 255, rest::binary>>), do: jpeg_pixels(<<255, rest::binary>>)
+
+  defp jpeg_pixels(<<255, marker, _length::16, _precision, height::16, width::16, _::binary>>)
+       when marker in @jpeg_frames,
+       do: {:ok, width * height}
+
+  defp jpeg_pixels(<<255, marker, length::16, rest::binary>>)
+       when marker not in [0xD8, 0xD9, 0xDA] and length >= 2 and byte_size(rest) >= length - 2 do
+    <<_segment::binary-size(length - 2), tail::binary>> = rest
+    jpeg_pixels(tail)
+  end
+
+  defp jpeg_pixels(_no_frame_header), do: :error
+
+  # A still WebP is its one picture; a VP8X file is its canvas, once for each
+  # frame, or the sizes its pictures declare added up, whichever is more.
+  defp webp_pixels(<<type::binary-size(4), length::little-32, rest::binary>>)
+       when byte_size(rest) >= length do
+    <<data::binary-size(length), tail::binary>> = rest
+    webp_picture(type, data, tail)
+  end
+
+  defp webp_pixels(_truncated), do: :error
+
+  defp webp_picture(
+         "VP8X",
+         <<_flags::32, width_less_one::little-24, height_less_one::little-24>>,
+         tail
+       ) do
+    {frames, declared} = webp_frames(tail, {0, 0})
+    {:ok, max((width_less_one + 1) * (height_less_one + 1) * max(frames, 1), declared)}
+  end
+
+  defp webp_picture(type, data, _tail) when type in ["VP8 ", "VP8L"],
+    do: {:ok, bitstream_pixels(type, data)}
+
+  defp webp_picture(_type, _data, _tail), do: :error
+
+  defp webp_frames(<<type::binary-size(4), length::little-32, rest::binary>>, counted)
+       when byte_size(rest) >= length + rem(length, 2) do
+    <<data::binary-size(length), _padding::binary-size(rem(length, 2)), tail::binary>> = rest
+    webp_frames(tail, webp_frame(type, data, counted))
+  end
+
+  defp webp_frames(_end, counted), do: counted
+
+  defp webp_frame("ANMF", <<_placement::binary-size(16), nested::binary>>, {frames, declared}) do
+    {_frames, inside} = webp_frames(nested, {0, 0})
+    {frames + 1, declared + inside}
+  end
+
+  defp webp_frame(type, data, {frames, declared}) when type in ["VP8 ", "VP8L"],
+    do: {frames, declared + bitstream_pixels(type, data)}
+
+  defp webp_frame(_type, _data, counted), do: counted
+
+  defp bitstream_pixels(
+         "VP8 ",
+         <<_tag::24, 0x9D, 0x01, 0x2A, width::little-16, height::little-16, _rest::binary>>
+       ),
+       do: band(width, 0x3FFF) * band(height, 0x3FFF)
+
+  defp bitstream_pixels("VP8L", <<0x2F, bits::little-32, _rest::binary>>),
+    do: (band(bits, 0x3FFF) + 1) * (band(bits >>> 14, 0x3FFF) + 1)
+
+  defp bitstream_pixels(_type, _data), do: 0
 
   defp structurally_complete?(<<@png_signature, rest::binary>>, "image/png") do
     png_chunks(rest, %{ihdr: nil, palette?: false, idat: [], phase: :header})
@@ -44,8 +148,8 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   # libvips performs the decoder-level proof that container parsing cannot:
   # the strict format-specific loader rejects damaged data and `avg/1` pulls
-  # every pixel through the sequential pipeline. This keeps evaluation bounded
-  # without imposing a width, height, aspect-ratio, crop, or resize policy.
+  # every pixel through the sequential pipeline. The pixel cap, checked before
+  # this, bounds how much it decodes.
   defp decodes_completely?(bytes, declared_type) do
     with {:ok, {image, _flags}} <- decode(bytes, declared_type),
          {:ok, _average} <- Vix.Vips.Operation.avg(image) do
