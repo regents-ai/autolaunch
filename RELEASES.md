@@ -5,6 +5,7 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 
 | Fly release | Date | Commit | Changelog entry |
 | --- | --- | --- | --- |
+| v157 | 19 October 2026 | `667774e` | lighter pages that hold still, and plainer words. Shipped under "teams check and ship their own releases" (13:51:27Z) with operations/CHECKLIST.md |
 | v156 | 19 October 2026 | `fa3597f` | lighter pages that hold still, and plainer words. Approved: Sean "Build them" 18 Oct 23:21Z; shipped under "teams check and ship their own releases" 13:51:27Z with operations/CHECKLIST.md |
 | v155 | 19 October 2026 | `5faffa2` | slimmer buttons. Approved: Sean "ok deploy when you can" 03:41Z, "Normal desktop size" 04:30Z; shipped under "teams check and ship their own releases" 13:51:27Z with operations/CHECKLIST.md |
 | v154 | 19 October 2026 | `883e19a` | your share video is saved, and a new look for share videos and pictures. Approved: Sean "Ship Autolaunch v154 from commit 883e19a6, backup first, rollback v153, tests after" 11:15:08Z; database go 02:38:34Z; backup_1792408662_5001d53d030e1277 |
