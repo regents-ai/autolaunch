@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 19 October 2026: filters you can tap, and plainer answers when something can't load
+- On a phone, each filter on Auctions and Tokens is a full-size tap, and the Verified menu stays on screen. On a computer they keep their normal size.
+- When a token or auction page can't be read for a moment, it says so plainly. "Try again" appears only when the site can't reach its records.
+- If the list of stocks can't be read, the stock launch page says so with a Try again button.
+- The Buy Credits panel no longer stops working when a network can't be reached.
+
 ## 19 October 2026: lighter pages that hold still, and plainer words
 - The home page and token pages load each stock picture at the size it is shown, so they open much faster on a phone.
 - A token page no longer jumps when its pool is read: the address, Uniswap and chart buttons, Claim Rewards and the price chart keep their places from the start.
