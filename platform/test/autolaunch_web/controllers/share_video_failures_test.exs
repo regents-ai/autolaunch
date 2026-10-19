@@ -14,6 +14,8 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
   alias Autolaunch.{Repo, ShareVideoRequest, TestSupport}
   alias AutolaunchWeb.Paths
 
+  import ExUnit.CaptureLog
+
   require Ash.Query
 
   @moduletag :capture_log
@@ -73,12 +75,17 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
       "ALTER TABLE autolaunch_app.share_video_requests RENAME TO share_video_requests_unreadable"
     )
 
-    failed = get(conn, path)
+    {failed, log} = with_log(fn -> get(conn, path) end)
 
     assert json_response(failed, 500) == %{
              "error" => "failed",
              "message" => "Your video couldn't be asked for just now. Try again in a moment."
            }
+
+    # The log names what failed and its code, and carries none of the
+    # database's message, which can hold the request's own values.
+    assert log =~ "share video request failed: Postgrex.Error 42P01"
+    refute log =~ "share_video_requests"
   end
 
   test "a video that couldn't be made answers with its own line, not the try-again page",

@@ -208,17 +208,27 @@ defmodule AutolaunchWeb.ShareVideo do
   # its formatted text (`Ash.Error.Unknown`), so there the exception and its
   # code are read from the start of that text.
   # Every failure is logged where it is sorted, so none passes unseen: a
-  # failed read or write as an error, the other two as warnings.
+  # failed read or write as an error, the other two as warnings. The line
+  # names only what failed (the error's kind and, for the database, its code),
+  # never a message, so no wallet, address or other value reaches the log.
   defp failure(error) do
     kind = kind(error)
-
-    Logger.log(
-      level(kind),
-      "share video request #{kind}: #{Exception.format_banner(:error, error)}"
-    )
-
+    Logger.log(level(kind), "share video request #{kind}: #{named(error)}")
     kind
   end
+
+  defp named(%{errors: errors}) when is_list(errors), do: Enum.map_join(errors, ", ", &named/1)
+  defp named(%Postgrex.Error{postgres: %{pg_code: code}}), do: "Postgrex.Error #{code}"
+
+  defp named(%Ash.Error.Unknown.UnknownError{error: "** (" <> text}) do
+    case Regex.run(~r/\A([\w.]+)\) (?:\w+ (\w{5}) )?/, text) do
+      [_match, module, code] -> "#{module} #{code}"
+      [_match, module] -> module
+      nil -> "Ash.Error.Unknown"
+    end
+  end
+
+  defp named(error), do: inspect(error.__struct__)
 
   defp level(:failed), do: :error
   defp level(_kind), do: :warning
