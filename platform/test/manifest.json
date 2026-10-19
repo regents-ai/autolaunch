@@ -886,6 +886,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "007955ad9dc662898d42fb0a47c85a1870e29cae2f9a01ddf2f151495a33a9f4"
+    },
+    {
+      "id": 88,
+      "group": "Quiet failures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/public_api_failures_test.exs",
+      "line": 17,
+      "test_name": "PUBLIC_API_FAILED_READS_ARE_LOGGED: each failed read is logged by kind and module only",
+      "keep_because": "The public API's auction list and detail, bid quote, token list and detail and treasury report answered a failed read with internal_error and logged nothing. Each now logs the read, its kind and the error's module (or the quote's reason), with none of the database's text. It fails while any of them stays quiet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "00f720d8d96a148e3cecb92ebd1f61ec0b605b404fda224ff81bd16351ddb3b1"
     }
   ],
   "legacy_folders_to_remove": [

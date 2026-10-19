@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.AuctionController do
   alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{ApiError, MarketPage, Paths}
+  alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure}
   alias RegentChain.Address
 
   @cache :autolaunch_public_auctions
@@ -19,7 +19,7 @@ defmodule AutolaunchWeb.AuctionController do
     case Cachex.fetch(@cache, params, &auctions/1) do
       {kept, body} when kept in [:ok, :commit] -> json(conn, body)
       {:ignore, {:error, :invalid_query}} -> invalid_request(conn)
-      {:ignore, {:error, _error}} -> internal_error(conn)
+      {:ignore, {:error, error}} -> internal_error(conn, "public auctions read", error)
     end
   end
 
@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.AuctionController do
     else
       false -> invalid_request(conn)
       :not_found -> not_found(conn)
-      {:error, _error} -> internal_error(conn)
+      {:error, error} -> internal_error(conn, "public auction read", error)
     end
   end
 
@@ -77,13 +77,26 @@ defmodule AutolaunchWeb.AuctionController do
          {:ok, quote} <- Autolaunch.quote_auction_bid(id, params["amount"], params["max_price"]) do
       json(conn, %{data: quote})
     else
-      false -> invalid_request(conn)
-      {:error, :auction_not_found} -> not_found(conn)
-      {:error, :estimate_not_offered} -> estimate_not_offered(conn)
-      {:error, :invalid_amount} -> invalid_decimal(conn, "invalid_amount", "amount")
-      {:error, :invalid_max_price} -> invalid_decimal(conn, "invalid_max_price", "max_price")
-      {:error, :database_unavailable} -> internal_error(conn)
-      {:error, :price_unreadable} -> internal_error(conn)
+      false ->
+        invalid_request(conn)
+
+      {:error, :auction_not_found} ->
+        not_found(conn)
+
+      {:error, :estimate_not_offered} ->
+        estimate_not_offered(conn)
+
+      {:error, :invalid_amount} ->
+        invalid_decimal(conn, "invalid_amount", "amount")
+
+      {:error, :invalid_max_price} ->
+        invalid_decimal(conn, "invalid_max_price", "max_price")
+
+      {:error, :database_unavailable} ->
+        internal_error(conn, "bid quote read", :database_unavailable)
+
+      {:error, :price_unreadable} ->
+        internal_error(conn, "bid quote read", :price_unreadable)
     end
   end
 
@@ -185,12 +198,16 @@ defmodule AutolaunchWeb.AuctionController do
         "Bid estimates cover Base auctions only. This auction is on Robinhood."
       )
 
-  defp internal_error(conn),
-    do:
-      ApiError.send(
-        conn,
-        :internal_server_error,
-        "internal_error",
-        "The request could not be completed."
-      )
+  # A read that failed is logged by its kind and module only, then answered
+  # with the generic error (`AutolaunchWeb.ReadFailure`).
+  defp internal_error(conn, what, error) do
+    ReadFailure.log(what, error)
+
+    ApiError.send(
+      conn,
+      :internal_server_error,
+      "internal_error",
+      "The request could not be completed."
+    )
+  end
 end

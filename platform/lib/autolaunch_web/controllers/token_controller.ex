@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.TokenController do
   alias Autolaunch
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{ApiError, MarketPage, Paths}
+  alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure}
 
   def index(conn, params) do
     case MarketPage.read(params, "tokens") do
@@ -18,8 +18,8 @@ defmodule AutolaunchWeb.TokenController do
       {:error, :invalid_query} ->
         invalid_request(conn)
 
-      {:error, _error} ->
-        internal_error(conn)
+      {:error, error} ->
+        internal_error(conn, "public tokens read", error)
     end
   end
 
@@ -53,8 +53,8 @@ defmodule AutolaunchWeb.TokenController do
         {:ok, token} ->
           json(conn, %{data: token_detail(token)})
 
-        {:error, _error} ->
-          internal_error(conn)
+        {:error, error} ->
+          internal_error(conn, "public token read", error)
       end
     else
       _invalid -> invalid_request(conn)
@@ -85,12 +85,16 @@ defmodule AutolaunchWeb.TokenController do
   defp invalid_request(conn),
     do: ApiError.send(conn, :bad_request, "invalid_request", "The query parameters are invalid.")
 
-  defp internal_error(conn),
-    do:
-      ApiError.send(
-        conn,
-        :internal_server_error,
-        "internal_error",
-        "The request could not be completed."
-      )
+  # A read that failed is logged by its kind and module only, then answered
+  # with the generic error (`AutolaunchWeb.ReadFailure`).
+  defp internal_error(conn, what, error) do
+    ReadFailure.log(what, error)
+
+    ApiError.send(
+      conn,
+      :internal_server_error,
+      "internal_error",
+      "The request could not be completed."
+    )
+  end
 end

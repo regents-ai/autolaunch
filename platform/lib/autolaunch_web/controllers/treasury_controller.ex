@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.TreasuryController do
 
   alias Autolaunch
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.{ApiError, ReadFailure}
 
   def show(conn, %{"address" => address} = params) do
     autolaunch = conn.private[:treasury_controller_autolaunch] || Autolaunch
@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.TreasuryController do
       :error -> invalid_request(conn)
       {:ok, nil} -> not_found(conn)
       {:error, :invalid_address} -> invalid_request(conn)
-      {:error, _error} -> internal_error(conn)
+      {:error, error} -> internal_error(conn, error)
     end
   end
 
@@ -27,12 +27,16 @@ defmodule AutolaunchWeb.TreasuryController do
   defp not_found(conn),
     do: ApiError.send(conn, :not_found, "not_found", "Treasury report not found.")
 
-  defp internal_error(conn),
-    do:
-      ApiError.send(
-        conn,
-        :internal_server_error,
-        "internal_error",
-        "The request could not be completed."
-      )
+  # A read that failed is logged by its kind and module only, then answered
+  # with the generic error (`AutolaunchWeb.ReadFailure`).
+  defp internal_error(conn, error) do
+    ReadFailure.log("treasury report read", error)
+
+    ApiError.send(
+      conn,
+      :internal_server_error,
+      "internal_error",
+      "The request could not be completed."
+    )
+  end
 end
