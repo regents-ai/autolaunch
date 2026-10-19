@@ -172,28 +172,32 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
-  test "past their space, the oldest made videos are deleted first", %{now: now} do
+  test "once saved videos are full, a video is still made, handed over once and never saved",
+       %{now: now} do
     auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
     person = 1_000_000_000 + :rand.uniform(1_000_000_000)
     wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
-    video = String.duplicate("v", 400)
+
+    room = fn bytes ->
+      unboxed(fn -> Autolaunch.share_video_room!(bytes, actor: %System{}) end)
+    end
 
     try do
-      for {who, hours_ago} <- [{person, 3}, {person + 1, 2}, {person + 2, 1}],
-          do: saved(auction, who, wallet, video, DateTime.add(now, -hours_ago * 3600))
+      # The space is full once the videos held reach it.
+      held = unboxed(fn -> stored_bytes() end)
+      saved(auction, person + 1, wallet, String.duplicate("v", 400), now)
+      assert room.(held + 401)
+      refute room.(held + 400)
 
-      ask = fn ->
-        unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person + 3, now) end)
-      end
+      # A video made past it is handed over once and let go, never deleted.
+      saved(auction, person, wallet, "unsaved video", now, saved: false)
+      ask = fn -> unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person, now) end) end
+      assert ask.() == {:ok, "unsaved video"}
+      assert [%{stored?: false}] = auction |> requests() |> theirs(person)
 
+      # Asking again makes a new one; the saved video beside it is untouched.
       assert {:waiting, _ahead} = ask.()
-
-      :ok = unboxed(fn -> Autolaunch.keep_share_videos_under!(1000, actor: %System{}) end)
-
-      # Two of the three 400-byte videos fit in 1000 bytes: the oldest goes,
-      # and the queued request, which holds no video, stays.
-      left = auction |> requests() |> Enum.map(&{&1.human_account_id, &1.state}) |> Enum.sort()
-      assert left == [{person + 1, :ready}, {person + 2, :ready}, {person + 3, :queued}]
+      assert [%{stored?: true}] = auction |> requests() |> theirs(person + 1)
     after
       forget(auction)
     end
@@ -216,22 +220,39 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
   end
 
   # A person's made video, stored at `at`.
-  defp saved(auction, person, wallet, mp4, at) do
+  defp saved(auction, person, wallet, mp4, at, fields \\ []) do
     unboxed(fn ->
       Repo.insert_all("share_video_requests", [
-        row(auction, %{
-          key: "#{auction.id}:token:account:#{person}",
-          kind: "token",
-          human_account_id: person,
-          wallet: wallet,
-          state: "ready",
-          mp4: mp4,
-          inserted_at: at,
-          updated_at: at
-        })
+        row(
+          auction,
+          Map.merge(
+            %{
+              key: "#{auction.id}:token:account:#{person}",
+              kind: "token",
+              human_account_id: person,
+              wallet: wallet,
+              state: "ready",
+              mp4: mp4,
+              inserted_at: at,
+              updated_at: at
+            },
+            Map.new(fields)
+          )
+        )
       ])
     end)
   end
+
+  defp stored_bytes do
+    %{rows: [[held]]} =
+      Repo.query!(
+        "SELECT coalesce(sum(octet_length(mp4)), 0) FROM autolaunch_app.share_video_requests"
+      )
+
+    held
+  end
+
+  defp theirs(requests, person), do: Enum.filter(requests, &(&1.human_account_id == person))
 
   defp row(auction, fields) do
     Map.merge(
@@ -287,6 +308,7 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     unboxed(fn ->
       ShareVideoRequest
       |> Ash.Query.filter(auction_id == ^auction.id and not contains(key, ":filler:"))
+      |> Ash.Query.load(:stored?)
       |> Ash.read!(actor: %System{})
     end)
   end

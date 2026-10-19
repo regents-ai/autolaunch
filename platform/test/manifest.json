@@ -534,7 +534,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
+      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
     },
     {
       "id": 71,
@@ -547,7 +547,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
+      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
     },
     {
       "id": 72,
@@ -560,7 +560,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
+      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
     },
     {
       "id": 73,
@@ -568,12 +568,12 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
       "line": 175,
-      "test_name": "past their space, the oldest made videos are deleted first",
-      "keep_because": "Past the space set aside for made share videos (5 GB on the site, 1000 bytes here), the oldest videos are deleted first and requests still waiting for their video are never touched (Sean, 1b, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if the order is undone: with the oldest kept instead of the newest, the newest video was deleted.",
+      "test_name": "once saved videos are full, a video is still made, handed over once and never saved",
+      "keep_because": "Once the saved share videos reach their space (5 GB on the site), a new video is still made and handed over once, then let go; no video is ever deleted early (Sean, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if a video made past the space were kept after it was handed over (proven by serving it as a saved one: its bytes stayed).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
+      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
     },
     {
       "id": 61,

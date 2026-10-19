@@ -17,8 +17,9 @@ defmodule Autolaunch.ShareVideoRequest do
   failed ones, counted inside a person's request's own write
   (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's own videos
   are always made. Every request, and the video it holds, is deleted once it
-  is a day old, within the hour. Made videos are kept under 5 GB in all: past
-  that, the oldest are deleted as each new one is made (`:keep_under`).
+  is a day old, within the hour. Saved videos hold at most about 5 GB: past
+  that, a video is still made but not saved (`saved` false), and once handed
+  over its bytes are let go (`:hand_over`). No video is ever deleted early.
   """
 
   use Ash.Resource,
@@ -114,16 +115,10 @@ defmodule Autolaunch.ShareVideoRequest do
       filter expr(state != :failed and inserted_at > ago(24, :hour))
     end
 
-    # Every made video's size, newest first.
-    read :stored do
-      filter expr(not is_nil(mp4))
-      prepare build(sort: [inserted_at: :desc, id: :desc], select: [:id], load: [:size])
-    end
-
-    # Deletes the oldest made videos until those left hold at most `bytes`.
-    action :keep_under do
+    # Whether the made videos still held come to less than `bytes`.
+    action :room, :boolean do
       argument :bytes, :integer, allow_nil?: false
-      run Autolaunch.ShareVideoRequest.Actions.KeepUnder
+      run Autolaunch.ShareVideoRequest.Actions.Room
     end
 
     # One made video, with its bytes.
@@ -131,7 +126,12 @@ defmodule Autolaunch.ShareVideoRequest do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare build(select: [:id, :mp4])
+      prepare build(select: [:id, :mp4, :saved])
+    end
+
+    # A video made but not saved, handed over: its bytes are let go.
+    update :hand_over do
+      change set_attribute(:mp4, nil)
     end
 
     # Draws and encodes the video, so no database transaction is held open
@@ -169,6 +169,8 @@ defmodule Autolaunch.ShareVideoRequest do
 
     # The finished MP4, read only by `:video`.
     attribute :mp4, :binary, select_by_default?: false
+    # False for a video made once saved videos were full: it is handed over once.
+    attribute :saved, :boolean, allow_nil?: false, default: true
 
     attribute :state, :atom,
       allow_nil?: false,

@@ -30,7 +30,8 @@ defmodule Autolaunch do
         args: [:human_account_id, :auction_id, :kind]
 
       define :share_video_mp4, action: :video, args: [:id]
-      define :keep_share_videos_under, action: :keep_under, args: [:bytes]
+      define :share_video_room, action: :room, args: [:bytes]
+      define :hand_over_share_video, action: :hand_over
     end
 
     resource Autolaunch.AuctionPricePoint do
