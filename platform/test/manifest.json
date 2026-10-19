@@ -1,5 +1,5 @@
 {
-  "total": 50,
+  "total": 65,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -15,19 +15,6 @@
       "original_file": "test/autolaunch/launch_draft_test.exs",
       "original_source_sha256": "823152e1b43565d158d7a991dde866a296f2894a56cd3367a662e645035dced7",
       "source_sha256": "e7f3b397caa3600c2dc989a6b5a2267e5efd29df12ecd6e9fb97108493bed170"
-    },
-    {
-      "id": 3,
-      "group": "Account and session isolation",
-      "framework": "exunit",
-      "file": "test/autolaunch/privy_test.exs",
-      "line": 145,
-      "test_name": "a key outside the configured set signs nothing",
-      "keep_because": "Tokens signed by an untrusted key cannot establish identity; this exercises the shared verifier with actual disposable signing keys.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/privy_test.exs",
-      "original_source_sha256": "972ad93670e9000608c834da186837dbba079e3aa8363a8df1ccf7288d97ce6a",
-      "source_sha256": "c74f7e27003b3f7255dd235c0811d7921c4e0fb9bcaffacacce4735a4add1dd5"
     },
     {
       "id": 4,
@@ -132,84 +119,6 @@
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
       "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
-    },
-    {
-      "id": 17,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/launch_rpc_client_test.exs",
-      "line": 36,
-      "test_name": "a receipt above the safe head stays pending rather than becoming an answer",
-      "keep_because": "A transaction above the safe chain head is not prematurely reported as settled.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/launch_rpc_client_test.exs",
-      "original_source_sha256": "6420b665d6c4d59fd7f4ca3266b4d4aba10260bc4fd79056588d877e7896c28c",
-      "source_sha256": "0403d022ac4f48f97c4a9328a1edeb488c6bb633e8667bfab823bc783e3e283b"
-    },
-    {
-      "id": 18,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/launch_rpc_client_test.exs",
-      "line": 41,
-      "test_name": "a receipt in a block that is no longer canonical stays pending",
-      "keep_because": "A receipt from a reorganized-out block cannot settle a launch.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/launch_rpc_client_test.exs",
-      "original_source_sha256": "6420b665d6c4d59fd7f4ca3266b4d4aba10260bc4fd79056588d877e7896c28c",
-      "source_sha256": "0403d022ac4f48f97c4a9328a1edeb488c6bb633e8667bfab823bc783e3e283b"
-    },
-    {
-      "id": 19,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/launch_rpc_client_test.exs",
-      "line": 46,
-      "test_name": "a canonical revert is terminal reverted",
-      "keep_because": "A reverted on-chain transaction is never reported as a successful launch.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/launch_rpc_client_test.exs",
-      "original_source_sha256": "6420b665d6c4d59fd7f4ca3266b4d4aba10260bc4fd79056588d877e7896c28c",
-      "source_sha256": "0403d022ac4f48f97c4a9328a1edeb488c6bb633e8667bfab823bc783e3e283b"
-    },
-    {
-      "id": 20,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/launch_rpc_client_test.exs",
-      "line": 53,
-      "test_name": "an approval event for a different amount or spender is unverified",
-      "keep_because": "An approval for a different amount or spender cannot authorize the reviewed sequence.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/launch_rpc_client_test.exs",
-      "original_source_sha256": "6420b665d6c4d59fd7f4ca3266b4d4aba10260bc4fd79056588d877e7896c28c",
-      "source_sha256": "0403d022ac4f48f97c4a9328a1edeb488c6bb633e8667bfab823bc783e3e283b"
-    },
-    {
-      "id": 21,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/launch_rpc_client_test.exs",
-      "line": 63,
-      "test_name": "an absent, duplicated or foreign-emitter event is never a launch",
-      "keep_because": "Missing, duplicate or foreign-contract events cannot count as launch evidence.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/launch_rpc_client_test.exs",
-      "original_source_sha256": "6420b665d6c4d59fd7f4ca3266b4d4aba10260bc4fd79056588d877e7896c28c",
-      "source_sha256": "0403d022ac4f48f97c4a9328a1edeb488c6bb633e8667bfab823bc783e3e283b"
-    },
-    {
-      "id": 22,
-      "group": "Receipt evidence and durable settlement",
-      "framework": "exunit",
-      "file": "test/autolaunch/launch_rpc_client_test.exs",
-      "line": 74,
-      "test_name": "an event naming another signer, treasury or raise is unverified",
-      "keep_because": "A launch event for another signer, treasury or raise amount cannot confirm this review.",
-      "generated_case": null,
-      "original_file": "test/autolaunch/launch_rpc_client_test.exs",
-      "original_source_sha256": "6420b665d6c4d59fd7f4ca3266b4d4aba10260bc4fd79056588d877e7896c28c",
-      "source_sha256": "0403d022ac4f48f97c4a9328a1edeb488c6bb633e8667bfab823bc783e3e283b"
     },
     {
       "id": 25,
@@ -788,7 +697,7 @@
       "group": "Launch pictures",
       "framework": "exunit",
       "file": "test/autolaunch/image_validator_test.exs",
-      "line": 18,
+      "line": 28,
       "test_name": "PIXEL_CAP: JPEG and WebP headers are capped the same way, a moving WebP counting every frame",
       "keep_because": "The cap reads the JPEG frame header and the WebP VP8, VP8L and VP8X headers, counts every frame of a moving WebP, and is not fooled by a one-pixel canvas holding a larger picture. It fails if any format skips the header check.",
       "generated_case": null,
