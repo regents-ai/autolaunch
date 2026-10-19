@@ -6,6 +6,9 @@ the release's evidence folder holds the output of each step. A change to sign-in
 production data, wallets, staking, claims or money movement also needs Sean's typed go naming
 the release, in this project's thread.
 
+[FEATURES.md](FEATURES.md) lists what people and agents can do on Autolaunch and the check
+that proves each one, with the gaps; a release that adds or changes one of them updates it.
+
 ## Before the release
 
 1. The head is pushed. Write `git rev-parse HEAD`, `git rev-parse HEAD^{tree}` and an empty
