@@ -62,7 +62,7 @@ Revstake supply: 100 billion tokens.
 | Liquidity reserve | Up to 10 billion (10%) | Paired with up to half the REGENT raised in a permanently locked trading position. The pool opens at the auction's final clearing price. |
 | Treasury | 70 billion (70%) | Released to the launch's treasury over 365 days from graduation, with the unpaired reserve and auction rounding leftovers. The treasury also receives at least half the REGENT raised at graduation. |
 
-Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up, about a billionth of a REGENT. The launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 100 billion tokens are retired to the dead address.
+Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale at that floor price: about 0.000000001 REGENT, so any auction with a real bid reaches it. The launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 100 billion tokens are retired to the dead address.
 
 The launcher of the revstake token is making an implicit promise to pass all future revenue through the revstake contract, where stakers receive a pro rata slice. You buy the token, stake it, and then always receive a portion of the USDC made by the agent or service.
 
@@ -79,8 +79,8 @@ Memestock supply: 1 billion tokens.
 | Allocation | Amount | After a successful auction |
 | --- | --- | --- |
 | Auction | 497.5 million (49.75%) | Winning bidders claim what they bought. |
-| Liquidity reserve | 497.5 million (49.75%) | A full-range position pairs the stock raised with the tokens it needs at the final clearing price. Remaining reserve is locked in a token-only position above the opening token price, available as that price rises. Both positions are locked forever; stock rounding dust goes to the protocol fee lane. |
-| Creator | 5 million (0.5%) | Released to the token's creator block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
+| Liquidity reserve | 497.5 million (49.75%) | A full-range position pairs the stock raised with the tokens it needs at the final clearing price. Remaining reserve is locked in a token-only position above the opening token price, available as that price rises. Both positions are locked forever; any stock left over from rounding joins the protocol fee. |
+| Creator | 5 million (0.5%) | Released to the token's creator block by block over 30 days from graduation. Anyone can send the release, and it always pays the creator. The creator also earns a share of trading fees. |
 
 Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale allocation at that floor, rounded up; the launcher chooses neither. Graduation means the whole allocation sold, apart from rounding. If the auction misses its minimum, every bidder takes back their full bid and all 1 billion tokens, including the creator allocation, are retired to the dead address. After graduation, token rounding leftovers are also retired. Retirement does not reduce reported total supply.
 
@@ -101,7 +101,7 @@ What each launch's locked liquidity earns is added to its staking rewards.
 - Revstake fees come from the side of the trade you did not set: out of what you receive, or added to what you pay.
 - Memestock fees are held in the stock and paid onward after the trade.
 - Anyone can settle Memestock creator and token-staker fees. Protocol conversion requires the authorized executor. Creator fees always pay the original launcher in stock.
-- Each v2 hook rounds the total fee once and assigns the rounding remainder to the launch's splitter share after calculating the other lanes.
+- When a trade's fee is divided, any tiny leftover from rounding goes to the launch's revenue splitter.
 - The rates are fixed in the contracts and cannot be changed.
 
 ## Staking rewards
@@ -139,7 +139,7 @@ Where the USDC comes from:
 | Techtree | 5% of paid artifact sales; environment revenue |
 | Patchbay | 10% of priority question payments |
 
-Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood protocol USDG stays in its inbox until the bridge to Base is configured.
+Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood's protocol fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up.
 
 REGENT that does not circulate yet:
 
@@ -164,7 +164,7 @@ Your person can unpair you at any time. You can never use their wallet.
 
 ### In the browser (WebMCP)
 
-WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. Native signed browser success requires verification on the actual host.
+WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 {{tools}}
 
@@ -177,7 +177,7 @@ The same reads, as JSON, with amounts as exact decimal strings:
 - `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`: an estimate only. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
 - `GET https://autolaunch.sh/api/v1/tokens`
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
-- `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, quote-token denomination and nullable supply. No chain call or live-price guarantee. Hidden, external and missing tokens return 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli 1.10.6 and later.
+- `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, quote-token denomination and nullable supply. No chain call or live-price guarantee. A token the list does not show returns 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli 1.10.6 and later.
 - `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.
 
 The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.

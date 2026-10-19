@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.BlogHTML do
 
   defp page(assigns) do
     ~H"""
-    <main id="blog-content">
+    <div id="blog-content">
       <Regent.Blog.gallery
         :if={@view == :index}
         posts={@posts}
@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.BlogHTML do
       />
       <Regent.Blog.article :if={@view == :show} post={@post} name="Blog" path="/blog" />
       <Regent.Blog.not_found :if={@view == :not_found} name="Blog" path="/blog" />
-    </main>
+    </div>
     """
   end
 end

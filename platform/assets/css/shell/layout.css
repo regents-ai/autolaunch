@@ -13,7 +13,6 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
    narrows the column and the header answers as it would on a narrower screen. */
 .shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
 .shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
-.shell-content > main { padding: 0; }
 .shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
 .shell-skip:focus { transform: none; }
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
@@ -89,4 +88,4 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .learn-navigation a { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--color-fg-muted); text-decoration: none; }
 .learn-navigation a[aria-current="page"] { color: var(--color-fg); text-decoration: underline; text-underline-offset: .4em; }
 .learn-navigation a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
-.shell-content:has(> .learn-navigation) > :is(main, article) { max-width: 1040px; }
+.shell-content:has(> .learn-navigation) > :not(.learn-navigation) { max-width: 1040px; }

@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.MarketTickerLive do
   @moduledoc false
   use Phoenix.LiveView, layout: false
+  alias Autolaunch.StoredImage
   alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.Paths
 
@@ -91,7 +92,15 @@ defmodule AutolaunchWeb.MarketTickerLive do
 
   defp token_mark(assigns) do
     ~H"""
-    <img :if={@auction.image} src={@auction.image} width="24" height="24" alt="" loading="lazy" />
+    <img
+      :if={@auction.image}
+      src={StoredImage.sized(@auction.image, 96)}
+      width="24"
+      height="24"
+      alt=""
+      loading="lazy"
+      decoding="async"
+    />
     <span>{@auction.token_symbol}</span>
     """
   end

@@ -16,7 +16,7 @@
 .auction-next-rail__mark { display: inline-grid; flex: none; place-items: center; width: 24px; height: 24px; border: 1px solid var(--hairline-strong); border-radius: 50%; font-size: .75rem; font-variant-numeric: tabular-nums; }
 .auction-next-rail__step[data-status="done"] { color: var(--color-fg); }
 .auction-next-rail__step[data-status="done"] .auction-next-rail__mark { border-color: var(--color-success); background: var(--color-success); color: var(--color-bg); }
-.auction-next-rail__step[data-status="current"] { color: var(--brand-accent); font-weight: 600; }
+.auction-next-rail__step[data-status="current"] { color: var(--orange-ink); font-weight: 600; }
 .auction-next-rail__step[data-status="current"] .auction-next-rail__mark { border: 2px solid var(--brand-accent); }
 .auction-next-rail__step[data-status="failed"] { color: var(--color-error); font-weight: 600; }
 .auction-next-rail__step[data-status="failed"] .auction-next-rail__mark { border-color: var(--color-error); background: var(--color-error); color: var(--color-bg); }

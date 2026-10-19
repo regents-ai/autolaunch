@@ -123,13 +123,13 @@ defmodule AutolaunchWeb.CreateLive do
 
   def render(assigns) do
     ~H"""
-    <main class="create-page">
+    <div class="create-page">
       <.launch_kind_choice current={:revstake} />
       <header class="create-page__header">
         <h1>Create a Revstake token</h1>
       </header>
       {render_revshare(assigns)}
-    </main>
+    </div>
     """
   end
 

@@ -19,7 +19,7 @@ defmodule AutolaunchWeb.UpcomingLive do
 
   def render(assigns) do
     ~H"""
-    <main class="fact-page upcoming">
+    <div class="fact-page upcoming">
       <header class="autolaunch-heading">
         <h1>Onchain Stocks</h1>
         <p>
@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.UpcomingLive do
 
       <section class="fact-page__section" aria-labelledby="upcoming-eligible">
         <h2 id="upcoming-eligible">Soon Available</h2>
-        <p>Stocks with a matched Chainlink feed, pending Autolaunch smart contract enablement.</p>
+        <p>Stocks with a matched Chainlink feed, not yet open for launches on Autolaunch.</p>
         <div class="upcoming__columns">
           <.column
             :for={chain <- @chains}
@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.UpcomingLive do
           />
         </div>
       </section>
-    </main>
+    </div>
     """
   end
 

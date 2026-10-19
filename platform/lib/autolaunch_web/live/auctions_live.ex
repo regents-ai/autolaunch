@@ -182,7 +182,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   def render(assigns) do
     ~H"""
-    <main class="autolaunch-page market-list-page" id="auctions-list">
+    <div class="autolaunch-page market-list-page" id="auctions-list">
       <.auction_stats revstake={@revstake_stats} memestock={@memestock_stats} />
       <header class="market-list__header">
         <h1 id="auctions-list-title">Auctions</h1>
@@ -286,7 +286,7 @@ defmodule AutolaunchWeb.AuctionsLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
-    </main>
+    </div>
     """
   end
 end

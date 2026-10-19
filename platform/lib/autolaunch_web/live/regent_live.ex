@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.RegentLive do
   # menu already uses regent-buy and regent-chart.
   def render(assigns) do
     ~H"""
-    <main class="fact-page regent-next">
+    <div class="fact-page regent-next">
       <header class="autolaunch-heading">
         <h1>REGENT</h1>
         <p>
@@ -183,14 +183,14 @@ defmodule AutolaunchWeb.RegentLive do
           </tbody>
         </table>
         <p>
-          Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood protocol USDG stays in its inbox until the bridge to Base is configured.
+          Revstake's 1% collected in REGENT reaches REGENT staking as REGENT; its launch-token fees go to the Regent Safe. Splitter deductions in launch tokens and paired tokens also go to the Safe. Robinhood's protocol fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up.
         </p>
       </section>
 
       <.circulating :if={@facts.ok?} facts={@facts.result} />
 
       <.contracts :if={@facts.ok?} facts={@facts.result} />
-    </main>
+    </div>
     """
   end
 

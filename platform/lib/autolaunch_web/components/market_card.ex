@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.MarketData
+  alias Autolaunch.StoredImage
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
   import AutolaunchWeb.Components.InfoTip
@@ -37,6 +38,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "the USD price of one unit of the record's currency, for its figures"
 
+  attr :lead, :boolean, default: false, doc: "the page's first picture, which loads first"
+
   @doc """
   A gallery card. Every card reads, top to bottom: its ticker over its
   currency with its chain, its name, its price and one more figure, the
@@ -64,6 +67,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       view={@view}
       figures={@figures}
       bar={@bar}
+      lead={@lead}
       raise?={@record.kind == :agent}
       trade_event={@trade_event}
       settle={@settle}
@@ -86,7 +90,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       class={["home-coin", @view.color && "home-coin--tinted"]}
       style={tint(@view.color)}
     >
-      <.card_head view={@view} />
+      <.card_head view={@view} lead={@lead} />
       <div class="home-coin__metric">
         <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>Price</span>
       </div>
@@ -177,6 +181,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :trade_event, :string, default: nil
   attr :settle, :string, default: nil, doc: "the card's half-width button shows its first word"
   attr :preview, :boolean, default: false, doc: "a draft's card: shown whole, and inert"
+  attr :lead, :boolean, default: false
 
   defp auction_card(assigns) do
     ~H"""
@@ -185,7 +190,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       style={tint(@view.color)}
       inert={@preview}
     >
-      <.card_head view={@view} />
+      <.card_head view={@view} lead={@lead} />
       <div class="home-coin__metric">
         <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /><span>Clearing price</span>
       </div>
@@ -297,9 +302,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <span class="home-backed__art">
         <img
           :if={present?(@view.image)}
-          src={@view.image}
+          src={StoredImage.sized(@view.image, 640)}
+          srcset={StoredImage.choices(@view.image)}
+          sizes="(max-width: 42rem) calc(40vw - 32px), 320px"
           alt=""
-          loading="lazy"
+          loading={@rank > 1 && "lazy"}
+          fetchpriority={@rank == 1 && "high"}
           decoding="async"
           width="320"
           height="320"
@@ -320,6 +328,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :view, :map, required: true
+  attr :lead, :boolean, required: true
 
   # The card's top, which opens its page: the image, the ticker over its
   # currency with the chain's box, and the name.
@@ -333,7 +342,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
     ~H"""
     <.link navigate={@view.path} class="home-coin__main">
-      <.coin_art view={@view} />
+      <.coin_art view={@view} lead={@lead} />
       <p class="home-coin__pair">
         <span class="home-coin__ticker" title={@pair}>{@view.symbol}<span :if={@view.metric.unit}> /<wbr /> {@view.metric.unit}</span></span>
         <ChainIcon.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
@@ -374,18 +383,22 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp time_bar(_auction, figures), do: %{progress: 100, opens_at: nil, label: figures.status}
 
   attr :view, :map, required: true
+  attr :lead, :boolean, required: true
 
   defp coin_art(assigns) do
     ~H"""
     <div class="home-coin__art">
       <img
         :if={present?(@view.image)}
-        src={@view.image}
+        src={StoredImage.sized(@view.image, 640)}
+        srcset={StoredImage.choices(@view.image)}
+        sizes="(max-width: 22rem) calc(100vw - 76px), (max-width: 42rem) calc(50vw - 47px), 320px"
         alt={"#{@view.name} token"}
-        loading="lazy"
+        loading={!@lead && "lazy"}
+        fetchpriority={@lead && "high"}
         decoding="async"
-        width="400"
-        height="400"
+        width="320"
+        height="320"
       />
       <span :if={!present?(@view.image)} class="home-coin__fallback" aria-label="No token image">{String.first(
         @view.name || "?"
@@ -846,7 +859,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     <span class="market-list__art">
       <img
         :if={present?(@image)}
-        src={@image}
+        src={StoredImage.sized(@image, 96)}
         alt=""
         loading="lazy"
         decoding="async"
@@ -1211,10 +1224,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="market-identity__image">
         <img
           :if={present?(@view.image)}
-          src={@view.image}
+          src={StoredImage.sized(@view.image, 640)}
+          srcset={StoredImage.choices(@view.image)}
+          sizes="(max-width: 42rem) 220px, 240px"
           alt={"#{@view.name} token"}
-          width="400"
-          height="400"
+          width="240"
+          height="240"
+          fetchpriority="high"
           decoding="async"
         />
         <span :if={!present?(@view.image)} aria-label="No token image">{String.first(
@@ -1313,10 +1329,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span class="auction-finished__art">
           <img
             :if={present?(@view.image)}
-            src={@view.image}
+            src={StoredImage.sized(@view.image, 160)}
             alt={"#{@view.name} token"}
-            width="400"
-            height="400"
+            width="72"
+            height="72"
             decoding="async"
           />
           <span :if={!present?(@view.image)} aria-label="No token image">{String.first(

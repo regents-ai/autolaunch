@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
 
   def render(assigns) do
     ~H"""
-    <main class="fact-page">
+    <div class="fact-page">
       <header class="autolaunch-heading">
         <div class="fact-page__title">
           <h1>How Autolaunch works</h1>
@@ -150,9 +150,9 @@ defmodule AutolaunchWeb.HowItWorksLive do
           </tbody>
         </table>
         <p>
-          Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale
-          allocation at that floor, rounded up, about a billionth of a REGENT. The launcher chooses
-          neither. A successful auction sells the whole allocation, apart from rounding. If it
+          Every v2 auction opens at the lowest price it accepts. Its minimum is the whole sale at
+          that floor price: about 0.000000001 REGENT, so any auction with a real bid reaches it.
+          The launcher chooses neither. A successful auction sells the whole allocation, apart from rounding. If it
           misses its minimum, every bidder takes back their full bid and all 100 billion tokens
           are retired to the dead address.
         </p>
@@ -200,8 +200,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
               <td data-label="After a successful auction">
                 The full-range position pairs the stock raised with the tokens it needs at the
                 auction's final clearing price. Remaining reserve is locked in a token-only position
-                above the opening token price. Both positions are locked forever; stock rounding
-                dust goes to the protocol fee lane.
+                above the opening token price. Both positions are locked forever; any stock left
+                over from rounding joins the protocol fee.
               </td>
             </tr>
             <tr>
@@ -211,7 +211,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
               </td>
               <td data-label="After a successful auction">
                 Released to the token's creator block by block over <strong>30 days</strong>
-                from when the pool opens. Anyone can send the release, and it always pays the
+                from graduation. Anyone can send the release, and it always pays the
                 creator. The creator also earns a share of trading fees.
               </td>
             </tr>
@@ -282,9 +282,8 @@ defmodule AutolaunchWeb.HowItWorksLive do
           </tbody>
         </table>
         <p>
-          What each launch's locked liquidity earns enters its revenue splitter. Each v2 hook
-          rounds the total fee once and assigns the rounding remainder to the launch's splitter
-          share after calculating the other lanes.
+          What each launch's locked liquidity earns enters its revenue splitter. When a trade's fee
+          is divided, any tiny leftover from rounding goes to the launch's revenue splitter.
         </p>
       </section>
 
@@ -347,7 +346,7 @@ defmodule AutolaunchWeb.HowItWorksLive do
           <li>The rates are fixed in the contracts and cannot be changed.</li>
         </ul>
       </details>
-    </main>
+    </div>
     """
   end
 

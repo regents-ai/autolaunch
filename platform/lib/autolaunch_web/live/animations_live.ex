@@ -190,7 +190,7 @@ defmodule AutolaunchWeb.AnimationsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <main id="motion-lab" class="motion-lab" data-motion={@reduced? && "reduced"}>
+    <div id="motion-lab" class="motion-lab" data-motion={@reduced? && "reduced"}>
       <header class="motion-lab__head">
         <p class="motion-lab__kicker"><a href={~p"/"}>Autolaunch</a> / Motion lab</p>
         <h1>Motion lab</h1>
@@ -427,7 +427,7 @@ defmodule AutolaunchWeb.AnimationsLive do
       </.section>
 
       <div id="motion-lab-fx" class="motion-lab__fx" phx-update="ignore" aria-hidden="true"></div>
-    </main>
+    </div>
     """
   end
 
