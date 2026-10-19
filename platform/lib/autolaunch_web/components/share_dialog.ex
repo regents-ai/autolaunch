@@ -113,8 +113,8 @@ defmodule AutolaunchWeb.Components.ShareDialog do
       const phone = () => window.matchMedia("(pointer: coarse)").matches
 
       // Asks for the video until it is made. While it waits in line the answer
-      // says how many videos are ahead of it; a person who has made their videos
-      // for the day gets the launch's video instead.
+      // says how many videos are ahead of it; once the site has made all of the
+      // day's videos, a person with none saved gets the launch's video instead.
       const want = (address, everyone, name) => {
         const kept = videos.get(address)
         if (kept && kept.state !== "failed") return kept
@@ -139,10 +139,9 @@ defmodule AutolaunchWeb.Components.ShareDialog do
             }
 
             if (response.status === 429 && everyone) {
-              const {daily} = await response.json()
               asking = everyone
               video.limited = true
-              video.words = `You've made your ${daily} videos for today, so this is the video everyone sees.`
+              video.words = "Autolaunch has made all of today's videos, so this is the video everyone sees."
               tell()
               return ask()
             }

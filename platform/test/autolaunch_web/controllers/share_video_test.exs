@@ -35,13 +35,23 @@ defmodule AutolaunchWeb.ShareVideoTest do
         assert_error_sent(404, fn -> conn |> init_test_session(session) |> get(path) end)
     end
 
-    # The owner is let through both. The token's video cannot be made with no
-    # chain to read in tests, which is the try-again page rather than not
-    # found; the graduated auction's address moves on to the token's.
-    {503, _headers, _body} =
-      assert_error_sent(503, fn ->
-        conn |> init_test_session(%{human_account_id: owner.id}) |> get(token_path)
-      end)
+    # The owner is let through both: their video, already waiting in line
+    # (the tests run no job queue), answers its place, and the graduated
+    # auction's address moves on to the token's.
+    Autolaunch.Repo.insert_all("share_video_requests", [
+      %{
+        id: Ecto.UUID.bingenerate(),
+        key: "#{auction.id}:token:account:#{owner.id}",
+        kind: "token",
+        auction_id: Ecto.UUID.dump!(auction.id),
+        human_account_id: owner.id,
+        wallet: wallet,
+        state: "queued"
+      }
+    ])
+
+    queued = conn |> init_test_session(%{human_account_id: owner.id}) |> get(token_path)
+    assert %{"ahead" => 0} = json_response(queued, 202)
 
     moved = conn |> init_test_session(%{human_account_id: owner.id}) |> get(auction_path)
     assert moved.status == 301
