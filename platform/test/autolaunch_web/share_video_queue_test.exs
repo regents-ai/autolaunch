@@ -172,6 +172,33 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
+  test "past their space, the oldest made videos are deleted first", %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+    video = String.duplicate("v", 400)
+
+    try do
+      for {who, hours_ago} <- [{person, 3}, {person + 1, 2}, {person + 2, 1}],
+          do: saved(auction, who, wallet, video, DateTime.add(now, -hours_ago * 3600))
+
+      ask = fn ->
+        unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person + 3, now) end)
+      end
+
+      assert {:waiting, _ahead} = ask.()
+
+      :ok = unboxed(fn -> Autolaunch.keep_share_videos_under!(1000, actor: %System{}) end)
+
+      # Two of the three 400-byte videos fit in 1000 bytes: the oldest goes,
+      # and the queued request, which holds no video, stays.
+      left = auction |> requests() |> Enum.map(&{&1.human_account_id, &1.state}) |> Enum.sort()
+      assert left == [{person + 1, :ready}, {person + 2, :ready}, {person + 3, :queued}]
+    after
+      forget(auction)
+    end
+  end
+
   # Fills the day's videos, all but `room`, with launch videos of `auction`'s.
   defp made_but(auction, room) do
     made =

@@ -534,7 +534,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d9467de87e92ae7c61723b84584033ab208aff85b2d94d49642c15d69a16cded"
+      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
     },
     {
       "id": 71,
@@ -547,7 +547,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d9467de87e92ae7c61723b84584033ab208aff85b2d94d49642c15d69a16cded"
+      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
     },
     {
       "id": 72,
@@ -560,7 +560,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d9467de87e92ae7c61723b84584033ab208aff85b2d94d49642c15d69a16cded"
+      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
+    },
+    {
+      "id": 73,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 175,
+      "test_name": "past their space, the oldest made videos are deleted first",
+      "keep_because": "Past the space set aside for made share videos (5 GB on the site, 1000 bytes here), the oldest videos are deleted first and requests still waiting for their video are never touched (Sean, 1b, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if the order is undone: with the oldest kept instead of the newest, the newest video was deleted.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "815e5160ffbeae34e818fb15bac93a3240af663c691e702799b5ba89e27d6605"
     },
     {
       "id": 61,

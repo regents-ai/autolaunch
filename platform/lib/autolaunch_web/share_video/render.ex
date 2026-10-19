@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.ShareVideo.Render do
   @moduledoc """
   Makes the video an `Autolaunch.ShareVideoRequest` asks for, stores it in
-  the request and marks the request ready. A video that
-  cannot be made fails the render, and the trigger marks the request failed.
+  the request and marks the request ready, then keeps the made videos under
+  5 GB in all by deleting the oldest past that. A video that cannot be made
+  fails the render, and the trigger marks the request failed.
 
   Each video made reports what it took as `[:autolaunch, :share_video,
   :rendered]`: the milliseconds, the MP4's bytes and the most memory the BEAM
@@ -10,11 +11,18 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   """
   use Ash.Resource.Change
 
+  alias Autolaunch.Actors.System
   alias AutolaunchWeb.Paths
   alias AutolaunchWeb.ShareVideo.{Film, Story}
 
+  @bytes 5_000_000_000
+
   @impl true
-  def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &render/1)
+  def change(changeset, _opts, _context) do
+    changeset
+    |> Ash.Changeset.before_action(&render/1)
+    |> Ash.Changeset.after_action(&keep_under/2)
+  end
 
   defp render(%{data: request} = changeset) do
     with {:ok, story} <- story(request),
@@ -32,6 +40,12 @@ defmodule AutolaunchWeb.ShareVideo.Render do
       {:error, reason} ->
         Ash.Changeset.add_error(changeset, "share video #{request.key}: #{inspect(reason)}")
     end
+  end
+
+  # Past 5 GB of made videos the oldest are deleted, so a new one always fits.
+  defp keep_under(_changeset, request) do
+    :ok = Autolaunch.keep_share_videos_under(@bytes, actor: %System{})
+    {:ok, request}
   end
 
   defp story(%{kind: :token} = request) do

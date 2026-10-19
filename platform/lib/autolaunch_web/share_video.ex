@@ -10,7 +10,8 @@ defmodule AutolaunchWeb.ShareVideo do
   own video is made again every fifteen minutes it is asked for. A person's
   video for a launch, its auction's and its token's apart, is kept and served
   as made until three hours have passed; asking after that makes a new one.
-  Every video is deleted once it is a day old.
+  Every video is deleted once it is a day old, and sooner, oldest first, if
+  the made videos would hold more than 5 GB.
 
   Asking for a video that is not made yet records a request, once however
   many ask, which queues it to be made one at a time
