@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
           {"57P05", "refused"},
           {"57014", "refused"},
           {"0A000", "refused"},
-          {"P0001", "FATAL 57P01 (admin_shutdown) terminating connection"}
+          {"P0001", "** (Postgrex.Error) FATAL 57P01 (admin_shutdown) terminating connection"}
         ] do
       refuse_writes(code, message)
 
@@ -124,32 +124,26 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
 
   test "a connection that waits too long for the database is the try-again page",
        %{conn: conn, path: path} do
-    # As the request starts reading the video's queue, another caller holds
-    # the case's one connection for four seconds; the request's read is
-    # dropped from the queue after two (`queue_target` in config/test.exs)
-    # with the connection's own error.
-    test = self()
-    handler = "hold-#{inspect(test)}"
-
-    :telemetry.attach(
-      handler,
-      [:ash, :autolaunch, :read, :start],
-      fn _event, _measurements, metadata, _config ->
-        if self() == test and metadata.resource == ShareVideoRequest do
-          :telemetry.detach(handler)
-          holder = Task.async(fn -> Repo.query!("SELECT pg_sleep(4)") end)
-          Process.put(:holder, holder)
-          Process.sleep(200)
-        end
-      end,
-      nil
-    )
-
-    on_exit(fn -> :telemetry.detach(handler) end)
+    # Held as the request starts reading the video's queue: Ash hands over the
+    # connection's error as text.
+    holder = hold_when([:ash, :autolaunch, :read, :start], &(&1.resource == ShareVideoRequest))
 
     {503, _headers, body} = assert_error_sent(503, fn -> get(conn, path) end)
     assert body =~ "Try again"
-    Task.await(Process.get(:holder), 10_000)
+    Task.await(holder.(), 10_000)
+  end
+
+  test "a connection that waits too long to count a queued video's place in line is the try-again page",
+       %{conn: conn, path: path} do
+    assert get(conn, path).status == 202
+
+    # Held once the second ask has read its queued request: the count of the
+    # requests ahead of it raises the connection's own error, unwrapped.
+    holder = hold_when([:autolaunch, :repo, :query], &(&1.source == "share_video_requests"))
+
+    {503, _headers, body} = assert_error_sent(503, fn -> get(conn, path) end)
+    assert body =~ "Try again"
+    Task.await(holder.(), 10_000)
   end
 
   test "no word of a database error's message reaches the log", %{conn: conn, path: path} do
@@ -207,6 +201,32 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
              "error" => "render_failed",
              "message" => "Your video couldn't be made. Try again in a moment."
            }
+  end
+
+  # The first time `event` fires in this process with metadata `hold?`
+  # accepts, another caller holds the case's one connection for four seconds,
+  # so the request's next query is dropped from the queue after two
+  # (`queue_target` in config/test.exs) with the connection's own error,
+  # `DBConnection.ConnectionError`. Returns a function giving the holder's task.
+  defp hold_when(event, hold?) do
+    test = self()
+    handler = "hold-#{inspect(test)}"
+
+    :telemetry.attach(
+      handler,
+      event,
+      fn _event, _measurements, metadata, _config ->
+        if self() == test and hold?.(metadata) do
+          :telemetry.detach(handler)
+          Process.put(:holder, Task.async(fn -> Repo.query!("SELECT pg_sleep(4)") end))
+          Process.sleep(200)
+        end
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+    fn -> Process.get(:holder) end
   end
 
   # From now on, until the case ends, the database refuses every write of a

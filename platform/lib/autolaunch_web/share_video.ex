@@ -235,6 +235,7 @@ defmodule AutolaunchWeb.ShareVideo do
   # `Exception.format(:error, exception)` in `Ash.Error.Unknown.UnknownError`),
   # so for that one error a lost connection is told by the banner the text
   # starts with. The check gives only true or false.
+  # The banners assume the database server reports its messages in English.
   @lost_banners ["** (DBConnection.ConnectionError) "] ++
                   for(
                     severity <- ~w(ERROR FATAL PANIC),

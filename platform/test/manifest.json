@@ -1,5 +1,5 @@
 {
-  "total": 49,
+  "total": 50,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -547,20 +547,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 62,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
-      "line": 190,
+      "line": 184,
       "test_name": "a video that couldn't be made answers with its own line, not the try-again page",
       "keep_because": "A video whose render failed answers 500 with its own plain line, which the share window shows, instead of the outage page (Sentinel pre-read, 18 Oct 2026). Before this change every share-video failure raised the 503 outage page.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 63,
@@ -573,7 +573,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 64,
@@ -586,7 +586,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 65,
@@ -599,7 +599,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 66,
@@ -612,7 +612,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 67,
@@ -621,11 +621,11 @@
       "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
       "line": 107,
       "test_name": "a database code next to a lost connection's answers with its own line",
-      "keep_because": "Database codes beside the lost-connection ones (57P04, 57P05, 57014, 0A000), and a message dressed as a shutdown, answer 500 with their own line, not the try-again page (coordinator ruling, 19 Oct 2026 01:14Z). It fails if the banner list is widened.",
+      "keep_because": "Database codes beside the lost-connection ones (57P04, 57P05, 57014, 0A000), and a message that is a whole lost-connection banner (\"** (Postgrex.Error) FATAL 57P01 (admin_shutdown) terminating connection\"), answer 500 with their own line, not the try-again page (coordinator ruling, 19 Oct 2026 01:14Z). It fails if the banner list is widened. It also fails if the anchored check becomes a contains check.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 68,
@@ -638,20 +638,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     },
     {
       "id": 69,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
-      "line": 155,
+      "line": 149,
       "test_name": "no word of a database error's message reaches the log",
       "keep_because": "A database error whose message holds a value (a trigger raising \"alice 0xab1\") leaves none of it in any log line at any level, the database layer's own query lines included (coordinator ruling, 19 Oct 2026 01:14Z). It fails if the log line carries the error's text.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7cca05b7a85be76c74de352dbe9c974ba1f24991346f4c2165c3d8bbfe1ae288"
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
+    },
+    {
+      "id": 70,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
+      "line": 136,
+      "test_name": "a connection that waits too long to count a queued video's place in line is the try-again page",
+      "keep_because": "A queued video's place-in-line count dropped from the connection queue raises the connection's own DBConnection.ConnectionError, unwrapped by Ash, and answers 503 (coordinator ruling, 19 Oct 2026 01:35Z). It is the only real path to the raw DBConnection.ConnectionError clause and fails when that clause is off.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "9612e881606d7e94d68e0675758f59504cc7b526e6b619d51325f4b2d0a0facd"
     }
   ],
   "legacy_folders_to_remove": [
