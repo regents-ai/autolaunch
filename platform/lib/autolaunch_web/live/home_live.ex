@@ -318,7 +318,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   def render(assigns) do
     ~H"""
-    <main class="home-page home-explore-page" id="home-explore">
+    <div class="home-page home-explore-page" id="home-explore">
       <header class="home-hero">
         <h1 class="home-hero__title">
           Autolaunch <span>Auctions</span>
@@ -526,9 +526,10 @@ defmodule AutolaunchWeb.HomeLive do
           data-variant={AutolaunchWeb.Motion.standard("grid")}
         >
           <.explore_card
-            :for={record <- @records}
+            :for={{record, index} <- Enum.with_index(@records)}
             kind={@records_kind}
             record={record}
+            lead={index == 0 && @backed == []}
             creator_connections={connections_for(record, @creators)}
             trade_event="open_trade"
             settle={@settle_labels[record.id]}
@@ -645,7 +646,7 @@ defmodule AutolaunchWeb.HomeLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
-    </main>
+    </div>
     """
   end
 

@@ -3,9 +3,9 @@ defmodule AutolaunchWeb.PublicPagesHTML do
 
   def show(assigns) do
     ~H"""
-    <main class="fact-page document-page">
+    <div class="fact-page document-page">
       {@document}
-    </main>
+    </div>
     """
   end
 end

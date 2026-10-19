@@ -15,7 +15,7 @@
    title and the Launch button no longer fit side by side, the button goes under it. */
 #home-explore .home-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; margin: 8px 0 40px; }
 #home-explore .home-hero__title { max-width: 30ch; margin: 0; font-size: clamp(1.625rem, 1.1rem + 2cqi, 2.5rem); line-height: 1.15; text-wrap: balance; overflow-wrap: break-word; }
-#home-explore .home-hero__title span { color: var(--product-autolaunch); }
+#home-explore .home-hero__title span { color: var(--orange-ink); }
 #home-explore .home-launch { flex: none; }
 #home-explore span.home-launch { display: inline-flex; align-items: center; gap: 10px; }
 #home-explore span.home-launch small { color: var(--color-fg-muted); font-size: .8125rem; }

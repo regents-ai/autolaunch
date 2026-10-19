@@ -56,7 +56,7 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 
 ## Browser and CLI
 
-On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. Native signed browser success must be verified by the actual host; registration alone is not proof of success.
+On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 The unified Regents CLI supports signed requests and private JSON on stdin. Release 1.10.12 includes the named commands below, including `regents autolaunch token <id>`, and reads Credits history by `pagination.next_cursor`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
 

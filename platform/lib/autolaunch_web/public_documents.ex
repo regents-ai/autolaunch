@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   every other address reaches it with its own sessions and policies.
   """
 
+  alias AutolaunchWeb.Components.AutolaunchHelpers
   alias AutolaunchWeb.Paths
 
   @directory Path.join(__DIR__, "public_documents")
@@ -73,16 +74,15 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/auctions" =>
       {"Auctions", "Every Revstake and Memestock auction on Autolaunch, live and graduated."},
     :auction =>
-      {"Auction", "An Autolaunch auction on Base: its price, its bids and its time left."},
+      {"auction", "An Autolaunch auction on Base: its price, its bids and its time left."},
     :robinhood_auction =>
-      {"Robinhood auction",
+      {"auction",
        "An Autolaunch auction on Robinhood Chain: its price, its bids and its time left."},
     "/tokens" =>
       {"Tokens", "Every token launched through Autolaunch, on Base and Robinhood Chain."},
-    :token => {"Token", "A token launched through Autolaunch on Base, to trade and stake."},
+    :token => {"token", "A token launched through Autolaunch on Base, to trade and stake."},
     :robinhood_token =>
-      {"Robinhood token",
-       "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
+      {"token", "A token launched through Autolaunch on Robinhood Chain, to trade and stake."},
     "/how-it-works" =>
       {"How Autolaunch works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
@@ -150,6 +150,16 @@ defmodule AutolaunchWeb.PublicDocuments do
     [page_title: title, page_description: description]
   end
 
+  @doc """
+  The assigns of an auction's or a token's page, the title naming its token,
+  as in "First Bite (BITE) auction", or "SANDY token" when the name is the ticker.
+  """
+  def market_page(key, name, ticker) do
+    {kind, description} = Map.fetch!(@pages, key)
+    named = if AutolaunchHelpers.same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    [page_title: "#{named} #{kind}", page_description: description]
+  end
+
   @doc "The page's full browser title, the suffix that adds the site name, and its description."
   def metadata(path, title, description) do
     suffix = if path == "/", do: "", else: " · #{@site_name}"
@@ -168,12 +178,21 @@ defmodule AutolaunchWeb.PublicDocuments do
     link_rel: "noopener noreferrer"
   ]
 
-  @doc "A document's committed Markdown as sanitized HTML."
+  @doc """
+  A document's committed Markdown as sanitized HTML. A table sits in a box
+  that scrolls sideways on a narrow screen and can be reached from the
+  keyboard to scroll it.
+  """
   # The HTML is MDEx-sanitized from the committed public Markdown.
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
     markdown
     |> MDEx.to_html!(extension: [table: true], sanitize: @sanitize)
+    |> String.replace(
+      "<table>",
+      ~s(<div class="document-table" role="region" aria-label="Table" tabindex="0"><table>)
+    )
+    |> String.replace("</table>", "</table></div>")
     |> Phoenix.HTML.raw()
   end
 

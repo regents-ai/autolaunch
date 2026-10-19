@@ -1,9 +1,10 @@
 defmodule AutolaunchWeb.Components.TokenHeading do
   @moduledoc """
-  A launched token's page heading: its name, the pair it trades as, and, once
-  its pool is read, its shortened address with a copy button and where to
-  trade and chart it. The trade and chart links name public networks only, so
-  a local fork's token shows its address without them.
+  A launched token's page heading: its name, the pair it trades as, its
+  shortened address with a copy button, and where to trade and chart it. The
+  trade and chart buttons hold their place from the first paint and open once
+  the pool is read, so nothing below them moves. They name public networks
+  only, so a local fork's token shows its address without them.
   """
   use Phoenix.Component
 
@@ -13,6 +14,7 @@ defmodule AutolaunchWeb.Components.TokenHeading do
   attr :symbol, :string, required: true
   attr :currency, :string, default: nil, doc: "the token the pool pairs it with"
   attr :chain_id, :integer, required: true
+  attr :address, :string, required: true, doc: "the token's contract address"
   attr :pool, :map, default: nil, doc: "the token's pool facts, once read"
 
   def token_heading(assigns) do
@@ -25,19 +27,19 @@ defmodule AutolaunchWeb.Components.TokenHeading do
         <span class="token-heading__pair">{@symbol}<span :if={@currency}> / {@currency}</span></span>
       </h1>
     </Regent.Structure.section_bar>
-    <div :if={@pool} class="token-heading__links">
+    <div class="token-heading__links">
       <Regent.Primitives.copy_button
         id="token-heading-copy"
-        text={@pool.token.address}
+        text={@address}
         variant="quiet"
         class="token-heading__copy"
         aria-label={"Copy the #{@symbol} token address"}
       >
-        <span class="token-heading__address">{RegentFormat.short_address(@pool.token.address)}</span>
+        <span class="token-heading__address">{RegentFormat.short_address(@address)}</span>
         <span class="regent-token-menu__copy-icon" aria-hidden="true"><.copy_icon /></span>
       </Regent.Primitives.copy_button>
       <a
-        :if={@network}
+        :if={@network && @pool}
         class="rg-button rg-button--secondary token-heading__link"
         href={uniswap_url(@network, @pool)}
         target="_blank"
@@ -46,12 +48,25 @@ defmodule AutolaunchWeb.Components.TokenHeading do
         <.uniswap_icon /> Uniswap Pool
       </a>
       <.live_component
-        :if={@network}
+        :if={@network && @pool}
         module={AutolaunchWeb.ChartLinkComponent}
         id={"token-chart-#{@network}-#{@pool.pool_id}"}
         network={@network}
         pool_id={@pool.pool_id}
       />
+      <Regent.Primitives.button
+        :if={@network && !@pool}
+        variant="secondary"
+        disabled
+        class="token-heading__link"
+      >
+        <.uniswap_icon /> Uniswap Pool
+      </Regent.Primitives.button>
+      <span :if={@network && !@pool} class="token-heading__chart">
+        <Regent.Primitives.button variant="secondary" disabled class="token-heading__link">
+          Chart unavailable
+        </Regent.Primitives.button>
+      </span>
     </div>
     """
   end
