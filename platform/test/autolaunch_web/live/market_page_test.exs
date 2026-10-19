@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.MarketPageTest do
   """
   use AutolaunchWeb.ConnCase, async: false
 
+  import Autolaunch.DatabaseFaults
   import ExUnit.CaptureLog
 
   alias Autolaunch.{Auction, Repo, TestSupport}
@@ -82,34 +83,5 @@ defmodule AutolaunchWeb.MarketPageTest do
     stored = TestSupport.project_auction(chain_id: 8453, symbol: symbol)
     {:ok, auction} = Paths.find_auction(symbol, String.slice(stored.auction_address, -5, 5))
     auction
-  end
-
-  # Cuts this case's database connection the first time `event` fires in this
-  # process with metadata `cut?` accepts.
-  defp cut_when(event, cut?) do
-    test = self()
-    %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
-
-    cutter =
-      start_supervised!(
-        {Postgrex,
-         Keyword.take(Repo.config(), [:hostname, :port, :username, :password, :database])}
-      )
-
-    handler = "cut-#{inspect(test)}"
-
-    :telemetry.attach(
-      handler,
-      event,
-      fn _event, _measurements, metadata, _config ->
-        if self() == test and cut?.(metadata) do
-          :telemetry.detach(handler)
-          Postgrex.query!(cutter, "SELECT pg_terminate_backend($1)", [backend])
-        end
-      end,
-      nil
-    )
-
-    on_exit(fn -> :telemetry.detach(handler) end)
   end
 end
