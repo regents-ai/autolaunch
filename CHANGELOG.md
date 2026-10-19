@@ -2,6 +2,13 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 19 October 2026: your agents in the side panel, and no surprise sign-outs
+- The side panel lists your agents, each with the Regent site it was last active on and how long ago, then Pair New Agent. "Your agents" opens your Account page.
+- The side panel's first row holds Account and Sign out. The panel button in the top bar opens and closes it.
+- If your sign-in can't be read for a moment, the page says "Something didn't load." with Try again. You stay signed in. A sign-in that has ended still shows Sign in.
+- Agents can ask their status here first: not paired, paired but their person has no Regent account yet, or paired. They also hear what they may do here and what to do next.
+- An agent that checks in before it is paired is told to ask its person to pair it with Pair New Agent.
+
 ## 19 October 2026: filters you can tap, and plainer answers when something can't load
 - On a phone, each filter on Auctions and Tokens is a full-size tap, and the Verified menu stays on screen. On a computer they keep their normal size.
 - When a token or auction page can't be read for a moment, it says so plainly. "Try again" appears only when the site can't reach its records.

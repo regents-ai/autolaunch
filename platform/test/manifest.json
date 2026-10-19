@@ -1,5 +1,5 @@
 {
-  "total": 64,
+  "total": 70,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -27,7 +27,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 5,
@@ -40,7 +40,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 7,
@@ -300,7 +300,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 51,
@@ -834,6 +834,84 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "38a1e17dd8d2e4bdbe158fe8d3124f7cca32ecd5108fb8b1a453a1211ab0507f"
+    },
+    {
+      "id": 92,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 40,
+      "test_name": "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in",
+      "keep_because": "An agent hears its status from whoami (not_paired, then paired with this site's allowed list and no next step) and its check-in names its person's shared Regent account; no answer says its person is missing here. It fails at elixir-utils 583e2c60, whose whoami has no status.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "4f530f151f708cb95f7ceaf2c6210754991068a0f86ccb5a5ca458352d352dab"
+    },
+    {
+      "id": 93,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 26,
+      "test_name": "SIGN_IN_READ_FAILURE_KEEPS_SIGN_IN: a failed read shows the plain state and signs no one out",
+      "keep_because": "A sign-in read that fails (the account's ENS table missing for a moment) showed every page signed out. The page now says Something didn't load with Try again, never Sign in, /auth/session answers 503 instead of signed out, and the same cookie is signed in once the read works. It fails while a failed read is taken for an ended sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b6f40592360666b44c5f0b4d3d232b2255efe77aa957313b3f39f3d6f03bd3c3"
+    },
+    {
+      "id": 94,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 68,
+      "test_name": "a lost connection during the sign-in read is the same plain state, logged as one",
+      "keep_because": "A database connection lost as the account is read shows the same plain state and is logged as connection_lost by kind and module only. It fails while a failed read is taken for an ended sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b6f40592360666b44c5f0b4d3d232b2255efe77aa957313b3f39f3d6f03bd3c3"
+    },
+    {
+      "id": 95,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 82,
+      "test_name": "a sign-in that has ended is still signed out",
+      "keep_because": "A sign-in past its 30 days still shows Sign in and /auth/session says signed out, never the plain state. It passes with or without the read fix and fails against a fix that takes an ended sign-in for a failed read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b6f40592360666b44c5f0b4d3d232b2255efe77aa957313b3f39f3d6f03bd3c3"
+    },
+    {
+      "id": 96,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/side_panel_agents_test.exs",
+      "line": 53,
+      "test_name": "SIDE_PANEL_AGENTS_LAST_ACTIVE: the panel lists each agent and where it was last active",
+      "keep_because": "The side panel lists the person's agents and reads where each was last active only when the panel asks; a day from the sign-in service in a shape it never sends leaves only that agent's line empty and the page up.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5f0cc6a55c7f723d4f1251436ab0407a154e0ef388daae358d464f4d32ea92c0"
+    },
+    {
+      "id": 97,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/side_panel_agents_test.exs",
+      "line": 79,
+      "test_name": "signed in with no agents, the panel says so; signed out there is no panel",
+      "keep_because": "Signed in with no agents the panel says No agents paired yet; signed out there is no side panel.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5f0cc6a55c7f723d4f1251436ab0407a154e0ef388daae358d464f4d32ea92c0"
     }
   ],
   "legacy_folders_to_remove": [
