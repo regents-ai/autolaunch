@@ -10,6 +10,7 @@ defmodule Autolaunch.Repo.Migrations.AddShareVideoStorage do
   def up do
     alter table(:share_video_requests) do
       add :mp4, :binary
+      add :saved, :boolean, null: false, default: true
     end
 
     create index(:share_video_requests, [:human_account_id, :auction_id, :kind, :inserted_at])
@@ -24,6 +25,7 @@ defmodule Autolaunch.Repo.Migrations.AddShareVideoStorage do
                    ])
 
     alter table(:share_video_requests) do
+      remove :saved
       remove :mp4
     end
   end

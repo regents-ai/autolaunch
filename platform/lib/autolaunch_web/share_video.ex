@@ -10,8 +10,9 @@ defmodule AutolaunchWeb.ShareVideo do
   own video is made again every fifteen minutes it is asked for. A person's
   video for a launch, its auction's and its token's apart, is kept and served
   as made until three hours have passed; asking after that makes a new one.
-  Every video is deleted once it is a day old, and sooner, oldest first, if
-  the made videos would hold more than 5 GB.
+  Every video is deleted once it is a day old. Once the saved videos come to
+  5 GB, a new video is still made but not saved: it is handed over once, and
+  asking again makes another.
 
   Asking for a video that is not made yet records a request, once however
   many ask, which queues it to be made one at a time
@@ -165,7 +166,20 @@ defmodule AutolaunchWeb.ShareVideo do
 
   defp video(request) do
     case Autolaunch.share_video_mp4(request.id, actor: %System{}) do
-      {:ok, %{mp4: mp4}} -> {:ok, mp4}
+      {:ok, %{saved: true, mp4: mp4}} -> {:ok, mp4}
+      {:ok, unsaved} -> handed_over(unsaved)
+      {:error, error} -> {:error, failure(error)}
+    end
+  end
+
+  # A video made once the saved videos were full is handed over once, then let
+  # go. One handed to another ask moments before is gone: asking again makes
+  # a new one.
+  defp handed_over(%{mp4: nil}), do: {:waiting, 0}
+
+  defp handed_over(%{mp4: mp4} = request) do
+    case Autolaunch.hand_over_share_video(request, actor: %System{}) do
+      {:ok, _let_go} -> {:ok, mp4}
       {:error, error} -> {:error, failure(error)}
     end
   end

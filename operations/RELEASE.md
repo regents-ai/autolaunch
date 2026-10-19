@@ -35,11 +35,11 @@ Whenever a lock is lifted on one table, the release then runs a read-only check 
 guard is still in place: every other listed table still refuses being emptied, having rows deleted
 and being dropped.
 
-## This release: one queued request per share video
+## This release: stored share videos
 
-The migration `20261018232413_share_video_queued_once` adds a unique index on
-`autolaunch_app.share_video_requests` (`key`, for rows still queued). It cannot be built while two
-queued requests share a key. In order:
+The migration `20261019034325_add_share_video_storage` adds two columns to
+`autolaunch_app.share_video_requests`, `mp4` (binary, empty) and `saved` (boolean, true), and one
+index (`human_account_id`, `auction_id`, `kind`, `inserted_at`). It deletes nothing. In order:
 
 1. Write the latest Fly Managed Postgres backup id in the evidence.
 2. Count the rows and write the count in the evidence:
@@ -48,17 +48,15 @@ queued requests share a key. In order:
    SELECT count(*) FROM autolaunch_app.share_video_requests;
    ```
 
-3. Check for a video queued twice:
+3. Migrate.
+4. Count the rows again with the query in step 2 and write the count beside the first. Within
+   the hour the release is live the hourly cleanup deletes every request a day old, so a lower
+   count after that is expected; the count straight after the migration matches unless people
+   asked for videos in between.
+5. Once a video has been made on the live site, check it was saved:
 
    ```sql
-   SELECT key, count(*) FROM autolaunch_app.share_video_requests WHERE state = 'queued' GROUP BY key HAVING count(*) > 1;
+   SELECT state, saved, count(*), sum(octet_length(mp4)) FROM autolaunch_app.share_video_requests GROUP BY 1, 2;
    ```
 
-   - No rows: continue.
-   - Any row: stop, and say in one line "Stopped: a share video is queued twice, so the new index
-     can't be built." Delete nothing, don't run it again, and report to the coordinator.
-
-4. Migrate.
-5. Count the rows again with the query in step 2 and write the count beside the first. The
-   migration adds an index only, so the two counts match unless people asked for videos in
-   between.
+   Ready rows show `saved` true and a size of about 200 to 300 KB each.
