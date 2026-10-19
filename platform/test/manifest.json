@@ -534,7 +534,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
     },
     {
       "id": 71,
@@ -547,7 +547,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
     },
     {
       "id": 72,
@@ -560,20 +560,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
     },
     {
       "id": 73,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 212,
+      "line": 215,
       "test_name": "once saved videos are full, a video is still made, handed over once and never saved",
       "keep_because": "Once the saved share videos reach their space (5 GB on the site), a new video is still made and handed over once, then let go; no video is ever deleted early (Sean, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if a video made past the space were kept after it was handed over (proven by serving it as a saved one: its bytes stayed).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
     },
     {
       "id": 61,
@@ -712,24 +712,37 @@
       "file": "test/autolaunch_web/share_video_queue_test.exs",
       "line": 189,
       "test_name": "SAVED_VIDEOS_CAP_IS_5_GB: the site saves made videos only up to 5 GB",
-      "keep_because": "Sean: \"Breaking the 5GB cap is not good, I dont want that database bill\" (19 Oct 2026). The case fails if the saved-video ceiling moves from 5 GB.",
+      "keep_because": "Sean: \"Breaking the 5GB cap is not good, I dont want that database bill\" (19 Oct 2026). The case reads the config the site ships with and fails if the saved-video ceiling there moves from 5 GB.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
     },
     {
       "id": 75,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 193,
+      "line": 196,
       "test_name": "a video made but not yet handed over counts toward the saved space",
       "keep_because": "The 5 GB space count must include videos made but not yet handed over, or the cap can be passed. The case fails if the count leaves unsaved videos out.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+      "source_sha256": "6bcd71ed0ec3107e8dba834897fbe93350f57e1b26a7624e1762fc94b23ea60b"
+    },
+    {
+      "id": 76,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_render_test.exs",
+      "line": 81,
+      "test_name": "RENDER_HONOURS_SAVED_SPACE: a video made past the line is served but not saved",
+      "keep_because": "A share video rendered while the saved videos hold just under the saved space is saved; one rendered at or past it is still made and handed over once, but not saved (Sentinel's ask before v154, 19 Oct 2026). The real render runs from a queued request on a stored running auction, with only the chain node, ffmpeg and the space stood in, which filling 5 GB by hand cannot match. It fails if the render ignores the space check (saved always true) or ignores the configured space (the 5 GB constant put back): both mutations failed it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "0b4b6737efa8c1afc60274ae0308a2f5eb6d73949d1d08c24bb0d61f28b05a4e"
     }
   ],
   "legacy_folders_to_remove": [

@@ -187,7 +187,10 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
   end
 
   test "SAVED_VIDEOS_CAP_IS_5_GB: the site saves made videos only up to 5 GB" do
-    assert AutolaunchWeb.ShareVideo.Render.saved_bytes() == 5_000_000_000
+    # Read from the config the site ships with, not from the running tests,
+    # where a case may set a smaller space for itself.
+    shipped = Config.Reader.read!(Path.expand("../../config/config.exs", __DIR__), env: :prod)
+    assert shipped[:autolaunch][:share_video_saved_bytes] == 5_000_000_000
   end
 
   test "a video made but not yet handed over counts toward the saved space", %{now: now} do

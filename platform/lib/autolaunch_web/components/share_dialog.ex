@@ -149,14 +149,6 @@ defmodule AutolaunchWeb.Components.ShareDialog do
               return ask()
             }
 
-            if (response.status === 429 && everyone) {
-              asking = everyone
-              video.limited = true
-              video.words = "Autolaunch has made all of today's videos, so this is the video everyone sees."
-              tell()
-              return ask()
-            }
-
             throw new Unanswered(await unanswered(response))
           })
 

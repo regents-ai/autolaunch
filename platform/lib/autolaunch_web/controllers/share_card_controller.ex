@@ -139,7 +139,7 @@ defmodule AutolaunchWeb.ShareCardController do
     conn
     |> put_resp_header("cache-control", "no-store")
     |> put_status(:too_many_requests)
-    |> json(%{message: "Autolaunch has made all of today's videos. Try again tomorrow."})
+    |> json(%{message: "Error making video, try tomorrow"})
   end
 
   defp send_video(conn, _reach, {:error, reason}) do

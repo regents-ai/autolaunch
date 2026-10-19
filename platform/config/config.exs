@@ -164,6 +164,10 @@ config :autolaunch, :stock_list_kept_ms, 60_000
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
+# How many bytes of made share videos the site saves; past it a video is still
+# made, handed over once and not saved (AutolaunchWeb.ShareVideo.Render).
+config :autolaunch, :share_video_saved_bytes, 5_000_000_000
+
 # How often one account's wallet figures may be read from the chain, and how
 # often it may report a Credits purchase, each window (Autolaunch.Limits).
 config :autolaunch, :limits,

@@ -41,12 +41,7 @@ The migration `20261019034325_add_share_video_storage` adds two columns to
 `autolaunch_app.share_video_requests`, `mp4` (binary, empty) and `saved` (boolean, true), and one
 index (`human_account_id`, `auction_id`, `kind`, `inserted_at`). It deletes nothing. In order:
 
-1. Write the latest Fly Managed Postgres backup id in the evidence, and the database's size
-   (read only, Sean's "go read-only space check"):
-
-   ```sql
-   SELECT pg_size_pretty(pg_database_size(current_database()));
-   ```
+1. Write the latest Fly Managed Postgres backup id in the evidence.
 
 2. Count the rows and write the count in the evidence:
 
