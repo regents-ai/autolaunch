@@ -534,20 +534,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d5697752e401242a71eec342c485f7c7996616a6adf7d20a98638d8c8bc544d"
+      "source_sha256": "d9467de87e92ae7c61723b84584033ab208aff85b2d94d49642c15d69a16cded"
     },
     {
       "id": 71,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 110,
+      "line": 116,
       "test_name": "a person's video is kept until three hours have passed, then made again",
       "keep_because": "A person's made share video is stored and served as made for three hours, a new one is made after that with the old one kept, and once the site has made all of the day's videos a person keeps their saved video while one with none is told so (stored videos, 18 Oct 2026). Checking it by hand means waiting three hours and filling the day's 1000 videos.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9d5697752e401242a71eec342c485f7c7996616a6adf7d20a98638d8c8bc544d"
+      "source_sha256": "d9467de87e92ae7c61723b84584033ab208aff85b2d94d49642c15d69a16cded"
+    },
+    {
+      "id": 72,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 148,
+      "test_name": "a video is deleted once it is a day old",
+      "keep_because": "Every share video is deleted once it is a day old, by the hourly sweep, and a day-old video is never served, even when the site has made all of the day's videos and a saved one would be (Sean, 19 Oct 2026). Checking it by hand means waiting a day. It fails if either part is undone: with the day filter off the person's read it served the day-old video, and with the sweep back to launch videos only it kept the person's day-old video.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d9467de87e92ae7c61723b84584033ab208aff85b2d94d49642c15d69a16cded"
     },
     {
       "id": 61,

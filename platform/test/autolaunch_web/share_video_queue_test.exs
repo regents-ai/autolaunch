@@ -44,7 +44,13 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     # The site has room for zero to four more videos today. One to ten asks
     # are released together, each by one of six people for their own video,
     # or for the launch's own video. Each run has a launch of its own; only
-    # the launch's id names its videos, so it needs no stored launch.
+    # the launch's id names its videos, so it needs no stored launch. The
+    # day's videos are filled once, all but four, and each run fills its own
+    # share of the rest.
+    filled = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    made_but(filled, 4)
+    on_exit(fn -> forget(filled) end)
+
     check all(
             room <- integer(0..4),
             asks <-
@@ -134,6 +140,33 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
       made_but(auction, 0)
       assert ask.(person, later) == {:ok, "first video"}
       assert ask.(person + 1, now) == {:error, :daily_limit}
+    after
+      forget(auction)
+    end
+  end
+
+  test "a video is deleted once it is a day old", %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    try do
+      saved(auction, person, wallet, "day-old video", DateTime.add(now, -25 * 3600))
+      saved(auction, person + 1, wallet, "fresh video", DateTime.add(now, -23 * 3600))
+
+      # A day-old video is never served, even once the site has made all of
+      # the day's videos, when a saved one would be.
+      made_but(auction, 0)
+
+      assert unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person, now) end) ==
+               {:error, :daily_limit}
+
+      # The hourly sweep deletes it and keeps the younger one.
+      unboxed(fn ->
+        AshOban.Test.schedule_and_run_triggers({ShareVideoRequest, :forget}, actor: %System{})
+      end)
+
+      assert auction |> requests() |> Enum.map(& &1.human_account_id) == [person + 1]
     after
       forget(auction)
     end
