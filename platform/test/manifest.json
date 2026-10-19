@@ -1,5 +1,5 @@
 {
-  "total": 42,
+  "total": 45,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -541,26 +541,65 @@
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
-      "line": 33,
+      "line": 37,
       "test_name": "SHARE_VIDEO_OUTAGE_ONLY_FOR_A_LOST_CONNECTION: a lost database connection is the try-again page",
       "keep_because": "The site's try-again page (503) is only for a database that cannot be reached (Sentinel pre-read, 18 Oct 2026). The case cuts its own database connection from a second connection part-way through a share-video request, which no manual check can time, and the request must answer 503. It fails if a lost connection is classed as any other failure (proven by switching the check off: 500 instead of 503).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d1a1149b9321fc90612d63fad492038f4bd600cd9e95085e3ca0f8bd1e5cc9a2"
+      "source_sha256": "df4b49c93e0488c319c513d37a53d9f5b0ebe8b6fd4ac253bfd75760720af443"
     },
     {
       "id": 62,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
-      "line": 52,
+      "line": 84,
       "test_name": "a video that couldn't be made answers with its own line, not the try-again page",
       "keep_because": "A video whose render failed answers 500 with its own plain line, which the share window shows, instead of the outage page (Sentinel pre-read, 18 Oct 2026). Before this change every share-video failure raised the 503 outage page.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d1a1149b9321fc90612d63fad492038f4bd600cd9e95085e3ca0f8bd1e5cc9a2"
+      "source_sha256": "df4b49c93e0488c319c513d37a53d9f5b0ebe8b6fd4ac253bfd75760720af443"
+    },
+    {
+      "id": 63,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
+      "line": 47,
+      "test_name": "a connection lost before the request reads the video's queue is the try-again page",
+      "keep_because": "A database connection lost before the share-video request reads the video's queue answers the 503 try-again page, not a 500 (Sentinel verdict on 6fb2be2, 18 Oct 2026). The case cuts its own connection as that read starts, which no manual check can time. It fails if a lost connection on a read is classed as any other failure (proven by switching that off: 500).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "df4b49c93e0488c319c513d37a53d9f5b0ebe8b6fd4ac253bfd75760720af443"
+    },
+    {
+      "id": 64,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
+      "line": 56,
+      "test_name": "a connection lost while counting a queued video's place in line is the try-again page",
+      "keep_because": "A database connection lost while counting a queued video's place in line answers 503 (Sentinel verdict on 6fb2be2, 18 Oct 2026). Ash raises the database's own exception from a count, which answered 500 at 6fb2be2; the case failed there and passes now.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "df4b49c93e0488c319c513d37a53d9f5b0ebe8b6fd4ac253bfd75760720af443"
+    },
+    {
+      "id": 65,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/share_video_failures_test.exs",
+      "line": 68,
+      "test_name": "a database error that is not a lost connection answers with its own line",
+      "keep_because": "A real database error that is not a lost connection (42P01, the table renamed inside the case's transaction) answers 500 with its own plain line, not the 503 try-again page (Sentinel verdict on 6fb2be2, 18 Oct 2026). It fails if the list of connection codes is widened to take in other database errors (proven by widening it: 503).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "df4b49c93e0488c319c513d37a53d9f5b0ebe8b6fd4ac253bfd75760720af443"
     }
   ],
   "legacy_folders_to_remove": [

@@ -81,10 +81,20 @@ defmodule AutolaunchWeb.ShareVideo do
              | :invalid_request
              | :connection_lost
              | :failed}
-  def fetch(auction, phase, nil, nil, now),
+  def fetch(auction, phase, wallet, account, now) do
+    answer(auction, phase, wallet, account, now)
+  rescue
+    # Ash returns most failed reads and writes, but raises some: a connection
+    # lost inside a write's transaction (`Ash.Error.Unknown`) and any failure
+    # of a count (the database's own exception).
+    error in [Ash.Error.Unknown, DBConnection.ConnectionError, Postgrex.Error] ->
+      {:error, failure(error)}
+  end
+
+  defp answer(auction, phase, nil, nil, now),
     do: kept_or_queued(auction, phase, nil, nil, key(auction, phase, [], now))
 
-  def fetch(auction, phase, wallet, account, now) when is_integer(account) do
+  defp answer(auction, phase, wallet, account, now) when is_integer(account) do
     wallet = String.downcase(wallet)
 
     with {:ok, state} <- wallet_state(auction, phase, wallet),
@@ -187,32 +197,41 @@ defmodule AutolaunchWeb.ShareVideo do
       {:error, error} ->
         {:error, failure(error)}
     end
-  rescue
-    # A connection lost inside the write's transaction is raised, not returned.
-    error in Ash.Error.Unknown -> {:error, failure(error)}
   end
 
   # A database read or write that failed: the database could not be reached,
-  # the request was refused as written, or something else went wrong. Ash
-  # keeps an unexpected exception as its formatted text (`Ash.Error.Unknown`),
-  # so a lost connection is told by the exception it names there: a
-  # `DBConnection.ConnectionError`, or a `Postgrex.Error` whose code is a
-  # connection exception (class 08) or a server shutting down or starting
-  # (57P01 to 57P03).
-  @connection_lost ~r/\A\*\* \((DBConnection\.ConnectionError\)|Postgrex\.Error\) \w+ (08\w{3}|57P0[1-3]) )/
-
+  # the request was refused as written, or something else went wrong. A lost
+  # connection is a `DBConnection.ConnectionError`, or a `Postgrex.Error` whose
+  # code is a connection exception (class 08) or a server shutting down or
+  # starting (57P01 to 57P03). Ash keeps an exception it did not expect only as
+  # its formatted text (`Ash.Error.Unknown`), so there the exception and its
+  # code are read from the start of that text.
   defp failure(%Ash.Error.Invalid{}), do: :invalid_request
 
-  defp failure(%Ash.Error.Unknown{errors: errors}) do
-    if Enum.any?(errors, &connection_lost?/1), do: :connection_lost, else: :failed
+  defp failure(%Ash.Error.Unknown{errors: errors}),
+    do: if(Enum.any?(errors, &connection_lost?/1), do: :connection_lost, else: :failed)
+
+  defp failure(error), do: if(connection_lost?(error), do: :connection_lost, else: :failed)
+
+  defp connection_lost?(%DBConnection.ConnectionError{}), do: true
+  defp connection_lost?(%Postgrex.Error{postgres: %{pg_code: code}}), do: connection_code?(code)
+
+  defp connection_lost?(%Ash.Error.Unknown.UnknownError{
+         error: "** (DBConnection.ConnectionError)" <> _rest
+       }),
+       do: true
+
+  defp connection_lost?(%Ash.Error.Unknown.UnknownError{error: "** (Postgrex.Error) " <> message}) do
+    case Regex.run(~r/\A\w+ (\w{5}) /, message) do
+      [_line, code] -> connection_code?(code)
+      nil -> false
+    end
   end
 
-  defp failure(_other), do: :failed
-
-  defp connection_lost?(%Ash.Error.Unknown.UnknownError{error: error}) when is_binary(error),
-    do: Regex.match?(@connection_lost, error)
-
   defp connection_lost?(_other), do: false
+
+  defp connection_code?("08" <> _class), do: true
+  defp connection_code?(code), do: code in ~w(57P01 57P02 57P03)
 
   @doc false
   # The finished video, kept for every request that asks for it next.
