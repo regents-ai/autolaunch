@@ -71,6 +71,10 @@
 .auction-outcome svg { display: inline-block; width: 12px; height: 12px; margin-right: 3px; vertical-align: -1px; fill: none; stroke: var(--color-success); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 @media (max-width: 42rem) {
   .market-list__search { flex-basis: 100%; max-width: none; }
+  /* The Verified menu opens from the filter row's left edge, under the row, so on a
+     phone it stays inside the screen wherever the Verified pill falls. */
+  .market-list__filters { position: relative; }
+  .market-list__filters .market-list__verified-menu { position: static; }
   .market-list__table { min-width: 0; }
   /* The token column takes the room the figures leave; the figures never wrap. */
   .market-list__table :is(th, td) { padding: 10px 8px; }
