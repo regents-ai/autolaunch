@@ -1245,7 +1245,7 @@ components:
               symbol: {type: string}
         page: {type: [string, "null"], format: uri, description: "The token's page; null for a Robinhood token this site does not list."}
     Error:
-      description: "Every error keeps its HTTP status and answers this shape. The profile endpoints carry the code alone; every other endpoint adds the message and the hint."
+      description: "Every error keeps its HTTP status and answers this shape: the code, the message and the hint."
       type: object
       required: [error]
       properties:

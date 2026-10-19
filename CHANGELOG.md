@@ -2,6 +2,18 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 19 October 2026: lighter pages that hold still, and plainer words
+- The home page and token pages load each stock picture at the size it is shown, so they open much faster on a phone.
+- A token page no longer jumps when its pool is read: the address, Uniswap and chart buttons, Claim Rewards and the price chart keep their places from the start.
+- A bid with a very high limit shows it short in the auction's activity, such as 26.59B SNDK, with the exact amount on hover and for screen readers.
+- Token and auction pages name the token in the browser tab, such as "SANDY token", and show the name once when the ticker only repeats it.
+- Every page agrees that a creator's tokens vest over 30 days from graduation. The auction page's pool card shows the same lock answer as the facts above it.
+- The Revstake minimum raise reads "about 0.000000001 REGENT, so any real bid reaches it".
+- The developer guide says the command-line tool is published, with the versions to use, and that every error, profile ones included, carries a code, a message and a hint.
+- Internal wording on public pages is rewritten in plain words, and the header button reads "17 Agent Tools".
+- Signed out, Points says "Sign in to see your points.", Portfolio says "Sign in to see your portfolio", and a bid page that has no bid says "We can't find that bid".
+- Screen readers find one main area and one site header on every page, every page has a heading, orange text on light pages is dark enough to read, and the developer guide's tables can be scrolled from the keyboard.
+
 ## 19 October 2026: slimmer buttons
 - Buttons are slimmer, with the label on one line, and filter pills close with Escape or a tap outside.
 

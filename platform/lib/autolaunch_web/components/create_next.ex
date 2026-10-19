@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "497.5 million",
           share: 49.75,
           note:
-            "The stock raised funds a full-range position at the final price; stock rounding dust goes to the protocol fee lane. Remaining reserve sits in a token-only position above the opening token price. Both are locked forever."
+            "The stock raised funds a full-range position at the final price; any stock left over from rounding joins the protocol fee. Remaining reserve sits in a token-only position above the opening token price. Both are locked forever."
         },
         %{
           key: :creator,
@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.Components.CreateNext do
           amount: "5 million",
           share: 0.5,
           note:
-            "Released to you block by block over 30 days from when the pool opens. Anyone can send the release, and it always pays you."
+            "Released to you block by block over 30 days from graduation. Anyone can send the release, and it always pays you."
         }
       ]
     },

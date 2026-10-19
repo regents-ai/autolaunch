@@ -13,7 +13,7 @@
       <%!-- While the phone menu is open the page and footer behind it are inert,
            which the browser sets (assets/js/shell_menu.ts) and LiveView keeps;
            the top bar stays usable, as in the template's shell. --%>
-      <div
+      <main
         id="shell-content"
         class="shell-content"
         tabindex="-1"
@@ -22,7 +22,7 @@
       >
         <AutolaunchWeb.Components.LearnNavigation.navigation current_path={@current_path} />
         {@inner_content}
-      </div>
+      </main>
       <.product_links
         id="shell-footer"
         data-shell-behind-menu

@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       connections_for: 2,
       creator_connections_for: 1,
       current_human_id: 1,
+      same_name?: 2,
       signed_in_wallet: 1
     ]
 
@@ -146,7 +147,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{@launch.title} · {@launch.token_symbol}</h1>
+          <h1 class="rg-section-bar__label">
+            {@launch.title}<span :if={!same_name?(@launch.title, @launch.token_symbol)}> · {@launch.token_symbol}</span>
+          </h1>
         </Regent.Structure.section_bar>
         <ShareLaunch.share_launch
           id="share-launch"
@@ -267,6 +270,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             launch={@launch}
             usd_rate={@usd_rate}
             creator_connections={@creator_connections}
+            locked={if @snapshot.ok?, do: @snapshot.result.stage.facts.liquidity_locked}
           />
         </div>
       </div>
@@ -318,6 +322,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   attr :launch, :map, required: true
   attr :usd_rate, :any, required: true
   attr :creator_connections, :any, required: true
+  attr :locked, :boolean, default: nil
 
   defp about(assigns) do
     ~H"""
@@ -339,6 +344,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         auction={@launch}
         connections={@creator_connections.result}
         token_path={@launch.state == :graduated && Paths.token(@launch)}
+        locked={@locked}
       />
       <p
         :if={@launch.state == :graduated}

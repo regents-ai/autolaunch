@@ -55,17 +55,18 @@ defmodule AutolaunchWeb.PointsLive do
           </Regent.Primitives.tip>
         </h1>
       </header>
-      <Regent.Account.signed_out
+      <section
         :if={!@signed_in?}
         id="points-signed-out"
-        reason={@signed_out_reason}
+        class="rg-account rg-account--signed-out"
       >
-        <:sign_in>
-          <Regent.Primitives.button type="button" data-account-target="sign-in">
-            Sign in
-          </Regent.Primitives.button>
-        </:sign_in>
-      </Regent.Account.signed_out>
+        <p role={@signed_out_reason == :expired && "status"}>
+          {signed_out_text(@signed_out_reason)}
+        </p>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">
+          Sign in
+        </Regent.Primitives.button>
+      </section>
       <AutolaunchWeb.Components.Loading.placeholder
         :if={@signed_in? && is_nil(@points.value) && @points.state in [:idle, :loading]}
         label="Reading your points"
@@ -244,6 +245,9 @@ defmodule AutolaunchWeb.PointsLive do
   defp account_id(_signed_out), do: nil
 
   defp signed_in?(access_context), do: match?({:human, _}, access_context.principal)
+
+  defp signed_out_text(:signed_out), do: "Sign in to see your points."
+  defp signed_out_text(:expired), do: "Your session ended. Sign in again to see your points."
 
   defp listen(%{assigns: %{account_id: id}} = socket) when not is_nil(id) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, "points:#{id}")

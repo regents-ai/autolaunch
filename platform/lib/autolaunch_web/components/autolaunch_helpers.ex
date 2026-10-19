@@ -121,6 +121,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def record_label(:auction, record), do: record.title
 
+  @doc "Whether a token's ticker only repeats its name, as SANDY's does, so the name is shown once."
+  def same_name?(name, ticker), do: String.downcase(name) == String.downcase(ticker || "")
+
   def connections_for(%{creator_human_account_id: id}, grouped) when is_integer(id),
     do: Map.get(grouped, id, %{})
 

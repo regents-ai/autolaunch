@@ -173,6 +173,23 @@ defmodule AutolaunchWeb.Components.TokenTrade do
     """
   end
 
+  attr :pool, :map, required: true, doc: "the page's pool read"
+
+  @doc """
+  Claim Rewards' place under the widget while the pool is first read, so the
+  card arrives without pushing the token's card down. Its look is
+  `.token-claim--reading` in `assets/css/pages/token_page.css`.
+  """
+  def claim_reading(assigns) do
+    ~H"""
+    <div :if={!@pool.ok? && @pool.loading} class="token-claim token-claim--reading" role="status">
+      <span class="visually-hidden">Reading Claim Rewards</span>
+      <span class="loading-block token-claim__copy" aria-hidden="true"></span>
+      <span class="loading-block token-claim__card" aria-hidden="true"></span>
+    </div>
+    """
+  end
+
   defp label(:swap), do: "Swap"
   defp label(:stake), do: "Stake"
   defp label(:unstake), do: "Unstake"

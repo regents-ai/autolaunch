@@ -51,6 +51,18 @@ defmodule AutolaunchWeb.Components.PriceChart do
 
   def price_chart(assigns), do: ~H""
 
+  @doc "The chart's place while the pool is first read, so the card keeps its height when the line arrives."
+  def price_chart_reading(assigns) do
+    ~H"""
+    <div class="price-chart" role="status">
+      <span class="visually-hidden">Reading the price</span>
+      <span class="loading-block price-chart__caption-reading" aria-hidden="true"></span>
+      <span class="loading-block price-chart__line" aria-hidden="true"></span>
+      <span class="loading-block price-chart__facts-reading" aria-hidden="true"></span>
+    </div>
+    """
+  end
+
   defp change([[_block, first] | _rest] = points) do
     [_block, last] = List.last(points)
     percent = Float.round((last / first - 1) * 100, 1)

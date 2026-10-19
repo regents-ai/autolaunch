@@ -47,7 +47,7 @@ A refused request keeps its HTTP status and answers with a code, a message and a
 {"error": {"code": "invalid_request", "message": "The query parameters are invalid.", "hint": "Check the request against {{origin}}/openapi.json. An unknown parameter or value is refused. Sending the same request again will not help."}}
 ```
 
-`code` is stable and meant for programs, `message` says what went wrong and `hint` says what to do next. Branch on the status and the `code`, never on the wording of `message`. The `/api/v1/profile` answers carry the `code` alone, for example `authentication_required` or `profile_not_created`.
+`code` is stable and meant for programs, `message` says what went wrong and `hint` says what to do next. Branch on the status and the `code`, never on the wording of `message`. The `/api/v1/profile` answers use the same shape, with codes such as `authentication_required` or `profile_not_created`.
 
 An unknown parameter or value is refused with a 400, never ignored. A bid estimate answers 400 `invalid_request` for a body without exactly `amount` and `max_price`, 404 `not_found` for an id that names no auction this site created, 422 `estimate_not_offered` for a Robinhood auction (estimates cover Base auctions only; read its figures with `GET /api/v1/auctions/{id}`), 422 `invalid_amount` or `invalid_max_price` for a value that is not a plain decimal string greater than zero, and 500 `internal_error` when the site cannot read the auction; only the 500 is worth retrying. `GET /api/v1/me/positions` answers 401 `authentication_required` when nobody is signed in, and 503 `chain_unavailable` when the chain could not be read. Any address under `/api` answers 429 `too_many_requests` past the rate limit below. A figure the site has not recorded yet is `null`, and `unavailable` says why.
 
@@ -74,7 +74,7 @@ RateLimit: "default";r=119;t=42
 
 ## In the browser (WebMCP)
 
-WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. Native signed browser success requires verification on the actual host.
+WebMCP exposes public reads and signed, paired private operations through the [tool manifest]({{origin}}/capabilities). Read the [signed agent guide]({{origin}}/agents.md) for naming, pairing recovery, exact request proofs and private metadata saves. Browser sign-in never supplies agent authority. Wallet, launch and profile controls remain person-controlled and are not registered as agent tools. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 {{tools}}
 
@@ -89,21 +89,21 @@ Bidding, claiming, launching, trading and staking happen on the website with the
 - [API catalog]({{origin}}/.well-known/api-catalog) points to the OpenAPI description and this page, and [security.txt]({{origin}}/.well-known/security.txt) names where to report a vulnerability.
 - [Source code](https://github.com/regents-ai/autolaunch)
 - [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms).
-- The `autolaunch` command-line tool is not published yet.
+- Command line: `regents autolaunch`, in regents-cli 1.10.12 (`uv tool install regents-cli==1.10.12`).
 
 Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
 
-Unified CLI descriptions name the draft reads `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`. Metadata writes use `save` instead of `show`, reading private JSON stdin. These descriptions need a coordinated CLI release; saves remain refused while prelaunch read-only mode is enabled.
+Read your drafts with `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`, in regents-cli 1.9.3 and later. To change a draft's text, use `save` in place of `show` and send the JSON on stdin. Saves are refused while prelaunch read-only mode is on.
 
 
 ## Stored token details
 
 `GET /api/v1/tokens/{id}` reads one token by the token UUID returned in the public
-list. It applies the same hidden/external exclusions on Base and Robinhood. The
+list, on Base or Robinhood, and only a token that list would show. The
 response includes canonical page URLs, the stored price and its nullable recording
 time, quote-token denomination and nullable supply. It does not call the chain;
-a missing timestamp is not evidence of freshness. Hidden, external and missing
-tokens return 404; invalid UUIDs and extra parameters return 400.
+a missing timestamp is not evidence of freshness. A token the list does not show
+returns 404; invalid UUIDs and extra parameters return 400.
 
 The native tool is `autolaunch_token`. The CLI command is
 `regents autolaunch token <id>`, in regents-cli 1.10.6 and later.

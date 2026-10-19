@@ -345,6 +345,7 @@ defmodule AutolaunchWeb.AuctionLive do
             usd_rate={@usd_rate}
             creator_connections={@creator_connections}
             lab={@local_lab?}
+            locked={@snapshot && @snapshot.stage.facts.liquidity_locked}
           />
         </div>
       </div>
@@ -473,6 +474,7 @@ defmodule AutolaunchWeb.AuctionLive do
   attr :usd_rate, :any, required: true
   attr :creator_connections, :any, required: true
   attr :lab, :boolean, required: true
+  attr :locked, :boolean, default: nil
 
   defp about(assigns) do
     ~H"""
@@ -496,6 +498,7 @@ defmodule AutolaunchWeb.AuctionLive do
         auction={@page_record}
         connections={@creator_connections}
         token_path={@graduated_token && Paths.token(@page_record)}
+        locked={@locked}
       />
       <.treasury_security
         :if={@page_record.kind == :agent && !@lab}

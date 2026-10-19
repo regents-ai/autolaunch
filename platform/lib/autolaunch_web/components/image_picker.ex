@@ -8,6 +8,8 @@ defmodule AutolaunchWeb.Components.ImagePicker do
   """
   use Phoenix.Component
 
+  alias Autolaunch.StoredImage
+
   attr :upload, :map, default: nil, doc: "the page's upload, absent while signed out"
   attr :image, :string, default: "", doc: "the saved image's address"
   attr :notice, :string, default: nil, doc: "why the last file could not be saved"
@@ -46,8 +48,11 @@ defmodule AutolaunchWeb.Components.ImagePicker do
         />
         <img
           :if={@upload.entries == [] && @image != ""}
-          src={@image}
+          src={StoredImage.sized(@image, 96)}
           alt="Saved token image"
+          width="44"
+          height="44"
+          decoding="async"
           class="image-upload__preview"
         />
         <span class="image-upload__text">

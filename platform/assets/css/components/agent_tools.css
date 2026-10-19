@@ -1,5 +1,4 @@
-/* How many tools agents see (`AgentTools.button`), which opens their list. A
-   phone shows only the count. */
+/* How many tools agents see (`AgentTools.button`), which opens their list. */
 .agent-tools-button {
   display: inline-flex;
   align-items: center;
@@ -24,10 +23,6 @@
 @media (max-width: 47.99rem) {
   .agent-tools-button {
     padding-inline: 0.5rem;
-  }
-
-  .agent-tools-button__lead {
-    display: none;
   }
 }
 

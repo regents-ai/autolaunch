@@ -374,7 +374,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         id="revstake-plan"
         kind={:revstake}
         ticker={present_ticker(@draft_values["symbol"])}
-        minimum="The whole sale at the fixed floor, rounded up: about a billionth of a REGENT"
+        minimum="About 0.000000001 REGENT, the whole sale at the floor price, so any real bid reaches it"
         chosen={[
           {"Treasury", present(@draft_values["treasury"], "Not set yet")}
         ]}
@@ -403,7 +403,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               <tr>
                 <th scope="row">Minimum raise</th>
                 <td>
-                  The whole sale at the fixed floor, rounded up: about a billionth of a REGENT
+                  About 0.000000001 REGENT, the whole sale at the floor price, so any real bid reaches it
                   <br />If bids fall short, bidders get their REGENT back.
                 </td>
               </tr>

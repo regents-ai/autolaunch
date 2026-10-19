@@ -21,8 +21,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
             %{name: tool["name"], title: tool["title"], description: tool["description"]}
           end)
 
-  @count "#{length(@tools)} WebMCP Tools"
-  @label "Agents see #{@count}"
+  @label "#{length(@tools)} Agent Tools"
 
   @markdown """
   # Autolaunch: #{@label}
@@ -34,11 +33,10 @@ defmodule AutolaunchWeb.Components.AgentTools do
   attr :dialog, :string, required: true, doc: "The id of the `dialog/1` it opens."
 
   @doc """
-  The button naming how many tools agents see, which opens their list. A phone
-  shows only the count.
+  The button naming how many tools agents see, which opens their list.
   """
   def button(assigns) do
-    assigns = assign(assigns, label: @label, count: @count)
+    assigns = assign(assigns, label: @label)
 
     ~H"""
     <button
@@ -47,10 +45,9 @@ defmodule AutolaunchWeb.Components.AgentTools do
       type="button"
       aria-haspopup="dialog"
       aria-controls={@dialog}
-      aria-label={@label}
       data-agent-tools-open
     >
-      <span class="agent-tools-button__lead">Agents see</span> {@count}
+      {@label}
     </button>
     """
   end

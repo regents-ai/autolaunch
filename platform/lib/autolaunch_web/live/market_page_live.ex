@@ -34,12 +34,12 @@ defmodule AutolaunchWeb.MarketPageLive do
   }
 
   def mount(%{"symbol" => symbol, "tail" => tail}, session, socket) do
-    {page, page_params, share} = page!(socket.assigns.live_action, symbol, tail)
+    {page, page_params, share, auction} = page!(socket.assigns.live_action, symbol, tail)
 
     socket
     |> assign(market_page: page, market_page_params: page_params)
     |> assign(:share, if(connected?(socket), do: nil, else: share))
-    |> assign(PublicDocuments.page(Map.fetch!(@pages, page)))
+    |> assign(PublicDocuments.market_page(@pages[page], auction.title, auction.token_symbol))
     |> then(&page.mount(page_params, session, &1))
   end
 
@@ -55,8 +55,8 @@ defmodule AutolaunchWeb.MarketPageLive do
 
   def render(assigns), do: assigns.market_page.render(assigns)
 
-  # Each chain's page, the parameter it reads its record by, and the page's
-  # share details.
+  # Each chain's page, the parameter it reads its record by, the page's share
+  # details and the auction it names.
   defp page!(:auction, symbol, tail) do
     case Paths.find_auction(symbol, tail) do
       {:ok, auction} -> auction_page(auction)
@@ -74,14 +74,15 @@ defmodule AutolaunchWeb.MarketPageLive do
   defp auction_page(auction) do
     if RobinhoodLab.chain?(auction.chain_id),
       do:
-        {RobinhoodAuctionLive, %{"auction" => auction.auction_address}, ShareCard.meta(auction)},
+        {RobinhoodAuctionLive, %{"auction" => auction.auction_address}, ShareCard.meta(auction),
+         auction},
       else:
         {AuctionLive,
          %{
            "auction_id" => auction.id,
            "auction_address" => auction.auction_address,
            "kind" => auction.kind
-         }, ShareCard.meta(auction)}
+         }, ShareCard.meta(auction), auction}
   end
 
   defp token_page(auction, token) do
@@ -89,9 +90,9 @@ defmodule AutolaunchWeb.MarketPageLive do
       do:
         {RobinhoodTokenLive,
          %{"token" => auction.token_address, "auction" => auction.auction_address},
-         ShareCard.token_meta(auction)},
+         ShareCard.token_meta(auction), auction},
       else:
         {TokenLive, %{"token_id" => token.id, "auction_address" => auction.auction_address},
-         ShareCard.token_meta(auction)}
+         ShareCard.token_meta(auction), auction}
   end
 end

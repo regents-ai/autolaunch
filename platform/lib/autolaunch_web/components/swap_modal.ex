@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
   use Phoenix.Component
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.StoredImage
   alias AutolaunchWeb.SwapComponent
 
   attr :id, :string, required: true
@@ -214,7 +215,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
       <span class="token-swap-modal__art">
         <img
           :if={@auction.image}
-          src={@auction.image}
+          src={StoredImage.sized(@auction.image, 160)}
           alt=""
           decoding="async"
           width="56"

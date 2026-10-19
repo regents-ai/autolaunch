@@ -4,6 +4,9 @@
 .token-page__overview { grid-area: overview; min-width: 0; }
 .token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
 .token-page__details { grid-area: details; min-width: 0; }
+/* While the token is first read, the page holds a screen's height, so the
+   footer does not sit under the reading card and jump when the token arrives. */
+.token-page__reading { min-height: 100svh; }
 @media (min-width: 64rem) {
   .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem); grid-template-areas: "overview side" "details side"; }
 }
@@ -57,3 +60,8 @@
 .token-trade .token-swap__leg-head label { white-space: nowrap; }
 /* After a claim: why to stake, under the Stake button. */
 .token-trade__fee-note { margin: 0; color: var(--color-fg); font-size: .9375rem; }
+
+/* Claim Rewards' place while the pool is first read: the copy button, then the
+   card, about as tall as the signed-out card that replaces it. */
+.token-claim--reading { grid-template-rows: auto 1fr; min-height: 22rem; }
+.token-claim--reading .token-claim__copy { min-height: 2.75rem; }

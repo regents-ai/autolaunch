@@ -43,7 +43,10 @@ defmodule AutolaunchWeb.TokenDisplay do
   shortened, rounded to the nearest, and a long run of zeros after the point is
   written as a count on screen, as in `0.0₇44`, while the same short figure
   with its zeros written out stays readable to assistive technology and on
-  hover. An amount that is not a plain decimal is shown as written.
+  hover. A price of a million or more, such as a bid's limit set far above any
+  real price, is written as a supply figure is, `26.59B`, with its exact amount
+  readable to assistive technology and on hover. An amount that is not a plain
+  decimal is shown as written.
   """
   def price(%{amount: amount} = assigns) when is_nil(amount) or amount == "" do
     ~H"""
@@ -52,10 +55,8 @@ defmodule AutolaunchWeb.TokenDisplay do
   end
 
   def price(assigns) do
-    short = significant(assigns.amount, assigns.round)
-
     assigns
-    |> assign(exact: short, shown: zeros(short))
+    |> assign(price_figure(assigns.amount, assigns.round))
     |> figure()
   end
 
@@ -126,10 +127,26 @@ defmodule AutolaunchWeb.TokenDisplay do
 
   defp significant(amount, round) do
     if Regex.match?(@plain_decimal, amount) do
-      {decimal, ""} = Decimal.parse(amount, max_digits: :infinity)
-      decimal |> rounded(round) |> Decimal.to_string(:normal)
+      amount |> decimal() |> rounded(round) |> Decimal.to_string(:normal)
     else
       amount
+    end
+  end
+
+  defp decimal(amount) do
+    {decimal, ""} = Decimal.parse(amount, max_digits: :infinity)
+    decimal
+  end
+
+  @million Decimal.new(1_000_000)
+
+  defp price_figure(amount, round) do
+    if Regex.match?(@plain_decimal, amount) and
+         Decimal.gte?(decimal(amount), @million) do
+      [exact: amount, shown: compact(amount)]
+    else
+      short = significant(amount, round)
+      [exact: short, shown: zeros(short)]
     end
   end
 
@@ -244,7 +261,7 @@ defmodule AutolaunchWeb.TokenDisplay do
   end
 
   defp compact(amount) do
-    decimal = Decimal.new(amount)
+    decimal = decimal(amount)
 
     Enum.find_value(@scales, amount, fn {scale, suffix} ->
       Decimal.gte?(decimal, scale) && mantissa(decimal, scale) <> suffix

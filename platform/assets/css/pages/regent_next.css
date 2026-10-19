@@ -24,7 +24,7 @@
 .regent-next-figures dt { color: var(--color-fg-muted); font-size: .8125rem; }
 .regent-next-figures dd { margin: 0; font-family: var(--font-family-title); font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .regent-next-figures .regent-next-figures__stakers { color: var(--color-success); }
-.regent-next-figures small { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }
+.regent-next-figures .regent-next-figures__note { color: var(--color-fg-muted); font-family: inherit; font-size: .75rem; line-height: 1.4; }
 @media (max-width: 48rem) { .regent-next-figures { grid-template-columns: minmax(0, 1fr); } }
 
 /* A split shown as one bar and its legend. */

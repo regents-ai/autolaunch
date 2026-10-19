@@ -55,17 +55,19 @@ defmodule AutolaunchWeb.Components.RegentNext do
         <div>
           <dt>Received</dt>
           <dd>{usdc(@facts.usdc_received_lifetime)}</dd>
-          <small>Every deposit into REGENT staking.</small>
+          <dd class="regent-next-figures__note">Every deposit into REGENT staking.</dd>
         </div>
         <div>
           <dt>Credited to stakers</dt>
           <dd class="regent-next-figures__stakers">{usdc(@facts.usdc_credited_lifetime)}</dd>
-          <small>Shared by everyone staked when each deposit arrived.</small>
+          <dd class="regent-next-figures__note">
+            Shared by everyone staked when each deposit arrived.
+          </dd>
         </div>
         <div>
           <dt>To Regent's treasury</dt>
           <dd>{usdc(@facts.usdc_treasury_lifetime)}</dd>
-          <small>Received less what was credited to stakers.</small>
+          <dd class="regent-next-figures__note">Received less what was credited to stakers.</dd>
         </div>
       </dl>
       <.split_bar :if={@parts} id="regent-next-allocation" parts={@parts} />
@@ -495,21 +497,21 @@ defmodule AutolaunchWeb.Components.RegentNext do
   defp source_name(:memestock_base), do: "Memestock trades on Base"
   defp source_name(:token_splitters), do: "Regent's 2% of token staking rewards"
   defp source_name(:robinhood), do: "Memestock trades on Robinhood Chain"
-  defp source_name({:tag, text}), do: "Tagged “#{text}”"
+  defp source_name({:tag, text}), do: "Labelled “#{text}”"
   defp source_name(:unattributed), do: "Unattributed"
 
   defp source_note(:memestock_base),
-    do: "The stock-side share, swapped to USDC. Recorded as autolaunch-stocks."
+    do: "The stock-side share, swapped to USDC."
 
   defp source_note(:token_splitters),
     do:
       "The USDC part of Memestock and Revstake staking rewards. Recorded with the token's address."
 
   defp source_note(:robinhood),
-    do: "Arrives once the transfer to Base is set up. Recorded as autolaunch-robinhood."
+    do: "Arrives once the transfer to Base is set up."
 
   defp source_note({:tag, _text}),
-    do: "Recorded with this tag. This page does not say which product it came from."
+    do: "Labelled by whoever sent it."
 
   defp source_note(:unattributed), do: "Recorded without a source this page can read."
 

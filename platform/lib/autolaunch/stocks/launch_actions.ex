@@ -80,7 +80,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         {"Unsold tokens",
          "Rounding leftovers retired to the dead address; total supply stays unchanged"},
         {"Pool liquidity",
-         "Opens at the auction's final price with a full-range position; stock rounding dust goes to the protocol fee lane. Remaining reserve is locked in a #{ticker}-only position above the opening token price. Collected LP fees enter the staking splitter"},
+         "Opens at the auction's final price with a full-range position; any stock left over from rounding joins the protocol fee. Remaining reserve is locked in a #{ticker}-only position above the opening token price. Collected LP fees enter the staking splitter"},
         {"If the minimum raise is not reached",
          "Every bidder takes back their full bid and every token, including the creator allocation, is retired to the dead address"}
       ]

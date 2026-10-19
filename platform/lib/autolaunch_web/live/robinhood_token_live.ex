@@ -110,6 +110,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           symbol={@token.symbol}
           currency={@token.auction.quote_token_symbol}
           chain_id={@token.auction.chain_id}
+          address={@token.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
         />
         <ShareLaunch.share_launch
@@ -128,8 +129,10 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <div class="token-page__layout">
         <div class="token-page__overview">
           <.detail_card kind={:token} record={@token}>
-            <:chart :if={@pool.ok?}>
+            <:chart :if={@pool.ok? || @pool.loading}>
+              <.price_chart_reading :if={!@pool.ok?} />
               <.price_chart
+                :if={@pool.ok?}
                 id="robinhood-token-price-chart"
                 label="Price since the pool opened"
                 history={@pool.result.prices}
@@ -174,6 +177,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
               <.pool_status :if={!@pool.ok?} pool={@pool} />
             </:pane>
           </.trade_widget>
+          <.claim_reading pool={@pool} />
           <.live_component
             :if={@pool.ok?}
             module={AutolaunchWeb.StakeComponent}
