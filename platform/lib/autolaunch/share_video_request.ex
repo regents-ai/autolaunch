@@ -16,8 +16,8 @@ defmodule Autolaunch.ShareVideoRequest do
   at most 1000 videos in any 24 hours: every request in that time apart from
   failed ones, counted inside a person's request's own write
   (`Autolaunch.ShareVideoRequest.Changes.DailyLimit`); a launch's own videos
-  are always made. Every request, and the video it holds, is deleted once it
-  is a day old, within the hour. Saved videos hold at most about 5 GB: past
+  are always made. A saved video is deleted once it is a day old, within the
+  hour; the request it came from stays. Saved videos hold at most about 5 GB: past
   that, a video is still made but not saved (`saved` false), and once handed
   over its bytes are let go (`:hand_over`). No video is ever deleted early.
   """
@@ -43,9 +43,10 @@ defmodule Autolaunch.ShareVideoRequest do
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Render
       end
 
+      # A saved video goes once it is a day old; its request stays.
       trigger :forget do
-        action :destroy
-        where expr(inserted_at < ago(1, :day))
+        action :forget_video
+        where expr(not is_nil(mp4) and inserted_at < ago(1, :day))
         queue :default
         scheduler_cron "41 * * * *"
         worker_module_name Autolaunch.ShareVideoRequest.Workers.Forget
@@ -131,6 +132,11 @@ defmodule Autolaunch.ShareVideoRequest do
 
     # A video made but not saved, handed over: its bytes are let go.
     update :hand_over do
+      change set_attribute(:mp4, nil)
+    end
+
+    # A saved video a day old: its bytes are let go and its request stays.
+    update :forget_video do
       change set_attribute(:mp4, nil)
     end
 

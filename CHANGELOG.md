@@ -2,7 +2,7 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
-## 18 October 2026: your share video is saved, and a new look for share videos and pictures
+## 19 October 2026: your share video is saved, and a new look for share videos and pictures
 - Your share video for a launch is saved. Opening the share window again shows the same video straight away; after three hours you can make a new one. Saved videos are deleted after a day. If the space for saved videos is ever full, your video is still made; it just isn't saved for next time.
 - The daily limit of three videos each is gone. Autolaunch makes up to 1000 videos a day across the site; on a day it reaches that, you get your saved video, or the video everyone sees if you have none yet.
 - Share videos and share pictures have a tangerine frame, no dates, and autolaunch.sh along the bottom. During an auction they show the time left instead of "Graduated", and large earnings are never cut off.

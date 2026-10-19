@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
   use ExUnit.Case, async: false
   use ExUnitProperties
 
-  import Ecto.Query, only: [where: 3]
+  import Ecto.Query, only: [from: 2, where: 3]
   require Ash.Query
 
   alias Autolaunch.Actors.System
@@ -145,7 +145,8 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
-  test "a video is deleted once it is a day old", %{now: now} do
+  test "SAVED_VIDEO_GOES_AFTER_A_DAY_REQUEST_STAYS: a day-old video is deleted and its request kept",
+       %{now: now} do
     auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
     person = 1_000_000_000 + :rand.uniform(1_000_000_000)
     wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
@@ -161,12 +162,48 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
       assert unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person, now) end) ==
                {:error, :daily_limit}
 
-      # The hourly sweep deletes it and keeps the younger one.
+      # The hourly sweep deletes the day-old video and keeps the younger one.
+      # Both requests stay; only the day-old one has lost its video.
       unboxed(fn ->
         AshOban.Test.schedule_and_run_triggers({ShareVideoRequest, :forget}, actor: %System{})
       end)
 
-      assert auction |> requests() |> Enum.map(& &1.human_account_id) == [person + 1]
+      stored =
+        unboxed(fn ->
+          Repo.all(
+            from(r in "share_video_requests",
+              # The day's filler videos have no person; only the two saved ones count.
+              where:
+                r.auction_id == type(^auction.id, :binary_id) and not is_nil(r.human_account_id),
+              select: {r.human_account_id, not is_nil(r.mp4)}
+            )
+          )
+        end)
+
+      assert Enum.sort(stored) == [{person, false}, {person + 1, true}]
+    after
+      forget(auction)
+    end
+  end
+
+  test "SAVED_VIDEOS_CAP_IS_5_GB: the site saves made videos only up to 5 GB" do
+    assert AutolaunchWeb.ShareVideo.Render.saved_bytes() == 5_000_000_000
+  end
+
+  test "a video made but not yet handed over counts toward the saved space", %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    wallet = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    room = fn bytes ->
+      unboxed(fn -> Autolaunch.share_video_room!(bytes, actor: %System{}) end)
+    end
+
+    try do
+      held = unboxed(fn -> stored_bytes() end)
+      saved(auction, person, wallet, String.duplicate("u", 300), now, saved: false)
+      assert room.(held + 301)
+      refute room.(held + 300)
     after
       forget(auction)
     end

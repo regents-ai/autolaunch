@@ -18,6 +18,9 @@ defmodule AutolaunchWeb.ShareVideo.Render do
 
   @bytes 5_000_000_000
 
+  @doc "How many bytes of made videos the site saves; past it a video is made but not saved."
+  def saved_bytes, do: @bytes
+
   @impl true
   def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &render/1)
 

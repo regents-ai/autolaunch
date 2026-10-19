@@ -41,7 +41,13 @@ The migration `20261019034325_add_share_video_storage` adds two columns to
 `autolaunch_app.share_video_requests`, `mp4` (binary, empty) and `saved` (boolean, true), and one
 index (`human_account_id`, `auction_id`, `kind`, `inserted_at`). It deletes nothing. In order:
 
-1. Write the latest Fly Managed Postgres backup id in the evidence.
+1. Write the latest Fly Managed Postgres backup id in the evidence, and the database's size
+   (read only, Sean's "go read-only space check"):
+
+   ```sql
+   SELECT pg_size_pretty(pg_database_size(current_database()));
+   ```
+
 2. Count the rows and write the count in the evidence:
 
    ```sql
@@ -49,10 +55,9 @@ index (`human_account_id`, `auction_id`, `kind`, `inserted_at`). It deletes noth
    ```
 
 3. Migrate.
-4. Count the rows again with the query in step 2 and write the count beside the first. Within
-   the hour the release is live the hourly cleanup deletes every request a day old, so a lower
-   count after that is expected; the count straight after the migration matches unless people
-   asked for videos in between.
+4. Count the rows again with the query in step 2 and write the count beside the first. It
+   matches unless people asked for videos in between: the hourly cleanup only lets go of the
+   bytes of saved videos a day old and never removes a request.
 5. Once a video has been made on the live site, check it was saved:
 
    ```sql

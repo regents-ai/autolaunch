@@ -534,7 +534,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
+      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
     },
     {
       "id": 71,
@@ -547,7 +547,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
+      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
     },
     {
       "id": 72,
@@ -555,25 +555,25 @@
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
       "line": 148,
-      "test_name": "a video is deleted once it is a day old",
-      "keep_because": "Every share video is deleted once it is a day old, by the hourly sweep, and a day-old video is never served, even when the site has made all of the day's videos and a saved one would be (Sean, 19 Oct 2026). Checking it by hand means waiting a day. It fails if either part is undone: with the day filter off the person's read it served the day-old video, and with the sweep back to launch videos only it kept the person's day-old video.",
+      "test_name": "SAVED_VIDEO_GOES_AFTER_A_DAY_REQUEST_STAYS: a day-old video is deleted and its request kept",
+      "keep_because": "Sean chose \"Saved videos only\" (19 Oct 2026): the daily sweep deletes a saved video's bytes once it is a day old and keeps the request row. The case fails if the sweep deletes rows or keeps day-old videos.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
+      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
     },
     {
       "id": 73,
       "group": "Share videos",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_video_queue_test.exs",
-      "line": 175,
+      "line": 212,
       "test_name": "once saved videos are full, a video is still made, handed over once and never saved",
       "keep_because": "Once the saved share videos reach their space (5 GB on the site), a new video is still made and handed over once, then let go; no video is ever deleted early (Sean, 19 Oct 2026). Filling 5 GB by hand is not practical. It fails if a video made past the space were kept after it was handed over (proven by serving it as a saved one: its bytes stayed).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "a178c4f170b01168773c9b7e76f457b8f6ab9bdb8bee17546fa899efcaff2e5f"
+      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
     },
     {
       "id": 61,
@@ -704,6 +704,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "e99aa003afeeefe3424ab329545041f236cd2c726a2f3b0a8ee941ea7bcb2bca"
+    },
+    {
+      "id": 74,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 189,
+      "test_name": "SAVED_VIDEOS_CAP_IS_5_GB: the site saves made videos only up to 5 GB",
+      "keep_because": "Sean: \"Breaking the 5GB cap is not good, I dont want that database bill\" (19 Oct 2026). The case fails if the saved-video ceiling moves from 5 GB.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
+    },
+    {
+      "id": 75,
+      "group": "Share videos",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_video_queue_test.exs",
+      "line": 193,
+      "test_name": "a video made but not yet handed over counts toward the saved space",
+      "keep_because": "The 5 GB space count must include videos made but not yet handed over, or the cap can be passed. The case fails if the count leaves unsaved videos out.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "48d63246bddee53cf29a487b2251f49dc1ba1500bfc2e14700dd162a5580f0cf"
     }
   ],
   "legacy_folders_to_remove": [
