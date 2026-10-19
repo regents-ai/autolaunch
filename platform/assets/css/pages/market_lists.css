@@ -10,7 +10,13 @@
 .market-list__verified-menu.is-active summary { border-color: var(--color-fg); }
 .market-list__verified-menu fieldset { position: absolute; left: 0; top: calc(100% + 8px); transform-origin: top left; z-index: 3; display: grid; gap: 10px; width: min(240px, calc(100vw - 2rem)); margin: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; }
 .market-list__verified-menu legend { float: left; margin-bottom: 2px; color: var(--color-fg-muted); font-size: .75rem; }
-.market-list__verified-menu label { display: flex; align-items: center; gap: 8px; min-height: 2.75rem; cursor: pointer; }
+/* With a mouse each choice keeps its line's own height, under the site-wide 44px
+   choice (components/surfaces.css); on a touch screen each choice, its box and its
+   words, is one full 44px press, by the design system's touch rule. */
+.market-list__verified-menu label { display: flex; align-items: center; gap: 8px; min-height: auto; cursor: pointer; }
+@media (hover: none), (pointer: coarse) {
+  .market-list__verified-menu label { min-height: 44px; }
+}
 .market-list__verified-menu small { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }
 .market-list__search { flex: 1 1 240px; max-width: 360px; }
 .market-list__search label { display: block; }
