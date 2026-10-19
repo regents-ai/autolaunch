@@ -92,12 +92,15 @@
   min-height: 2.75rem;
 }
 
-/* A choice and its words are one 44px press. */
+/* A choice and its words are one press: a full 44px one on a touch screen, by the
+   design system's touch rule; a mouse keeps the line's own height. */
 :where(label:has(> input:is([type="radio"], [type="checkbox"]))) {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 2.75rem;
+}
+@media (hover: none), (pointer: coarse) {
+  :where(label:has(> input:is([type="radio"], [type="checkbox"]))) { min-height: 2.75rem; }
 }
 
 /* Loading: the shape of what is coming, in a faint block that breathes, so the
