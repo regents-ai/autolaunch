@@ -216,17 +216,19 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
       handler,
       event,
       fn _event, _measurements, metadata, _config ->
-        if self() == test and hold?.(metadata) do
-          :telemetry.detach(handler)
-          Process.put(:holder, Task.async(fn -> Repo.query!("SELECT pg_sleep(4)") end))
-          Process.sleep(200)
-        end
+        if self() == test and hold?.(metadata), do: hold(handler)
       end,
       nil
     )
 
     on_exit(fn -> :telemetry.detach(handler) end)
     fn -> Process.get(:holder) end
+  end
+
+  defp hold(handler) do
+    :telemetry.detach(handler)
+    Process.put(:holder, Task.async(fn -> Repo.query!("SELECT pg_sleep(4)") end))
+    Process.sleep(200)
   end
 
   # From now on, until the case ends, the database refuses every write of a
