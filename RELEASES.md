@@ -5,6 +5,7 @@ Which Fly release of `autolaunch-sh` carried which commit. This is the operator 
 
 | Fly release | Date | Commit | Changelog entry |
 | --- | --- | --- | --- |
+| v153 | 19 October 2026 | `24e59e3` | three share videos a day, even from several tabs at once, and easier taps. Approved: Sean "go v153" 02:32:20Z; duplicate check "a" 00:10:06Z; Sentinel GO 01:55Z |
 | v152 | 18 October 2026 | `9916452` | share-video requests kept in order, and the old account copy removed |
 | v151 | 18 October 2026 | `960fcd7` | one Regent account, no Autolaunch copy |
 | v150 | 18 October 2026 | `955b9f9` | share videos wait their turn, three of your own a day |
