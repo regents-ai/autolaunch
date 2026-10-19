@@ -312,7 +312,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       <.link :if={@token_path} navigate={@token_path}>See it on the token's page</.link>
     </p>
     <p :if={is_boolean(@locked) and is_binary(@token_path)} class="launch-trust__text">
-      <.link navigate={@token_path}>See the amounts on the token's page</.link>
+      <.link navigate={@token_path} class="standalone-link">See the amounts on the token's page</.link>
     </p>
     <.uniswap_note split={@split} />
     """
@@ -440,12 +440,12 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       about: "stakers earn the onchain stock from trading fees",
       reserve: "497.5 million tokens (49.75%)",
       unused:
-        "is locked in a token-only position above the opening token price, apart from retired rounding dust",
+        "is locked in a token-only position above the opening token price, apart from a tiny amount left over from rounding",
       rows: [
         {"Sold in the auction", "497.5 million (49.75%)",
          "winning bidders claim what they bought"},
         {"Reserved for liquidity", "497.5 million (49.75%)",
-         "the stock raised funds a full-range position, apart from protocol rounding dust; remaining reserve is locked in a token-only position above the opening token price"},
+         "the stock raised funds a full-range position, apart from a tiny amount left over from rounding; remaining reserve is locked in a token-only position above the opening token price"},
         {"Creator", "5 million (0.5%)",
          "released to the creator block by block over 30 days from graduation; the creator also earns a share of trading fees"}
       ]
