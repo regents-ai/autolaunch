@@ -1,0 +1,40 @@
+# Release checklist
+
+Autolaunch checks and ships its own releases (Sean, 19 October 2026: "teams check and ship
+their own releases"). Every release goes through this list before it reaches main and Fly, and
+the release's evidence folder holds the output of each step. A change to sign-in, secrets,
+production data, wallets, staking, claims or money movement also needs Sean's typed go naming
+the release, in this project's thread.
+
+## Before the release
+
+1. The head is pushed. Write `git rev-parse HEAD`, `git rev-parse HEAD^{tree}` and an empty
+   `git status --porcelain` at the top of the evidence.
+2. Fresh copy: `git archive <head> | tar -x` into an empty folder, then
+   `cd platform && mix deps.get && npm ci && mix assets.setup && mix assets.build`, then
+   `make check-platform`, `make check-required-fixes` and `make check-cli` from its root. All
+   exit 0, and the run shows no "still using a connection" line. Keep the raw output.
+3. Evidence block: what people and agents will notice, the commands that prove it with their
+   output, and what was not proven.
+4. Pages it touches, in headless Chromium at 390 with touch and at 1280: every standalone
+   press at least 44 px on touch, no sideways scroll, no console or content-policy errors.
+5. Every bug found while making the release has a test that fails without its fix.
+6. The changelog says what people and agents noticed, with no release numbers, commits or
+   internal names.
+
+## The release
+
+7. Build the image from a `git archive` export with `SOURCE_COMMIT=<full sha>`, and run the
+   read-only pending-migrations check on its digest.
+8. A release with a migration follows [RELEASE.md](RELEASE.md) first: a fresh backup and its
+   id in the evidence.
+9. Start a `fly logs -a autolaunch-sh` tail before the deploy, saved in the evidence folder,
+   and keep it until the checks after the deploy are done.
+10. Push the head to main, deploy, and write down the release the site can go back to.
+
+## After the release
+
+11. The live checks pass, `/healthz` names the deployed commit, and the pages the release
+    touched are checked on autolaunch.sh.
+12. The saved log tail shows no errors.
+13. Add the release's row to [RELEASES.md](../RELEASES.md).

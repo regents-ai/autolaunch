@@ -1,6 +1,7 @@
 # Releasing autolaunch.sh
 
-Steps every release of the site follows, besides building, checking and deploying it.
+Steps every release of the site follows, besides building, checking and deploying it; the
+checks themselves are in [CHECKLIST.md](CHECKLIST.md).
 [RELEASES.md](../RELEASES.md) records which Fly release carried which commit, and
 [CHANGELOG.md](../CHANGELOG.md) says what people and agents noticed.
 
