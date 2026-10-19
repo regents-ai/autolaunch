@@ -3,7 +3,8 @@ defmodule AutolaunchWeb.ShareCard do
   The picture and page details a shared auction or token link shows on X and
   other sites.
 
-  The picture is one strip on a dark field, like X's own token cards: the
+  The picture is one strip on a dark panel inside a tangerine border that
+  widens into a band reading autolaunch.sh, like X's own token cards: the
   token's round logo, its name, its ticker line ($TOKEN / STOCK, or $TOKEN for
   a launch paired with no stock token) and chain, and on the right its FDV
   with the time left in the auction or, once launched, its price. An auction
@@ -28,9 +29,13 @@ defmodule AutolaunchWeb.ShareCard do
   @width 1200
   @height 630
 
+  # The tangerine border and the dark panel inside it.
+  @border 20
+  @band_y 544
+
   # The strip, and what sits inside it.
   @strip_x 48
-  @strip_y 170
+  @strip_y 132
   @strip_w @width - 2 * @strip_x
   @strip_h 300
   @inset 44
@@ -39,7 +44,7 @@ defmodule AutolaunchWeb.ShareCard do
   @logo_y @strip_y + div(@strip_h - @logo, 2)
   @words_x @logo_x + @logo + 40
   @right @strip_x + @strip_w - @inset
-  @line_w 230
+  @line_w 160
   @line_h 96
   @gap 48
 
@@ -50,6 +55,7 @@ defmodule AutolaunchWeb.ShareCard do
   @muted "#9a988c"
   @tangerine "#ff5b19"
   @powder "#aecacd"
+  @blue "#8fc3ff"
 
   @chain_mark_h 28
   @pill_h 42
@@ -184,10 +190,12 @@ defmodule AutolaunchWeb.ShareCard do
 
     with {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil) do
       draw(auction, %{
-        badge: {"Auction", @tangerine},
-        stats: [{"FDV", money(auction.fdv, rate, auction), @platinum}, standing(auction, now)],
-        line: line(points, auction.current_clearing_price),
-        now: now
+        badge: {countdown(auction, now), @blue},
+        stats: [
+          {"Clearing price", money(auction.fdv, rate, auction), @platinum},
+          {"Price", money(clearing(auction), rate, auction), @platinum}
+        ],
+        line: line(points, auction.current_clearing_price)
       })
     end
   end
@@ -199,9 +207,23 @@ defmodule AutolaunchWeb.ShareCard do
   """
   @spec token_png(struct(), struct(), DateTime.t()) :: {:ok, binary()} | {:error, term()}
   def token_png(auction, token, now),
-    do: Cache.fetch({:token, auction.id}, bucket(now), fn -> draw_token(auction, token, now) end)
+    do: Cache.fetch({:token, auction.id}, bucket(now), fn -> draw_token(auction, token) end)
 
-  defp draw_token(auction, token, now) do
+  # While bidding is open the pill counts down to the end; after that it
+  # names where the auction stands.
+  defp countdown(auction, now) do
+    case standing(auction, now) do
+      {"Time left", left, _color} -> "Ends in " <> left
+      {_label, standing, _color} -> standing
+    end
+  end
+
+  defp clearing(%{current_clearing_price: price}) when is_binary(price),
+    do: Decimal.new(price, max_digits: :infinity)
+
+  defp clearing(_auction), do: nil
+
+  defp draw_token(auction, token) do
     rate = rate(auction)
     price = token.price_quote && Decimal.new(token.price_quote, max_digits: :infinity)
 
@@ -211,8 +233,7 @@ defmodule AutolaunchWeb.ShareCard do
         {"FDV", money(token.market_cap, rate, auction), @platinum},
         {"Price", money(price, rate, auction), @platinum}
       ],
-      line: nil,
-      now: now
+      line: nil
     })
   end
 
@@ -249,23 +270,14 @@ defmodule AutolaunchWeb.ShareCard do
     stats = Enum.reject(card.stats, fn {_label, value, _color} -> is_nil(value) end)
     {badge, badge_color} = card.badge
 
-    with {:ok, wordmark} <- layer("Autolaunch", :pixel, 36, @platinum),
-         {:ok, stamp} <-
-           layer(
-             "As of #{Calendar.strftime(card.now, "%b %-d, %H:%M")} UTC",
-             :regular,
-             24,
-             @muted
-           ),
-         {:ok, ticker} <- fit(ticker(auction), :regular, 40, @muted, 440),
+    with {:ok, site} <- layer("autolaunch.sh", :pixel, 40, @field),
          {:ok, badge} <- layer(badge, :bold, 24, badge_color),
          {:ok, initial} <- initial(auction.token_symbol),
          {:ok, stats} <- stat_layers(stats) do
       {:ok,
        %{
-         wordmark: wordmark,
-         stamp: stamp,
-         ticker: ticker,
+         site: site,
+         ticker: ticker(auction),
          badge: {badge, badge_color},
          initial: initial,
          stats: stats,
@@ -303,14 +315,17 @@ defmodule AutolaunchWeb.ShareCard do
     }
   end
 
+  # The name and the ticker share the room left of the price line and the
+  # figures.
   defp place(canvas, words, layout, logo) do
-    with {:ok, name} <- name(words.name, layout.name_w) do
+    with {:ok, name} <- name(words.name, layout.name_w),
+         {:ok, ticker} <- ticker_line(words.ticker, layout.name_w) do
       {badge, _color} = words.badge
 
       [
-        {words.wordmark, {@strip_x, 64}},
-        {words.stamp, {@width - @strip_x - Image.width(words.stamp), @height - 70}},
-        {words.ticker, {@words_x, @strip_y + 128}},
+        {words.site,
+         {@border + 28, @band_y + div(@height - @band_y - Image.height(words.site), 2)}},
+        {ticker, {@words_x, @strip_y + 128}},
         {badge, {badge_x(), chain_row_y() + div(@pill_h - Image.height(badge), 2)}}
       ]
       |> Kernel.++(name_at(name))
@@ -344,6 +359,17 @@ defmodule AutolaunchWeb.ShareCard do
   defp name(words, max, [size | smaller]) do
     with {:ok, layer} <- layer(words, :bold, size, @platinum) do
       if Image.width(layer) <= max, do: {:ok, layer}, else: name(words, max, smaller)
+    end
+  end
+
+  # The ticker line steps down in size like the name before it is cut short.
+  defp ticker_line(words, max), do: ticker_line(words, max, [40, 34, 30])
+
+  defp ticker_line(words, max, [size]), do: fit(words, :regular, size, @muted, max)
+
+  defp ticker_line(words, max, [size | smaller]) do
+    with {:ok, layer} <- layer(words, :regular, size, @muted) do
+      if Image.width(layer) <= max, do: {:ok, layer}, else: ticker_line(words, max, smaller)
     end
   end
 
@@ -390,8 +416,9 @@ defmodule AutolaunchWeb.ShareCard do
         </linearGradient>
         <clipPath id="round"><circle cx="#{@logo_x + div(@logo, 2)}" cy="#{@logo_y + div(@logo, 2)}" r="#{div(@logo, 2)}"/></clipPath>
       </defs>
-      <rect width="#{@width}" height="#{@height}" fill="#{@field}"/>
-      <rect width="#{@width}" height="#{@height}" fill="url(#glow)"/>
+      <rect width="#{@width}" height="#{@height}" fill="#{@tangerine}"/>
+      <rect x="#{@border}" y="#{@border}" width="#{@width - 2 * @border}" height="#{@band_y - @border}" rx="36" fill="#{@field}"/>
+      <rect x="#{@border}" y="#{@border}" width="#{@width - 2 * @border}" height="#{@band_y - @border}" rx="36" fill="url(#glow)"/>
       <rect x="#{@strip_x}" y="#{@strip_y}" width="#{@strip_w}" height="#{@strip_h}" rx="40"
         fill="#{@strip}" stroke="#{@edge}" stroke-width="2"/>
       #{logo_svg(logo, color)}
