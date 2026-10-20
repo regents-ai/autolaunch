@@ -37,7 +37,7 @@
 .autolaunch-custody-ack-matched { margin: 0; color: var(--color-success); font-weight: 600; }
 /* Connected accounts: one row each, mark · account · buttons, all alike. */
 .connections { display: grid; gap: var(--space-2); }
-.connections__note, [data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+[data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .connections__list { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
 .connection { display: grid; grid-template-columns: 2.5rem minmax(0,1fr) auto; align-items: center; column-gap: var(--space-3); padding-block: var(--space-3); border-bottom: 1px solid var(--hairline); min-width: 0; }
 .connection__mark { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--color-fg) 6%, transparent); font-size: 1.125rem; }

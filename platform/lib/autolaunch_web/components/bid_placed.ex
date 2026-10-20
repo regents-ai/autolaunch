@@ -73,16 +73,12 @@ defmodule AutolaunchWeb.Components.BidPlaced do
             >
               <p :if={@x_account}>Connected as @{@x_account.username}</p>
               <div
-                :if={!@x_account}
+                :if={!@x_account && @x_enabled}
                 data-x-role="profile"
                 data-x-intent-sequence={intent_sequence(@x_connection)}
               >
-                <p :if={@x_enabled}>Connect your X account to share from it.</p>
-                <p :if={!@x_enabled}>
-                  [local text to be replaced by: Connect your X account to share from it, and a Connect X button]
-                </p>
+                <p>Connect your X account to share from it.</p>
                 <Regent.Primitives.button
-                  :if={@x_enabled}
                   type="button"
                   data-x-connect-role="profile"
                   variant="secondary"
