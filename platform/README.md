@@ -119,7 +119,7 @@ assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
 test/                   The kept Elixir cases; assets/test/ the kept TypeScript cases (see test/README.md)
 scripts/                The release build-context assembler
-rel/                    Release overlays: the migrate and pending-migrations commands
+rel/                    Release overlays: the migrate, migrate-shared and pending-migrations commands
 ```
 
 ## Checks
@@ -190,6 +190,13 @@ to sign. Nothing else may build a transaction.
 > `/app/bin/pending-migrations` reports what a deployed database and the release image
 > disagree about, without applying anything. Confirm the target and its secrets before
 > running a deploy.
+>
+> A deploy never applies a change to the shared Identity, Agents, Credits or Points
+> database; it refuses to start while one its pinned libraries carry is missing.
+> `/app/bin/migrate-shared` applies them and prints each one, or `none`. Every site
+> carries this same command; the site whose release first carries a change runs it once
+> from the new image, in the migration app, before that image's deploy, and only on the
+> founder's own named go for each change.
 
 Run the exact candidate image once in the migration app, then deploy that same digest to
 the serving app:
