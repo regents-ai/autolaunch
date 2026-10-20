@@ -57,7 +57,6 @@
 .subject-wallet-field { min-width: 0; }
 .subject-wallet-waiting { display: grid; justify-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 .launch-wallet { padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
-.autolaunch-loading { margin: 0; padding: 24px; border: 1px solid var(--hairline); border-radius: var(--radius); color: var(--color-fg-muted); }
 .autolaunch-account-page { display: grid; gap: 24px; max-width: 960px; }
 
 /* Memestock or Revstake: the two Create pages as two linked choices, the open one marked. */

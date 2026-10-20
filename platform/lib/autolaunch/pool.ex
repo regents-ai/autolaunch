@@ -182,8 +182,6 @@ defmodule Autolaunch.Pool do
   @doc "The public Base pool page on the Uniswap app for a pool id."
   def uniswap_url(pool_id), do: @uniswap_pool_url <> pool_id
 
-  def dead_address, do: @dead
-
   @doc """
   The graduated token's contract, for reads that need nothing else from the
   pool: the strategy's `distribution` names it for an agent launch, the

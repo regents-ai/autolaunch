@@ -20,7 +20,6 @@
 .fact-table td.fact-table__amount { white-space: nowrap; }
 .fact-table tr:last-child td.fact-table__amount { white-space: normal; }
 .fact-table__note { display: block; white-space: nowrap; color: var(--color-fg-muted); font-size: .8125rem; }
-.fact-table__tag { display: inline-block; margin-top: 6px; padding: 2px 8px; border: 1px solid var(--hairline-strong); font-size: .6875rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .fact-more { border-block: 1px solid var(--hairline-strong); }
 .fact-more summary { display: flex; align-items: center; min-height: 44px; padding: var(--space-1) 0; cursor: pointer; list-style: none; font-size: 1.125rem; }
 .fact-more summary::-webkit-details-marker { display: none; }

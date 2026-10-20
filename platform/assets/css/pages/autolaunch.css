@@ -12,7 +12,7 @@
 .autolaunch-heading h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .autolaunch-kicker, .autolaunch-micro { display: block; color: var(--rg-local-ink, var(--color-fg-muted)); font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
 .autolaunch-lab-warning { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--hairline-strong); background: var(--support-band-surface); color: var(--support-band-ink); font-size: .875rem; }
-.regent-token-links__note, .regent-scope, .autolaunch-market-freshness { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.regent-token-links__note, .regent-scope { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-token-links__note { flex-basis: 100%; }
 .autolaunch-exact-value { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
 /* An address on a line of its own: its one line sits in a full 44px press; when it wraps, its lines are the press. */
@@ -29,15 +29,10 @@ a.autolaunch-exact-value { display: inline-block; padding-block: max(.25rem, cal
   :root:not([data-theme]) .link-icon__ens--light { visibility: visible; }
   :root:not([data-theme]) .link-icon__ens--dark { visibility: hidden; }
 }
-.autolaunch-record-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-.autolaunch-record-list > li { min-width: 0; padding: 20px; border: 1px solid var(--hairline); border-radius: var(--radius); }
-.autolaunch-record-list :is(li > a, article > a) { display: grid; gap: var(--space-1); color: inherit; }
-.autolaunch-record-list strong { font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; font-size: 1rem; }
-.autolaunch-record-list span { overflow-wrap: anywhere; }
-:where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(12rem,100%),1fr)); gap: 0; margin-block: var(--space-2); }
-:where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dl > div { min-width: 0; padding: var(--space-2); border-bottom: 1px solid var(--hairline); }
-:where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dt { color: var(--rg-local-ink, var(--color-fg-muted)); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
-:where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
+:where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(12rem,100%),1fr)); gap: 0; margin-block: var(--space-2); }
+:where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dl > div { min-width: 0; padding: var(--space-2); border-bottom: 1px solid var(--hairline); }
+:where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dt { color: var(--rg-local-ink, var(--color-fg-muted)); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+:where(.bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
 /* The launch review reads label above value; the value carries the weight. */
 .launch-wallet-review dt { font-size: .6875rem; }
 .launch-wallet-review dd { margin-top: var(--space-1); font-size: 1.0625rem; font-weight: 600; color: var(--color-fg); line-height: 1.35; }
@@ -53,7 +48,6 @@ a.autolaunch-exact-value { display: inline-block; padding-block: max(.25rem, cal
 .autolaunch-draft-hint { color: var(--color-fg-muted); }
 .autolaunch-draft-error { color: var(--color-error); }
 .autolaunch-draft-notice { padding: var(--space-2); border-left: 3px solid var(--color-border); }
-.autolaunch-draft-notice--error { border-left-color: var(--color-error); }
 .autolaunch-custody-warning, .treasury-security--warning { color: var(--color-warning); }
 /* These are presentation hosts, not wallet admission or pending-state gates. */
 .bid-panel, .subject-wallet { padding: var(--rg-panel-padding); }
@@ -61,15 +55,15 @@ a.autolaunch-exact-value { display: inline-block; padding-block: max(.25rem, cal
 :where(.subject-wallet-heading) > * { margin-block: 0 var(--space-2); }
 .subject-wallet-amount { display: flex; gap: var(--space-1); min-width: 0; }
 .subject-wallet-amount input { flex: 1; min-width: 0; }
-.subject-wallet-actions, .launch-wallet-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.launch-wallet-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .bid-settlement-row .launch-wallet-review { padding: var(--space-2); border: 1px solid var(--hairline); }
-.bid-mono, .subject-wallet-mono, .launch-wallet-mono { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
+.subject-wallet-mono, .launch-wallet-mono { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
 .bid-steps, .subject-wallet-steps, .launch-wallet-steps { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
 :is(.bid-steps, .subject-wallet-steps, .launch-wallet-steps) li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); border-bottom: 1px solid var(--hairline); min-width: 0; }
 .launch-wallet-hash:not([hidden]), .launch-placed__transaction { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
 :is(.launch-wallet-hash, .launch-placed__transaction) .launch-wallet-mono { flex: 1 1 100%; }
 .launch-placed:focus { outline: none; }
-:where(.bid-notice, .bid-settled, .subject-wallet-hint, .subject-wallet-share, .subject-wallet-notice, .subject-wallet-settled, .launch-wallet-hint, .launch-wallet-risk, .launch-wallet-notice, .launch-wallet-settled) { margin: 0; padding: var(--space-2); border-left: 3px solid var(--hairline-strong); overflow-wrap: anywhere; }
+:where(.bid-notice, .subject-wallet-hint, .subject-wallet-share, .subject-wallet-notice, .subject-wallet-settled, .launch-wallet-hint, .launch-wallet-risk, .launch-wallet-notice, .launch-wallet-settled) { margin: 0; padding: var(--space-2); border-left: 3px solid var(--hairline-strong); overflow-wrap: anywhere; }
 :is(.bid-notice, .subject-wallet-notice, .launch-wallet-notice)[role="alert"] { border-left-color: var(--color-error); }
 .treasury-security, .treasury-verification { padding: var(--space-3); border-block: 1px solid var(--hairline); }
 .autolaunch-live-market { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(10rem,100%),1fr)); margin: 0; border-top: 1px solid var(--hairline); }

@@ -12,10 +12,6 @@ defmodule Autolaunch.LaunchChain do
   def label(:base), do: "Base"
   def label(:robinhood), do: "Robinhood"
 
-  @doc "The auction currency each chain's Stocks launchpad measures its minimum in."
-  def raise_currency(:base), do: "USDC"
-  def raise_currency(:robinhood), do: "USDG"
-
   @doc """
   How long a number of blocks takes on the chain, in words. Base makes a block
   every two seconds and Robinhood's auctions count ten blocks a second, so this
