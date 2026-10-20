@@ -19,15 +19,17 @@ defmodule Autolaunch.Search do
   @doc """
   The one form a search takes: readable text without control or hidden
   characters, single spaces, no spaces at either end, at most eighty
-  characters. Bytes that are not text and hidden characters (a null byte, or
-  a mark that reverses reading direction) become spaces, so a pasted search
-  still finds what its words name.
+  characters. Bytes that are not text, hidden characters (a null byte, a
+  zero-width space, a mark that sets reading direction) and every kind of
+  space (a non-breaking one, say) become plain spaces, so a pasted search
+  still finds what its words name. The two joiners that hold some scripts and
+  emoji together stay.
   """
   @spec normalize(term()) :: String.t()
   def normalize(value) when is_binary(value) do
     value
     |> String.replace_invalid(" ")
-    |> String.replace(~r/[\x{0}-\x{1F}\x{7F}-\x{9F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u, " ")
+    |> String.replace(~r/(?![\x{200C}\x{200D}])[\p{Cc}\p{Cf}\p{Z}]/u, " ")
     |> String.split()
     |> Enum.join(" ")
     |> String.graphemes()

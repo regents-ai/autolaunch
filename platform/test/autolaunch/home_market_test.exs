@@ -24,23 +24,22 @@ defmodule Autolaunch.HomeMarketTest do
     "github" => ["true", "false", "on", true, false]
   }
 
-  # Text a visitor might type or paste: words and spaces, with control
-  # characters, hidden direction marks and bytes that are not text among them.
+  # Characters that read as nothing or as a space: controls, a byte that is
+  # not text, every kind of space, zero-width marks and reading-direction marks.
+  @blank [0x00, 0x09, 0x0A, 0x7F, 0x85, 0xA0, 0x61C, 0x2007, 0x200B, 0x200E, 0x200F] ++
+           [0x2028, 0x202E, 0x202F, 0x2066, 0x3000, 0xFEFF]
+
+  # Text a visitor might type or paste: words of any length, so the cut at
+  # eighty characters lands anywhere, with spaces, combining accents, joiners
+  # and the blank characters above between them.
   defp search_text do
+    blank = member_of([" ", "  ", <<0xFF>> | Enum.map(@blank, &<<&1::utf8>>)])
+
     piece =
       one_of([
-        string(:alphanumeric, min_length: 1, max_length: 12),
-        member_of([
-          " ",
-          "  ",
-          "\t",
-          "\n",
-          <<0>>,
-          <<0x85::utf8>>,
-          <<0x202E::utf8>>,
-          <<0x2066::utf8>>,
-          <<0xFF>>
-        ]),
+        string(:alphanumeric, min_length: 1, max_length: 30),
+        blank,
+        member_of([<<0x301::utf8>>, <<0x200D::utf8>>, "é", "株"]),
         string(:printable, max_length: 6)
       ])
 
@@ -74,16 +73,20 @@ defmodule Autolaunch.HomeMarketTest do
   end
 
   property "the search box keeps one tidy form of any text" do
-    check all(text <- search_text(), max_runs: 500) do
+    check all(text <- search_text(), max_runs: 1000) do
       search = Search.normalize(text)
+      words = if search == "", do: [], else: String.split(search, " ")
 
       assert String.valid?(search)
-      assert String.trim(search) == search
-      refute search =~ "  "
-      refute search =~ ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u
       assert String.length(search) <= 80
+      assert Enum.all?(words, &(&1 != "" and String.trim(&1) == &1))
+      assert search |> String.to_charlist() |> Enum.all?(&(&1 not in @blank))
       assert Search.normalize(search) == search
     end
+  end
+
+  test "a search cut at eighty characters just after a space keeps no space at its end" do
+    assert Search.normalize(String.duplicate("a", 79) <> " bc") == String.duplicate("a", 79)
   end
 
   property "a list's link reads back as the same list" do
