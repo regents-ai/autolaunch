@@ -1,7 +1,7 @@
 defmodule Autolaunch.Repo.Migrations.AddOban do
   @moduledoc """
   The background job tables, in the schema every Autolaunch table lives in.
-  `mix autolaunch.schema.create` makes that schema, so this does not.
+  The release creates that schema before it migrates, so this does not.
   """
 
   use Ecto.Migration

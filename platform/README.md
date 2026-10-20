@@ -57,14 +57,15 @@ production database holds other products' tables beside it. Migrations run under
 that prefix and name no other schema, except where a record points at a person's
 shared Regent account, `regent_names.platform_human_users`. Autolaunch keeps no
 account table of its own: every Regent site reads and writes that one row per
-person (`Autolaunch.Accounts.HumanAccount`). `mix autolaunch.schema.create`
-creates the schema on a freshly created database (the `setup` and `test` aliases
-run it between creating the database and migrating), and the release's
-`/app/bin/migrate` creates it the same way, so a new database needs no separate
+person (`Autolaunch.Accounts.HumanAccount`). The release's `/app/bin/migrate`
+creates the schema before it migrates, so a new database needs no separate
 initialisation. The shared account table and Regents' identity, agents, Credits
-and Points tables live in their own schemas; `mix autolaunch.shared.migrate`
-installs them locally, and `mix db.setup` runs it before this site's own
-migrations, which point at the shared account table.
+and Points tables live in their own schemas. `mix autolaunch.setup_local_auth`
+prepares a local database the way a new staging database is prepared
+(`Autolaunch.Release.prepare_database!/2`): a local copy of the shared account
+table from `priv/repo/shared_tables.sql`, every shared change this release
+carries, then this site's own migrations, which point at the shared account
+table. The `setup` and `test` aliases run it after `mix ecto.create`.
 
 ## Shared dependencies
 
@@ -103,8 +104,8 @@ refuses to start, because nobody could sign in.
 
 The site is then at `http://localhost:4050`. `mix setup` fetches dependencies, runs
 `npm ci` against the platform lockfile (React, Privy, and the TypeScript
-tooling the browser bundle needs), creates the `autolaunch_dev` database on loopback
-PostgreSQL, and builds the assets. A clean checkout can run `npm ci` on its own
+tooling the browser bundle needs), creates and prepares the `autolaunch_dev` database on
+loopback PostgreSQL, and builds the assets. A clean checkout can run `npm ci` on its own
 before `npm run typecheck` or `npm test`.
 
 ## Repository layout
@@ -119,7 +120,8 @@ assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
 test/                   The kept Elixir cases; assets/test/ the kept TypeScript cases (see test/README.md)
 scripts/                The release build-context assembler
-rel/                    Release overlays: the migrate, migrate-shared and pending-migrations commands
+rel/                    Release overlays: the migrate, migrate-shared, bootstrap-staging and
+                        pending-migrations commands
 ```
 
 ## Checks
@@ -222,6 +224,17 @@ installs `mix.lock` and `package-lock.json` dependencies, including the pinned s
 libraries from GitHub, for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
 `fly.staging.toml` (`autolaunch-staging`).
+
+A new staging database is empty and has no copy of the shared
+`regent_names.platform_human_users` table, so `bin/migrate` fails on it. Its
+first deploy runs `/app/bin/bootstrap-staging` once instead, with
+`AUTOLAUNCH_DEPLOYMENT_ROLE=staging` (it refuses every other role before it
+connects, and refuses a database that already has migration state). It makes that
+table, applies every shared change, then runs the site's own migrations;
+`mix autolaunch.setup_local_auth` prepares a local database with these same
+steps. Later deploys use `bin/migrate` as `fly.staging.toml` says.
+`platform/test/autolaunch/release_test.exs` runs every one of these commands
+against throwaway databases.
 
 The Platform GitHub workflow compiles, checks and tests the application and builds the
 Linux release image (without pushing) whenever application or blog files change.
