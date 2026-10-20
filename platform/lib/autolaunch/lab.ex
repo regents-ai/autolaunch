@@ -127,10 +127,10 @@ defmodule Autolaunch.Lab do
   the same name as its address; the log ledger follows the factory from
   there. A test chain may name none, which keeps its ledger off.
   """
+  # Founder-supplied startup input; this path never comes from an HTTP request.
+  # sobelow_skip ["Traversal.FileModule"]
   def load(path) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
-         # Founder-supplied startup input; this path never comes from an HTTP request.
-         # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
          {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),

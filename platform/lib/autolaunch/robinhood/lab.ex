@@ -83,10 +83,10 @@ defmodule Autolaunch.Robinhood.Lab do
     end
   end
 
+  # Founder-supplied startup input; this path never comes from an HTTP request.
+  # sobelow_skip ["Traversal.FileModule"]
   def load(path) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
-         # Founder-supplied startup input; this path never comes from an HTTP request.
-         # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
          {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
