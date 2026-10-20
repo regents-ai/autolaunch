@@ -1,5 +1,5 @@
 {
-  "total": 64,
+  "total": 66,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -834,6 +834,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "38a1e17dd8d2e4bdbe158fe8d3124f7cca32ecd5108fb8b1a453a1211ab0507f"
+    },
+    {
+      "id": 92,
+      "group": "Share pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_card_test.exs",
+      "line": 49,
+      "test_name": "SHARE_PICTURE_LEFT: an auction's words and price line stay where X shows them",
+      "keep_because": "X's phone view keeps only the left 660 or so of a share picture's 1200 pixels and lays the site's name over its bottom-left corner, so the auction picture's figures, hung from the right, and its autolaunch.sh band were hidden there (Design and Animation's ask, 20 Oct 2026). The picture is drawn for real from a stored auction with a long name, a 16-letter ticker, figures in REGENT and a price line, and nothing bright may sit right of x 660 or in that corner. It fails with the figures put back on the right, the price line pushed into the corner, or the site's name put back in the corner: all three mutations failed it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "58e15aed39604ce24bef594ec20639ec86820d66a7165d7f8b1354ca16962e7f"
+    },
+    {
+      "id": 93,
+      "group": "Share pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_card_test.exs",
+      "line": 71,
+      "test_name": "SHARE_PICTURE_LEFT: a token's words stay where X shows them",
+      "keep_because": "The token picture shares the auction picture's layout without the price line, so its strip sits lower; the same check that nothing bright sits right of x 660 or in X's bottom-left corner holds it there. It fails with the figures put back on the right or the site's name put back in the corner.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "58e15aed39604ce24bef594ec20639ec86820d66a7165d7f8b1354ca16962e7f"
     }
   ],
   "legacy_folders_to_remove": [

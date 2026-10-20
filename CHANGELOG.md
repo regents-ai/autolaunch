@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 20 October 2026: share pictures that show in full on X
+- The home and How it works share pictures are new: the headline and autolaunch.sh sit on the left, where X shows them on a phone, with Revstake and Memestock beside them.
+- An auction's or token's share picture puts autolaunch.sh along the top and the token's name, figures and price line on the left, so X's phone view shows all of them and X's own label no longer covers the site's name.
+
 ## 19 October 2026: filters you can tap, and plainer answers when something can't load
 - On a phone, each filter on Auctions and Tokens is a full-size tap, and the Verified menu stays on screen. On a computer they keep their normal size.
 - When a token or auction page can't be read for a moment, it says so plainly. "Try again" appears only when the site can't reach its records.

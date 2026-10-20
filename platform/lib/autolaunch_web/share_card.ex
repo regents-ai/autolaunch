@@ -3,13 +3,16 @@ defmodule AutolaunchWeb.ShareCard do
   The picture and page details a shared auction or token link shows on X and
   other sites.
 
-  The picture is one strip on a dark panel inside a tangerine border that
-  widens into a band reading autolaunch.sh, like X's own token cards: the
-  token's round logo, its name, its ticker line ($TOKEN / STOCK, or $TOKEN for
-  a launch paired with no stock token) and chain, and on the right its FDV
-  with the time left in the auction or, once launched, its price. An auction
-  also draws its clearing price so far as a thin line. A figure the site does
-  not know yet is left out, never shown as zero.
+  The picture is a dark panel inside a tangerine border, with the Autolaunch
+  mark and autolaunch.sh along its top and one strip on its left: the token's
+  round logo, its name, its ticker line ($TOKEN / STOCK, or $TOKEN for a
+  launch paired with no stock token), a pill with the time left in the auction
+  or where it stands, its chain, and its two figures on rows of their own. An
+  auction also draws its clearing price so far as a line under them, and a
+  faint Autolaunch mark fills the right. Every word and the line sit in the
+  left part of the picture that X's phone view keeps, clear of the corner
+  where X lays the site's name. A figure the site does not know yet is left
+  out, never shown as zero.
 
   Crawlers read the page without signing in or running scripts, so both the
   picture and the page details come from the stored records. Names and
@@ -29,24 +32,40 @@ defmodule AutolaunchWeb.ShareCard do
   @width 1200
   @height 630
 
-  # The tangerine border and the dark panel inside it.
+  # X's phone view keeps only the left 660 or so of the picture's 1200 and
+  # lays the site's own name over its bottom-left corner (x up to 180, y from
+  # 554), so every word sits left of @words_right and above that corner.
   @border 20
-  @band_y 544
 
-  # The strip, and what sits inside it.
+  # The top row: the Autolaunch mark and the site's name.
+  @mark_x 56
+  @mark_y 48
+  @mark_h 32
+
+  # The strip, and what sits inside it, from its top.
   @strip_x 48
-  @strip_y 132
-  @strip_w @width - 2 * @strip_x
-  @strip_h 300
-  @inset 44
-  @logo 184
+  @strip_w 584
+  @inset 40
+  @logo 112
   @logo_x @strip_x + @inset
-  @logo_y @strip_y + div(@strip_h - @logo, 2)
-  @words_x @logo_x + @logo + 40
-  @right @strip_x + @strip_w - @inset
-  @line_w 160
-  @line_h 96
-  @gap 48
+  @words_x @logo_x + @logo + 28
+  @words_right @strip_x + @strip_w - @inset
+  @logo_top 24
+  @name_top 22
+  @ticker_top 90
+  @chain_top 152
+  @stats_top 214
+  @row_h 62
+  @line_gap 20
+  @line_h 56
+
+  # The strip sits in the panel between the top row and the panel's foot.
+  @body_top 104
+  @body_bottom @height - @border - 16
+
+  # The large Autolaunch mark on the right of the wide view.
+  @art_h 260
+  @art_x 700
 
   @field "#111110"
   @strip "#1c1c1a"
@@ -56,6 +75,11 @@ defmodule AutolaunchWeb.ShareCard do
   @tangerine "#ff5b19"
   @powder "#aecacd"
   @blue "#8fc3ff"
+
+  # The Autolaunch mark: its squares on a 178 x 106 grid.
+  @mark_box {31, 46, 178, 106}
+  @mark_squares [{31, 46}, {103, 46}, {175, 46}] ++
+                  for(y <- [82, 118], x <- [31, 67, 103, 139, 175], do: {x, y})
 
   @chain_mark_h 28
   @pill_h 42
@@ -270,7 +294,7 @@ defmodule AutolaunchWeb.ShareCard do
     stats = Enum.reject(card.stats, fn {_label, value, _color} -> is_nil(value) end)
     {badge, badge_color} = card.badge
 
-    with {:ok, site} <- layer("autolaunch.sh", :pixel, 40, @field),
+    with {:ok, site} <- layer("autolaunch.sh", :pixel, 30, @muted),
          {:ok, badge} <- layer(badge, :bold, 24, badge_color),
          {:ok, initial} <- initial(auction.token_symbol),
          {:ok, stats} <- stat_layers(stats) do
@@ -286,10 +310,13 @@ defmodule AutolaunchWeb.ShareCard do
     end
   end
 
+  # Each figure sits on its own row, its label on the left and the figure on
+  # the right; a long figure steps down in size until it fits beside its label.
   defp stat_layers(stats) do
     Enum.reduce_while(Enum.reverse(stats), {:ok, []}, fn {label, value, color}, {:ok, done} ->
       with {:ok, label} <- layer(label, :regular, 28, @muted),
-           {:ok, value} <- layer(value, :bold, 54, color) do
+           max = @words_right - @logo_x - Image.width(label) - 24,
+           {:ok, value} <- sized(value, :bold, color, max, [40, 36, 32]) do
         {:cont, {:ok, [{label, value} | done]}}
       else
         error -> {:halt, error}
@@ -297,95 +324,86 @@ defmodule AutolaunchWeb.ShareCard do
     end)
   end
 
-  # Where each part goes: the figures hang from the strip's right edge, the
-  # price line sits just left of them, and the name takes what room is left.
+  # Where the strip goes: tall enough for the figures and, for an auction, the
+  # price line under them, and centred in the panel under the top row.
   defp layout(words, line) do
-    stats_w = words.stats |> Enum.flat_map(&Tuple.to_list/1) |> Enum.map(&Image.width/1)
-    stats_x = @right - Enum.max([0 | stats_w])
-    line_x = stats_x - @gap - @line_w
-    name_edge = if line, do: line_x - @gap, else: stats_x - @gap
-
+    stats_bottom = @stats_top + length(words.stats) * @row_h
+    strip_h = if line, do: stats_bottom + @line_gap + @line_h + 28, else: stats_bottom + 24
     {badge, _color} = words.badge
 
     %{
-      stats_x: stats_x,
-      line_x: line_x,
-      name_w: name_edge - @words_x,
+      top: @body_top + div(@body_bottom - @body_top - strip_h, 2),
+      strip_h: strip_h,
+      rows: length(words.stats),
+      line_top: stats_bottom + @line_gap,
       badge_w: Image.width(badge) + 36
     }
   end
 
-  # The name and the ticker share the room left of the price line and the
-  # figures.
+  # The name and the ticker share the room right of the logo.
   defp place(canvas, words, layout, logo) do
-    with {:ok, name} <- name(words.name, layout.name_w),
-         {:ok, ticker} <- ticker_line(words.ticker, layout.name_w) do
+    top = layout.top
+
+    with {:ok, name} <- name(words.name, @words_right - @words_x),
+         {:ok, ticker} <-
+           sized(words.ticker, :regular, @muted, @words_right - @words_x, [34, 30, 28]) do
       {badge, _color} = words.badge
 
       [
-        {words.site,
-         {@border + 28, @band_y + div(@height - @band_y - Image.height(words.site), 2)}},
-        {ticker, {@words_x, @strip_y + 128}},
-        {badge, {badge_x(), chain_row_y() + div(@pill_h - Image.height(badge), 2)}}
+        {words.site, {site_x(), @mark_y + div(@mark_h - Image.height(words.site), 2)}},
+        {ticker, {@words_x, top + @ticker_top}},
+        {badge, {badge_x(), top + @chain_top + div(@pill_h - Image.height(badge), 2)}}
       ]
-      |> Kernel.++(name_at(name))
-      |> Kernel.++(initial_at(logo, words.initial))
-      |> Kernel.++(stats_at(words.stats))
+      |> Kernel.++(name_at(name, top))
+      |> Kernel.++(initial_at(logo, words.initial, top))
+      |> Kernel.++(stats_at(words.stats, top))
       |> composite(canvas)
     end
   end
 
-  defp stats_at(stats) do
+  defp stats_at(stats, top) do
     stats
     |> Enum.with_index()
     |> Enum.flat_map(fn {{label, value}, index} ->
-      top = @strip_y + 36 + index * 124
+      middle = top + @stats_top + index * @row_h + div(@row_h, 2)
 
       [
-        {label, {@right - Image.width(label), top}},
-        {value, {@right - Image.width(value), top + 34}}
+        {label, {@logo_x, middle - div(Image.height(label), 2)}},
+        {value, {@words_right - Image.width(value), middle - div(Image.height(value), 2)}}
       ]
     end)
   end
 
-  # A long name steps down in size before it is cut short. A name with
-  # nothing the fonts can draw is left out; the ticker still names the token.
+  # A name with nothing the fonts can draw is left out; the ticker still names
+  # the token.
   defp name("", _max), do: {:ok, nil}
+  defp name(words, max), do: sized(words, :bold, @platinum, max, [52, 46, 40])
 
-  defp name(words, max), do: name(words, max, [64, 56, 48])
+  # The words step down in size until they fit, and are cut short at the
+  # smallest.
+  defp sized(words, weight, color, max, [size]), do: fit(words, weight, size, color, max)
 
-  defp name(words, max, [size]), do: fit(words, :bold, size, @platinum, max)
-
-  defp name(words, max, [size | smaller]) do
-    with {:ok, layer} <- layer(words, :bold, size, @platinum) do
-      if Image.width(layer) <= max, do: {:ok, layer}, else: name(words, max, smaller)
+  defp sized(words, weight, color, max, [size | smaller]) do
+    with {:ok, layer} <- layer(words, weight, size, color) do
+      if Image.width(layer) <= max,
+        do: {:ok, layer},
+        else: sized(words, weight, color, max, smaller)
     end
   end
 
-  # The ticker line steps down in size like the name before it is cut short.
-  defp ticker_line(words, max), do: ticker_line(words, max, [40, 34, 30])
-
-  defp ticker_line(words, max, [size]), do: fit(words, :regular, size, @muted, max)
-
-  defp ticker_line(words, max, [size | smaller]) do
-    with {:ok, layer} <- layer(words, :regular, size, @muted) do
-      if Image.width(layer) <= max, do: {:ok, layer}, else: ticker_line(words, max, smaller)
-    end
-  end
-
-  defp name_at(nil), do: []
-  defp name_at(name), do: [{name, {@words_x, @strip_y + 44}}]
+  defp name_at(nil, _top), do: []
+  defp name_at(name, top), do: [{name, {@words_x, top + @name_top}}]
 
   # The ticker's first letter stands in the logo's place when there is no
   # logo; the SVG draws the logo itself when there is one.
-  defp initial_at(nil, %Image{} = initial),
+  defp initial_at(nil, %Image{} = initial, top),
     do: [
       {initial,
        {@logo_x + div(@logo - Image.width(initial), 2),
-        @logo_y + div(@logo - Image.height(initial), 2)}}
+        top + @logo_top + div(@logo - Image.height(initial), 2)}}
     ]
 
-  defp initial_at(_logo, _initial), do: []
+  defp initial_at(_logo, _initial, _top), do: []
 
   defp composite(parts, canvas) do
     Enum.reduce_while(parts, {:ok, canvas}, fn {layer, {x, y}}, {:ok, picture} ->
@@ -396,17 +414,22 @@ defmodule AutolaunchWeb.ShareCard do
     end)
   end
 
-  # The chain's mark and the badge sit on one row under the ticker.
-  defp chain_row_y, do: @strip_y + 204
-  defp badge_x, do: @words_x + 18
+  # The chain's mark and the badge sit on one row under the ticker, from the
+  # logo's left edge.
+  defp badge_x, do: @logo_x + 18
+
+  # The site's name follows the mark along the top row.
+  defp site_x, do: @mark_x + mark_w(@mark_h) + 20
 
   defp svg(chain, color, logo, card, layout) do
     {_badge, badge_color} = card.badge
+    top = layout.top
+    chain_y = top + @chain_top
 
     """
     <svg xmlns="http://www.w3.org/2000/svg" width="#{@width}" height="#{@height}">
       <defs>
-        <radialGradient id="glow" cx="#{(@logo_x + div(@logo, 2)) / @width}" cy="0.5" r="0.6">
+        <radialGradient id="glow" cx="#{(@logo_x + div(@logo, 2)) / @width}" cy="#{(top + @logo_top + div(@logo, 2)) / @height}" r="0.6">
           <stop offset="0" stop-color="#{color}" stop-opacity="0.14"/>
           <stop offset="1" stop-color="#{color}" stop-opacity="0"/>
         </radialGradient>
@@ -414,43 +437,74 @@ defmodule AutolaunchWeb.ShareCard do
           <stop offset="0" stop-color="#{@tangerine}" stop-opacity="0.28"/>
           <stop offset="1" stop-color="#{@tangerine}" stop-opacity="0"/>
         </linearGradient>
-        <clipPath id="round"><circle cx="#{@logo_x + div(@logo, 2)}" cy="#{@logo_y + div(@logo, 2)}" r="#{div(@logo, 2)}"/></clipPath>
+        <clipPath id="round"><circle cx="#{@logo_x + div(@logo, 2)}" cy="#{top + @logo_top + div(@logo, 2)}" r="#{div(@logo, 2)}"/></clipPath>
       </defs>
       <rect width="#{@width}" height="#{@height}" fill="#{@tangerine}"/>
-      <rect x="#{@border}" y="#{@border}" width="#{@width - 2 * @border}" height="#{@band_y - @border}" rx="36" fill="#{@field}"/>
-      <rect x="#{@border}" y="#{@border}" width="#{@width - 2 * @border}" height="#{@band_y - @border}" rx="36" fill="url(#glow)"/>
-      <rect x="#{@strip_x}" y="#{@strip_y}" width="#{@strip_w}" height="#{@strip_h}" rx="40"
+      <rect x="#{@border}" y="#{@border}" width="#{@width - 2 * @border}" height="#{@height - 2 * @border}" rx="36" fill="#{@field}"/>
+      <rect x="#{@border}" y="#{@border}" width="#{@width - 2 * @border}" height="#{@height - 2 * @border}" rx="36" fill="url(#glow)"/>
+      #{mark_svg(@mark_x, @mark_y, @mark_h, 1)}
+      #{mark_svg(@art_x, div(@height - @art_h, 2), @art_h, 0.12)}
+      <rect x="#{@strip_x}" y="#{top}" width="#{@strip_w}" height="#{layout.strip_h}" rx="40"
         fill="#{@strip}" stroke="#{@edge}" stroke-width="2"/>
-      #{logo_svg(logo, color)}
-      #{badge_svg(badge_color, layout.badge_w)}
-      <image x="#{badge_x() + layout.badge_w + 6}" y="#{chain_row_y() + div(@pill_h - @chain_mark_h, 2)}" width="#{mark_width(chain, @chain_mark_h)}"
+      #{logo_svg(logo, color, top + @logo_top)}
+      #{badge_svg(badge_color, layout.badge_w, chain_y)}
+      <image x="#{badge_x() + layout.badge_w + 6}" y="#{chain_y + div(@pill_h - @chain_mark_h, 2)}" width="#{mark_width(chain, @chain_mark_h)}"
         height="#{@chain_mark_h}" href="data:image/svg+xml;base64,#{Base.encode64(chain_mark(chain))}"/>
-      #{line_svg(card.line, layout.line_x)}
+      #{rules_svg(layout.rows, top)}
+      #{line_svg(card.line, top + layout.line_top)}
     </svg>
     """
   end
 
-  defp logo_svg(nil, color),
+  # The Autolaunch mark `height` tall with its top left at `x`, `y`.
+  defp mark_svg(x, y, height, opacity) do
+    {left, top, _width, box_h} = @mark_box
+    scale = height / box_h
+
+    squares =
+      Enum.map_join(@mark_squares, fn {sx, sy} ->
+        ~s|<rect x="#{sx}" y="#{sy}" width="34" height="34"/>|
+      end)
+
+    ~s|<g fill="#{@tangerine}" fill-opacity="#{opacity}" transform="translate(#{x} #{y}) scale(#{scale}) translate(#{-left} #{-top})">#{squares}</g>|
+  end
+
+  defp mark_w(height) do
+    {_left, _top, width, box_h} = @mark_box
+    round(height * width / box_h)
+  end
+
+  # A thin rule above each figure's row.
+  defp rules_svg(rows, top) do
+    Enum.map_join(0..(rows - 1)//1, fn index ->
+      y = top + @stats_top + index * @row_h
+
+      ~s|<rect x="#{@logo_x}" y="#{y}" width="#{@words_right - @logo_x}" height="2" fill="#{@edge}"/>|
+    end)
+  end
+
+  defp logo_svg(nil, color, y),
     do:
-      ~s|<circle cx="#{@logo_x + div(@logo, 2)}" cy="#{@logo_y + div(@logo, 2)}" r="#{div(@logo, 2)}" fill="#{color}"/>|
+      ~s|<circle cx="#{@logo_x + div(@logo, 2)}" cy="#{y + div(@logo, 2)}" r="#{div(@logo, 2)}" fill="#{color}"/>|
 
-  defp logo_svg(png, _color),
+  defp logo_svg(png, _color, y),
     do:
-      ~s|<image x="#{@logo_x}" y="#{@logo_y}" width="#{@logo}" height="#{@logo}" clip-path="url(#round)" href="data:image/png;base64,#{Base.encode64(png)}"/>|
+      ~s|<image x="#{@logo_x}" y="#{y}" width="#{@logo}" height="#{@logo}" clip-path="url(#round)" href="data:image/png;base64,#{Base.encode64(png)}"/>|
 
-  defp badge_svg(color, width),
+  defp badge_svg(color, width, y),
     do:
-      ~s|<rect x="#{badge_x() - 18}" y="#{chain_row_y()}" width="#{width}" height="#{@pill_h}" rx="#{div(@pill_h, 2)}" fill="none" stroke="#{color}" stroke-width="2"/>|
+      ~s|<rect x="#{badge_x() - 18}" y="#{y}" width="#{width}" height="#{@pill_h}" rx="#{div(@pill_h, 2)}" fill="none" stroke="#{color}" stroke-width="2"/>|
 
-  defp line_svg(nil, _x), do: ""
+  defp line_svg(nil, _top), do: ""
 
-  # The shading under the line stops just above the chain row, so a long chain
-  # name never runs under it.
-  defp line_svg(prices, x) do
+  # The clearing price across the strip under the figures, shaded down to the
+  # line's foot.
+  defp line_svg(prices, top) do
     {low, high} = Enum.min_max(prices)
-    bottom = chain_row_y() - 12
-    top = bottom - 24 - @line_h
-    step = @line_w / (length(prices) - 1)
+    bottom = top + @line_h
+    left = @logo_x
+    width = @words_right - @logo_x
+    step = width / (length(prices) - 1)
 
     points =
       prices
@@ -461,7 +515,7 @@ defmodule AutolaunchWeb.ShareCard do
             do: top + @line_h / 2,
             else: top + @line_h * (high - price) / (high - low)
 
-        {x + index * step, y}
+        {left + index * step, y}
       end)
 
     path =
@@ -470,7 +524,7 @@ defmodule AutolaunchWeb.ShareCard do
       end)
 
     """
-    <polygon points="#{x},#{bottom} #{path} #{x + @line_w},#{bottom}" fill="url(#under)"/>
+    <polygon points="#{left},#{bottom} #{path} #{left + width},#{bottom}" fill="url(#under)"/>
     <polyline points="#{path}" fill="none" stroke="#{@tangerine}" stroke-width="4"
       stroke-linejoin="round" stroke-linecap="round"/>
     """
@@ -479,7 +533,7 @@ defmodule AutolaunchWeb.ShareCard do
   defp initial(symbol) do
     case symbol |> plain() |> String.first() do
       nil -> {:ok, nil}
-      letter -> layer(String.upcase(letter), :pixel, 84, @field)
+      letter -> layer(String.upcase(letter), :pixel, 56, @field)
     end
   end
 end

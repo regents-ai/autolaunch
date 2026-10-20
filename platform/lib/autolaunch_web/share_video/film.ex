@@ -5,9 +5,9 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   in yuv420p with its index at the front, so it plays as soon as it starts
   loading.
 
-  The frame is the share card stood upright, inside a tangerine border that
-  widens into a band reading autolaunch.sh at the foot: a phase word over a
-  chart, and the card's strip under it. The chart draws the auction's clearing
+  The frame sits inside a tangerine border that widens into a band reading
+  autolaunch.sh at the foot: a phase word over a chart, and a strip with the
+  token's logo, words and figures under it. The chart draws the auction's clearing
   price as blue steps, then the pool's price as a smooth tangerine line from
   graduation, its tip carrying a pulsing dot and the FDV it stands at. A
   wallet's own bids, buys and sells pop in on the line, its first stake drops
