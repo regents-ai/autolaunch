@@ -4,6 +4,16 @@ defmodule Autolaunch.Release do
   @app :autolaunch
   @missing_migration_table_error "no schema_migrations table: the database has never been migrated"
 
+  # Every shared library with its own schema and ledger, in the order their
+  # changes apply: Credits' pairing grants build on Agents' pairing history.
+  @shared [
+    {:regent_identity, "regent_identity", RegentIdentity.Migrator},
+    {:regent_agents, "regent_agents", RegentAgents.Migrator},
+    {:regent_credits, "regent_credits", RegentCredits.Migrator},
+    {:regent_points, "regent_points", RegentPoints.Migrator},
+    {:regent_payments, "regent_payments", RegentPayments.Migrator}
+  ]
+
   def migration_config! do
     Autolaunch.DatabaseConfig.release_config!()
     |> Keyword.merge(
@@ -26,6 +36,35 @@ defmodule Autolaunch.Release do
   end
 
   @doc """
+  Applies the shared database changes this release's pinned libraries carry
+  that the database has not applied, and prints each one, or `none`. Run as
+  `/app/bin/migrate-shared`.
+
+  Every site carries this same command. A deployment never runs it: `migrate/0`
+  refuses while a shared change is missing and applies none. Each change needs
+  the founder's own named go; the site whose release first carries it runs this
+  from the new image before that deployment, because only that image carries
+  the change's file. Each library's ledger takes a migration lock, so two sites
+  running it at once apply each change once.
+  """
+  def migrate_shared do
+    load_app()
+    Application.put_env(@app, Autolaunch.Repo, migration_config!())
+
+    {:ok, applied, _started} =
+      Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
+        unapplied = unapplied_shared_migrations(repo)
+        if unapplied != [], do: apply_shared(repo)
+        unapplied
+      end)
+
+    case applied do
+      [] -> IO.puts("none")
+      applied -> IO.puts("applied: #{Enum.join(applied, ", ")}")
+    end
+  end
+
+  @doc """
   Undoes this site's own migrations from the newest back to and including
   `version`, the way `migrate/0` applies them. The database is shared by every Regent site,
   so going back to an earlier version is done this way, never by restoring it.
@@ -42,9 +81,9 @@ defmodule Autolaunch.Release do
     end)
   end
 
-  # The Agents, Credits and Points code this release carries reads tables and columns
-  # from every migration its pinned library ships, so each must already be in
-  # that schema's own ledger. Every missing version is named at once.
+  # The shared code this release carries reads tables and columns from every
+  # migration its pinned library ships, so each must already be in that schema's
+  # own ledger. Every missing version is named at once.
   defp require_shared_migrations!(repo) do
     case unapplied_shared_migrations(repo) do
       [] ->
@@ -57,11 +96,7 @@ defmodule Autolaunch.Release do
   end
 
   defp unapplied_shared_migrations(repo) do
-    for {app, schema} <- [
-          regent_agents: "regent_agents",
-          regent_credits: "regent_credits",
-          regent_points: "regent_points"
-        ],
+    for {app, schema, _migrator} <- carried_shared(),
         {:down, version, _name} <-
           Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
             prefix: schema,
@@ -69,6 +104,14 @@ defmodule Autolaunch.Release do
             migration_lock: false
           ),
         do: "#{schema} #{version}"
+  end
+
+  defp apply_shared(repo), do: Enum.each(carried_shared(), fn {_, _, m} -> m.up(repo) end)
+
+  # A shared library this site does not carry has no tables it reads or changes.
+  defp carried_shared do
+    carried = Application.spec(@app, :applications)
+    for {app, _schema, _migrator} = shared <- @shared, app in carried, do: shared
   end
 
   @doc "Creates the product schema when the database does not have it yet."
@@ -82,10 +125,9 @@ defmodule Autolaunch.Release do
 
   Prints every migration the release carries that the database has not applied
   under `pending:`, every version the database has applied whose file the
-  release does not carry under `applied-without-file:`, and the shared Agents,
-  Credits and Points changes the release needs that their own ledgers do not hold under
-  `shared-pending:` (each as schema and version; a deployment is refused while
-  one is listed). Prints `none` when all three are empty. It applies nothing,
+  release does not carry under `applied-without-file:`, and every shared change
+  `migrate_shared/0` would apply under `shared-pending:` (each as schema and
+  version; a deployment is refused while one is listed). Prints `none` when all three are empty. It applies nothing,
   creates nothing, and takes no migration lock.
   """
   def pending_migrations do

@@ -2,9 +2,9 @@ defmodule Mix.Tasks.Autolaunch.Shared.Migrate do
   @shortdoc "Migrates the shared Regent schemas into a local Autolaunch database"
   @moduledoc """
   Autolaunch reads tables it does not own: the shared account table, Regents'
-  identity tables, the agents people pair, their Credits and their Points. Regents and the
-  platform own them in production, and a release only checks the shared
-  migrations are there (`Autolaunch.Release`); locally each site creates them, as
+  identity tables, the agents people pair, their Credits and their Points. In
+  production `bin/migrate-shared` applies their changes and a deployment only
+  checks they are there (`Autolaunch.Release`); locally each site creates them, as
   ash-template does. `mix db.setup`, and so `mix test`, runs this task.
   """
   use Mix.Task
