@@ -4,6 +4,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 20 October 2026: behind-the-scenes updates
 - Autolaunch applies changes to the shared Regent account, agent, Credits and Points records with the same command as every other Regent site, and a release that needs one of those changes waits until it is in place.
+- A new Autolaunch test site can be set up from an empty database with one command, the same one every Regent site uses, and a developer's own copy of the site is prepared in exactly the same steps.
 
 ## 19 October 2026: filters you can tap, and plainer answers when something can't load
 - On a phone, each filter on Auctions and Tokens is a full-size tap, and the Verified menu stays on screen. On a computer they keep their normal size.

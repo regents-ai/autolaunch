@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.Endpoint do
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
     plug AshPhoenix.Plug.CheckCodegenStatus
-    # The migration ledger lives in autolaunch_app, as `mix db.setup` records it.
+    # The migration ledger lives in autolaunch_app, where `Autolaunch.Release` records it.
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :autolaunch, prefix: "autolaunch_app"
   end
 

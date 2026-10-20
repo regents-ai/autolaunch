@@ -150,21 +150,12 @@ defmodule Autolaunch.MixProject do
       setup: [
         "deps.get",
         "cmd npm ci",
-        "db.setup",
+        "ecto.create --quiet",
+        "autolaunch.setup_local_auth",
         "assets.setup",
         "assets.build"
       ],
-      "db.setup": [
-        "ash_postgres.create --quiet",
-        "autolaunch.schema.create",
-        # The shared tables come first: this site's records point at the
-        # shared account table, as they do in production.
-        "autolaunch.shared.migrate",
-        # The migration ledger follows only this flag; operations follow the
-        # repo's migration_default_prefix. Both must land in autolaunch_app.
-        "ash_postgres.migrate --quiet --prefix autolaunch_app"
-      ],
-      test: ["db.setup", "test"],
+      test: ["ecto.create --quiet", "autolaunch.setup_local_auth", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
       "assets.build": [
         "compile",
