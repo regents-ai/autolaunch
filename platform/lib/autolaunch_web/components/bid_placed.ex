@@ -65,6 +65,7 @@ defmodule AutolaunchWeb.Components.BidPlaced do
         >
           <:account>
             <div
+              :if={@x_account || @x_enabled}
               id={"#{@id}-x"}
               class="share-x__account"
               phx-hook="XConnections"
@@ -73,7 +74,7 @@ defmodule AutolaunchWeb.Components.BidPlaced do
             >
               <p :if={@x_account}>Connected as @{@x_account.username}</p>
               <div
-                :if={!@x_account && @x_enabled}
+                :if={!@x_account}
                 data-x-role="profile"
                 data-x-intent-sequence={intent_sequence(@x_connection)}
               >
