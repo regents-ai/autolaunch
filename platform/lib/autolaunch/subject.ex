@@ -17,10 +17,6 @@ defmodule Autolaunch.Subject do
       primary? true
     end
 
-    read :list_public do
-      prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
-    end
-
     read :public_by_id do
       get? true
 
@@ -78,7 +74,7 @@ defmodule Autolaunch.Subject do
   end
 
   policies do
-    policy action([:read, :list_public, :public_by_id]) do
+    policy action([:read, :public_by_id]) do
       authorize_if always()
     end
 
@@ -193,7 +189,6 @@ defmodule Autolaunch.Subject do
   end
 
   relationships do
-    has_many :actions, Autolaunch.SubjectAction
     has_many :payment_links, Autolaunch.PaymentLink
 
     belongs_to :treasury_security_report,

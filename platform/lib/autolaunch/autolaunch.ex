@@ -379,8 +379,6 @@ defmodule Autolaunch do
 
     resource @payment_link_resource
 
-    resource Autolaunch.SubjectAction
-
     resource Autolaunch.LaunchJob do
       define :project_lab_launch, action: :project_lab
     end

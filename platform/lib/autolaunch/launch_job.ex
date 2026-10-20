@@ -17,10 +17,6 @@ defmodule Autolaunch.LaunchJob do
       primary? true
     end
 
-    read :list_public do
-      prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
-    end
-
     create :project_lab do
       accept [
         :job_id,
@@ -62,7 +58,7 @@ defmodule Autolaunch.LaunchJob do
   end
 
   policies do
-    policy action([:read, :list_public]) do
+    policy action(:read) do
       authorize_if always()
     end
 
