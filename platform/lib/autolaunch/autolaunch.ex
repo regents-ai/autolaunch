@@ -351,10 +351,6 @@ defmodule Autolaunch do
         args: [:auction_id],
         not_found_error?: false
 
-      define :list_subject_tokens,
-        action: :for_subject,
-        args: [:subject_id]
-
       define :get_latest_subject_token_price,
         action: :latest_price_for_subject,
         args: [:subject_id],
@@ -366,8 +362,6 @@ defmodule Autolaunch do
     end
 
     resource Autolaunch.Subject do
-      define :list_subjects, action: :list_public
-
       define :get_public_subject,
         action: :public_by_id,
         args: [:subject_id],
@@ -385,24 +379,9 @@ defmodule Autolaunch do
 
     resource @payment_link_resource
 
-    resource Autolaunch.SubjectAction do
-      define :list_subject_actions,
-        action: :recent_for_subject,
-        args: [:subject_identity]
-
-      define :list_subject_settlements,
-        action: :settlements_for_subject,
-        args: [:subject_identity]
-    end
+    resource Autolaunch.SubjectAction
 
     resource Autolaunch.LaunchJob do
-      define :list_launches, action: :list_public
-
-      define :get_public_launch,
-        action: :public_by_id,
-        args: [:job_id],
-        not_found_error?: false
-
       define :project_lab_launch, action: :project_lab
     end
 

@@ -143,22 +143,6 @@ defmodule Autolaunch.Token do
               )
     end
 
-    read :for_subject do
-      argument :subject_id, :string,
-        allow_nil?: false,
-        constraints: SubjectIdentity.constraints()
-
-      filter expr(subject_id == ^arg(:subject_id))
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
-      prepare Autolaunch.Token.Preparations.ShownAuction
-
-      prepare build(
-                sort: [graduated_at: :desc, id: :asc],
-                limit: 25,
-                load: [:treasury_security_report, :auction]
-              )
-    end
-
     # A graduated Robinhood launch's token, named on its page by the token's
     # own address.
     read :robinhood_by_address do
@@ -289,7 +273,6 @@ defmodule Autolaunch.Token do
              :home_market,
              :top_public,
              :recently_graduated_public,
-             :for_subject,
              :public_by_id,
              :listed_by_id,
              :robinhood_by_address,

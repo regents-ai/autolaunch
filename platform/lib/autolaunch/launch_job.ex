@@ -21,17 +21,6 @@ defmodule Autolaunch.LaunchJob do
       prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
-    read :public_by_id do
-      get? true
-
-      argument :job_id, :string,
-        allow_nil?: false,
-        constraints: LaunchIdentity.constraints()
-
-      filter expr(job_id == ^arg(:job_id))
-      prepare build(load: [:treasury_security_report])
-    end
-
     create :project_lab do
       accept [
         :job_id,
@@ -73,7 +62,7 @@ defmodule Autolaunch.LaunchJob do
   end
 
   policies do
-    policy action([:read, :list_public, :public_by_id]) do
+    policy action([:read, :list_public]) do
       authorize_if always()
     end
 
