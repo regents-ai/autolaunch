@@ -1,4 +1,3 @@
-app = "autolaunch-sh"
 primary_region = "iad"
 
 [build]
@@ -36,9 +35,12 @@ primary_region = "iad"
   port = 9091
   path = "/metrics"
 
-# Start the new image beside the old one and move traffic once its /healthz
+# Each deploy first runs the image's migrations on a temporary machine with the
+# release login (DATABASE_DIRECT_URL); a failed migration stops the deploy. Then
+# the new image starts beside the old one and takes traffic once its /healthz
 # check is green, so a release never leaves the site without a running machine.
 [deploy]
+  release_command = "/app/bin/migrate"
   strategy = "bluegreen"
 
 [http_service]

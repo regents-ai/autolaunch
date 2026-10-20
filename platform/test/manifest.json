@@ -1,5 +1,5 @@
 {
-  "total": 66,
+  "total": 68,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -860,6 +860,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "58e15aed39604ce24bef594ec20639ec86820d66a7165d7f8b1354ca16962e7f"
+    },
+    {
+      "id": 107,
+      "group": "Deploys",
+      "framework": "exunit",
+      "file": "test/autolaunch/release_boot_test.exs",
+      "line": 42,
+      "test_name": "RELEASE_BOOT_READS_NO_DESCRIPTION: the migration boot on the serving app reads no deployment description and takes the release login",
+      "keep_because": "The deploy migrates on a temporary machine of the serving app, which has the deployment description paths in its settings but may not have the files. It fails while the migration boot read the Base description and stopped on missing_file.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "45a4f5c6aad1317b3c91bb5ea8dd6d7b51f363c8b5cd8ad16de28b3d6b720d49"
+    },
+    {
+      "id": 108,
+      "group": "Deploys",
+      "framework": "exunit",
+      "file": "test/autolaunch/database_config_test.exs",
+      "line": 39,
+      "test_name": "the serving boot connects with the serving login when the app also holds the release login",
+      "keep_because": "The serving app holds both logins once the deploy runs the migrations, and the web boot must still connect with the serving login. It fails while the web boot refused any app holding DATABASE_DIRECT_URL.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "afadd1bf010df704c09b4ccf23946e903b51867696e8395cc95c20753a3c0a82"
     }
   ],
   "legacy_folders_to_remove": [

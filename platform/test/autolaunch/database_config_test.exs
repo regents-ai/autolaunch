@@ -36,6 +36,28 @@ defmodule Autolaunch.DatabaseConfigTest do
            ]
   end
 
+  test "the serving boot connects with the serving login when the app also holds the release login" do
+    serving =
+      "postgresql://autolaunch-runtime:fixture@direct.dzx6qo6xqzvojpv5.flympg.net/regents_prod"
+
+    options =
+      DatabaseConfig.runtime_config!(:prod, fn
+        "AUTOLAUNCH_DEPLOYMENT_ROLE" ->
+          "production"
+
+        "DATABASE_URL" ->
+          serving
+
+        "DATABASE_DIRECT_URL" ->
+          "postgresql://migrator:fixture@direct.dzx6qo6xqzvojpv5.flympg.net/regents_prod"
+
+        _ ->
+          nil
+      end)
+
+    assert options[:url] == serving
+  end
+
   test "Fly MPG direct migration URLs use verified TLS" do
     options =
       DatabaseConfig.release_config!(fn

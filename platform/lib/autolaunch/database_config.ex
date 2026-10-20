@@ -12,10 +12,6 @@ defmodule Autolaunch.DatabaseConfig do
   def runtime_config!(:prod, getenv) do
     require_deployment_role!(getenv)
 
-    if getenv.("DATABASE_DIRECT_URL") not in [nil, ""] do
-      raise "DATABASE_DIRECT_URL belongs in the isolated migration app, not the serving app"
-    end
-
     database_url!(getenv, "DATABASE_URL")
     |> require_direct!(
       "DATABASE_URL must use the direct endpoint: the site listens for shared changes on it"

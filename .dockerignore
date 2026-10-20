@@ -1,0 +1,35 @@
+# The image is built from the repository root (platform/Dockerfile). Only the
+# app in platform/ and the posts in blog/ enter the context.
+*
+!platform/
+!blog/
+
+# Build output, fetched dependencies and local state stay out of the image
+# context; the build fetches dependencies itself from mix.lock and
+# package-lock.json.
+platform/_build/
+platform/deps/
+platform/node_modules/
+platform/tmp/
+platform/priv/static/assets/
+platform/priv/static/cache_manifest.json
+platform/assets/vendor/
+platform/priv/static/images/regent-ui/
+platform/priv/static/fonts/regent-ui/
+platform/.elixir_ls/
+platform/erl_crash.dump
+platform/priv/static/images/blog/
+platform/.agents/
+platform/.claude/
+platform/.codex/
+**/local-only-*
+**/*.log
+
+# The deployment descriptions carry the site's private RPC door; fly.toml places
+# them on the machine at deploy time, so they never enter the image.
+platform/deployment/
+
+# Runtime environment files never enter the image.
+**/.env
+**/.env.*
+**/.envrc
