@@ -33,6 +33,8 @@ defmodule Autolaunch.Search do
     |> String.graphemes()
     |> Enum.take(@limit)
     |> Enum.join()
+    # The cut can land just after a space.
+    |> String.trim_trailing()
   end
 
   def normalize(_value), do: ""
