@@ -9,9 +9,15 @@
  * buffers: the fill quad runs from the segment down to the chart's foot, and
  * the line quad hugs the segment while its fragment keeps the pixels within
  * half the line's width of it, which rounds every end and join.
+ *
+ * On its first draw the line grows from the pool's opening to now, the dot
+ * leading, timed by anime.js; a reader who asks for less motion sees it whole.
  */
 
 import {prepareShader} from "@vgpu/wgsl/prepare"
+import {animate, type JSAnimation} from "animejs"
+
+import {EASE_OUT, still} from "../../hooks/motion/shared"
 
 import {draw, frame, init, storage, surface} from "vgpu"
 
@@ -140,6 +146,10 @@ export async function paint(root: HTMLElement): Promise<Painter> {
   })
 
   let count = 0
+  // How much of the line is drawn, 0 to 1, and how many points that is: at
+  // least the first segment, so the dot always has a line behind it.
+  let shown = 1
+  const visible = () => Math.max(2, Math.ceil(shown * count))
   const load = () => {
     const data = normalized(root)
     count = data.length / 2
@@ -158,15 +168,15 @@ export async function paint(root: HTMLElement): Promise<Painter> {
       size: canvasSurface.size,
       inset: 6 * dpr,
       width: 2 * dpr,
-      count,
+      count: visible(),
       dpr,
     }
     fill.set({params, points})
     line.set({params, points})
     frame(gpu, f =>
       f.pass({target: canvasSurface, clear: [0, 0, 0, 0]}, pass => {
-        pass.draw(fill, {instances: count - 1})
-        pass.draw(line, {instances: count})
+        pass.draw(fill, {instances: visible() - 1})
+        pass.draw(line, {instances: visible()})
       }),
     )
   }
@@ -175,6 +185,20 @@ export async function paint(root: HTMLElement): Promise<Painter> {
   }
 
   load()
+  let growth: JSAnimation | undefined
+  if (!still(root)) {
+    const progress = {shown: 0}
+    shown = 0
+    growth = animate(progress, {
+      shown: 1,
+      duration: 900,
+      ease: EASE_OUT,
+      onUpdate: () => {
+        shown = progress.shown
+        schedule()
+      },
+    })
+  }
   // onResize also reports the current size at once, which asks for the first draw.
   const stopResize = canvasSurface.onResize(schedule)
   // The colours change with the chosen theme, or with the device's while none is chosen.
@@ -192,6 +216,7 @@ export async function paint(root: HTMLElement): Promise<Painter> {
       schedule()
     },
     dispose() {
+      growth?.cancel()
       cancelAnimationFrame(pending)
       themeObserver.disconnect()
       deviceTheme.removeEventListener("change", schedule)
