@@ -1,5 +1,5 @@
 {
-  "total": 75,
+  "total": 78,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -977,6 +977,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "5083e93305b4f1a933ac742364a00830db800653a58835187d8d6dad87568dd2"
+    },
+    {
+      "id": 76,
+      "group": "Agent guides",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_documents_test.exs",
+      "line": 15,
+      "test_name": "every public document names only the one regents-cli release",
+      "keep_because": "Every agent guide and Markdown page names the single regents-cli release the guides were checked against. It fails when any document names another version or leaves a placeholder unfilled.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+    },
+    {
+      "id": 77,
+      "group": "Agent guides",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_documents_test.exs",
+      "line": 34,
+      "test_name": "the signed agent guide states the prelaunch gate as this deployment has it",
+      "keep_because": "agents.md says whether draft saves are open from the deployment's own setting. It fails if the line is fixed text again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+    },
+    {
+      "id": 78,
+      "group": "Agent guides",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_documents_test.exs",
+      "line": 45,
+      "test_name": "the short index leads to the whole guide, which carries every tool",
+      "keep_because": "The short /llms.txt links /llms-full.txt and /sitemap.md, and the whole guide still names every manifest tool. It fails if the index grows back into the whole guide or a tool drops out of it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
     }
   ],
   "legacy_folders_to_remove": [

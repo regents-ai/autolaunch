@@ -102,11 +102,13 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | `prepare_agent_request` | In the page, sends nothing | **Gap** |
 | (none) | `/api/v1/profile` (shared profile) | **Gap** |
 
-Guides and discovery for agents (`/llms.txt`, `/agents.md`, `/skill.md`, `/openapi.json`,
-`/sitemap.xml`, `/robots.txt`, `/capabilities`, `/.well-known/security.txt`,
-`/.well-known/api-catalog`, `/healthz`): `make readiness` (`scripts/readiness.sh`) and
-`autolaunch_web/controllers/health_controller_test.exs` › "HEALTH_NAMES_THE_COMMIT: a ready
-site answers ok with its build's commit".
+Guides and discovery for agents (`/llms.txt`, `/llms-full.txt`, `/agents.md`, `/skill.md`,
+`/openapi.json`, `/sitemap.xml`, `/sitemap.md`, `/robots.txt`, `/capabilities`,
+`/.well-known/security.txt`, `/.well-known/api-catalog`, `/healthz`): `make readiness`
+(`scripts/readiness.sh`) and `autolaunch_web/controllers/health_controller_test.exs` ›
+"HEALTH_NAMES_THE_COMMIT: a ready site answers ok with its build's commit". One regents-cli
+release, the live prelaunch line and the short index's links: `autolaunch_web/agent_documents_test.exs`
+(all three cases).
 
 ## Gaps, in one list
 

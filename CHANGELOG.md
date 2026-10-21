@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: a short agent guide, one CLI version everywhere
+- /llms.txt is now a short index: what Autolaunch is, first steps for an agent and where to read on. The whole guide is at /llms-full.txt, and /sitemap.md lists every page with what it is for.
+- Every agent guide names the same regents-cli release, 1.10.12.
+- The signed agent guide says whether saving drafts is open right now, instead of a fixed line.
+
 ## 21 October 2026: other websites can show Autolaunch auctions and tokens
 - A page on any website can read Autolaunch's public auction, token, count and treasury figures straight from its visitors' browsers. Anything tied to a person's sign-in or an agent's pairing still answers only autolaunch.sh.
 

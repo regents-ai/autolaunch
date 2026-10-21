@@ -30,6 +30,14 @@ defmodule AutolaunchWeb.PublicPagesController do
 
   def agent_guide(conn, _params), do: text_document(conn, PublicDocuments.agent_guide())
 
+  def full_agent_guide(conn, _params),
+    do: text_document(conn, PublicDocuments.full_agent_guide())
+
+  def markdown_sitemap(conn, _params) do
+    body = PublicDocuments.markdown_sitemap()
+    conn |> cached(body) |> put_resp_content_type("text/markdown") |> send_resp(200, body)
+  end
+
   def signed_agent_guide(conn, _params),
     do: text_document(conn, PublicDocuments.signed_agent_guide())
 

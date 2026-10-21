@@ -89,16 +89,16 @@ Bidding, claiming, launching, trading and staking happen on the website with the
 
 ## More
 
-- [Agent guide]({{origin}}/llms.txt): what Autolaunch is and when to use it.
+- [Agent guide]({{origin}}/llms.txt): what Autolaunch is, first steps and where to read on. The [whole guide]({{origin}}/llms-full.txt) is one file, and the [Markdown sitemap]({{origin}}/sitemap.md) lists every page.
 - [How Autolaunch works]({{origin}}/how-it-works): supply, fees and staking rewards.
 - [API catalog]({{origin}}/.well-known/api-catalog) points to the OpenAPI description and this page, and [security.txt]({{origin}}/.well-known/security.txt) names where to report a vulnerability.
 - [Source code](https://github.com/regents-ai/autolaunch)
 - [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms).
-- Command line: `regents autolaunch`, in regents-cli 1.10.12 (`uv tool install regents-cli==1.10.12`).
+- Command line: `regents autolaunch`, in regents-cli {{regents_cli}} (`uv tool install regents-cli=={{regents_cli}}`).
 
 Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
 
-Read your drafts with `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`, in regents-cli 1.9.3 and later. To change a draft's text, use `save` in place of `show` and send the JSON on stdin. Saves are refused while prelaunch read-only mode is on.
+Read your drafts with `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`, in regents-cli {{regents_cli}}. To change a draft's text, use `save` in place of `show` and send the JSON on stdin. Saves are refused while prelaunch read-only mode is on.
 
 
 ## Stored token details
@@ -113,4 +113,4 @@ a missing timestamp is not evidence of freshness. A token the list does not show
 returns 404; invalid UUIDs and extra parameters return 400.
 
 The native tool is `autolaunch_token`. The CLI command is
-`regents autolaunch token <id>`, in regents-cli 1.10.6 and later.
+`regents autolaunch token <id>`, in regents-cli {{regents_cli}}.

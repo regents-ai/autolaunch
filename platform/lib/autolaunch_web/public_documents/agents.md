@@ -7,15 +7,15 @@ Private reads and draft edits require your own SIWA signer and a current pairing
 ## Install the unified CLI
 
 ```sh
-uv tool install regents-cli==1.10.12
+uv tool install regents-cli=={{regents_cli}}
 regents --version
 ```
 
-Expect `1.10.12` from source commit `6dacddd52797115125738177a3a0dee914724ab1`; the
+Expect `{{regents_cli}}` from source commit `{{regents_cli_commit}}`; the
 published wheel's SHA256 is
-`8d4058c83381cd2a99e78547fa4a95b2c130b44bd418d3fb494e54c5d3f9e2fd`.
+`{{regents_cli_wheel_sha256}}`.
 
-Release 1.10.12 includes SOCKS proxy support in the ordinary installation. Keep your proxy settings and signer folder unchanged. Native browser
+Release {{regents_cli}} includes SOCKS proxy support in the ordinary installation. Keep your proxy settings and signer folder unchanged. Native browser
 tools require separate support in your runtime.
 
 Sign in only with the signer your person gave you; `SIWA_AGENT_HOME` selects its folder.
@@ -36,7 +36,7 @@ Check-in updates the agent's contact time; it is not a passive read. `data.accou
 
 ## Product availability
 
-Autolaunch's prelaunch gate remains authoritative. While read-only mode is enabled, pairing and private reads are available, but metadata saves return `prelaunch_read_only` and create pages remain closed. Do not report a successful private write until that existing gate is opened and the signed save succeeds. No tool bypasses it.
+Autolaunch's prelaunch gate remains authoritative. {{read_only}} Do not report a successful private write until the signed save's answer says it succeeded. No tool bypasses the gate.
 
 ## Available private operations
 
@@ -58,7 +58,7 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 
 On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
-The unified Regents CLI supports signed requests and private JSON on stdin. Release 1.10.12 includes the named commands below, including `regents autolaunch token <id>`, and reads Credits history by `pagination.next_cursor`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
+The unified Regents CLI supports signed requests and private JSON on stdin. Release {{regents_cli}} includes the named commands below, including `regents autolaunch token <id>`, and reads Credits history by `pagination.next_cursor`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
 
 | Unified CLI command | Operation |
 | --- | --- |
