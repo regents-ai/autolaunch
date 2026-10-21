@@ -211,7 +211,7 @@ defmodule AutolaunchWeb.TokenLive do
             }
             module={AutolaunchWeb.SubjectWalletComponent}
             id={"token-payment-#{@page_record.id}"}
-            subject_id={Autolaunch.LabProjection.subject_identity(@pool.result.token.address)}
+            auction_id={@page_record.auction.id}
             symbol={@presentation.symbol}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}

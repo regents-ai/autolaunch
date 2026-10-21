@@ -1,5 +1,5 @@
 {
-  "total": 92,
+  "total": 94,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1174,19 +1174,6 @@
       "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
     },
     {
-      "id": 131,
-      "group": "Wallet actions",
-      "framework": "exunit",
-      "file": "test/autolaunch/subject_wallet_network_test.exs",
-      "line": 14,
-      "test_name": "a deployment on another network refuses a Base subject's payment review",
-      "keep_because": "A payment review is sent on the deployment's network, so it is built only for a subject on that same network. It fails while a deployment naming another network builds a Base subject's review (the A02 to-do).",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "fb344af6e467fbb792ec83a2ba84a8ee4c20bf8afcf00a6b82694631b8bf1caf"
-    },
-    {
       "id": 132,
       "group": "Agent authority",
       "framework": "exunit",
@@ -1198,6 +1185,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
+    },
+    {
+      "id": 133,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 133,
+      "test_name": "a Revstake launch's payment review comes from its own record and the real reader",
+      "keep_because": "The payment card reads the launch's token, splitter, receiver and treasury from the strategy's record and every balance and allowance through the production Base reader, then builds the approval and the payment. It fails if the card goes back to a stored subject or the reader misreads a binding.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+    },
+    {
+      "id": 134,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 157,
+      "test_name": "a receiver whose money goes anywhere but the launch's treasury is refused",
+      "keep_because": "A receiver whose beneficiary is not the launch's treasury is never reviewed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+    },
+    {
+      "id": 135,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 171,
+      "test_name": "a deployment on another network refuses a Base launch's payment review",
+      "keep_because": "A review is sent on the deployment's network, so it is built only for a launch on that network (the A02 to-do).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
     }
   ],
   "legacy_folders_to_remove": [

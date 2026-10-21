@@ -35,7 +35,9 @@ defmodule Autolaunch.Chain.SubjectAbi do
     usdc: {"usdc()", "0x3e413bee"},
     regent: {"regent()", "0x35cd696e"},
     treasury: {"treasury()", "0x61d027b3"},
-    total_staked: {"totalStaked()", "0x817b1cd2"}
+    total_staked: {"totalStaked()", "0x817b1cd2"},
+    staked_of: {"stakedOf(address)", "0xaf500ba3"},
+    claimable: {"claimable(address,address)", "0xd4570c1c"}
   }
 
   @receiver_reads %{
@@ -46,7 +48,8 @@ defmodule Autolaunch.Chain.SubjectAbi do
     subject: {"subject()", "0x0a59a98c"},
     usdc: {"usdc()", "0x3e413bee"},
     regent: {"regent()", "0x35cd696e"},
-    treasury: {"treasury()", "0x61d027b3"}
+    treasury: {"treasury()", "0x61d027b3"},
+    receiver_note: {"receiverNote()", "0xe5738587"}
   }
 
   @receiver_events %{
@@ -99,6 +102,10 @@ defmodule Autolaunch.Chain.SubjectAbi do
 
   @spec encode_sweep(String.t()) :: String.t()
   def encode_sweep(token), do: selector(:sweep) <> address!(token)
+
+  @doc "One admitted splitter or receiver read, with its address arguments."
+  @spec encode_read(atom(), [String.t()]) :: String.t()
+  def encode_read(id, addresses), do: selector(id) <> Enum.map_join(addresses, &address!/1)
 
   # Events
 

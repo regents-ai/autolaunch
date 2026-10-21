@@ -2,7 +2,9 @@ defmodule Autolaunch.SubjectWalletActions do
   @moduledoc """
   The one boundary between a subject's wallet and Base.
 
-  Preparation reads Base once, proves the stored splitter and canonical receiver
+  The launch's token, splitter, payment receiver and treasury are the
+  strategy's own record of the launch (`Autolaunch.Pool.payment_addresses/1`).
+  Preparation reads Base once, proves the splitter and canonical receiver
   really are this launch's own, and returns the review's chain, its steps (an
   exact approval when one is missing, then the payment or the sweep) and the
   facts the page shows. The page keeps it; nothing is stored. `result/2` reads
@@ -15,7 +17,7 @@ defmodule Autolaunch.SubjectWalletActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{BidActions, Lab, Subject, SubjectWalletChainClient}
+  alias Autolaunch.{Auction, BidActions, Lab, Pool, SubjectWalletChainClient}
   alias Autolaunch.Chain.{Abi, Client, Rpc, SubjectAbi}
   alias RegentChain.{Address, Review}
 
@@ -49,9 +51,9 @@ defmodule Autolaunch.SubjectWalletActions do
   address. Every figure is read from Base, where anyone can read it.
   """
   @spec wallet_state(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  def wallet_state(subject_id, address) do
+  def wallet_state(auction_id, address) do
     with {:ok, signer} <- normalize(address),
-         {:ok, subject} <- stored_split(subject_id),
+         {:ok, subject} <- launch_split(auction_id),
          {:ok, snapshot} <- snapshot(subject, signer, nil, nil) do
       {:ok, view(subject, signer, snapshot)}
     end
@@ -66,12 +68,11 @@ defmodule Autolaunch.SubjectWalletActions do
   """
   @spec prepare(String.t(), String.t(), atom(), map(), keyword()) ::
           {:ok, map()} | {:error, term()}
-  def prepare(subject_id, address, kind, params, opts) when kind in @kinds do
+  def prepare(auction_id, address, kind, params, opts) when kind in @kinds do
     with {:ok, _actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, opts),
          {:ok, config} <- lab(),
-         {:ok, subject} <- actionable(subject_id),
-         :ok <- subject_network(config, subject),
+         {:ok, subject} <- actionable(auction_id),
          {:ok, asset} <- selected_asset(kind, params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
          {:ok, plan} <- planned(kind, asset, params, snapshot, signer) do
@@ -85,7 +86,7 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
-  def prepare(_subject_id, _address, _kind, _params, _opts), do: unavailable(:unknown_action)
+  def prepare(_auction_id, _address, _kind, _params, _opts), do: unavailable(:unknown_action)
 
   @doc "The exact decimal rendering of an atomic amount of one bound asset."
   @spec units(non_neg_integer() | String.t(), atom()) :: String.t()
@@ -152,7 +153,7 @@ defmodule Autolaunch.SubjectWalletActions do
   # What the page shows and what `result/2` reads the receipt against.
   defp facts(subject, kind, asset, plan, snapshot) do
     %{
-      subject_id: subject.subject_id,
+      auction_id: subject.auction_id,
       kind: kind,
       asset: asset,
       receiver: snapshot.receiver.address,
@@ -192,11 +193,6 @@ defmodule Autolaunch.SubjectWalletActions do
 
     %{gross: gross, skim: skim, net: net, stakers: stakers, treasury: net - stakers}
   end
-
-  # The review is sent on the deployment's network, so it is built only when
-  # that is the subject's own Base network.
-  defp subject_network(%{chain_id: chain_id}, %{chain_id: chain_id}), do: :ok
-  defp subject_network(_config, _subject), do: unavailable(:review_network_mismatch)
 
   defp lab do
     case Lab.current() do
@@ -290,10 +286,10 @@ defmodule Autolaunch.SubjectWalletActions do
   defp put_receiver_address(snapshot, subject),
     do: put_in(snapshot, [:receiver, :address], normalized!(subject.canonical_receiver_address))
 
-  # Stored subjects
+  # The launch and where it takes payments
 
-  defp stored_split(subject_id) do
-    with {:ok, subject} <- stored_subject(subject_id),
+  defp launch_split(auction_id) do
+    with {:ok, subject} <- launch_subject(auction_id),
          :ok <- base_chain(subject),
          :ok <- standard(subject.token_address, :subject_token_unavailable),
          :ok <- standard(subject.splitter_address, :subject_splitter_unavailable),
@@ -301,16 +297,47 @@ defmodule Autolaunch.SubjectWalletActions do
          do: {:ok, subject}
   end
 
-  defp actionable(subject_id) do
-    with {:ok, subject} <- stored_split(subject_id),
+  defp actionable(auction_id) do
+    with {:ok, subject} <- launch_split(auction_id),
          :ok <- standard(subject.canonical_receiver_address, :canonical_receiver_unavailable),
          do: {:ok, subject}
   end
 
-  defp stored_subject(subject_id) do
-    case Autolaunch.get_public_subject(subject_id, actor: nil) do
-      {:ok, nil} -> unavailable(:subject_not_found)
-      {:ok, subject} -> {:ok, subject}
+  defp launch_subject(auction_id) do
+    with {:ok, auction} <- revstake_launch(auction_id),
+         {:ok, config} <- lab(),
+         :ok <- launch_network(config, auction),
+         {:ok, addresses} <- launch_addresses(auction) do
+      {:ok,
+       %{
+         auction_id: auction.id,
+         chain_id: auction.chain_id,
+         token_address: addresses.token,
+         splitter_address: addresses.splitter,
+         treasury_address: addresses.treasury,
+         canonical_receiver_address: addresses.receiver
+       }}
+    end
+  end
+
+  # A review is sent on the deployment's network, and the launch is read on
+  # it, so either happens only when that is the launch's own network.
+  defp launch_network(%{chain_id: chain_id}, %{chain_id: chain_id}), do: :ok
+  defp launch_network(_config, _auction), do: unavailable(:review_network_mismatch)
+
+  defp revstake_launch(auction_id) do
+    case Autolaunch.get_listed_auction(auction_id, actor: nil) do
+      {:ok, %{kind: :agent} = auction} -> {:ok, auction}
+      {:ok, _none_or_memestock} -> unavailable(:subject_not_found)
+      {:error, _reason} -> unavailable(:subject_unavailable)
+    end
+  end
+
+  defp launch_addresses(auction) do
+    case Pool.payment_addresses(auction) do
+      {:ok, addresses} -> {:ok, addresses}
+      {:error, :not_graduated} -> unavailable(:subject_splitter_unavailable)
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, _reason} -> unavailable(:subject_unavailable)
     end
   end
@@ -367,7 +394,7 @@ defmodule Autolaunch.SubjectWalletActions do
   defp view(subject, signer, snapshot) do
     %{
       signer: signer,
-      subject_id: subject.subject_id,
+      auction_id: subject.auction_id,
       balances: Map.new(@assets, &{&1, units(balance(snapshot, &1), &1)}),
       receiver: receiver_view(snapshot)
     }
@@ -434,5 +461,5 @@ defmodule Autolaunch.SubjectWalletActions do
   end
 
   defp unavailable(reason),
-    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: Subject, reason: reason)}
+    do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: Auction, reason: reason)}
 end
