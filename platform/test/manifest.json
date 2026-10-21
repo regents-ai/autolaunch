@@ -1,5 +1,5 @@
 {
-  "total": 84,
+  "total": 86,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -937,7 +937,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1f17650a44081280a92bc7315fa342f24c4f6e15ea722c71239b2e869103b6b0"
+      "source_sha256": "67055cc74d7d98f801369dcfb46b54c6f74205fcfcc0d8b40e3980836f4167ee"
     },
     {
       "id": 73,
@@ -1120,6 +1120,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "83ee224037481afe81a3535d40650c79241377ce83f2938cbef14666b6a0b803"
+    },
+    {
+      "id": 125,
+      "group": "Chain projections",
+      "framework": "exunit",
+      "file": "test/autolaunch/token_revenue_test.exs",
+      "line": 97,
+      "test_name": "a Revstake token's pass records its splitter's revenue with its trades",
+      "keep_because": "The token pass reads the splitter's RevenueRecognized logs over its own blocks and records each payment's asset, amount and stakers' share once. It fails if a payment is missed, mis-decoded, or read again by the next pass.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c39d801c435c2a02e624809c318fbd47adb0f5f0c4b75b2efc5168ba7c413da2"
+    },
+    {
+      "id": 126,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/token_controller_test.exs",
+      "line": 74,
+      "test_name": "a Revstake token gives its revenue history, newest first; a Memestock token has none",
+      "keep_because": "The token API gives a Revstake token's recorded revenue newest first with a transaction link, and null for a Memestock token.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "67055cc74d7d98f801369dcfb46b54c6f74205fcfcc0d8b40e3980836f4167ee"
     }
   ],
   "legacy_folders_to_remove": [

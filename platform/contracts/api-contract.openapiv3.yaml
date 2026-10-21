@@ -1205,7 +1205,7 @@ components:
       description: Publicly listed token details from stored records on either chain; no live chain read.
       type: object
       additionalProperties: false
-      required: [id, chain, chain_id, address, url, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, quote_token, price_quote, price_usd, price_updated_at, market_cap, market_cap_usd, bid_volume, bid_volume_usd, treasury_security, auction_url, token_supply]
+      required: [id, chain, chain_id, address, url, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, quote_token, price_quote, price_usd, price_updated_at, market_cap, market_cap_usd, bid_volume, bid_volume_usd, treasury_security, auction_url, token_supply, revenue_history]
       properties:
         id: {type: string, format: uuid}
         chain: {type: string, enum: [base, robinhood]}
@@ -1244,7 +1244,24 @@ components:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
         auction_url: {type: string, format: uri}
+        revenue_history:
+          description: "A Revstake token's revenue, newest first, the latest fifty: each payment its revenue splitter recognized, as the site recorded it from the splitter's RevenueRecognized logs. Null for a Memestock token, which has no revenue splitter."
+          oneOf:
+            - type: array
+              items: {$ref: "#/components/schemas/RevenuePayment"}
+            - {type: "null"}
         token_supply: {oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}], description: "Whole token supply, or null when not recorded."}
+    RevenuePayment:
+      type: object
+      additionalProperties: false
+      required: [amount, asset, staker_share, recorded_at, transaction_hash, transaction_url]
+      properties:
+        amount: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "What the splitter took in, in whole units of its asset."}
+        asset: {type: string, description: "USDC, REGENT or the launch token's own symbol."}
+        staker_share: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "The part that went to the token's stakers."}
+        recorded_at: {type: string, format: date-time, description: "When the payment's block was made."}
+        transaction_hash: {type: string, pattern: "^0x[0-9a-f]{64}$"}
+        transaction_url: {type: string, format: uri, description: "The payment's transaction on Basescan."}
     TokenDetailEnvelope:
       type: object
       additionalProperties: false

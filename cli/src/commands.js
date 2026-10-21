@@ -76,7 +76,7 @@ export const commands = [
   {
     command: "token <id>", operation_id: "getToken", webmcp: "autolaunch_token",
     method: "GET", path: "/api/v1/tokens/{id}", flags: [],
-    description: "Read one publicly listed token on Base or Robinhood by its UUID. Includes canonical page URLs, stored price with its nullable recording time, the same price, market cap and bid volume figures as tokens list, quote token and supply. No live price, wallet or chain call.",
+    description: "Read one publicly listed token on Base or Robinhood by its UUID. Includes canonical page URLs, stored price with its nullable recording time, the same price, market cap and bid volume figures as tokens list, quote token, supply and a Revstake token's revenue_history. No live price, wallet or chain call.",
     authority: "public", effect: "read",
     request: args => ({path: `/api/v1/tokens/${pathSegment(args[1])}`}),
   },

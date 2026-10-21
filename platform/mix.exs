@@ -196,11 +196,11 @@ defmodule Autolaunch.MixProject do
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
         # the endpoint naming the public documents its agent-access plug serves.
-        # Nothing else is permitted. The ceiling is thirty-two domain-to-resource
-        # edges (Accounts six, Autolaunch twenty-five, Points one), forty
+        # Nothing else is permitted. The ceiling is thirty-three domain-to-resource
+        # edges (Accounts six, Autolaunch twenty-six, Points one), forty-one
         # resource-to-check edges and the one endpoint edge, and it is re-based
         # per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 80",
+        "xref graph --label compile-connected --fail-above 82",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"

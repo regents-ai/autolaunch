@@ -92,3 +92,15 @@
    card, about as tall as the signed-out card that replaces it. */
 .token-claim--reading { grid-template-rows: auto 1fr; min-height: 22rem; }
 .token-claim--reading .token-claim__copy { min-height: 2.75rem; }
+
+/* A Revstake token's revenue history: each payment's amount, day and
+   transaction, newest first. */
+.revenue-history { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+.revenue-history h2 { margin: 0; font-size: 1.125rem; }
+.revenue-history__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.revenue-history__rows { display: grid; margin: 0; padding: 0; list-style: none; }
+.revenue-history__rows > li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--space-2); padding-block: var(--space-1); border-bottom: 1px solid var(--hairline); font-variant-numeric: tabular-nums; }
+.revenue-history__rows strong { overflow-wrap: anywhere; }
+.revenue-history__rows time { color: var(--color-fg-muted); font-size: .875rem; }
+.revenue-history__rows a { font-size: .875rem; text-underline-offset: .2em; }
+.revenue-history__rows strong span { color: var(--color-fg-muted); font-weight: var(--font-weight-regular); }

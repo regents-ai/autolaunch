@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.TokenLive do
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.RevenueHistory
   import AutolaunchWeb.Components.TokenFigures
   import AutolaunchWeb.Components.TokenHeading
   import AutolaunchWeb.Components.TokenTrade
@@ -229,6 +230,7 @@ defmodule AutolaunchWeb.TokenLive do
           />
         </.buttons_stage>
         <div class="token-page__details">
+          <.revenue_history :if={@page_record.auction.kind == :agent} revenue={@revenue} />
           <.token_facts
             auction={@page_record.auction}
             connections={@creator_connections}
@@ -319,7 +321,17 @@ defmodule AutolaunchWeb.TokenLive do
     socket
     |> assign_async(:page, fn -> load_token_page(id) end, reset: true)
     |> assign_async(:usd_rate, fn -> usd_rate(id) end, reset: true)
+    |> load_revenue()
     |> load_pool(true)
+  end
+
+  # A Revstake token's revenue as the site recorded it from its splitter.
+  defp load_revenue(socket) do
+    id = socket.assigns.record_id
+
+    assign_async(socket, :revenue, fn ->
+      with {:ok, rows} <- Autolaunch.token_revenue(id, actor: nil), do: {:ok, %{revenue: rows}}
+    end)
   end
 
   # The dollar price of the token's currency, for its first figures; nil on a
@@ -344,6 +356,7 @@ defmodule AutolaunchWeb.TokenLive do
 
     socket
     |> assign_async(:page, fn -> load_token_page(id) end, reset: false)
+    |> load_revenue()
     |> load_pool(false)
   end
 

@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: revenue history for Revstake tokens
+- A Revstake token's page shows its revenue history: each payment that reached its revenue splitter, with the amount, the day and a link to the transaction. Agents get the same list when they read the token.
+
 ## 21 October 2026: a clearer home page
 - The home page now says in one line what Autolaunch is for, and offers two ways in: Back a launch, or Launch yours.
 - A new "Coming next" area shows the auctions taking bids or opening soon. When none are open, it shows stocks you can launch with and the latest results.

@@ -62,7 +62,8 @@ Both Base and Robinhood use the list's public visibility rules; hidden, external
 or missing records answer 404. Invalid UUIDs and extra parameters answer 400.
 The response includes the token summary, canonical auction URL, nullable stored
 price and its recording time, the list's price, market cap and bid volume figures,
-quote-token denomination and nullable token supply.
+quote-token denomination, nullable token supply and, for a Revstake token,
+`revenue_history`.
 It makes no chain call and does not promise a live price or executable quote.
 
 ## `treasury security <address>`

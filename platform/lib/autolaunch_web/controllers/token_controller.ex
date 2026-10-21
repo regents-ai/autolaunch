@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.TokenController do
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
   alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure, UsdValue}
+  alias AutolaunchWeb.Components.BidPlaced
 
   def index(conn, params) do
     case MarketPage.read(params, "tokens") do
@@ -74,12 +75,12 @@ defmodule AutolaunchWeb.TokenController do
 
     with true <- conn.query_params == %{} and Map.keys(params) == ["id"],
          {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []) do
-      case Autolaunch.get_listed_token(uuid, actor: nil, load: [:market_cap]) do
+      case read_token(uuid) do
         {:ok, nil} ->
           ApiError.send(conn, :not_found, "not_found", "That token is not publicly listed.")
 
-        {:ok, token} ->
-          json(conn, %{data: token_detail(token, UsdValue.rates())})
+        {:ok, {token, history}} ->
+          json(conn, %{data: token_detail(token, UsdValue.rates(), history)})
 
         {:error, error} ->
           internal_error(conn, "public token read", error)
@@ -89,12 +90,42 @@ defmodule AutolaunchWeb.TokenController do
     end
   end
 
-  defp token_detail(token, rates) do
+  # The listed token with its revenue history; nil when it is not listed.
+  defp read_token(uuid) do
+    with {:ok, %{} = token} <- Autolaunch.get_listed_token(uuid, actor: nil, load: [:market_cap]),
+         {:ok, history} <- revenue_history(token) do
+      {:ok, {token, history}}
+    end
+  end
+
+  defp token_detail(token, rates, history) do
     Map.merge(public_token(token, rates), %{
       auction_url: Paths.auction_url(token.auction),
-      token_supply: decimal(token.auction.token_supply)
+      token_supply: decimal(token.auction.token_supply),
+      revenue_history: history
     })
   end
+
+  # What a Revstake token's splitter has recognized, newest first, as the
+  # site recorded it from the splitter's logs; null for a Memestock token,
+  # which has no revenue splitter.
+  defp revenue_history(%{auction: %{kind: :agent}} = token) do
+    with {:ok, rows} <- Autolaunch.token_revenue(token.id, actor: nil) do
+      {:ok,
+       Enum.map(rows, fn row ->
+         %{
+           amount: decimal(row.amount),
+           asset: row.asset_symbol,
+           staker_share: decimal(row.staker_share),
+           recorded_at: DateTime.to_iso8601(row.occurred_at),
+           transaction_hash: row.transaction_hash,
+           transaction_url: BidPlaced.transaction_url(:base, row.transaction_hash)
+         }
+       end)}
+    end
+  end
+
+  defp revenue_history(_memestock), do: {:ok, nil}
 
   defp decimal(nil), do: nil
   defp decimal(%Decimal{} = value), do: Decimal.to_string(value, :normal)

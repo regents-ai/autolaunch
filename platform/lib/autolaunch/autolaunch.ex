@@ -19,6 +19,10 @@ defmodule Autolaunch do
       define :token_trades, action: :for_token, args: [:token_id]
     end
 
+    resource Autolaunch.TokenRevenue do
+      define :token_revenue, action: :for_token, args: [:token_id]
+    end
+
     resource Autolaunch.ShareVideoRequest do
       define :request_share_video, action: :request
       define :latest_share_video_request, action: :latest, args: [:key], not_found_error?: false

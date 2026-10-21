@@ -107,8 +107,10 @@ Read your drafts with `regents autolaunch drafts revstake show` and `regents aut
 list, on Base or Robinhood, and only a token that list would show. The
 response includes canonical page URLs, the stored price and its nullable recording
 time, the same price, market cap and bid volume figures as the list (each also in
-dollars while the quote token has a dollar price), quote-token denomination and
-nullable supply. It does not call the chain;
+dollars while the quote token has a dollar price), quote-token denomination,
+nullable supply and, for a Revstake token, `revenue_history`: each payment its
+revenue splitter recognized, newest first, with its amount, asset, day and
+transaction (null for a Memestock token). It does not call the chain;
 a missing timestamp is not evidence of freshness. A token the list does not show
 returns 404; invalid UUIDs and extra parameters return 400.
 

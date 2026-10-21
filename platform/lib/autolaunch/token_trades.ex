@@ -1,10 +1,12 @@
 defmodule Autolaunch.TokenTrades do
   @moduledoc """
   A bounded, browser-independent projection of the trades in each launched
-  token's pool. Each pass reads one token and at most 2,000 blocks of the
-  PoolManager's `Swap` logs for that pool. The cursor and rows commit together;
-  repeat ranges replace the same trades. A changed cursor block drops the
-  token's trades and rebuilds them.
+  token's pool and, for a Revstake token, the revenue its splitter
+  recognized. Each pass reads one token and at most 2,000 blocks of the
+  PoolManager's `Swap` logs for that pool, and the splitter's
+  `RevenueRecognized` logs over the same blocks. The cursor and rows commit
+  together; repeat ranges replace the same trades and revenue. A changed
+  cursor block drops the token's trades and revenue and rebuilds them.
   """
   @behaviour Autolaunch.DurableWork.Handler
   import Ecto.Query
@@ -12,9 +14,10 @@ defmodule Autolaunch.TokenTrades do
   require Logger
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{LabAbi, Repo, Token, TokenTrade}
+  alias Autolaunch.{LabAbi, Repo, Token, TokenRevenue, TokenTrade}
   @actor %System{}
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
+  @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
   @range 2_000
   @token_decimals 18
   @topic "token_trades"
@@ -77,12 +80,14 @@ defmodule Autolaunch.TokenTrades do
          {:ok, first} <- first_block(token, pool, head, venue.opts),
          :ok <- cursor_valid(token, head, venue.opts),
          {:ok, last, logs} <- logs(pool, first, min(first + @range - 1, head.number), venue.opts),
-         {:ok, headers} <- headers(logs, last, venue.opts),
-         {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)) do
+         {:ok, revenue_logs} <- revenue_logs(pool, first, last, venue.opts),
+         {:ok, headers} <- headers(logs ++ revenue_logs, last, venue.opts),
+         {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)),
+         {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)) do
       trades = Enum.reject(trades, &is_nil/1)
 
       token
-      |> commit(first, last, headers[last].hash, trades, last == head.number)
+      |> commit(first, last, headers[last].hash, {trades, revenue}, last == head.number)
       |> indexed(token, trades, last, head.number)
     else
       {:error, :cursor_changed} -> invalidate(token)
@@ -248,6 +253,72 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
+  # A Revstake splitter's revenue over the same blocks as the pool's trades; a
+  # Memestock launch's source names no splitter, so it has none here.
+  defp revenue_logs(%{splitter: splitter}, first, last, opts) do
+    read_logs(
+      %{
+        address: splitter,
+        fromBlock: hex(first),
+        toBlock: hex(last),
+        topics: [LabAbi.topic(@revenue)]
+      },
+      opts
+    )
+  end
+
+  defp revenue_logs(_pool, _first, _last, _opts), do: {:ok, []}
+
+  @doc """
+  One `RevenueRecognized` log's asset, gross amount and stakers' share, in
+  base units. Its topics name the asset, the payer and the payment's
+  reference; its data the gross, the skim, the net, the stakers' share and
+  the treasury's share.
+  """
+  @spec decode_revenue(map()) ::
+          {:ok, %{asset: String.t(), gross: non_neg_integer(), staker_share: non_neg_integer()}}
+          | {:error, :invalid_revenue}
+  def decode_revenue(%{"topics" => [_event, asset | _rest], "data" => "0x" <> data}) do
+    with {:ok, <<gross::256, _skim::256, _net::256, staker_share::256, _treasury::256>>} <-
+           Base.decode16(data, case: :mixed),
+         "0x" <> word when byte_size(word) == 64 <- asset do
+      {:ok,
+       %{
+         asset: "0x" <> String.downcase(String.slice(word, 24, 40)),
+         gross: gross,
+         staker_share: staker_share
+       }}
+    else
+      _ -> {:error, :invalid_revenue}
+    end
+  end
+
+  def decode_revenue(_log), do: {:error, :invalid_revenue}
+
+  defp revenue(token, pool, headers, log) do
+    with false <- log["removed"],
+         {:ok, number} <- quantity(log["blockNumber"]),
+         {:ok, index} <- quantity(log["logIndex"]),
+         true <- String.downcase(log["blockHash"]) == headers[number].hash,
+         {:ok, revenue} <- decode_revenue(log),
+         {symbol, decimals} <- Map.get(pool.revenue_assets, revenue.asset) do
+      {:ok,
+       %{
+         token_id: token.id,
+         transaction_hash: String.downcase(log["transactionHash"]),
+         block_hash: headers[number].hash,
+         block_number: number,
+         log_index: index,
+         occurred_at: DateTime.from_unix!(headers[number].timestamp),
+         asset_symbol: symbol,
+         amount: Decimal.new(Rpc.format_units(revenue.gross, decimals)),
+         staker_share: Decimal.new(Rpc.format_units(revenue.staker_share, decimals))
+       }}
+    else
+      _ -> {:error, :invalid_revenue}
+    end
+  end
+
   defp read_logs(filter, opts) do
     case Rpc.request("eth_getLogs", [filter], opts) do
       {:ok, rows} when is_list(rows) -> {:ok, rows}
@@ -318,13 +389,19 @@ defmodule Autolaunch.TokenTrades do
   # This system projection locks its token before replacing confirmed trades.
   # Only trades in blocks past the old cursor announce themselves, after the
   # transaction commits, so re-reading the head block stays quiet.
-  defp commit(token, first, last, hash, trades, complete?) do
+  defp commit(token, first, last, hash, {trades, revenue}, complete?) do
     Repo.transaction(fn ->
       current = locked(token)
 
       Repo.delete_all(
         from t in TokenTrade, where: t.token_id == ^token.id and t.block_number >= ^first
       )
+
+      Repo.delete_all(
+        from r in TokenRevenue, where: r.token_id == ^token.id and r.block_number >= ^first
+      )
+
+      Ash.bulk_create!(revenue, TokenRevenue, :record, actor: @actor, return_errors?: true)
 
       %{notifications: notifications} =
         Ash.bulk_create!(trades, TokenTrade, :record,
@@ -359,12 +436,13 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
-  # Invalidation removes only this token's derived trades while holding the
-  # token's lock; the next pass rebuilds them from the pool's logs.
+  # Invalidation removes only this token's derived trades and revenue while
+  # holding the token's lock; the next pass rebuilds them from the chain's logs.
   defp invalidate(token) do
     Repo.transaction(fn ->
       current = locked(token)
       Repo.delete_all(from t in TokenTrade, where: t.token_id == ^token.id)
+      Repo.delete_all(from r in TokenRevenue, where: r.token_id == ^token.id)
 
       Ash.update!(
         current,
