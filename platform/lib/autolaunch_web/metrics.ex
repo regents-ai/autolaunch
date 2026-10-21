@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.Metrics do
   def call(%Plug.Conn{method: "GET", request_path: "/metrics"} = conn, _opts) do
     conn
     |> put_resp_content_type("text/plain")
-    |> send_resp(200, TelemetryMetricsPrometheus.Core.scrape(AutolaunchWeb.Telemetry.reporter()))
+    |> send_resp(200, AutolaunchWeb.Telemetry.scrape())
   end
 
   def call(conn, _opts), do: send_resp(conn, 404, "")
