@@ -182,26 +182,52 @@ defmodule Autolaunch.MixProject do
         "esbuild autolaunch --minify",
         "phx.digest"
       ],
-      precommit: [
-        "compile --warnings-as-errors",
-        "deps.unlock --check-unused",
-        "cmd mix hex.audit",
-        "format --check-formatted",
-        "credo --strict",
-        "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # Three kinds of compile-connected edge are permitted: a domain naming
-        # its compile-time resources, each resource naming the policy check
-        # modules its policies use, which Ash 3.32 resolves at compile time, and
-        # the endpoint naming the public documents its agent-access plug serves.
-        # Nothing else is permitted. The ceiling is thirty-two domain-to-resource
-        # edges (Accounts six, Autolaunch twenty-five, Points one), forty
-        # resource-to-check edges and the one endpoint edge, and it is re-based
-        # per unit when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 80",
-        "test --warnings-as-errors",
-        "ash.codegen --check",
-        "usage_rules.sync --check"
-      ]
+      precommit: precommit_checks(),
+      "check.static":
+        Enum.reject(precommit_checks(), &slow_check?/1) ++
+          [
+            "regent_ui.assets",
+            "regent_blog.assets",
+            "regent_identity.assets",
+            "regent_agent_access.assets",
+            "cmd npm run typecheck"
+          ]
+    ]
+  end
+
+  # The fast loop keeps the same static gates; only suites run by the change
+  # runner and the network advisory audit remain in the full loop.
+  defp slow_check?(check) do
+    check in [
+      "cmd mix hex.audit",
+      "test",
+      "test --warnings-as-errors",
+      "cmd npm test",
+      "cmd npm run test:browser",
+      "cmd --cd assets npm run test:browser"
+    ]
+  end
+
+  defp precommit_checks do
+    [
+      "compile --warnings-as-errors",
+      "deps.unlock --check-unused",
+      "cmd mix hex.audit",
+      "format --check-formatted",
+      "credo --strict",
+      "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
+      # Three kinds of compile-connected edge are permitted: a domain naming
+      # its compile-time resources, each resource naming the policy check
+      # modules its policies use, which Ash 3.32 resolves at compile time, and
+      # the endpoint naming the public documents its agent-access plug serves.
+      # Nothing else is permitted. The ceiling is thirty-two domain-to-resource
+      # edges (Accounts six, Autolaunch twenty-five, Points one), forty
+      # resource-to-check edges and the one endpoint edge, and it is re-based
+      # per unit when a domain, resource or check module lands.
+      "xref graph --label compile-connected --fail-above 80",
+      "test --warnings-as-errors",
+      "ash.codegen --check",
+      "usage_rules.sync --check"
     ]
   end
 end

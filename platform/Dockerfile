@@ -26,17 +26,19 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 # Shared Regent libraries arrive here from GitHub at the commits mix.lock pins.
 RUN mix local.hex --force && mix local.rebar --force
+# Stable packages precede app files, as in ash-template.
+COPY --from=assets /workspace/platform/node_modules node_modules
 COPY platform/mix.exs platform/mix.lock ./
-COPY platform/config config
+COPY platform/config/config.exs platform/config/prod.exs config/
 RUN mix deps.get --only prod --check-locked && mix deps.compile
 
+COPY platform/config/runtime.exs config/
 COPY platform/lib lib
 COPY blog /workspace/blog
 COPY platform/priv priv
 COPY platform/rel rel
 COPY platform/assets assets
 COPY platform/contracts contracts
-COPY --from=assets /workspace/platform/node_modules node_modules
 RUN mix compile && mix assets.deploy && mix release
 
 # The release carries its own ERTS, so the runtime image needs no Elixir and no

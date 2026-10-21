@@ -2,7 +2,7 @@
 help:
 	@echo "Run make check for every gate, or check-platform, check-required-fixes or check-cli for one."
 	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
-check: check-platform check-required-fixes check-cli
+check: check-change-runner check-platform check-required-fixes check-cli
 check-platform:
 	cd platform && mix precommit && npm run typecheck && npm test
 # Every site runs the same check against ash-template's current main branch, so a
@@ -23,3 +23,12 @@ check-cli:
 # looks for, then stops the server.
 readiness:
 	scripts/readiness.sh
+
+# The template change loop; BASE=<ref> selects the comparison.
+.PHONY: check-change
+check-change:
+	python3 scripts/check-change.py
+
+.PHONY: check-change-runner
+check-change-runner:
+	python3 -m unittest discover -s scripts/tests -p 'test_check_change.py'
