@@ -22,6 +22,13 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   @token_fields [:name, :symbol, :description, :website | @link_fields]
   @terms_fields [:stock_address]
 
+  # What a paired agent may set: the token's details, the chain and the
+  # paired stock, which must be one the chain lists.
+  @agent_fields @token_fields ++ [:chain, :stock_address]
+
+  @doc "The fields a paired agent may set on a Memestock draft, besides its picture."
+  def agent_fields, do: @agent_fields
+
   @metadata_limits [name: 64, description: 512]
 
   # The launchpads require a website, so a launch without one names this site,
@@ -130,10 +137,47 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     end
 
     update :agent_save do
-      accept @token_fields
+      accept @agent_fields
       require_atomic? false
       change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+      change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+
+      change Autolaunch.Stocks.LaunchDraft.Changes.CarryStock,
+        where: [changing(:chain), negate(changing(:stock_address))]
+
+      validate fn changeset, _context ->
+        chain_id = Ash.Changeset.get_attribute(changeset, :stock_chain_id)
+        address = Ash.Changeset.get_attribute(changeset, :stock_address)
+
+        cond do
+          not Ash.Changeset.changing_attribute?(changeset, :stock_address) -> :ok
+          is_binary(address) and match?({:ok, _stock}, Assets.fetch(chain_id, address)) -> :ok
+          true -> {:error, field: :stock_address, message: "is not a stock this chain lists"}
+        end
+      end
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @agent_fields, mark: true}
+      change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
+    # The picture an agent sent is stored as the creator's own upload is
+    # (`Autolaunch.Stocks.LaunchDraftImageStorage`); this names it as the agent's.
+    update :agent_mark_image do
+      accept []
+      require_atomic? false
+
+      change fn changeset, _context ->
+        marked = Ash.Changeset.get_attribute(changeset, :agent_set_fields)
+
+        Ash.Changeset.force_change_attribute(
+          changeset,
+          :agent_set_fields,
+          Enum.uniq(marked ++ [:image])
+        )
+      end
+
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
       change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
     end
@@ -173,12 +217,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       require_atomic? false
       change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+      change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @token_fields, mark: false}
     end
 
     update :autosave_terms do
       accept @terms_fields
       require_atomic? false
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+      change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @terms_fields, mark: false}
     end
 
     update :choose_chain do
@@ -186,12 +232,18 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       require_atomic? false
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
       change Autolaunch.Stocks.LaunchDraft.Changes.CarryStock, where: [changing(:chain)]
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:chain, :stock_address], mark: false}
     end
 
     update :attach_image do
       argument :stock_launch_draft_image_id, :uuid, allow_nil?: false
       require_atomic? false
       change Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:stock_launch_draft_image_id], mark: false}
     end
 
     # `Autolaunch.LaunchedDrafts`: the account's draft while it still names
@@ -222,15 +274,16 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       change set_attribute(:image, nil)
       change set_attribute(:stock_launch_draft_image_id, nil)
       change set_attribute(:stock_address, nil)
+      change set_attribute(:agent_set_fields, [])
     end
   end
 
   policies do
-    policy action([:agent_read, :agent_create, :agent_save]) do
+    policy action([:agent_read, :agent_create, :agent_save, :agent_mark_image]) do
       authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
     end
 
-    policy action(:agent_save) do
+    policy action([:agent_save, :agent_mark_image]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
@@ -288,6 +341,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
     attribute :stock_address, :string
     attribute :stock_chain_id, :integer, allow_nil?: false
+
+    # The fields a paired agent set and the creator has not changed since.
+    attribute :agent_set_fields, {:array, :atom} do
+      allow_nil? false
+      public? true
+      default []
+      constraints items: [one_of: @agent_fields ++ [:image]]
+    end
 
     timestamps()
   end

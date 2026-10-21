@@ -390,7 +390,7 @@
     },
     {
       "command": "drafts revstake save",
-      "description": "Save my Revstake token draft text, never treasury, chain, launch terms or wallet settings. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
+      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "operation_id": "autolaunch_revstake_draft_save",
       "method": "PATCH",
       "path": "/api/agent/v1/drafts/revstake",
@@ -450,6 +450,24 @@
           "type": "string",
           "required": false,
           "description": "Private other_link_3; read from JSON stdin."
+        },
+        {
+          "field": "treasury",
+          "type": "string",
+          "required": false,
+          "description": "The treasury address, 0x and 40 hex digits."
+        },
+        {
+          "field": "treasury_path",
+          "type": "string",
+          "required": false,
+          "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page. One of: safe, contract, eoa."
+        },
+        {
+          "field": "image",
+          "type": "object",
+          "required": false,
+          "description": "The picture as {\"content_type\": \"image/png\", \"data\": base64}; read from JSON stdin."
         }
       ]
     },
@@ -464,7 +482,7 @@
     },
     {
       "command": "drafts memestock save",
-      "description": "Save my Memestock token draft text, never treasury, chain, launch terms or wallet settings. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save.",
+      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "operation_id": "autolaunch_memestock_draft_save",
       "method": "PATCH",
       "path": "/api/agent/v1/drafts/memestock",
@@ -524,6 +542,24 @@
           "type": "string",
           "required": false,
           "description": "Private other_link_3; read from JSON stdin."
+        },
+        {
+          "field": "chain",
+          "type": "string",
+          "required": false,
+          "description": "Private chain; read from JSON stdin. One of: base, robinhood."
+        },
+        {
+          "field": "stock_address",
+          "type": "string",
+          "required": false,
+          "description": "The paired stock token's address, one the chain lists (GET /stock-listing names them)."
+        },
+        {
+          "field": "image",
+          "type": "object",
+          "required": false,
+          "description": "The picture as {\"content_type\": \"image/png\", \"data\": base64}; read from JSON stdin."
         }
       ]
     },

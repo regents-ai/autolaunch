@@ -17,6 +17,14 @@ defmodule Autolaunch.LaunchDraft do
 
   @draft_fields @account_token_fields ++ @treasury_fields
 
+  # What a paired agent may set: the token's details and where its treasury
+  # goes. Owning a treasury with a private key (the EOA path) also takes the
+  # creator's own acknowledgement, which only the creator can give.
+  @agent_fields @account_token_fields ++ [:treasury, :treasury_path]
+
+  @doc "The fields a paired agent may set on a Revstake draft, besides its picture."
+  def agent_fields, do: @agent_fields
+
   @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
   @metadata_limits [name: 64, description: 512]
@@ -113,10 +121,36 @@ defmodule Autolaunch.LaunchDraft do
     end
 
     update :agent_save do
-      accept @account_token_fields
+      accept @agent_fields
       require_atomic? false
       change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.LaunchDraft.Validations.PartialFields
+
+      # A treasury the agent chose was never acknowledged by the creator.
+      change set_attribute(:eoa_acknowledgement, nil),
+        where: [any([changing(:treasury), changing(:treasury_path)])]
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields, fields: @agent_fields, mark: true}
+      change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
+    # The picture an agent sent is stored as the creator's own upload is
+    # (`Autolaunch.LaunchDraftImageStorage`); this names it as the agent's.
+    update :agent_mark_image do
+      accept []
+      require_atomic? false
+
+      change fn changeset, _context ->
+        marked = Ash.Changeset.get_attribute(changeset, :agent_set_fields)
+
+        Ash.Changeset.force_change_attribute(
+          changeset,
+          :agent_set_fields,
+          Enum.uniq(marked ++ [:image])
+        )
+      end
+
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
       change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
     end
@@ -164,18 +198,27 @@ defmodule Autolaunch.LaunchDraft do
       require_atomic? false
       change Autolaunch.LaunchDraft.Changes.UpcaseTicker
       validate Autolaunch.LaunchDraft.Validations.PartialFields
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: @account_token_fields, mark: false}
     end
 
     update :autosave_treasury do
       accept @treasury_fields
       require_atomic? false
       validate Autolaunch.LaunchDraft.Validations.PartialFields
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:treasury, :treasury_path], mark: false}
     end
 
     update :attach_image do
       argument :launch_draft_image_id, :uuid, allow_nil?: false
       require_atomic? false
       change Autolaunch.LaunchDraft.Changes.AttachOwnedImage
+
+      change {Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:launch_draft_image_id], mark: false}
     end
 
     # `Autolaunch.LaunchedDrafts`: the account's draft while it still names
@@ -208,15 +251,16 @@ defmodule Autolaunch.LaunchDraft do
       change set_attribute(:treasury, nil)
       change set_attribute(:treasury_path, :safe)
       change set_attribute(:eoa_acknowledgement, nil)
+      change set_attribute(:agent_set_fields, [])
     end
   end
 
   policies do
-    policy action([:agent_read, :agent_create, :agent_save]) do
+    policy action([:agent_read, :agent_create, :agent_save, :agent_mark_image]) do
       authorize_if {RegentAgents.Checks.Paired, repo: Autolaunch.Repo}
     end
 
-    policy action(:agent_save) do
+    policy action([:agent_save, :agent_mark_image]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
@@ -293,6 +337,14 @@ defmodule Autolaunch.LaunchDraft do
     attribute :eoa_acknowledgement, :string do
       public? true
       constraints max_length: 512, trim?: false
+    end
+
+    # The fields a paired agent set and the creator has not changed since.
+    attribute :agent_set_fields, {:array, :atom} do
+      allow_nil? false
+      public? true
+      default []
+      constraints items: [one_of: @agent_fields ++ [:image]]
     end
 
     timestamps()

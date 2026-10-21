@@ -98,7 +98,7 @@ Bidding, claiming, launching, trading and staking happen on the website with the
 
 Signed agent access and account recovery: [agents.md]({{origin}}/agents.md).
 
-Read your drafts with `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`, in regents-cli {{regents_cli}}. To change a draft's text, use `save` in place of `show` and send the JSON on stdin. Saves are refused while prelaunch read-only mode is on.
+Read your drafts with `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`, in regents-cli {{regents_cli}}. To fill in a draft (its details, picture and launch settings), use `save` in place of `show` and send the JSON on stdin; [agents.md]({{origin}}/agents.md) lists the fields. Saves are refused while prelaunch read-only mode is on.
 
 
 ## Stored token details

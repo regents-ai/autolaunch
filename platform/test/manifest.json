@@ -1,5 +1,5 @@
 {
-  "total": 86,
+  "total": 90,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1120,6 +1120,58 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "67055cc74d7d98f801369dcfb46b54c6f74205fcfcc0d8b40e3980836f4167ee"
+    },
+    {
+      "id": 127,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch/agent_drafts_test.exs",
+      "line": 35,
+      "test_name": "an agent fills a whole Revstake draft, picture and treasury included, and each field is named",
+      "keep_because": "A paired agent can set every field of the Revstake create form, its picture and treasury included, and each one it set is named for the person's review. It fails if a field is dropped or saved unnamed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+    },
+    {
+      "id": 128,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch/agent_drafts_test.exs",
+      "line": 64,
+      "test_name": "the person's own edits leave the agent's list; their EOA acknowledgement is never the agent's",
+      "keep_because": "The person's edits take a field off the agent's list, an agent can never send the EOA acknowledgement, an agent's treasury change takes the person's acknowledgement back, and any other field or shape refuses the whole save.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+    },
+    {
+      "id": 129,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch/agent_drafts_test.exs",
+      "line": 123,
+      "test_name": "an agent fills a Memestock draft's chain and stock, and only a stock the chain lists",
+      "keep_because": "A Memestock draft takes its chain and a listed stock from an agent, never an unlisted stock or a treasury.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+    },
+    {
+      "id": 130,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 22,
+      "test_name": "the create page names what the agent set, and forgets a field the person changes",
+      "keep_because": "Before any wallet step the create page shows every field the agent set with its value, and a field the person edits leaves that list.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5d8d77a1cb9c84c14071531e7a26797fc49e3f049a4cb6ec0793062d312c8a43"
     }
   ],
   "legacy_folders_to_remove": [

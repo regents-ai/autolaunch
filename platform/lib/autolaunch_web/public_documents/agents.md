@@ -40,7 +40,13 @@ Autolaunch's prelaunch gate remains authoritative. {{read_only}} Do not report a
 
 ## Available private operations
 
-Signed `GET /api/agent/v1/drafts/revstake` and `/drafts/memestock` read the paired owner's metadata draft. `PATCH` to the same address saves one or more text fields: `name`, `symbol`, `description`, `website`, `telegram`, `discord`, `other_link_1`, `other_link_2`, `other_link_3`. It preserves the existing draft identity and attributes the edit to the current pairing. Unknown fields, treasury settings, chain selection, launch terms, wallet fields and non-text values are rejected. If a save loses its response, read the draft before retrying the same metadata with fresh proof. Concurrent saves use last-write-wins behavior.
+Signed `GET /api/agent/v1/drafts/revstake` and `/drafts/memestock` read the paired owner's launch draft, with `agent_set_fields` naming the fields an agent set that your person has not changed since. `PATCH` to the same address fills in any of what the person's create form takes:
+
+- Both kinds: `name`, `symbol`, `description`, `website`, `telegram`, `discord`, `other_link_1`, `other_link_2`, `other_link_3` as text, and `image` as `{"content_type": "image/png", "data": "<base64>"}` (PNG, JPEG or WebP, up to 2 MB and 4096 by 4096 pixels).
+- Revstake: `treasury` (an address) and `treasury_path` (`safe`, `contract` or `eoa`). A treasury owned by a private key (`eoa`) also needs your person's own acknowledgement on the create page; no agent can give it, and changing the treasury takes back any acknowledgement given before.
+- Memestock: `chain` (`base` or `robinhood`) and `stock_address`, a stock that chain lists.
+
+Your person then opens the create page, sees every field you set named above the wallet steps, and signs the launch. You never launch, sign or spend. Any other field, or a field of the wrong kind, refuses the whole save with 422 `invalid_draft`; a picture that is not a PNG, JPEG or WebP is 422 `invalid_image`, and one too large is 422 `image_too_large`. A save attributes the edit to the current pairing. If a save loses its response, read the draft before retrying with fresh proof. Concurrent saves use last-write-wins behavior.
 
 Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable, and answers 409 `wallet_required` when your person's account has no verified wallet; it cannot trade or settle anything.
 
@@ -62,9 +68,9 @@ The unified Regents CLI supports signed requests and private JSON on stdin. Rele
 
 | Unified CLI command | Operation |
 | --- | --- |
-| `regents autolaunch drafts revstake show` | Read my Revstake metadata draft. |
-| `regents autolaunch drafts revstake save` | Save Revstake metadata from private JSON stdin. |
-| `regents autolaunch drafts memestock show` | Read my Memestock metadata draft. |
-| `regents autolaunch drafts memestock save` | Save Memestock metadata from private JSON stdin. |
+| `regents autolaunch drafts revstake show` | Read my Revstake launch draft. |
+| `regents autolaunch drafts revstake save` | Fill in my Revstake launch draft from private JSON stdin. |
+| `regents autolaunch drafts memestock show` | Read my Memestock launch draft. |
+| `regents autolaunch drafts memestock save` | Fill in my Memestock launch draft from private JSON stdin. |
 
 `show` and `save` are separate commands; the bare `drafts revstake` and `drafts memestock` names are help groups. Both saves remain refused while prelaunch read-only mode is enabled. Read the installed command's `--help` for its signer and request preparation options.

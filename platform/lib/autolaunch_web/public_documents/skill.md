@@ -22,7 +22,7 @@ they bid on and what may be claimable. For your person, this means fewer missed 
 account facts kept apart from promotion. Explain price units, launch state and how fresh each
 figure is. No auction, treasury report or staking guarantees a return.
 
-Use this skill for research, bid estimates, metadata drafts and watching. Bidding, trading,
+Use this skill for research, bid estimates, launch drafts and watching. Bidding, trading,
 claiming, staking and settlement stay with your person's own wallet; no agent tool or command
 does them.
 
@@ -60,13 +60,14 @@ ids.
 | Read a treasury report | `treasury security ADDRESS` | `autolaunch_treasury` |
 | Check your identity and pairing | `agents whoami` | `agent_whoami` |
 | Read your person's positions | `positions` | `autolaunch_my_positions` |
-| Read or save draft text | `drafts revstake show` / `save`, `drafts memestock show` / `save` | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` |
+| Read or fill in a launch draft | `drafts revstake show` / `save`, `drafts memestock show` / `save` | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` |
 | Read your person's account | `account balances`, `account credits-history`, `account points` | `account_balances`, `account_credits_history`, `account_points` |
 
 `agents status` (`agent_status`) checks in and records the time, which your person sees; it is
 not a passive identity check. Use `agents whoami` for that. A draft save needs a pairing and
-the site's launch gate to be open; it never submits a launch or sets treasury, wallet, stock
-or chain settings.
+the site's launch gate to be open. It can set everything the create form takes, a Revstake
+treasury and a Memestock chain and stock included, but it never submits a launch: your person
+sees every field you set on the create page and signs.
 
 ## Auctions, bids and claims
 
@@ -97,7 +98,8 @@ or chain settings.
    report completion from a sent or pending transaction, and never resend one.
 
 Draft edits are separate from this read-only loop. Only on an explicit request: read the
-draft, save only the allowed text fields, then read it back. If a save loses its answer,
+draft, save only the fields your person asked for, then read it back. Tell your person which
+fields you set, a treasury above all, so they check them before they sign. If a save loses its answer,
 read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
 ## Price movement without misleading comparisons
