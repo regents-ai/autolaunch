@@ -1,68 +1,54 @@
 defmodule AutolaunchWeb.AgentAccountController do
-  @moduledoc "Signed private reads and metadata-only draft edits; no wallet or launch authority."
+  @moduledoc "Signed private reads and launch draft edits; no wallet, signing or launch authority."
   use AutolaunchWeb, :controller
+  alias Autolaunch.AgentDrafts
   alias AutolaunchWeb.ApiError
   alias RegentPoints.{Amount, Rules}
 
   @points_off "Earning Points is off on this site."
   @spending_off "Approving agent spending is off on this site."
 
-  @fields ~w(name symbol description website telegram discord other_link_1 other_link_2 other_link_3)
   plug AutolaunchWeb.Plugs.AgentAccess
 
   def positions(conn, params), do: AutolaunchWeb.MyPositionsController.signed(conn, params)
 
   def draft(conn, %{"kind" => kind}) do
-    with {:ok, resource} <- resource(kind),
-         {:ok, draft} <- read_draft(resource, conn.assigns.actor) do
-      json(conn, %{data: present(draft), kind: kind})
-    else
+    case AgentDrafts.read(kind, conn.assigns.actor) do
+      {:ok, draft} -> json(conn, %{data: AgentDrafts.present(draft), kind: kind})
       _ -> unavailable(conn)
     end
   end
 
+  # Everything the person's create form takes, from a paired agent; the
+  # person still reviews and signs the launch (`Autolaunch.AgentDrafts`).
   def save_draft(conn, %{"kind" => kind}) do
-    params = conn.body_params
+    case AgentDrafts.save(kind, conn.body_params, conn.assigns.actor) do
+      {:ok, draft} ->
+        json(conn, %{data: AgentDrafts.present(draft), kind: kind})
 
-    if is_map(params) and map_size(params) > 0 and
-         Enum.all?(params, fn {key, value} -> key in @fields and is_binary(value) end) do
-      save(conn, kind, params)
-    else
-      ApiError.send(
-        conn,
-        :unprocessable_entity,
-        "invalid_draft",
-        "Send token metadata only. Treasury, chain, launch terms and wallet fields are not accepted."
-      )
-    end
-  end
+      {:error, :invalid_image} ->
+        ApiError.send(
+          conn,
+          :unprocessable_entity,
+          "invalid_image",
+          "Send the picture as a PNG, JPEG or WebP file, base64 in image.data with its image.content_type."
+        )
 
-  defp save(conn, kind, params) do
-    actor = conn.assigns.actor
+      {:error, :image_too_large} ->
+        ApiError.send(
+          conn,
+          :unprocessable_entity,
+          "image_too_large",
+          "The picture is larger than 2 MB, or more than 4096 by 4096 pixels."
+        )
 
-    with {:ok, resource} <- resource(kind),
-         {:ok, draft} <-
-           Autolaunch.Repo.transaction(fn -> save_metadata(resource, actor, params) end) do
-      json(conn, %{data: present(draft), kind: kind})
-    else
-      _ ->
+      {:error, _invalid} ->
         ApiError.send(
           conn,
           :unprocessable_entity,
           "invalid_draft",
-          "Draft metadata was not saved. Check the fields and your current pairing."
+          "The draft was not saved. Send only the draft's own fields, each as text, and check your current pairing."
         )
-    end
-  end
-
-  defp save_metadata(resource, actor, params) do
-    with {:ok, draft} <- read_draft(resource, actor),
-         {:ok, draft} <- ensure_draft(resource, draft, actor),
-         {:ok, saved} <-
-           draft |> Ash.Changeset.for_update(:agent_save, params, actor: actor) |> Ash.update() do
-      saved
-    else
-      _ -> Autolaunch.Repo.rollback(:invalid_draft)
     end
   end
 
@@ -172,35 +158,6 @@ defmodule AutolaunchWeb.AgentAccountController do
       actor.pairing_id
     )
   end
-
-  defp read_draft(resource, actor),
-    do: resource |> Ash.Query.for_read(:agent_read, %{}, actor: actor) |> Ash.read_one()
-
-  defp ensure_draft(resource, nil, actor),
-    do: resource |> Ash.Changeset.for_create(:agent_create, %{}, actor: actor) |> Ash.create()
-
-  defp ensure_draft(_resource, draft, _actor), do: {:ok, draft}
-  defp resource("revstake"), do: {:ok, Autolaunch.LaunchDraft}
-  defp resource("memestock"), do: {:ok, Autolaunch.Stocks.LaunchDraft}
-  defp resource(_), do: {:error, :invalid_kind}
-  defp present(nil), do: nil
-
-  defp present(draft),
-    do:
-      Map.take(draft, [
-        :id,
-        :name,
-        :symbol,
-        :description,
-        :website,
-        :telegram,
-        :discord,
-        :other_link_1,
-        :other_link_2,
-        :other_link_3,
-        :updated_at,
-        :last_agent_pairing_id
-      ])
 
   defp with_note(answer, true, note), do: Map.put(answer, :note, note)
   defp with_note(answer, false, _note), do: answer

@@ -297,6 +297,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           <p class="create-page__hint">
             You will see every value and the one transaction before anything is sent.
           </p>
+          <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
+            :if={@active_draft}
+            draft={@active_draft}
+          />
           <.no_connections
             :if={@launch_ready? && @active_draft && !@has_connections && !@connections_waived}
             typed={@no_connections_typed}

@@ -30,7 +30,7 @@ First steps for an agent:
 
 1. Read live auctions with `GET https://autolaunch.sh/api/v1/auctions?state=active&sort=ending`, or launched tokens with `GET https://autolaunch.sh/api/v1/tokens`. No account or API key is needed.
 2. Estimate a bid with `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote`; it does not place one.
-3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can prepare saved text metadata using the draft commands in [agents.md]({{origin}}/agents.md). The person completes the form at https://autolaunch.sh/create for a Memestock token or https://autolaunch.sh/create/revstake for a Revstake token, chooses the picture and launch settings, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
+3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can fill in the whole draft with the draft commands in [agents.md]({{origin}}/agents.md): the token's details, its picture, and its launch settings (a Revstake token's treasury, a Memestock token's chain and stock). The person opens https://autolaunch.sh/create for a Memestock token or https://autolaunch.sh/create/revstake for a Revstake token, sees every field the agent set named there, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
 
 Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.
 
@@ -199,7 +199,7 @@ person's approval. Native browser tools require separate runtime support.
 
 The separate `autolaunch` CLI package remains unpublished. The unified Regents CLI
 {{regents_cli}} includes the signed commands below and reads Credits history by
-`pagination.next_cursor`. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; metadata writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
+`pagination.next_cursor`. Draft reads are `regents autolaunch drafts revstake show` and `regents autolaunch drafts memestock show`; draft writes use `save` in place of `show` with private JSON stdin. Saves remain refused while prelaunch read-only mode is enabled. Follow [agents.md]({{origin}}/agents.md) and the installed command's `--help` for pairing and signing.
 
 ### Bidding, launching and staking
 

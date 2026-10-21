@@ -17,14 +17,14 @@ Use Autolaunch when you want to:
 
 1. Read live auctions with `GET {{origin}}/api/v1/auctions?state=active&sort=ending`, launched tokens with `GET {{origin}}/api/v1/tokens`, or how many are live with `GET {{origin}}/api/v1/auction-counts`. No account or API key is needed.
 2. Estimate a bid with `POST {{origin}}/api/v1/auctions/{id}/bid-quote`; it does not place one.
-3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can prepare saved text metadata using the draft commands in [agents.md]({{origin}}/agents.md). The person completes the form at {{origin}}/create for a Memestock token or {{origin}}/create/revstake for a Revstake token, chooses the picture and launch settings, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
+3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can fill in the whole draft with the draft commands in [agents.md]({{origin}}/agents.md): the token's details, its picture, and its launch settings (a Revstake token's treasury, a Memestock token's chain and stock). The person opens {{origin}}/create for a Memestock token or {{origin}}/create/revstake for a Revstake token, sees every field the agent set named there, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
 
 Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.
 
 ## Start here
 
 - [Developer guide]({{origin}}/docs): the public API, errors, versioning, WebMCP tools and what needs a wallet.
-- [Signed agent guide]({{origin}}/agents.md): install regents-cli {{regents_cli}}, sign in, pair with your person and save draft text.
+- [Signed agent guide]({{origin}}/agents.md): install regents-cli {{regents_cli}}, sign in, pair with your person and fill in a launch draft.
 - [Skill]({{origin}}/skill.md): using Autolaunch for your person, from research to watching a bid.
 - [How Autolaunch works]({{origin}}/how-it-works): supply, trading fees and staking rewards for every Autolaunch token.
 - [REGENT]({{origin}}/regent): the Regents Labs token, with live staking figures.

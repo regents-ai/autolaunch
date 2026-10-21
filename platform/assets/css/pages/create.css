@@ -73,3 +73,13 @@
 .stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
 .stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-mono); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }
+
+/* What the person's agent filled in, above the wallet steps. */
+.agent-set { display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--color-warning, var(--orange-ink)); border-radius: var(--radius); background: color-mix(in srgb, var(--orange-ink) 6%, var(--color-surface)); }
+.agent-set h3 { margin: 0; font-size: 1rem; }
+.agent-set p { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.agent-set dl { display: grid; gap: 4px; margin: 0; }
+.agent-set dl > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: var(--space-2); font-size: .875rem; }
+.agent-set dt { color: var(--color-fg-muted); }
+.agent-set dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 30rem) { .agent-set dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }

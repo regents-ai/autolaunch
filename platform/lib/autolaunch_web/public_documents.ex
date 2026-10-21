@@ -292,7 +292,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     {"/llms-full.txt", "Whole agent guide",
      "The auction, both launch types, fees, staking, REGENT and every agent route in one file."},
     {"/agents.md", "Signed agent guide",
-     "Install regents-cli, sign in, pair with a person and save draft text."},
+     "Install regents-cli, sign in, pair with a person and fill in a launch draft."},
     {"/skill.md", "Skill", "Using Autolaunch for a person, from research to watching a bid."},
     {"/openapi.json", "OpenAPI description", "Every public route, its inputs and its answers."},
     {"/capabilities", "Tool manifest", "Every WebMCP tool the pages register, as JSON."},

@@ -113,52 +113,57 @@ request a fresh owner code rather than replaying a lost response blindly.
 
 ## `drafts revstake show`
 
-Read the paired owner's Revstake metadata. Route: `GET /api/agent/v1/drafts/revstake`;
-no body inputs. Returns `{data, kind}`; `data` is metadata or null when no draft exists.
-It creates nothing and returns no financial or wallet settings.
+Read the paired owner's Revstake launch draft. Route:
+`GET /api/agent/v1/drafts/revstake`; no body inputs. Returns `{data, kind}` with the
+draft or null: its details, `image`, `treasury`, `treasury_path` and
+`agent_set_fields`, the fields an agent set that the owner has not changed since. It
+creates nothing.
 
 Server: admit current paired actor → resolve its local owner → Ash `agent_read` on
-the existing Revstake draft → project metadata. Requires shared identity/pairing and
-the local draft table. Missing or revoked authority refuses; unavailable account data
-returns `account_unavailable`. Available under the existing prelaunch read-only gate.
+the existing Revstake draft (`Autolaunch.AgentDrafts`). Requires shared
+identity/pairing and the local draft table. Missing or revoked authority refuses;
+unavailable account data returns `account_unavailable`. Available under the existing
+prelaunch read-only gate.
 
 ## `drafts revstake save`
 
-Save one or more metadata strings to the same owner's Revstake draft. Route:
+Fill in the same owner's Revstake launch draft. Route:
 `PATCH /api/agent/v1/drafts/revstake`. Stdin fields: `name`, `symbol`, `description`,
-`website`, `telegram`, `discord`, `other_link_1`, `other_link_2`, `other_link_3`.
-Returns `{data, kind}` with the saved metadata and current pairing attribution.
+`website`, `telegram`, `discord`, `other_link_1`, `other_link_2`, `other_link_3`,
+`treasury`, `treasury_path` (`safe`, `contract` or `eoa`) and `image`
+(`{"content_type", "data"}`, the file base64). Returns `{data, kind}` with the saved
+draft and current pairing attribution.
 
-Server: check prelaunch gate and paired actor → validate metadata-only input → in one
-transaction read/create the owner's existing draft and run Ash `agent_save` → return
-metadata. Requires local draft schema, pairing attribution migration and shared
-pairing locks. Empty, unknown, financial or non-string fields return `invalid_draft`;
-closed prelaunch returns `prelaunch_read_only`. Revocation refuses access. Repeated
-saves retain one draft; concurrent saves use last-write-wins. If a response is lost,
-read the draft before a fresh signed save. No launch or wallet action occurs.
+Server: check prelaunch gate and paired actor → validate the fields → in one
+transaction read/create the owner's draft, run Ash `agent_save`, then store the
+picture and run Ash `agent_mark_image` → return the draft. A treasury owned by a
+private key also needs the owner's own acknowledgement on the create page, which no
+agent gives; an agent's treasury change takes back an earlier one. Unknown, empty or
+wrongly typed fields return `invalid_draft`; a bad picture `invalid_image` or
+`image_too_large`; closed prelaunch returns `prelaunch_read_only`. Revocation refuses
+access. Repeated saves retain one draft; concurrent saves use last-write-wins. If a
+response is lost, read the draft before a fresh signed save. No launch or wallet
+action occurs: the owner sees every agent-set field on the create page and signs.
 
 ## `drafts memestock show`
 
-Read the paired owner's Memestock metadata. Route:
-`GET /api/agent/v1/drafts/memestock`; no body inputs. Returns `{data, kind}` with
-metadata or null. Creates nothing and returns no stock, chain or treasury settings.
+Read the paired owner's Memestock launch draft. Route:
+`GET /api/agent/v1/drafts/memestock`; no body inputs. Returns `{data, kind}` with the
+draft or null: its details, `image`, `chain`, `stock_address` and `agent_set_fields`.
+Creates nothing.
 
 Server: admit current paired actor → resolve local owner → Ash `agent_read` on the
-existing Memestock draft → project metadata. Requires the shared identity/pairing
-and local Memestock draft table. Refusals and prelaunch availability match Revstake
-`show`.
+existing Memestock draft. Refusals and prelaunch availability match Revstake `show`.
 
 ## `drafts memestock save`
 
-Save Memestock metadata through `PATCH /api/agent/v1/drafts/memestock`. Inputs,
-response and repeat behavior match Revstake `save`. Stock selection, chain, treasury,
-launch terms and wallet fields are rejected.
+Fill in the owner's Memestock launch draft through `PATCH /api/agent/v1/drafts/memestock`.
+Stdin fields: the Revstake text fields and `image`, then `chain` (`base` or
+`robinhood`) and `stock_address`, which must be a stock that chain lists. Response,
+refusals and repeat behavior match Revstake `save`; there is no treasury.
 
-Server: check prelaunch gate and paired actor → validate metadata-only input → in one
-transaction read/create the owner's existing Memestock draft and run Ash `agent_save`
-→ return metadata. Requires its local draft schema and pairing attribution migration.
-`invalid_draft`, revoked authority and `prelaunch_read_only` refuse the save; no
-financial or launch gate is opened.
+Server: as Revstake `save`, with the Memestock draft's own `agent_save`, which also
+checks the stock against the chain's list.
 
 ## `positions`
 

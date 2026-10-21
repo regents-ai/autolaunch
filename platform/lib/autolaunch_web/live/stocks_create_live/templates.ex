@@ -270,6 +270,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </form>
           </fieldset>
           <div id="stocks-transactions" class="create-page__launch">
+            <AutolaunchWeb.Components.AgentSetFields.agent_set_fields :if={@draft} draft={@draft} />
             <p
               :if={!@robinhood_open?}
               class={@launch_chain != :robinhood && "create-page__held"}
