@@ -97,6 +97,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/stock-listing" =>
       {"Onchain Stocks",
        "Stocks next in line to pair with a Memestock token on Base and Robinhood Chain, and every stock you can pair with today."},
+    :stock =>
+      {"stock",
+       "One stock on Base or Robinhood Chain: its onchain token, price feed and trading pools, from dated research."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
     :bid =>
@@ -240,8 +243,8 @@ defmodule AutolaunchWeb.PublicDocuments do
   end
 
   @doc """
-  Every public page with the time it last changed: the fixed pages, then each
-  listed auction and token, newest first. A fixed page last changed with the
+  Every public page with the time it last changed: the fixed pages, each
+  stock's page, then each listed auction and token, newest first. A fixed page last changed with the
   release; the auction and token lists also change when a listed record does.
   """
   def sitemap do
@@ -264,8 +267,14 @@ defmodule AutolaunchWeb.PublicDocuments do
         end
       )
 
+    stocks =
+      Enum.map(
+        Autolaunch.Stocks.UpcomingCatalog.stocks(),
+        &{url("/stock-listing/" <> URI.encode(&1["symbol"])), @released_at}
+      )
+
     entries =
-      Enum.map_join(fixed ++ auctions ++ tokens, "\n", fn {location, changed} ->
+      Enum.map_join(fixed ++ stocks ++ auctions ++ tokens, "\n", fn {location, changed} ->
         "  <url><loc>#{escape(location)}</loc><lastmod>#{DateTime.to_iso8601(changed)}</lastmod></url>"
       end)
 

@@ -17,20 +17,18 @@
 .upcoming__pairing a { color: inherit; text-underline-offset: .2em; }
 .upcoming__pairing-soon { color: var(--color-fg-muted); cursor: help; }
 .upcoming__pairing :is(a, [tabindex]):focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
-.upcoming-stock { width: 100%; height: 100%; text-align: left; color: var(--color-fg); font: inherit; cursor: pointer; }
+.upcoming-stock { width: 100%; height: 100%; text-align: left; color: var(--color-fg); font: inherit; text-decoration: none; }
 .upcoming-stock:hover { border-color: var(--chain-color); }
 .upcoming-stock:focus-visible { outline: 2px solid var(--chain-color); outline-offset: 2px; }
 .upcoming-stock .stock-select__name { white-space: normal; line-height: 1.3; }
 
-/* Native modal dialogs escape the chain columns' clipping and handle focus
-   containment, Escape dismissal and returning focus to the stock button. */
-.upcoming-details { position: fixed; inset: 5rem 0 auto; margin: 0 auto; box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 6rem); overflow: auto; overscroll-behavior: contain; padding: var(--space-3); border: 2px solid var(--hairline); border-radius: var(--radius); background: var(--color-bg); color: var(--color-fg); box-shadow: 0 12px 40px #0003; }
-.upcoming-details::backdrop { background: #0006; }
-.upcoming-details__heading, .upcoming-details__pool > header { display: flex; align-items: start; justify-content: space-between; gap: var(--space-2); }
-.upcoming-details h3, .upcoming-details h4, .upcoming-details__heading p { margin: 0; }
-.upcoming-details h3 { font-size: 1.25rem; }
-.upcoming-details h3 span, .upcoming-details h4 span, .upcoming-details__heading p { color: var(--color-fg-muted); }
-.upcoming-details__heading .rg-button { flex: none; }
+/* One stock's page: its heading with its logo, its facts and its pools. */
+.upcoming-details { display: grid; gap: var(--space-2); max-width: 44rem; }
+.upcoming-details__heading { display: flex; align-items: center; gap: var(--space-2); }
+.upcoming-details__pool > header { display: flex; align-items: start; justify-content: space-between; gap: var(--space-2); }
+.upcoming-details :is(h1, h2), .upcoming-details__heading p { margin: 0; }
+.upcoming-details h1 { font-size: 1.75rem; }
+.upcoming-details :is(h1, h2) span, .upcoming-details__heading p { color: var(--color-fg-muted); }
 .upcoming-details__status { margin: var(--space-2) 0; font-size: .875rem; font-weight: 600; }
 .upcoming-details__note { color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
 .upcoming-details__facts { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .625rem var(--space-2); margin: var(--space-2) 0; font-size: .875rem; }
@@ -41,10 +39,9 @@
 .upcoming-details__address .rg-copy { flex: none; padding: .125rem .375rem; min-height: 1.75rem; font-size: .75rem; }
 .upcoming-details a { text-underline-offset: .2em; }
 .upcoming-details__pool { border-top: 1px solid var(--hairline); padding-top: var(--space-2); margin-top: var(--space-2); }
-.upcoming-details__pool h4 { font-size: .9375rem; }
+.upcoming-details__pool h2 { font-size: .9375rem; }
 .upcoming-details__pool > header > a { flex: none; }
 @media (max-width: 30rem) {
-  .upcoming-details { inset-block-start: 4rem; padding: var(--space-2); max-height: calc(100dvh - 5rem); }
   .upcoming-details__facts { grid-template-columns: minmax(0, 1fr); gap: .25rem; }
   .upcoming-details__facts dd + dt { margin-top: .5rem; }
   .upcoming-details__address .rg-copy { min-height: 2.75rem; min-width: 2.75rem; }

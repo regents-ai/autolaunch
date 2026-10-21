@@ -1,5 +1,5 @@
 {
-  "total": 79,
+  "total": 81,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1055,6 +1055,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "1cad7e8782739be4c7e4e3a7a11da7172dc65de7fe0e6bd2a0815bc13716b825"
+    },
+    {
+      "id": 120,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/stock_listing_test.exs",
+      "line": 11,
+      "test_name": "every listed stock opens its own page, which the sitemap lists",
+      "keep_because": "Each stock on the short list opens a page that answers and is in the sitemap, and the list no longer carries every stock's details. It fails if a stock has no page, a page is missing from the sitemap, or the details move back into the list.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5c13e64fc3df79b02fc446d075044ff2ed1e2281f9ca3d72ce18259eb94bf848"
+    },
+    {
+      "id": 121,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/stock_listing_test.exs",
+      "line": 31,
+      "test_name": "a symbol is read in any case, and one the listing does not hold is not found",
+      "keep_because": "A shared stock address works in any case, and an unknown symbol is the 404 page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5c13e64fc3df79b02fc446d075044ff2ed1e2281f9ca3d72ce18259eb94bf848"
     }
   ],
   "legacy_folders_to_remove": [
