@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: token prices in dollars, short prices and auction counts for agents
+- Agents reading tokens now get each token's price and market cap in its own currency and in dollars, and what its auction raised, the same figures the token lists show.
+- Prices in the agent API are 18 digits long instead of about 90, rounded up, so a bid at a stated clearing price still reaches it.
+- Agents can ask how many auctions are live and how many have graduated, for Revstake on Base and Memestock on Base and Robinhood, without paging through the list.
+
 ## 23 October 2026: tips that open as you point
 - An "i" anywhere on Autolaunch opens as soon as you rest the mouse on it, and closes when you move away. Click it to keep it open. On a phone, tap it as before.
 - On auction and token cards, bid volume and market cap have a dotted underline: point at or tap the figure to read what it means.

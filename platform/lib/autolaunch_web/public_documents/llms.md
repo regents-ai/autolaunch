@@ -174,13 +174,14 @@ The same reads, as JSON, with amounts as exact decimal strings:
 
 - `GET https://autolaunch.sh/api/v1/auctions`
 - `GET https://autolaunch.sh/api/v1/auctions/{id}`
+- `GET https://autolaunch.sh/api/v1/auction-counts`: live and graduated auctions for Revstake on Base and Memestock on Base and Robinhood, the counts the auctions page shows.
 - `POST https://autolaunch.sh/api/v1/auctions/{id}/bid-quote` with `{"amount": "...", "max_price": "..."}`: an estimate only. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
-- `GET https://autolaunch.sh/api/v1/tokens`
+- `GET https://autolaunch.sh/api/v1/tokens`: each token's price (`price_quote`, `price_usd`), market cap (`market_cap`, `market_cap_usd`) and its auction's bid volume (`bid_volume`, `bid_volume_usd`). A dollar figure is null while the quote token has no dollar price.
 - `GET https://autolaunch.sh/api/v1/treasury-security/{address}`
-- `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, quote-token denomination and nullable supply. No chain call or live-price guarantee. A token the list does not show returns 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli 1.10.6 and later.
+- `GET https://autolaunch.sh/api/v1/tokens/{id}`: one publicly listed token on either chain, by token UUID from the list. Returns canonical page URLs, stored price with its nullable recording time, the list's price, market cap and bid volume figures, quote-token denomination and nullable supply. No chain call or live-price guarantee. A token the list does not show returns 404; invalid UUIDs and extra parameters return 400. The CLI command is `regents autolaunch token <id>`, in regents-cli 1.10.6 and later.
 - `GET https://autolaunch.sh/api/v1/me/positions`: the signed-in wallet's own bids and tokens; it needs their sign-in in the same browser.
 
-The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.
+Prices, and the market caps worked out from them, are decimal strings to 18 significant digits, rounded up, so a bid at a stated clearing price still reaches it. The two lists take the tools' options as query parameters, for example `https://autolaunch.sh/api/v1/auctions?state=active&sort=ending&chain=robinhood` or `https://autolaunch.sh/api/v1/tokens?q=bite&github=true`. An unknown parameter or value gets a 400.
 
 Every auction names its page (`url`), when bidding is expected to close (`estimated_end_at`), the tokens it sells (`token_allocation`), everything bid so far (`bid_volume`, and `bid_volume_usd` in dollars), what it must raise to launch (`minimum_raise`), what it has raised (`currency_raised`) and how much of the minimum that is (`percent_met`, a whole percent capped at 100). `record_updated_at` is when the site last wrote its record of the auction, not when it last read the chain. A figure the site has not recorded is null, and `unavailable` says why: `not_recorded_yet`, `chain_unreadable` (Robinhood could not be read) or `no_usd_price`.
 

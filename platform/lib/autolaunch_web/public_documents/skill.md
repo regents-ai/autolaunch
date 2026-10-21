@@ -53,6 +53,7 @@ ids.
 | --- | --- | --- |
 | Find auctions | `auctions list` | `autolaunch_auctions` |
 | Read one auction | `auction ID` | `autolaunch_auction` |
+| Count live and graduated auctions | No CLI command yet; `GET /api/v1/auction-counts` | `autolaunch_auction_counts` |
 | Estimate a bid (Base auctions) | `bids quote --auction UUID --amount DECIMAL --max-price DECIMAL` | `autolaunch_bid_quote` |
 | Browse tokens | `tokens list` | `autolaunch_tokens` |
 | Read one token | `token ID` | `autolaunch_token` |
@@ -100,8 +101,8 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
 ## Price movement without misleading comparisons
 
-A token read can carry a stored price (`price_quote`, in quote-token units) and a nullable
-`price_updated_at`. Call it a stored observation, not a live quote; a missing time does not
+A token read can carry a stored price (`price_quote`, in quote-token units, with `price_usd`
+in dollars) and a nullable `price_updated_at`. Call it a stored observation, not a live quote; a missing time does not
 mean it is fresh. For a price alert, agree on chain, token contract, pool or source, quote
 currency, maximum data age, baseline period and threshold first. Use a timestamped source and
 compare like with like. A symbol alone does not identify a token.

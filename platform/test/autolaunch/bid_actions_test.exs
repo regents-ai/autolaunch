@@ -217,7 +217,7 @@ defmodule Autolaunch.BidActionsTest do
              )
   end
 
-  test "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero" do
+  test "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it" do
     price =
       "0." <>
         String.duplicate("0", 6) <>
@@ -227,13 +227,19 @@ defmodule Autolaunch.BidActionsTest do
       Autolaunch.TestSupport.project_auction(state: :active, current_clearing_price: price)
 
     assert {:ok, below} = Autolaunch.quote_auction_bid(auction.id, "1", "0.0000001")
-    assert below.current_clearing_price == price
+    assert below.current_clearing_price == "0.000000158339909194554223"
     refute below.would_be_active_now
     assert "max_price_below_current_clearing_price" in below.warnings
 
     assert {:ok, at} = Autolaunch.quote_auction_bid(auction.id, "1", price)
     assert at.would_be_active_now
     assert at.status_band == "borderline"
+
+    # A bid at the price the estimate states still reaches the stored price.
+    assert {:ok, stated} =
+             Autolaunch.quote_auction_bid(auction.id, "1", below.current_clearing_price)
+
+    assert stated.would_be_active_now
   end
 
   defmodule StockQuoteRpc do

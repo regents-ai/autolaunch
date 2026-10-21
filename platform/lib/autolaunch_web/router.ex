@@ -139,6 +139,7 @@ defmodule AutolaunchWeb.Router do
     pipe_through :api
 
     get "/auctions", AuctionController, :index
+    get "/auction-counts", AuctionController, :counts
     get "/auctions/:id", AuctionController, :show
     post "/auctions/:id/bid-quote", AuctionController, :bid_quote
     get "/tokens", TokenController, :index

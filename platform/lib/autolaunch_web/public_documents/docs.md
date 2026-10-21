@@ -11,12 +11,13 @@ The [mechanics guide]({{origin}}/how-it-works) and
 [contract documentation](https://github.com/regents-ai/autolaunch/blob/main/contracts/README.md)
 explain the versions, pool positions, fee routes and vesting.
 
-Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an exact decimal string.
+Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an exact decimal string. Prices, and the market caps worked out from them, keep 18 significant digits, rounded up, so a bid at a stated clearing price still reaches it.
 
 - `GET /api/v1/auctions`: auctions, found and ordered as the website's auction list does.
 - `GET /api/v1/auctions/{id}`: one auction, with its treasury report when there is one.
+- `GET /api/v1/auction-counts`: how many auctions are live and how many graduated, for Revstake on Base and Memestock on Base and Robinhood. The same counts the auctions page shows.
 - `POST /api/v1/auctions/{id}/bid-quote`: an estimate for a bid. It does not place a bid. On an auction that is not taking bids, `would_be_active_now` is false and `warnings` includes `auction_not_biddable`.
-- `GET /api/v1/tokens`: tokens whose auctions succeeded, newest first.
+- `GET /api/v1/tokens`: tokens whose auctions succeeded, newest first, each with its price and market cap in its own currency and in dollars, and what its auction raised.
 - `GET /api/v1/treasury-security/{address}`: the stored treasury report for a treasury address.
 
 The full description, with every parameter and response, is at [{{origin}}/openapi.json]({{origin}}/openapi.json).
@@ -101,7 +102,9 @@ Read your drafts with `regents autolaunch drafts revstake show` and `regents aut
 `GET /api/v1/tokens/{id}` reads one token by the token UUID returned in the public
 list, on Base or Robinhood, and only a token that list would show. The
 response includes canonical page URLs, the stored price and its nullable recording
-time, quote-token denomination and nullable supply. It does not call the chain;
+time, the same price, market cap and bid volume figures as the list (each also in
+dollars while the quote token has a dollar price), quote-token denomination and
+nullable supply. It does not call the chain;
 a missing timestamp is not evidence of freshness. A token the list does not show
 returns 404; invalid UUIDs and extra parameters return 400.
 

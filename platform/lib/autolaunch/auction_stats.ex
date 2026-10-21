@@ -7,28 +7,43 @@ defmodule Autolaunch.AuctionStats do
   """
 
   alias Autolaunch.Auction
-
-  require Ash.Query
+  alias Autolaunch.Lab
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
 
   @type counts :: %{live: non_neg_integer(), graduated: non_neg_integer()}
 
   @spec revstake() :: {:ok, counts()} | {:error, term()}
-  def revstake, do: counts(:agent)
+  def revstake, do: counts(kind: :agent)
 
   @spec memestock() :: {:ok, counts()} | {:error, term()}
-  def memestock, do: counts(:stocks)
+  def memestock, do: counts(kind: :stocks)
 
-  defp counts(kind) do
-    with {:ok, live} <- count(kind, :active),
-         {:ok, graduated} <- count(kind, :graduated) do
+  @doc """
+  The same counts for each launch type on each chain it runs on, as the public
+  API gives them: Revstake on Base, Memestock on Base and on Robinhood.
+  """
+  @spec by_chain() ::
+          {:ok, %{revstake: %{base: counts()}, memestock: %{base: counts(), robinhood: counts()}}}
+          | {:error, term()}
+  def by_chain do
+    with {:ok, revstake} <- counts(kind: :agent, chain_id: Lab.chain_id()),
+         {:ok, base} <- counts(kind: :stocks, chain_id: Lab.chain_id()),
+         {:ok, robinhood} <- counts(kind: :stocks, chain_id: RobinhoodLab.chain_id()) do
+      {:ok, %{revstake: %{base: revstake}, memestock: %{base: base, robinhood: robinhood}}}
+    end
+  end
+
+  defp counts(filter) do
+    with {:ok, live} <- count([{:state, :active} | filter]),
+         {:ok, graduated} <- count([{:state, :graduated} | filter]) do
       {:ok, %{live: live, graduated: graduated}}
     end
   end
 
-  defp count(kind, state) do
+  defp count(filter) do
     Auction
     |> Ash.Query.for_read(:listed, %{}, actor: nil)
-    |> Ash.Query.filter(kind == ^kind and state == ^state)
+    |> Ash.Query.do_filter(filter)
     |> Ash.count()
   end
 end

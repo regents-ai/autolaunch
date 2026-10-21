@@ -4,7 +4,7 @@ These descriptions belong to the unified `regents autolaunch …` CLI. A command
 there once a regents-cli release takes `commands.json`; `regents autolaunch --help`
 lists what your installed version has.
 
-The six public reads need no sign-in and change nothing. Every other command requires
+The seven public reads need no sign-in and change nothing. Every other command requires
 per-request SIWA proof for audience `autolaunch`. Private account operations also
 require a current pairing and an Autolaunch account resolved from the owner's verified
 Privy identity. Browser cookies are not agent authority. Read `/agents.md` for pairing
@@ -31,6 +31,12 @@ Public. Read one auction by its id, or a Robinhood auction by its contract addre
 Route: `GET /api/v1/auctions/{id}` (`getAuction`). An unknown auction answers 404
 `not_found` with a hint naming the lists.
 
+## `auctions counts`
+
+Public. How many auctions are live (open for bidding) and how many graduated, for
+Revstake on Base and Memestock on Base and Robinhood Chain: the counts the auctions
+page shows. Route: `GET /api/v1/auction-counts` (`countAuctions`). It takes no flags.
+
 ## `bids quote`
 
 Public. Estimate a bid from the auction's stored figures. Route:
@@ -45,6 +51,8 @@ whatever the other fields say.
 Public. List launched tokens on Base and Robinhood Chain, newest first. Route:
 `GET /api/v1/tokens` (`listTokens`). Flags: `--q`, `--chain`, `--kind`, `--x`,
 `--ens`, `--github`, `--limit` (1 to 100) and `--after`, paged as `auctions list`.
+Each token gives its price and market cap in its quote token and in dollars, and what
+its auction raised; prices are decimal strings to 18 significant digits.
 
 ## `token <id>`
 
@@ -53,7 +61,8 @@ In regents-cli 1.10.6 as `regents autolaunch token <id>`. Public route:
 Both Base and Robinhood use the list's public visibility rules; hidden, external
 or missing records answer 404. Invalid UUIDs and extra parameters answer 400.
 The response includes the token summary, canonical auction URL, nullable stored
-price and its recording time, quote-token denomination and nullable token supply.
+price and its recording time, the list's price, market cap and bid volume figures,
+quote-token denomination and nullable token supply.
 It makes no chain call and does not promise a live price or executable quote.
 
 ## `treasury security <address>`

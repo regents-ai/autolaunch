@@ -38,6 +38,33 @@ defmodule AutolaunchWeb.UsdValue do
   def rate(%{kind: :stocks, quote_token_symbol: symbol}),
     do: MarketData.stock_price(:base, symbol)
 
+  @doc """
+  The dollar prices the market figures use, read together: REGENT's price and
+  each chain's stock prices. A test network's coins carry no dollar value, so
+  its prices stay unknown.
+  """
+  def rates do
+    %{
+      regent: if(!Lab.test_chain?(), do: MarketData.regent_price()),
+      base: if(!Lab.test_chain?(), do: MarketData.prices(:base)),
+      robinhood: if(!RobinhoodLab.test_chain?(), do: MarketData.prices(:robinhood))
+    }
+  end
+
+  @doc "The USD price of one unit of an auction's currency from `rates/0`; nil while none is known."
+  def auction_rate(rates, auction) do
+    cond do
+      RobinhoodLab.chain?(auction.chain_id) ->
+        stock_rate(rates.robinhood, auction.quote_token_symbol)
+
+      auction.kind == :agent ->
+        rates.regent
+
+      true ->
+        stock_rate(rates.base, auction.quote_token_symbol)
+    end
+  end
+
   @doc "A stock token's USD price from a chain's price list; nil while either is unknown."
   def stock_rate(:test_network, _symbol), do: :test_network
 
