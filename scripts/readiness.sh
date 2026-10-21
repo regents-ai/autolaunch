@@ -177,6 +177,12 @@ const llms = await get("/llms.txt");
 check("/llms.txt is a Markdown guide with a title", llms.status === 200 && type(llms) === "text/plain" && llms.body.startsWith("# "));
 check("/llms.txt links the docs and the OpenAPI description", llms.body.includes("/docs") && llms.body.includes("/openapi.json"));
 check("/llms.txt is cached with an ETag", cached(llms));
+check("/llms.txt links the whole guide and the Markdown sitemap", llms.body.includes("/llms-full.txt") && llms.body.includes("/sitemap.md"));
+const llmsFull = await get("/llms-full.txt");
+check("/llms-full.txt is the whole Markdown guide", llmsFull.status === 200 && type(llmsFull) === "text/plain" && llmsFull.body.startsWith("# ") && llmsFull.body.length > llms.body.length);
+check("/llms-full.txt is cached with an ETag", cached(llmsFull));
+const sitemapMd = await get("/sitemap.md");
+check("/sitemap.md is a Markdown sitemap linking /llms.txt", sitemapMd.status === 200 && type(sitemapMd) === "text/markdown" && sitemapMd.body.startsWith("# ") && sitemapMd.body.includes("/llms.txt"));
 const docs = await get("/docs", "text/markdown");
 for (const heading of ["Errors", "Rate limits", "Versioning and deprecation"]) {
   check(`/docs has a "${heading}" section`, new RegExp(`^## ${heading}$`, "m").test(docs.body));
@@ -237,7 +243,7 @@ check("/docs lists exactly the manifest's tools", same(tableNames(docs.body)), t
 const docsHtml = await get("/docs", "text/html");
 check("/docs shows the tools as a table",
   names.every((name) => docsHtml.body.includes(`<td><code>${name}</code></td>`)));
-check("/llms.txt lists exactly the manifest's tools", same(tableNames(llms.body)), tableNames(llms.body).join(", "));
+check("/llms-full.txt lists exactly the manifest's tools", same(tableNames(llmsFull.body)), tableNames(llmsFull.body).join(", "));
 check("/llms.txt links the tool manifest", llms.body.includes("/capabilities"));
 
 console.log("Past the budget");

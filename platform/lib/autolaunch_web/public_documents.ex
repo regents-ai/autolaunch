@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias AutolaunchWeb.Paths
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home docs about contact privacy terms llms agents skill)
+  @names ~w(home docs about contact privacy terms llms llms-full agents skill)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -53,6 +53,14 @@ defmodule AutolaunchWeb.PublicDocuments do
   @description "Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
 
   @site_name "Autolaunch"
+
+  # The regents-cli release every public document names: the one these guides
+  # were checked against, its source commit and its published wheel.
+  @regents_cli %{
+    version: "1.10.12",
+    commit: "6dacddd52797115125738177a3a0dee914724ab1",
+    wheel_sha256: "8d4058c83381cd2a99e78547fa4a95b2c130b44bd418d3fb494e54c5d3f9e2fd"
+  }
 
   # Where security reports go, as the contact page publishes it.
   @security_contact "mailto:build@regents.sh"
@@ -119,6 +127,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
   }
 
+  # The fixed pages both sitemaps list.
+  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /privacy /terms /blog)
+
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
   def document(path) do
     case @paths do
@@ -127,8 +138,17 @@ defmodule AutolaunchWeb.PublicDocuments do
     end
   end
 
-  @doc "The agent guide served at `/llms.txt`."
+  @doc "The short agent index served at `/llms.txt`: what Autolaunch is, first steps and links."
   def agent_guide, do: markdown("llms")
+
+  @doc "The whole agent guide in one file, served at `/llms-full.txt`."
+  def full_agent_guide, do: markdown("llms-full")
+
+  @doc "The regents-cli release every public document names."
+  def regents_cli_version, do: @regents_cli.version
+
+  @doc "Every public document's name, for reading them all."
+  def names, do: @names
   @doc "The install, sign-in and pairing guide served at `/agents.md`."
   def signed_agent_guide, do: markdown("agents")
 
@@ -236,7 +256,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
     fixed =
       Enum.map(
-        ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /privacy /terms /blog),
+        @sitemap_pages,
         fn
           "/auctions" = path -> {url(path), latest(auctions)}
           "/tokens" = path -> {url(path), latest(tokens)}
@@ -254,6 +274,53 @@ defmodule AutolaunchWeb.PublicDocuments do
     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     #{entries}
     </urlset>
+    """
+  end
+
+  @agent_documents [
+    {"/llms.txt", "Agent index",
+     "What Autolaunch is, first steps for an agent, and where to read on."},
+    {"/llms-full.txt", "Whole agent guide",
+     "The auction, both launch types, fees, staking, REGENT and every agent route in one file."},
+    {"/agents.md", "Signed agent guide",
+     "Install regents-cli, sign in, pair with a person and save draft text."},
+    {"/skill.md", "Skill", "Using Autolaunch for a person, from research to watching a bid."},
+    {"/openapi.json", "OpenAPI description", "Every public route, its inputs and its answers."},
+    {"/capabilities", "Tool manifest", "Every WebMCP tool the pages register, as JSON."},
+    {"/.well-known/api-catalog", "API catalog", "RFC 9727 discovery for the API."}
+  ]
+
+  @doc """
+  The Markdown sitemap served at `/sitemap.md`: every fixed page and agent
+  document with what it is for. Each auction and token page is in
+  `/sitemap.xml`.
+  """
+  def markdown_sitemap do
+    pages =
+      Enum.map_join(@sitemap_pages, "\n", fn path ->
+        {title, description} = Map.fetch!(@pages, path)
+        "- [#{title}](#{url(path)}) | Summary: #{description}"
+      end)
+
+    documents =
+      Enum.map_join(@agent_documents, "\n", fn {path, title, description} ->
+        "- [#{title}](#{url(path)}) | Summary: #{description}"
+      end)
+
+    """
+    # Autolaunch sitemap
+
+    Every page on #{url("")}, with what it is for. Each auction and token has a page
+    of its own too; they are listed in the [XML sitemap](#{url("/sitemap.xml")}).
+    Last changed #{Date.to_iso8601(DateTime.to_date(@released_at))}.
+
+    ## Pages
+
+    #{pages}
+
+    ## For agents
+
+    #{documents}
     """
   end
 
@@ -275,7 +342,10 @@ defmodule AutolaunchWeb.PublicDocuments do
         %{
           "anchor" => url("/api/v1"),
           "service-desc" => [%{"href" => url("/openapi.json"), "type" => "application/json"}],
-          "service-doc" => [%{"href" => url("/docs"), "type" => "text/html"}]
+          "service-doc" => [
+            %{"href" => url("/docs"), "type" => "text/html"},
+            %{"href" => url("/llms-full.txt"), "type" => "text/plain"}
+          ]
         }
       ]
     }
@@ -418,6 +488,18 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{tools}}", @tool_table)
     |> String.replace("{{origin}}", url(""))
+    |> String.replace("{{regents_cli}}", @regents_cli.version)
+    |> String.replace("{{regents_cli_commit}}", @regents_cli.commit)
+    |> String.replace("{{regents_cli_wheel_sha256}}", @regents_cli.wheel_sha256)
+    |> String.replace("{{read_only}}", read_only_now())
+  end
+
+  # The prelaunch gate as it stands on this deployment right now.
+  defp read_only_now do
+    if Autolaunch.Prelaunch.read_only?(),
+      do:
+        "Read-only mode is on right now: pairing and private reads work, but metadata saves return `prelaunch_read_only` and the create pages are closed.",
+      else: "Read-only mode is off right now: metadata saves and the create pages are open."
   end
 
   # A list page last changed with the release or with its newest listed record.

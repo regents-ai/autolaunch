@@ -118,9 +118,11 @@ defmodule AutolaunchWeb.Router do
     get "/robinhood/tokens/:token", OldLinkController, :robinhood_token
 
     get "/llms.txt", PublicPagesController, :agent_guide
+    get "/llms-full.txt", PublicPagesController, :full_agent_guide
     get "/agents.md", PublicPagesController, :signed_agent_guide
     get "/skill.md", PublicPagesController, :skill_guide
     get "/sitemap.xml", PublicPagesController, :sitemap
+    get "/sitemap.md", PublicPagesController, :markdown_sitemap
     get "/openapi.json", PublicPagesController, :openapi
     get "/robots.txt", PublicPagesController, :robots
     get "/capabilities", PublicPagesController, :capabilities
