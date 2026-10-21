@@ -84,7 +84,10 @@ defmodule AutolaunchWeb.ShareCard do
   @chain_mark_h 28
   @pill_h 42
 
-  @doc "The page details for an auction's page: its title, words, address and picture."
+  @doc """
+  The page details for an auction's page: its title, words, address and
+  picture, its record in the public API and the structured data about it.
+  """
   @spec meta(struct()) :: map()
   def meta(auction) do
     %{
@@ -93,8 +96,10 @@ defmodule AutolaunchWeb.ShareCard do
         "Bid on #{auction.token_symbol} on #{chain_name(chain(auction))}. Everyone pays the same price.",
       url: Paths.auction_url(auction),
       image: auction_image_url(auction, DateTime.utc_now()),
-      image_alt: "#{auction.title} (#{auction.token_symbol}) auction figures on Autolaunch"
+      image_alt: "#{auction.title} (#{auction.token_symbol}) auction figures on Autolaunch",
+      record: Paths.auction_record_url(auction)
     }
+    |> then(&Map.put(&1, :structured_data, PublicDocuments.auction_data(auction, &1)))
   end
 
   @doc "The page details for How Autolaunch works."
@@ -111,17 +116,19 @@ defmodule AutolaunchWeb.ShareCard do
     }
   end
 
-  @doc "The page details for the page of the token an auction launched."
-  @spec token_meta(struct()) :: map()
-  def token_meta(auction) do
+  @doc "The page details for the page of the token an auction launched, as `meta/1` gives them."
+  @spec token_meta(struct(), struct()) :: map()
+  def token_meta(auction, token) do
     %{
       title: "#{auction.title} (#{auction.token_symbol}) on Autolaunch",
       description:
         "Trade and stake #{auction.token_symbol} on #{chain_name(chain(auction))}. Graduated from an Autolaunch auction.",
       url: Paths.token_url(auction),
       image: token_image_url(auction, DateTime.utc_now()),
-      image_alt: "#{auction.title} (#{auction.token_symbol}) token figures on Autolaunch"
+      image_alt: "#{auction.title} (#{auction.token_symbol}) token figures on Autolaunch",
+      record: Paths.token_record_url(token)
     }
+    |> then(&Map.put(&1, :structured_data, PublicDocuments.token_data(auction, &1)))
   end
 
   @doc """
@@ -152,7 +159,9 @@ defmodule AutolaunchWeb.ShareCard do
 
   @doc """
   The page's description, canonical address, share card and structured data,
-  through the shared Regent metadata head.
+  through the shared Regent metadata head. An auction's or a token's page also
+  names its record in the public API, and its structured data describes that
+  auction or token rather than the site.
   """
   def head(assigns) do
     share = assigns.share || site_meta(assigns)
@@ -160,13 +169,15 @@ defmodule AutolaunchWeb.ShareCard do
     assigns =
       assign(assigns,
         share: share,
+        record: share[:record],
         width: @width,
         height: @height,
         markdown: PublicDocuments.markdown?(assigns.path),
-        structured_data: PublicDocuments.structured_data()
+        structured_data: share[:structured_data] || PublicDocuments.structured_data()
       )
 
     ~H"""
+    <link :if={@record} rel="alternate" type="application/json" href={@record} />
     <Regent.AgentMetadata.head
       title={@share.title}
       description={@share.description}

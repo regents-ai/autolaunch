@@ -73,7 +73,8 @@ or chain settings.
 1. Settle the watchlist, your person, the chains that matter and where private reports go.
    Read public auctions first, filter with the command's own options, and page with
    `--after` set to the previous `pagination.next_cursor` while `pagination.has_more` is
-   true. Use each record's own `url`; never build page addresses yourself.
+   true. Use each record's own `url`; never build page addresses yourself. Given only a
+   page, read its `<link rel="alternate" type="application/json">` for its record.
 2. Read the auction's `state`, `quote_token` (address, symbol, decimals), `minimum_raise`,
    `clearing_price`, `record_updated_at` and `estimated_end_at`. The end time is an estimate
    from block times and can move. `record_updated_at` is when the site last wrote its record,

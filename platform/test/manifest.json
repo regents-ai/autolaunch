@@ -1,5 +1,5 @@
 {
-  "total": 73,
+  "total": 74,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -951,6 +951,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "979b53a0fe99499dd03f8c163986aa1238b25e010ecdfc7f57d0b2f9d637f3e7"
+    },
+    {
+      "id": 74,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_page_record_test.exs",
+      "line": 12,
+      "test_name": "each auction and token page links its own API record and describes it",
+      "keep_because": "An agent on an auction or token page follows the page's JSON link to the same record. It fails if the link is missing, names another record, or the page's structured data is the site's instead of the auction's or token's.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c502e220957b0ef0c3aa1992e4a1f61cacfe49fb0725dd9f66eb30e9c9c429f8"
     }
   ],
   "legacy_folders_to_remove": [

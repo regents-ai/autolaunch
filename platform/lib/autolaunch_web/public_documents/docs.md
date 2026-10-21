@@ -22,6 +22,8 @@ Base address: `{{origin}}`. Every endpoint answers JSON, and every amount is an 
 
 The full description, with every parameter and response, is at [{{origin}}/openapi.json]({{origin}}/openapi.json).
 
+Every auction and token page names its own record: its `<link rel="alternate" type="application/json">` points at `/api/v1/auctions/{id}` or `/api/v1/tokens/{id}`, and its structured data describes that auction or token, named by its contract as `eip155:<chain id>:<address>`.
+
 ### Examples
 
 ```bash

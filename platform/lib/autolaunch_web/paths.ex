@@ -34,6 +34,12 @@ defmodule AutolaunchWeb.Paths do
   @doc "The token's page, with the site's address."
   def token_url(auction), do: url(~p"/tokens/#{symbol(auction)}/#{auction.path_tail}")
 
+  @doc "The auction's record in the public API, with the site's address."
+  def auction_record_url(auction), do: url(~p"/api/v1/auctions/#{auction.id}")
+
+  @doc "The token's record in the public API, with the site's address."
+  def token_record_url(token), do: url(~p"/api/v1/tokens/#{token.id}")
+
   @doc """
   The auction's share picture. `version` changes whenever the picture's
   figures do, so sites that keep a picture by its address fetch it again.
