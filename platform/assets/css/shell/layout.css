@@ -16,6 +16,10 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
 .shell-skip:focus { transform: none; }
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
+/* The tools agents see open from the footer's first row, at every width. */
+.regent-footer__tools { flex-basis: 100%; }
+/* The developer guide opens the same list above its text. */
+.document-page > .agent-tools-button { justify-self: start; margin-bottom: var(--space-3); }
 .regent-footer p { margin: 0; }
 .regent-footer__links { display: flex; flex-wrap: wrap; column-gap: var(--space-3); }
 .regent-footer__links a { display: inline-flex; align-items: center; min-width: 2.75rem; min-height: 2.75rem; color: inherit; }

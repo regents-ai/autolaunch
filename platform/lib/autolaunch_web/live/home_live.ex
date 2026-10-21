@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.HomeLive do
       token_list: 1,
       explore_card: 1,
       backed_card: 1,
+      auction_status: 1,
       assign_figure_rates: 1,
       figure_rate: 2
     ]
@@ -23,7 +24,9 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.ChainIcon
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.SwapModal
+  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
   alias Autolaunch.{HomeMarket, MarketReadings}
+  alias Autolaunch.Stocks.UpcomingCatalog
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
   # The list's tabs: every launch, the live auctions, the finished ones and the
@@ -44,6 +47,7 @@ defmodule AutolaunchWeb.HomeLive do
        records: [],
        records_kind: :auction,
        backed: [],
+       coming: %{auctions: [], stocks: [], results: []},
        creators: %{},
        market_loading: true,
        market_failed: false,
@@ -122,8 +126,8 @@ defmodule AutolaunchWeb.HomeLive do
 
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
-  def handle_async(:home_reread, {:ok, {options, count, backed, {:ok, page}}}, socket) do
-    socket = assign(socket, :backed, backed)
+  def handle_async(:home_reread, {:ok, {options, count, {backed, coming}, {:ok, page}}}, socket) do
+    socket = assign(socket, backed: backed, coming: coming)
 
     if options == socket.assigns.market_options and count == length(socket.assigns.records) and
          not socket.assigns.market_loading do
@@ -140,8 +144,8 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   # A failed reread leaves the listing the reader already has.
-  def handle_async(:home_reread, {:ok, {_options, _count, backed, _failure}}, socket),
-    do: {:noreply, assign(socket, :backed, backed)}
+  def handle_async(:home_reread, {:ok, {_options, _count, {backed, coming}, _failure}}, socket),
+    do: {:noreply, assign(socket, backed: backed, coming: coming)}
 
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
@@ -178,7 +182,7 @@ defmodule AutolaunchWeb.HomeLive do
   # the page as it arrives, for readers that run no scripts too. Later
   # listings load beside the ones already shown.
   defp first_market(socket) do
-    socket = assign(socket, market_append: false, backed: read_backed())
+    socket = assign(socket, market_append: false, backed: read_backed(), coming: read_coming())
 
     case read_market(socket.assigns.market_options, nil) do
       {:ok, page} -> put_market(socket, page)
@@ -191,6 +195,33 @@ defmodule AutolaunchWeb.HomeLive do
   defp read_backed do
     case HomeMarket.read(HomeMarket.options(%{"sort" => "volume"}), nil, 6) do
       {:ok, page} -> Enum.filter(page.records, &raised?/1)
+      _failure -> []
+    end
+  end
+
+  # "Coming next": up to three auctions taking bids, the soonest to close
+  # first, then those opening soon. When there are none, the stocks ready to
+  # pair and the latest finished auctions.
+  defp read_coming do
+    live = read_records(%{"state" => "active", "sort" => "ending"})
+    opening = read_records(%{"state" => "created"})
+
+    case Enum.take(live ++ opening, 3) do
+      [] ->
+        %{
+          auctions: [],
+          stocks: UpcomingCatalog.chains() |> Enum.flat_map(& &1.available) |> Enum.take(6),
+          results: read_records(%{"state" => "finished"})
+        }
+
+      auctions ->
+        %{auctions: auctions, stocks: [], results: []}
+    end
+  end
+
+  defp read_records(params) do
+    case HomeMarket.read(HomeMarket.options(params), nil, 3) do
+      {:ok, page} -> page.records
       _failure -> []
     end
   end
@@ -254,7 +285,7 @@ defmodule AutolaunchWeb.HomeLive do
           {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
         end
 
-      {options, count, read_backed(), result}
+      {options, count, {read_backed(), read_coming()}, result}
     end)
   end
 
@@ -300,19 +331,73 @@ defmodule AutolaunchWeb.HomeLive do
       options.q != "" or options.chain != "all" or options.kind != "all" or options.x or
         options.ens or options.github
 
-  # The one way in to launching. Before launches open it stays in place,
-  # switched off, with the reason beside it.
+  # The way in to launching, beside the way in to backing one. Before
+  # launches open it stays in place, switched off, with the reason beside it.
   defp launch_button(assigns) do
     ~H"""
     <.link
       :if={!Autolaunch.Prelaunch.read_only?()}
       navigate="/create"
-      class="rg-button rg-button--primary home-launch"
-    >Launch a token</.link>
+      class="rg-button rg-button--secondary home-launch"
+    >Launch yours</.link>
     <span :if={Autolaunch.Prelaunch.read_only?()} class="home-launch">
-      <Regent.Primitives.button disabled class="create-button">Launch a token</Regent.Primitives.button>
+      <Regent.Primitives.button variant="secondary" disabled class="create-button">Launch yours</Regent.Primitives.button>
       <small>Opens soon</small>
     </span>
+    """
+  end
+
+  attr :coming, :map, required: true
+
+  # What a visitor can join next: the auctions taking bids or opening soon,
+  # or, while there are none, the stocks ready to launch with and the latest
+  # results. Each settles in as the page arrives (`MotionCascade`).
+  defp coming_next(assigns) do
+    ~H"""
+    <section class="home-next" aria-labelledby="home-next-title">
+      <h2 id="home-next-title">Coming next</h2>
+      <ol
+        :if={@coming.auctions != []}
+        id="home-next-auctions"
+        class="home-next__row"
+        phx-hook="MotionCascade"
+        data-variant={AutolaunchWeb.Motion.standard("grid")}
+      >
+        <li :for={auction <- @coming.auctions}>
+          <.link navigate={AutolaunchWeb.Paths.auction(auction)} class="home-next__card">
+            <strong>{auction.title}</strong>
+            <small>{auction.token_symbol}</small>
+            <.auction_status id={"home-next-#{auction.id}"} auction={auction} />
+          </.link>
+        </li>
+      </ol>
+      <div :if={@coming.auctions == []} class="home-next__quiet">
+        <p>
+          No auction is taking bids right now. Launch one with a stock, or see how the last ones went.
+        </p>
+        <ul
+          :if={@coming.stocks != []}
+          class="home-next__stocks"
+          aria-label="Stocks ready to launch with"
+        >
+          <li :for={stock <- @coming.stocks}>
+            <.link navigate={"/stock-listing/#{stock["symbol"]}"} class="home-next__stock">
+              <.stock_logo stock={%{symbol: stock["symbol"]}} />
+              <span>{stock["symbol"]}</span>
+            </.link>
+          </li>
+        </ul>
+        <ol :if={@coming.results != []} class="home-next__row" aria-label="Latest results">
+          <li :for={auction <- @coming.results}>
+            <.link navigate={AutolaunchWeb.Paths.auction(auction)} class="home-next__card">
+              <strong>{auction.title}</strong>
+              <small>{auction.token_symbol}</small>
+              <.auction_status id={"home-result-#{auction.id}"} auction={auction} />
+            </.link>
+          </li>
+        </ol>
+      </div>
+    </section>
     """
   end
 
@@ -323,8 +408,18 @@ defmodule AutolaunchWeb.HomeLive do
         <h1 class="home-hero__title">
           Autolaunch <span>Auctions</span>
         </h1>
-        <.launch_button />
+        <p class="home-hero__value">
+          Where agents launch: back long-term agents early, through an auction where everyone pays the same price.
+        </p>
+        <div class="home-hero__paths">
+          <.link navigate="/auctions" class="rg-button rg-button--primary home-back">
+            <span class="rg-button__label">Back a launch</span>
+          </.link>
+          <.launch_button />
+        </div>
       </header>
+
+      <.coming_next coming={@coming} />
 
       <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
         <h2 id="home-backed-title">Bid volume</h2>

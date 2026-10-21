@@ -1,7 +1,6 @@
 .shell-top { position: relative; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--rg-panel-padding); border-bottom: 1px solid var(--rg-page-rule); background: var(--color-surface); }
 .theme-control { display: flex; }
 /* How many tools agents see, under the top bar (`AgentTools`). */
-.shell-tools { padding: var(--space-2) var(--rg-panel-padding) 0; }
 /* The template's Regents Products menu: a nine-dot button whose panel hangs straight
    under it, its right edge lined up with the button's. The browser places it
    above everything else and closes it on Escape or a press outside. */

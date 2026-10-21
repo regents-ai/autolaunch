@@ -70,17 +70,17 @@ defmodule AutolaunchWeb.Components.TopBar do
   end
 
   @doc """
-  How many tools agents see in the browser, under the top bar: the template's
-  `AgentTools` button and dialog, the dialog opening with a line on what WebMCP
-  is and a prompt to copy for the person's agent. The browser opens and closes
-  it (`assets/js/agent_tools.ts`), so it works on every page, LiveView or not.
+  The list of tools agents see in the browser: the template's `AgentTools`
+  dialog, opening with a line on what WebMCP is and a prompt to copy for the
+  person's agent. Its buttons are in the footer and on the developer guide;
+  the browser opens and closes it (`assets/js/agent_tools.ts`), so it works
+  on every page, LiveView or not.
   """
   def webmcp_tools(assigns) do
     assigns = assign(assigns, host: AutolaunchWeb.Endpoint.host(), prompt: agent_prompt())
 
     ~H"""
     <div class="shell-tools">
-      <AgentTools.button id="shell-agent-tools-button" dialog="shell-agent-tools" />
       <AgentTools.dialog id="shell-agent-tools">
         <:intro>
           <p class="code-card__note">
