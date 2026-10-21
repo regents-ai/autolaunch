@@ -43,6 +43,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     subject_not_found: "Payments are not open on this token yet.",
     subject_unavailable: "This token could not be read just now.",
     subject_not_on_base: "This token is not on Base.",
+    review_network_mismatch: "Payments for this token are not open on this site's network.",
     subject_token_unavailable: "Payments are not open on this token yet.",
     subject_splitter_unavailable: "This token is not sharing revenue yet.",
     subject_treasury_unavailable: "This token has no treasury yet.",
