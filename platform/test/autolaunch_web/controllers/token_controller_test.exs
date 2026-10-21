@@ -70,4 +70,54 @@ defmodule AutolaunchWeb.TokenControllerTest do
       assert entry["quote_token"]["symbol"] == "REGENT"
     end
   end
+
+  test "a Revstake token gives its revenue history, newest first; a Memestock token has none",
+       %{conn: conn} do
+    revstake = TestSupport.project_auction(chain_id: 8453, state: :graduated, symbol: "EARNS")
+    token = TestSupport.project_token(auction_id: revstake.id, graduated_at: DateTime.utc_now())
+
+    Ash.bulk_create!(
+      for {block, amount, asset} <- [{110, "1.5", "USDC"}, {140, "250", "REGENT"}] do
+        %{
+          token_id: token.id,
+          transaction_hash: "0x" <> String.duplicate(Integer.to_string(block), 21) <> "0",
+          block_hash: "0x" <> String.duplicate("ab", 32),
+          block_number: block,
+          log_index: 0,
+          occurred_at: ~U[2026-10-20 12:00:00Z],
+          asset_symbol: asset,
+          amount: Decimal.new(amount),
+          staker_share: Decimal.new(0)
+        }
+      end,
+      Autolaunch.TokenRevenue,
+      :record,
+      actor: %System{},
+      return_errors?: true
+    )
+
+    memestock =
+      TestSupport.project_auction(
+        chain_id: 8453,
+        kind: :stocks,
+        state: :graduated,
+        symbol: "MEME"
+      )
+
+    meme = TestSupport.project_token(auction_id: memestock.id, graduated_at: DateTime.utc_now())
+
+    history =
+      conn
+      |> get("/api/v1/tokens/#{token.id}")
+      |> json_response(200)
+      |> get_in(["data", "revenue_history"])
+
+    assert [%{"amount" => "250", "asset" => "REGENT"}, %{"amount" => "1.5", "asset" => "USDC"}] =
+             history
+
+    assert hd(history)["transaction_url"] =~ "https://basescan.org/tx/0x"
+
+    assert %{"data" => %{"revenue_history" => nil}} =
+             conn |> get("/api/v1/tokens/#{meme.id}") |> json_response(200)
+  end
 end

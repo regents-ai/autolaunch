@@ -206,17 +206,27 @@ defmodule Autolaunch.Pool do
   exists.
   """
   @spec swap_source(map(), map(), Rpc.block(), keyword()) :: {:ok, map()} | {:error, atom()}
+  # A Revstake launch's source also names its revenue splitter and the three
+  # assets the splitter recognizes, each with its symbol and decimals.
   def swap_source(%{kind: :agent} = auction, config, block, opts) do
     with {:ok, distribution} <- agent_record(auction, config, block, opts) do
+      regent = Lab.address!(config, :regent)
+
       {:ok,
        %{
          pool_manager: Lab.address!(config, :pool_manager),
          pool_id: distribution.pool_id,
          token: distribution.subject,
-         token_is_currency0?: currency0?(distribution.subject, Lab.address!(config, :regent)),
+         token_is_currency0?: currency0?(distribution.subject, regent),
          currency_symbol: "REGENT",
          currency_decimals: @regent_decimals,
-         from_block: distribution.migration_block
+         from_block: distribution.migration_block,
+         splitter: distribution.splitter,
+         revenue_assets: %{
+           String.downcase(Abi.usdc_address()) => {"USDC", 6},
+           String.downcase(regent) => {"REGENT", @regent_decimals},
+           String.downcase(distribution.subject) => {auction.token_symbol, 18}
+         }
        }}
     end
   end

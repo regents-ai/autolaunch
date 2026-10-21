@@ -102,7 +102,9 @@ read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
 ## Price movement without misleading comparisons
 
-A token read can carry a stored price (`price_quote`, in quote-token units, with `price_usd`
+A Revstake token read also carries `revenue_history`: each payment its splitter recognized,
+with amount, asset, day and transaction link. It is a record of what arrived, not a promise
+of what will. A token read can carry a stored price (`price_quote`, in quote-token units, with `price_usd`
 in dollars) and a nullable `price_updated_at`. Call it a stored observation, not a live quote; a missing time does not
 mean it is fresh. For a price alert, agree on chain, token contract, pool or source, quote
 currency, maximum data age, baseline period and threshold first. Use a timestamped source and

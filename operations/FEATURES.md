@@ -89,7 +89,7 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | (all public reads) | Any website's page may read the six public `GET` routes; no account or agent route | `autolaunch_web/controllers/public_read_origin_test.exs` › "the public reads allow any origin, and no signed or account route does" |
 | `autolaunch_auction_counts` | `GET /api/v1/auction-counts` | `auction_controller_test.exs` › "the counts give each launch type's live and graduated auctions on each chain" |
 | `autolaunch_tokens` | `GET /api/v1/tokens` | `public_api_failures_test.exs` (same case); `autolaunch_web/controllers/token_controller_test.exs` › "a token's price and market cap read in REGENT and in dollars, list and detail alike"; `autolaunch/auction_figures_test.exs` › "a stated price keeps at most 18 significant digits and is the stored one rounded up" |
-| `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above |
+| `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above; a Revstake token's revenue history: `token_controller_test.exs` › "a Revstake token gives its revenue history, newest first; a Memestock token has none", recorded from the splitter: `autolaunch/token_revenue_test.exs` › "a Revstake token's pass records its splitter's revenue with its trades" |
 | `autolaunch_treasury` | `GET /api/v1/treasury-security/{address}` | `public_api_failures_test.exs` (same case); `treasury_chain_client_test.exs` (both cases) |
 | `autolaunch_bid_quote` | `POST /api/v1/auctions/{id}/bid-quote` | `bid_actions_test.exs` › "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it"; `public_api_failures_test.exs` (same case) |
 | `agent_whoami` | `GET /api/agents/v1/whoami` | **Gap** |
