@@ -4,7 +4,9 @@ defmodule AutolaunchWeb.Components.TokenHeading do
   shortened address with a copy button, and where to trade and chart it. The
   trade and chart buttons hold their place from the first paint and open once
   the pool is read, so nothing below them moves. They name public networks
-  only, so a local fork's token shows its address without them.
+  only, so a local fork's token shows its address without them. Where the
+  outside chart site has no chart for the pool, the chart button opens the
+  page's own price chart instead.
   """
   use Phoenix.Component
 
@@ -16,6 +18,10 @@ defmodule AutolaunchWeb.Components.TokenHeading do
   attr :chain_id, :integer, required: true
   attr :address, :string, required: true, doc: "the token's contract address"
   attr :pool, :map, default: nil, doc: "the token's pool facts, once read"
+
+  attr :own_chart, :string,
+    default: nil,
+    doc: "the id of the page's own price chart, when it draws one"
 
   def token_heading(assigns) do
     assigns = assign(assigns, :network, network(assigns.chain_id))
@@ -53,6 +59,7 @@ defmodule AutolaunchWeb.Components.TokenHeading do
         id={"token-chart-#{@network}-#{@pool.pool_id}"}
         network={@network}
         pool_id={@pool.pool_id}
+        own_chart={@own_chart}
       />
       <Regent.Primitives.button
         :if={@network && !@pool}
@@ -64,7 +71,7 @@ defmodule AutolaunchWeb.Components.TokenHeading do
       </Regent.Primitives.button>
       <span :if={@network && !@pool} class="token-heading__chart">
         <Regent.Primitives.button variant="secondary" disabled class="token-heading__link">
-          Chart unavailable
+          View Chart
         </Regent.Primitives.button>
       </span>
     </div>

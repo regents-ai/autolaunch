@@ -63,7 +63,8 @@ defmodule AutolaunchWeb.Components.PriceChart do
     """
   end
 
-  defp change([[_block, first] | _rest] = points) do
+  @doc "How far a line of `[block, price]` points moved from its first price to its last, in words."
+  def change([[_block, first] | _rest] = points) do
     [_block, last] = List.last(points)
     percent = Float.round((last / first - 1) * 100, 1)
 

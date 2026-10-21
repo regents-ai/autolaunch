@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.TokenFigures
   import AutolaunchWeb.Components.TokenHeading
   import AutolaunchWeb.Components.TokenTrade
 
@@ -24,7 +25,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
   alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch, TokenTrade}
-  alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
+  alias AutolaunchWeb.{LabMarket, Paths, ShareCard, UsdValue}
 
   def mount(%{"auction" => auction}, _session, socket),
     do:
@@ -112,6 +113,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           chain_id={@token.auction.chain_id}
           address={@token.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
+          own_chart={own_chart(@pool, "robinhood-token-price-chart")}
         />
         <CreatorLabel.creator
           :if={@creator_connections.ok?}
@@ -134,6 +136,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <div class="token-page__layout">
         <div class="token-page__overview">
           <.detail_card kind={:token} record={@token}>
+            <:figures>
+              <.token_figures
+                id="token-figures"
+                price={@token.price_quote}
+                market_cap={@token.market_cap}
+                unit={@token.auction.quote_token_symbol}
+                rate={@usd_rate}
+                pool={@pool}
+              />
+            </:figures>
             <:chart :if={@pool.ok? || @pool.loading}>
               <.price_chart_reading :if={!@pool.ok?} />
               <.price_chart
@@ -227,6 +239,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     """
   end
 
+  # The page draws its own price chart once the pool has two prices to join.
+  defp own_chart(%{ok?: true, result: %{prices: %{points: [_first, _second | _rest]}}}, id),
+    do: id
+
+  defp own_chart(_pool, _id), do: nil
+
   defp tabs(assigns), do: TokenTrade.tabs(assigns.swap?, assigns.staked?)
 
   # What Copy Full Token Details to Agent copies, as the page has read it
@@ -302,6 +320,13 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       end,
       reset: true
     )
+    |> assign_async(
+      :usd_rate,
+      fn ->
+        {:ok, %{usd_rate: token && UsdValue.auction_rate(UsdValue.rates(), token.auction)}}
+      end,
+      reset: true
+    )
     |> load_pool(true)
   end
 
@@ -309,7 +334,10 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   # A failed re-read keeps the token already on screen and says so.
   defp reload_token(socket) do
-    case Autolaunch.get_robinhood_token(socket.assigns.token_address, actor: nil) do
+    case Autolaunch.get_robinhood_token(socket.assigns.token_address,
+           actor: nil,
+           load: [:market_cap]
+         ) do
       {:ok, token} -> assign(socket, token: token, token_failed?: false)
       {:error, _reason} -> assign(socket, :token_failed?, true)
     end

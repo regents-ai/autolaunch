@@ -1,12 +1,33 @@
 /* The token page: the token's card and details beside the trade widget and
-   Claim Rewards. On a phone the widget comes first, under the token's name. */
-.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "overview" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
+   Claim Rewards. On a phone the card comes first, with its figures and chart,
+   then the widget, then the details. */
+.token-page__layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "side" "details"; gap: var(--space-4); align-items: start; min-width: 0; }
 .token-page__overview { grid-area: overview; min-width: 0; }
 .token-page__side { grid-area: side; display: grid; gap: var(--space-3); justify-items: stretch; min-width: 0; }
 .token-page__details { grid-area: details; min-width: 0; }
 /* While the token is first read, the page holds a screen's height, so the
    footer does not sit under the reading card and jump when the token arrives. */
 .token-page__reading { min-height: 100svh; }
+/* On a phone the token's picture sits small beside its name and figures, so
+   the price, market cap and change are on the first screen. */
+@media (max-width: 42rem) {
+  .token-page .market-identity { grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-3); }
+  .token-page .market-identity__image { width: 88px; }
+}
+
+/* The token's first figures: its price, larger, then its market cap and
+   how far it has moved since its pool opened. */
+.token-figures { display: grid; grid-template-columns: repeat(3, minmax(0, max-content)); gap: var(--space-2) var(--space-4); margin: 0; }
+.token-figures > div { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.token-figures dt { color: var(--color-fg-muted); font-size: .75rem; }
+.token-figures dd { display: grid; gap: 2px; margin: 0; font-variant-numeric: tabular-nums; }
+.token-figures strong { font-size: 1.25rem; font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
+.token-figures__price strong { font-size: 1.75rem; line-height: 1.1; }
+.token-figures small { color: var(--color-fg-muted); font-size: .75rem; }
+@media (max-width: 30rem) {
+  .token-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .token-figures__price { grid-column: 1 / -1; }
+}
 @media (min-width: 64rem) {
   .token-page__layout { grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem); grid-template-areas: "overview side" "details side"; }
 }

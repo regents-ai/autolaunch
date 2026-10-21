@@ -912,10 +912,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "the USD price of one unit of that currency, nil while none is known"
 
-  # A price per token in dollars where the currency's dollar price is known,
-  # otherwise in the currency itself. A tiny price counts its zeros after the
-  # point, as in `$0.0₄123`, with the plain figure kept for screen readers.
-  defp price_figure(assigns) do
+  @doc """
+  A price per token in dollars where the currency's dollar price is known,
+  otherwise in the currency itself. A tiny price counts its zeros after the
+  point, as in `$0.0₄123`, with the plain figure kept for screen readers.
+  """
+  def price_figure(assigns) do
     price = decimal(assigns.amount)
     usd = if price && assigns.rate, do: dollars(price, assigns.rate)
     shown = if usd, do: TokenDisplay.zeros(usd)
@@ -975,16 +977,19 @@ defmodule AutolaunchWeb.Components.MarketCard do
     if Decimal.eq?(value, 0), do: "$0", else: "$" <> compact(value)
   end
 
-  # An amount in dollars where its currency's dollar price is known, otherwise
-  # in the currency itself; nil while the amount is not known. A tiny amount
-  # counts its zeros after the point, as the clearing price does.
-  defp money(amount, rate, unit \\ nil)
-  defp money(nil, _rate, _unit), do: nil
+  @doc """
+  An amount in dollars where its currency's dollar price is known, otherwise
+  in the currency itself, shortened as the lists write it; nil while the
+  amount is not known. A tiny amount counts its zeros after the point, as the
+  clearing price does.
+  """
+  def money(amount, rate, unit \\ nil)
+  def money(nil, _rate, _unit), do: nil
 
-  defp money(%Decimal{} = amount, nil, unit),
+  def money(%Decimal{} = amount, nil, unit),
     do: TokenDisplay.zeros(String.trim("#{compact(amount)} #{unit}"))
 
-  defp money(%Decimal{} = amount, rate, _unit), do: TokenDisplay.zeros(dollars(amount, rate))
+  def money(%Decimal{} = amount, rate, _unit), do: TokenDisplay.zeros(dollars(amount, rate))
 
   @doc "An amount shortened to three significant digits: 0.0000123, 1.48, 24.7K, 1.48M."
   def compact(value) do
@@ -1192,6 +1197,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
     doc: "the page's own reading of the state, when the record's state label lags the chain"
 
   slot :price_note, doc: "shown after the price, such as its dollar value"
+
+  slot :figures,
+    doc:
+      "a token page's own figures, in the price's place (`AutolaunchWeb.Components.TokenFigures`)"
+
   slot :chart, doc: "the price chart, across the card under the image and the price"
 
   def detail_card(assigns) do
@@ -1244,7 +1254,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
           </Regent.Primitives.status>
           <span :if={@kind == :auction && @view.age}>{@view.age}</span>
         </div>
-        <div class="market-identity__price">
+        {render_slot(@figures)}
+        <div :if={@figures == []} class="market-identity__price">
           <span>{@view.metric_label}</span><TokenDisplay.price
             amount={@view.metric.amount}
             unit={@view.metric.unit}

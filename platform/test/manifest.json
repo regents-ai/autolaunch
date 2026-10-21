@@ -1,5 +1,5 @@
 {
-  "total": 78,
+  "total": 79,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1042,6 +1042,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "5928c66e717cc729f43a15e0c31b28b235f51bf0ca8aab72032d8af01e6cebef"
+    },
+    {
+      "id": 119,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/token_page_first_screen_test.exs",
+      "line": 16,
+      "test_name": "the price, market cap, change and creator come before the chart and the trade widget",
+      "keep_because": "A token page opens on its figures and creator before the trade widget, in page order, so a phone shows them first, and never says the chart is unavailable. It fails if the widget moves ahead of the figures or the old button text returns.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1cad7e8782739be4c7e4e3a7a11da7172dc65de7fe0e6bd2a0815bc13716b825"
     }
   ],
   "legacy_folders_to_remove": [

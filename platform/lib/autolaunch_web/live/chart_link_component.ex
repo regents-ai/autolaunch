@@ -1,8 +1,10 @@
 defmodule AutolaunchWeb.ChartLinkComponent do
   @moduledoc """
-  A chart link only after DexScreener confirms this pool's listing. The caller's
-  component id includes the network and pool id, so the background read has one
-  fixed owner throughout this component's lifetime.
+  The chart button: DexScreener's chart once DexScreener confirms this pool's
+  listing, and until then, or when it never does, the page's own price chart
+  (`own_chart`, the chart's id). The caller's component id includes the
+  network and pool id, so the background read has one fixed owner throughout
+  this component's lifetime.
   """
   use AutolaunchWeb, :live_component
 
@@ -40,14 +42,13 @@ defmodule AutolaunchWeb.ChartLinkComponent do
       >
         <span class="token-heading__dexscreener" aria-hidden="true"></span> View Chart
       </a>
-      <Regent.Primitives.button
-        :if={!@listed.ok? || @listed.result != true}
-        variant="secondary"
-        disabled
-        class="token-heading__link"
+      <a
+        :if={(!@listed.ok? || @listed.result != true) && @own_chart}
+        class="rg-button rg-button--secondary token-heading__link"
+        href={"#" <> @own_chart}
       >
-        Chart unavailable
-      </Regent.Primitives.button>
+        View Chart
+      </a>
     </span>
     """
   end
