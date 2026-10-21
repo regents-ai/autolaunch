@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: every auction and token page points to its own record
+- An agent on an auction or token page finds a link to that page's record in the agent API, and the page describes that auction or token to search engines, not only the site.
+
 ## 21 October 2026: token prices in dollars, short prices and auction counts for agents
 - Agents reading tokens now get each token's price and market cap in its own currency and in dollars, and what its auction raised, the same figures the token lists show.
 - Prices in the agent API are 18 digits long instead of about 90, rounded up, so a bid at a stated clearing price still reaches it.

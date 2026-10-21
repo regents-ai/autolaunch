@@ -90,9 +90,9 @@ defmodule AutolaunchWeb.MarketPageLive do
       do:
         {RobinhoodTokenLive,
          %{"token" => auction.token_address, "auction" => auction.auction_address},
-         ShareCard.token_meta(auction), auction},
+         ShareCard.token_meta(auction, token), auction},
       else:
         {TokenLive, %{"token_id" => token.id, "auction_address" => auction.auction_address},
-         ShareCard.token_meta(auction), auction}
+         ShareCard.token_meta(auction, token), auction}
   end
 end

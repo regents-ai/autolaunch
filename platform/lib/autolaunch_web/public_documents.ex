@@ -337,6 +337,82 @@ defmodule AutolaunchWeb.PublicDocuments do
     }
   end
 
+  @doc """
+  The structured data of an auction's page: the page, and the auction it is
+  about as an online event that opens and closes, named by its contract on
+  its chain. `page` is the page's details from `AutolaunchWeb.ShareCard.meta/1`.
+  """
+  def auction_data(auction, page) do
+    record_data(page, %{
+      "@type" => "Event",
+      "@id" => page.url <> "#auction",
+      "name" => "#{auction.title} (#{auction.token_symbol}) auction",
+      "url" => page.url,
+      "description" => auction.summary || page.description,
+      "image" => page.image,
+      "startDate" => iso8601(auction.opened_at),
+      "endDate" => iso8601(auction.estimated_end_at),
+      "eventAttendanceMode" => "https://schema.org/OnlineEventAttendanceMode",
+      "location" => %{"@type" => "VirtualLocation", "url" => page.url},
+      "identifier" => caip10(auction.chain_id, auction.auction_address)
+    })
+  end
+
+  @doc """
+  The structured data of a token's page: the page, and the token it is about,
+  named by its contract on its chain. `page` is the page's details from
+  `AutolaunchWeb.ShareCard.token_meta/2`.
+  """
+  def token_data(auction, page) do
+    record_data(page, %{
+      "@type" => "FinancialProduct",
+      "@id" => page.url <> "#token",
+      "name" => auction.title,
+      "alternateName" => auction.token_symbol,
+      "url" => page.url,
+      "description" => auction.summary || page.description,
+      "image" => page.image,
+      "category" => if(auction.kind == :agent, do: "Revstake token", else: "Memestock token"),
+      "identifier" => caip10(auction.chain_id, auction.token_address)
+    })
+  end
+
+  # The page, about one auction or token, and where the public API gives its record.
+  defp record_data(page, entity) do
+    entity =
+      entity
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+      |> Map.put("subjectOf", %{
+        "@type" => "DataDownload",
+        "contentUrl" => page.record,
+        "encodingFormat" => "application/json"
+      })
+
+    %{
+      "@context" => "https://schema.org",
+      "@graph" => [
+        %{
+          "@type" => "WebPage",
+          "@id" => page.url,
+          "url" => page.url,
+          "name" => page.title,
+          "description" => page.description,
+          "isPartOf" => %{"@id" => url("/#website")},
+          "mainEntity" => %{"@id" => entity["@id"]}
+        },
+        entity
+      ]
+    }
+  end
+
+  # A contract named the CAIP-10 way: its chain and its address.
+  defp caip10(_chain_id, nil), do: nil
+  defp caip10(chain_id, address), do: "eip155:#{chain_id}:#{address}"
+
+  defp iso8601(nil), do: nil
+  defp iso8601(at), do: DateTime.to_iso8601(at)
+
   defp markdown(name) do
     @sources[name]
     |> String.replace("{{key_facts}}", @key_facts)
