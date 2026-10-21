@@ -7,13 +7,14 @@ defmodule AutolaunchWeb.TokenLive do
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.TokenFigures
   import AutolaunchWeb.Components.TokenHeading
   import AutolaunchWeb.Components.TokenTrade
 
   alias Autolaunch.Lab
   alias Autolaunch.{Pool, PoolFees, TreasurySecurity}
   alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch, TokenTrade}
-  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard}
+  alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
   alias AutolaunchWeb.SwapComponent
 
   def mount(%{"auction_address" => address}, _session, socket),
@@ -117,6 +118,7 @@ defmodule AutolaunchWeb.TokenLive do
           chain_id={@page_record.auction.chain_id}
           address={@page_record.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
+          own_chart={own_chart(@pool, "token-price-chart")}
         />
         <CreatorLabel.creator auction={@page_record.auction} connections={@creator_connections} />
         <ShareLaunch.share_launch
@@ -128,6 +130,16 @@ defmodule AutolaunchWeb.TokenLive do
       <div class="token-page__layout">
         <div class="token-page__overview">
           <.detail_card kind={:token} record={@page_record}>
+            <:figures>
+              <.token_figures
+                id="token-figures"
+                price={@page_record.price_quote}
+                market_cap={@page_record.market_cap}
+                unit={SwapComponent.entry_symbol(@page_record.auction)}
+                rate={@usd_rate}
+                pool={@pool}
+              />
+            </:figures>
             <:chart :if={@pool.ok? || @pool.loading}>
               <.price_chart_reading :if={!@pool.ok?} />
               <.price_chart
@@ -231,6 +243,12 @@ defmodule AutolaunchWeb.TokenLive do
     """
   end
 
+  # The page draws its own price chart once the pool has two prices to join.
+  defp own_chart(%{ok?: true, result: %{prices: %{points: [_first, _second | _rest]}}}, id),
+    do: id
+
+  defp own_chart(_pool, _id), do: nil
+
   defp tabs(socket), do: TokenTrade.tabs(true, socket.assigns.staked?)
 
   # What Copy Full Token Details to Agent copies, as the page has read it
@@ -300,7 +318,23 @@ defmodule AutolaunchWeb.TokenLive do
 
     socket
     |> assign_async(:page, fn -> load_token_page(id) end, reset: true)
+    |> assign_async(:usd_rate, fn -> usd_rate(id) end, reset: true)
     |> load_pool(true)
+  end
+
+  # The dollar price of the token's currency, for its first figures; nil on a
+  # test network or while the currency has none.
+  defp usd_rate(id) do
+    case load_token_page(id) do
+      {:ok, %{page: %{record: %{auction: auction}}}} when is_map(auction) ->
+        {:ok, %{usd_rate: UsdValue.auction_rate(UsdValue.rates(), auction)}}
+
+      {:ok, _no_record} ->
+        {:ok, %{usd_rate: nil}}
+
+      error ->
+        error
+    end
   end
 
   # A re-read keeps the record and the pool on the page until the new ones

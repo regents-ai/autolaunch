@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: token pages open on the price
+- A token's page now opens on its price in dollars, its market cap, how far it has moved since its pool opened and who made it, then its chart, then Swap and Stake. On a phone the picture sits small beside them, so they are all on the first screen.
+- Where the outside chart site has no chart for a token yet, View Chart opens the token's own price chart on the page instead of saying the chart is unavailable.
+
 ## 21 October 2026: creators named the same way everywhere
 - Every list, auction page, token page and share picture names a launch's creator the same way: their checked X, ENS or GitHub name when they have one, otherwise their wallet, shortened. Before, lists showed only the wallet.
 

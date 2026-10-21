@@ -165,7 +165,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def load_auction_page(id), do: load_detail(id, &Autolaunch.get_public_auction/1)
 
-  def load_token_page(id), do: load_detail(id, &Autolaunch.get_public_token/1)
+  def load_token_page(id),
+    do: load_detail(id, &Autolaunch.get_public_token(&1, load: [:market_cap]))
 
   # A record gone since its page address was read is missing; a failed read is
   # an outage.
