@@ -27,7 +27,12 @@ defmodule AutolaunchWeb.Telemetry do
     * `[:autolaunch, :rpc, :failure]` — `count` 1 for each chain request that
       got no answer, by `method`, `class`, `chain_id` and `scope`.
     * `[:autolaunch, :repo, :query]` — Ecto's own event per query, whose
-      `queue_time` is the wait for a database connection.
+      `queue_time` is the wait for a database connection and `total_time` the
+      query's whole time.
+    * `[:phoenix, :router_dispatch, :stop]` — each request the router sends to
+      a page or controller, timed by its route pattern, never by its path.
+    * `[:oban, :job, :stop]` and `[:oban, :job, :exception]` — each background
+      job run's outcome and time.
     * `[:autolaunch, :wallet, :failure]` — `count` 1 for each wallet send the
       browser reported as not made or not confirmed, by `flow` and `reason`.
     * `[:autolaunch, :shared_reading, ...]` — the figures every visitor sees
@@ -52,6 +57,11 @@ defmodule AutolaunchWeb.Telemetry do
   The metrics port listens on Fly's private network only: the public proxy
   routes nothing but `[http_service]`, so the numbers are never public. It
   starts only where `:metrics_port` is configured (production).
+
+  The reporter, Peep, keeps a fixed set of counters for each series and holds
+  no observation between scrapes. It adds each observation to a running total
+  as a whole number, so times are measured in whole microseconds, and every
+  total stays exact.
   """
 
   use Supervisor
@@ -61,7 +71,11 @@ defmodule AutolaunchWeb.Telemetry do
   import Ecto.Query
   import Telemetry.Metrics
 
+  alias AutolaunchWeb.Telemetry.Buckets
+
   @wallet_failures ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
+
+  @reporter :autolaunch_prometheus
 
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
@@ -70,7 +84,7 @@ defmodule AutolaunchWeb.Telemetry do
   @impl true
   def init(_arg) do
     children = [
-      {TelemetryMetricsPrometheus.Core, metrics: metrics(), name: reporter(), start_async: false},
+      {Peep, metrics: metrics(), name: @reporter},
       metrics_listener(Application.get_env(:autolaunch, :metrics_port))
     ]
 
@@ -79,19 +93,25 @@ defmodule AutolaunchWeb.Telemetry do
     |> Supervisor.init(strategy: :one_for_one)
   end
 
-  @doc "The Prometheus reporter the metrics port scrapes."
-  def reporter, do: :autolaunch_prometheus
+  @doc "Every measurement as Prometheus text, as the metrics port answers it."
+  def scrape,
+    do: @reporter |> Peep.get_all_metrics() |> Peep.Prometheus.export() |> IO.iodata_to_binary()
 
   @doc "The site health set and the engine's own measurements, as Prometheus series."
   def metrics do
     [
-      distribution("health.chain_event.delay.seconds",
+      distribution("health.chain_event.delay.microseconds",
         event_name: [:autolaunch, :chain_event, :recorded],
         measurement: :delay_ms,
-        unit: {:millisecond, :second},
+        unit: {:millisecond, :microsecond},
         tags: [:kind, :chain_id],
-        description: "Seconds from a bid's or trade's block to when the site recorded it",
-        reporter_options: [buckets: [1, 2, 5, 10, 20, 30, 60, 120, 300, 600]]
+        description: "Microseconds from a bid's or trade's block to when the site recorded it",
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets:
+            [1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000, 30_000_000] ++
+              [60_000_000, 120_000_000, 300_000_000, 600_000_000]
+        ]
       ),
       last_value("health.indexer.lag.blocks",
         event_name: [:autolaunch, :indexer, :lag],
@@ -117,12 +137,71 @@ defmodule AutolaunchWeb.Telemetry do
         tag_values: &chain_failure_labels/1,
         description: "Chain requests that got no answer"
       ),
-      distribution("health.db_queue.seconds",
+      distribution("health.db_queue.microseconds",
         event_name: [:autolaunch, :repo, :query],
         measurement: :queue_time,
-        unit: {:native, :second},
-        description: "Seconds a query waited for a database connection",
-        reporter_options: [buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]]
+        unit: {:native, :microsecond},
+        description: "Microseconds a query waited for a database connection",
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets:
+            [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000] ++
+              [1_000_000, 2_500_000, 5_000_000]
+        ]
+      ),
+      distribution("autolaunch.repo.query.microseconds",
+        event_name: [:autolaunch, :repo, :query],
+        measurement: :total_time,
+        unit: {:native, :microsecond},
+        description: "Microseconds each query took, waiting for a connection included",
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets:
+            [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000] ++
+              [1_000_000, 2_500_000, 5_000_000]
+        ]
+      ),
+      distribution("autolaunch.request.duration.microseconds",
+        event_name: [:phoenix, :router_dispatch, :stop],
+        measurement: :duration,
+        unit: {:native, :microsecond},
+        tags: [:route],
+        description: "Microseconds each request took, by its route pattern",
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets:
+            [5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000] ++
+              [2_500_000, 5_000_000, 10_000_000]
+        ]
+      ),
+      counter("autolaunch.jobs.finished.total",
+        event_name: [:oban, :job, :stop],
+        tags: [:queue, :worker, :state],
+        description: "Job runs that ended done, cancelled or snoozed"
+      ),
+      counter("autolaunch.jobs.failed.total",
+        event_name: [:oban, :job, :exception],
+        tags: [:queue, :worker, :state],
+        description: "Job runs that failed; state says whether the job will retry"
+      ),
+      distribution("autolaunch.jobs.duration.microseconds",
+        event_name: [:oban, :job, :stop],
+        measurement: :duration,
+        unit: {:native, :microsecond},
+        tags: [:queue, :worker],
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets: [
+            10_000,
+            50_000,
+            100_000,
+            500_000,
+            1_000_000,
+            5_000_000,
+            15_000_000,
+            60_000_000
+          ]
+        ]
       ),
       counter("health.wallet_send_failures.total",
         event_name: [:autolaunch, :wallet, :failure],
@@ -182,13 +261,24 @@ defmodule AutolaunchWeb.Telemetry do
       counter("autolaunch.auction_page.ladder_stopped.total",
         event_name: [:autolaunch, :auction_page, :ladder_stopped]
       ),
-      distribution("autolaunch.share_video.render.seconds",
+      distribution("autolaunch.share_video.render.microseconds",
         event_name: [:autolaunch, :share_video, :rendered],
         measurement: :ms,
-        unit: {:millisecond, :second},
+        unit: {:millisecond, :microsecond},
         tags: [:kind],
-        description: "Seconds to draw and encode one share video",
-        reporter_options: [buckets: [1, 2, 5, 10, 20, 30, 60]]
+        description: "Microseconds to draw and encode one share video",
+        reporter_options: [
+          peep_bucket_calculator: Buckets,
+          buckets: [
+            1_000_000,
+            2_000_000,
+            5_000_000,
+            10_000_000,
+            20_000_000,
+            30_000_000,
+            60_000_000
+          ]
+        ]
       ),
       last_value("autolaunch.share_video.peak_memory.bytes",
         event_name: [:autolaunch, :share_video, :rendered],
