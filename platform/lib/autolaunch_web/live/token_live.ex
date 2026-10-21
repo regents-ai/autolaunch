@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.{Pool, PoolFees, TreasurySecurity}
-  alias AutolaunchWeb.Components.{ShareLaunch, TokenTrade}
+  alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch, TokenTrade}
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard}
   alias AutolaunchWeb.SwapComponent
 
@@ -118,6 +118,7 @@ defmodule AutolaunchWeb.TokenLive do
           address={@page_record.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
         />
+        <CreatorLabel.creator auction={@page_record.auction} connections={@creator_connections} />
         <ShareLaunch.share_launch
           id="share-launch"
           auction={@page_record.auction}

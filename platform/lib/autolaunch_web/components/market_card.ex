@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.StoredImage
   alias Autolaunch.Token
-  alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
+  alias AutolaunchWeb.Components.{BidPlaced, ChainIcon, CreatorLabel}
   import AutolaunchWeb.Components.MinimumWarning
   alias AutolaunchWeb.{Paths, SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
@@ -500,6 +500,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :records, :list, required: true, doc: "auctions with `fdv` loaded"
   attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
+
+  attr :creators, :map,
+    required: true,
+    doc: "the creators' connected accounts, from `creator_connections_for/1`"
+
   attr :loading, :boolean, default: false
 
   attr :trade_event, :string,
@@ -548,7 +553,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <tbody>
           <.auction_list_row
             :for={record <- @records}
-            view={view(:auction, record, %{})}
+            view={view(:auction, record, connections_for(record, @creators))}
             figures={figures(record, figure_rate(@rates, record))}
             rate={figure_rate(@rates, record)}
             trade_event={@trade_event}
@@ -664,6 +669,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :records, :list, required: true, doc: "launched tokens with `market_cap` loaded"
   attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
+
+  attr :creators, :map,
+    required: true,
+    doc: "the creators' connected accounts, from `creator_connections_for/1`"
+
   attr :loading, :boolean, default: false
 
   attr :trade_event, :string,
@@ -692,6 +702,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <.token_list_row
             :for={token <- @records}
             token={token}
+            connections={connections_for(token, @creators)}
             rate={figure_rate(@rates, token.auction)}
             trade_event={@trade_event}
           />
@@ -711,11 +722,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :token, :map, required: true
+  attr :connections, :map, required: true
   attr :rate, :any, default: nil
   attr :trade_event, :string, default: nil
 
   defp token_list_row(assigns) do
-    view = view(:token, assigns.token, %{})
+    view = view(:token, assigns.token, assigns.connections)
 
     assigns =
       assign(assigns,
@@ -1286,7 +1298,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
     assigns =
       assign(assigns,
         view: view,
-        wallet: view.creator_address && wallet_link(view),
         volume: volume(auction),
         starting: money(auction.fdv, rate, auction.quote_token_symbol) || "No price yet",
         current: money(assigns.market_cap, rate, auction.quote_token_symbol) || "No price yet"
@@ -1326,10 +1337,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
               <.token_pair symbol={@view.symbol} unit={@view.metric.unit} />
             </span>
           </p>
-          <p :if={@wallet} class="auction-finished__creator">
-            Created by
-            <a href={@wallet.url} title={@wallet.address} target="_blank" rel="noopener noreferrer">{@wallet.short}</a>
-          </p>
+          <CreatorLabel.creator
+            auction={@auction}
+            connections={@connections}
+            class="auction-finished__creator"
+          />
           <.card_socials connections={@view.connections} website={@view.website} />
         </div>
       </div>
@@ -1457,7 +1469,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol, "No price yet"),
       path: Paths.auction(auction),
       token_path: if(auction.state == :graduated, do: Paths.token(auction)),
-      creator: RegentFormat.short_address(auction.creator_address),
+      creator: creator_text(auction, connections),
       creator_address: auction.creator_address,
       age: auction_age(auction),
       connections: connection_list(connections),
@@ -1497,7 +1509,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric_label: "Price",
       metric: metric(token.price_quote, currency, "No price yet"),
       path: Paths.token(token.auction),
-      creator: RegentFormat.short_address(token.auction.creator_address),
+      creator: creator_text(token.auction, connections),
       creator_address: token.auction.creator_address,
       age: ago(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
@@ -1506,6 +1518,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
       chain: "Base"
     }
   end
+
+  defp creator_text(auction, connections) do
+    case CreatorLabel.name(auction, connections) do
+      %{text: text} -> text
+      nil -> nil
+    end
+  end
+
+  # The connected accounts of the creator of a list's auction or token.
+  defp connections_for(record, creators),
+    do: AutolaunchWeb.Components.AutolaunchHelpers.connections_for(record, creators)
 
   @doc "An auction state in the words the site uses: live means open for bidding."
   def state_label(:created), do: "Opening soon"

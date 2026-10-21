@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   alias Autolaunch.{AuctionBook, AuctionSnapshot, BidReceipt, MarketReadings}
   alias Autolaunch.Lab
-  alias AutolaunchWeb.Components.ShareLaunch
+  alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch}
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
@@ -213,6 +213,7 @@ defmodule AutolaunchWeb.AuctionLive do
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
         </Regent.Structure.section_bar>
+        <CreatorLabel.creator auction={@page_record} connections={@creator_connections} />
         <ShareLaunch.share_launch
           id="share-launch"
           auction={@page_record}

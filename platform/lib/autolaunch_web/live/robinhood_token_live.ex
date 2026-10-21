@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   alias Autolaunch.MarketReadings
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
-  alias AutolaunchWeb.Components.{ShareLaunch, TokenTrade}
+  alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch, TokenTrade}
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard}
 
   def mount(%{"auction" => auction}, _session, socket),
@@ -112,6 +112,11 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           chain_id={@token.auction.chain_id}
           address={@token.auction.token_address}
           pool={if(@pool.ok?, do: @pool.result)}
+        />
+        <CreatorLabel.creator
+          :if={@creator_connections.ok?}
+          auction={@token.auction}
+          connections={@creator_connections.result}
         />
         <ShareLaunch.share_launch
           id="share-launch"

@@ -1016,6 +1016,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+    },
+    {
+      "id": 117,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/creator_label_test.exs",
+      "line": 14,
+      "test_name": "a creator with a checked X account is named by it in the list and on both pages",
+      "keep_because": "The auctions and tokens lists and the auction and token pages name a creator by their checked X account. It fails if any of them falls back to the wallet while an account is checked.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5928c66e717cc729f43a15e0c31b28b235f51bf0ca8aab72032d8af01e6cebef"
+    },
+    {
+      "id": 118,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/creator_label_test.exs",
+      "line": 46,
+      "test_name": "a creator with no checked account is named by the short launching wallet",
+      "keep_because": "Without a checked account the creator is the short wallet, never the full one, on the list and the auction page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5928c66e717cc729f43a15e0c31b28b235f51bf0ca8aab72032d8af01e6cebef"
     }
   ],
   "legacy_folders_to_remove": [
