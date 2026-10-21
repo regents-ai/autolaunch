@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: other websites can show Autolaunch auctions and tokens
+- A page on any website can read Autolaunch's public auction, token, count and treasury figures straight from its visitors' browsers. Anything tied to a person's sign-in or an agent's pairing still answers only autolaunch.sh.
+
 ## 21 October 2026: every auction and token page points to its own record
 - An agent on an auction or token page finds a link to that page's record in the agent API, and the page describes that auction or token to search engines, not only the site.
 

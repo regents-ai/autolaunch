@@ -84,6 +84,7 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | --- | --- | --- |
 | `autolaunch_auctions` | `GET /api/v1/auctions` | `autolaunch_web/controllers/auction_controller_test.exs` › "a Robinhood auction's id from the list opens its detail"; `autolaunch_web/controllers/public_api_failures_test.exs` › "PUBLIC_API_FAILED_READS_ARE_LOGGED: each failed read is logged by kind and module only" |
 | `autolaunch_auction` | `GET /api/v1/auctions/{id}` | As above |
+| (all public reads) | Any website's page may read the six public `GET` routes; no account or agent route | `autolaunch_web/controllers/public_read_origin_test.exs` › "the public reads allow any origin, and no signed or account route does" |
 | `autolaunch_auction_counts` | `GET /api/v1/auction-counts` | `auction_controller_test.exs` › "the counts give each launch type's live and graduated auctions on each chain" |
 | `autolaunch_tokens` | `GET /api/v1/tokens` | `public_api_failures_test.exs` (same case); `autolaunch_web/controllers/token_controller_test.exs` › "a token's price and market cap read in REGENT and in dollars, list and detail alike"; `autolaunch/auction_figures_test.exs` › "a stated price keeps at most 18 significant digits and is the stored one rounded up" |
 | `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above |

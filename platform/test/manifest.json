@@ -1,5 +1,5 @@
 {
-  "total": 74,
+  "total": 75,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -964,6 +964,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "c502e220957b0ef0c3aa1992e4a1f61cacfe49fb0725dd9f66eb30e9c9c429f8"
+    },
+    {
+      "id": 75,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/public_read_origin_test.exs",
+      "line": 18,
+      "test_name": "the public reads allow any origin, and no signed or account route does",
+      "keep_because": "Another website's page may read the six cookie-free public reads, never with credentials. It fails if a signed-in person's, a profile, a paired agent's or the bid estimate route allows another origin, or a public read stops allowing it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5083e93305b4f1a933ac742364a00830db800653a58835187d8d6dad87568dd2"
     }
   ],
   "legacy_folders_to_remove": [
