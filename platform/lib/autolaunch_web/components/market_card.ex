@@ -522,7 +522,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
   live auction when the page takes bids. Between the token and its price, a
   graduated auction shows a Buy link to its token's page while the row is
   pointed at, and a finished auction the viewer has money or tokens to take
-  from shows that press. On a phone the raise and market cap are left out.
+  from shows that press. On a phone each row shows one figure instead of the
+  price, raise and market cap: what bidders have put in while the auction can
+  still take bids, its price once it has finished.
   """
   def auction_list(assigns) do
     ~H"""
@@ -548,6 +550,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
             </th>
             <th scope="col">Status</th>
             <th :if={@trade_event} scope="col"><span class="visually-hidden">Bid</span></th>
+            <th scope="col" class="market-list__key">
+              <span class="visually-hidden">Raised so far, or the price once finished</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -566,7 +571,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             class="market-list__skeleton"
             aria-hidden="true"
           >
-            <td colspan={if @trade_event, do: "7", else: "6"}><span class="loading-block"></span></td>
+            <td colspan={if @trade_event, do: "8", else: "7"}><span class="loading-block"></span></td>
           </tr>
         </tbody>
       </table>
@@ -645,6 +650,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
           title={@view.bid.unavailable}
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
+      </td>
+      <td class="market-list__key">
+        <span :if={@figures.state in [:graduated, :failed]}>
+          <small>Price</small>
+          <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} />
+        </span>
+        <span :if={@figures.state not in [:graduated, :failed]}>
+          <small>Raised</small> {@figures.volume}
+        </span>
       </td>
     </tr>
     """

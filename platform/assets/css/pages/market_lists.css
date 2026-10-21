@@ -48,6 +48,8 @@
 .market-list__action .rg-button { padding: 4px 18px; font-size: .8125rem; }
 /* Between a token and its price: Buy shows while the row is pointed at or focused, its room always kept; the viewer's own Claim or Refund always shows. */
 .market-list__table .market-list__quick { width: 1%; padding-left: 0; white-space: nowrap; }
+/* A row's one figure on a phone (see the narrow layout below). */
+.market-list__table .market-list__key { display: none; }
 .market-list__quick .rg-button { padding: 4px 18px; font-size: .8125rem; }
 .market-list__quick .rg-button + .rg-button { margin-left: 8px; }
 .market-list__buy { opacity: 0; transition: opacity .12s ease; }
@@ -106,11 +108,15 @@
   .market-list__table--auctions :is(thead, tbody) { display: block; }
   .market-list__table--auctions thead tr { display: flex; justify-content: space-between; }
   .market-list__table--auctions thead th:is(:nth-child(2), :nth-child(7)) { display: none; }
-  .market-list__table--auctions .market-list__row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); }
+  .market-list__table--auctions .market-list__row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; }
   .market-list__table--auctions .market-list__row > th { grid-column: 1 / -1; width: auto; max-width: none; padding-bottom: 0; }
   .market-list__table--auctions .market-list__quick { grid-column: 1; grid-row: 2; width: auto; padding-left: 12px; }
   .market-list__table--auctions .market-list__action { grid-column: 2; grid-row: 2; width: auto; padding-inline: 4px; }
-  .market-list__table--auctions .market-list__status { grid-column: 3; grid-row: 2; justify-self: end; max-width: 7rem; }
+  .market-list__table--auctions .market-list__status { grid-column: 4; grid-row: 2; justify-self: end; max-width: 7rem; }
+  /* One figure a row: what bidders have put in while it runs, its price after. */
+  .market-list__table--auctions tbody .market-list__key { display: block; grid-column: 3; grid-row: 2; align-self: center; min-width: 0; text-align: left; font-variant-numeric: tabular-nums; }
+  .market-list__key > span { display: grid; justify-items: start; gap: 2px; }
+  .market-list__key small { color: var(--color-fg-muted); font-size: .75rem; }
   .market-list__table--auctions .market-list__row + .market-list__row { border-top: 1px solid var(--hairline); }
   .market-list__table--auctions .market-list__row + .market-list__row > * { border-top: 0; }
 }
