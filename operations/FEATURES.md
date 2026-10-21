@@ -98,7 +98,7 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/revstake` | **Gap** |
 | `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/memestock` | **Gap** |
 | (none) | Make a payment (Revstake token page): the review is built only on the token's own Base network | `autolaunch/subject_wallet_network_test.exs` › "a deployment on another network refuses a Base subject's payment review". Taking a payment: **gap** (the card's chain reader is not open) |
-| `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft_save` | `PATCH /api/agent/v1/drafts/{kind}` | `autolaunch/agent_drafts_test.exs` (all three cases); the create page names every agent-set field: `autolaunch_web/live/agent_draft_review_test.exs` › "the create page names what the agent set, and forgets a field the person changes". The signed request itself: **gap** |
+| `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft_save` | `PATCH /api/agent/v1/drafts/{kind}` | `autolaunch/agent_drafts_test.exs` (all three cases); the create page names every agent-set field: `autolaunch_web/live/agent_draft_review_test.exs` › "the create page names what the agent set, and forgets a field the person changes", › "the launch review names every agent-set field and shows the community links". The signed request itself: **gap** |
 | `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | **Gap** |
 | `account_balances` | `GET /api/agent/v1/account/balances` | **Gap** |
 | `account_credits_history` | `POST /api/agent/v1/account/credits/history` | **Gap** |

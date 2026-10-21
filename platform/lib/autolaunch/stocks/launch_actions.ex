@@ -249,6 +249,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "image" => fields.image,
         "stock" => fields.stock,
         "stock_symbol" => fields.stock_symbol,
+        "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
         "stock_decimals" => Integer.to_string(executable.stock_decimals),
         "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
         "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
