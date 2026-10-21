@@ -33,6 +33,20 @@ defmodule Autolaunch.Stocks.UpcomingCatalog do
     end)
   end
 
+  @doc """
+  One stock by its symbol, in any case, with where it stands and its chain's
+  name and key, as `chains/0` gives them; nil for a symbol the catalog does
+  not hold. Each symbol names one stock: a Base stock token's ends in `c`.
+  """
+  def stock(symbol) do
+    wanted = String.downcase(symbol)
+
+    with %{} = stock <- Enum.find(@stocks, &(String.downcase(&1["symbol"]) == wanted)) do
+      chain = String.to_existing_atom(stock["chain"])
+      {status(stock), %{chain: chain, name: Keyword.fetch!(@chains, chain)}}
+    end
+  end
+
   defp status(%{"section" => "available"} = stock), do: Map.put(stock, "status", nil)
 
   defp status(%{"section" => "soon"} = stock),

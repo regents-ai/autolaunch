@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: a light stock listing, with a page for each stock
+- The stock listing is now a short list that opens quickly. Each stock has its own page with its addresses, company links and pool research, at an address you can share, such as /stock-listing/AAPLc.
+
 ## 21 October 2026: one figure a row on a phone
 - On a phone, each auction in the lists shows one figure: how much bidders have put in while it can still take bids, and its price once it has finished.
 
