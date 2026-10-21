@@ -10,18 +10,6 @@ is set, creators cannot add X accounts and no auction or token shows a creator l
 Robinhood launches name their creator by the launching wallet: the account whose signed-in
 wallet it still is, when exactly one account's is. The launch itself required that wallet.
 
-## Payment card before it is switched on
-
-Noted 27 September 2026 from the A02 review. The payment card (`SubjectWalletComponent`) cannot
-build a review in production: `Autolaunch.SubjectWalletRpcClient.snapshot/1` refuses until the
-launch's splitter and canonical receiver are frozen evidence, and a site-made Revstake launch has
-no `Autolaunch.Subject` record for the card to read. Switching it on needs a real Base snapshot
-client and that record.
-
-The review's network is settled (21 October 2026): `Autolaunch.SubjectWalletActions.prepare/5`
-builds a review only when the deployment's network is the subject's own Base network, and refuses
-with `review_network_mismatch` otherwise.
-
 ## Before the wallet-steps release (A02)
 
 Noted 28 September 2026 from the ash-template chief's review.

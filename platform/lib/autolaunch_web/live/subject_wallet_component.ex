@@ -444,14 +444,14 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   # Each read counts against the account's wallet-read allowance, or signed out
   # the visitor's address allowance. Past it, the balances already shown stay.
   defp start_state(socket, wallet) do
-    subject_id = socket.assigns.subject_id
+    auction_id = socket.assigns.auction_id
 
     case Limits.spend(:wallet_read, reader(socket.assigns)) do
       :ok ->
         socket
         |> assign(state_for: wallet)
         |> start_async(:state, fn ->
-          {wallet, SubjectWalletActions.wallet_state(subject_id, wallet)}
+          {wallet, SubjectWalletActions.wallet_state(auction_id, wallet)}
         end)
 
       :limited when is_nil(socket.assigns.state) ->
@@ -481,7 +481,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   defp review(%{assigns: %{signer: signer}} = socket, kind, params) do
     case SubjectWalletActions.prepare(
-           socket.assigns.subject_id,
+           socket.assigns.auction_id,
            signer,
            kind,
            params,

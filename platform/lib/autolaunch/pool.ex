@@ -200,6 +200,28 @@ defmodule Autolaunch.Pool do
   end
 
   @doc """
+  Where a Revstake launch takes payments, from the strategy's own record of it
+  at the latest block: its token, its revenue splitter, its payment receiver
+  and its treasury. `{:error, :not_graduated}` until the strategy has migrated
+  the launch, before which the record names none of them.
+  """
+  @spec payment_addresses(map()) :: {:ok, map()} | {:error, atom()}
+  def payment_addresses(%{kind: :agent} = auction) do
+    with {:ok, config} <- Lab.current(),
+         opts <- LabRpc.opts(config, "autolaunch payment card"),
+         {:ok, block} <- Rpc.latest_block(opts),
+         {:ok, distribution} <- agent_record(auction, config, block, opts) do
+      {:ok,
+       %{
+         token: distribution.subject,
+         splitter: distribution.splitter,
+         receiver: distribution.receiver,
+         treasury: distribution.treasury
+       }}
+    end
+  end
+
+  @doc """
   What a reader of the pool's trades needs: the PoolManager, the pool id, the
   token, which side of the pool it is on, the currency it trades against and
   the block the pool opened in. `{:error, :not_graduated}` until the pool
@@ -451,6 +473,14 @@ defmodule Autolaunch.Pool do
     end
   end
 
+  # A word that may name no address yet, as nil.
+  defp word_address(word) do
+    case Abi.word_address(word) do
+      {:ok, address} -> address
+      :error -> nil
+    end
+  end
+
   # The pool id is read first: until the strategy migrates the launch, the
   # splitter and receiver words are still zero and decode as no address.
   defp agent_distribution(words) do
@@ -464,6 +494,7 @@ defmodule Autolaunch.Pool do
       {:ok,
        %{
          migration_block: distribution.migration_block,
+         treasury: word_address(distribution.treasury),
          lp_regent_used: distribution.lp_regent_used,
          lp_subject_used: distribution.lp_subject_used,
          final_sqrt_price_x96: distribution.final_sqrt_price_x96,

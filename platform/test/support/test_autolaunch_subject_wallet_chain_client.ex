@@ -60,18 +60,13 @@ end
 
 defmodule Autolaunch.SubjectWalletFixture do
   @moduledoc """
-  The one subject wallet fixture: a launch whose splitter and canonical receiver
-  agree with the pinned product bindings, an account holding the acting wallet,
-  a live lease, and a scripted chain to review against.
+  The one subject wallet fixture: a scripted chain whose splitter and canonical
+  receiver agree with the pinned product bindings, for the browser proof server.
 
   Every value here is fixture-bound. Nothing it produces is reviewed evidence,
   and no test that uses it may claim the production client prepares anything.
   """
 
-  alias Autolaunch
-  alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.SessionAuthority
-  alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.Abi
   alias Autolaunch.TestAutolaunchSubjectWalletChainClient, as: ChainClient
 
@@ -91,42 +86,6 @@ defmodule Autolaunch.SubjectWalletFixture do
   def treasury, do: @treasury
   def usdc, do: String.downcase(Abi.usdc_address())
   def regent, do: String.downcase(Abi.regent_address())
-
-  @doc "An account holding the acting wallet, its current lease, and a stored subject."
-  def actor(overrides \\ []) do
-    unique = Elixir.System.unique_integer([:positive])
-
-    account =
-      Accounts.register_verified!("did:privy:subject-wallet-#{unique}", @wallet, [@wallet],
-        actor: %System{}
-      )
-
-    {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
-    human = %Human{human_account_id: account.id}
-
-    [
-      account: account,
-      actor: human,
-      wallet: @wallet,
-      subject: subject!("subject:wallet:#{unique}", overrides),
-      opts: [
-        actor: human,
-        context: %{session_lease: %{lineage: claim.lineage, account_id: account.id}}
-      ]
-    ]
-  end
-
-  @doc "A stored subject whose addresses are the ones the scripted chain answers about."
-  def subject!(subject_id, overrides \\ []) do
-    Autolaunch.TestSupport.project_subject(
-      subject_id: subject_id,
-      token_address: Keyword.get(overrides, :token_address, @token),
-      splitter_address: Keyword.get(overrides, :splitter_address, @splitter),
-      treasury_address: Keyword.get(overrides, :treasury_address, @treasury),
-      creator_address: @wallet,
-      canonical_receiver_address: Keyword.get(overrides, :canonical_receiver_address, @receiver)
-    )
-  end
 
   @doc "The scripted chain a review is derived from, with any part replaced."
   def fixture(overrides \\ []) do

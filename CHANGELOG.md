@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: pay a Revstake token from its page
+- A Revstake token's page can take a payment into its revenue split once launches are open: choose USDC, REGENT or the token, check the review, and confirm in your wallet. The payment address comes from the launch's own record on Base, and the card refuses any address whose money would not go to the launch's treasury, or a site on another network.
+
+## 21 October 2026: the price chart draws itself in
+- A token's price chart now grows from its opening price to today when it first appears. If your device is set to reduce motion, it appears whole straight away.
+
 ## 21 October 2026: the payment card checks its network
 - The Revstake payment card only prepares a payment when the site is on the token's own Base network, and otherwise says payments are not open here. The card still takes no payments until it is switched on.
 
