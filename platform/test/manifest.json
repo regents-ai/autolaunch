@@ -1,5 +1,5 @@
 {
-  "total": 90,
+  "total": 91,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1172,6 +1172,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "5d8d77a1cb9c84c14071531e7a26797fc49e3f049a4cb6ec0793062d312c8a43"
+    },
+    {
+      "id": 131,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/subject_wallet_network_test.exs",
+      "line": 14,
+      "test_name": "a deployment on another network refuses a Base subject's payment review",
+      "keep_because": "A payment review is sent on the deployment's network, so it is built only for a subject on that same network. It fails while a deployment naming another network builds a Base subject's review (the A02 to-do).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fb344af6e467fbb792ec83a2ba84a8ee4c20bf8afcf00a6b82694631b8bf1caf"
     }
   ],
   "legacy_folders_to_remove": [

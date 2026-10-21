@@ -71,6 +71,7 @@ defmodule Autolaunch.SubjectWalletActions do
          {:ok, signer} <- current_wallet(address, opts),
          {:ok, config} <- lab(),
          {:ok, subject} <- actionable(subject_id),
+         :ok <- subject_network(config, subject),
          {:ok, asset} <- selected_asset(kind, params),
          {:ok, snapshot} <- snapshot(subject, signer, kind, asset),
          {:ok, plan} <- planned(kind, asset, params, snapshot, signer) do
@@ -191,6 +192,11 @@ defmodule Autolaunch.SubjectWalletActions do
 
     %{gross: gross, skim: skim, net: net, stakers: stakers, treasury: net - stakers}
   end
+
+  # The review is sent on the deployment's network, so it is built only when
+  # that is the subject's own Base network.
+  defp subject_network(%{chain_id: chain_id}, %{chain_id: chain_id}), do: :ok
+  defp subject_network(_config, _subject), do: unavailable(:review_network_mismatch)
 
   defp lab do
     case Lab.current() do
