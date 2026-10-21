@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: one figure a row on a phone
+- On a phone, each auction in the lists shows one figure: how much bidders have put in while it can still take bids, and its price once it has finished.
+
 ## 21 October 2026: token pages open on the price
 - A token's page now opens on its price in dollars, its market cap, how far it has moved since its pool opened and who made it, then its chart, then Swap and Stake. On a phone the picture sits small beside them, so they are all on the first screen.
 - Where the outside chart site has no chart for a token yet, View Chart opens the token's own price chart on the page instead of saying the chart is unavailable.
