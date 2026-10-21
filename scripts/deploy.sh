@@ -40,9 +40,10 @@ if ! git merge-base --is-ancestor "$commit" origin/main; then
 fi
 
 export_dir="${TMPDIR:-/tmp}/autolaunch-deploy-$commit"
-mkdir -p "$export_dir/platform/deployment"
+mkdir -p "$export_dir/deployment"
 git archive "$commit" | tar -x -C "$export_dir"
-cp platform/deployment/*.json "$export_dir/platform/deployment/"
+# fly deploy reads fly.toml's [[files]] local_path from the folder it runs in.
+cp platform/deployment/*.json "$export_dir/deployment/"
 cd "$export_dir"
 
 echo "==> Deploying ${commit:0:7} to $app"
