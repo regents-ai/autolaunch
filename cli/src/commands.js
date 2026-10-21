@@ -45,6 +45,12 @@ export const commands = [
     request: args => ({path: `/api/v1/auctions/${pathSegment(args[1])}`}),
   },
   {
+    command: "auctions counts", operation_id: "countAuctions", webmcp: "autolaunch_auction_counts",
+    method: "GET", path: "/api/v1/auction-counts", flags: [],
+    description: "Count live and graduated auctions for each launch type on each chain: revstake.base, memestock.base and memestock.robinhood, each with live (open for bidding) and graduated. The same counts the auctions page shows.", authority: "public", effect: "read",
+    request: () => ({path: "/api/v1/auction-counts"}),
+  },
+  {
     command: "bids quote", operation_id: "quoteAuctionBid", webmcp: "autolaunch_bid_quote",
     method: "POST", path: "/api/v1/auctions/{id}/bid-quote", flags: ["auction", "amount", "max-price"],
     required_flags: ["auction", "amount", "max-price"],
@@ -56,7 +62,7 @@ export const commands = [
   {
     command: "tokens list", operation_id: "listTokens", webmcp: "autolaunch_tokens",
     method: "GET", path: "/api/v1/tokens", flags: ["q", "chain", "kind", "limit", "after"], switches: verified,
-    description: "List graduated tokens on Base and Robinhood, found as the website's token list finds them, newest graduation first; every entry names its chain. --q, --chain, --kind, --x, --ens and --github mean what they mean for auctions list. Defaults to 100, capped at 100; follow pagination.next_cursor with --after and the same filters (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and its tokens show what was last read.",
+    description: "List graduated tokens on Base and Robinhood, found as the website's token list finds them, newest graduation first; every entry names its chain. --q, --chain, --kind, --x, --ens and --github mean what they mean for auctions list. Defaults to 100, capped at 100; follow pagination.next_cursor with --after and the same filters (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and its tokens show what was last read. Each token gives price_quote and market_cap in its quote_token, price_usd and market_cap_usd (null while the quote token has no dollar price), and its auction's bid_volume and bid_volume_usd; prices are decimal strings to 18 significant digits.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
     request: (_args, values) => listQuery("/api/v1/tokens", values, ["q", "chain", "kind", "limit", "after"]),
   },
@@ -70,7 +76,7 @@ export const commands = [
   {
     command: "token <id>", operation_id: "getToken", webmcp: "autolaunch_token",
     method: "GET", path: "/api/v1/tokens/{id}", flags: [],
-    description: "Read one publicly listed token on Base or Robinhood by its UUID. Includes canonical page URLs, stored price with its nullable recording time, quote token and supply. No live price, wallet or chain call.",
+    description: "Read one publicly listed token on Base or Robinhood by its UUID. Includes canonical page URLs, stored price with its nullable recording time, the same price, market cap and bid volume figures as tokens list, quote token and supply. No live price, wallet or chain call.",
     authority: "public", effect: "read",
     request: args => ({path: `/api/v1/tokens/${pathSegment(args[1])}`}),
   },

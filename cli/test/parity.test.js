@@ -23,6 +23,7 @@ test("all five public commands match existing WebMCP requests and domain results
     ["autolaunch_auctions", {after: "cursor+/資料=="}, ["auctions", "list", "--after", "cursor+/資料=="]],
     ["autolaunch_tokens", {after: "cursor+/資料=="}, ["tokens", "list", "--after", "cursor+/資料=="]],
     ["autolaunch_auction", {id}, ["auction", id]],
+    ["autolaunch_auction_counts", {}, ["auctions", "counts"]],
     ["autolaunch_tokens", {limit: 0}, ["tokens", "list", "--limit", "0"]],
     ["autolaunch_treasury", {address}, ["treasury", "security", address]],
     ["autolaunch_bid_quote", {id, amount: " 12.12345678901234567890123456789 ", max_price: "0003.000"}, ["bids", "quote", "--auction", id, "--amount", " 12.12345678901234567890123456789 ", "--max-price", "0003.000"]],

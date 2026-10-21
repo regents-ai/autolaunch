@@ -16,6 +16,7 @@ defmodule Autolaunch.BidActions do
   alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
+  alias Autolaunch.AuctionFigures
   alias Autolaunch.Chain.{Abi, Client, Rpc}
   alias Autolaunch.{ChainClient, Lab, LabAbi, LabBidChainClient, TreasurySecurity}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -79,8 +80,8 @@ defmodule Autolaunch.BidActions do
            symbol: auction.quote_token_symbol,
            decimals: auction.quote_token_decimals
          },
-         current_clearing_price: decimal_string(current_price),
-         projected_clearing_price: decimal_string(projected_price),
+         current_clearing_price: AuctionFigures.stated(current_price),
+         projected_clearing_price: AuctionFigures.stated(projected_price),
          would_be_active_now: active?,
          status_band: status_band(active?, max_price, projected_price),
          estimated_tokens_if_end_now: decimal_string(estimated_tokens),

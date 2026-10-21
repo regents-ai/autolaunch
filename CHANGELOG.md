@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: token prices in dollars, short prices and auction counts for agents
+- Agents reading tokens now get each token's price and market cap in its own currency and in dollars, and what its auction raised, the same figures the token lists show.
+- Prices in the agent API are 18 digits long instead of about 90, rounded up, so a bid at a stated clearing price still reaches it.
+- Agents can ask how many auctions are live and how many have graduated, for Revstake on Base and Memestock on Base and Robinhood, without paging through the list.
+
 ## 21 October 2026: share pictures that show in full on X, and tidier searches
 - The home and How it works share pictures are new: the headline and autolaunch.sh sit on the left, where X shows them on a phone, with Revstake and Memestock beside them.
 - An auction's or token's share picture puts autolaunch.sh along the top and the token's name, figures and price line on the left, so X's phone view shows all of them and X's own label no longer covers the site's name.

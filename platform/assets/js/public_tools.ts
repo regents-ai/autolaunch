@@ -218,6 +218,7 @@ const query = (input: Input) =>
 const requests: Record<string, (input: Input) => Request> = {
   autolaunch_auctions: input => ({path: `/api/v1/auctions?${query(input)}`}),
   autolaunch_auction: input => ({path: `/api/v1/auctions/${pathValue(input.id)}`}),
+  autolaunch_auction_counts: () => ({path: "/api/v1/auction-counts"}),
   autolaunch_tokens: input => ({path: `/api/v1/tokens?${query(input)}`}),
   autolaunch_token: input => ({path: `/api/v1/tokens/${pathValue(input.id)}`}),
   autolaunch_treasury: input => ({path: `/api/v1/treasury-security/${pathValue(input.address)}`}),

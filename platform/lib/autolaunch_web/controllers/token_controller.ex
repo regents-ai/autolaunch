@@ -2,15 +2,18 @@ defmodule AutolaunchWeb.TokenController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
+  alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure}
+  alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure, UsdValue}
 
   def index(conn, params) do
     case MarketPage.read(params, "tokens") do
       {:ok, page} ->
+        rates = UsdValue.rates()
+
         json(conn, %{
-          data: Enum.map(page.records, &public_token/1),
+          data: Enum.map(page.records, &public_token(&1, rates)),
           pagination: page.pagination,
           robinhood_unavailable: page.robinhood_unavailable
         })
@@ -23,7 +26,12 @@ defmodule AutolaunchWeb.TokenController do
     end
   end
 
-  defp public_token(token) do
+  # The price, market cap and bid volume the lists show beside the token, in
+  # its currency and in dollars. A dollar figure is null while its currency
+  # has no dollar price, as on a test network.
+  defp public_token(token, rates) do
+    rate = UsdValue.auction_rate(rates, token.auction)
+
     %{
       id: token.id,
       chain: if(Lab.chain?(token.auction.chain_id), do: "robinhood", else: "base"),
@@ -37,21 +45,41 @@ defmodule AutolaunchWeb.TokenController do
       summary: token.summary,
       graduated_at: DateTime.to_iso8601(token.graduated_at),
       top_rank: token.top_rank,
+      quote_token: %{
+        address: token.auction.quote_token_address,
+        symbol: token.auction.quote_token_symbol,
+        decimals: token.auction.quote_token_decimals
+      },
+      price_quote: AuctionFigures.stated(token.price_quote),
+      price_usd: usd(token.price_quote, rate),
+      price_updated_at: token.price_updated_at,
+      market_cap: AuctionFigures.stated(token.market_cap),
+      market_cap_usd: usd(token.market_cap, rate),
+      bid_volume: decimal(token.auction.bid_volume),
+      bid_volume_usd: decimal(token.auction.bid_volume_usd),
       treasury_security: TreasurySecurity.public_view(loaded_report(token))
     }
   end
+
+  defp usd(nil, _rate), do: nil
+  defp usd(_amount, nil), do: nil
+
+  defp usd(price, rate) when is_binary(price),
+    do: usd(Decimal.new(price, max_digits: :infinity), rate)
+
+  defp usd(amount, rate), do: AuctionFigures.stated(Decimal.mult(amount, rate))
 
   def show(conn, %{"id" => id} = params) do
     conn = Plug.Conn.fetch_query_params(conn)
 
     with true <- conn.query_params == %{} and Map.keys(params) == ["id"],
          {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []) do
-      case Autolaunch.get_listed_token(uuid, actor: nil) do
+      case Autolaunch.get_listed_token(uuid, actor: nil, load: [:market_cap]) do
         {:ok, nil} ->
           ApiError.send(conn, :not_found, "not_found", "That token is not publicly listed.")
 
         {:ok, token} ->
-          json(conn, %{data: token_detail(token)})
+          json(conn, %{data: token_detail(token, UsdValue.rates())})
 
         {:error, error} ->
           internal_error(conn, "public token read", error)
@@ -61,16 +89,9 @@ defmodule AutolaunchWeb.TokenController do
     end
   end
 
-  defp token_detail(token) do
-    Map.merge(public_token(token), %{
+  defp token_detail(token, rates) do
+    Map.merge(public_token(token, rates), %{
       auction_url: Paths.auction_url(token.auction),
-      price_quote: token.price_quote,
-      price_updated_at: token.price_updated_at,
-      quote_token: %{
-        address: token.auction.quote_token_address,
-        symbol: token.auction.quote_token_symbol,
-        decimals: token.auction.quote_token_decimals
-      },
       token_supply: decimal(token.auction.token_supply)
     })
   end

@@ -1,5 +1,5 @@
 {
-  "total": 68,
+  "total": 71,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -53,7 +53,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 8,
@@ -66,7 +66,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 9,
@@ -79,7 +79,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 10,
@@ -92,7 +92,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 11,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 12,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 25,
@@ -230,12 +230,12 @@
       "framework": "exunit",
       "file": "test/autolaunch/bid_actions_test.exs",
       "line": 220,
-      "test_name": "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero",
+      "test_name": "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it",
       "keep_because": "A stored clearing price longer than 34 digits is read whole, so a bid below it is never estimated as buying now (live finding, 13 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5489a526cdac013d74cd5c2399f320ae9aba9dbe8277d0427954da2843c69141"
+      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
     },
     {
       "id": 46,
@@ -886,6 +886,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "afadd1bf010df704c09b4ccf23946e903b51867696e8395cc95c20753a3c0a82"
+    },
+    {
+      "id": 109,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/auction_controller_test.exs",
+      "line": 27,
+      "test_name": "the counts give each launch type's live and graduated auctions on each chain",
+      "keep_because": "An outside tracker reads one count instead of paging the list. It fails if a launch type or chain is counted under another, or a failed, opening-soon or other-chain auction is counted.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5239e6a4423b106454ca49545940f89a17cde5cfc9b87e1cbd9ec844afb198d2"
+    },
+    {
+      "id": 110,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/token_controller_test.exs",
+      "line": 39,
+      "test_name": "a token's price and market cap read in REGENT and in dollars, list and detail alike",
+      "keep_because": "The token API gives the figures the token list shows, at 18 significant digits, list and detail alike. It fails if a dollar figure uses another rate, or a price comes back with its stored 30-plus decimals.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "1f17650a44081280a92bc7315fa342f24c4f6e15ea722c71239b2e869103b6b0"
+    },
+    {
+      "id": 111,
+      "group": "Public API",
+      "framework": "exunit",
+      "file": "test/autolaunch/auction_figures_test.exs",
+      "line": 61,
+      "test_name": "a stated price keeps at most 18 significant digits and is the stored one rounded up",
+      "keep_because": "Property: for any stored price, tiny to huge, the API's price keeps at most 18 significant digits and is the stored price rounded up to them: never below it, and less than one unit of its 18th digit above it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "979b53a0fe99499dd03f8c163986aa1238b25e010ecdfc7f57d0b2f9d637f3e7"
     }
   ],
   "legacy_folders_to_remove": [

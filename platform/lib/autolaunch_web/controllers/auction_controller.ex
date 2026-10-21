@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.AuctionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
-  alias Autolaunch.AuctionFigures
+  alias Autolaunch.{AuctionFigures, AuctionStats}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
   alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure}
@@ -72,6 +72,17 @@ defmodule AutolaunchWeb.AuctionController do
   defp entry({:ok, auction}), do: {:ok, auction}
   defp entry({:error, error}), do: {:error, error}
 
+  @doc "Live and graduated auction counts for each launch type and chain (`Autolaunch.AuctionStats`)."
+  def counts(conn, params) do
+    with true <- params == %{},
+         {:ok, counts} <- AuctionStats.by_chain() do
+      json(conn, %{data: counts})
+    else
+      false -> invalid_request(conn)
+      {:error, error} -> internal_error(conn, "public auction counts read", error)
+    end
+  end
+
   def bid_quote(conn, %{"id" => id} = params) do
     with true <- Map.keys(params) |> Enum.sort() == ~w(amount id max_price),
          {:ok, quote} <- Autolaunch.quote_auction_bid(id, params["amount"], params["max_price"]) do
@@ -124,7 +135,7 @@ defmodule AutolaunchWeb.AuctionController do
         symbol: auction.quote_token_symbol,
         decimals: auction.quote_token_decimals
       },
-      clearing_price: auction.current_clearing_price,
+      clearing_price: AuctionFigures.stated(auction.current_clearing_price),
       token_allocation: decimal(AuctionFigures.token_allocation(auction)),
       bid_volume: decimal(auction.bid_volume),
       bid_volume_usd: decimal(auction.bid_volume_usd),

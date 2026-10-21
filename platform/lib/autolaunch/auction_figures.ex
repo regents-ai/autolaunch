@@ -69,4 +69,30 @@ defmodule Autolaunch.AuctionFigures do
   def token_allocation(%{kind: :agent}), do: Decimal.new(20_000_000_000)
   def token_allocation(%{kind: :stocks, contracts_version: :v1}), do: Decimal.new(800_000_000)
   def token_allocation(%{kind: :stocks, contracts_version: :v2}), do: Decimal.new(497_500_000)
+
+  @price_digits 18
+
+  @doc """
+  A price, or a figure worked out from one, as the public API states it: a
+  plain decimal string to 18 significant digits. A stored clearing price runs
+  to about 90 decimal places, far past anything a bid or a trade can tell
+  apart. It is rounded up, so a bid whose most per token is the stated
+  clearing price still reaches it. Nil while there is no figure.
+  """
+  @spec stated(Decimal.t() | String.t() | nil) :: String.t() | nil
+  def stated(nil), do: nil
+  def stated(value) when is_binary(value), do: stated(Decimal.new(value, max_digits: :infinity))
+
+  def stated(%Decimal{coef: coef, exp: exp} = value) do
+    if Decimal.eq?(value, 0) do
+      "0"
+    else
+      places = @price_digits - length(Integer.digits(coef)) - exp
+
+      value
+      |> Decimal.round(places, :ceiling)
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+    end
+  end
 end
