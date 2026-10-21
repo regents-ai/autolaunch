@@ -1,5 +1,5 @@
 {
-  "total": 81,
+  "total": 84,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1081,6 +1081,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "5c13e64fc3df79b02fc446d075044ff2ed1e2281f9ca3d72ce18259eb94bf848"
+    },
+    {
+      "id": 122,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/home_next_test.exs",
+      "line": 15,
+      "test_name": "Coming next names the auctions open now, the soonest first",
+      "keep_because": "The home page offers both ways in and lists the auctions a visitor can join now. It fails if a finished auction shows there while one is open, or a way in goes missing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "83ee224037481afe81a3535d40650c79241377ce83f2938cbef14666b6a0b803"
+    },
+    {
+      "id": 123,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/home_next_test.exs",
+      "line": 28,
+      "test_name": "with nothing open, Coming next offers stocks to launch with and the latest results",
+      "keep_because": "With no auction open the area is never empty: it links stocks to launch with and the latest results.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "83ee224037481afe81a3535d40650c79241377ce83f2938cbef14666b6a0b803"
+    },
+    {
+      "id": 124,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/home_next_test.exs",
+      "line": 39,
+      "test_name": "the tools agents see open from the footer and the developer guide",
+      "keep_because": "The Agent Tools button is in the footer and on /docs, not at the top of every page.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "83ee224037481afe81a3535d40650c79241377ce83f2938cbef14666b6a0b803"
     }
   ],
   "legacy_folders_to_remove": [

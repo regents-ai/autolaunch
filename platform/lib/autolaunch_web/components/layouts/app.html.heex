@@ -28,11 +28,13 @@
         data-shell-behind-menu
         phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["inert"])}
       >
-        <:phone>
+        <:tools>
           <AutolaunchWeb.Components.AgentTools.button
             id="shell-footer-agent-tools-button"
             dialog="shell-agent-tools"
           />
+        </:tools>
+        <:phone>
           <.theme_toggle id="theme-control-footer" />
         </:phone>
       </.product_links>

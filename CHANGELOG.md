@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: a clearer home page
+- The home page now says in one line what Autolaunch is for, and offers two ways in: Back a launch, or Launch yours.
+- A new "Coming next" area shows the auctions taking bids or opening soon. When none are open, it shows stocks you can launch with and the latest results.
+- The Agent Tools button has moved from the top of every page to the footer and the developer guide.
+
 ## 21 October 2026: a light stock listing, with a page for each stock
 - The stock listing is now a short list that opens quickly. Each stock has its own page with its addresses, company links and pool research, at an address you can share, such as /stock-listing/AAPLc.
 
