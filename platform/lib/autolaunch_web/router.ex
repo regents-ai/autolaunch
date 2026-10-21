@@ -35,6 +35,22 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # The public reads carry no cookie and need no sign-in, so any website's
+  # page may read them from its own visitors' browsers.
+  pipeline :public_read do
+    plug :allow_any_origin
+  end
+
+  # Their rate-limit headers are readable too, so such a page can pace itself.
+  def allow_any_origin(conn, _opts) do
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header(
+      "access-control-expose-headers",
+      "ratelimit, ratelimit-policy, retry-after"
+    )
+  end
+
   # The signed-in person's own session API; never agent authority.
   pipeline :session_api do
     plug :accepts, ["json"]
@@ -136,15 +152,20 @@ defmodule AutolaunchWeb.Router do
   end
 
   scope "/api/v1", AutolaunchWeb do
-    pipe_through :api
+    pipe_through [:api, :public_read]
 
     get "/auctions", AuctionController, :index
     get "/auction-counts", AuctionController, :counts
     get "/auctions/:id", AuctionController, :show
-    post "/auctions/:id/bid-quote", AuctionController, :bid_quote
     get "/tokens", TokenController, :index
     get "/tokens/:id", TokenController, :show
     get "/treasury-security/:address", TreasuryController, :show
+  end
+
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through :api
+
+    post "/auctions/:id/bid-quote", AuctionController, :bid_quote
   end
 
   scope "/api/v1", AutolaunchWeb do
