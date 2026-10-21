@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
   """
   use AutolaunchWeb.ConnCase, async: false
 
+  import Phoenix.Component, only: [sigil_H: 2]
   import Phoenix.LiveViewTest
 
   alias Autolaunch.{AgentDrafts, Agents, TestSupport}
@@ -61,5 +62,27 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     review = view |> element("#agent-set-fields") |> render()
     refute review =~ "Agent Chosen"
     assert review =~ @treasury
+  end
+
+  # The review is built from the draft as it stands when the person presses
+  # Review, so an agent's save after the page opened is named there too.
+  test "the launch review names every agent-set field and shows the community links" do
+    facts = %{
+      "description" => "Earns stablecoins.",
+      "website" => "https://autolaunch.sh",
+      "telegram" => "https://t.me/agentgroup",
+      "discord" => nil,
+      "links" => ["https://example.com/one"],
+      "image" => "https://autolaunch.sh/images/one/two",
+      "agent_set_fields" => ["treasury", "telegram", "other_link_1"]
+    }
+
+    assigns = %{facts: facts}
+    html = rendered_to_string(~H"<AutolaunchWeb.LaunchSteps.token_rows facts={@facts} />")
+
+    assert html =~ "Set by your agent"
+    assert html =~ "Treasury address, Telegram, Link"
+    assert html =~ "https://t.me/agentgroup"
+    assert html =~ "https://example.com/one"
   end
 end

@@ -83,3 +83,5 @@
 .agent-set dt { color: var(--color-fg-muted); }
 .agent-set dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 30rem) { .agent-set dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+/* In the launch review: which of the values below the person's agent set. */
+.launch-wallet-agent-set dd { color: var(--orange-ink); font-weight: var(--font-weight-semibold); }

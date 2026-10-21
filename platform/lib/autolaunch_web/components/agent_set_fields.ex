@@ -50,6 +50,10 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
     """
   end
 
+  @doc "The names of agent-set fields, as a launch review's facts list them."
+  def labels(fields) when is_list(fields),
+    do: fields |> Enum.map(&Map.fetch!(@labels, String.to_existing_atom(&1))) |> Enum.uniq()
+
   defp rows(%{agent_set_fields: fields} = draft) when is_list(fields),
     do: Enum.map(fields, &{Map.fetch!(@labels, &1), value(&1, Map.get(draft, &1))})
 

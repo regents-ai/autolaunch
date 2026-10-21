@@ -56,6 +56,7 @@ defmodule Autolaunch.AgentDrafts do
       draft
     else
       {:error, reason} when reason in [:invalid_image, :image_too_large] -> Repo.rollback(reason)
+      {:error, :too_many_pixels} -> Repo.rollback(:image_too_large)
       _refused -> Repo.rollback(:invalid_draft)
     end
   end

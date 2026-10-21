@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.LaunchSteps do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias Autolaunch.{LaunchedDrafts, LaunchReviews}
-  alias AutolaunchWeb.Components.{BidPlaced, MarketCard, SwapForm}
+  alias AutolaunchWeb.Components.{AgentSetFields, BidPlaced, MarketCard, SwapForm}
   alias AutolaunchWeb.{OnchainSteps, Paths, Telemetry}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -317,14 +317,29 @@ defmodule AutolaunchWeb.LaunchSteps do
   attr :facts, :map, required: true
 
   @doc """
-  What the token itself will say, as the review on the page was built: its
-  description, its website and its picture. A launch without a website of the
-  creator's own names this site, which is not shown as a website.
+  What the token itself will say, as the review on the page was built from the
+  draft as it stood at that moment: the fields the person's agent set, named
+  first; its description, its website, its community links and its picture.
+  A launch without a website of the creator's own names this site, which is
+  not shown as a website.
   """
   def token_rows(assigns) do
-    assigns = assign(assigns, website: MarketCard.web_link(assigns.facts["website"]))
+    assigns =
+      assign(assigns,
+        website: MarketCard.web_link(assigns.facts["website"]),
+        agent_set: AgentSetFields.labels(assigns.facts["agent_set_fields"]),
+        links:
+          Enum.reject(
+            [assigns.facts["telegram"], assigns.facts["discord"] | assigns.facts["links"] || []],
+            &(&1 in [nil, ""])
+          )
+      )
 
     ~H"""
+    <div :if={@agent_set != []} class="launch-wallet-agent-set">
+      <dt>Set by your agent</dt>
+      <dd>{Enum.join(@agent_set, ", ")}. Check each one below before you sign.</dd>
+    </div>
     <div>
       <dt>Description</dt>
       <dd class="launch-wallet-text">{@facts["description"]}</dd>
@@ -333,6 +348,10 @@ defmodule AutolaunchWeb.LaunchSteps do
       <dt>Website</dt>
       <dd :if={@website}>{@website.label}</dd>
       <dd :if={!@website}>None given</dd>
+    </div>
+    <div :if={@links != []}>
+      <dt>Community links</dt>
+      <dd :for={link <- @links} class="launch-wallet-text">{link}</dd>
     </div>
     <div>
       <dt>Picture</dt>

@@ -212,6 +212,7 @@ defmodule Autolaunch.LaunchActions do
       "image" => fields.image,
       "treasury" => fields.treasury,
       "treasury_path" => Atom.to_string(draft.treasury_path),
+      "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
       "treasury_security" => treasury_binding(treasury_report),
       "required_regent_raised" => minimum_regent(snapshot.terms.required_regent_raised),
       "regent" => snapshot.regent,

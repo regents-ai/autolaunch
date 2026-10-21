@@ -1,5 +1,5 @@
 {
-  "total": 91,
+  "total": 92,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1165,13 +1165,13 @@
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 22,
+      "line": 23,
       "test_name": "the create page names what the agent set, and forgets a field the person changes",
       "keep_because": "Before any wallet step the create page shows every field the agent set with its value, and a field the person edits leaves that list.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d8d77a1cb9c84c14071531e7a26797fc49e3f049a4cb6ec0793062d312c8a43"
+      "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
     },
     {
       "id": 131,
@@ -1185,6 +1185,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fb344af6e467fbb792ec83a2ba84a8ee4c20bf8afcf00a6b82694631b8bf1caf"
+    },
+    {
+      "id": 132,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 69,
+      "test_name": "the launch review names every agent-set field and shows the community links",
+      "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
     }
   ],
   "legacy_folders_to_remove": [
