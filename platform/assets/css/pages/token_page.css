@@ -8,11 +8,17 @@
 /* While the token is first read, the page holds a screen's height, so the
    footer does not sit under the reading card and jump when the token arrives. */
 .token-page__reading { min-height: 100svh; }
-/* On a phone the token's picture sits small beside its name and figures, so
-   the price, market cap and change are on the first screen. */
+/* The token's picture sits small beside its name and figures, so the price,
+   market cap and change are on the first screen, a phone's included. */
+.token-page .market-identity { grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-3) var(--space-4); }
+.token-page .market-identity__image { width: 120px; }
 @media (max-width: 42rem) {
   .token-page .market-identity { grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-3); }
   .token-page .market-identity__image { width: 88px; }
+  /* Uniswap and the chart share one row under the address. */
+  .token-page .token-heading__links { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .token-page .token-heading__copy { grid-column: 1 / -1; justify-self: start; }
+  .token-page .token-heading__chart { width: auto; }
 }
 
 /* The token's first figures: its price, larger, then its market cap and
