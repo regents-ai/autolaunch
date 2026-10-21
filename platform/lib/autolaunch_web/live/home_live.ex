@@ -543,6 +543,7 @@ defmodule AutolaunchWeb.HomeLive do
             @market_options.display == "list" && @kind == :auction &&
               (@records != [] || @market_loading)
           }
+          creators={@creators}
           records={if @records_kind == :auction, do: @records, else: []}
           rates={@rates}
           loading={@market_loading}
@@ -554,6 +555,7 @@ defmodule AutolaunchWeb.HomeLive do
             @market_options.display == "list" && @kind == :token &&
               (@records != [] || @market_loading)
           }
+          creators={@creators}
           records={if @records_kind == :token, do: @records, else: []}
           rates={@rates}
           loading={@market_loading}

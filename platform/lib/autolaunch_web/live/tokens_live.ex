@@ -9,6 +9,8 @@ defmodule AutolaunchWeb.TokensLive do
   import AutolaunchWeb.Components.MarketCard,
     only: [token_list: 1, assign_figure_rates: 1, list_tools: 1]
 
+  import AutolaunchWeb.Components.AutolaunchHelpers, only: [creator_connections_for: 1]
+
   alias Autolaunch.HomeMarket
   alias AutolaunchWeb.{LabMarket, LiveListings}
 
@@ -19,6 +21,7 @@ defmodule AutolaunchWeb.TokensLive do
      |> assign(
        options: nil,
        records: [],
+       creators: %{},
        loading: true,
        failed: false,
        append: false,
@@ -63,9 +66,15 @@ defmodule AutolaunchWeb.TokensLive do
         do: Enum.uniq_by(socket.assigns.records ++ page.records, & &1.id),
         else: page.records
 
+    creators =
+      if socket.assigns.append,
+        do: Map.merge(socket.assigns.creators, page.creators),
+        else: page.creators
+
     {:noreply,
      assign(socket,
        records: records,
+       creators: creators,
        next_cursor: page.next_cursor,
        has_more: page.has_more,
        loading: false,
@@ -84,6 +93,7 @@ defmodule AutolaunchWeb.TokensLive do
       {:noreply,
        assign(socket,
          records: page.records,
+         creators: page.creators,
          next_cursor: page.next_cursor,
          has_more: page.has_more
        )}
@@ -105,6 +115,12 @@ defmodule AutolaunchWeb.TokensLive do
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> reread()}
 
+  # Each list row names its creator by their connected accounts.
+  defp with_creators({:ok, page}),
+    do: {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
+
+  defp with_creators(failure), do: failure
+
   defp patch(socket, changes),
     do: push_patch(socket, to: list_path(socket.assigns.options, changes))
 
@@ -122,7 +138,7 @@ defmodule AutolaunchWeb.TokensLive do
       )
     )
     |> assign(loading: true, failed: false, append: append?)
-    |> start_async(:tokens, fn -> HomeMarket.read(options, cursor) end)
+    |> start_async(:tokens, fn -> options |> HomeMarket.read(cursor) |> with_creators() end)
   end
 
   # The records loaded so far, read again in place, so every loaded page and
@@ -132,7 +148,7 @@ defmodule AutolaunchWeb.TokensLive do
     count = length(socket.assigns.records)
 
     start_async(socket, :tokens_reread, fn ->
-      {options, count, HomeMarket.reread(options, count)}
+      {options, count, options |> HomeMarket.reread(count) |> with_creators()}
     end)
   end
 
@@ -161,6 +177,7 @@ defmodule AutolaunchWeb.TokensLive do
 
         <.token_list
           :if={@records != [] or @loading}
+          creators={@creators}
           records={@records}
           rates={@rates}
           loading={@loading}

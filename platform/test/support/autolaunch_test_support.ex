@@ -33,7 +33,8 @@ defmodule Autolaunch.TestSupport do
         required_currency_raised: Map.get(opts, :required_currency_raised, "1000"),
         website: Map.get(opts, :website),
         image: Map.get(opts, :image),
-        treasury_address: Map.get(opts, :treasury_address)
+        treasury_address: Map.get(opts, :treasury_address),
+        token_address: Map.get(opts, :token_address)
       },
       actor: %System{}
     )

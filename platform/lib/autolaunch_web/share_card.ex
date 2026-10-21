@@ -7,7 +7,8 @@ defmodule AutolaunchWeb.ShareCard do
   mark and autolaunch.sh along its top and one strip on its left: the token's
   round logo, its name, its ticker line ($TOKEN / STOCK, or $TOKEN for a
   launch paired with no stock token), a pill with the time left in the auction
-  or where it stands, its chain, and its two figures on rows of their own. An
+  or where it stands, its chain and who launched it (`CreatorLabel`), and its
+  two figures on rows of their own. An
   auction also draws its clearing price so far as a line under them, and a
   faint Autolaunch mark fills the right. Every word and the line sit in the
   left part of the picture that X's phone view keeps, clear of the corner
@@ -25,6 +26,7 @@ defmodule AutolaunchWeb.ShareCard do
 
   import AutolaunchWeb.ShareCard.Draw
 
+  alias AutolaunchWeb.Components.{AutolaunchHelpers, CreatorLabel}
   alias AutolaunchWeb.{Paths, PublicDocuments}
   alias AutolaunchWeb.ShareCard.Cache
   alias Vix.Vips.{Image, Operation}
@@ -230,6 +232,7 @@ defmodule AutolaunchWeb.ShareCard do
           {"Clearing price", money(auction.fdv, rate, auction), @platinum},
           {"Price", money(clearing(auction), rate, auction), @platinum}
         ],
+        creator: creator(auction),
         line: line(points, auction.current_clearing_price)
       })
     end
@@ -268,8 +271,23 @@ defmodule AutolaunchWeb.ShareCard do
         {"FDV", money(token.market_cap, rate, auction), @platinum},
         {"Price", money(price, rate, auction), @platinum}
       ],
+      creator: creator(auction),
       line: nil
     })
+  end
+
+  # Who launched it, as every list and page names them (`CreatorLabel`).
+  defp creator(auction) do
+    connections =
+      AutolaunchHelpers.connections_for(
+        auction,
+        AutolaunchHelpers.creator_connections_for([auction])
+      )
+
+    case CreatorLabel.name(auction, connections) do
+      %{text: text} -> plain(text)
+      nil -> nil
+    end
   end
 
   # The clearing price at every recorded change, then as it stands now; no
@@ -291,7 +309,7 @@ defmodule AutolaunchWeb.ShareCard do
 
     with {:ok, words} <- words(auction, card),
          {:ok, logo} <- logo(auction, @logo),
-         layout = layout(words, card.line),
+         layout = layout(words, card.line, chain),
          {:ok, {canvas, _flags}} <-
            Operation.svgload_buffer(svg(chain, color, logo, card, layout)),
          {:ok, picture} <- place(canvas, words, layout, logo) do
@@ -316,7 +334,8 @@ defmodule AutolaunchWeb.ShareCard do
          badge: {badge, badge_color},
          initial: initial,
          stats: stats,
-         name: plain(auction.title)
+         name: plain(auction.title),
+         creator: card.creator
        }}
     end
   end
@@ -337,7 +356,7 @@ defmodule AutolaunchWeb.ShareCard do
 
   # Where the strip goes: tall enough for the figures and, for an auction, the
   # price line under them, and centred in the panel under the top row.
-  defp layout(words, line) do
+  defp layout(words, line, chain) do
     stats_bottom = @stats_top + length(words.stats) * @row_h
     strip_h = if line, do: stats_bottom + @line_gap + @line_h + 28, else: stats_bottom + 24
     {badge, _color} = words.badge
@@ -347,7 +366,8 @@ defmodule AutolaunchWeb.ShareCard do
       strip_h: strip_h,
       rows: length(words.stats),
       line_top: stats_bottom + @line_gap,
-      badge_w: Image.width(badge) + 36
+      badge_w: Image.width(badge) + 36,
+      chain_w: mark_width(chain, @chain_mark_h)
     }
   end
 
@@ -357,7 +377,8 @@ defmodule AutolaunchWeb.ShareCard do
 
     with {:ok, name} <- name(words.name, @words_right - @words_x),
          {:ok, ticker} <-
-           sized(words.ticker, :regular, @muted, @words_right - @words_x, [34, 30, 28]) do
+           sized(words.ticker, :regular, @muted, @words_right - @words_x, [34, 30, 28]),
+         {:ok, creator} <- creator_words(words.creator, layout) do
       {badge, _color} = words.badge
 
       [
@@ -366,6 +387,7 @@ defmodule AutolaunchWeb.ShareCard do
         {badge, {badge_x(), top + @chain_top + div(@pill_h - Image.height(badge), 2)}}
       ]
       |> Kernel.++(name_at(name, top))
+      |> Kernel.++(creator_at(creator, top))
       |> Kernel.++(initial_at(logo, words.initial, top))
       |> Kernel.++(stats_at(words.stats, top))
       |> composite(canvas)
@@ -401,6 +423,24 @@ defmodule AutolaunchWeb.ShareCard do
         else: sized(words, weight, color, max, smaller)
     end
   end
+
+  # Who launched it ends the chain's row, in the room right of the badge and
+  # the chain's mark.
+  defp creator_words(nil, _layout), do: {:ok, nil}
+
+  defp creator_words(creator, layout) do
+    left = badge_x() + layout.badge_w + 6 + layout.chain_w + 20
+    sized("by " <> creator, :regular, @muted, @words_right - left, [28, 26, 24])
+  end
+
+  defp creator_at(nil, _top), do: []
+
+  defp creator_at(creator, top),
+    do: [
+      {creator,
+       {@words_right - Image.width(creator),
+        top + @chain_top + div(@pill_h - Image.height(creator), 2)}}
+    ]
 
   defp name_at(nil, _top), do: []
   defp name_at(name, top), do: [{name, {@words_x, top + @name_top}}]

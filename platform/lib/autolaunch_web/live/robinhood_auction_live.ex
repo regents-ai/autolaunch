@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.Components.ShareLaunch
+  alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch}
   alias AutolaunchWeb.{LabMarket, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
@@ -151,6 +151,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             {@launch.title}<span :if={!same_name?(@launch.title, @launch.token_symbol)}> · {@launch.token_symbol}</span>
           </h1>
         </Regent.Structure.section_bar>
+        <CreatorLabel.creator
+          :if={@creator_connections.ok?}
+          auction={@launch}
+          connections={@creator_connections.result}
+        />
         <ShareLaunch.share_launch
           id="share-launch"
           auction={@launch}

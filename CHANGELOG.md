@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 21 October 2026: creators named the same way everywhere
+- Every list, auction page, token page and share picture names a launch's creator the same way: their checked X, ENS or GitHub name when they have one, otherwise their wallet, shortened. Before, lists showed only the wallet.
+
 ## 21 October 2026: a short agent guide, one CLI version everywhere
 - /llms.txt is now a short index: what Autolaunch is, first steps for an agent and where to read on. The whole guide is at /llms-full.txt, and /sitemap.md lists every page with what it is for.
 - Every agent guide names the same regents-cli release, 1.10.12.
