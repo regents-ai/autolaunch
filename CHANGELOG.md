@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: a fixed library for the picture tools' helper
+- The documentation helper agents use when they build Autolaunch's moving pictures runs on a corrected release of its tool library, which closes three known security problems. The pages themselves do not change.
+
 ## 22 October 2026: safer connections to other services
 - autolaunch.sh now trusts only the current list of certificate issuers when it talks to other services such as Base, Robinhood Chain and Privy. Certificates from eMudhra, whose certificates were misused on 20 October, are no longer accepted.
 
