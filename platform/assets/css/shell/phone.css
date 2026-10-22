@@ -161,7 +161,7 @@
      does; its Close navigation bar is its first row. */
   #shell-drawer {
     position: fixed;
-    inset: var(--shell-phone-bar) auto 0 0;
+    inset: anchor(--shell-top bottom) auto 0 0;
     z-index: 40;
     display: flex;
     flex-direction: column;
@@ -276,7 +276,7 @@
      closes the drawer. */
   .rg-button.shell-menu-scrim {
     position: fixed;
-    inset: var(--shell-phone-bar) 0 0;
+    inset: anchor(--shell-top bottom) 0 0;
     z-index: 39;
     display: block;
     min-width: 0;
@@ -300,13 +300,6 @@
   :root[data-menu="open"] .rg-button.shell-menu-scrim {
     opacity: 1;
     visibility: visible;
-  }
-
-  /* The side panel takes the screen under the bar, as the template's does, so
-     the account's picture that opened it stays where it was. */
-  #shell-aside {
-    inset-block-start: var(--shell-phone-bar);
-    padding-block-start: 0;
   }
 
   /* The tools agents see and the theme switch start the footer, on a row of

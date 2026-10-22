@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: the side panel opens under the header
+- The side panel opens below the header's bottom line instead of beside it, with its right edge in line with the header's. While it is open the header stays at the top of the screen as you scroll.
+- On a phone, the menu, the dimmed page behind it and the side panel start exactly at the header's bottom line, with no sliver of overlap.
+
 ## 23 October 2026: Manage links stay on autolaunch.sh
 - In the side panel, Manage Account opens your Account page here, and Manage Agents opens the agents on it, both in the same tab. They used to open regents.sh in a new tab. Manage Credits on regents.sh on the Account page stays as it was.
 

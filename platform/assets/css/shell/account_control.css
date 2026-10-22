@@ -21,9 +21,16 @@
 .shell { --shell-aside-open: 20rem; --shell-aside: var(--shell-aside-open); padding-inline-end: var(--shell-aside); transition: --shell-aside var(--duration-slow) var(--ease-out); }
 /* Closed, or signed out with no side panel at all, it keeps no room. */
 :root:not([data-aside="open"]) .shell, .shell:not(:has(#shell-aside)) { --shell-aside: 0px; }
-/* It stops above the market ticker, which runs along the bottom of every page,
-   and is hidden only once it has slid shut. */
-#shell-aside { position: fixed; inset: 0 0 0 auto; z-index: 30; display: grid; align-content: start; width: var(--shell-aside); padding-block-start: env(safe-area-inset-top, 0px); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
+/* The header runs over the side panel, which opens under the header's bottom line
+   (design-system STYLE.md, "The side panel opens under the header"). The page
+   scrolls as one sheet, so while the panel is open the header stays at the top of
+   the screen, reaching over the room the page gives way, and the panel stands fixed
+   under it with its right edge at the header's. The panel stops above the market
+   ticker, which runs along the bottom of every page, and is hidden only once it has
+   slid shut. */
+#home-top { anchor-name: --shell-top; }
+:root[data-aside="open"] .shell:has(#shell-aside) #home-top { position: sticky; inset-block-start: 0; margin-inline-end: calc(-1 * var(--shell-aside)); }
+#shell-aside { position: fixed; position-anchor: --shell-top; inset-block: anchor(bottom) 0; inset-inline-end: anchor(right); z-index: 30; display: grid; align-content: start; width: var(--shell-aside); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
 body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-height); }
 /* Its parts keep their width while it slides, so nothing inside rewraps. */
 #shell-aside > * { min-inline-size: calc(var(--shell-aside-open) - 1px); }
@@ -57,6 +64,6 @@ body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-hei
   .account-chip { max-width: 6rem; padding-inline: .5rem; }
   .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
-/* On phones the side panel takes the whole screen. */
-@media (max-width: 47.99rem) { #shell-aside { width: 100%; border-inline-start: 0; } }
+/* On phones the side panel takes the whole screen under the header. */
+@media (max-width: 47.99rem) { #shell-aside { inset-inline: 0; width: auto; border-inline-start: 0; } }
 @media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }
