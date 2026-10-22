@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: Manage links stay on autolaunch.sh
+- In the side panel, Manage Account opens your Account page here, and Manage Agents opens the agents on it, both in the same tab. They used to open regents.sh in a new tab. Manage Credits on regents.sh on the Account page stays as it was.
+
 ## 23 October 2026: two fixed libraries
 - The documentation helper agents use when they build Autolaunch's moving pictures runs on a corrected release of its tool library, which closes three known security problems. The pages themselves do not change.
 - The library that protects your sign-in and the site's signed links runs on a corrected release, which closes a known security problem. Nothing changes on the pages.

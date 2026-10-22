@@ -2,9 +2,9 @@ defmodule AutolaunchWeb.Components.SidePanel do
   @moduledoc """
   The side panel, the template's: its button sits beside the account name in the
   top bar, and either one opens it. Its top holds the signed-in name with
-  Account and Sign out, then the box to pair an agent (the `pairing` slot, the
-  Account page's own `AutolaunchWeb.PairingBox`) and a link to manage agents on
-  the Regents account page, where the person signs in again. A page that shows
+  Manage Account and Sign out, then the box to pair an agent (the `pairing` slot,
+  the Account page's own `AutolaunchWeb.PairingBox`) and Manage Agents, which
+  opens the agents on this site's own Account page. A page that shows
   its own pairing box, or is served without LiveView and so cannot hold one,
   leaves the slot out, and the panel then has neither. On a wide screen
   it slides in beside the page, which narrows to make room; on a narrower one it
@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.Components.SidePanel do
         <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
         <AutolaunchWeb.Components.Credits.button id="shell-aside-credits-button" credits={@credits} />
         <div class="shell-account__actions">
-          <.link navigate="/account" class="rg-button rg-button--secondary">Account</.link>
+          <.link navigate="/account" class="rg-button rg-button--secondary">Manage Account</.link>
           <Regent.Primitives.button variant="secondary" type="button" data-account-target="sign-out">
             Sign out
           </Regent.Primitives.button>
@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.Components.SidePanel do
       <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
         <h3 id="shell-pairing-title">Pair New Agent</h3>
         {render_slot(@pairing)}
-        <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents</a>
+        <a href="/account#account-agents" class="standalone-link">Manage Agents</a>
       </section>
     </aside>
     """

@@ -39,8 +39,8 @@ body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-hei
 #shell-aside ul { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
 #shell-aside ul a { color: var(--color-link, inherit); }
 .shell-account__name { display: flex; align-items: center; gap: .6rem; min-width: 0; font-weight: 600; }
-.shell-account__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
-.shell-account__actions .rg-button { width: 100%; justify-content: center; }
+.shell-account__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.shell-account__actions .rg-button { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
 
 /* Below a wide screen the side panel slides in over the page's edge. */
 @media (max-width: 63.99rem) {
