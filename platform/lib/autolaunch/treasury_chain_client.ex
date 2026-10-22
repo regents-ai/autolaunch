@@ -202,8 +202,7 @@ defmodule Autolaunch.TreasuryChainClient do
   defp token_evidence(_safe, nil, _token, _block, _fingerprint), do: {:ok, nil}
 
   defp token_evidence(safe, hash, token, safe_block, fingerprint) do
-    with {:ok, transaction, receipt, receipt_block} <- canonical_receipt(hash, safe_block),
-         true <- is_map(transaction),
+    with {:ok, _transaction, receipt, receipt_block} <- canonical_receipt(hash, safe_block),
          {:ok, historical} <- safe_config(safe, receipt_block),
          ^fingerprint <-
            TreasurySecurity.fingerprint(safe, Map.merge(historical, %{block: receipt_block})),
@@ -224,7 +223,6 @@ defmodule Autolaunch.TreasuryChainClient do
          decoded: "erc20_transfer_into_safe"
        }}
     else
-      false -> {:error, :treasury_evidence_invalid}
       {:error, reason} -> {:error, reason}
       _mismatch -> {:error, :treasury_configuration_drift}
     end

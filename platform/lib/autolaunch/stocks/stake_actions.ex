@@ -283,7 +283,6 @@ defmodule Autolaunch.Stocks.StakeActions do
     case Rpc.call_uint(route, data, pool.block, rpc) do
       {:ok, worth} -> {:ok, worth}
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, _reason} -> unavailable(:price_unavailable)
     end
   end
 

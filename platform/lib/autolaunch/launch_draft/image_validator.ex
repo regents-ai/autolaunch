@@ -71,7 +71,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   defp jpeg_pixels(<<255, marker, length::16, rest::binary>>)
        when marker not in [0xD8, 0xD9, 0xDA] and length >= 2 and byte_size(rest) >= length - 2 do
-    <<_segment::binary-size(length - 2), tail::binary>> = rest
+    <<_segment::binary-size(^length - 2), tail::binary>> = rest
     jpeg_pixels(tail)
   end
 
@@ -81,7 +81,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
   # frame, or the sizes its pictures declare added up, whichever is more.
   defp webp_pixels(<<type::binary-size(4), length::little-32, rest::binary>>)
        when byte_size(rest) >= length do
-    <<data::binary-size(length), tail::binary>> = rest
+    <<data::binary-size(^length), tail::binary>> = rest
     webp_picture(type, data, tail)
   end
 
@@ -103,7 +103,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   defp webp_frames(<<type::binary-size(4), length::little-32, rest::binary>>, counted)
        when byte_size(rest) >= length + rem(length, 2) do
-    <<data::binary-size(length), _padding::binary-size(rem(length, 2)), tail::binary>> = rest
+    <<data::binary-size(^length), _padding::binary-size(rem(^length, 2)), tail::binary>> = rest
     webp_frames(tail, webp_frame(type, data, counted))
   end
 
@@ -181,7 +181,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
   # cannot become an unbounded in-memory binary.
   defp png_chunks(<<length::32, type::binary-size(4), rest::binary>>, state)
        when byte_size(rest) >= length + 4 do
-    <<data::binary-size(length), expected_crc::32, tail::binary>> = rest
+    <<data::binary-size(^length), expected_crc::32, tail::binary>> = rest
 
     if :erlang.crc32(type <> data) == expected_crc do
       png_chunk(type, data, tail, state)
@@ -315,7 +315,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   defp consume_png_output(data, %{row_bytes: remaining} = state) when remaining > 0 do
     consumed = min(byte_size(data), remaining)
-    <<_discard::binary-size(consumed), tail::binary>> = data
+    <<_discard::binary-size(^consumed), tail::binary>> = data
     consume_png_output(tail, %{state | row_bytes: remaining - consumed})
   end
 
@@ -383,7 +383,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   defp jpeg_segment(<<length::16, rest::binary>>, state, handler)
        when length >= 2 and byte_size(rest) >= length - 2 do
-    <<data::binary-size(length - 2), tail::binary>> = rest
+    <<data::binary-size(^length - 2), tail::binary>> = rest
 
     case handler.(data, state) do
       {:next, next_state} -> jpeg_markers(tail, next_state)
@@ -409,7 +409,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
     bytes = 64 * (precision + 1)
 
     if byte_size(rest) >= bytes do
-      <<_table::binary-size(bytes), tail::binary>> = rest
+      <<_table::binary-size(^bytes), tail::binary>> = rest
       jpeg_quantization_tables(tail, MapSet.put(tables, id))
     else
       :error
@@ -432,7 +432,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
     symbols = counts |> :binary.bin_to_list() |> Enum.sum()
 
     if symbols in 1..256 and byte_size(rest) >= symbols do
-      <<_symbols::binary-size(symbols), tail::binary>> = rest
+      <<_symbols::binary-size(^symbols), tail::binary>> = rest
       jpeg_huffman_tables(tail, MapSet.put(tables, {class, id}))
     else
       :error
@@ -490,7 +490,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
   defp jpeg_scan_components(<<count, rest::binary>>)
        when count in 1..4 and byte_size(rest) == count * 2 + 3 do
     component_bytes = count * 2
-    <<components::binary-size(component_bytes), start, finish, high::4, low::4>> = rest
+    <<components::binary-size(^component_bytes), start, finish, high::4, low::4>> = rest
     {:ok, for(<<id, dc::4, ac::4 <- components>>, do: {id, dc, ac}), start, finish, high, low}
   end
 
@@ -551,7 +551,7 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
 
   defp webp_chunks(<<type::binary-size(4), length::little-32, rest::binary>>, seen_image)
        when byte_size(rest) >= length + rem(length, 2) do
-    <<data::binary-size(length), padding::binary-size(rem(length, 2)), tail::binary>> = rest
+    <<data::binary-size(^length), padding::binary-size(rem(^length, 2)), tail::binary>> = rest
 
     padding in [<<>>, <<0>>] and webp_chunk(type, data, tail, seen_image)
   end

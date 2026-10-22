@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.PublicPageTest do
           ) do
       cursor = cursor(from, keyset)
       at = rem(at, byte_size(cursor))
-      <<head::binary-size(at), original, tail::binary>> = cursor
+      <<head::binary-size(^at), original, tail::binary>> = cursor
 
       # The last character of each part can carry unused bits, so another
       # character there may decode to the same bytes; every other edit counts.

@@ -127,5 +127,5 @@ defmodule AutolaunchWeb.PairingBox do
 
   # What the person pastes to their agent.
   defp agent_message(code, harness),
-    do: PairingMessage.text(code, "Autolaunch", AutolaunchWeb.Endpoint.url(), harness)
+    do: PairingMessage.text(code, AutolaunchWeb.Endpoint.url(), harness)
 end

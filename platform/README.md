@@ -1,6 +1,6 @@
 # Autolaunch
 
-[![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
+[![Elixir 1.20](https://img.shields.io/badge/elixir-1.20-lightgrey)](https://elixir-lang.org)
 [![Phoenix 1.8](https://img.shields.io/badge/phoenix-1.8-lightgrey)](https://www.phoenixframework.org)
 [Ash](https://ash-hq.org)
 [![PostgreSQL 17](https://img.shields.io/badge/postgres-17-lightgrey)](https://www.postgresql.org)

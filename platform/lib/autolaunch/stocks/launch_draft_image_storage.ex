@@ -8,8 +8,6 @@ defmodule Autolaunch.Stocks.LaunchDraftImageStorage do
   selected image never changes bytes behind a previously issued URL.
   """
 
-  require Ash.Query
-
   alias Autolaunch.Actors.Human
   alias Autolaunch.LaunchDraft.ImageValidator
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImage}

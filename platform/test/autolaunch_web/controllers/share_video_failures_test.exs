@@ -19,7 +19,6 @@ defmodule AutolaunchWeb.ShareVideoFailuresTest do
   import ExUnit.CaptureLog
 
   require Ash.Query
-  require Logger
 
   @moduletag :capture_log
 

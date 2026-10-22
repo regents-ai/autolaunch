@@ -13,8 +13,6 @@ defmodule Autolaunch.IndexerCase do
   import Ecto.Query, only: [from: 2]
   import ExUnit.Assertions
 
-  require Ash.Query
-
   alias Autolaunch.Indexer.{Block, Cursor, Handler, Ledger, Log, Source}
   alias Autolaunch.Repo
   alias Autolaunch.TestAutolaunchIndexerChainClient, as: Endpoint

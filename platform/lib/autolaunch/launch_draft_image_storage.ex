@@ -4,8 +4,6 @@ defmodule Autolaunch.LaunchDraftImageStorage do
   Replacing the selected image never changes bytes behind a previously issued URL.
   """
 
-  require Ash.Query
-
   alias Autolaunch.Actors.Human
   alias Autolaunch.{LaunchDraft, LaunchDraftImage}
   alias Autolaunch.LaunchDraft.ImageValidator

@@ -4,7 +4,7 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "583e2c60c930167a323ae752d50511705a2c5c01"
+  @elixir_utils_ref "3ffd16471b689912ccfce65f4d3b9eba0df89338"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "842f159c7604d76204d749d89e4182c22c4f9259"
 
@@ -12,7 +12,7 @@ defmodule Autolaunch.MixProject do
     [
       app: :autolaunch,
       version: "0.1.0",
-      elixir: "~> 1.15",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -98,7 +98,8 @@ defmodule Autolaunch.MixProject do
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
       {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
-      {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
+      {:regent_format,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
       {:mdex, "== 0.14.2"},

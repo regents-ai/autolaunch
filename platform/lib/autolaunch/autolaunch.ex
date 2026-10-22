@@ -2,8 +2,6 @@ defmodule Autolaunch do
   use Ash.Domain,
     otp_app: :autolaunch
 
-  require Ash.Query
-
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")

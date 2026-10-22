@@ -407,7 +407,6 @@ defmodule Autolaunch.Robinhood.StockBidActions do
       {:ok, %{"start_block" => start_block, "end_block" => end_block}}
     else
       {:error, reason} -> chain({:error, reason})
-      _malformed -> unavailable(:invalid_chain_response)
     end
   end
 

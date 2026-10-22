@@ -28,8 +28,6 @@ defmodule Autolaunch.Accounts.SessionAuthority do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  require Ash.Query
-
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.VerifiedSession
   alias Autolaunch.Actors.{Human, System}

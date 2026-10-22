@@ -400,7 +400,6 @@ defmodule Autolaunch.SwapActions do
       {:ok, [amount_out, _gas]} when amount_out > 0 -> {:ok, amount_out}
       {:ok, _zero} -> unavailable(:quote_unavailable)
       {:error, reason} when reason in @transient -> unavailable(:quote_unavailable)
-      {:error, reason} -> unavailable(reason)
     end
   end
 

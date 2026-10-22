@@ -29,8 +29,6 @@ defmodule Autolaunch.Accounts.XConnection do
     authorizers: [Ash.Policy.Authorizer],
     primary_read_warning?: false
 
-  require Ash.Query
-
   postgres do
     table "x_connections"
     repo Autolaunch.Repo

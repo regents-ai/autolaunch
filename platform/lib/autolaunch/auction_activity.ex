@@ -10,7 +10,6 @@ defmodule Autolaunch.AuctionActivity do
   """
   @behaviour Autolaunch.DurableWork.Handler
   import Ecto.Query
-  require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
 

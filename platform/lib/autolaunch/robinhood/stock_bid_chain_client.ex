@@ -85,7 +85,6 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
     else
       false -> {:error, :lab_config_changed}
       {:error, reason} -> {:error, reason}
-      _other -> {:error, :invalid_chain_response}
     end
   end
 

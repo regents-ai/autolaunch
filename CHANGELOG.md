@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: a clearer pairing message, on newer foundations
+- The message you copy to pair an agent names your Regents Labs account and the site, and sends the agent to the pairing steps in the agent guide.
+- autolaunch.sh runs on newer versions of the software it is built with. Nothing else changes for people or agents.
+
 ## 23 October 2026: buttons, agents and tips as on every Regent site
 - Main buttons rest as plain colour and show their corner marks when you point at them or reach them with the keyboard, as on the other Regent sites.
 - On Account, each paired agent shows its wallet address beside its name, with a copy button. Pressing the address shows it in full.

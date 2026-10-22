@@ -16,8 +16,6 @@ defmodule Autolaunch.Indexer.Ledger do
   rewriting it.
   """
 
-  require Ash.Query
-
   alias Autolaunch.Actors.System
   alias Autolaunch.Indexer.{Block, Chain, Cursor, Log, Source}
   alias Autolaunch.LaunchProjection
