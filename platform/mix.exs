@@ -122,6 +122,8 @@ defmodule Autolaunch.MixProject do
       # IANA zones for the Stocks auction start; compiled in, nothing fetched at runtime.
       {:tz, "~> 0.28"},
       {:req, "== 0.7.5"},
+      # The certificate list every outbound connection trusts (Autolaunch.Application).
+      {:castore, "~> 1.0"},
       # Keeps the public auction list for a few seconds, so repeat callers share one read.
       {:cachex, "~> 4.1"},
       {:yaml_elixir, "== 2.12.2"},

@@ -885,7 +885,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "afadd1bf010df704c09b4ccf23946e903b51867696e8395cc95c20753a3c0a82"
+      "source_sha256": "6a0908ce268ef9b9fd10e25e9ca9531be1c62622ea4412edce31c53b4f475405"
+    },
+    {
+      "id": 109,
+      "group": "Deploys",
+      "framework": "exunit",
+      "file": "test/autolaunch/trusted_roots_test.exs",
+      "line": 7,
+      "test_name": "outbound TLS trusts exactly castore's list, without the dropped eMudhra roots",
+      "keep_because": "Every outbound connection must trust castore's list, which dropped the eMudhra roots compromised on 20 Oct 2026; the image's Debian list still holds them. It fails when the application stops loading castore's list at start.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6f5eda2808881a0a3b1f09381cb246a31bad175b6768a9f523afbdc4d6487a40"
     }
   ],
   "legacy_folders_to_remove": [

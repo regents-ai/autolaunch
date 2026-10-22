@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 22 October 2026: safer connections to other services
+- autolaunch.sh now trusts only the current list of certificate issuers when it talks to other services such as Base, Robinhood Chain and Privy. Certificates from eMudhra, whose certificates were misused on 20 October, are no longer accepted.
+
 ## 21 October 2026: share pictures that show in full on X, and tidier searches
 - The home and How it works share pictures are new: the headline and autolaunch.sh sit on the left, where X shows them on a phone, with Revstake and Memestock beside them.
 - An auction's or token's share picture puts autolaunch.sh along the top and the token's name, figures and price line on the left, so X's phone view shows all of them and X's own label no longer covers the site's name.

@@ -40,13 +40,13 @@ COPY --from=assets /workspace/platform/node_modules node_modules
 RUN mix compile && mix assets.deploy && mix release
 
 # The release carries its own ERTS, so the runtime image needs no Elixir and no
-# Erlang install. Two things it does still need are absent from the slim base:
-# the OpenSSL library the crypto NIF links against, and the CA bundle outbound
-# TLS verifies against. Both are lifted from the builder image, which is only
-# sound while the two images are the same Debian release, so this stage asserts
-# that first and the build stops here if a base ever moves. Lifting to a fixed
-# path also keeps the runtime stage from naming a library directory that
-# differs per architecture.
+# Erlang install. It does still need the OpenSSL library the crypto NIF links
+# against, which the slim base lacks. It is lifted from the builder image, which
+# is only sound while the two images are the same Debian release, so this stage
+# asserts that first and the build stops here if a base ever moves. Lifting to a
+# fixed path also keeps the runtime stage from naming a library directory that
+# differs per architecture. Outbound TLS needs no CA bundle from the image: the
+# release trusts castore's list (`Autolaunch.Application`).
 FROM elixir AS runtime-support
 
 COPY --from=slim /etc/os-release /slim-os-release
@@ -55,12 +55,11 @@ RUN set -eu; \
   runtime="$(. /slim-os-release; printf '%s' "$VERSION_CODENAME")"; \
   if [ "$builder" != "$runtime" ]; then \
     echo "runtime base is Debian $runtime but the builder is Debian $builder;" \
-      "the OpenSSL library and CA bundle may not be lifted across releases" >&2; \
+      "the OpenSSL library may not be lifted across releases" >&2; \
     exit 1; \
   fi; \
   mkdir /runtime-support; \
-  cp /usr/lib/*-linux-gnu/libcrypto.so.3 /runtime-support/; \
-  cp /etc/ssl/certs/ca-certificates.crt /runtime-support/
+  cp /usr/lib/*-linux-gnu/libcrypto.so.3 /runtime-support/
 
 # The share videos (AutolaunchWeb.ShareVideo.Film) need an ffmpeg that takes
 # raw frames in and writes H.264 in MP4, and nothing else. It is built from
@@ -92,7 +91,6 @@ ENV HOME=/app
 WORKDIR /app
 
 COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
-COPY --from=runtime-support /runtime-support/ca-certificates.crt /etc/ssl/certs/
 
 # The share videos' ffmpeg and its one library. The build stops here unless it
 # encodes a clip exactly the way the site does.

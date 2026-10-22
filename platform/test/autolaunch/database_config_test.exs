@@ -19,7 +19,7 @@ defmodule Autolaunch.DatabaseConfigTest do
     assert options[:socket_options] == [:inet6]
     assert options[:port] == 5432
     assert options[:ssl][:verify] == :verify_peer
-    assert options[:ssl][:cacertfile] == "/etc/ssl/certs/ca-certificates.crt"
+    assert options[:ssl][:cacertfile] == CAStore.file_path()
     assert options[:ssl][:server_name_indication] == ~c"direct.dzx6qo6xqzvojpv5.flympg.net"
     assert is_function(options[:ssl][:customize_hostname_check][:match_fun], 2)
     assert options[:max_lifetime] == 480_000..540_000

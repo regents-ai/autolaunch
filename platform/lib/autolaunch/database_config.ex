@@ -152,13 +152,13 @@ defmodule Autolaunch.DatabaseConfig do
     host |> String.downcase() |> String.starts_with?("pgbouncer.")
   end
 
-  # The release image installs this exact Debian CA bundle path. Using the file
-  # avoids decoding the entire runtime CA store eagerly while still requiring
-  # both a trusted chain and a hostname match for the selected MPG endpoint.
+  # castore's list, the one every outbound connection trusts. This runs before
+  # the application loads it into `cacerts_get/0`, so it names the file. Both a
+  # trusted chain and a hostname match are required for the selected MPG endpoint.
   defp fly_mpg_tls_options(host) do
     [
       verify: :verify_peer,
-      cacertfile: "/etc/ssl/certs/ca-certificates.crt",
+      cacertfile: CAStore.file_path(),
       server_name_indication: String.to_charlist(host),
       customize_hostname_check: [
         match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
