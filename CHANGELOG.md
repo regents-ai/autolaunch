@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: the phone menu sits right in every browser
+- On a phone, the menu and the account panel open right under the top bar in every browser, and the bar keeps its top line as you scroll.
+- On the Account page, the agents link says it opens regents.sh, and the note says a paired agent can fill in your launch drafts for you to check.
+
 ## 23 October 2026: quicker to notice a slow moment
 - autolaunch.sh now keeps a record of how long each page and each look-up takes, so the team sees a slow moment as it happens. Nothing changes on the pages.
 
