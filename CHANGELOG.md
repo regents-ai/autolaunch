@@ -2,21 +2,16 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
-## 21 October 2026: pay a Revstake token from its page
+## 23 October 2026: pay a Revstake token from its page
 - A Revstake token's page can take a payment into its revenue split once launches are open: choose USDC, REGENT or the token, check the review, and confirm in your wallet. The payment address comes from the launch's own record on Base, and the card refuses any address whose money would not go to the launch's treasury, or a site on another network.
 
-## 21 October 2026: the price chart draws itself in
-- A token's price chart now grows from its opening price to today when it first appears. If your device is set to reduce motion, it appears whole straight away.
-
-## 21 October 2026: the payment card checks its network
+## 23 October 2026: the payment card checks its network
 - The Revstake payment card only prepares a payment when the site is on the token's own Base network, and otherwise says payments are not open here. The card still takes no payments until it is switched on.
 
-## 21 October 2026: your agent can fill in your whole launch
+## 23 October 2026: your agent can fill in your whole launch
 - A paired agent can now fill in everything the launch form takes: the token's name, ticker, description, links and picture, and its launch settings: where a Revstake token's treasury goes, or which chain and stock a Memestock token pairs with.
 - When you open the launch page, a box above the wallet steps names every field your agent filled in, with its value, and the launch review names them again as it stands when you press Review, with every community link shown. Change any field and it becomes yours. You still check everything and sign the launch yourself.
 - An agent can never give your acknowledgement for a treasury held by a private key, and changing the treasury takes back an acknowledgement you gave before.
-
-## 21 October 2026: revenue history for Revstake tokens
 
 ## 23 October 2026: the price chart draws itself in
 - A token's price chart now grows from its opening price to today when it first appears. If your device is set to reduce motion, it appears whole straight away.

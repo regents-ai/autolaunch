@@ -1,5 +1,5 @@
 {
-  "total": 87,
+  "total": 95,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1133,6 +1133,110 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "9e176374760ee5c8b9cc5b9daedcdb3428fe7e7a8b15fe74268de15f8c6f0752"
+    },
+    {
+      "id": 128,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch/agent_drafts_test.exs",
+      "line": 35,
+      "test_name": "an agent fills a whole Revstake draft, picture and treasury included, and each field is named",
+      "keep_because": "A paired agent can set every field of the Revstake create form, its picture and treasury included, and each one it set is named for the person's review. It fails if a field is dropped or saved unnamed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+    },
+    {
+      "id": 129,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch/agent_drafts_test.exs",
+      "line": 64,
+      "test_name": "the person's own edits leave the agent's list; their EOA acknowledgement is never the agent's",
+      "keep_because": "The person's edits take a field off the agent's list, an agent can never send the EOA acknowledgement, an agent's treasury change takes the person's acknowledgement back, and any other field or shape refuses the whole save.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+    },
+    {
+      "id": 130,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch/agent_drafts_test.exs",
+      "line": 123,
+      "test_name": "an agent fills a Memestock draft's chain and stock, and only a stock the chain lists",
+      "keep_because": "A Memestock draft takes its chain and a listed stock from an agent, never an unlisted stock or a treasury.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "518732f4a608ce0f7e703822f6b16811ee87b6e95b2f4fba477b52a7b717c123"
+    },
+    {
+      "id": 131,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 23,
+      "test_name": "the create page names what the agent set, and forgets a field the person changes",
+      "keep_because": "Before any wallet step the create page shows every field the agent set with its value, and a field the person edits leaves that list.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
+    },
+    {
+      "id": 132,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 69,
+      "test_name": "the launch review names every agent-set field and shows the community links",
+      "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
+    },
+    {
+      "id": 133,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 133,
+      "test_name": "a Revstake launch's payment review comes from its own record and the real reader",
+      "keep_because": "The payment card reads the launch's token, splitter, receiver and treasury from the strategy's record and every balance and allowance through the production Base reader, then builds the approval and the payment. It fails if the card goes back to a stored subject or the reader misreads a binding.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+    },
+    {
+      "id": 134,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 157,
+      "test_name": "a receiver whose money goes anywhere but the launch's treasury is refused",
+      "keep_because": "A receiver whose beneficiary is not the launch's treasury is never reviewed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+    },
+    {
+      "id": 135,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch/payment_card_test.exs",
+      "line": 171,
+      "test_name": "a deployment on another network refuses a Base launch's payment review",
+      "keep_because": "A review is sent on the deployment's network, so it is built only for a launch on that network (the A02 to-do).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
     }
   ],
   "legacy_folders_to_remove": [
