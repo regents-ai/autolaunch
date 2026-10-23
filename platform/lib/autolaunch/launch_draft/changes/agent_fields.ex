@@ -5,6 +5,10 @@ defmodule Autolaunch.LaunchDraft.Changes.AgentFields do
   field the save changes joins `agent_set_fields`; with `mark: false` (the
   creator's own edit) every field the creator changes leaves it. A picture is
   the field `:image`, and a chain the field `:chain`.
+
+  `set:` names fields an earlier step of the same save changed: an agent's
+  picture is stored and chosen as the creator's own upload is, and only then
+  named as the agent's.
   """
   use Ash.Resource.Change
 
@@ -12,9 +16,10 @@ defmodule Autolaunch.LaunchDraft.Changes.AgentFields do
   def change(changeset, opts, _context) do
     changed =
       opts
-      |> Keyword.fetch!(:fields)
+      |> Keyword.get(:fields, [])
       |> Enum.filter(&Ash.Changeset.changing_attribute?(changeset, &1))
       |> Enum.map(&field/1)
+      |> Enum.concat(Keyword.get(opts, :set, []))
 
     marked = Ash.Changeset.get_attribute(changeset, :agent_set_fields) || []
 

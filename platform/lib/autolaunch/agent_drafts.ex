@@ -8,12 +8,15 @@ defmodule Autolaunch.AgentDrafts do
   key, launch, or sign anything: the person opens the create page, sees
   every field the agent set named in the review, and signs.
 
-  A save is one transaction: the fields, then the picture, each through the
-  draft's own agent actions, so a pairing revoked meanwhile saves nothing.
+  A save is one transaction. It opens the draft through the agent's own
+  action, which locks the pairing first, so a pairing revoked meanwhile saves
+  nothing and nothing is stored for the person before the pairing is checked.
+  The fields follow, then the picture. Once the save has committed, the
+  person's open create page hears of it (`subscribe/2`).
   """
 
   alias Autolaunch.Actors.{Agent, Human}
-  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage, Repo}
+  alias Autolaunch.{LaunchDraft, LaunchDraftImageStorage}
   alias Autolaunch.Stocks.LaunchDraft, as: StocksDraft
   alias Autolaunch.Stocks.LaunchDraftImageStorage, as: StocksImageStorage
 
@@ -21,6 +24,13 @@ defmodule Autolaunch.AgentDrafts do
     "revstake" => {LaunchDraft, LaunchDraftImageStorage},
     "memestock" => {StocksDraft, StocksImageStorage}
   }
+
+  @doc """
+  Tells the calling process each time a paired agent's save of the draft of
+  `kind` for `human_account_id` commits, as `{:agent_draft_saved, kind}`.
+  """
+  def subscribe(kind, human_account_id),
+    do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(kind, human_account_id))
 
   @doc "The fields an agent may send for `kind`, as JSON names; `image` takes a picture."
   def fields(kind) do
@@ -44,22 +54,41 @@ defmodule Autolaunch.AgentDrafts do
           {:ok, struct()} | {:error, :invalid_draft | :invalid_image | :image_too_large}
   def save(kind, params, %Agent{} = actor) do
     with {:ok, {resource, storage}} <- kind(kind),
-         {:ok, fields, image} <- split(kind, params) do
-      Repo.transaction(fn -> write(resource, storage, fields, image, actor) end)
+         {:ok, fields, image} <- split(kind, params),
+         {:ok, draft} <-
+           Ash.DataLayer.transaction(resource, fn ->
+             write(resource, storage, fields, image, actor)
+           end) do
+      Phoenix.PubSub.broadcast(
+        Autolaunch.PubSub,
+        topic(kind, actor.human_account_id),
+        {:agent_draft_saved, kind}
+      )
+
+      {:ok, draft}
     end
   end
 
+  # Ash's own transaction wrappers turn a refusal into a general error; the
+  # agent API answers each reason by name.
   defp write(resource, storage, fields, image, actor) do
     with {:ok, draft} <- draft(resource, actor),
          {:ok, draft} <- save_fields(draft, fields, actor),
          {:ok, draft} <- save_image(draft, image, storage, actor) do
       draft
     else
-      {:error, reason} when reason in [:invalid_image, :image_too_large] -> Repo.rollback(reason)
-      {:error, :too_many_pixels} -> Repo.rollback(:image_too_large)
-      _refused -> Repo.rollback(:invalid_draft)
+      {:error, reason} when reason in [:invalid_image, :image_too_large] ->
+        Ash.DataLayer.rollback(resource, reason)
+
+      {:error, :too_many_pixels} ->
+        Ash.DataLayer.rollback(resource, :image_too_large)
+
+      _refused ->
+        Ash.DataLayer.rollback(resource, :invalid_draft)
     end
   end
+
+  defp topic(kind, human_account_id), do: "#{kind}_agent_draft:#{human_account_id}"
 
   defp kind(kind) do
     case Map.fetch(@kinds, kind) do
@@ -94,12 +123,10 @@ defmodule Autolaunch.AgentDrafts do
 
   defp picture(_image), do: {:error, :invalid_draft}
 
-  defp draft(resource, actor) do
-    with {:ok, nil} <-
-           resource |> Ash.Query.for_read(:agent_read, %{}, actor: actor) |> Ash.read_one(),
-         do:
-           resource |> Ash.Changeset.for_create(:agent_create, %{}, actor: actor) |> Ash.create()
-  end
+  # The person's draft, made when there is none yet. Its action locks the
+  # pairing until the save commits, before anything is written.
+  defp draft(resource, actor),
+    do: resource |> Ash.Changeset.for_create(:agent_create, %{}, actor: actor) |> Ash.create()
 
   defp save_fields(draft, fields, _actor) when map_size(fields) == 0, do: {:ok, draft}
 
@@ -109,8 +136,8 @@ defmodule Autolaunch.AgentDrafts do
   defp save_image(draft, nil, _storage, _actor), do: {:ok, draft}
 
   # The picture is stored as the person's own upload is, under the account the
-  # pairing names, then named as the agent's by the draft's agent action, which
-  # checks the pairing again inside this transaction.
+  # pairing names, while the pairing `draft/2` locked is still held; the
+  # draft's agent action then names it as the agent's.
   defp save_image(draft, image, storage, actor) do
     owner = %Human{human_account_id: actor.human_account_id}
 

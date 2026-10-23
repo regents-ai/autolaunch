@@ -1,5 +1,5 @@
 {
-  "total": 100,
+  "total": 101,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1184,20 +1184,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
+      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
     },
     {
       "id": 132,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 69,
+      "line": 103,
       "test_name": "the launch review names every agent-set field and shows the community links",
       "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "47079396410509c49c574bb8e45c7943315a84ce5202086eba2d9788b1698f3a"
+      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
     },
     {
       "id": 133,
@@ -1302,6 +1302,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "92ab29be972d1014f72b5c368e082ed71771ceeab5df8587c8c82c55e02884b5"
+    },
+    {
+      "id": 141,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 70,
+      "test_name": "AGENT_SAVE_SHOWS_LIVE: an open create page shows an agent's save without a reload",
+      "keep_because": "An agent can fill in a draft while the person has the create page open; the box naming what the agent set must show it then, on both create pages, so nothing an agent chose reaches a wallet step unseen. It fails when either page stops hearing of an agent's save.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
     }
   ],
   "legacy_folders_to_remove": [

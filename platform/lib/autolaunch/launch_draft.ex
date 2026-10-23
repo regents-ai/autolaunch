@@ -141,15 +141,7 @@ defmodule Autolaunch.LaunchDraft do
       accept []
       require_atomic? false
 
-      change fn changeset, _context ->
-        marked = Ash.Changeset.get_attribute(changeset, :agent_set_fields)
-
-        Ash.Changeset.force_change_attribute(
-          changeset,
-          :agent_set_fields,
-          Enum.uniq(marked ++ [:image])
-        )
-      end
+      change {Autolaunch.LaunchDraft.Changes.AgentFields, set: [:image], mark: true}
 
       change {RegentAgents.RequirePairing, repo: Autolaunch.Repo}
       change set_attribute(:last_agent_pairing_id, actor(:pairing_id))

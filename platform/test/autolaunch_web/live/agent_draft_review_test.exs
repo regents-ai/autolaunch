@@ -64,6 +64,40 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     assert review =~ @treasury
   end
 
+  # Production chief, 23 Oct 2026: the box stayed as the page opened while an
+  # agent filled in the draft, so the person saw an agent's fields only after
+  # a reload.
+  test "AGENT_SAVE_SHOWS_LIVE: an open create page shows an agent's save without a reload",
+       %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    code =
+      RegentAgents.issue_pairing_code!(
+        actor: %RegentAgents.Person{privy_user_id: account.privy_user_id}
+      )
+
+    RegentAgents.pair_agent!(code.code, "Live Agent", :codex,
+      actor: %RegentAgents.Agent{wallet: @wallet}
+    )
+
+    {:ok, agent, _account} = Agents.resolve(@wallet)
+    session = signed_in_session(account.id)
+
+    for {kind, path} <- [{"revstake", "/create/revstake"}, {"memestock", "/create"}] do
+      {:ok, view, _html} =
+        conn
+        |> Phoenix.ConnTest.init_test_session(session)
+        |> connects_with(session)
+        |> live(path)
+
+      refute has_element?(view, "#agent-set-fields")
+
+      {:ok, _draft} = AgentDrafts.save(kind, %{"name" => "Agent Live #{kind}"}, agent)
+
+      assert view |> element("#agent-set-fields") |> render() =~ "Agent Live #{kind}"
+    end
+  end
+
   # The review is built from the draft as it stands when the person presses
   # Review, so an agent's save after the page opened is named there too.
   test "the launch review names every agent-set field and shows the community links" do
