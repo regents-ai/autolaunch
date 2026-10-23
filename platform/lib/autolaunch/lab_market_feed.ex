@@ -1,7 +1,8 @@
 defmodule Autolaunch.LabMarketFeed do
   @moduledoc """
-  Keeps the Base Revstake auctions current: every second on a lab, every
-  fifteen seconds on mainnet.
+  Keeps the Base Revstake auctions current: every second on a lab, every five
+  minutes on mainnet, and ten seconds after a person's on-chain press lands
+  (`refresh/1`, from `Autolaunch.ChainRefresh`).
 
   Each pass reads a bounded page of the auctions (`Autolaunch.MarketWatch`) at
   one block, writes their rows (`Projector`), and then stores each auction's
@@ -13,16 +14,23 @@ defmodule Autolaunch.LabMarketFeed do
 
   use GenServer
 
+  @behaviour Autolaunch.ChainRefresh
+
   require Logger
 
   alias __MODULE__.{Projector, Reader}
-  alias Autolaunch.MarketReadings
+  alias Autolaunch.{ChainRefresh, MarketReadings}
 
   @feed "base"
-  # A lab moves every second; a mainnet reading is fresh enough every fifteen.
+  @topic "chain_refresh:base"
+  # A lab moves every second; a mainnet reading is fresh enough every five
+  # minutes, since a press that lands asks for one sooner.
   @lab_delay 1_000
-  @mainnet_delay 15_000
-  @max_delay 10_000
+  @mainnet_delay 300_000
+  # A pass that could not read the chain is tried again sooner, backing off to
+  # ten seconds on a lab and a minute on mainnet.
+  @lab_max_retry 10_000
+  @mainnet_max_retry 60_000
 
   def start_link(options \\ []) do
     case Keyword.get(options, :name, __MODULE__) do
@@ -31,9 +39,16 @@ defmodule Autolaunch.LabMarketFeed do
     end
   end
 
-  def refresh(server \\ __MODULE__) do
-    send(server, :poll)
-    :ok
+  @doc "Wakes the feed on every machine when `chain_id` is the chain it reads."
+  @impl ChainRefresh
+  def refresh(chain_id) do
+    case Autolaunch.Lab.current() do
+      {:ok, %{chain_id: ^chain_id}} ->
+        Phoenix.PubSub.broadcast(Autolaunch.PubSub, @topic, :chain_refresh)
+
+      _other_chain ->
+        :ok
+    end
   end
 
   @impl true
@@ -55,9 +70,12 @@ defmodule Autolaunch.LabMarketFeed do
       held: MapSet.new(),
       degraded?: false,
       in_flight: nil,
+      read_at: nil,
+      again?: false,
       timer: nil
     }
 
+    :ok = Phoenix.PubSub.subscribe(Autolaunch.PubSub, @topic)
     MarketReadings.start(@feed, fn -> state.reader.head() end)
     {:ok, if(state.poll?, do: schedule(state, 0), else: state)}
   end
@@ -71,10 +89,21 @@ defmodule Autolaunch.LabMarketFeed do
 
     Task.start(fn -> send(parent, {:head, token, safely(fn -> reader.head(accepted) end)}) end)
 
-    {:noreply, %{state | in_flight: %{token: token, stage: :head}, timer: nil}}
+    {:noreply,
+     %{state | in_flight: %{token: token, stage: :head}, read_at: ChainRefresh.now(), timer: nil}}
   end
 
   def handle_info(:poll, state), do: {:noreply, state}
+
+  # A press landed: read again once ten seconds have passed since the last
+  # pass began, unless a pass is already due sooner. During a pass, the next
+  # one waits only for that gap.
+  def handle_info(:chain_refresh, %{in_flight: nil} = state) do
+    wait = ChainRefresh.wait_ms(state.read_at)
+    {:noreply, if(ChainRefresh.later?(state.timer, wait), do: schedule(state, wait), else: state)}
+  end
+
+  def handle_info(:chain_refresh, state), do: {:noreply, %{state | again?: true}}
 
   def handle_info({:head, token, result}, %{in_flight: %{token: token, stage: :head}} = state) do
     case result do
@@ -425,16 +454,25 @@ defmodule Autolaunch.LabMarketFeed do
 
     state
     |> Map.put(:delay, delay)
-    |> schedule(delay)
+    |> next(delay)
   end
 
   defp failed(state) do
     MarketReadings.unread(@feed)
-    delay = min(max(state.delay * 2, 2_000), max(@max_delay, initial_delay()))
-    state |> Map.put(:delay, delay) |> schedule(delay)
+    delay = min(max(state.delay * 2, 2_000), max_retry())
+    state |> Map.put(:delay, delay) |> next(delay)
   end
 
+  # A press that landed during the pass is read once the gap has passed.
+  defp next(%{again?: true} = state, _delay),
+    do: schedule(%{state | again?: false}, ChainRefresh.wait_ms(state.read_at))
+
+  defp next(state, delay), do: schedule(state, delay)
+
   defp initial_delay, do: if(Autolaunch.Lab.test_chain?(), do: @lab_delay, else: @mainnet_delay)
+
+  defp max_retry,
+    do: if(Autolaunch.Lab.test_chain?(), do: @lab_max_retry, else: @mainnet_max_retry)
 
   defp schedule(%{poll?: false} = state, _delay), do: state
 

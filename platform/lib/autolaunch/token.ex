@@ -251,6 +251,16 @@ defmodule Autolaunch.Token do
               )
     end
 
+    # The listed tokens on one chain whose next trades read is later than
+    # `soon` (`Autolaunch.TokenTrades.refresh/1`).
+    read :trades_later do
+      pagination keyset?: true, required?: false
+      argument :chain_id, :integer, allow_nil?: false
+      argument :soon, :utc_datetime_usec, allow_nil?: false
+      filter expr(auction.chain_id == ^arg(:chain_id) and trades_due_at > ^arg(:soon))
+      prepare Autolaunch.Token.Preparations.ListedAuction
+    end
+
     # Not atomic: an atomic update re-reads through the primary read, which
     # hides Robinhood rows, so a Robinhood token would never be claimed.
     update :schedule_trades do
@@ -287,6 +297,7 @@ defmodule Autolaunch.Token do
              :projection_by_auction,
              :set_price_snapshot,
              :trades_due,
+             :trades_later,
              :schedule_trades,
              :refresh_trades
            ]) do

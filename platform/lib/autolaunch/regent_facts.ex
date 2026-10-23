@@ -8,8 +8,10 @@ defmodule Autolaunch.RegentFacts do
   today: the Clanker vault, the treasury the staking contract names, the Animata
   redeemer and the staking contract's REGENT reward inventory.
 
-  One reading is kept for a minute and shared by every visitor. It is taken
-  inside this process, so visitors who ask while it is being taken wait for that
+  One reading is kept for five minutes and shared by every visitor; a landed
+  press on Base (`Autolaunch.ChainRefresh`) shortens that to ten seconds from
+  when it was taken, so the next visit after a person acts reads again. It is
+  taken inside this process, so visitors who ask while it is being taken wait for that
   one reading instead of each starting their own. The seven days of USDC and
   the price are read beside the rest; either one that does not answer is
   `:unavailable` and the rest of the reading stands.
@@ -24,6 +26,8 @@ defmodule Autolaunch.RegentFacts do
   """
 
   use GenServer
+
+  @behaviour Autolaunch.ChainRefresh
 
   require Logger
 
@@ -77,7 +81,8 @@ defmodule Autolaunch.RegentFacts do
   @chunk_blocks 10_000
   @chunk_concurrency 8
 
-  @ttl_ms 60_000
+  @base_chain_id 8453
+  @ttl_ms 300_000
   @read_timeout 30_000
 
   def start_link(options \\ []),
@@ -86,14 +91,26 @@ defmodule Autolaunch.RegentFacts do
   @doc "The Uniswap pool REGENT trades in."
   def pool, do: @pool
 
-  @doc "The shared REGENT reading, at most a minute old."
+  @doc "The shared REGENT reading, at most five minutes old."
   @spec read() :: {:ok, map()} | {:error, atom()}
   def read, do: GenServer.call(__MODULE__, :read, @read_timeout)
 
-  @impl true
+  @impl Autolaunch.ChainRefresh
+  def refresh(@base_chain_id), do: GenServer.cast(__MODULE__, :refresh)
+  def refresh(_chain_id), do: :ok
+
+  @impl GenServer
   def init(nil), do: {:ok, nil}
 
-  @impl true
+  @impl GenServer
+  def handle_cast(:refresh, {reading, read_at}),
+    do:
+      {:noreply,
+       {reading, min(read_at, read_at + Autolaunch.ChainRefresh.gap_s() * 1_000 - @ttl_ms)}}
+
+  def handle_cast(:refresh, nil), do: {:noreply, nil}
+
+  @impl GenServer
   def handle_call(:read, _from, {reading, read_at} = kept) when is_map(reading) do
     if read_at + @ttl_ms > now(), do: {:reply, {:ok, reading}, kept}, else: reread(kept)
   end

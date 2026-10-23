@@ -20,9 +20,14 @@ defmodule Autolaunch.Indexer.Handler do
   the whole bound. Finality promotion uses the same bound and runs on its own
   when the safe head has not moved, so evidence can finalize while ingest is
   idle.
+
+  The runner wakes a chain every five minutes, or sooner when `refresh/1` asks
+  (`Autolaunch.ChainRefresh`). A pass whose range ends below the safe head is
+  followed at once by another, so one wake brings the ledger up to the head.
   """
 
   @behaviour Autolaunch.DurableWork.Handler
+  @behaviour Autolaunch.ChainRefresh
 
   require Logger
 
@@ -61,16 +66,36 @@ defmodule Autolaunch.Indexer.Handler do
   @spec lease_ms() :: pos_integer()
   def lease_ms, do: max_requests() * Rpc.max_request_ms() + @commit_margin_ms
 
-  @impl true
+  @doc "The topic chain `chain_id`'s runner hears `refresh/1` on."
+  @spec topic(pos_integer()) :: String.t()
+  def topic(chain_id), do: "chain_refresh:ledger:#{chain_id}"
+
+  @impl Autolaunch.ChainRefresh
+  def refresh(chain_id),
+    do: Phoenix.PubSub.broadcast(Autolaunch.PubSub, topic(chain_id), :chain_refresh)
+
+  @impl Autolaunch.DurableWork.Handler
   def poll(_chain_id, 0), do: []
   def poll(chain_id, _capacity), do: [chain_id]
 
-  @impl true
+  @impl Autolaunch.DurableWork.Handler
   def handle(_context, chain_id) do
-    with :ok <- admitted(chain_id),
-         {:ok, lease} <- Ledger.acquire(chain_id, lease_ms()) do
-      reported(leased(lease), chain_id)
-    else
+    case admitted(chain_id) do
+      :ok -> caught_up(chain_id)
+      {:error, reason} -> reported({:error, reason}, chain_id)
+    end
+  end
+
+  defp caught_up(chain_id) do
+    case pass(chain_id) do
+      :behind -> caught_up(chain_id)
+      result -> result
+    end
+  end
+
+  defp pass(chain_id) do
+    case Ledger.acquire(chain_id, lease_ms()) do
+      {:ok, lease} -> reported(leased(lease), chain_id)
       {:error, reason} -> reported({:error, reason}, chain_id)
     end
   end
@@ -113,9 +138,12 @@ defmodule Autolaunch.Indexer.Handler do
 
     case range(lease.next_block, safe.number) do
       :none -> Ledger.commit(lease, {:promote, finality}, @bound)
-      {from, to} -> ingest(lease, from, to, safe, finality)
+      {from, to} -> lease |> ingest(from, to, safe, finality) |> behind(to < safe.number)
     end
   end
+
+  defp behind({:ok, _committed}, true), do: :behind
+  defp behind(result, _below_safe), do: result
 
   defp range(from, safe) when from > safe, do: :none
   defp range(from, safe), do: {from, min(safe, from + @bound - 1)}
@@ -240,6 +268,7 @@ defmodule Autolaunch.Indexer.Handler do
   # One redacted line per failing pass: a method, a chain and a small reason
   # class, never an endpoint, a key or provider payload. Idling quietly is not
   # a failure and says nothing at all.
+  defp reported(:behind, _chain_id), do: :behind
   defp reported({:ok, _committed} = advanced, _chain_id), do: advanced
   defp reported({:error, reason} = idle, _chain_id) when reason in @quiet, do: idle
 

@@ -305,6 +305,20 @@ section names for Fly's managed Prometheus. That port is not a Fly service, so i
 reachable only over Fly's private network; the public site has no `/metrics` page.
 Fly Sentinel reads them from Prometheus under its site health set.
 
+## How often the site reads the chain
+
+Base and Robinhood Chain are read through a paid node, so the background readers run on a
+five-minute clock: the three market feeds, auction activity, token trades, the Base log
+ledger, the auction finisher and Memestock launch discovery (`*/5` Oban schedules), and the
+REGENT page's shared figures. A reader that fails tries again within a minute; the ledger
+keeps reading until it reaches the safe head before it sleeps again.
+
+A person's on-chain press that the chain confirms calls `Autolaunch.ChainRefresh.request/1`
+with its chain id (`AutolaunchWeb.OnchainSteps`, `AutolaunchWeb.OnchainCalls`). Every reader
+named under `config :autolaunch, Autolaunch.ChainRefresh, readers:` then reads that chain
+again within ten seconds; presses that arrive together share one read. The local fork lab
+still reads every second.
+
 ## Shared private profile
 
 `/account` uses the shared Regent UI and Regents-owned Ash identity domain.

@@ -7,8 +7,13 @@ defmodule Autolaunch.AuctionActivity do
   repeat ranges replace the same events. A changed cursor block invalidates this
   auction's derived activity and rebuilds it. On Base each bid also becomes its
   bidder's wallet position; a rebuild never removes or changes a saved one.
+
+  An auction that has caught up is read again five minutes later, a finished
+  one ten minutes later, and every auction on a chain ten seconds after a
+  person's on-chain press there lands (`refresh/1`).
   """
   @behaviour Autolaunch.DurableWork.Handler
+  @behaviour Autolaunch.ChainRefresh
   import Ecto.Query
   require Logger
   alias Autolaunch.Actors.System
@@ -25,6 +30,7 @@ defmodule Autolaunch.AuctionActivity do
   }
 
   alias Autolaunch.Chain.Rpc
+  alias Autolaunch.ChainRefresh
   alias RegentChain.Address
   @actor %System{}
   @bid "BidSubmitted(uint256,address,uint256,uint128)"
@@ -36,16 +42,38 @@ defmodule Autolaunch.AuctionActivity do
   @adapter_bid "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @range 2_000
 
+  @impl Autolaunch.DurableWork.Handler
   def poll(_, 0), do: []
   def poll(_, _), do: [:next]
 
+  @doc """
+  A person's on-chain press on chain `chain_id` landed: every listed auction on
+  it is read ten seconds from now, instead of at its next turn. One already due
+  sooner stays as it is.
+  """
+  @impl ChainRefresh
+  def refresh(chain_id) do
+    soon = DateTime.add(DateTime.utc_now(), ChainRefresh.gap_s())
+
+    Auction
+    |> Ash.Query.for_read(:activity_later, %{chain_id: chain_id, soon: soon}, actor: @actor)
+    |> Ash.bulk_update!(:schedule_activity, %{activity_due_at: soon},
+      actor: @actor,
+      strategy: :stream,
+      return_errors?: true
+    )
+
+    :ok
+  end
+
+  @impl Autolaunch.DurableWork.Handler
   def handle(historical, :next) do
     case claim(historical) do
       {:ok, nil} ->
         :ok
 
       {:ok, auction} ->
-        case refresh(auction) do
+        case read(auction) do
           :ok ->
             :ok
 
@@ -86,7 +114,7 @@ defmodule Autolaunch.AuctionActivity do
     end
   end
 
-  def refresh(auction) do
+  def read(auction) do
     with {:ok, venue} <- venue(auction),
          {:ok, head} <- Rpc.latest_block(venue.opts),
          {:ok, clock} <- clock(venue, head),
@@ -623,7 +651,7 @@ defmodule Autolaunch.AuctionActivity do
 
   defp refresh_delay(_auction, false), do: 1
   defp refresh_delay(%{state: state}, true) when state in [:graduated, :failed], do: 600
-  defp refresh_delay(_auction, true), do: 5
+  defp refresh_delay(_auction, true), do: 300
 
   defp dollar_volume(_total, nil, _complete?), do: nil
   defp dollar_volume(total, rate, true), do: Decimal.mult(total, rate)

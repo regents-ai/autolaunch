@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: the chain is read when it matters
+- Auctions, tokens, trades and the REGENT page are brought up to date from Base every five minutes instead of every few seconds.
+- When you bid, launch, claim or make any other on-chain move, the site reads the chain again within ten seconds, so your own change shows straight away.
+- A new launch still appears on Explore within a minute of its creator's press.
 ## 23 October 2026: pay a Revstake token from its page
 - A Revstake token's page can take a payment into its revenue split once launches are open: choose USDC, REGENT or the token, check the review, and confirm in your wallet. The payment address comes from the launch's own record on Base, and the card refuses any address whose money would not go to the launch's treasury, or a site on another network.
 

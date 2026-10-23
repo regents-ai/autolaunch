@@ -1,7 +1,8 @@
 defmodule Autolaunch.Stocks.LabMarketFeed do
   @moduledoc """
-  Keeps the Base Memestock auctions current: every second on a lab, every
-  fifteen seconds on mainnet.
+  Keeps the Base Memestock auctions current: every second on a lab, every five
+  minutes on mainnet, and ten seconds after a person's on-chain press lands
+  (`refresh/1`, from `Autolaunch.ChainRefresh`).
 
   Each poll reads a bounded page of the Memestock auction rows that already
   exist (`Autolaunch.MarketWatch`) from their own contracts and the lifecycle
@@ -15,6 +16,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
 
   use GenServer
 
+  @behaviour Autolaunch.ChainRefresh
+
   require Logger
 
   alias Autolaunch.Actors.System
@@ -23,51 +26,91 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.AuctionSnapshot
   alias Autolaunch.AuctionTerms
   alias Autolaunch.Chain.Rpc
+  alias Autolaunch.ChainRefresh
   alias Autolaunch.{LabAbi, LabProjection, MarketReadings, MarketWatch, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @feed "stocks"
+  @topic "chain_refresh:stocks"
   @lab_interval 1_000
-  @mainnet_interval 15_000
+  @mainnet_interval 300_000
+  # A pass that could not read the chain is tried again a minute later.
+  @mainnet_retry 60_000
   @actor %System{}
   @new_decimals 18
 
   def start_link(options \\ []),
     do: GenServer.start_link(__MODULE__, options, name: Keyword.get(options, :name, __MODULE__))
 
+  @doc "Wakes the feed on every machine when `chain_id` is the chain it reads."
+  @impl ChainRefresh
+  def refresh(chain_id) do
+    case Lab.current() do
+      {:ok, %{chain_id: ^chain_id}} ->
+        Phoenix.PubSub.broadcast(Autolaunch.PubSub, @topic, :chain_refresh)
+
+      _other_chain ->
+        :ok
+    end
+  end
+
   @impl true
   def init(_options) do
+    :ok = Phoenix.PubSub.subscribe(Autolaunch.PubSub, @topic)
     MarketReadings.start(@feed, &head/0)
-    {:ok, schedule(%{watch: MarketWatch.new(), in_flight: false, timer: nil}, 0)}
+
+    {:ok,
+     schedule(
+       %{watch: MarketWatch.new(), in_flight: false, read_at: nil, again?: false, timer: nil},
+       0
+     )}
   end
 
   @impl true
   def handle_info(:poll, %{in_flight: false} = state) do
     parent = self()
     watch = state.watch
-    Task.start(fn -> send(parent, {:refreshed, safely(fn -> refresh(watch) end)}) end)
-    {:noreply, %{state | in_flight: true, timer: nil}}
+    Task.start(fn -> send(parent, {:refreshed, safely(fn -> pass(watch) end)}) end)
+    {:noreply, %{state | in_flight: true, read_at: ChainRefresh.now(), timer: nil}}
   end
 
   def handle_info(:poll, state), do: {:noreply, state}
+
+  # A press landed: read again once ten seconds have passed since the last
+  # pass began, unless a pass is already due sooner. During a pass, the next
+  # one waits only for that gap.
+  def handle_info(:chain_refresh, %{in_flight: false} = state) do
+    wait = ChainRefresh.wait_ms(state.read_at)
+    {:noreply, if(ChainRefresh.later?(state.timer, wait), do: schedule(state, wait), else: state)}
+  end
+
+  def handle_info(:chain_refresh, state), do: {:noreply, %{state | again?: true}}
 
   # A pass reads only part of the auctions, so its readings join the ones
   # earlier passes stored; each reading names the block it was taken at.
   def handle_info({:refreshed, {:ok, refresh}}, state) do
     MarketReadings.store(@feed, refresh.head, Map.values(refresh.snapshots))
     MarketReadings.read(@feed)
-    {:noreply, schedule(%{state | watch: refresh.watch, in_flight: false}, interval())}
+    {:noreply, next(%{state | watch: refresh.watch, in_flight: false}, interval())}
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
     Logger.warning("memestock market feed skipped a poll: #{inspect(reason)}")
     MarketReadings.unread(@feed)
-    {:noreply, schedule(%{state | in_flight: false}, interval())}
+    {:noreply, next(%{state | in_flight: false}, retry())}
   end
+
+  # A press that landed during the pass is read once the gap has passed.
+  defp next(%{again?: true} = state, _delay),
+    do: schedule(%{state | again?: false}, ChainRefresh.wait_ms(state.read_at))
+
+  defp next(state, delay), do: schedule(state, delay)
 
   defp interval,
     do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
+
+  defp retry, do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_retry)
 
   defp head do
     with {:ok, config} <- Lab.current(), do: Rpc.latest_block(rpc_opts(config))
@@ -78,7 +121,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   # One poll: this pass's page of Memestock auctions (`Autolaunch.MarketWatch`),
   # with the auctions whose rows it changed.
   @doc false
-  def refresh(watch) do
+  def pass(watch) do
     with {:ok, config} <- Lab.current(),
          opts <- rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),

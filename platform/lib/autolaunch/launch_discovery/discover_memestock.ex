@@ -8,7 +8,13 @@ defmodule Autolaunch.LaunchDiscovery.DiscoverMemestock do
   `StocksPreset.sol`) after the block the launch was created in, so the
   `StockLaunchCreated` log, and with it the transaction, is read from that one
   block.
+
+  It runs every five minutes, and at once when a press on a chain with a Base
+  Memestock launchpad lands (`Autolaunch.ChainRefresh`), so a creator's own
+  launch is listed straight away.
   """
+
+  @behaviour Autolaunch.ChainRefresh
 
   alias Autolaunch.Actors.System
   alias Autolaunch.AuctionFinish.Launchpads
@@ -17,6 +23,19 @@ defmodule Autolaunch.LaunchDiscovery.DiscoverMemestock do
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @start_lead_blocks 300
+
+  # No job runs while the site is read-only before launch (`Autolaunch.Application`).
+  @impl true
+  def refresh(chain_id) do
+    if not Autolaunch.Prelaunch.read_only?() and
+         Enum.any?(
+           Launchpads.configured(),
+           &(&1.launchpad == :base_memestock and &1.chain_id == chain_id)
+         ),
+       do: AshOban.schedule(Autolaunch.LaunchDiscovery, :discover_memestock)
+
+    :ok
+  end
 
   def run(_input, _context) do
     Launchpads.configured()

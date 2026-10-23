@@ -8,7 +8,8 @@ defmodule AutolaunchWeb.OnchainSteps do
   presses. The page reports each press against the review it sent from. Every
   sent step is then read at the latest block of the review's chain, every two
   seconds, until it lands or the page stops asking. Nothing is kept beyond the
-  page.
+  page. A step that lands asks every reader of its chain to read it again
+  (`Autolaunch.ChainRefresh`), so the site's shared figures show what it changed.
 
   The only wallet that may act is Privy's active wallet when it is one of the
   signed-in account's own (`signer/2`). Reads that show another wallet never
@@ -218,11 +219,20 @@ defmodule AutolaunchWeb.OnchainSteps do
 
         cond do
           Presses.reading?(entry) -> check(socket, entry)
-          entry.outcome == :confirmed -> confirmed.(socket, entry)
+          entry.outcome == :confirmed -> socket |> refresh_chain(entry) |> confirmed.(entry)
           entry.outcome == :reverted -> reverted.(socket, entry)
           true -> socket
         end
     end
+  end
+
+  @doc """
+  A step that landed may have changed what the site's shared figures show, so
+  every reader of its chain reads it again (`Autolaunch.ChainRefresh`).
+  """
+  def refresh_chain(socket, %{review: %{chain: %{chain_id: chain_id}}}) do
+    Autolaunch.ChainRefresh.request(chain_id)
+    socket
   end
 
   @doc """
