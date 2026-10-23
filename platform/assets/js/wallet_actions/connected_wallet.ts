@@ -45,16 +45,21 @@ export function activeEthereumWallet(): SelectedWallet | null {
 
 /**
  * Whether Privy's selected wallet is an Ethereum wallet that is still among the
- * connected ones. A Solana selection and a selection the provider has dropped
- * are both ineligible rather than a reason to pick another wallet.
+ * connected ones and, signed in, one the account is linked to. A Solana
+ * selection, a selection the provider has dropped, and a wallet app left
+ * connected from before a sign-in (one used ahead of a Google sign-in, say) are
+ * all ineligible rather than this account's wallet.
  */
-export function eligibleActiveWallet<W extends {address: string; type?: string}>(
+export function accountActiveWallet<W extends {address: string; type?: string}>(
   active: W | null | undefined,
   wallets: ReadonlyArray<{address: string}>,
+  authenticated: boolean,
+  linked: ReadonlyArray<string>,
 ): W | null {
   if (!active || active.type !== "ethereum") return null
   const address = active.address.toLowerCase()
-  return wallets.some(wallet => wallet.address.toLowerCase() === address) ? active : null
+  const held = wallets.some(wallet => wallet.address.toLowerCase() === address)
+  return held && (!authenticated || linked.includes(address)) ? active : null
 }
 
 /**

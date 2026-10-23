@@ -32,7 +32,7 @@ import {
   type SessionMutationCoordinator,
 } from "./auth_lazy"
 import {
-  eligibleActiveWallet,
+  accountActiveWallet,
   forgetWalletDisconnected,
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
@@ -655,14 +655,15 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
       return
     }
 
-    let selected = eligibleActiveWallet(activeWallet, wallets)
+    const linked = linkedWallets ? linkedWallets.split(",") : []
+    let selected = accountActiveWallet(activeWallet, wallets, authenticated, linked)
 
-    // Privy names no wallet after a sign-in that skipped its window, or in a new
-    // tab. The signed-in wallet then sends as this tab has it connected: the one
-    // connected wallet the account is linked to. Two such wallets are no wallet;
-    // the press opens Privy's connect window and the customer picks.
-    if (!selected && ready && walletsReady && linkedWallets) {
-      const linked = linkedWallets.split(",")
+    // Privy names no wallet after a sign-in that skipped its window, in a new
+    // tab, or when the one it names is not this account's. The signed-in wallet
+    // then sends as this tab has it connected: the one connected wallet the
+    // account is linked to. Two such wallets are no wallet; a press sends nothing
+    // and names the account's wallets so the customer opens one.
+    if (!selected && ready && walletsReady && linked.length > 0) {
       const signedIn = wallets.filter(wallet =>
         wallet.type === "ethereum" && linked.includes(wallet.address.toLowerCase()),
       )
