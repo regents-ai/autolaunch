@@ -11,7 +11,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.StoredImage
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
-  import AutolaunchWeb.Components.InfoTip
   import AutolaunchWeb.Components.MinimumWarning
   alias AutolaunchWeb.{Paths, SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
@@ -199,22 +198,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <div :if={@raise?} class="home-coin__raise">
           <p>
             <span>Bid volume</span>
-            <.info_tip id={"volume-#{@figures.id}"} text={tip(:volume)} icon={false}>
-              {@figures.volume}
-            </.info_tip>
+            <Regent.Primitives.tip id={"volume-#{@figures.id}"}>
+              <:figure>{@figures.volume}</:figure>
+              {tip(:volume)}
+            </Regent.Primitives.tip>
             <.minimum_warning id={"short-#{@figures.id}"} from={@figures.short_from}>
               · below minimum
             </.minimum_warning>
           </p>
         </div>
         <p class="home-coin__floor">
-          <span class="visually-hidden">FDV </span><.info_tip
-            id={"fdv-#{@figures.id}"}
-            text={tip(:fdv, @figures.unpriced)}
-            icon={false}
-          >
-            {@figures.fdv}
-          </.info_tip>
+          <span class="visually-hidden">FDV </span><Regent.Primitives.tip id={"fdv-#{@figures.id}"}>
+            <:figure>{@figures.fdv}</:figure>
+            {tip(:fdv, @figures.unpriced)}
+          </Regent.Primitives.tip>
         </p>
       </div>
       <div class="home-coin__actions">
@@ -535,10 +532,16 @@ defmodule AutolaunchWeb.Components.MarketCard do
             <th scope="col"><span class="visually-hidden">Buy or take your bid</span></th>
             <th scope="col">Price</th>
             <th scope="col">
-              <.info_tip id="auctions-volume" text={tip(:volume)}>Raised</.info_tip>
+              Raised
+              <Regent.Primitives.tip id="auctions-volume" label="About raised">
+                {tip(:volume)}
+              </Regent.Primitives.tip>
             </th>
             <th scope="col">
-              <.info_tip id="auctions-fdv" text={tip(:fdv)}>Market cap</.info_tip>
+              Market cap
+              <Regent.Primitives.tip id="auctions-fdv" label="About market cap">
+                {tip(:fdv)}
+              </Regent.Primitives.tip>
             </th>
             <th scope="col">Status</th>
             <th :if={@trade_event} scope="col"><span class="visually-hidden">Bid</span></th>
@@ -1360,12 +1363,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </div>
         <div>
           <dt>
-            <.info_tip
-              id="auction-finished-starting"
-              text="The auction's final price times the token's whole supply."
-            >
-              Starting market cap
-            </.info_tip>
+            Starting market cap
+            <Regent.Primitives.tip id="auction-finished-starting" label="About starting market cap">
+              The auction's final price times the token's whole supply.
+            </Regent.Primitives.tip>
           </dt>
           <dd>{@starting}</dd>
         </div>

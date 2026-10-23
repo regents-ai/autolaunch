@@ -21,7 +21,6 @@ defmodule AutolaunchWeb.Components.AuctionNext do
   """
   use Phoenix.Component
 
-  import AutolaunchWeb.Components.InfoTip
   import AutolaunchWeb.Components.MinimumWarning
 
   alias Autolaunch.{
@@ -92,12 +91,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         </div>
         <div data-on={to_string(@facts.liquidity_locked == true)}>
           <dt>
-            <.info_tip
-              id="auction-next-locked-tip"
-              text="Whether every position of the auction's pool is held by the locker, so its liquidity cannot be pulled."
-            >
-              Pool liquidity
-            </.info_tip>
+            Pool liquidity
+            <Regent.Primitives.tip id="auction-next-locked-tip" label="About pool liquidity">
+              Whether every position of the auction's pool is held by the locker, so its liquidity cannot be pulled.
+            </Regent.Primitives.tip>
           </dt>
           <dd>{locked_word(@facts.liquidity_locked)}</dd>
         </div>
@@ -170,18 +167,14 @@ defmodule AutolaunchWeb.Components.AuctionNext do
     <dl class="auction-next-figures">
       <div class="auction-next-figure">
         <dt>
-          <.info_tip
-            id="auction-next-price-tip"
-            text={
-              if @ends_at,
-                do:
-                  "The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply.",
-                else:
-                  "The price the last block of bidding cleared at. Every winning bid pays this price for its tokens."
-            }
-          >
-            {if @ends_at, do: "Price now", else: "Final price"} · per 1M {@token_symbol}
-          </.info_tip>
+          {if @ends_at, do: "Price now", else: "Final price"} · per 1M {@token_symbol}
+          <Regent.Primitives.tip id="auction-next-price-tip" label="About the price">
+            {if @ends_at,
+              do:
+                "The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply.",
+              else:
+                "The price the last block of bidding cleared at. Every winning bid pays this price for its tokens."}
+          </Regent.Primitives.tip>
         </dt>
         <dd>
           <strong
@@ -232,14 +225,12 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           <span class="auction-next-figure__note">{ending(@snapshot)}</span>
           <span class="auction-next-figure__short">
             <.minimum_warning id="auction-next-minimum" from={@short_from}>
-              <.info_tip
-                id="auction-next-minimum-tip"
-                text="If bidding ends below the minimum, every bidder can withdraw their whole bid."
-              >
-                Below the
-                <TokenDisplay.price amount={AuctionFigures.minimum_units(@auction)} unit={@symbol} />
-                minimum
-              </.info_tip>
+              Below the
+              <TokenDisplay.price amount={AuctionFigures.minimum_units(@auction)} unit={@symbol} />
+              minimum
+              <Regent.Primitives.tip id="auction-next-minimum-tip" label="About the minimum">
+                If bidding ends below the minimum, every bidder can withdraw their whole bid.
+              </Regent.Primitives.tip>
             </.minimum_warning>
           </span>
         </dd>
@@ -457,12 +448,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         </div>
       </div>
       <p class="auction-next-film__band-label">
-        <.info_tip
-          id={"#{@id}-band-tip"}
-          text="Every CCA bid is split across all blocks for the remaining auction, in step with how much of the supply each block releases."
-        >
-          Supply released per block, by schedule stage
-        </.info_tip>
+        Supply released per block, by schedule stage
+        <Regent.Primitives.tip id={"#{@id}-band-tip"} label="About the supply schedule">
+          Every CCA bid is split across all blocks for the remaining auction, in step with how much of the supply each block releases.
+        </Regent.Primitives.tip>
       </p>
       <svg
         class="auction-next-film__band"
@@ -489,12 +478,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
       <ul class="auction-next-legend" role="list">
         <li class="auction-next-legend__price">Recorded price</li>
         <li :if={@film.marks != []} class="auction-next-legend__bid">
-          <.info_tip
-            id={"#{@id}-bids-tip"}
-            text="Each mark is one placed bid's maximum price, at the block it was placed. A mark on the top edge is above the chart."
-          >
-            Bids' maximum prices
-          </.info_tip>
+          Bids' maximum prices
+          <Regent.Primitives.tip id={"#{@id}-bids-tip"} label="About the bid marks">
+            Each mark is one placed bid's maximum price, at the block it was placed. A mark on the top edge is above the chart.
+          </Regent.Primitives.tip>
         </li>
         <li :if={@film.draft_y} class="auction-next-legend__draft">Your draft maximum</li>
         <li
@@ -831,12 +818,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
         <dl id={"#{@id}-handle-reading"} class="auction-next-handle__reading">
           <div>
             <dt>
-              <.info_tip
-                id={"#{@id}-handle-tip"}
-                text="The auction only takes prices on its grid. A maximum between two grid prices counts as the lower one."
-              >
-                Counts as
-              </.info_tip>
+              Counts as
+              <Regent.Primitives.tip id={"#{@id}-handle-tip"} label="About the price grid">
+                The auction only takes prices on its grid. A maximum between two grid prices counts as the lower one.
+              </Regent.Primitives.tip>
             </dt>
             <dd>
               <span :if={@handle.effective}>
@@ -1130,12 +1115,10 @@ defmodule AutolaunchWeb.Components.AuctionNext do
           </div>
           <div>
             <dt>
-              <.info_tip
-                id={"#{@id}-unspent-tip"}
-                text="Each block where the clearing price is lower than your max price, you receive tokens for a portion of your budget. If your max price is exceeded, the rest of your budget stops buying."
-              >
-                Unspent
-              </.info_tip>
+              Unspent
+              <Regent.Primitives.tip id={"#{@id}-unspent-tip"} label="About unspent">
+                Each block where the clearing price is lower than your max price, you receive tokens for a portion of your budget. If your max price is exceeded, the rest of your budget stops buying.
+              </Regent.Primitives.tip>
             </dt>
             <dd>
               <TokenDisplay.price amount={@receipt.unspent} unit={@symbol} />

@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: tips that open as you point
+- An "i" anywhere on Autolaunch opens as soon as you rest the mouse on it, and closes when you move away. Click it to keep it open. On a phone, tap it as before.
+- On auction and token cards, bid volume and market cap have a dotted underline: point at or tap the figure to read what it means.
+
 ## 23 October 2026: a clearer pairing message, on newer foundations
 - The message you copy to pair an agent names your Regents Labs account and the site, and sends the agent to the pairing steps in the agent guide.
 - autolaunch.sh runs on newer versions of the software it is built with. Nothing else changes for people or agents.

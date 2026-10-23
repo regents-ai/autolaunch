@@ -1,6 +1,7 @@
 import "../css/app.css"
 import "../vendor/regent_ui/blog.mjs"
 import "../vendor/regent_ui/pill_select.mjs"
+import "../vendor/regent_ui/tip.mjs"
 
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"

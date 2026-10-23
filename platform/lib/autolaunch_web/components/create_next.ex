@@ -11,8 +11,6 @@ defmodule AutolaunchWeb.Components.CreateNext do
   """
   use AutolaunchWeb, :html
 
-  import AutolaunchWeb.Components.InfoTip
-
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{FeeSchedule, LaunchActions}
@@ -245,7 +243,10 @@ defmodule AutolaunchWeb.Components.CreateNext do
       <dl class="create-next__facts">
         <div>
           <dt>
-            <.info_tip id={"#{@id}-floor-tip"} text={@floor_tip}>Starting price</.info_tip>
+            Starting price
+            <Regent.Primitives.tip id={"#{@id}-floor-tip"} label="About the starting price">
+              {@floor_tip}
+            </Regent.Primitives.tip>
           </dt>
           <dd>The lowest the auction accepts</dd>
         </div>

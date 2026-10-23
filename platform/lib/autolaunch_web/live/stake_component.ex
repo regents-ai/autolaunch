@@ -38,8 +38,6 @@ defmodule AutolaunchWeb.StakeComponent do
   """
   use AutolaunchWeb, :live_component
 
-  import AutolaunchWeb.Components.InfoTip
-
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
   alias Autolaunch.Stocks.{Amounts, StakeActions}
@@ -392,12 +390,9 @@ defmodule AutolaunchWeb.StakeComponent do
                 >
                   <span class="site-glint" aria-hidden="true"></span>Settle contract
                 </Regent.Primitives.button>
-                <.info_tip
-                  id={@id <> "-settle-tip"}
-                  text="Moves the trading fees waiting in the pool into the staking contract, where they become rewards for everyone staked. Anyone can do this."
-                >
-                  <span class="visually-hidden">Settle contract</span>
-                </.info_tip>
+                <Regent.Primitives.tip id={@id <> "-settle-tip"} label="About settling the contract">
+                  Moves the trading fees waiting in the pool into the staking contract, where they become rewards for everyone staked. Anyone can do this.
+                </Regent.Primitives.tip>
               </span>
               <Regent.Primitives.button
                 :if={@pool.kind == :stocks && @pool.vesting}
