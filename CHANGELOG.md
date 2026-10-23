@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: new releases build again
+- Nothing changes on the pages. A new release of the site fetches four prebuilt parts from their makers' download addresses directly, so it no longer stops when GitHub's downloads refuse the build.
+
 ## 23 October 2026: your own wallet comes first, and IronClaw in the side panel
 - When you sign in with a wallet of your own, that wallet is your main wallet, with its ENS name. The Regents wallet made for you at sign-in no longer takes its place.
 - Pair New Agent in the side panel offers IronClaw where NemoClaw was. NemoClaw agents still pair as any agent.
