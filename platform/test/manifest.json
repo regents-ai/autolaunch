@@ -1,5 +1,5 @@
 {
-  "total": 95,
+  "total": 99,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1119,7 +1119,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "c39d801c435c2a02e624809c318fbd47adb0f5f0c4b75b2efc5168ba7c413da2"
+      "source_sha256": "b88c411fe02d053a9f9932a8a40366c0d846f49b764ff61bcd965c56790b9fef"
     },
     {
       "id": 127,
@@ -1237,6 +1237,58 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
+    },
+    {
+      "id": 136,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain_refresh_test.exs",
+      "line": 28,
+      "test_name": "one wake reads the ledger up to the safe head, however far behind it is",
+      "keep_because": "The Base ledger wakes every five minutes and reads a few blocks a pass; a wake that stopped after one pass would fall further behind Base with every wake (chain reads moved to a five-minute clock, 23 Oct 2026). The case fails if one wake stops before the safe head.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3cbc4101198391ff24753f0f939cf0ebc6064c328c8bbd9dd5a4d4b909ee4770"
+    },
+    {
+      "id": 137,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain_refresh_test.exs",
+      "line": 38,
+      "test_name": "a refresh brings the ledger's five-minute poll forward",
+      "keep_because": "A person's confirmed on-chain press must bring the ledger's next read forward from five minutes to the ten-second gap, and a press on another chain must not. The case fails if the runner ignores its chain's refresh or wakes for another chain's.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3cbc4101198391ff24753f0f939cf0ebc6064c328c8bbd9dd5a4d4b909ee4770"
+    },
+    {
+      "id": 138,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain_refresh_test.exs",
+      "line": 63,
+      "test_name": "a refresh brings an auction's next activity read forward",
+      "keep_because": "A confirmed press must bring each listed auction's next activity read on that chain forward from five minutes to the ten-second gap, so a bid shows within seconds. The case fails if the due time stays put or moves for another chain's press.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3cbc4101198391ff24753f0f939cf0ebc6064c328c8bbd9dd5a4d4b909ee4770"
+    },
+    {
+      "id": 139,
+      "group": "Chain reads",
+      "framework": "exunit",
+      "file": "test/autolaunch/chain_refresh_test.exs",
+      "line": 80,
+      "test_name": "a refresh on a chain with a Memestock launchpad runs its discovery at once",
+      "keep_because": "Once launches are open, a creator's Memestock launch press must queue discovery at once instead of waiting for the five-minute schedule, and nothing is queued while the site is read-only or for another chain. The case fails if discovery is not queued, or is queued when it must not be.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3cbc4101198391ff24753f0f939cf0ebc6064c328c8bbd9dd5a4d4b909ee4770"
     }
   ],
   "legacy_folders_to_remove": [
