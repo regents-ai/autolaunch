@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: quicker to notice a slow moment
+- autolaunch.sh now keeps a record of how long each page and each look-up takes, so the team sees a slow moment as it happens. Nothing changes on the pages.
+
 ## 23 October 2026: new releases build again
 - Nothing changes on the pages. A new release of the site fetches four prebuilt parts from their makers' download addresses directly, so it no longer stops when GitHub's downloads refuse the build.
 

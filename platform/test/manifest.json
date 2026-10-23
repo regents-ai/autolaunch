@@ -1,5 +1,5 @@
 {
-  "total": 99,
+  "total": 100,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1289,6 +1289,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "3cbc4101198391ff24753f0f939cf0ebc6064c328c8bbd9dd5a4d4b909ee4770"
+    },
+    {
+      "id": 140,
+      "group": "Deploys",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/telemetry_test.exs",
+      "line": 11,
+      "test_name": "a request is timed by its route pattern and a query by its whole time",
+      "keep_because": "Every site's dashboard reads request and query time under these names, so a renamed or missing measurement would leave the dashboard blank without any page failing.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "92ab29be972d1014f72b5c368e082ed71771ceeab5df8587c8c82c55e02884b5"
     }
   ],
   "legacy_folders_to_remove": [
