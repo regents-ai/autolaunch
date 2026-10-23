@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: quicker to notice a slow moment
+- autolaunch.sh now keeps a record of how long each page and each look-up takes, so the team sees a slow moment as it happens. Nothing changes on the pages.
+
 ## 23 October 2026: your own wallet comes first, and IronClaw in the side panel
 - When you sign in with a wallet of your own, that wallet is your main wallet, with its ENS name. The Regents wallet made for you at sign-in no longer takes its place.
 - Pair New Agent in the side panel offers IronClaw where NemoClaw was. NemoClaw agents still pair as any agent.
