@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: Pair New Agent stays open when nothing is chosen
+- The side panel no longer closes with an error when the page reconnects, or when you press to make a code before choosing an agent. The box stays as it was.
+
 ## 23 October 2026: only your account's wallets act for it
 - When you sign in, a wallet app you had connected before signing in no longer acts for your account unless it is one of your account's wallets.
 
