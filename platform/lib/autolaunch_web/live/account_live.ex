@@ -125,8 +125,8 @@ defmodule AutolaunchWeb.AccountLive do
         agents={agent_rows(@agents_read)}
       >
         <:about>
-          A paired agent can read your positions, balances and Points, and edit the words on
-          your launch drafts. It can never use your wallet, bid or start a launch.
+          A paired agent can read your positions, balances and Points, and fill in your launch
+          drafts for you to check. It can never use your wallet, bid or start a launch.
         </:about>
         <:footer>
           <.live_component
@@ -135,7 +135,7 @@ defmodule AutolaunchWeb.AccountLive do
             session_lease={@session_lease}
             account={signed_in_account(@access_context)}
           />
-          <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents</a>
+          <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents on regents.sh</a>
         </:footer>
       </Regent.Account.agents>
       <div :if={@current_human_id} class="autolaunch-account-balances">
