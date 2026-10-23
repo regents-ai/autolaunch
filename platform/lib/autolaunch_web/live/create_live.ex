@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.CreateLive do
   alias Autolaunch.Actors.Human
 
   alias Autolaunch.{
+    AgentDrafts,
     ImageColor,
     Lab,
     LaunchDraft,
@@ -70,6 +71,7 @@ defmodule AutolaunchWeb.CreateLive do
         {:ok,
          if connected?(socket) do
            Listings.subscribe()
+           AgentDrafts.subscribe("revstake", actor.human_account_id)
 
            socket
            |> load_create(actor)
@@ -157,6 +159,32 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
+
+  # The person's paired agent saved this draft: the form and the list of what
+  # the agent filled in show it, and what the person typed that could not be
+  # saved stays in its box with its mark. During a review the details stay
+  # locked; they are read anew when it closes.
+  def handle_info({:agent_draft_saved, "revstake"}, %{assigns: %{reviewing?: true}} = socket),
+    do: {:noreply, socket}
+
+  def handle_info({:agent_draft_saved, "revstake"}, socket) do
+    actor = human_actor(socket)
+    unsaved = Map.take(socket.assigns.draft_values, Map.keys(socket.assigns.draft_errors))
+
+    case reload_draft(actor) do
+      {:ok, draft} ->
+        socket = assign_loaded_draft(socket, draft, actor)
+
+        {:noreply,
+         socket
+         |> assign(draft_values: Map.merge(socket.assigns.draft_values, unsaved))
+         |> assign_ticker_taken()
+         |> check_treasury()}
+
+      {:error, _error} ->
+        {:noreply, socket}
+    end
+  end
 
   def handle_async(:treasury_check, result, socket),
     do: {:noreply, assign(socket, treasury_check: checked(socket.assigns.treasury_check, result))}

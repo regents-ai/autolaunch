@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   require Logger
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{ImageColor, Listings, Stocks, Ticker}
+  alias Autolaunch.{AgentDrafts, ImageColor, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.{AutolaunchHelpers, StockSelect}
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
@@ -85,6 +85,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         {:ok,
          if connected?(socket) do
            Listings.subscribe()
+           AgentDrafts.subscribe("memestock", actor.human_account_id)
 
            socket
            |> load_draft(actor)
@@ -232,6 +233,30 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_info({:creator_connections, :changed}, socket),
     do: {:noreply, assign_connections(socket)}
+
+  # The person's paired agent saved this draft: the form and the list of what
+  # the agent filled in show it, and what the person typed that could not be
+  # saved stays in its box with its mark. During a review the details stay
+  # locked; they are read anew when it closes.
+  def handle_info({:agent_draft_saved, "memestock"}, %{assigns: %{reviewing?: true}} = socket),
+    do: {:noreply, socket}
+
+  def handle_info({:agent_draft_saved, "memestock"}, socket) do
+    unsaved = Map.take(socket.assigns.draft_values, Map.keys(socket.assigns.draft_errors))
+
+    case current_or_new_draft(human_actor(socket)) do
+      {:ok, draft} ->
+        socket = assign_draft(socket, draft)
+
+        {:noreply,
+         socket
+         |> assign(draft_values: Map.merge(socket.assigns.draft_values, unsaved))
+         |> assign_ticker_taken()}
+
+      {:error, _error} ->
+        {:noreply, socket}
+    end
+  end
 
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
