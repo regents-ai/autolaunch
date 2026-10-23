@@ -77,6 +77,16 @@ defmodule Autolaunch.Auction do
               )
     end
 
+    # The listed auctions on one chain whose next bid-activity read is later
+    # than `soon` (`Autolaunch.AuctionActivity.refresh/1`).
+    read :activity_later do
+      pagination keyset?: true, required?: false
+      argument :chain_id, :integer, allow_nil?: false
+      argument :soon, :utc_datetime_usec, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and activity_due_at > ^arg(:soon))
+      prepare Autolaunch.Auction.Preparations.Listed
+    end
+
     # Not atomic: an atomic update re-reads through the primary read, which
     # hides Robinhood rows, so a Robinhood auction would never be claimed.
     update :schedule_activity do
@@ -440,7 +450,7 @@ defmodule Autolaunch.Auction do
   end
 
   policies do
-    policy action([:activity_due, :schedule_activity, :refresh_activity]) do
+    policy action([:activity_due, :activity_later, :schedule_activity, :refresh_activity]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
 
@@ -499,7 +509,7 @@ defmodule Autolaunch.Auction do
 
     publish_all :create, "listings"
 
-    # A bid-activity pass saves its place every few seconds. The lists hear of
+    # A bid-activity pass saves its place after every read. The lists hear of
     # it only when it changed an event or a figure; a pass that moved nothing
     # but its place is not their business.
     publish :refresh_activity, "listings",

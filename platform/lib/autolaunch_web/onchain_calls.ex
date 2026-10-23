@@ -155,9 +155,17 @@ defmodule AutolaunchWeb.OnchainCalls do
       entry = %{entry | outcome: outcome(answer), reads: entry.reads + 1}
 
       cond do
-        entry.outcome == :pending and entry.reads < @read_limit -> {entry, &check(&1, entry)}
-        entry.outcome in [:confirmed, :nothing] -> {entry, &confirmed.(&1, entry)}
-        true -> {entry, nil}
+        entry.outcome == :pending and entry.reads < @read_limit ->
+          {entry, &check(&1, entry)}
+
+        entry.outcome == :confirmed ->
+          {entry, &(&1 |> OnchainSteps.refresh_chain(entry) |> confirmed.(entry))}
+
+        entry.outcome == :nothing ->
+          {entry, &confirmed.(&1, entry)}
+
+        true ->
+          {entry, nil}
       end
     end)
   end

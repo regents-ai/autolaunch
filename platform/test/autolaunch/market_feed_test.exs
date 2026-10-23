@@ -222,7 +222,7 @@ defmodule Autolaunch.MarketFeedTest do
       ChainStub.install(%{broken: MapSet.new([String.downcase(broken.auction_address)])})
 
       assert {:ok, %{snapshots: snapshots, changed: changed}} =
-               StocksMarketFeed.refresh(MarketWatch.new())
+               StocksMarketFeed.pass(MarketWatch.new())
 
       readable_ids = readable |> Enum.map(& &1.id) |> Enum.sort()
       assert snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.sort() == readable_ids
@@ -240,7 +240,7 @@ defmodule Autolaunch.MarketFeedTest do
       rows = stocks_rows()
       ChainStub.install(%{broken: MapSet.new()})
 
-      assert {:ok, %{changed: [changed]}} = StocksMarketFeed.refresh(MarketWatch.new())
+      assert {:ok, %{changed: [changed]}} = StocksMarketFeed.pass(MarketWatch.new())
       assert changed == auction.id
 
       after_refresh = reload(auction)
@@ -278,13 +278,13 @@ defmodule Autolaunch.MarketFeedTest do
         "CREATE TRIGGER refuse_token BEFORE INSERT ON #{tokens} FOR EACH ROW EXECUTE FUNCTION pg_temp.refuse_token()"
       )
 
-      assert {:ok, %{changed: []}} = StocksMarketFeed.refresh(MarketWatch.new())
+      assert {:ok, %{changed: []}} = StocksMarketFeed.pass(MarketWatch.new())
       assert %{state: :ended} = reload(auction)
       assert {:ok, nil} = Autolaunch.get_token_for_projection(auction.id, actor: %System{})
 
       Repo.query!("DROP TRIGGER refuse_token ON #{tokens}")
 
-      assert {:ok, %{changed: [changed]}} = StocksMarketFeed.refresh(MarketWatch.new())
+      assert {:ok, %{changed: [changed]}} = StocksMarketFeed.pass(MarketWatch.new())
       assert changed == auction.id
       assert %{state: :graduated} = reload(auction)
 
@@ -383,7 +383,7 @@ defmodule Autolaunch.MarketFeedTest do
 
   # One pass of `feed`, answered with the head it stored its readings at.
   defp pass(feed) do
-    LabMarketFeed.refresh(feed)
+    send(feed, :poll)
     assert_receive {:shared_reading, {:market_head, "base"}}, 5_000
     MarketReadings.head("base")
   end

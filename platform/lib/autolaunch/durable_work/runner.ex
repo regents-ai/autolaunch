@@ -5,9 +5,16 @@ defmodule Autolaunch.DurableWork.Runner do
   The runner only polls and dispatches up to `:max_in_flight` items. It has no
   persistence or domain state. Handler processes are monitored and are
   terminated when the runner stops.
+
+  With `:refresh_topic`, a `:chain_refresh` broadcast on that topic
+  (`Autolaunch.ChainRefresh`) brings the next poll forward to now, or to the end
+  of the gap since the last poll; one that arrives while an item is in flight
+  polls again once it finishes.
   """
 
   use GenServer
+
+  alias Autolaunch.ChainRefresh
 
   @default_poll_interval_ms 1_000
   @default_max_in_flight 1
@@ -30,9 +37,12 @@ defmodule Autolaunch.DurableWork.Runner do
           poll_interval_ms: Keyword.get(opts, :poll_interval_ms, @default_poll_interval_ms),
           max_in_flight: Keyword.get(opts, :max_in_flight, @default_max_in_flight),
           timer_ref: nil,
-          in_flight: %{}
+          in_flight: %{},
+          polled_at: nil,
+          again?: false
         }
 
+        subscribe(Keyword.get(opts, :refresh_topic))
         {:ok, state, {:continue, :poll}}
 
       {:error, reason} ->
@@ -48,9 +58,17 @@ defmodule Autolaunch.DurableWork.Runner do
     {:noreply, poll_and_schedule(%{state | timer_ref: nil})}
   end
 
-  @impl true
+  def handle_info(:chain_refresh, state) when map_size(state.in_flight) == 0,
+    do: {:noreply, sooner(state)}
+
+  def handle_info(:chain_refresh, state), do: {:noreply, %{state | again?: true}}
+
   def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
-    {:noreply, drop_in_flight(state, ref)}
+    state = drop_in_flight(state, ref)
+
+    if state.again? and map_size(state.in_flight) == 0,
+      do: {:noreply, sooner(%{state | again?: false})},
+      else: {:noreply, state}
   end
 
   @impl true
@@ -82,8 +100,26 @@ defmodule Autolaunch.DurableWork.Runner do
         %{acc | in_flight: Map.put(acc.in_flight, ref, pid)}
       end)
 
-    %{state | timer_ref: Process.send_after(self(), :poll, state.poll_interval_ms)}
+    %{
+      state
+      | timer_ref: Process.send_after(self(), :poll, state.poll_interval_ms),
+        polled_at: ChainRefresh.now()
+    }
   end
+
+  defp sooner(state) do
+    wait = ChainRefresh.wait_ms(state.polled_at)
+
+    if ChainRefresh.later?(state.timer_ref, wait) do
+      cancel_timer(state.timer_ref)
+      %{state | timer_ref: Process.send_after(self(), :poll, wait)}
+    else
+      state
+    end
+  end
+
+  defp subscribe(nil), do: :ok
+  defp subscribe(topic), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic)
 
   defp drop_in_flight(state, ref), do: %{state | in_flight: Map.delete(state.in_flight, ref)}
 
@@ -103,8 +139,9 @@ defmodule Autolaunch.DurableWork.Runner do
     case Keyword.fetch(opts, :handler) do
       {:ok, handler} ->
         with :ok <- validate_handler(handler),
-             :ok <- validate_positive(opts, :poll_interval_ms, @default_poll_interval_ms) do
-          validate_positive(opts, :max_in_flight, @default_max_in_flight)
+             :ok <- validate_positive(opts, :poll_interval_ms, @default_poll_interval_ms),
+             :ok <- validate_positive(opts, :max_in_flight, @default_max_in_flight) do
+          validate_topic(Keyword.get(opts, :refresh_topic))
         end
 
       :error ->
@@ -124,6 +161,9 @@ defmodule Autolaunch.DurableWork.Runner do
   end
 
   defp validate_handler(_handler), do: {:error, :invalid_handler}
+
+  defp validate_topic(topic) when is_nil(topic) or is_binary(topic), do: :ok
+  defp validate_topic(_topic), do: {:error, {:invalid_option, :refresh_topic}}
 
   defp validate_positive(opts, key, default) do
     case Keyword.get(opts, key, default) do

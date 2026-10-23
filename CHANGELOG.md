@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: the chain is read when it matters
+- Auctions, tokens, trades and the REGENT page are brought up to date from Base every five minutes instead of every few seconds.
+- When you bid, launch, claim or make any other on-chain move, the site reads the chain again within ten seconds, so your own change shows straight away.
+- A new launch still appears on Explore within a minute of its creator's press.
+
 ## 23 October 2026: buttons, agents and tips as on every Regent site
 - Main buttons rest as plain colour and show their corner marks when you point at them or reach them with the keyboard, as on the other Regent sites.
 - On Account, each paired agent shows its wallet address beside its name, with a copy button. Pressing the address shows it in full.

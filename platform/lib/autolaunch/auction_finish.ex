@@ -9,8 +9,8 @@ defmodule Autolaunch.AuctionFinish do
   call it, so a site with the finisher switched on does, from its finishing
   wallet (`config/runtime.exs`).
 
-  Every minute `:discover` records the launches created since its last run, and
-  the `:finish` trigger looks at each launch still running: once its migration
+  Every five minutes `:discover` records the launches created since its last
+  run, and the `:finish` trigger looks at each launch still running: once its migration
   block has passed it sends `migrate`, and once the chain says the launch
   graduated or failed the row is not looked at again. Every `migrate` sent is
   an `AuctionFinish.Transaction`, recorded before it is broadcast, and a launch
@@ -31,7 +31,7 @@ defmodule Autolaunch.AuctionFinish do
         read_action :read
         worker_read_action :read
         queue :auction_finishing
-        scheduler_cron "* * * * *"
+        scheduler_cron "*/5 * * * *"
         max_attempts 1
 
         where expr(state == :running)
@@ -42,7 +42,7 @@ defmodule Autolaunch.AuctionFinish do
     end
 
     scheduled_actions do
-      schedule :discover, "* * * * *" do
+      schedule :discover, "*/5 * * * *" do
         action :discover
         queue :auction_finishing
         worker_module_name Autolaunch.AuctionFinish.Workers.Discover

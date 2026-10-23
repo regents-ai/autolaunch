@@ -5,14 +5,19 @@ defmodule Autolaunch.TokenTrades do
   PoolManager's `Swap` logs for that pool. The cursor and rows commit together;
   repeat ranges replace the same trades. A changed cursor block drops the
   token's trades and rebuilds them.
+
+  A token that has caught up is read again five minutes later, and every token
+  on a chain ten seconds after a person's on-chain press there lands
+  (`refresh/1`).
   """
   @behaviour Autolaunch.DurableWork.Handler
+  @behaviour Autolaunch.ChainRefresh
   import Ecto.Query
   require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{LabAbi, Repo, Token, TokenTrade}
+  alias Autolaunch.{ChainRefresh, LabAbi, Repo, Token, TokenTrade}
   @actor %System{}
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @range 2_000
@@ -22,16 +27,38 @@ defmodule Autolaunch.TokenTrades do
   @doc "Every recorded trade arrives as `{:autolaunch_trade, token_id}`."
   def subscribe, do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, @topic)
 
+  @impl Autolaunch.DurableWork.Handler
   def poll(_, 0), do: []
   def poll(_, _), do: [:next]
 
+  @doc """
+  A person's on-chain press on chain `chain_id` landed: every listed token on
+  it is read ten seconds from now, instead of at its next turn. One already due
+  sooner stays as it is.
+  """
+  @impl ChainRefresh
+  def refresh(chain_id) do
+    soon = DateTime.add(DateTime.utc_now(), ChainRefresh.gap_s())
+
+    Token
+    |> Ash.Query.for_read(:trades_later, %{chain_id: chain_id, soon: soon}, actor: @actor)
+    |> Ash.bulk_update!(:schedule_trades, %{trades_due_at: soon},
+      actor: @actor,
+      strategy: :stream,
+      return_errors?: true
+    )
+
+    :ok
+  end
+
+  @impl Autolaunch.DurableWork.Handler
   def handle(_context, :next) do
     case claim() do
       {:ok, nil} ->
         :ok
 
       {:ok, token} ->
-        case refresh(token) do
+        case read(token) do
           :ok ->
             :ok
 
@@ -70,7 +97,7 @@ defmodule Autolaunch.TokenTrades do
     end
   end
 
-  def refresh(token) do
+  def read(token) do
     with {:ok, venue} <- venue(token.auction),
          {:ok, head} <- Rpc.latest_block(venue.opts),
          {:ok, pool} <- swap_source(venue, token.auction, head),
@@ -339,7 +366,7 @@ defmodule Autolaunch.TokenTrades do
           %{
             trades_next_block: last + 1,
             trades_last_hash: hash,
-            trades_due_at: DateTime.add(DateTime.utc_now(), if(complete?, do: 5, else: 1))
+            trades_due_at: DateTime.add(DateTime.utc_now(), if(complete?, do: 300, else: 1))
           },
           actor: @actor,
           action: :refresh_trades,

@@ -162,6 +162,20 @@ config :autolaunch, :chain_nodes, %{
 config :autolaunch, :robinhood_read_rpc_url, "https://rpc.mainnet.chain.robinhood.com"
 config :autolaunch, :autolaunch_indexer_chains, []
 
+# Who reads a chain again when a person's action may have changed it
+# (`Autolaunch.ChainRefresh`).
+config :autolaunch, Autolaunch.ChainRefresh,
+  readers: [
+    Autolaunch.LabMarketFeed,
+    Autolaunch.Stocks.LabMarketFeed,
+    Autolaunch.Robinhood.MarketFeed,
+    Autolaunch.AuctionActivity,
+    Autolaunch.TokenTrades,
+    Autolaunch.Indexer.Handler,
+    Autolaunch.LaunchDiscovery.DiscoverMemestock,
+    Autolaunch.RegentFacts
+  ]
+
 # How long each server keeps a chain's saved stocks before reading them again;
 # 0 keeps nothing.
 config :autolaunch, :stock_list_kept_ms, 60_000

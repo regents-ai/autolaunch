@@ -289,13 +289,13 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     {:ok, feed} = MarketFeed.start_link(name: nil, poll?: false, reader: Chain)
     assert_receive {:shared_reading, ^feed_key}, 2_000
 
-    MarketFeed.refresh(feed)
+    send(feed, :poll)
     assert_receive {:shared_reading, ^head_key}, 2_000
     refute MarketReadings.stale?("robinhood")
     rows = robinhood_rows()
 
     Chain.put(%{Chain.chain() | down?: true})
-    MarketFeed.refresh(feed)
+    send(feed, :poll)
     assert_receive {:shared_reading, ^feed_key}, 2_000
 
     assert MarketReadings.stale?("robinhood")

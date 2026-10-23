@@ -29,7 +29,7 @@ defmodule Autolaunch.PoolFees do
 
   # The day starts at the token's earliest recorded trade in it. With none,
   # every fee since the block its trade index reads next is in the day: the
-  # index keeps within a minute of the chain, and a fee is only charged on a
+  # index keeps within five minutes of the chain, and a fee is only charged on a
   # trade.
   defp day_start(token) do
     since = DateTime.add(DateTime.utc_now(), -@day)

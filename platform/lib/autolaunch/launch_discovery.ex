@@ -7,8 +7,9 @@ defmodule Autolaunch.LaunchDiscovery do
   report its hash, and nothing here waits for it:
 
   - the Base ledger records every Revstake factory `LaunchCreated` it stores;
-  - every minute `:discover_memestock` records each new Memestock launchpad
-    launch and the transaction that created it.
+  - every five minutes, and at once after a press on its chain,
+    `:discover_memestock` records each new Memestock launchpad launch and the
+    transaction that created it.
 
   Every minute the `:resolve` trigger takes each launch still `pending` and
   looks for the saved review it carried out (`Autolaunch.LaunchReviews`): one
@@ -41,7 +42,7 @@ defmodule Autolaunch.LaunchDiscovery do
     end
 
     scheduled_actions do
-      schedule :discover_memestock, "* * * * *" do
+      schedule :discover_memestock, "*/5 * * * *" do
         action :discover_memestock
         queue :launch_listing
         worker_module_name Autolaunch.LaunchDiscovery.Workers.DiscoverMemestock

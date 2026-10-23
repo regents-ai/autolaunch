@@ -155,7 +155,8 @@ defmodule Autolaunch.Application do
       {Autolaunch.DurableWork.Runner,
        handler: Autolaunch.Indexer.Handler,
        context: chain_id,
-       poll_interval_ms: 2_000,
+       poll_interval_ms: 300_000,
+       refresh_topic: Autolaunch.Indexer.Handler.topic(chain_id),
        max_in_flight: 1},
       id: {Autolaunch.Indexer, chain_id}
     )

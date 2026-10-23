@@ -279,7 +279,7 @@ defmodule AutolaunchWeb.RegentLive do
           </a>
         </dd>
         <dt>Updated</dt>
-        <dd>Figures are read from Base about once a minute.</dd>
+        <dd>Figures are read from Base every five minutes.</dd>
       </dl>
     </details>
     """
