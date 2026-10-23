@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: a quieter start
+- Nothing changes on the pages. The site no longer writes a needless warning each time it starts.
+
 ## 23 October 2026: releases build on any computer
 - Nothing changes on the pages. A release of the site now builds the same way on an Apple computer as on the release servers.
 

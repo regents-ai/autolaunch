@@ -117,11 +117,13 @@ WORKDIR /app
 
 COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
 
-# The share videos' ffmpeg and its one library. The build stops here unless it
-# encodes a clip exactly the way the site does.
+# The share videos' ffmpeg and its one library (libx264-164). The build stops
+# here unless it encodes a clip exactly the way the site does.
+# libsctp1: OTP opens it when it starts and prints a warning on every boot,
+# every `bin/autolaunch rpc` and every release command without it.
 COPY --from=ffmpeg /src/ffmpeg/ffmpeg /usr/local/bin/ffmpeg
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libx264-164 \
+  && apt-get install -y --no-install-recommends libx264-164 libsctp1 \
   && rm -rf /var/lib/apt/lists/* \
   && head -c 13122000 /dev/zero \
     | ffmpeg -hide_banner -loglevel error -f rawvideo -pix_fmt rgb24 -s 1080x1350 -r 30 \
