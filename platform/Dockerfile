@@ -34,21 +34,22 @@ RUN mix local.hex --force && mix local.rebar --force
 # GitHub's download redirect sends headers longer than Erlang's HTTP client
 # accepts, so the build cannot fetch prebuilt native code from GitHub itself.
 # mdex_native uses its maker's mirror (config/config.exs); ex_keccak,
-# ex_secp256k1 and vix publish only on GitHub, so curl fetches the files this
-# build uses into the caches their downloaders read first, where each file is
-# checked against the package's own checksums before it is used. The versions
-# follow mix.lock; OTP 29 takes ex_keccak's and ex_secp256k1's nif-2.16 files
-# and vix's nif-2.17 one. Remove this when GitHub or the downloaders fix the
-# limit.
+# ex_secp256k1 and vix publish only on GitHub, so curl fetches the files for
+# the building machine's own chip (x86_64 on Fly, aarch64 on a Mac) into the
+# caches their downloaders read first, where each file is checked against the
+# package's own checksums before it is used. The versions follow mix.lock; OTP
+# 29 takes ex_keccak's and ex_secp256k1's nif-2.16 files and vix's nif-2.17 one.
+# Remove this when GitHub or the downloaders fix the limit.
 ENV RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=/root/rustler_precompiled
 ENV ELIXIR_MAKE_CACHE_DIR=/root/elixir_make
-RUN mkdir -p /root/rustler_precompiled /root/elixir_make && \
+RUN chip="$(uname -m)" && \
+  mkdir -p /root/rustler_precompiled /root/elixir_make && \
   curl --fail --silent --show-error --location --output-dir /root/rustler_precompiled --remote-name \
-    https://github.com/exWeb3/ex_keccak/releases/download/v0.7.8/libexkeccak-v0.7.8-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz && \
+    "https://github.com/exWeb3/ex_keccak/releases/download/v0.7.8/libexkeccak-v0.7.8-nif-2.16-${chip}-unknown-linux-gnu.so.tar.gz" && \
   curl --fail --silent --show-error --location --output-dir /root/rustler_precompiled --remote-name \
-    https://github.com/ayrat555/ex_secp256k1/releases/download/v0.8.0/libex_secp256k1-v0.8.0-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz && \
+    "https://github.com/ayrat555/ex_secp256k1/releases/download/v0.8.0/libex_secp256k1-v0.8.0-nif-2.16-${chip}-unknown-linux-gnu.so.tar.gz" && \
   curl --fail --silent --show-error --location --output-dir /root/elixir_make --remote-name \
-    https://github.com/akash-akya/vix/releases/download/v0.42.0/vix-nif-2.17-x86_64-linux-gnu-0.42.0.tar.gz
+    "https://github.com/akash-akya/vix/releases/download/v0.42.0/vix-nif-2.17-${chip}-linux-gnu-0.42.0.tar.gz"
 
 COPY platform/mix.exs platform/mix.lock ./
 COPY platform/config config

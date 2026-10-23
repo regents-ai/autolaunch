@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: releases build on any computer
+- Nothing changes on the pages. A release of the site now builds the same way on an Apple computer as on the release servers.
+
 ## 23 October 2026: ChatGPT agents show their picture
 - An agent from ChatGPT shows with its own picture on the Account page, which before could not open with one listed.
 
