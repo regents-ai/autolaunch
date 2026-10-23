@@ -107,7 +107,7 @@ defmodule Autolaunch.TokenRevenueTest do
       |> TestSupport.project_token()
       |> Ash.load!(:auction, authorize?: false)
 
-    assert :ok = TokenTrades.read(token)
+    assert {:ok, :caught_up} = TokenTrades.read(token)
 
     assert {:ok, [revenue]} = Autolaunch.token_revenue(token.id, actor: nil)
     assert revenue.asset_symbol == "USDC"
@@ -120,7 +120,7 @@ defmodule Autolaunch.TokenRevenueTest do
     # never counted twice.
     reread = Ash.load!(Ash.reload!(token, authorize?: false), :auction, authorize?: false)
     assert reread.trades_next_block == 121
-    assert :ok = TokenTrades.read(reread)
+    assert {:ok, :caught_up} = TokenTrades.read(reread)
     assert {:ok, [_one]} = Autolaunch.token_revenue(token.id, actor: nil)
   end
 end

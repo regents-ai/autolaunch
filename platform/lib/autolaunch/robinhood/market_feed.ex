@@ -97,7 +97,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     parent = self()
     %{reader: reader, cursors: cursors} = state
     Task.start(fn -> send(parent, {:refreshed, safely(fn -> poll(reader, cursors) end)}) end)
-    {:noreply, %{state | in_flight: true, read_at: ChainRefresh.now(), timer: nil}}
+    {:noreply, %{state | in_flight: true, read_at: now(), timer: nil}}
   end
 
   def handle_info(:poll, state), do: {:noreply, state}
@@ -106,8 +106,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   # pass began, unless a pass is already due sooner. During a pass, the next
   # one waits only for that gap.
   def handle_info(:chain_refresh, %{in_flight: false} = state) do
-    wait = ChainRefresh.wait_ms(state.read_at)
-    {:noreply, if(ChainRefresh.later?(state.timer, wait), do: schedule(state, wait), else: state)}
+    wait = wait_ms(state.read_at)
+    {:noreply, if(later?(state.timer, wait), do: schedule(state, wait), else: state)}
   end
 
   def handle_info(:chain_refresh, state), do: {:noreply, %{state | again?: true}}
@@ -381,7 +381,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
 
   # A press that landed during the pass is read once the gap has passed.
   defp next(%{again?: true} = state, _delay),
-    do: schedule(%{state | again?: false}, ChainRefresh.wait_ms(state.read_at))
+    do: schedule(%{state | again?: false}, wait_ms(state.read_at))
 
   defp next(state, delay), do: schedule(state, delay)
 
@@ -390,6 +390,23 @@ defmodule Autolaunch.Robinhood.MarketFeed do
 
   defp retry,
     do: if(Autolaunch.Robinhood.Lab.test_chain?(), do: @lab_interval, else: @mainnet_retry)
+
+  defp now, do: Elixir.System.monotonic_time(:millisecond)
+
+  # What is left of the gap since the pass that began at `read_at`, or nothing
+  # before the first pass.
+  defp wait_ms(nil), do: 0
+  defp wait_ms(read_at), do: max(read_at + ChainRefresh.gap_s() * 1_000 - now(), 0)
+
+  # Whether the pass set for `timer` (or none) comes later than `wait` from now.
+  defp later?(nil, _wait), do: true
+
+  defp later?(timer, wait) do
+    case Process.read_timer(timer) do
+      left when is_integer(left) -> left > wait
+      false -> true
+    end
+  end
 
   defp schedule(%{poll?: false} = state, _delay), do: state
 

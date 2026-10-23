@@ -17,7 +17,10 @@ config :mdex_native, artifact_source: :cloudflare
 # Background jobs: the launch listing's and the auction finisher's
 # minute-by-minute checks, the stocks' half-hourly volume reads and the
 # five-minute read of the stocks each launchpad admits, one job at a time on
-# each of those queues; the default queue's quick jobs, the daily
+# each of those queues; the chain readings, one job for each listed auction's
+# bids, each listed token's trades and each chain's ledger, four at a time
+# (Autolaunch.ChainWatch makes sure each has its job every minute); the
+# default queue's quick jobs, the daily
 # clearing of saved errors (Autolaunch.ErrorPruner) and the choice of stocks
 # to read; and Regent Credits' minute-by-minute checks of purchases and Base
 # deposits (application.ex adds the RegentCredits domain). The finishing queue
@@ -36,6 +39,7 @@ config :autolaunch, Oban,
   prefix: "autolaunch_app",
   queues: [
     auction_finishing: [limit: 1, paused: true],
+    chain: 4,
     launch_listing: 1,
     outside_calls: 3,
     stock_volume: 1,
@@ -44,7 +48,7 @@ config :autolaunch, Oban,
     default: 1,
     regent_credits: 3
   ],
-  cron: [crontab: [{"17 4 * * *", Autolaunch.ErrorPruner}]],
+  cron: [crontab: [{"* * * * *", Autolaunch.ChainWatch}, {"17 4 * * *", Autolaunch.ErrorPruner}]],
   pruner: [max_age: {7, :days}],
   # A job still executing after this long is taken for one whose machine
   # stopped. It sits above the volume reads' fifteen-minute limit, so a read
@@ -176,7 +180,7 @@ config :autolaunch, Autolaunch.ChainRefresh,
     Autolaunch.Robinhood.MarketFeed,
     Autolaunch.AuctionActivity,
     Autolaunch.TokenTrades,
-    Autolaunch.Indexer.Handler,
+    Autolaunch.Indexer.ReadChain,
     Autolaunch.LaunchDiscovery.DiscoverMemestock,
     Autolaunch.RegentFacts
   ]

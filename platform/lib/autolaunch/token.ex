@@ -18,7 +18,6 @@ defmodule Autolaunch.Token do
     # The public token lists read their page straight off this in order.
     custom_indexes do
       index ["graduated_at DESC", "id"], name: "tokens_graduated_newest_index"
-      index [:trades_due_at, :id], name: "tokens_trades_due_index"
     end
   end
 
@@ -237,40 +236,16 @@ defmodule Autolaunch.Token do
       accept [:price_quote, :price_source, :price_updated_at]
     end
 
-    # The listed token whose pool's trades are read next by
-    # `Autolaunch.TokenTrades`, locked for the pass that claims it.
-    read :trades_due do
-      filter expr(is_nil(trades_due_at) or trades_due_at <= now())
+    # The listed tokens whose pool's trades `Autolaunch.TokenTrades` reads,
+    # each by its own job.
+    read :trades do
       prepare Autolaunch.Token.Preparations.ListedAuction
-
-      prepare build(
-                sort: [trades_due_at: :asc_nils_first, id: :asc],
-                limit: 1,
-                load: [:auction],
-                lock: :for_update
-              )
-    end
-
-    # The listed tokens on one chain whose next trades read is later than
-    # `soon` (`Autolaunch.TokenTrades.refresh/1`).
-    read :trades_later do
-      pagination keyset?: true, required?: false
-      argument :chain_id, :integer, allow_nil?: false
-      argument :soon, :utc_datetime_usec, allow_nil?: false
-      filter expr(auction.chain_id == ^arg(:chain_id) and trades_due_at > ^arg(:soon))
-      prepare Autolaunch.Token.Preparations.ListedAuction
-    end
-
-    # Not atomic: an atomic update re-reads through the primary read, which
-    # hides Robinhood rows, so a Robinhood token would never be claimed.
-    update :schedule_trades do
-      require_atomic? false
-      accept [:trades_due_at]
+      prepare build(load: [:auction])
     end
 
     update :refresh_trades do
       require_atomic? false
-      accept [:trades_next_block, :trades_last_hash, :trades_due_at]
+      accept [:trades_next_block, :trades_last_hash]
     end
   end
 
@@ -296,9 +271,7 @@ defmodule Autolaunch.Token do
              :project_lab,
              :projection_by_auction,
              :set_price_snapshot,
-             :trades_due,
-             :trades_later,
-             :schedule_trades,
+             :trades,
              :refresh_trades
            ]) do
       authorize_if Autolaunch.Checks.SystemActor
@@ -369,7 +342,6 @@ defmodule Autolaunch.Token do
     # hash of the block before it, and when the next pass is due.
     attribute :trades_next_block, :integer
     attribute :trades_last_hash, :string
-    attribute :trades_due_at, :utc_datetime_usec
 
     attribute :treasury_address, :string do
       public? true

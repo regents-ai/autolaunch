@@ -11,9 +11,10 @@ defmodule Autolaunch.ChainRefresh do
 
   Each reader named in this module's `:readers` setting implements `refresh/1`
   and decides for itself how to read again soon: a market feed wakes on every
-  machine, a reader of saved rows brings their next read forward. Every reader
-  keeps at least ten seconds (`gap_s/0`) between two reads it was asked for, so
-  a crowd pressing at once costs one read.
+  machine, an Oban reader brings its unique job forward
+  (`Autolaunch.ChainWatch.soon/1`). Every reader keeps at least ten seconds
+  (`gap_s/0`) between two reads it was asked for, so a crowd pressing at once
+  costs one read.
   """
 
   @doc "Reads the chain again soon, or at once."
@@ -31,29 +32,5 @@ defmodule Autolaunch.ChainRefresh do
     Application.fetch_env!(:autolaunch, __MODULE__)[:readers]
     |> Enum.map(& &1.refresh(chain_id))
     |> Enum.find(:ok, &(&1 != :ok))
-  end
-
-  @doc "The clock a supervised reader stamps the start of each read with, in milliseconds."
-  @spec now() :: integer()
-  def now, do: System.monotonic_time(:millisecond)
-
-  @doc """
-  How long a supervised reader that last started a read at `read_at` (`now/0`,
-  or `nil` before its first) waits before reading again when asked: at once,
-  or what is left of the gap.
-  """
-  @spec wait_ms(integer() | nil) :: non_neg_integer()
-  def wait_ms(nil), do: 0
-  def wait_ms(read_at), do: max(read_at + gap_s() * 1_000 - now(), 0)
-
-  @doc "Whether a read set for `timer` (or none) comes later than `wait` milliseconds from now."
-  @spec later?(reference() | nil, non_neg_integer()) :: boolean()
-  def later?(nil, _wait), do: true
-
-  def later?(timer, wait) do
-    case Process.read_timer(timer) do
-      left when is_integer(left) -> left > wait
-      false -> true
-    end
   end
 end

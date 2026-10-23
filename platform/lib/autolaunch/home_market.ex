@@ -45,11 +45,11 @@ defmodule Autolaunch.HomeMarket do
   end
 
   # The site's own bookkeeping on an auction: when it last wrote the record and
-  # when it next looks at the auction's chain, rewritten after every read.
+  # where its next read of the auction's chain starts, rewritten after every read.
   # The JSON API reports `updated_at`; the pages show none of them, and leaving
   # them out means a page's records change, and the page is sent anything, only
   # when something it shows has moved.
-  @unshown [:updated_at, :activity_next_block, :activity_last_hash, :activity_due_at]
+  @unshown [:updated_at, :activity_next_block, :activity_last_hash]
 
   @doc "A page of a list as the website shows it."
   def read(options, cursor \\ nil, limit \\ 24), do: page(options, cursor, limit, @unshown)

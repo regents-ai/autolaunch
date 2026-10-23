@@ -8,19 +8,35 @@ defmodule Autolaunch.TokenTrades do
   together; repeat ranges replace the same trades and revenue. A changed
   cursor block drops the token's trades and revenue and rebuilds them.
 
-  A token that has caught up is read again five minutes later, and every token
-  on a chain ten seconds after a person's on-chain press there lands
-  (`refresh/1`).
+  Each listed token has one job (`Autolaunch.ChainWatch` makes sure of it),
+  which runs a pass and then waits: a second while the token is behind the
+  head, five minutes once it has caught up. A press that lands on its chain
+  brings it forward to ten seconds away (`refresh/1`). A pass the node could
+  not answer, or whose head moved under it, is one warning line and is read
+  again a minute later; any other failure is a fault, tried again a minute
+  later.
   """
-  @behaviour Autolaunch.DurableWork.Handler
+  use Oban.Worker,
+    queue: :chain,
+    max_attempts: 20,
+    unique: [keys: [:token_id], period: :infinity, states: :incomplete]
+
   @behaviour Autolaunch.ChainRefresh
   import Ecto.Query
   require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.{ChainRefresh, LabAbi, Repo, Token, TokenRevenue, TokenTrade}
+  alias Autolaunch.{ChainRefresh, ChainWatch, LabAbi, Repo, Token, TokenRevenue, TokenTrade}
   @actor %System{}
+  # The node did not answer, or answered for a head that has since moved.
+  @unavailable [
+    :chain_unavailable,
+    :logs_unavailable,
+    :header_unavailable,
+    :headers_unavailable,
+    :history_unavailable
+  ]
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
   @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
   @range 2_000
@@ -30,74 +46,65 @@ defmodule Autolaunch.TokenTrades do
   @doc "Every recorded trade arrives as `{:autolaunch_trade, token_id}`."
   def subscribe, do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, @topic)
 
-  @impl Autolaunch.DurableWork.Handler
-  def poll(_, 0), do: []
-  def poll(_, _), do: [:next]
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"token_id" => id}}) do
+    case Ash.get(Token, id, action: :trades, actor: @actor, not_found_error?: false) do
+      {:ok, nil} ->
+        {:cancel, :not_listed}
+
+      {:ok, token} ->
+        case read(token) do
+          {:ok, :behind} ->
+            {:snooze, 1}
+
+          {:ok, :caught_up} ->
+            {:snooze, 300}
+
+          {:error, reason} when reason in @unavailable ->
+            Logger.warning(
+              "Trades for token #{id} not read (#{reason}); reading again in a minute"
+            )
+
+            {:snooze, 60}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @impl Oban.Worker
+  def backoff(%Oban.Job{}), do: 60
+
+  @doc "Every listed token's reading job (`Autolaunch.ChainWatch`)."
+  def jobs, do: Enum.map(listed(), &new(%{token_id: &1.id}))
 
   @doc """
   A person's on-chain press on chain `chain_id` landed: every listed token on
   it is read ten seconds from now, instead of at its next turn. One already due
   sooner stays as it is.
   """
+  # No job runs while the site is read-only before launch (`Autolaunch.Application`).
   @impl ChainRefresh
   def refresh(chain_id) do
-    soon = DateTime.add(DateTime.utc_now(), ChainRefresh.gap_s())
-
-    Token
-    |> Ash.Query.for_read(:trades_later, %{chain_id: chain_id, soon: soon}, actor: @actor)
-    |> Ash.bulk_update!(:schedule_trades, %{trades_due_at: soon},
-      actor: @actor,
-      strategy: :stream,
-      return_errors?: true
-    )
+    if not Autolaunch.Prelaunch.read_only?() do
+      Token
+      |> Ash.Query.filter(auction.chain_id == ^chain_id)
+      |> listed()
+      |> Enum.each(&ChainWatch.soon(new(%{token_id: &1.id})))
+    end
 
     :ok
   end
 
-  @impl Autolaunch.DurableWork.Handler
-  def handle(_context, :next) do
-    case claim() do
-      {:ok, nil} ->
-        :ok
-
-      {:ok, token} ->
-        case read(token) do
-          :ok ->
-            :ok
-
-          _ ->
-            Logger.warning("Trades unavailable for token #{token.id}; retry scheduled")
-            :unavailable
-        end
-
-      _ ->
-        :unavailable
-    end
-  end
-
-  # Notifications raised inside a transaction are sent once it commits.
-  defp claim do
-    Repo.transaction(fn ->
-      case Token |> Ash.Query.for_read(:trades_due, %{}, actor: @actor) |> Ash.read!() do
-        [] ->
-          {nil, []}
-
-        [token] ->
-          Ash.update!(token, %{trades_due_at: DateTime.add(DateTime.utc_now(), 60)},
-            action: :schedule_trades,
-            actor: @actor,
-            return_notifications?: true
-          )
-      end
-    end)
-    |> case do
-      {:ok, {token, notifications}} ->
-        Ash.Notifier.notify(notifications)
-        {:ok, token}
-
-      error ->
-        error
-    end
+  defp listed(query \\ Token) do
+    query
+    |> Ash.Query.for_read(:trades, %{}, actor: @actor)
+    |> Ash.Query.select([:id])
+    |> Ash.read!()
   end
 
   def read(token) do
@@ -114,11 +121,11 @@ defmodule Autolaunch.TokenTrades do
       trades = Enum.reject(trades, &is_nil/1)
 
       token
-      |> commit(first, last, headers[last].hash, {trades, revenue}, last == head.number)
+      |> commit(first, last, headers[last].hash, {trades, revenue})
       |> indexed(token, trades, last, head.number)
     else
       {:error, :cursor_changed} -> invalidate(token)
-      _ -> {:error, :trades_unavailable}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -127,7 +134,7 @@ defmodule Autolaunch.TokenTrades do
   # hidden by one that has caught up; and how long after its block each trade
   # first seen by a pass that reached the head from an existing cursor got to
   # the site. A first pass or a rebuild reads history rather than new trades,
-  # so it is left out.
+  # so it is left out. Answers whether the token has caught up with the head.
   defp indexed(:ok, token, trades, last, head) do
     chain_id = token.auction.chain_id
 
@@ -153,7 +160,7 @@ defmodule Autolaunch.TokenTrades do
             )
     end
 
-    :ok
+    {:ok, if(last == head, do: :caught_up, else: :behind)}
   end
 
   defp indexed(error, _token, _trades, _last, _head), do: error
@@ -416,7 +423,7 @@ defmodule Autolaunch.TokenTrades do
   # This system projection locks its token before replacing confirmed trades.
   # Only trades in blocks past the old cursor announce themselves, after the
   # transaction commits, so re-reading the head block stays quiet.
-  defp commit(token, first, last, hash, {trades, revenue}, complete?) do
+  defp commit(token, first, last, hash, {trades, revenue}) do
     Repo.transaction(fn ->
       current = locked(token)
 
@@ -440,11 +447,7 @@ defmodule Autolaunch.TokenTrades do
       {_token, refreshed} =
         Ash.update!(
           current,
-          %{
-            trades_next_block: last + 1,
-            trades_last_hash: hash,
-            trades_due_at: DateTime.add(DateTime.utc_now(), if(complete?, do: 300, else: 1))
-          },
+          %{trades_next_block: last + 1, trades_last_hash: hash},
           actor: @actor,
           action: :refresh_trades,
           return_notifications?: true
@@ -464,7 +467,8 @@ defmodule Autolaunch.TokenTrades do
   end
 
   # Invalidation removes only this token's derived trades and revenue while
-  # holding the token's lock; the next pass rebuilds them from the chain's logs.
+  # holding the token's lock. The token is then behind, and the next pass,
+  # at once, rebuilds them from the chain's logs.
   defp invalidate(token) do
     Repo.transaction(fn ->
       current = locked(token)
@@ -473,7 +477,7 @@ defmodule Autolaunch.TokenTrades do
 
       Ash.update!(
         current,
-        %{trades_next_block: nil, trades_last_hash: nil, trades_due_at: DateTime.utc_now()},
+        %{trades_next_block: nil, trades_last_hash: nil},
         actor: @actor,
         action: :refresh_trades,
         return_notifications?: true
@@ -482,7 +486,7 @@ defmodule Autolaunch.TokenTrades do
     |> case do
       {:ok, {_token, notifications}} ->
         Ash.Notifier.notify(notifications)
-        :ok
+        {:ok, :behind}
 
       error ->
         error

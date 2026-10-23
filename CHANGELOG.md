@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: bids and trades keep coming in through a restart
+- The reading of each auction's bids, each token's trades and the chain's record now carries on from another server when one stops or restarts, so the figures on the pages keep up. Nothing else changes on the pages.
+
 ## 23 October 2026: Pair New Agent stays open when nothing is chosen
 - The side panel no longer closes with an error when the page reconnects, or when you press to make a code before choosing an agent. The box stays as it was.
 

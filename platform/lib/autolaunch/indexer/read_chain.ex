@@ -1,102 +1,119 @@
-defmodule Autolaunch.Indexer.Handler do
+defmodule Autolaunch.Indexer.ReadChain do
   @moduledoc """
-  The one durable-work item that moves one chain's ledger forward.
+  The job that moves one chain's ledger forward.
 
-  Each configured chain has its own runner whose context is the chain id.
-  `poll/2` is pure: it names that chain and nothing else, so every database and
-  provider read happens in the runner's monitored handler process and a failure
-  on one chain advances nothing and takes neither the runner, another chain, the
-  repository nor the application supervisor with it.
+  Each configured chain has one (`Autolaunch.ChainWatch` makes sure of it),
+  unique while it is incomplete, so one run at a time reads a chain. Every
+  database and provider read happens in the run, so a failure on one chain
+  advances nothing and leaves the other chains and the site running.
 
-  Every pass first re-states the chain's configured sources, which is the same
+  Every run first re-states the chain's configured sources, which is the same
   fact twice for an admitted address and the admission for a new one, so a
-  ledger that was never opened for a chain opens on the first pass and a
-  restored one catches up without keeping any state in this process.
+  ledger that was never opened for a chain opens on the first run and a
+  restored one catches up without keeping any state in the job.
 
-  One bounded contiguous range is planned from the exact cursor the lease was
-  granted at and fetched outside the row lock, then committed only if that same
-  lease and that same cursor are still true. The range's first header is fetched
-  and linked before anything else, so a divergence costs one request instead of
-  the whole bound. Finality promotion uses the same bound and runs on its own
-  when the safe head has not moved, so evidence can finalize while ingest is
-  idle.
+  One bounded contiguous range is planned from the cursor as it stands and
+  fetched outside the row lock, then committed only if the cursor is still at
+  that exact block and the chain's sources are still the ones it was planned
+  from (`Autolaunch.Indexer.Ledger.commit/3`). The range's first header is
+  fetched and linked before anything else, so a divergence costs one request
+  instead of the whole bound. Finality promotion uses the same bound and runs
+  on its own when the safe head has not moved, so evidence can finalize while
+  ingest is idle.
 
-  The runner wakes a chain every five minutes, or sooner when `refresh/1` asks
-  (`Autolaunch.ChainRefresh`). A pass whose range ends below the safe head is
-  followed at once by another, so one wake brings the ledger up to the head.
+  A run keeps passing until the ledger reaches the safe head, then waits five
+  minutes; a press that lands on the chain brings it forward to ten seconds
+  away (`refresh/1`, from `Autolaunch.ChainRefresh`). A run far behind stops
+  after a few dozen passes and runs again a second later, so no run lasts long
+  enough to be taken for a stopped one. A run the node could not answer, or
+  whose cursor or sources another run moved first, waits a minute; any other
+  failure is a fault, tried again a minute later.
   """
 
-  @behaviour Autolaunch.DurableWork.Handler
+  use Oban.Worker,
+    queue: :chain,
+    max_attempts: 20,
+    unique: [keys: [:chain_id], period: :infinity, states: :incomplete]
+
   @behaviour Autolaunch.ChainRefresh
 
   require Logger
 
-  alias Autolaunch.Indexer.{Chain, Chains, Ledger, Rpc}
+  alias Autolaunch.ChainWatch
+  alias Autolaunch.Indexer.{Chain, Chains, Ledger}
 
   # One bound serves the ingest range, the reorg walk and the finality batch, so
-  # no handler pass can issue an unbounded number of provider calls or updates.
+  # no pass can issue an unbounded number of provider calls or updates.
   @bound 8
 
-  # The requests a pass makes outside the bound: the chain id, the safe head,
-  # the finalized head, and then either the range's log query or, on the reorg
-  # path, the first header that revealed the divergence.
-  @outside 4
+  # No work is admitted. That is how a deployment with nothing to watch idles,
+  # so it is not a diagnostic.
+  @quiet [:no_source_admitted]
 
-  # What the commit following the last provider answer is allowed to take.
-  @commit_margin_ms 10_000
+  # The node did not answer, or another run (one Lifeline rescued, or a release's
+  # outgoing machine) moved the cursor or the sources first.
+  @waits [:chain_unavailable, :cursor_moved, :sources_changed]
 
-  # No work is admitted, or another instance owns the chain. Both are how a
-  # healthy deployment idles, so neither is a diagnostic.
-  @quiet [:no_source_admitted, :leased]
+  # The most passes one run makes: 240 blocks, about eight minutes of Base.
+  @passes 30
 
   @spec bound() :: pos_integer()
   def bound, do: @bound
 
-  @doc "The most provider requests one pass can issue, on either path."
-  @spec max_requests() :: pos_integer()
-  def max_requests, do: @bound + @outside
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"chain_id" => chain_id}}) do
+    case read(chain_id) do
+      {:ok, _committed} -> {:snooze, 300}
+      :behind -> {:snooze, 1}
+      {:error, reason} when reason in @quiet -> {:snooze, 300}
+      {:error, reason} when reason in @waits -> {:snooze, 60}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @impl Oban.Worker
+  def backoff(%Oban.Job{}), do: 60
+
+  @doc "Every configured chain's reading job (`Autolaunch.ChainWatch`)."
+  def jobs, do: Enum.map(Chains.configured(), &new(%{chain_id: &1.chain_id}))
 
   @doc """
-  How long a granted lease lasts, derived from the work it admits.
-
-  Nothing renews it mid-pass, so it must outlive every request the bound permits
-  at the enforced wall-clock deadline the transport boundary owns, plus the
-  commit after the last answer.
+  A person's on-chain press on chain `chain_id` landed: its ledger, when this
+  site keeps one, is read ten seconds from now instead of at its next turn.
   """
-  @spec lease_ms() :: pos_integer()
-  def lease_ms, do: max_requests() * Rpc.max_request_ms() + @commit_margin_ms
-
-  @doc "The topic chain `chain_id`'s runner hears `refresh/1` on."
-  @spec topic(pos_integer()) :: String.t()
-  def topic(chain_id), do: "chain_refresh:ledger:#{chain_id}"
-
+  # No job runs while the site is read-only before launch (`Autolaunch.Application`).
   @impl Autolaunch.ChainRefresh
-  def refresh(chain_id),
-    do: Phoenix.PubSub.broadcast(Autolaunch.PubSub, topic(chain_id), :chain_refresh)
+  def refresh(chain_id) do
+    if not Autolaunch.Prelaunch.read_only?() and
+         Enum.any?(Chains.configured(), &(&1.chain_id == chain_id)),
+       do: ChainWatch.soon(new(%{chain_id: chain_id}))
 
-  @impl Autolaunch.DurableWork.Handler
-  def poll(_chain_id, 0), do: []
-  def poll(chain_id, _capacity), do: [chain_id]
+    :ok
+  end
 
-  @impl Autolaunch.DurableWork.Handler
-  def handle(_context, chain_id) do
+  @doc """
+  Reads chain `chain_id`'s ledger up to its safe head, one bounded pass after
+  another, or `:behind` once it has made its most passes.
+  """
+  @spec read(pos_integer()) :: {:ok, term()} | :behind | {:error, term()}
+  def read(chain_id) do
     case admitted(chain_id) do
-      :ok -> caught_up(chain_id)
+      :ok -> caught_up(chain_id, @passes)
       {:error, reason} -> reported({:error, reason}, chain_id)
     end
   end
 
-  defp caught_up(chain_id) do
-    case pass(chain_id) do
-      :behind -> caught_up(chain_id)
+  defp caught_up(chain_id, passes) do
+    case chain_id |> pass() |> reported(chain_id) do
+      :behind when passes > 1 -> caught_up(chain_id, passes - 1)
       result -> result
     end
   end
 
   defp pass(chain_id) do
-    case Ledger.acquire(chain_id, lease_ms()) do
-      {:ok, lease} -> reported(leased(lease), chain_id)
-      {:error, reason} -> reported({:error, reason}, chain_id)
+    case Ledger.cursor(chain_id) do
+      nil -> {:error, :no_source_admitted}
+      cursor -> advance(cursor)
     end
   end
 
@@ -111,34 +128,28 @@ defmodule Autolaunch.Indexer.Handler do
     end)
   end
 
-  defp leased(lease) do
-    advance(lease)
-  after
-    Ledger.release(lease)
-  end
-
-  defp advance(lease) do
-    with :ok <- Chain.verify_chain(lease.chain_id),
-         {:ok, safe} <- Chain.header(lease.chain_id, "safe"),
-         {:ok, finality} <- Chain.header(lease.chain_id, "finalized"),
+  defp advance(cursor) do
+    with :ok <- Chain.verify_chain(cursor.chain_id),
+         {:ok, safe} <- Chain.header(cursor.chain_id, "safe"),
+         {:ok, finality} <- Chain.header(cursor.chain_id, "finalized"),
          :ok <- ordered(finality, safe),
-         do: plan(lease, safe, finality)
+         do: plan(cursor, safe, finality)
   end
 
   # A finalized head above the safe head is two answers from two chains.
   defp ordered(%{number: finalized}, %{number: safe}) when finalized <= safe, do: :ok
   defp ordered(_finality, _safe), do: {:error, :head_disorder}
 
-  defp plan(lease, safe, finality) do
+  defp plan(cursor, safe, finality) do
     :telemetry.execute(
       [:autolaunch, :indexer, :lag],
-      %{blocks: max(safe.number - lease.next_block + 1, 0)},
-      %{indexer: :ledger, chain_id: lease.chain_id}
+      %{blocks: max(safe.number - cursor.next_block + 1, 0)},
+      %{indexer: :ledger, chain_id: cursor.chain_id}
     )
 
-    case range(lease.next_block, safe.number) do
-      :none -> Ledger.commit(lease, {:promote, finality}, @bound)
-      {from, to} -> lease |> ingest(from, to, safe, finality) |> behind(to < safe.number)
+    case range(cursor.next_block, safe.number) do
+      :none -> Ledger.commit(cursor, {:promote, finality}, @bound)
+      {from, to} -> cursor |> ingest(from, to, safe, finality) |> behind(to < safe.number)
     end
   end
 
@@ -148,19 +159,19 @@ defmodule Autolaunch.Indexer.Handler do
   defp range(from, safe) when from > safe, do: :none
   defp range(from, safe), do: {from, min(safe, from + @bound - 1)}
 
-  defp ingest(lease, from, to, safe, finality) do
-    sources = Ledger.sources(lease.chain_id)
+  defp ingest(cursor, from, to, safe, finality) do
+    sources = Ledger.sources(cursor.chain_id)
 
-    with {:ok, first} <- opening(lease, from, floor_block(sources)),
-         {:ok, rest} <- Chain.headers(lease.chain_id, from + 1, to),
+    with {:ok, first} <- opening(cursor, from, floor_block(sources)),
+         {:ok, rest} <- Chain.headers(cursor.chain_id, from + 1, to),
          headers = [first | rest],
          :ok <- contiguous(headers, from),
          :ok <- tipped(List.last(headers), safe),
-         {:ok, logs} <- Chain.logs(lease.chain_id, from, to, Enum.map(sources, & &1.address)),
+         {:ok, logs} <- Chain.logs(cursor.chain_id, from, to, Enum.map(sources, & &1.address)),
          :ok <- emitted(logs, headers, sources) do
-      Ledger.commit(lease, {:range, headers, logs, finality}, @bound)
+      Ledger.commit(cursor, {:range, headers, logs, finality, sources}, @bound)
     else
-      {:reorg, floor} -> rewind(lease, from - 1, floor)
+      {:reorg, floor} -> rewind(cursor, from - 1, floor)
       {:error, reason} -> {:error, reason}
     end
   end
@@ -168,9 +179,9 @@ defmodule Autolaunch.Indexer.Handler do
   # The range's first header decides whether the stored chain and the provider's
   # chain still agree, so it is fetched and linked before the rest of the range
   # or any log is asked for.
-  defp opening(lease, from, floor) do
-    with {:ok, %{number: ^from} = header} <- Chain.header(lease.chain_id, from),
-         :ok <- linked(lease, header, floor) do
+  defp opening(cursor, from, floor) do
+    with {:ok, %{number: ^from} = header} <- Chain.header(cursor.chain_id, from),
+         :ok <- linked(cursor, header, floor) do
       {:ok, header}
     else
       {:ok, _misplaced} -> {:error, :gapped_range}
@@ -181,8 +192,8 @@ defmodule Autolaunch.Indexer.Handler do
   # Bootstrap is the absence of a stored predecessor, never a position: a source
   # admitted behind the ledger leaves nothing at that height to link to, and the
   # heights the range does overlap are compared under the commit's own lock.
-  defp linked(lease, header, floor) do
-    case Ledger.canonical_block(lease.chain_id, lease.next_block - 1) do
+  defp linked(cursor, header, floor) do
+    case Ledger.canonical_block(cursor.chain_id, cursor.next_block - 1) do
       %{block_hash: parent} when parent == header.parent_hash -> :ok
       nil -> :ok
       _parted -> {:reorg, floor}
@@ -192,9 +203,9 @@ defmodule Autolaunch.Indexer.Handler do
   # The walk only ever looks backward through the bounded window and never below
   # the earliest admitted source start, so a deep or unrecognisable divergence
   # leaves the ledger untouched instead of guessing a recovery point.
-  defp rewind(lease, from, floor) do
-    case ancestor(lease.chain_id, from, max(from - @bound + 1, floor)) do
-      {:ok, height} -> Ledger.commit(lease, {:rewind, height}, @bound)
+  defp rewind(cursor, from, floor) do
+    case ancestor(cursor.chain_id, from, max(from - @bound + 1, floor)) do
+      {:ok, height} -> Ledger.commit(cursor, {:rewind, height}, @bound)
       :none -> {:error, :no_common_ancestor}
       aborted -> aborted
     end

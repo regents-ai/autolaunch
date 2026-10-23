@@ -39,7 +39,7 @@ defmodule Autolaunch.Auction do
   # What a bid-activity pass writes: the scanner's own place in the chain, and
   # the figures the lists show. A field the pass comes to write goes in one of
   # the two, so it is either announced or deliberately not.
-  @activity_place [:activity_next_block, :activity_last_hash, :activity_due_at]
+  @activity_place [:activity_next_block, :activity_last_hash]
   @activity_figures [:bid_volume, :bid_volume_usd, :opened_at, :estimated_end_at]
 
   postgres do
@@ -48,7 +48,6 @@ defmodule Autolaunch.Auction do
 
     # Each public list reads its page straight off one of these in order.
     custom_indexes do
-      index [:activity_due_at, :id], name: "auctions_activity_due_index"
       index [:estimated_end_at, :id], name: "auctions_ending_index"
       index ["bid_volume_usd DESC NULLS LAST", "id"], name: "auctions_bid_volume_index"
 
@@ -58,40 +57,10 @@ defmodule Autolaunch.Auction do
   end
 
   actions do
-    read :activity_due do
-      argument :historical, :boolean, default: false
-
-      filter expr(
-               if ^arg(:historical),
-                 do: state in [:graduated, :failed],
-                 else: state not in [:graduated, :failed]
-             )
-
-      filter expr(is_nil(activity_due_at) or activity_due_at <= now())
+    # The listed auctions whose bids `Autolaunch.AuctionActivity` reads, each
+    # by its own job.
+    read :activity do
       prepare Autolaunch.Auction.Preparations.Listed
-
-      prepare build(
-                sort: [activity_due_at: :asc_nils_first, id: :asc],
-                limit: 1,
-                lock: :for_update
-              )
-    end
-
-    # The listed auctions on one chain whose next bid-activity read is later
-    # than `soon` (`Autolaunch.AuctionActivity.refresh/1`).
-    read :activity_later do
-      pagination keyset?: true, required?: false
-      argument :chain_id, :integer, allow_nil?: false
-      argument :soon, :utc_datetime_usec, allow_nil?: false
-      filter expr(chain_id == ^arg(:chain_id) and activity_due_at > ^arg(:soon))
-      prepare Autolaunch.Auction.Preparations.Listed
-    end
-
-    # Not atomic: an atomic update re-reads through the primary read, which
-    # hides Robinhood rows, so a Robinhood auction would never be claimed.
-    update :schedule_activity do
-      require_atomic? false
-      accept [:activity_due_at]
     end
 
     update :refresh_activity do
@@ -450,7 +419,7 @@ defmodule Autolaunch.Auction do
   end
 
   policies do
-    policy action([:activity_due, :activity_later, :schedule_activity, :refresh_activity]) do
+    policy action([:activity, :refresh_activity]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
 
@@ -533,7 +502,6 @@ defmodule Autolaunch.Auction do
   attributes do
     attribute :activity_next_block, :integer
     attribute :activity_last_hash, :string
-    attribute :activity_due_at, :utc_datetime_usec
     attribute :bid_volume, :decimal, public?: true
     attribute :bid_volume_usd, :decimal, public?: true
     attribute :estimated_end_at, :utc_datetime_usec, public?: true

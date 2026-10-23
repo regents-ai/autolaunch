@@ -13,7 +13,7 @@ defmodule Autolaunch.IndexerCase do
   import Ecto.Query, only: [from: 2]
   import ExUnit.Assertions
 
-  alias Autolaunch.Indexer.{Block, Cursor, Handler, Ledger, Log, Source}
+  alias Autolaunch.Indexer.{Block, Cursor, Ledger, Log, ReadChain, Source}
   alias Autolaunch.Repo
   alias Autolaunch.TestAutolaunchIndexerChainClient, as: Endpoint
 
@@ -36,7 +36,7 @@ defmodule Autolaunch.IndexerCase do
     :ok
   end
 
-  # The handler admits the chain's configured sources on every pass; the tests
+  # The reading job admits the chain's configured sources on every run; the tests
   # admit theirs explicitly, so the configured set stays empty.
   defp configure_chain do
     configured = Application.fetch_env!(:autolaunch, :autolaunch_indexer_chains)
@@ -99,14 +99,14 @@ defmodule Autolaunch.IndexerCase do
   @doc "The deterministic hash of one topic."
   def topic(name), do: digest("topic:#{name}")
 
-  ## Driving the handler
+  ## Driving the reading job
 
   @doc "Admits one watched address at `start_block` on the Base ledger."
   def admit(address, start_block),
     do: unboxed(fn -> Ledger.admit_source(@chain_id, address, start_block) end)
 
-  @doc "One durable-work pass, exactly as the runner would dispatch it."
-  def pass, do: unboxed(fn -> Handler.handle(nil, @chain_id) end)
+  @doc "One run of the chain's reading job, as Oban would perform it."
+  def pass, do: unboxed(fn -> ReadChain.read(@chain_id) end)
 
   ## Reading the committed ledger
 

@@ -8,13 +8,22 @@ defmodule Autolaunch.AuctionActivity do
   auction's derived activity and rebuilds it. On Base each bid also becomes its
   bidder's wallet position; a rebuild never removes or changes a saved one.
 
-  An auction that has caught up is read again five minutes later, a finished
-  one ten minutes later, and every auction on a chain ten seconds after a
-  person's on-chain press there lands (`refresh/1`).
+  Each listed auction has one job (`Autolaunch.ChainWatch` makes sure of it),
+  which runs a pass and then waits: a second while the auction is behind the
+  head, five minutes once it has caught up, ten once it has finished. A press
+  that lands on its chain brings it forward to ten seconds away (`refresh/1`). A
+  pass the node could not answer, or whose head moved under it, is one warning
+  line and is read again a minute later; any other failure is a fault, tried
+  again a minute later.
   """
-  @behaviour Autolaunch.DurableWork.Handler
+  use Oban.Worker,
+    queue: :chain,
+    max_attempts: 20,
+    unique: [keys: [:auction_id], period: :infinity, states: :incomplete]
+
   @behaviour Autolaunch.ChainRefresh
   import Ecto.Query
+  require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
 
@@ -25,6 +34,7 @@ defmodule Autolaunch.AuctionActivity do
     BidActivity,
     BidPrice,
     BidSettlement,
+    ChainWatch,
     LabAbi,
     Repo
   }
@@ -33,6 +43,16 @@ defmodule Autolaunch.AuctionActivity do
   alias Autolaunch.ChainRefresh
   alias RegentChain.Address
   @actor %System{}
+  # The node did not answer, or answered for a head that has since moved.
+  @unavailable [
+    :chain_unavailable,
+    :logs_unavailable,
+    :header_unavailable,
+    :headers_unavailable,
+    :history_unavailable,
+    :sold_unavailable,
+    :head_moved
+  ]
   @bid "BidSubmitted(uint256,address,uint256,uint128)"
   @checkpoint "CheckpointUpdated(uint256,uint256,uint24)"
   @price "ClearingPriceUpdated(uint256,uint256)"
@@ -42,77 +62,69 @@ defmodule Autolaunch.AuctionActivity do
   @adapter_bid "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @range 2_000
 
-  @impl Autolaunch.DurableWork.Handler
-  def poll(_, 0), do: []
-  def poll(_, _), do: [:next]
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"auction_id" => id}}) do
+    case Ash.get(Auction, id, action: :activity, actor: @actor, not_found_error?: false) do
+      {:ok, nil} ->
+        {:cancel, :not_listed}
+
+      {:ok, auction} ->
+        case read(auction) do
+          {:ok, :behind} ->
+            {:snooze, 1}
+
+          {:ok, :caught_up} ->
+            {:snooze, wait_s(auction)}
+
+          {:error, reason} when reason in @unavailable ->
+            Logger.warning(
+              "Bid activity for auction #{id} not read (#{reason}); reading again in a minute"
+            )
+
+            {:snooze, 60}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @impl Oban.Worker
+  def backoff(%Oban.Job{}), do: 60
+
+  @doc "Every listed auction's reading job (`Autolaunch.ChainWatch`)."
+  def jobs, do: Enum.map(listed(), &new(%{auction_id: &1.id}))
 
   @doc """
   A person's on-chain press on chain `chain_id` landed: every listed auction on
   it is read ten seconds from now, instead of at its next turn. One already due
   sooner stays as it is.
   """
+  # No job runs while the site is read-only before launch (`Autolaunch.Application`).
   @impl ChainRefresh
   def refresh(chain_id) do
-    soon = DateTime.add(DateTime.utc_now(), ChainRefresh.gap_s())
-
-    Auction
-    |> Ash.Query.for_read(:activity_later, %{chain_id: chain_id, soon: soon}, actor: @actor)
-    |> Ash.bulk_update!(:schedule_activity, %{activity_due_at: soon},
-      actor: @actor,
-      strategy: :stream,
-      return_errors?: true
-    )
+    if not Autolaunch.Prelaunch.read_only?() do
+      Auction
+      |> Ash.Query.filter(chain_id == ^chain_id)
+      |> listed()
+      |> Enum.each(&ChainWatch.soon(new(%{auction_id: &1.id})))
+    end
 
     :ok
   end
 
-  @impl Autolaunch.DurableWork.Handler
-  def handle(historical, :next) do
-    case claim(historical) do
-      {:ok, nil} ->
-        :ok
-
-      {:ok, auction} ->
-        case read(auction) do
-          :ok ->
-            :ok
-
-          _ ->
-            Logger.warning("Bid activity unavailable for auction #{auction.id}; retry scheduled")
-            :unavailable
-        end
-
-      _ ->
-        :unavailable
-    end
+  defp listed(query \\ Auction) do
+    query
+    |> Ash.Query.for_read(:activity, %{}, actor: @actor)
+    |> Ash.Query.select([:id])
+    |> Ash.read!()
   end
 
-  # Notifications raised inside a transaction are sent once it commits.
-  defp claim(historical) do
-    Repo.transaction(fn ->
-      case Auction
-           |> Ash.Query.for_read(:activity_due, %{historical: historical}, actor: @actor)
-           |> Ash.read!() do
-        [] ->
-          {nil, []}
-
-        [auction] ->
-          Ash.update!(auction, %{activity_due_at: DateTime.add(DateTime.utc_now(), 60)},
-            action: :schedule_activity,
-            actor: @actor,
-            return_notifications?: true
-          )
-      end
-    end)
-    |> case do
-      {:ok, {auction, notifications}} ->
-        Ash.Notifier.notify(notifications)
-        {:ok, auction}
-
-      error ->
-        error
-    end
-  end
+  defp wait_s(%{state: state}) when state in [:graduated, :failed], do: 600
+  defp wait_s(_auction), do: 300
 
   def read(auction) do
     with {:ok, venue} <- venue(auction),
@@ -126,7 +138,7 @@ defmodule Autolaunch.AuctionActivity do
          {:ok, headers} <- headers(logs, last, venue.opts),
          {:ok, bids, points, settlements} <- events(auction, venue, logs, headers, first),
          {:ok, current} <- header(head.number, venue.opts),
-         true <- current.hash == head.hash do
+         :ok <- same_head(current, head) do
       timestamp = DateTime.from_unix!(current.timestamp, :second)
       rate = rate(auction, venue.chain)
 
@@ -143,14 +155,19 @@ defmodule Autolaunch.AuctionActivity do
       |> indexed(auction, bids, head.number - last)
     else
       {:error, :cursor_changed} -> invalidate(auction)
-      _ -> {:error, :activity_unavailable}
+      {:error, reason} -> {:error, reason}
     end
   end
+
+  # The head moved while the pass read, so its blocks are read again.
+  defp same_head(%{hash: hash}, %{hash: hash}), do: :ok
+  defp same_head(_current, _head), do: {:error, :head_moved}
 
   # After a committed pass: how far the auction's cursor trails the head, and
   # how long after its block each bid first seen by a pass that reached the
   # head from an existing cursor got to the site. A first pass or a rebuild
-  # reads history rather than new bids, so it is left out.
+  # reads history rather than new bids, so it is left out. Answers whether the
+  # auction has caught up with the head.
   defp indexed(:ok, auction, bids, behind) do
     :telemetry.execute(
       [:autolaunch, :indexer, :lag],
@@ -171,7 +188,7 @@ defmodule Autolaunch.AuctionActivity do
             )
     end
 
-    :ok
+    {:ok, if(behind == 0, do: :caught_up, else: :behind)}
   end
 
   defp indexed(error, _auction, _bids, _behind), do: error
@@ -193,6 +210,8 @@ defmodule Autolaunch.AuctionActivity do
           else: module.rpc_opts(config)
 
       {:ok, %{opts: opts, chain: network, adapter: adapter}}
+    else
+      _unavailable -> {:error, :chain_unavailable}
     end
   end
 
@@ -586,7 +605,6 @@ defmodule Autolaunch.AuctionActivity do
         %{
           activity_next_block: last + 1,
           activity_last_hash: hash,
-          activity_due_at: DateTime.add(DateTime.utc_now(), refresh_delay(current, complete?)),
           opened_at: opening,
           estimated_end_at: ending,
           bid_volume: if(complete?, do: total),
@@ -649,16 +667,13 @@ defmodule Autolaunch.AuctionActivity do
       onchain_bid_id: activity.bid_id
     }
 
-  defp refresh_delay(_auction, false), do: 1
-  defp refresh_delay(%{state: state}, true) when state in [:graduated, :failed], do: 600
-  defp refresh_delay(_auction, true), do: 300
-
   defp dollar_volume(_total, nil, _complete?), do: nil
   defp dollar_volume(total, rate, true), do: Decimal.mult(total, rate)
   defp dollar_volume(_total, _rate, false), do: nil
 
   # Invalidation removes only derived event rows while holding the parent lock;
-  # Ash clears its cursor and broadcasts that change after this transaction.
+  # Ash clears its cursor and broadcasts that change after this transaction. The
+  # auction is then behind, and rebuilt from its first block at once.
   defp invalidate(auction) do
     Repo.transaction(fn ->
       current =
@@ -686,7 +701,6 @@ defmodule Autolaunch.AuctionActivity do
           bid_volume: nil,
           bid_volume_usd: nil,
           estimated_end_at: nil,
-          activity_due_at: DateTime.utc_now(),
           events_changed: true
         },
         actor: @actor,
@@ -697,7 +711,7 @@ defmodule Autolaunch.AuctionActivity do
     |> case do
       {:ok, {_updated, notifications}} ->
         Ash.Notifier.notify(notifications)
-        :ok
+        {:ok, :behind}
 
       error ->
         error

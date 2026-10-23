@@ -6,9 +6,9 @@ defmodule Autolaunch.Indexer.Ledger do
   Source admission and every commit ensure the chain's cursor row and then take
   the same `FOR UPDATE` lock on it, so an admission that rewinds the cursor and
   a range planned from the old position can never interleave: whichever reaches
-  the lock second sees the other's decision, and a commit whose lease or exact
-  planned cursor no longer holds rolls the whole range back rather than skipping
-  or overwriting one.
+  the lock second sees the other's decision, and a commit whose exact planned
+  cursor or sources no longer hold rolls the whole range back rather than
+  skipping or overwriting one.
 
   Provider work never happens inside these transactions. Headers and logs are
   inserted, never updated: the unique identity decides a duplicate race and a
@@ -23,19 +23,19 @@ defmodule Autolaunch.Indexer.Ledger do
 
   @actor %System{}
 
-  @typedoc "What a granted lease permits: this owner, this chain, this exact position."
-  @type lease :: %{chain_id: pos_integer(), owner: String.t(), next_block: non_neg_integer()}
+  @typedoc "Where a pass is planned from: this chain, this exact position."
+  @type position :: %{chain_id: pos_integer(), next_block: non_neg_integer()}
 
   @doc """
   Admits one normalized source and pulls the chain cursor back to cover it.
 
   The first admission creates the cursor at the source's start block; a later
   one behind the cursor rewinds it, so the new address is backfilled while the
-  logs already stored replay as no-ops. Any genuinely new address also clears
-  the current lease, because a range planned before this address existed would
-  otherwise commit past it and skip its logs. Re-stating an address the ledger
-  already watches from the same block is the same fact twice: it moves nothing
-  and disturbs no live lease. Naming a different start block for it is a
+  logs already stored replay as no-ops. A range planned before a new address
+  existed is refused at its commit, which compares the sources it was planned
+  from, so it never commits past the address and skips its logs. Re-stating an
+  address the ledger already watches from the same block is the same fact
+  twice: it moves nothing. Naming a different start block for it is a
   contradiction and fails closed.
   """
   @spec admit_source(pos_integer(), String.t(), non_neg_integer()) ::
@@ -47,21 +47,15 @@ defmodule Autolaunch.Indexer.Ledger do
     end
   end
 
-  @doc "Grants the chain lease to one handler, or reports that a live owner keeps it."
-  @spec acquire(pos_integer(), pos_integer()) :: {:ok, lease()} | {:error, atom()}
-  def acquire(chain_id, lease_ms) do
-    transaction(fn ->
-      case lock(chain_id) do
-        nil -> Repo.rollback(:no_source_admitted)
-        cursor -> claim(cursor, db_now(), lease_ms)
-      end
-    end)
-  end
-
-  @doc "Releases the lease this owner still holds, so the next cadence starts immediately."
-  @spec release(lease()) :: {:ok, term()}
-  def release(%{chain_id: chain_id, owner: owner}) do
-    transaction(fn -> chain_id |> lock() |> relinquish(owner) end)
+  @doc "Where chain `chain_id`'s next pass starts, or `nil` before any source is admitted."
+  @spec cursor(pos_integer()) :: position() | nil
+  def cursor(chain_id) do
+    case Cursor
+         |> Ash.Query.for_read(:for_chain, %{chain_id: chain_id}, actor: @actor)
+         |> Ash.read_one!() do
+      nil -> nil
+      cursor -> %{chain_id: chain_id, next_block: cursor.next_block_to_fetch}
+    end
   end
 
   @doc "Every address admitted for a chain, ascending by the block it starts at."
@@ -83,25 +77,36 @@ defmodule Autolaunch.Indexer.Ledger do
     do: chain_id |> stored_blocks([block_hash]) |> Enum.any?(&(not &1.canonical))
 
   @doc """
-  Commits one plan under the lease it was made with.
+  Commits one plan drawn from `position`.
 
-  The lock is retaken, the lease revalidated against database time and the
-  cursor revalidated against the exact position the plan was drawn from. Blocks,
-  logs, finality promotion and the cursor move land in this single transaction,
-  so a rollback advances nothing.
+  The cursor is locked and revalidated against the exact position the plan was
+  drawn from, and a range against the sources it read. Blocks, logs, finality
+  promotion and the cursor move land in this single transaction, so a rollback
+  advances nothing.
   """
-  @spec commit(lease(), tuple(), pos_integer()) :: {:ok, term()} | {:error, term()}
-  def commit(lease, plan, bound) do
+  @spec commit(position(), tuple(), pos_integer()) :: {:ok, term()} | {:error, term()}
+  def commit(position, plan, bound) do
     transaction(fn ->
       now = db_now()
-      ensure(lease.chain_id, lease.next_block, now)
-      cursor = lock(lease.chain_id)
+      ensure(position.chain_id, position.next_block, now)
+      cursor = lock(position.chain_id)
 
-      if held?(cursor, lease, now),
-        do: apply_plan(cursor, plan, bound, now),
-        else: Repo.rollback(:lease_lost)
+      cond do
+        cursor.next_block_to_fetch != position.next_block -> Repo.rollback(:cursor_moved)
+        not planned_sources?(plan, position.chain_id) -> Repo.rollback(:sources_changed)
+        true -> apply_plan(cursor, plan, bound, now)
+      end
     end)
   end
+
+  # A range read the logs of the sources admitted when it was planned; one
+  # admitted since may emit inside it.
+  defp planned_sources?({:range, _headers, _logs, _finality, planned}, chain_id),
+    do: addresses(sources(chain_id)) == addresses(planned)
+
+  defp planned_sources?(_plan, _chain_id), do: true
+
+  defp addresses(sources), do: sources |> Enum.map(& &1.address) |> Enum.sort()
 
   defp admit(chain_id, address, start_block) do
     ensure(chain_id, start_block, db_now())
@@ -124,55 +129,12 @@ defmodule Autolaunch.Indexer.Ledger do
         return_notifications?: true
       )
 
-    {cleared, invalidated} = invalidate(cursor)
-    {_cursor, moved} = move_to(cleared, min(cursor.next_block_to_fetch, start_block))
+    {_cursor, moved} = move_to(cursor, min(cursor.next_block_to_fetch, start_block))
 
-    {source, admitted ++ invalidated ++ moved}
+    {source, admitted ++ moved}
   end
 
-  # An in-flight plan was drawn from a source set this address was not in, so it
-  # may commit over the heights this address emits from without ever asking for
-  # them. Clearing the lease under the same lock refuses that commit outright,
-  # whether or not the new start block is low enough to move the cursor; the
-  # pass that follows is planned from the whole admitted set.
-  defp invalidate(cursor),
-    do:
-      Ash.update!(cursor, %{},
-        action: :release_lease,
-        actor: @actor,
-        return_notifications?: true
-      )
-
-  defp claim(cursor, now, lease_ms) do
-    if leased?(cursor, now), do: Repo.rollback(:leased), else: grant(cursor, now, lease_ms)
-  end
-
-  defp grant(cursor, now, lease_ms) do
-    owner = Ash.UUID.generate()
-
-    {granted, notifications} =
-      cursor
-      |> Ash.Changeset.for_update(
-        :claim_lease,
-        %{lease_owner: owner, lease_expires_at: DateTime.add(now, lease_ms, :millisecond)},
-        actor: @actor
-      )
-      |> Ash.update!(return_notifications?: true)
-
-    {%{chain_id: granted.chain_id, owner: owner, next_block: granted.next_block_to_fetch},
-     notifications}
-  end
-
-  defp relinquish(%{lease_owner: owner} = cursor, owner), do: invalidate(cursor)
-  defp relinquish(cursor, _other_owner), do: {cursor, []}
-
-  defp leased?(%{lease_expires_at: nil}, _now), do: false
-  defp leased?(%{lease_expires_at: expires_at}, now), do: DateTime.after?(expires_at, now)
-
-  defp held?(%{lease_owner: owner, next_block_to_fetch: next} = cursor, lease, now),
-    do: owner == lease.owner and next == lease.next_block and leased?(cursor, now)
-
-  defp apply_plan(cursor, {:range, headers, logs, finality}, bound, now) do
+  defp apply_plan(cursor, {:range, headers, logs, finality, _sources}, bound, now) do
     case divergence(cursor.chain_id, headers) do
       # The old suffix goes, the cursor stays: a late source may have pulled it
       # below the divergence, and the next pass stores the new fork from there
@@ -541,8 +503,8 @@ defmodule Autolaunch.Indexer.Ledger do
 
   defp by_key(records, key), do: Map.new(records, &{key.(&1), &1})
 
-  # Lease expiry and every stored timestamp are measured by the database, so a
-  # skewed application clock cannot extend or shorten an owner's window.
+  # Every stored timestamp is measured by the database, so a skewed application
+  # clock cannot misdate a row.
   defp db_now do
     %{rows: [[now]]} = Repo.query!("SELECT now()")
     now
