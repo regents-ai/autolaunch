@@ -41,6 +41,7 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   @reverted "That launch did not go through, so nothing was created. Only the network fee was spent. Press again."
   @rebuilt "That launch did not go through, so nothing was created. Only the network fee was spent. The review now matches the network as it is: press again."
+  @refreshed "Something in this launch changed since you opened the review, so it now shows the launch as it is. Check it again before you press."
 
   @doc "The assigns a launch card starts with."
   def init(socket) do
@@ -161,10 +162,12 @@ defmodule AutolaunchWeb.LaunchSteps do
 
   @doc """
   The card's `update(%{refresh_review: review_id}, socket)` and revert
-  callback: `rechecked/4` when `review_id` is the review on the page.
+  callback: `rechecked/4` when `review_id` is the review on the page. A
+  review built again here can carry what a paired agent changed while it was
+  open, the treasury among them, so its button says to check it again.
   """
   def refreshed(%{assigns: %{review: %{id: id}}} = socket, id, current, prepare),
-    do: rechecked(socket, current, prepare)
+    do: rechecked(socket, current, prepare, @refreshed)
 
   def refreshed(socket, _earlier_review, _current, _prepare), do: socket
 

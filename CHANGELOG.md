@@ -12,6 +12,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - A paired agent can now fill in everything the launch form takes: the token's name, ticker, description, links and picture, and its launch settings: where a Revstake token's treasury goes, or which chain and stock a Memestock token pairs with.
 - When you open the launch page, a box above the wallet steps names every field your agent filled in, with its value, and the launch review names them again as it stands when you press Review, with every community link shown. Change any field and it becomes yours. You still check everything and sign the launch yourself.
 - An agent can never give your acknowledgement for a treasury held by a private key, and changing the treasury takes back an acknowledgement you gave before.
+- If anything in a launch changes while its review is open, the review is brought up to date and says so beside the button, so you check it again before you press.
 
 ## 23 October 2026: the price chart draws itself in
 - A token's price chart now grows from its opening price to today when it first appears. If your device is set to reduce motion, it appears whole straight away.
