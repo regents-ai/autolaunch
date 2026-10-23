@@ -23,13 +23,16 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   The search and the pool figures are GeckoTerminal's, not the chain's, and a
   stock whose pools the first page does not show is missed until it does. A
   pool whose token is not written as an address, or whose USD is not a plain
-  figure under a trillion, is left out. The search is tried once: a refusal,
-  like any chain or GeckoTerminal read that fails or answers in another
-  shape, fails the action and writes nothing more; the row is read again
-  when its turn comes.
+  figure under a trillion, is left out. The search is tried once. GeckoTerminal
+  refusing or not answering (its free service refuses a burst, and is slow
+  now and then) is one warning line and writes nothing more; any chain read
+  that fails, or any answer in another shape, fails the action. Either way the
+  row is read again when its turn comes.
   """
 
   use Ash.Resource.Change
+
+  require Logger
 
   alias Autolaunch.AuctionFinish.Launchpads
   alias Autolaunch.Chain.Rpc
@@ -65,6 +68,13 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
           Map.merge(facts, %{read_at: now, tried_at: now})
         )
       else
+        {:error, {:gecko_terminal, reason}} ->
+          Logger.warning(
+            "stock candidate #{changeset.data.ticker} not read: GeckoTerminal answered #{inspect(reason)}"
+          )
+
+          changeset
+
         {:error, reason} ->
           Ash.Changeset.add_error(changeset, "stock candidate read failed: #{inspect(reason)}")
       end
@@ -121,7 +131,7 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
         {:error, :unexpected_answer}
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, {:gecko_terminal, reason}}
     end
   end
 
