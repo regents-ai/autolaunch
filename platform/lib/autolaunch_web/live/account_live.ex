@@ -270,9 +270,12 @@ defmodule AutolaunchWeb.AccountLive do
         name: &1.name,
         kind: to_string(&1.harness),
         harness: Harness.label(&1.harness),
+        wallet: &1.wallet,
         backed: not is_nil(&1.human_id),
         last_contact_iso: DateTime.to_iso8601(&1.last_contact_at),
-        last_contact: RegentFormat.relative_time(&1.last_contact_at, now)
+        last_contact: RegentFormat.relative_time(&1.last_contact_at, now),
+        light: nil,
+        light_label: nil
       }
     )
   end

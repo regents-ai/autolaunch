@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: buttons, agents and tips as on every Regent site
+- Main buttons rest as plain colour and show their corner marks when you point at them or reach them with the keyboard, as on the other Regent sites.
+- On Account, each paired agent shows its wallet address beside its name, with a copy button. Pressing the address shows it in full.
+- The pairing box shows the agent you chose to pair.
+- A tip opens under the mouse pointer when you hover its icon.
+
 ## 23 October 2026: the side panel opens under the header
 - The side panel opens below the header's bottom line instead of beside it, with its right edge in line with the header's. While it is open the header stays at the top of the screen as you scroll.
 - On a phone, the menu, the dimmed page behind it and the side panel start exactly at the header's bottom line, with no sliver of overlap.
