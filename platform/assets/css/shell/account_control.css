@@ -64,6 +64,7 @@ body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-hei
   .account-chip { max-width: 6rem; padding-inline: .5rem; }
   .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
-/* On phones the side panel takes the whole screen under the header. */
-@media (max-width: 47.99rem) { #shell-aside { inset-inline: 0; width: auto; border-inline-start: 0; } }
+/* On phones the side panel takes the whole screen under the header, from the
+   header's bottom line (`--shell-header-end`, shell/phone.css). */
+@media (max-width: 47.99rem) { #shell-aside { inset: var(--shell-header-end) 0 0; width: auto; border-inline-start: 0; } }
 @media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }
