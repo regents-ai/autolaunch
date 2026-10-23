@@ -2,42 +2,42 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
-## 21 October 2026: the price chart draws itself in
+## 23 October 2026: the price chart draws itself in
 - A token's price chart now grows from its opening price to today when it first appears. If your device is set to reduce motion, it appears whole straight away.
 
-## 21 October 2026: revenue history for Revstake tokens
+## 23 October 2026: revenue history for Revstake tokens
 - A Revstake token's page shows its revenue history: each payment that reached its revenue splitter, with the amount, the day and a link to the transaction. Agents get the same list when they read the token.
 
-## 21 October 2026: a clearer home page
+## 23 October 2026: a clearer home page
 - The home page now says in one line what Autolaunch is for, and offers two ways in: Back a launch, or Launch yours.
 - A new "Coming next" area shows the auctions taking bids or opening soon. When none are open, it shows stocks you can launch with and the latest results.
 - The Agent Tools button has moved from the top of every page to the footer and the developer guide.
 
-## 21 October 2026: a light stock listing, with a page for each stock
+## 23 October 2026: a light stock listing, with a page for each stock
 - The stock listing is now a short list that opens quickly. Each stock has its own page with its addresses, company links and pool research, at an address you can share, such as /stock-listing/AAPLc.
 
-## 21 October 2026: one figure a row on a phone
+## 23 October 2026: one figure a row on a phone
 - On a phone, each auction in the lists shows one figure: how much bidders have put in while it can still take bids, and its price once it has finished.
 
-## 21 October 2026: token pages open on the price
+## 23 October 2026: token pages open on the price
 - A token's page now opens on its price in dollars, its market cap, how far it has moved since its pool opened and who made it, then its chart, then Swap and Stake. On a phone the picture sits small beside them, so they are all on the first screen.
 - Where the outside chart site has no chart for a token yet, View Chart opens the token's own price chart on the page instead of saying the chart is unavailable.
 
-## 21 October 2026: creators named the same way everywhere
+## 23 October 2026: creators named the same way everywhere
 - Every list, auction page, token page and share picture names a launch's creator the same way: their checked X, ENS or GitHub name when they have one, otherwise their wallet, shortened. Before, lists showed only the wallet.
 
-## 21 October 2026: a short agent guide, one CLI version everywhere
+## 23 October 2026: a short agent guide, one CLI version everywhere
 - /llms.txt is now a short index: what Autolaunch is, first steps for an agent and where to read on. The whole guide is at /llms-full.txt, and /sitemap.md lists every page with what it is for.
 - Every agent guide names the same regents-cli release, 1.10.12.
 - The signed agent guide says whether saving drafts is open right now, instead of a fixed line.
 
-## 21 October 2026: other websites can show Autolaunch auctions and tokens
+## 23 October 2026: other websites can show Autolaunch auctions and tokens
 - A page on any website can read Autolaunch's public auction, token, count and treasury figures straight from its visitors' browsers. Anything tied to a person's sign-in or an agent's pairing still answers only autolaunch.sh.
 
-## 21 October 2026: every auction and token page points to its own record
+## 23 October 2026: every auction and token page points to its own record
 - An agent on an auction or token page finds a link to that page's record in the agent API, and the page describes that auction or token to search engines, not only the site.
 
-## 21 October 2026: token prices in dollars, short prices and auction counts for agents
+## 23 October 2026: token prices in dollars, short prices and auction counts for agents
 - Agents reading tokens now get each token's price and market cap in its own currency and in dollars, and what its auction raised, the same figures the token lists show.
 - Prices in the agent API are 18 digits long instead of about 90, rounded up, so a bid at a stated clearing price still reaches it.
 - Agents can ask how many auctions are live and how many have graduated, for Revstake on Base and Memestock on Base and Robinhood, without paging through the list.
