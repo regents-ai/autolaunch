@@ -19,8 +19,17 @@
 }
 
 @media (max-width: 47.99rem) {
+  /* Where the header's bottom line ends, as the template names it: the menu, its
+     backdrop and the side panel open there, so they never cover that line. */
   :root {
-    --shell-phone-bar: calc(3.5rem + env(safe-area-inset-top, 0px));
+    --shell-header: 3.5rem;
+    --shell-header-end: calc(var(--rg-rule-width) + var(--shell-header) + env(safe-area-inset-top, 0px));
+  }
+
+  /* The frame's top line is the header's own here, so the two stay at the top of
+     the screen together and the header's bottom line never moves. */
+  .rg-frame:has(#home-top) {
+    border-block-start: 0;
   }
 
   /* The page behind the open menu, or behind the side panel, which covers the
@@ -47,8 +56,9 @@
     z-index: 41;
     flex-wrap: nowrap;
     gap: 0;
-    min-height: var(--shell-phone-bar);
+    min-height: var(--shell-header-end);
     padding: env(safe-area-inset-top, 0px) var(--space-1) 0;
+    border-block-start: var(--rg-rule-width) solid var(--rg-page-rule);
   }
 
   #home-top > *,
@@ -156,7 +166,7 @@
      does; its Close navigation bar is its first row. */
   #shell-drawer {
     position: fixed;
-    inset: anchor(--shell-top bottom) auto 0 0;
+    inset: var(--shell-header-end) auto 0 0;
     z-index: 40;
     display: flex;
     flex-direction: column;
@@ -271,7 +281,7 @@
      closes the drawer. */
   .rg-button.shell-menu-scrim {
     position: fixed;
-    inset: anchor(--shell-top bottom) 0 0;
+    inset: var(--shell-header-end) 0 0;
     z-index: 39;
     display: block;
     min-width: 0;
