@@ -359,13 +359,13 @@
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 11,
+      "line": 12,
       "test_name": "ACCOUNT_SHOWS_A_PAIRED_AGENT",
       "keep_because": "The Account page builds each paired agent's row for the shared agents list, and a row missing a field the list reads crashed /account for everyone with a paired agent (v140, 16 Oct 2026). A signed-out or unpaired review never sees it. The case fails if /account stops mounting with a paired agent or stops showing its name and kind.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "9f7ad59c2ddef43f45a75829f0f7568335f4e22e1b8ea033331332eba73b8169"
+      "source_sha256": "babd944a6c914c68d89f00c4229e20af95a57e8b9aee60cd3e269e3794101e5a"
     },
     {
       "id": 56,
