@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 23 October 2026: only your account's wallets act for it
+- When you sign in, a wallet app you had connected before signing in no longer acts for your account unless it is one of your account's wallets.
+
 ## 23 October 2026: see your agent's work as it happens
 - With a create page open, what your paired agent fills in shows straight away, in the form and in the list of what your agent filled in. You no longer need to reload. Anything you typed that could not be saved stays in its box.
 - A picture your agent sends is saved only while its pairing still holds.

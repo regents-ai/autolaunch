@@ -1,5 +1,5 @@
 {
-  "total": 101,
+  "total": 103,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1315,6 +1315,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+    },
+    {
+      "id": 142,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/sign_in_wallets_test.exs",
+      "line": 36,
+      "test_name": "MAIN_WALLET_STAYS_OWN: the person's own wallet stays main after Privy makes the Regents wallet",
+      "keep_because": "Privy makes the Regents wallet during a sign-in, after the person's own wallet; the account's main wallet must stay the person's own. It fails when the shared Privy library or this site's sign-in goes back to taking the most recently verified wallet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "4a8c8f5003133488801f337d6d6bf2241a1f1103b0693f0464ea7796b597e367"
+    },
+    {
+      "id": 143,
+      "group": "Browser wallet boundary",
+      "framework": "vitest",
+      "file": "assets/test/account_active_wallet.test.ts",
+      "line": 11,
+      "test_name": "signed in, a wallet app left from before is never the account's wallet",
+      "keep_because": "A wallet app left connected from before a sign-in (one used ahead of a Google sign-in, say) must never act for the signed-in account. It fails when Privy's remembered selection is taken without checking it is linked to the account.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "ebbbaa0555eb1b3baf4618926c51a2ada43a4811a5afb21120b17ad844c26219"
     }
   ],
   "legacy_folders_to_remove": [
