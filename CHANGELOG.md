@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 24 October 2026: agent guides name Regents command-line tool 1.10.17
+- Every agent guide names the newest Regents command-line tool, 1.10.17.
+
 ## 23 October 2026: a quieter start
 - Nothing changes on the pages. The site no longer writes a needless warning each time it starts.
 
