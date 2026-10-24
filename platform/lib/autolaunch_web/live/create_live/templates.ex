@@ -612,7 +612,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         variant="secondary"
         phx-click={JS.dispatch("autolaunch:open-dialog", to: "#launch-no-connections-dialog")}
       >
-        Launch without connections
+        Skip connections
       </Regent.Primitives.button>
       <dialog
         id="launch-no-connections-dialog"
