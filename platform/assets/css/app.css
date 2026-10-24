@@ -43,7 +43,7 @@
 
 /* A narrow page: the search's magnifier, then the $REGENT crown, and Sign in (or the
    account's picture) with the side panel button, on one row. */
-@container shell-page (max-width: 39rem) { #home-top .home-top__actions { gap: var(--space-1); } }
+@media (max-width: 47.99rem) { #home-top .home-top__actions { gap: var(--space-1); } }
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
 .prelaunch-actions p { color: var(--color-fg-muted); font-size: .875rem; }

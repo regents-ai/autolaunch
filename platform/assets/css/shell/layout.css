@@ -8,9 +8,9 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .shell-body { flex: 1 0 auto; }
 .shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
 @media (max-width: 63.99rem) { .shell-body { grid-template-rows: auto 1fr; } }
-/* The header lives in the page column, so it lays itself out by that column's
-   width (`shell-page`), not the window's: opening the side panel beside a page
-   narrows the column and the header answers as it would on a narrower screen. */
+/* The page column lays its footer out by its own width (`shell-page`), so
+   opening the side panel beside a page narrows it as a narrower screen would.
+   The header above runs the frame's whole width and answers to the screen's. */
 .shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
 .shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
 .shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
@@ -63,9 +63,8 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .rg-button.regent-token-menu__link { --rg-cut-control: 0px; --rg-p-accent: var(--color-surface); --rg-p-on-accent: var(--color-fg); --rg-button-border-color: transparent; width: 100%; padding: var(--space-1) .625rem; border-radius: 0; font-size: .875rem; font-weight: 400; justify-content: flex-start; text-align: start; }
 .rg-button.regent-token-menu__link::after { content: none; }
 .regent-token-menu :is(summary, a, button):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-@container shell-page (max-width: 52rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
-/* A narrow page keeps the crown menu and leaves the GitHub icon to the footer. */
-@container shell-page (max-width: 39rem) { .regent-header-links > .regent-social-links { display: none; } }
+/* A narrow screen keeps the crown menu and leaves the GitHub icon to the footer. */
+@media (max-width: 47.99rem) { .regent-header-links > .regent-social-links { display: none; } }
 /* The shared prism control draws its own box and hover; the row only places it. Its prism
    sits .5rem inside its press target and each icon sits centred in its link box, so this
    margin leaves the same space before the prism as between the icons themselves. */

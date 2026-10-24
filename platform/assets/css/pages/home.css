@@ -170,7 +170,7 @@
 #home-explore .home-load-more { display: flex; justify-content: center; margin-top: 32px; }
 #home-explore .home-result-count { margin: 20px 0 0; text-align: center; color: var(--color-fg-muted); font-size: .75rem; }
 #home-explore :is(a, button, select, summary):focus-visible, #home-top :is(a, button, input):focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
-#home-top { padding-block: 16px; justify-content: space-between; flex-wrap: nowrap; gap: 24px; }
+#home-top { justify-content: space-between; gap: 24px; }
 /* The header's search bar is a button: it opens the search window. */
 #home-top .home-search { display: flex; align-items: center; gap: 10px; flex: 1 1 34rem; max-width: 40rem; min-width: 0; padding: 0 12px; min-height: 44px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg-muted); font: inherit; font-size: .875rem; text-align: left; cursor: text; }
 #home-top .home-search:hover, #home-top .home-search:focus-visible { border-color: var(--color-fg); }
@@ -181,9 +181,9 @@
 @media (max-width: 100rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 85rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 70rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-/* The search stays in the header's one row. Below this page width the buttons beside it leave
+/* The search stays in the header's one row. Below this screen width the buttons beside it leave
    its words too little room, so it shows only its magnifier; its words stay its name. */
-@container shell-page (max-width: 54rem) {
+@media (max-width: 63.99rem) {
   #home-top { gap: 12px; }
   #home-top .home-search { flex: 0 0 auto; justify-content: center; width: 2.75rem; padding: 0; }
   #home-top .home-search__prompt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

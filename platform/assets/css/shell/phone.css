@@ -19,19 +19,6 @@
 }
 
 @media (max-width: 47.99rem) {
-  /* Where the header's bottom line ends, as the template names it: the menu, its
-     backdrop and the side panel open there, so they never cover that line. */
-  :root {
-    --shell-header: 3.5rem;
-    --shell-header-end: calc(var(--rg-rule-width) + var(--shell-header) + env(safe-area-inset-top, 0px));
-  }
-
-  /* The frame's top line is the header's own here, so the two stay at the top of
-     the screen together and the header's bottom line never moves. */
-  .rg-frame:has(#home-top) {
-    border-block-start: 0;
-  }
-
   /* The page behind the open menu, or behind the side panel, which covers the
      whole screen here, stays where it is. */
   :root[data-menu="open"],
@@ -48,17 +35,11 @@
     grid-template-rows: minmax(0, 1fr);
   }
 
-  /* One bar that stays at the top, clear of the notch and above the drawer, so
-     Menu closes what it opened. Every press in it is a full 44px square. */
+  /* The bar stays above the drawer, so Menu closes what it opened. Every press in
+     it is a full 44px square. */
   #home-top {
-    position: sticky;
-    top: 0;
-    z-index: 41;
-    flex-wrap: nowrap;
     gap: 0;
-    min-height: var(--shell-header-end);
-    padding: env(safe-area-inset-top, 0px) var(--space-1) 0;
-    border-block-start: var(--rg-rule-width) solid var(--rg-page-rule);
+    padding-inline: var(--space-1);
   }
 
   #home-top > *,
