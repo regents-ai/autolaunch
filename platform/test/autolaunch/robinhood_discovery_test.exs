@@ -444,7 +444,7 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     assert Enum.map(listed.records, & &1.auction_address) == [@site_auction]
   end
 
-  # The shipped Robinhood deployment, answering at a loopback door this test
+  # The Robinhood deployment fixture, answering at a loopback door this test
   # stands in for.
   defp deployment do
     path =
@@ -453,7 +453,8 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
         "robinhood-#{Elixir.System.unique_integer([:positive])}.json"
       )
 
-    "deployment/robinhood.json"
+    "../fixtures/robinhood-deployment.json"
+    |> Path.expand(__DIR__)
     |> File.read!()
     |> Jason.decode!()
     |> Map.merge(%{"rpc_url" => "http://127.0.0.1:18545", "public_rpc_url" => nil})
