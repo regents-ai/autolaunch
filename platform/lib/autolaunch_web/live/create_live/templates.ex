@@ -164,6 +164,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         draft && LaunchDraft.token_details_complete?(draft) &&
           treasury_ready?(draft, assigns.treasury_check)
       )
+      |> assign(:confirm_treasury?, draft && LaunchDraft.treasury_confirmation_needed?(draft))
       |> assign(:marks, marks(assigns.draft_errors, assigns.draft_values))
       |> assign(:links_given?, Enum.any?(@link_params, &(assigns.draft_values[&1] != "")))
       |> assign(:opening, LaunchActions.opening())
@@ -301,15 +302,20 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             :if={@active_draft}
             draft={@active_draft}
           />
+          <.agent_treasury
+            :if={@launch_ready? && !@reviewing? && @confirm_treasury?}
+            treasury={@active_draft.treasury}
+          />
           <.no_connections
-            :if={@launch_ready? && @active_draft && !@has_connections && !@connections_waived}
+            :if={@launch_ready? && !@confirm_treasury? && !@has_connections && !@connections_waived}
             typed={@no_connections_typed}
           />
           <.live_component
             :if={
               @active_draft &&
                 (@launched? ||
-                   ((@launch_ready? || @reviewing?) && (@has_connections || @connections_waived)))
+                   (((@launch_ready? && !@confirm_treasury?) || @reviewing?) &&
+                      (@has_connections || @connections_waived)))
             }
             module={AutolaunchWeb.LaunchWalletComponent}
             id={"autolaunch-launch-wallet-#{@active_draft.id}"}
@@ -561,6 +567,29 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     """
   end
 
+  attr :treasury, :string, required: true
+
+  # A smart contract account the creator's paired agent chose as the treasury
+  # goes ahead only once the creator ticks that it is where the launch's money
+  # should go (`Autolaunch.LaunchDraft.treasury_confirmation_needed?/1`).
+  defp agent_treasury(assigns) do
+    ~H"""
+    <form id="launch-agent-treasury" class="agent-treasury" phx-change="confirm_agent_treasury">
+      <p>Your agent chose the treasury, a smart contract account:</p>
+      <p class="agent-treasury__address">{@treasury}</p>
+      <input type="hidden" name="treasury" value={@treasury} />
+      <%!-- Keyed by the address, so a new treasury always starts unticked. --%>
+      <label
+        id={"launch-agent-treasury-#{String.downcase(@treasury)}"}
+        class="agent-treasury__confirm"
+      >
+        <input type="checkbox" name="confirmed" value="true" />
+        This is where my launch's money should go.
+      </label>
+    </form>
+    """
+  end
+
   attr :typed, :string, default: ""
 
   # A Revstake launch with no X, GitHub or ENS connected goes ahead only after
@@ -591,7 +620,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         aria-labelledby="launch-no-connections-title"
         {AutolaunchWeb.Motion.panel("sheet", ["open"])}
       >
-        <form class="rg-field" phx-change="no_connections_typed" phx-submit="no_connections_confirmed">
+        <form
+          id="launch-no-connections-form"
+          class="rg-field"
+          phx-change="no_connections_typed"
+          phx-submit="no_connections_confirmed"
+        >
           <h2 id="launch-no-connections-title">Launch without connections</h2>
           <label for="launch-no-connections-typed">Type this sentence exactly to continue:</label>
           <p id="launch-no-connections-warning" class="no-connections__warning">{@warning}</p>

@@ -24,6 +24,11 @@
 .no-connections__warning { margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); font-weight: 600; }
 .no-connections__dialog textarea { min-height: 7rem; resize: vertical; }
 .no-connections__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2); }
+/* A treasury the agent chose, ticked by the creator before the launch card opens. */
+.agent-treasury { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); }
+.agent-treasury > p { margin: 0; }
+.agent-treasury__address { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
+.agent-treasury__confirm { display: flex; align-items: baseline; gap: var(--space-1); font-weight: 600; }
 /* On the memestock form the accounts fold away under one optional Socials line. */
 .creator-connections--optional { padding-block: 0; }
 .creator-connections--optional .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }

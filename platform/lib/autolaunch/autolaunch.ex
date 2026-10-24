@@ -66,6 +66,10 @@ defmodule Autolaunch do
       define :autosave_launch_token_details, action: :autosave_token_details
       define :autosave_launch_treasury, action: :autosave_treasury
 
+      define :confirm_launch_agent_treasury,
+        action: :confirm_agent_treasury,
+        args: [:treasury]
+
       define :attach_launch_draft_image,
         action: :attach_image,
         args: [:launch_draft_image_id]

@@ -263,6 +263,7 @@ defmodule Autolaunch.LaunchActions do
 
     with :ok <- metadata(draft, fields),
          {:ok, image} <- launch_image(draft, actor),
+         :ok <- treasury_confirmed(draft),
          true <- LaunchDraft.treasury_complete?(draft),
          {:ok, treasury} <- address(draft.treasury, :launch_treasury_invalid) do
       {:ok,
@@ -277,6 +278,14 @@ defmodule Autolaunch.LaunchActions do
       false -> unavailable(:launch_treasury_invalid)
       error -> error
     end
+  end
+
+  # A smart contract account the creator's agent chose takes the creator's own
+  # confirmation before anything is sent there.
+  defp treasury_confirmed(draft) do
+    if LaunchDraft.treasury_confirmation_needed?(draft),
+      do: unavailable(:agent_treasury_unconfirmed),
+      else: :ok
   end
 
   defp launch_image(draft, actor) do

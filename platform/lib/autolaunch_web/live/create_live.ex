@@ -111,6 +111,42 @@ defmodule AutolaunchWeb.CreateLive do
       else: {:reply, %{taken: true}, restore(socket, values)}
   end
 
+  # The person ticked that the smart contract account their agent chose is
+  # where the launch's money goes. One the agent changed since this page
+  # showed it is not confirmed; the page shows the new one to check instead.
+  def handle_event(
+        "confirm_agent_treasury",
+        %{"treasury" => treasury, "confirmed" => "true"},
+        socket
+      )
+      when is_binary(treasury) do
+    actor = human_actor(socket)
+
+    with {:ok, draft} <- reload_draft(actor),
+         {:ok, _confirmed} <-
+           Autolaunch.confirm_launch_agent_treasury(draft, treasury, actor: actor),
+         {:ok, draft} <- reload_draft(actor) do
+      {:noreply, assign_loaded_draft(socket, draft, actor)}
+    else
+      _refused ->
+        socket =
+          case reload_draft(actor) do
+            {:ok, draft} -> assign_loaded_draft(socket, draft, actor)
+            {:error, _error} -> socket
+          end
+
+        {:noreply,
+         assign(socket,
+           draft_notice: %{
+             tone: :error,
+             message: "The treasury could not be confirmed. Check it and tick again."
+           }
+         )}
+    end
+  end
+
+  def handle_event("confirm_agent_treasury", _params, socket), do: {:noreply, socket}
+
   def handle_event("no_connections_typed", %{"typed" => typed}, socket) when is_binary(typed),
     do: {:noreply, assign(socket, no_connections_typed: typed)}
 
