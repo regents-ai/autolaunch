@@ -1,5 +1,5 @@
 {
-  "total": 103,
+  "total": 104,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1341,6 +1341,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "ebbbaa0555eb1b3baf4618926c51a2ada43a4811a5afb21120b17ad844c26219"
+    },
+    {
+      "id": 144,
+      "group": "Creator drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_treasury_confirm_test.exs",
+      "line": 26,
+      "test_name": "AGENT_TREASURY_NEEDS_TICK: an agent's smart contract treasury launches only after the person ticks it",
+      "keep_because": "A smart contract account a paired agent chose as the treasury is where the launch's money goes, so the launch review is refused until the person ticks it on the create page, and a tick for an address the agent has since changed confirms nothing. It fails when the review stops asking for the tick or a stale tick is accepted.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "65d94fade00b92f5a994b0355e7987909a4d3bc3dfe112379a89962087d97477"
     }
   ],
   "legacy_folders_to_remove": [

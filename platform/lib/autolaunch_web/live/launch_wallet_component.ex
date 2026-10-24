@@ -33,6 +33,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       "This launch factory and its strategy do not match. Nothing was prepared.",
     launch_metadata_incomplete:
       "This draft is missing something the launch needs. Open it and save every field again.",
+    agent_treasury_unconfirmed:
+      "Your agent chose this treasury. Confirm it beside the launch, then review again.",
     launch_treasury_invalid:
       "This draft's treasury is not a usable address. Copy it from your wallet again and save the draft.",
     launch_draft_not_found: "This draft is no longer available.",

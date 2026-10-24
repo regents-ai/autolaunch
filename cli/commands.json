@@ -461,7 +461,7 @@
           "field": "treasury_path",
           "type": "string",
           "required": false,
-          "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page. One of: safe, contract, eoa."
+          "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page, and a smart contract account an agent chose needs the person's own confirmation there. One of: safe, contract, eoa."
         },
         {
           "field": "image",

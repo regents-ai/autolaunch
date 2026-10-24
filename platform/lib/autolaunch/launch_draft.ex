@@ -60,6 +60,16 @@ defmodule Autolaunch.LaunchDraft do
       (path != :eoa or Map.get(draft, :eoa_acknowledgement) == @eoa_acknowledgement)
   end
 
+  @doc """
+  Whether the creator still has to confirm a smart contract account their
+  paired agent chose as the treasury (`:confirm_agent_treasury`) before the
+  launch review is prepared.
+  """
+  def treasury_confirmation_needed?(draft) do
+    Map.get(draft, :treasury_path) == :contract and
+      Enum.any?([:treasury, :treasury_path], &(&1 in Map.get(draft, :agent_set_fields, [])))
+  end
+
   @doc "Whether `treasury` is a whole address a launch can send to."
   def treasury_address?(treasury),
     do:
@@ -204,6 +214,13 @@ defmodule Autolaunch.LaunchDraft do
               fields: [:treasury, :treasury_path], mark: false}
     end
 
+    update :confirm_agent_treasury do
+      accept []
+      argument :treasury, :string, allow_nil?: false
+      require_atomic? false
+      change Autolaunch.LaunchDraft.Changes.ConfirmAgentTreasury
+    end
+
     update :attach_image do
       argument :launch_draft_image_id, :uuid, allow_nil?: false
       require_atomic? false
@@ -264,6 +281,7 @@ defmodule Autolaunch.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
+             :confirm_agent_treasury,
              :attach_image
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
@@ -276,6 +294,7 @@ defmodule Autolaunch.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_treasury,
+             :confirm_agent_treasury,
              :attach_image
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))

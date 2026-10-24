@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 24 October 2026: you confirm a treasury your agent chose
+- When your paired agent sets your launch's treasury to a smart contract account, the create page shows the address and asks you to tick that it is where your launch's money should go. The launch review opens only after you tick. If your agent changes the treasury again, you tick again.
+
 ## 24 October 2026: a browser check of the side panel
 - Nothing changes on the pages. Every full check of the site now opens it in a browser at desktop and phone widths and confirms the side panel opens right under the top bar.
 
