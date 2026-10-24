@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 24 October 2026: a calmer hand-over between releases
+- Nothing changes on the pages. When a new release replaces the site's server, open pages and work already under way now finish first instead of being cut off.
+
 ## 24 October 2026: auction prices are read once for every page
 - Nothing changes on the pages. Every auction, on Base and on Robinhood, is now read from its own contract in one place, and every open page shows that one reading.
 
