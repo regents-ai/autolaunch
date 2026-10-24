@@ -1,7 +1,7 @@
 defmodule Autolaunch.AuctionTerms do
   @moduledoc """
-  The two figures an auction fixes when it is created and the market feeds
-  read once: its floor price and its launch token's total supply. An auction
+  The two figures an auction fixes when it is created and its reading job
+  reads once: its floor price and its launch token's total supply. An auction
   row that already holds both keeps them without another read.
 
   Every launch token has 18 decimals.

@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
   import AutolaunchWeb.Components.AuctionNext
 
-  alias Autolaunch.{AuctionBook, AuctionSnapshot, BidReceipt, MarketReadings}
+  alias Autolaunch.{AuctionBook, AuctionSnapshot, BidReceipt, ChainHead}
   alias Autolaunch.Lab
   alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch}
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, UsdValue}
@@ -21,16 +21,18 @@ defmodule AutolaunchWeb.AuctionLive do
   @receipts_read 10
 
   # Everything the page shows from the chain that every visitor sees alike is
-  # the market feed's one reading of it (`Autolaunch.MarketReadings`): the
-  # page reads the chain itself only for the signed-in bidder's own bids.
-  def mount(%{"auction_address" => address, "kind" => kind}, _session, socket) do
-    feed = MarketReadings.feed(kind)
+  # the auction's one reading of it (`Autolaunch.AuctionReading`) and its
+  # chain's newest block (`Autolaunch.ChainHead`): the page reads the chain
+  # itself only for the signed-in bidder's own bids.
+  def mount(%{"auction_id" => id, "kind" => kind}, _session, socket) do
+    feed = LabMarket.feed(kind)
+    {reading, page} = LabMarket.reading(id)
 
     {:ok,
      socket
-     |> assign(market_address: address, market_feed: feed)
-     |> LabMarket.subscribe_auction(address, feed)
-     |> assign(head: MarketReadings.head(feed), market_snapshot: MarketReadings.market(address))
+     |> assign(market_feed: feed)
+     |> LabMarket.subscribe_auction(id, feed)
+     |> assign(clock: clock(feed), reading: reading, page_reading: page)
      |> assign_snapshot()
      |> LiveListings.subscribe()
      |> assign(
@@ -105,18 +107,24 @@ defmodule AutolaunchWeb.AuctionLive do
      )}
   end
 
-  # The feed read a new price ladder, schedule or stage for this auction; a
-  # new stage reads the viewer's own bids again.
-  def handle_info({:shared_reading, {:auction_page, _address}}, socket),
-    do: {:noreply, socket |> assign_snapshot() |> load_receipts()}
-
-  # The feed read new figures for this auction and saved them on its row
-  # first, so the row, its bids and the viewer's own are read again.
-  def handle_info({:shared_reading, {:auction_market, address}}, socket),
+  # The auction's reading has a new price ladder, schedule or stage; a new
+  # stage reads the viewer's own bids again.
+  def handle_info(%{topic: "public:auction_page:" <> _id, payload: page}, socket),
     do:
       {:noreply,
        socket
-       |> assign(:market_snapshot, MarketReadings.market(address))
+       |> assign(:page_reading, LabMarket.newer(socket.assigns.page_reading, page))
+       |> assign_snapshot()
+       |> load_receipts()}
+
+  # The auction was read again, and its row saved in the same transaction, so
+  # the row, its bids and the viewer's own are read again.
+  def handle_info(%{topic: "public:auction_market:" <> _id, payload: reading}, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(:reading, LabMarket.newer(socket.assigns.reading, reading))
+       |> assign_snapshot()
        |> assign_positions()
        |> load_page(reset: false)
        |> load_history(reset: false)
@@ -125,13 +133,13 @@ defmodule AutolaunchWeb.AuctionLive do
   # A block went by: the page's clock moves, and a read of the viewer's own
   # bids that failed is tried again. Nothing on the page of a finished auction
   # moves with the block.
-  def handle_info({:shared_reading, {:market_head, feed}}, socket) do
+  def handle_info({:shared_reading, {:chain_head, feed}}, socket) do
     if finished?(socket.assigns.snapshot),
       do: {:noreply, socket},
       else:
         {:noreply,
          socket
-         |> assign(:head, MarketReadings.head(feed))
+         |> assign(:clock, clock(feed))
          |> clock_snapshot()
          |> load_receipts()}
   end
@@ -176,7 +184,7 @@ defmodule AutolaunchWeb.AuctionLive do
     assigns =
       assign(assigns,
         graduated_token: page_token(assigns.page),
-        bidding_ended?: bidding_ended?(assigns.page_record, assigns.head, assigns.market_snapshot)
+        bidding_ended?: bidding_ended?(assigns.page_record, assigns.clock, assigns.reading)
       )
 
     assigns =
@@ -276,8 +284,7 @@ defmodule AutolaunchWeb.AuctionLive do
             ended={@bidding_ended?}
             my_positions={@my_positions}
             positions_unread={@positions_unread}
-            market_snapshot={@market_snapshot}
-            observed={@head}
+            observed={@clock}
             account_control={@account_control}
             access_context={@access_context}
             session_lease={@session_lease}
@@ -329,13 +336,13 @@ defmodule AutolaunchWeb.AuctionLive do
             claim_block={@snapshot.blocks.claim}
           />
           <.auction_activity
-            :if={@head && @market_snapshot && @history.ok?}
+            :if={@clock && @reading && @history.ok?}
             id="auction-activity"
             bids={@history.result.bids}
             symbol={@page_record.quote_token_symbol}
-            block={@head.number}
-            start_block={@market_snapshot.start_block}
-            end_block={@market_snapshot.end_block}
+            block={@clock}
+            start_block={@reading.market.start_block}
+            end_block={@reading.market.end_block}
             chain={:base}
             test_chain={@local_lab?}
           />
@@ -350,7 +357,7 @@ defmodule AutolaunchWeb.AuctionLive do
           />
         </div>
       </div>
-      <.details page_record={@page_record} usd_rate={@usd_rate} market_snapshot={@market_snapshot} />
+      <.details page_record={@page_record} usd_rate={@usd_rate} reading={@reading} />
     </article>
     <.page_states page_status={@page_status} />
     """
@@ -361,7 +368,6 @@ defmodule AutolaunchWeb.AuctionLive do
   attr :ended, :boolean, required: true
   attr :my_positions, :list, required: true
   attr :positions_unread, :boolean, required: true
-  attr :market_snapshot, :map, default: nil
   attr :observed, :any, required: true
   attr :account_control, :map, required: true
   attr :access_context, :map, required: true
@@ -452,7 +458,6 @@ defmodule AutolaunchWeb.AuctionLive do
         module={AutolaunchWeb.BidSettlementComponent}
         id={"autolaunch-settlement-#{position.id}"}
         position={position}
-        market={@market_snapshot}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
@@ -516,7 +521,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   attr :page_record, :map, required: true
   attr :usd_rate, :any, required: true
-  attr :market_snapshot, :map, default: nil
+  attr :reading, :map, default: nil
 
   defp details(assigns) do
     ~H"""
@@ -542,45 +547,45 @@ defmodule AutolaunchWeb.AuctionLive do
           <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
         </div>
       </dl>
-      <dl :if={@market_snapshot} class="autolaunch-live-market" aria-label="Latest reading">
+      <dl :if={@reading} class="autolaunch-live-market" aria-label="Latest reading">
         <div>
-          <dt>Read at block</dt><dd>{@market_snapshot.block_number}</dd>
+          <dt>Read at block</dt><dd>{@reading.read_block}</dd>
         </div>
         <div>
           <dt>{raised_label(@page_record)}</dt><dd>
             <AutolaunchWeb.TokenDisplay.price
-              amount={@market_snapshot.currency_raised}
+              amount={@reading.market.currency_raised}
               fallback="—"
             />
-            <UsdValue.usd amount={@market_snapshot.currency_raised} rate={@usd_rate} />
+            <UsdValue.usd amount={@reading.market.currency_raised} rate={@usd_rate} />
           </dd>
         </div>
         <div>
           <dt>Tokens remaining</dt><dd>
             <AutolaunchWeb.TokenDisplay.price
-              amount={@market_snapshot.remaining_supply}
+              amount={@reading.market.remaining_supply}
               fallback="—"
             />
           </dd>
         </div>
         <div>
-          <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
+          <dt>Claim block</dt><dd>{@reading.market.claim_block}</dd>
         </div>
       </dl>
       <Regent.Primitives.disclosure
-        :if={@market_snapshot}
+        :if={@reading}
         id="auction-exact-market-amounts"
         summary="Exact market amounts"
       >
         <dl class="autolaunch-live-market">
           <div>
             <dt>{raised_label(@page_record)}</dt><dd class="autolaunch-exact-value">
-              {@market_snapshot.currency_raised}
+              {@reading.market.currency_raised}
             </dd>
           </div>
           <div>
             <dt>Tokens remaining</dt><dd class="autolaunch-exact-value">
-              {@market_snapshot.remaining_supply}
+              {@reading.market.remaining_supply}
             </dd>
           </div>
         </dl>
@@ -628,19 +633,14 @@ defmodule AutolaunchWeb.AuctionLive do
     """
   end
 
-  # The feed's reading of the auction: the price, the ladder, the schedule,
-  # the key blocks and the stage, with whether its last attempt failed. An
-  # auction with no contract, and one whose feed is not running, has nothing
-  # to wait for.
-  defp assign_snapshot(%{assigns: %{market_address: address, market_feed: feed}} = socket)
-       when is_binary(address) do
-    case MarketReadings.page(address) do
-      {:ok, %{reading: reading, degraded?: unread?}} -> assign_snapshot(socket, reading, unread?)
-      :error -> assign_snapshot(socket, nil, not MarketReadings.running?(feed))
-    end
+  # The auction's reading: the price, the ladder, the schedule, the key blocks
+  # and the stage, marked unread while its last pass could not read the
+  # auction. Before the first reading the page waits for it, unless the site
+  # cannot read the auction's chain at all.
+  defp assign_snapshot(%{assigns: %{reading: reading, page_reading: page}} = socket) do
+    unread? = if reading, do: reading.degraded, else: ChainHead.stale?(socket.assigns.market_feed)
+    assign_snapshot(socket, page && page.page, unread?)
   end
-
-  defp assign_snapshot(socket), do: assign_snapshot(socket, nil, true)
 
   defp assign_snapshot(socket, snapshot, unread?) do
     socket
@@ -648,10 +648,19 @@ defmodule AutolaunchWeb.AuctionLive do
     |> clock_snapshot()
   end
 
+  # The newest block of the auction's chain, nil before it was first read.
+  defp clock(feed) do
+    case ChainHead.fetch(feed) do
+      %{block: block} -> block
+      nil -> nil
+    end
+  end
+
   # The reading names the block its figures were read at; the auction's clock
-  # is the feed's newest block.
-  defp clock_snapshot(%{assigns: %{snapshot: %{} = snapshot, head: %{number: clock}}} = socket),
-    do: assign(socket, :snapshot, %{snapshot | clock: clock})
+  # is its chain's newest block.
+  defp clock_snapshot(%{assigns: %{snapshot: %{} = snapshot, clock: clock}} = socket)
+       when is_integer(clock),
+       do: assign(socket, :snapshot, %{snapshot | clock: clock})
 
   defp clock_snapshot(socket), do: socket
 
@@ -808,7 +817,7 @@ defmodule AutolaunchWeb.AuctionLive do
        when state in [:ended, :graduated, :failed],
        do: true
 
-  defp bidding_ended?(_record, %{number: block}, %{end_block: end_block}),
+  defp bidding_ended?(_record, block, %{market: %{end_block: end_block}}) when is_integer(block),
     do: block >= end_block
 
   defp bidding_ended?(_record, _head, _market), do: false

@@ -76,7 +76,7 @@ defmodule Autolaunch.Pool do
     do: read_stocks(auction, config, block, opts)
 
   @doc """
-  The pool's current price for the token record, from the words a market feed
+  The pool's current price for the token record, from the words a reading job
   already read: an agent launch's `distribution`, or a Stocks launch's
   `launches` record with its stock's decimals. `nil` until the launch has a
   pool with a price. The figure is the currency per whole token as a plain

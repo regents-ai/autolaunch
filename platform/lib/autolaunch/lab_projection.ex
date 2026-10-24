@@ -110,7 +110,7 @@ defmodule Autolaunch.LabProjection do
   end
 
   @doc """
-  Projects the `Token` row of an auction the market feed has just seen graduate.
+  Projects the `Token` row of an auction its reading job has just seen graduate.
 
   An Agent token keeps the subject the launch projection recorded; a Stocks
   token has no Agent subject. The upsert is replay-safe on the auction, so
@@ -136,7 +136,7 @@ defmodule Autolaunch.LabProjection do
   def project_graduated_token(_auction), do: :ok
 
   @doc """
-  Stores the pool price a market feed just read for an auction's token, and
+  Stores the pool price an auction's reading job just read for its token, and
   says whether it moved. `nil` before the pool has a price, or for an auction
   without a token row yet, changes nothing.
   """

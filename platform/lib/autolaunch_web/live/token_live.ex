@@ -18,12 +18,12 @@ defmodule AutolaunchWeb.TokenLive do
   alias AutolaunchWeb.{LabMarket, LiveListings, Paths, ShareCard, UsdValue}
   alias AutolaunchWeb.SwapComponent
 
-  def mount(%{"auction_address" => address}, _session, socket),
+  def mount(%{"auction_id" => auction_id}, _session, socket),
     do:
       {:ok,
        socket
        |> assign(staked?: false, claimed?: false, balances_read: 0)
-       |> LabMarket.subscribe_market(address)
+       |> LabMarket.subscribe_market(auction_id)
        |> LiveListings.subscribe()}
 
   # The identifier is read here so a patch to another token reloads the page
@@ -71,9 +71,9 @@ defmodule AutolaunchWeb.TokenLive do
        |> assign(claimed?: true, trade: :stake)
        |> push_event("stake-light", %{from: from})}
 
-  # The market feed read a new figure for this token's auction: a trade moved
-  # its pool, so the price and the pool are read again.
-  def handle_info({:shared_reading, {:auction_market, _address}}, socket),
+  # This token's auction was read with a new figure: a trade moved its pool,
+  # so the price and the pool are read again.
+  def handle_info(%{topic: "public:auction_market:" <> _id}, socket),
     do: {:noreply, refresh(socket)}
 
   # This token's auction saved a change, so the page reads it again in place.

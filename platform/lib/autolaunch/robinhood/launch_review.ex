@@ -4,7 +4,8 @@ defmodule Autolaunch.Robinhood.LaunchReview do
   review is built so the launch is known as the site's even if the creator's
   browser never reports it back.
 
-  The Robinhood market feed matches each launch it discovers to these reviews:
+  Robinhood discovery (`Autolaunch.Robinhood.Discovery`) matches each launch it
+  finds to these reviews:
   one whose wallet launched it with exactly the reviewed name, symbol and
   stock makes it a site launch, in that review's
   account, with the Telegram, Discord and other links the review carried; no

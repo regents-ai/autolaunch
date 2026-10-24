@@ -3,7 +3,8 @@ defmodule Autolaunch.Robinhood.Auctions do
   Every Robinhood memestock auction, newest first, read from its chain at one
   pinned block for the portfolio (`Autolaunch.Robinhood.Positions`). The
   public lists and the Robinhood auction and token pages read the stored rows
-  the Robinhood market feed keeps (`Autolaunch.Robinhood.MarketFeed`).
+  Robinhood discovery and each auction's reading job keep
+  (`Autolaunch.Robinhood.Discovery`, `Autolaunch.AuctionMarket`).
 
   At that block it reads every launchpad's launch records, the current one's
   first and then the first Memestock launchpad's (ids run from 1 to

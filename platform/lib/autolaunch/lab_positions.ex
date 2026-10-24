@@ -2,13 +2,13 @@ defmodule Autolaunch.LabPositions do
   @moduledoc """
   Keeps the site's bid positions truthful after an auction has ended.
 
-  Both lab market feeds call `read/6` for every auction whose end block has
-  passed: each position this site holds with an on-chain bid id is read back
+  An auction's reading job (`Autolaunch.AuctionMarket`) calls `read/6` once
+  its end block has passed: each position this site holds with an on-chain bid id is read back
   from the auction's own `bids(bidId)`, and its status follows the contract:
   `returnable` while the bid can still be exited, `claimable` once exited with
   fill and the claim block reached, `returned` when exited with nothing left to
   claim yet, `claimed` once the fill has been taken. `project/1` writes the
-  statuses that changed inside the feed's own transaction.
+  statuses that changed inside the job's own transaction.
   """
 
   require Ash.Query

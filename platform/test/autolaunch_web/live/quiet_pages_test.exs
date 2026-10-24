@@ -14,7 +14,6 @@ defmodule AutolaunchWeb.QuietPagesTest do
     Auction,
     BaseRpcStub,
     BidActivity,
-    MarketReadings,
     MarketTicker,
     Repo,
     TestSupport
@@ -48,14 +47,14 @@ defmodule AutolaunchWeb.QuietPagesTest do
 
   test "an auction page reads its row again for a new reading of its own auction, and for no other's",
        %{conn: conn} do
-    # No feed runs under ExUnit, so the readings below are this case's own. The
-    # page's price read is refused at once; its saved row is what the case watches.
+    # No reading job runs under ExUnit, so the readings below are this case's
+    # own. The page's price read is refused at once; its saved row is what the
+    # case watches.
     Application.put_env(:autolaunch, :autolaunch_lab_http_client, BaseRpcStub.Timeout)
     on_exit(fn -> Application.delete_env(:autolaunch, :autolaunch_lab_http_client) end)
 
     stored = TestSupport.project_auction(chain_id: 8453, symbol: "QUIET", title: "First words")
     other = TestSupport.project_auction(chain_id: 8453, symbol: "OTHER")
-    on_exit(fn -> MarketReadings.forget([stored.auction_address, other.auction_address]) end)
 
     {:ok, auction} = Paths.find_auction("QUIET", String.slice(stored.auction_address, -5, 5))
     {:ok, view, _html} = live(conn, Paths.auction(auction))
@@ -63,14 +62,13 @@ defmodule AutolaunchWeb.QuietPagesTest do
 
     Repo.update_all(from(a in Auction, where: a.id == ^auction.id), set: [title: "Second words"])
 
-    # The feed stores another auction's new reading and moves its clock. The
-    # page takes the clock and reads nothing.
-    MarketReadings.store("base", block(2), [reading(other, 2)])
+    # Another auction's new reading reaches no other page.
+    record_reading(other, 2)
     html = render_async(view)
     assert html =~ "First words"
     refute html =~ "Second words"
 
-    MarketReadings.store("base", block(3), [reading(stored, 3)])
+    record_reading(stored, 3)
     assert render_async(view) =~ "Second words"
   end
 
@@ -104,24 +102,24 @@ defmodule AutolaunchWeb.QuietPagesTest do
   defp refresh_activity(auction, changes),
     do: Ash.update!(auction, changes, action: :refresh_activity, actor: %System{})
 
-  defp block(number),
-    do: %{
-      number: number,
-      hash: "0x" <> String.pad_leading(Integer.to_string(number, 16), 64, "0")
-    }
-
-  # One auction's figures as a market feed stores them, raised to `raised`.
-  defp reading(auction, raised) do
-    %{
-      auction_id: auction.id,
-      auction_address: String.downcase(auction.auction_address),
-      block_number: raised,
-      start_block: 1,
-      end_block: 1_000,
-      claim_block: 1_010,
-      currency_raised: Integer.to_string(raised),
-      remaining_supply: "0"
-    }
+  # One auction's figures as its reading job writes them, raised to `raised`.
+  defp record_reading(auction, raised) do
+    Autolaunch.record_auction_reading!(
+      %{
+        auction_id: auction.id,
+        read_block: raised,
+        block_hash: "0x" <> String.pad_leading(Integer.to_string(raised, 16), 64, "0"),
+        read_at: DateTime.utc_now(),
+        market: %{
+          start_block: 1,
+          end_block: 1_000,
+          claim_block: 1_010,
+          currency_raised: Integer.to_string(raised),
+          remaining_supply: "0"
+        }
+      },
+      actor: %System{}
+    )
   end
 
   # The call returns once the ticker has handled the reread.

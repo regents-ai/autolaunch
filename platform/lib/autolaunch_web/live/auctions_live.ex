@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.AuctionsLive do
     only: [creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.SwapModal, only: [settlement_modal: 1]
-  alias Autolaunch.{HomeMarket, MarketReadings}
+  alias Autolaunch.HomeMarket
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
   @all %{state: "all", sort: "newest", x: false, ens: false, github: false}
@@ -117,8 +117,8 @@ defmodule AutolaunchWeb.AuctionsLive do
   # A failed reread leaves the list the reader already has.
   def handle_async(:auctions_reread, _failure, socket), do: {:noreply, socket}
 
-  # The Robinhood notice follows whether its feed could read Robinhood.
-  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+  # The Robinhood notice follows whether the site could read Robinhood.
+  def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
@@ -299,7 +299,6 @@ defmodule AutolaunchWeb.AuctionsLive do
         :if={@trade}
         id={"auctions-settle-#{@trade.position.id}"}
         position={@trade.position}
-        market={MarketReadings.market(@trade.position.auction_address)}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}

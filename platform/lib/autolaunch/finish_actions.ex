@@ -8,7 +8,8 @@ defmodule Autolaunch.FinishActions do
   auction page offers that call to whoever is looking. It is read here at the
   latest block of the auction's own chain, from the launchpad the auction runs
   on, first or second (`Autolaunch.AuctionFinish.Launchpads.for_auction/1`).
-  Nothing is stored: the market feeds record the outcome from the chain.
+  Nothing is stored: the auction's reading job records the outcome from the
+  chain (`Autolaunch.AuctionMarket`).
   """
 
   alias Autolaunch.AuctionFinish.Launchpads

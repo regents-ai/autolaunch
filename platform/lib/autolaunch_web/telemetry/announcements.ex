@@ -4,9 +4,9 @@ defmodule AutolaunchWeb.Telemetry.Announcements do
   `[:autolaunch, :pages, :announced]`. Every open page acts on each
   announcement, so the rate at rest says whether pages are being told to
   refresh when nothing they show has changed. It listens on the topics the
-  pages listen on and keeps nothing. The market feeds' readings are not
-  announced: a page is woken for its own auction's reading only when that
-  changed (`Autolaunch.SharedReading`).
+  pages listen on and keeps nothing. Auction readings are not announced: a
+  page hears its own auction's reading on that reading's topic, only when it
+  changed (`Autolaunch.AuctionReading`).
   """
 
   use GenServer

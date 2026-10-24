@@ -683,7 +683,7 @@ defmodule Autolaunch.BidActions do
 
   defp positive_decimal(_value, refusal), do: {:error, refusal}
 
-  # The clearing price the market feed stored, read whole: a stored price is
+  # The clearing price the auction's reading job stored, read whole: a stored price is
   # far longer than Decimal's default 34 digits.
   defp stored_price(value) when is_binary(value) do
     with true <- String.match?(value, ~r/^\d+(?:\.\d+)?$/),

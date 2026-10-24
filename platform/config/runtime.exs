@@ -173,8 +173,8 @@ database_config =
 
 # The Base log ledger follows the Base description: its own door, its factory,
 # from the block `start_blocks.factory` names. A description that names no
-# start blocks keeps the ledger off; the market feeds read those chains
-# directly. Under ExUnit the test environment owns this setting outright, so a
+# start blocks keeps the ledger off; each auction's reading job reads those
+# chains directly. Under ExUnit the test environment owns this setting outright, so a
 # shell that exports a description cannot start an indexer under a test run; a
 # browser or lab server follows its description as production does.
 exunit? = config_env() == :test and System.get_env("AUTOLAUNCH_BROWSER_TEST") != "1"

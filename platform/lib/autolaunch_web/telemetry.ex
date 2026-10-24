@@ -37,11 +37,12 @@ defmodule AutolaunchWeb.Telemetry do
       browser reported as not made or not confirmed, by `flow` and `reason`.
     * `[:autolaunch, :shared_reading, ...]` — the figures every visitor sees
       alike (`Autolaunch.SharedReading`): for each `kind`, how many keys are
-      held, how many have never been read and how long ago the oldest was
-      read, every ten seconds; each reading that could not be taken; each one
+      held, how many have never been read, how many were last read later than
+      their producer allows and how long ago the oldest was read, every ten
+      seconds; each reading that could not be taken; each one
       refused; each wake-up sent to open pages; the table's size.
-    * `[:autolaunch, :auction_page, :ladder_stopped]` — `count` 1 each time a
-      market feed's pass leaves an auction's price ladder unfinished: the
+    * `[:autolaunch, :auction_page, :ladder_stopped]` — `count` 1 each time an
+      auction's reading job leaves its price ladder unfinished: the
       auction has more prices than a ladder lists, or the chain answered too
       slowly to read them in one pass (`Autolaunch.AuctionSnapshot`).
     * `[:autolaunch, :pages, :announced]` — `count` 1 for each announcement
@@ -229,6 +230,12 @@ defmodule AutolaunchWeb.Telemetry do
         measurement: :oldest_seconds,
         tags: [:kind],
         description: "Seconds since the oldest shared reading of each kind was read"
+      ),
+      last_value("health.shared_reading.late.keys",
+        event_name: [:autolaunch, :shared_reading, :kind],
+        measurement: :late,
+        tags: [:kind],
+        description: "Keys of the kind last read longer ago than the kind's producer should allow"
       ),
       last_value("health.shared_reading.never_read.keys",
         event_name: [:autolaunch, :shared_reading, :kind],

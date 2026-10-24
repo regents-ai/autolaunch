@@ -8,16 +8,16 @@ defmodule AutolaunchWeb.FinishAuctionComponent do
   The card reads the launch at the latest block when it appears, and once
   more when a finish sent from it is confirmed. While the migration block is
   still ahead, or the chain could not be read, it reads again whenever the
-  page's market feed accepts a new block on the auction's own chain: the page
-  passes that feed's head as `observed`.
+  site reads a new block on the auction's own chain: the page passes that
+  chain's newest block (`Autolaunch.ChainHead`) as `observed`.
 
   The wallet that sends is Privy's active wallet when the signed-in account
   links it (`AutolaunchWeb.OnchainSteps`); any of the account's wallets may
   finish. The review is built as soon as the card knows that wallet, so the
   button sends at once. The button is disabled only when the chain says the
   finish would fail: before the migration block, or once the launch is
-  finished. Nothing is stored; the market feeds record the outcome from the
-  chain and the page follows them.
+  finished. Nothing is stored; the auction's reading job records the outcome
+  from the chain (`Autolaunch.AuctionMarket`) and the page follows it.
   """
 
   use AutolaunchWeb, :live_component

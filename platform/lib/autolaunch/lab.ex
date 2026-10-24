@@ -7,7 +7,8 @@ defmodule Autolaunch.Lab do
   it encodes with.
 
   `AUTOLAUNCH_BASE_DEPLOYMENT` names the file and `AUTOLAUNCH_BASE_DEPLOYMENT_ID`
-  labels the deployment; the market feed reads a changed label as a new
+  labels the deployment; the Stocks admission scan
+  (`Autolaunch.Stocks.AdmissionScan`) reads a changed label as a new
   deployment and starts over. Chain
   31337 is a test chain (a local lab or a hosted fork carrying test assets);
   `test_chain?/0` is what the lab-only features key off.

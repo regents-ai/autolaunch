@@ -1,7 +1,7 @@
 defmodule Autolaunch.Auction.Calculations.Fdv do
   @moduledoc """
   The current clearing price times the token's total supply, in quote-token
-  units, or nil until the market feed has read both.
+  units, or nil until the auction's reading job has read both.
   """
   use Ash.Resource.Calculation
 

@@ -10,8 +10,8 @@ defmodule Autolaunch.ChainRefresh do
   and a press of a page's Refresh call `request/1` with the chain's id.
 
   Each reader named in this module's `:readers` setting implements `refresh/1`
-  and decides for itself how to read again soon: a market feed wakes on every
-  machine, an Oban reader brings its unique job forward
+  and decides for itself how to read again soon: a chain head wakes on every
+  machine (`Autolaunch.ChainHead`), an Oban reader brings its unique job forward
   (`Autolaunch.ChainWatch.soon/1`). Every reader keeps at least ten seconds
   (`gap_s/0`) between two reads it was asked for, so a crowd pressing at once
   costs one read.

@@ -30,7 +30,6 @@ defmodule AutolaunchWeb.BidLive do
   import AutolaunchWeb.Components.SwapModal
 
   alias Autolaunch.AuctionBook
-  alias Autolaunch.MarketReadings
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.Stocks.Amounts
   alias Autolaunch.StoredImage
@@ -57,6 +56,7 @@ defmodule AutolaunchWeb.BidLive do
      |> assign(AutolaunchWeb.PublicDocuments.page(:bid))
      |> assign(id: id, dialog: nil, queued?: false, bid: %AsyncResult{}, book: %AsyncResult{})
      |> LabMarket.subscribe_heads()
+     |> LabMarket.subscribe_wallet_bids()
      |> LiveListings.subscribe()
      |> read()}
   end
@@ -81,9 +81,12 @@ defmodule AutolaunchWeb.BidLive do
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> request_read()}
 
-  # A market feed stored readings at a new block: the bid may have become
-  # returnable or claimable.
-  def handle_info({:shared_reading, {:market_head, _feed}}, socket),
+  # A block went by, or one of the wallet's bids was written: the bid may
+  # have become returnable or claimable.
+  def handle_info({:shared_reading, {:chain_head, _feed}}, socket),
+    do: {:noreply, request_read(socket)}
+
+  def handle_info({:autolaunch_bid_changed, _bid_id}, socket),
     do: {:noreply, request_read(socket)}
 
   def handle_info({:bid_settlement_changed, _position_id}, socket),
@@ -277,7 +280,6 @@ defmodule AutolaunchWeb.BidLive do
     <.settlement_modal
       id={"bid-settle-#{@bid.position.id}"}
       position={@bid.position}
-      market={MarketReadings.market(@bid.position.auction_address)}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

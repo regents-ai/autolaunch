@@ -36,6 +36,13 @@ defmodule Autolaunch do
       define :hand_over_share_video, action: :hand_over
     end
 
+    resource Autolaunch.AuctionReading do
+      define :get_auction_reading, action: :read, get_by: [:auction_id], not_found_error?: false
+      define :record_auction_reading, action: :record
+      define :refresh_auction_reading, action: :refresh
+      define :degrade_auction_reading, action: :degrade
+    end
+
     resource Autolaunch.AuctionPricePoint do
       define :auction_price_points, action: :for_auction, args: [:auction_id]
 
@@ -160,10 +167,6 @@ defmodule Autolaunch do
       define :set_auction_treasury_security_report,
         action: :set_treasury_security_report,
         args: [:treasury_security_report_id]
-
-      define :list_market_watch_auctions,
-        action: :market_watch,
-        args: [:chain_id, :kind, :finished, :after_id, :limit]
 
       define :get_auction_by_chain_address,
         action: :by_chain_address,

@@ -74,25 +74,21 @@ defmodule AutolaunchWeb.MarketPageLive do
   defp auction_page(auction) do
     if RobinhoodLab.chain?(auction.chain_id),
       do:
-        {RobinhoodAuctionLive, %{"auction" => auction.auction_address}, ShareCard.meta(auction),
-         auction},
+        {RobinhoodAuctionLive,
+         %{"auction_id" => auction.id, "auction" => auction.auction_address},
+         ShareCard.meta(auction), auction},
       else:
-        {AuctionLive,
-         %{
-           "auction_id" => auction.id,
-           "auction_address" => auction.auction_address,
-           "kind" => auction.kind
-         }, ShareCard.meta(auction), auction}
+        {AuctionLive, %{"auction_id" => auction.id, "kind" => auction.kind},
+         ShareCard.meta(auction), auction}
   end
 
   defp token_page(auction, token) do
     if RobinhoodLab.chain?(auction.chain_id),
       do:
-        {RobinhoodTokenLive,
-         %{"token" => auction.token_address, "auction" => auction.auction_address},
+        {RobinhoodTokenLive, %{"token" => auction.token_address, "auction_id" => auction.id},
          ShareCard.token_meta(auction, token), auction},
       else:
-        {TokenLive, %{"token_id" => token.id, "auction_address" => auction.auction_address},
+        {TokenLive, %{"token_id" => token.id, "auction_id" => auction.id},
          ShareCard.token_meta(auction, token), auction}
   end
 end

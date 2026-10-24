@@ -103,7 +103,7 @@ defmodule Autolaunch.TokenHoldings do
   end
 
   # A row whose auction contract does not exist at this head (a launch from an
-  # earlier lab run) has nothing to read; the market feeds skip it the same way.
+  # earlier lab run) has nothing to read; its reading job skips it the same way.
   defp holding(token, venue, wallet) do
     case LabRpc.ensure_contract(token.auction.auction_address, venue.block, venue.opts) do
       :ok -> read_holding(token, venue, wallet)

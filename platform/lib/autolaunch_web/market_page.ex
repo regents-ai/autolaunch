@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.MarketPage do
       {:ok,
        %{
          records: page.records,
-         robinhood_unavailable: Autolaunch.MarketReadings.stale?("robinhood"),
+         robinhood_unavailable: Autolaunch.ChainHead.stale?("robinhood"),
          pagination: %{has_more: page.has_more, next_cursor: page.next_cursor}
        }}
     else

@@ -26,7 +26,7 @@ notice (`Autolaunch.ChainMode.label/0` names the fork).
 | Controller | `contracts/v1/bin/local-base-lab.py`, run from `contracts/v1` | Starts Anvil as a fork of Base, deploys the graph, funds wallets, mines to auction milestones, reports status, stops Anvil |
 | Run record | `contracts/v1/reports/generated/local-base-lab/state.json` | Anvil PID, RPC URL, head block at start, local addresses; ignored by Git |
 | Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, fourteen `addresses`, ten `abis`; the file `AUTOLAUNCH_BASE_DEPLOYMENT` names. An optional `public_rpc_url` (`https://` only) is the door wallets add as chain 31337; without it wallets are given the loopback `rpc_url` |
-| Site integration | `Autolaunch.Lab`, `Autolaunch.LabMarketFeed`, `Autolaunch.LabProjection`, `Autolaunch.LabBidChainClient` | Validates the config, reads the fork every second, projects launched auctions into the database, verifies bids against the fork |
+| Site integration | `Autolaunch.Lab`, `Autolaunch.AuctionMarket`, `Autolaunch.ChainHead`, `Autolaunch.LabProjection`, `Autolaunch.LabBidChainClient` | Validates the config, reads the fork every second, projects launched auctions into the database, verifies bids against the fork |
 
 ## Starting a fresh lab
 
@@ -89,7 +89,7 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
 | Variable | Meaning |
 | --- | --- |
 | `AUTOLAUNCH_BASE_DEPLOYMENT` | Absolute path of `site-config.json`, the Base deployment description, in every environment; required in `fork` chain mode |
-| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; the market feed reads a changed label as a new deployment |
+| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; the Stocks admission scan reads a changed label as a new deployment |
 | `PORT` | The port to serve on (test default 4050) |
 | `AUTOLAUNCH_DB_POOL_SIZE` | Database connections for this site (default 10); a long-lived lab site should ask for a few, such as 3, because several test servers share one local PostgreSQL |
 | `AUTOLAUNCH_BROWSER_TEST=1` | Test environment only: serve HTTP and use a plain connection pool instead of the sandbox |
@@ -143,7 +143,7 @@ failure feedback; passive reconciliation stays silent.
 ## Chain state, restarts and recovery
 
 - **Restarting only the website is safe.** The site reads the same `site-config.json`,
-  connects to the same Anvil and database, and the market feed picks the fork up where it is.
+  connects to the same Anvil and database, and each auction's reading job picks the fork up where it is.
 - **A rewritten `site-config.json` needs a website restart.** The site reads each
   deployment description once, when it is first needed, and keeps it for as long as it runs.
 - **Anvil keeps its chain in memory.** A plain `stop`, a crash or a new `start` loses every
@@ -160,6 +160,6 @@ failure feedback; passive reconciliation stays silent.
 
 - The lab's create and bid flow uses its explicit local treasury binding, not production
   Safe verification; nothing here changes production authorization.
-- The market feed logs nothing when a poll fails.
+- A pass that cannot read the fork is one warning line in the log, and is read again a minute later.
 - Real Privy sign-in against a lab site needs a person with a wallet in a real browser; no
   automated check signs in.

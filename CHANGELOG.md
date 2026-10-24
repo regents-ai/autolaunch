@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 24 October 2026: auction prices are read once for every page
+- Nothing changes on the pages. Every auction, on Base and on Robinhood, is now read from its own contract in one place, and every open page shows that one reading.
+
 ## 24 October 2026: you confirm a treasury your agent chose
 - When your paired agent sets your launch's treasury to a smart contract account, the create page shows the address and asks you to tick that it is where your launch's money should go. The launch review opens only after you tick. If your agent changes the treasury again, you tick again.
 - On a phone, the button to launch without X, GitHub or ENS now reads "Skip connections", which fits; before, its words were cut off.

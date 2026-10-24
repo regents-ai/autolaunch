@@ -4,7 +4,7 @@ defmodule Autolaunch.Listings do
   `Autolaunch.Token` publish `{:autolaunch_listings_changed, auction_id}` on
   this topic for a new auction or token, an auction whose state or minimum
   changed, and an auction's bid terms or treasury report. Price readings
-  travel on the market feed's own topic instead.
+  travel on each auction's reading's own topics instead (`Autolaunch.AuctionReading`).
   """
 
   @topic "listings"

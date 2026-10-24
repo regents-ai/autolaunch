@@ -1,10 +1,11 @@
 defmodule AutolaunchWeb.RobinhoodAuctionLive do
   @moduledoc """
   One Robinhood Memestock auction, read by its contract address, which
-  `AutolaunchWeb.MarketPageLive` hands it from the page address. The page shows the
-  auction as the Robinhood market feed stored it (its token's name,
-  description, website and image, its state and minimum) with the feed's
-  latest reading of what it raised and the chain's clock. It names its
+  `AutolaunchWeb.MarketPageLive` hands it from the page address with its id. The
+  page shows the auction as the site stored it (its token's name,
+  description, website and image, its state and minimum) with its latest
+  reading of what it raised (`Autolaunch.AuctionReading`) and the chain's
+  clock (`Autolaunch.ChainHead`). It names its
   creator when a signed-up account's wallet launched it, shows roughly when
   bidding ends, hands the signed-in
   wallet the bid step, and once the launch has graduated, points at the
@@ -30,7 +31,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.AuctionPage, only: [details_window: 1]
   import AutolaunchWeb.Components.AuctionNext
 
-  alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt, MarketReadings}
+  alias Autolaunch.{AuctionBook, AuctionSnapshot, AuctionStage, BidReceipt, ChainHead}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.MarketData
@@ -38,14 +39,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   alias AutolaunchWeb.{LabMarket, Paths, UsdValue}
   alias Phoenix.LiveView.AsyncResult
 
-  def mount(%{"auction" => address}, _session, socket),
+  def mount(%{"auction_id" => id}, _session, socket),
     do:
       {:ok,
        socket
        |> assign(open?: Lab.configured?(), outbid: nil, launched_token: nil)
-       |> LabMarket.subscribe_auction(address, "robinhood")
+       |> LabMarket.subscribe_auction(id, "robinhood")
        |> LabMarket.assign_robinhood_stale()
-       |> assign(reading: MarketReadings.market(address), head: MarketReadings.head("robinhood"))
+       |> assign(reading: id |> LabMarket.reading() |> elem(0), clock: clock())
        |> assign(draft_price: nil, scrub_at: nil, checked_bid: nil, check_number: "")
        |> assign_usd_prices()}
 
@@ -99,26 +100,26 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
      )}
   end
 
-  # The feed read Robinhood at a new block: the stored auction and what this
-  # page reads from the chain move together.
-  def handle_info({:shared_reading, {:market_head, "robinhood"}}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:head, MarketReadings.head("robinhood"))
-       |> reload_launch()
-       |> load_history(false)
-       |> load_book(false)
-       |> load_snapshot(false)}
+  # Robinhood's clock moved: the stored auction and what this page reads from
+  # the chain move together. The notice also says whether the site could read
+  # Robinhood.
+  def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket) do
+    socket = LabMarket.robinhood_stale(socket)
 
-  def handle_info({:shared_reading, {:auction_market, address}}, socket),
-    do: {:noreply, assign(socket, :reading, MarketReadings.market(address))}
+    if clock() == socket.assigns.clock,
+      do: {:noreply, socket},
+      else:
+        {:noreply,
+         socket
+         |> assign(:clock, clock())
+         |> reload_launch()
+         |> load_history(false)
+         |> load_book(false)
+         |> load_snapshot(false)}
+  end
 
-  # This page reads the auction's own figures itself.
-  def handle_info({:shared_reading, {:auction_page, _address}}, socket), do: {:noreply, socket}
-
-  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
-    do: {:noreply, LabMarket.robinhood_stale(socket)}
+  def handle_info(%{topic: "public:auction_market:" <> _id, payload: reading}, socket),
+    do: {:noreply, assign(socket, :reading, LabMarket.newer(socket.assigns.reading, reading))}
 
   # The bid panel found one of the wallet's bids outbid, or none any more.
   def handle_info({:robinhood_outbid, outbid}, socket),
@@ -130,6 +131,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   def render(assigns),
     do: assigns |> assign(:usd_rate, usd_rate(assigns.usd_prices, assigns.launch)) |> page()
+
+  # Robinhood's clock, nil before it was first read.
+  defp clock do
+    case ChainHead.fetch("robinhood") do
+      %{block: clock} -> clock
+      nil -> nil
+    end
+  end
 
   # The bid form is named after its auction, so a form never carries one
   # auction's review, balance or typed figures over to another.
@@ -229,7 +238,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             auction={@auction}
             launch={@launch}
             book={@book}
-            observed={@head}
+            observed={@clock}
             account_control={@account_control}
             access_context={@access_context}
             session_lease={@session_lease}
@@ -261,11 +270,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             claim_block={@snapshot.result.blocks.claim}
           />
           <.auction_activity
-            :if={@head && @history.ok? && @history.result}
+            :if={@clock && @history.ok? && @history.result}
             id="robinhood-auction-activity"
             bids={@history.result.bids}
             symbol={@launch.quote_token_symbol}
-            block={@head.clock}
+            block={@clock}
             start_block={@launch.start_block}
             end_block={@launch.end_block}
             chain={:robinhood}
@@ -385,10 +394,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           <dt>{raised_label(@launch)}</dt>
           <dd>
             <AutolaunchWeb.TokenDisplay.price
-              amount={@reading.currency_raised}
+              amount={@reading.market.currency_raised}
               unit={@launch.quote_token_symbol}
             />
-            <UsdValue.usd amount={@reading.currency_raised} rate={@usd_rate} />
+            <UsdValue.usd amount={@reading.market.currency_raised} rate={@usd_rate} />
           </dd>
         </div>
         <div>

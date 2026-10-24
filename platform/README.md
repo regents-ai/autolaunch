@@ -44,7 +44,7 @@ implement those products automatically. Deployment and migrations are separate a
 | Value | What it is |
 | --- | --- |
 | `base` (default when unset) | Real Base. Exactly the behaviour above: production is read-only until the explicit configuration change, and the lab configurations are refused in production. |
-| `fork` | A Base fork (chain 31337) carrying the lab contract graph, with test assets and no mainnet value. Admitted in every environment, production included. Both lab configurations are required, `prelaunch_read_only` resolves to `false` without any script, the Base log ledger stays off, both lab market feeds run, and the test-funds faucet applies a per-wallet, per-asset cooldown. |
+| `fork` | A Base fork (chain 31337) carrying the lab contract graph, with test assets and no mainnet value. Admitted in every environment, production included. Both lab configurations are required, `prelaunch_read_only` resolves to `false` without any script, the Base log ledger stays off, every lab auction is read by its own reading job, and the test-funds faucet applies a per-wallet, per-asset cooldown. |
 
 Any other value stops the boot. Running a lab site in fork mode is in
 [docs/local-base-lab.md](docs/local-base-lab.md).
@@ -160,7 +160,7 @@ The Stocks lab extends that fork with the Stocks launchpad, fixture stock tokens
 Set `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongside the Base
 description variables, in every environment (it is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`
 and must name the same Base description). This turns on `/create/stocks`, USDC
-bids on Stocks auctions, the Stocks market feed and the test-funds panel. Details are in
+bids on Stocks auctions, reading Stocks auctions and the test-funds panel. Details are in
 [docs/stocks.md](docs/stocks.md). The same two files drive a lab site in `fork` chain mode
 ([docs/local-base-lab.md](docs/local-base-lab.md)).
 
@@ -308,9 +308,11 @@ Fly Sentinel reads them from Prometheus under its site health set.
 ## How often the site reads the chain
 
 Base and Robinhood Chain are read through a paid node, so the background readers run on a
-five-minute clock: the three market feeds, auction activity, token trades, the Base log
-ledger, the auction finisher and Memestock launch discovery (`*/5` Oban schedules), and the
-REGENT page's shared figures. A reader that fails tries again within a minute; the ledger
+five-minute clock: each auction's reading job (`Autolaunch.AuctionMarket`, twenty minutes
+once the auction has finished), Robinhood launch discovery, each chain's newest block
+(`Autolaunch.ChainHead`), auction activity, token trades, the Base log ledger, the auction
+finisher and Memestock launch discovery (`*/5` Oban schedules), and the REGENT page's shared
+figures. A reader that fails tries again within a minute; the ledger
 keeps reading until it reaches the safe head before it sleeps again.
 
 A person's on-chain press that the chain confirms calls `Autolaunch.ChainRefresh.request/1`

@@ -175,9 +175,9 @@ config :autolaunch, :autolaunch_indexer_chains, []
 # (`Autolaunch.ChainRefresh`).
 config :autolaunch, Autolaunch.ChainRefresh,
   readers: [
-    Autolaunch.LabMarketFeed,
-    Autolaunch.Stocks.LabMarketFeed,
-    Autolaunch.Robinhood.MarketFeed,
+    Autolaunch.ChainHead,
+    Autolaunch.AuctionMarket,
+    Autolaunch.Robinhood.Discovery,
     Autolaunch.AuctionActivity,
     Autolaunch.TokenTrades,
     Autolaunch.Indexer.ReadChain,

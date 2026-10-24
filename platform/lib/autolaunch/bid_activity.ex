@@ -113,7 +113,7 @@ defmodule Autolaunch.BidActivity do
   calculations do
     # The bidder's price ceiling for the whole token: the bid's maximum price
     # times the token's total supply, liquidity share included, in the
-    # auction's currency; nil until the market feed has read the supply.
+    # auction's currency; nil until the auction's reading job has read the supply.
     calculate :max_fdv, :decimal, expr(max_price * auction.token_supply) do
       public? true
     end

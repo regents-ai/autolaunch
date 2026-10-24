@@ -2,27 +2,27 @@ defmodule Autolaunch.SharedReading do
   @moduledoc """
   A figure every visitor sees alike, read once and shared by every open page.
 
-  It is for a reading no saved row carries (an auction's price ladder, a chain's
-  newest block) or one built from many rows (the ticker's latest bids and
-  trades). A public row saved through Ash reaches pages through its own
-  `pub_sub` publication instead, and anything that differs by viewer is reread
-  under that viewer's scope: neither belongs here. The rule and its reasons are
-  in the `ash-frontend` skill, `references/public-figures.md`. This module is
-  ash-template's `AshTemplate.SharedReading` as it stands, with this site's
-  kinds.
+  It is for a reading no saved row carries (a chain's newest block) or one built
+  from many rows (a list of the latest trades). A public row saved through Ash
+  reaches pages through its own `pub_sub` publication instead, and anything that
+  differs by viewer is reread under that viewer's scope: neither belongs here.
+  The rule and its reasons are in the `ash-frontend` skill,
+  `references/public-figures.md`.
+  This module is ash-template's `AshTemplate.SharedReading` as it stands, with
+  this site's kinds.
 
   One producer owns each key and calls `put/2` when it has a reading, or
   `degraded/1` when it could not get one. A page calls `subscribe/1`, then
   `fetch/1`, and on each `{:shared_reading, key}` it fetches again:
 
       def mount(_params, _session, socket) do
-        key = {:market_feed, "robinhood"}
+        key = Autolaunch.ChainHead.key("base")
         if connected?(socket), do: Autolaunch.SharedReading.subscribe(key)
-        {:ok, assign(socket, feed: Autolaunch.SharedReading.fetch(key))}
+        {:ok, assign(socket, head: Autolaunch.SharedReading.fetch(key))}
       end
 
       def handle_info({:shared_reading, key}, socket),
-        do: {:noreply, assign(socket, feed: Autolaunch.SharedReading.fetch(key))}
+        do: {:noreply, assign(socket, head: Autolaunch.SharedReading.fetch(key))}
 
   Pages are woken only when the reading or its `degraded?` mark differs from the
   one held; `at`, the moment it was last read, moves without waking anyone. A
@@ -43,11 +43,18 @@ defmodule Autolaunch.SharedReading do
   `Decimal`s, and maps, lists or tuples of them. An Ash record or any other
   struct is refused, as is a reading over its kind's size.
 
+  Every kind also states `within`: the seconds inside which a working producer
+  reads each of its keys again, whether or not anything changed. A reader of an
+  outside clock does so on its own interval. A producer that rereads on notice
+  does so when `heal/1` asks, which is also what mends a notice that was lost;
+  this site has none yet. A key older than its kind's
+  `within` is late, whatever the kind.
+
   ## Measurements
 
   `measure/0` runs with the site's other periodic measurements and reports, for
-  each kind, how many keys it holds, how many of them have never been read and
-  how long ago its oldest reading was taken
+  each kind, how many keys it holds, how many of them have never been read, how
+  many are late and how long ago its oldest reading was taken
   (`[:autolaunch, :shared_reading, :kind]`), and the table's size in memory
   (`[:autolaunch, :shared_reading, :table]`). Every `degraded/1` is counted
   (`[:autolaunch, :shared_reading, :degraded]`), as is every refused reading
@@ -61,39 +68,15 @@ defmodule Autolaunch.SharedReading do
 
   # open: why a signed-out visitor may see it. keys: the most this kind holds.
   # bytes: the largest reading, measured as `:erlang.external_size/1`.
+  # within: the seconds inside which a working producer reads every key again.
   @kinds %{
-    # One for each market feed: held while the feed's last pass read its chain,
-    # marked degraded while it could not.
-    market_feed: %{
-      open: "whether the site could read a public chain on its last attempt",
+    # One for each auction deployment (`Autolaunch.ChainHead`): "base", "stocks"
+    # and "robinhood". Read every five minutes on mainnet.
+    chain_head: %{
+      open: "a chain's newest block number is public on the chain itself",
       keys: 3,
-      bytes: 64
-    },
-    # The newest block a market feed took its readings at.
-    market_head: %{
-      open: "a chain's newest block is public on the chain itself",
-      keys: 3,
-      bytes: 256
-    },
-    # One for each auction, by its lowercase address: the figures the lists and
-    # the bidder's pages show.
-    auction_market: %{
-      open: "an auction's price, amount raised and key blocks are public on its contract",
-      keys: 5_000,
-      bytes: 4_096
-    },
-    # One for each auction, by its lowercase address: everything its own page
-    # shows from the chain, at one block. Its size is its price ladder's
-    # (`Autolaunch.AuctionSnapshot`): the hundred prices it lists, each a
-    # 256-bit number, the price written out exactly and two amounts, under 450
-    # bytes at their longest (about 170 measured), and every price it read, at
-    # most 1,000, packed at 64 bytes each. So a whole ladder always fits. What
-    # the kind holds is the site's auctions times their own ladders (a few
-    # kilobytes for most), not keys times bytes.
-    auction_page: %{
-      open: "an auction's price ladder, release schedule and stage are public on its contract",
-      keys: 5_000,
-      bytes: 131_072
+      bytes: 64,
+      within: 330
     }
   }
 
@@ -118,6 +101,10 @@ defmodule Autolaunch.SharedReading do
   @doc "Hear `{:shared_reading, key}` whenever the reading for `key` changes."
   @spec subscribe(key()) :: :ok
   def subscribe(key), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(checked(key)))
+
+  @doc "Stops hearing `key`, for a page that stays open and no longer shows it."
+  @spec unsubscribe(key()) :: :ok
+  def unsubscribe(key), do: Phoenix.PubSub.unsubscribe(Autolaunch.PubSub, topic(checked(key)))
 
   @doc """
   Stores `reading` as read just now. Answers `{:error, :too_large}`,
@@ -146,9 +133,40 @@ defmodule Autolaunch.SharedReading do
     counted(GenServer.call(__MODULE__, {:degraded, key}), kind)
   end
 
+  @doc """
+  Asks the producer of `kind`, on every machine, to read all its keys again.
+  The producer hears `{:shared_reading_heal, kind}` after `subscribe_heal/1`.
+  """
+  @spec heal(atom()) :: :ok
+  def heal(kind) when is_map_key(@kinds, kind) do
+    Phoenix.PubSub.broadcast(Autolaunch.PubSub, heal_topic(kind), {:shared_reading_heal, kind})
+  end
+
+  @spec subscribe_heal(atom()) :: :ok
+  def subscribe_heal(kind) when is_map_key(@kinds, kind),
+    do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, heal_topic(kind))
+
   @doc "Forgets `key`, when the row or setting it stood for has ended."
   @spec delete(key()) :: :ok
   def delete(key), do: GenServer.call(__MODULE__, {:delete, checked(key)})
+
+  @doc """
+  The ids of every key held for `kind`. A producer whose keys come and go reads
+  this on each pass and deletes the ones its fresh read no longer has, so it
+  keeps no list of its own, and a restart of the producer alone leaves no key
+  behind.
+
+  It is for a producer's pass only, never a page's mount or each event: it walks
+  the whole table. Never count with it either: it answers `[]` in the instant
+  the table's owner restarts, which a measurement would show as a healthy zero.
+  """
+  @spec ids(atom()) :: [integer() | String.t()]
+  def ids(kind) when is_map_key(@kinds, kind) do
+    :ets.select(@table, [{{{kind, :"$1"}, :_}, [], [:"$1"]}])
+  rescue
+    # No table for the instant its owner restarts: nothing is held.
+    ArgumentError -> []
+  end
 
   @doc false
   def measure do
@@ -161,7 +179,7 @@ defmodule Autolaunch.SharedReading do
       |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
 
     # Every kind each tick, so a kind whose keys are all gone reads 0.
-    for {kind, _limits} <- @kinds do
+    for {kind, %{within: within}} <- @kinds do
       ats = Map.get(held, kind, [])
       read = for %DateTime{} = at <- ats, do: DateTime.diff(now, at, :millisecond)
 
@@ -170,6 +188,7 @@ defmodule Autolaunch.SharedReading do
         %{
           keys: length(ats),
           never_read: length(ats) - length(read),
+          late: Enum.count(read, &(&1 > within * 1_000)),
           oldest_seconds: Enum.max(read, fn -> 0 end) / 1_000
         },
         %{kind: kind}
@@ -250,6 +269,7 @@ defmodule Autolaunch.SharedReading do
   end
 
   defp topic({kind, id}), do: "shared_reading:#{kind}:#{id}"
+  defp heal_topic(kind), do: "shared_reading_heal:#{kind}"
 
   defp counted(:ok, _kind), do: :ok
 

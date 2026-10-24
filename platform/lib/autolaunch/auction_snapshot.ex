@@ -14,27 +14,24 @@ defmodule Autolaunch.AuctionSnapshot do
   recorded checkpoint (every bid records one), so the ladder names that block.
   The walk asks the chain once for each price, so it stops at the lens's count
   of prices or after three seconds, and the ladder says it stopped
-  (`complete?`). A feed that holds the ladder it read last hands it back
-  (`pages/4`): while the auction's stored state has not moved, a whole ladder
-  is not read again and one that stopped is carried on from where it stopped.
+  (`complete?`). The ladder an auction's last reading holds is handed back
+  (`Autolaunch.AuctionMarket`): while the auction's stored state has not
+  moved, a whole ladder is not read again and one that stopped is carried on
+  from where it stopped.
 
   A ladder lists the hundred prices nearest the clearing price (`rungs`) and
   says how many it read beyond them (`more`) and the highest of them all
   (`highest_q96`). Every price it read stays with it, packed as one binary
   (`prices`: each price and the demand there, 32 bytes apiece, lowest first),
   which is what the demand needed at a drafted price counts (`needed_at/2`)
-  and what the next walk starts from. Every page showing the auction holds
-  its own copy of the listed prices and shares the one binary.
+  and what the next walk starts from.
 
   The release schedule is the one the auction was created with, read from the
   contract that stores it: each step releases `mps` millionths of a tenth of
   the supply per block (ten million in all) for a number of blocks.
   """
 
-  require Logger
-
-  alias Autolaunch.Auction.MarketState
-  alias Autolaunch.{AuctionBook, AuctionStage, BidPrice, LabAbi, MarketReadings, Pool}
+  alias Autolaunch.{AuctionBook, AuctionStage, BidPrice, LabAbi}
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.Robinhood.BlockClock
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
@@ -48,9 +45,6 @@ defmodule Autolaunch.AuctionSnapshot do
   @listed 100
   # The longest one walk of the prices takes; the ladder says when it stopped.
   @walk_budget_ms 3_000
-  # A feed reads this many pages at once, each for at most this long.
-  @page_concurrency 8
-  @page_budget_ms 6_000
   @book [
     :block,
     :clearing_q96,
@@ -64,7 +58,7 @@ defmodule Autolaunch.AuctionSnapshot do
 
   @doc """
   Everything a Base auction's own page shows from the chain, read at `block`
-  with the options a market feed already reads with: the snapshot, the
+  with the options its reading job already reads with: the snapshot, the
   auction's stage (`Autolaunch.AuctionStage`) and the amount raised. `state`
   is the state the auction's row takes from the same pass, and `pool` its
   pool's reading at the same block.
@@ -95,64 +89,6 @@ defmodule Autolaunch.AuctionSnapshot do
 
   def page(_auction, _state, _pool, _block, _opts, _held_ladder),
     do: {:error, :no_auction_contract}
-
-  @doc """
-  A market feed's pass over its auctions' pages, after their figures: each
-  `{auction, state}` read with `page/6` at `block`, apart from the figures and
-  on its own budget, with the ladder the feed holds for it. Answers each
-  address's `{:ok, page}`, or `:error` for a page that could not be read or
-  was not done in six seconds, so a slow page costs its auction's figures, and
-  every other auction, nothing.
-  """
-  @spec pages([{map(), atom()}], map(), map(), keyword()) :: %{
-          String.t() => {:ok, map()} | :error
-        }
-  def pages(auctions, config, block, opts) do
-    Autolaunch.TaskSupervisor
-    |> Task.Supervisor.async_stream_nolink(
-      auctions,
-      fn {auction, state} -> feed_page(auction, state, config, block, opts) end,
-      max_concurrency: @page_concurrency,
-      ordered: false,
-      timeout: @page_budget_ms,
-      on_timeout: :kill_task,
-      zip_input_on_exit: true
-    )
-    |> Map.new(fn
-      {:ok, {address, {:ok, page}}} -> {address, {:ok, page}}
-      {:ok, {address, {:error, reason}}} -> unread_page(address, reason)
-      {:exit, {{auction, _state}, reason}} -> unread_page(auction.auction_address, reason)
-    end)
-  end
-
-  defp feed_page(auction, state, config, block, opts) do
-    state = MarketState.join(auction.state, state)
-    pool = Pool.read_at(%{auction | state: state}, config, block, opts)
-
-    {String.downcase(auction.auction_address),
-     auction |> page(state, pool, block, opts, held(auction)) |> counted()}
-  end
-
-  # A ladder that keeps stopping (more prices than it lists, or a chain too
-  # slow to read them in a pass) shows here without anyone opening its page.
-  defp counted({:ok, %{ladder: %{complete?: false}}} = page) do
-    :telemetry.execute([:autolaunch, :auction_page, :ladder_stopped], %{count: 1}, %{})
-    page
-  end
-
-  defp counted(page), do: page
-
-  defp held(auction) do
-    case MarketReadings.page(auction.auction_address) do
-      {:ok, %{reading: %{ladder: ladder}}} -> ladder
-      _none -> nil
-    end
-  end
-
-  defp unread_page(address, reason) do
-    Logger.warning("market feed could not read the page of #{address}: #{inspect(reason)}")
-    {String.downcase(address), :error}
-  end
 
   @doc "The book a snapshot was built on (`Autolaunch.AuctionBook`), for a caller that shows only that."
   @spec book(map()) :: map()
@@ -300,7 +236,19 @@ defmodule Autolaunch.AuctionSnapshot do
   # read at this checkpoint, with this demand above and this lowest price, are
   # the ladder's now: a whole one needs no reading, and one that stopped goes
   # on from its highest price, read again for the price after it.
-  defp begun(%{state: state, prices: <<next::256, _rest::binary>> = prices} = held, state, next) do
+  defp begun(
+         %{state: held_state, prices: <<next::256, _rest::binary>> = prices} = held,
+         state,
+         next
+       ) do
+    if Map.take(held_state, Map.keys(state)) == state,
+      do: held_walk(held, prices),
+      else: {[], next}
+  end
+
+  defp begun(_held, _state, next), do: {[], next}
+
+  defp held_walk(held, prices) do
     [highest | lower] =
       Enum.reverse(
         for <<price::256, demand::256 <- prices>>, do: %{price_q96: price, demand_q96: demand}
@@ -308,8 +256,6 @@ defmodule Autolaunch.AuctionSnapshot do
 
     if held.complete?, do: {[highest | lower], @no_tick}, else: {lower, highest.price_q96}
   end
-
-  defp begun(_held, _state, next), do: {[], next}
 
   defp walk(_address, @no_tick, _block, _opts, rungs, _left, _until),
     do: {:ok, Enum.reverse(rungs), true}

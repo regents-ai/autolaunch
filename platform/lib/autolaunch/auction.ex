@@ -307,30 +307,8 @@ defmodule Autolaunch.Auction do
       filter expr(chain_id == ^arg(:chain_id) and auction_address == ^arg(:auction_address))
     end
 
-    # One page of the auctions a market feed watches, in id order after a
-    # cursor: the open ones (not yet graduated or failed) or the finished
-    # ones. Each feed pass reads a bounded page and moves the cursor on, so
-    # every auction is covered over successive passes however many there are.
-    read :market_watch do
-      argument :chain_id, :integer, allow_nil?: false
-      argument :kind, :atom, allow_nil?: false, constraints: [one_of: [:agent, :stocks]]
-      argument :finished, :boolean, allow_nil?: false
-      argument :after_id, :uuid
-      argument :limit, :integer, allow_nil?: false, constraints: [min: 1, max: 500]
-
-      filter expr(kind == ^arg(:kind) and chain_id == ^arg(:chain_id))
-
-      prepare fn query, _context ->
-        %{finished: finished, after_id: after_id, limit: limit} = query.arguments
-        states = if finished, do: [:graduated, :failed], else: [:created, :active, :ended]
-
-        query
-        |> Ash.Query.filter(state in ^states)
-        |> then(&if(after_id, do: Ash.Query.filter(&1, id > ^after_id), else: &1))
-        |> Ash.Query.sort(id: :asc)
-        |> Ash.Query.limit(limit)
-      end
-    end
+    # Every auction, each read by its own reading job (`Autolaunch.AuctionMarket`).
+    read :market
 
     read :lab_by_id_for_update do
       get? true
@@ -444,7 +422,7 @@ defmodule Autolaunch.Auction do
     policy action([
              :record_launch,
              :robinhood_held_by_address,
-             :market_watch,
+             :market,
              :lab_by_id_for_update,
              :refresh_lab_market
            ]) do
@@ -654,7 +632,7 @@ defmodule Autolaunch.Auction do
       constraints max_length: 100, trim?: true
     end
 
-    # The market feed's latest reading of what the auction has raised, in
+    # The latest reading of what the auction has raised (`Autolaunch.AuctionMarket`), in
     # whole quote-token units.
     attribute :currency_raised, :decimal do
       public? true
@@ -662,7 +640,7 @@ defmodule Autolaunch.Auction do
 
     # The lowest price the auction sells at, in quote-token units per token,
     # and the launch token's total supply in whole tokens. Both are fixed when
-    # the auction is created; the market feed reads them once.
+    # the auction is created; its reading job reads them once.
     attribute :floor_price, :string do
       public? true
       constraints max_length: 100, trim?: true
@@ -722,7 +700,7 @@ defmodule Autolaunch.Auction do
     # The account whose signed-in wallet launched the auction. Every Base
     # auction the site lists has one; a Robinhood launch is listed from the
     # launchpad's own records and names one only when exactly one account's
-    # signed-in wallet is its launcher (`Autolaunch.Robinhood.MarketFeed`).
+    # signed-in wallet is its launcher (`Autolaunch.Robinhood.Discovery`).
     belongs_to :creator_human_account, Autolaunch.Accounts.HumanAccount do
       allow_nil? true
       attribute_public? true

@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      socket
      |> assign(assigns)
      |> assign_new(:early, fn -> false end)
-     |> assign_new(:market, fn -> nil end)
+     |> assign_new(:market, fn -> market(assigns.position) end)
      |> assign(:stake_path, stake_path(assigns.position.auction))
      |> assign_usd_rate()
      |> OnchainSteps.adopt()
@@ -965,6 +965,15 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   """
   def refund_label(amount, symbol),
     do: "Refund #{amount |> TokenDisplay.short(:down) |> TokenDisplay.zeros()} #{symbol}"
+
+  # The auction's end and claim blocks, which never change, read once from
+  # its reading (`Autolaunch.AuctionReading`); nil before its first.
+  defp market(%{auction: %{id: auction_id}}) do
+    case Autolaunch.get_auction_reading(auction_id, actor: nil) do
+      {:ok, %{market: market}} -> market
+      {:ok, nil} -> nil
+    end
+  end
 
   # The reason nothing can be done yet, from the auction's own blocks.
   defp reasons(%{status: "active"}, %{end_block: end_block}, _auction),

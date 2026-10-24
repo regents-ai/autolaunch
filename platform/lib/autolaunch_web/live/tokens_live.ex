@@ -105,8 +105,8 @@ defmodule AutolaunchWeb.TokensLive do
   # A failed reread leaves the list the reader already has.
   def handle_async(:tokens_reread, _failure, socket), do: {:noreply, socket}
 
-  # The Robinhood notice follows whether its feed could read Robinhood.
-  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+  # The Robinhood notice follows whether the site could read Robinhood.
+  def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),

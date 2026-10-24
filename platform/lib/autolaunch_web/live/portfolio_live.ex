@@ -42,7 +42,6 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.AuctionBook
-  alias Autolaunch.MarketReadings
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.{Token, TokenHoldings}
@@ -70,6 +69,7 @@ defmodule AutolaunchWeb.PortfolioLive do
      |> assign(AutolaunchWeb.PublicDocuments.page("/portfolio"))
      |> assign(robinhood_swap?: RobinhoodLab.swap_configured?())
      |> LabMarket.subscribe_heads()
+     |> LabMarket.subscribe_wallet_bids()
      |> clear_wallet_state()
      |> assign_figure_rates()
      |> read_holdings()}
@@ -108,9 +108,13 @@ defmodule AutolaunchWeb.PortfolioLive do
     end
   end
 
-  # A market feed stored readings at a new block: positions may have become
-  # returnable or claimable, and a trade may have changed what the wallets hold.
-  def handle_info({:shared_reading, {:market_head, _feed}}, socket),
+  # A block went by, or one of the wallet's bids was written: positions may
+  # have become returnable or claimable, and a trade may have changed what the
+  # wallets hold.
+  def handle_info({:shared_reading, {:chain_head, _feed}}, socket),
+    do: {:noreply, request_reads(socket)}
+
+  def handle_info({:autolaunch_bid_changed, _bid_id}, socket),
     do: {:noreply, request_reads(socket)}
 
   # A settlement card verified a step, so the stored position changed.
@@ -713,7 +717,6 @@ defmodule AutolaunchWeb.PortfolioLive do
       :if={@position}
       id={"portfolio-settle-#{@position.id}"}
       position={@position}
-      market={MarketReadings.market(@position.auction_address)}
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}

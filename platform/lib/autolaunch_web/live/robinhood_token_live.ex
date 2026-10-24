@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   @moduledoc """
   One graduated Robinhood memestock token, read by its token address, which
   `AutolaunchWeb.MarketPageLive` hands it from the token's page address. The
-  page shows the token as the Robinhood market feed stored it, with its price
+  page shows the token as the site stored it, with its price
   read from its pool, the trade widget (`AutolaunchWeb.Components.TokenTrade`)
   with Claim Rewards beneath it, and the launch's details. Everything else
   about the token is copied for an agent from beside Claim Rewards. When
@@ -21,13 +21,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.TokenHeading
   import AutolaunchWeb.Components.TokenTrade
 
-  alias Autolaunch.MarketReadings
   alias Autolaunch.PoolFees
   alias Autolaunch.Robinhood.{Lab, Pool}
   alias AutolaunchWeb.Components.{CreatorLabel, ShareLaunch, TokenTrade}
   alias AutolaunchWeb.{LabMarket, Paths, ShareCard, UsdValue}
 
-  def mount(%{"auction" => auction}, _session, socket),
+  def mount(%{"auction_id" => auction_id}, _session, socket),
     do:
       {:ok,
        socket
@@ -38,8 +37,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
          claimed?: false,
          balances_read: 0
        )
-       |> LabMarket.subscribe_market(auction)
-       |> assign(:reading, MarketReadings.market(auction))
+       |> LabMarket.subscribe_market(auction_id)
+       |> assign(:reading, auction_id |> LabMarket.reading() |> elem(0))
        |> LabMarket.assign_robinhood_stale()}
 
   # The address is read here so a patch to another token reloads the page
@@ -87,12 +86,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
        |> assign(claimed?: true, trade: :stake)
        |> push_event("stake-light", %{from: from})}
 
-  # The feed read a new figure for this token's auction: the stored token and
-  # its reading move together.
-  def handle_info({:shared_reading, {:auction_market, address}}, socket),
-    do: {:noreply, socket |> assign(:reading, MarketReadings.market(address)) |> reload_token()}
+  # This token's auction was read with a new figure: the stored token and its
+  # reading move together.
+  def handle_info(%{topic: "public:auction_market:" <> _id} = notice, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(:reading, LabMarket.newer(socket.assigns.reading, notice.payload))
+       |> reload_token()}
 
-  def handle_info({:shared_reading, {:market_feed, "robinhood"}}, socket),
+  def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
   def render(assigns), do: page(assigns)
@@ -262,7 +265,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       supply: token.auction.token_supply,
       price: token.price_quote,
       treasury: nil,
-      raised: reading && reading.currency_raised
+      raised: reading && reading.market.currency_raised
     }
   end
 

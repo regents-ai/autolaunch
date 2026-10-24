@@ -5,7 +5,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   Preparation reads the Robinhood chain once and returns the review's chain,
   its one `launch(LaunchParams)` step and the facts the page shows; the page
   keeps it. What it would launch is recorded (`Autolaunch.Robinhood.LaunchReview`)
-  so the market feed can tell this site's launches from launches seen only on
+  so Robinhood discovery can tell this site's launches from launches seen only on
   chain. `confirmed/2` reads the receipt through
   `Autolaunch.Robinhood.StocksLaunchChainClient`, and a wallet's launches are the
   launchpad's own `StockLaunchCreated` records for that wallet.
@@ -141,7 +141,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         Integer.to_string(admission.decimals) == facts["stock_decimals"] and
         admission.route == facts["route"]
 
-  # The launch this review would carry out, kept so the market feed knows it
+  # The launch this review would carry out, kept so Robinhood discovery knows it
   # as this site's launch whether or not the browser reports it back.
   defp record_review(%Human{human_account_id: account_id}, signer, fields),
     do:

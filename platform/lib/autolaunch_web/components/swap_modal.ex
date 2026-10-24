@@ -167,7 +167,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
 
   attr :id, :string, required: true
   attr :position, :map, required: true, doc: "a stored Base bid with its auction loaded"
-  attr :market, :map, default: nil, doc: "the market feed's reading of the bid's auction"
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -194,7 +193,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
         module={AutolaunchWeb.BidSettlementComponent}
         id={@id <> "-input"}
         position={@position}
-        market={@market}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}

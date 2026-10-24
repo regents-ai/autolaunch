@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.AuctionController do
   # Any listed auction is named by its id; a Robinhood auction also by its
   # contract address.
   def show(conn, %{"id" => id} = params) do
-    robinhood_unavailable = Autolaunch.MarketReadings.stale?("robinhood")
+    robinhood_unavailable = Autolaunch.ChainHead.stale?("robinhood")
 
     with true <- Map.keys(params) == ["id"],
          {:ok, auction} <- auction_entry(id) do

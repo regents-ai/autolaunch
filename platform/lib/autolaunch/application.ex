@@ -53,7 +53,7 @@ defmodule Autolaunch.Application do
       RegentCredits.Listener,
       RegentAgents.Listener,
       # The figures every visitor sees alike, and their measurements. Before the
-      # market feeds that keep them and the endpoint whose pages read them.
+      # chain heads that keep them and the endpoint whose pages read them.
       Autolaunch.SharedReading,
       AutolaunchWeb.Telemetry.shared_reading_poller(),
       AutolaunchWeb.Telemetry.Announcements,
@@ -67,9 +67,7 @@ defmodule Autolaunch.Application do
       ),
       autolaunch_jobs_child(),
       stock_admissions_child(),
-      autolaunch_lab_market_feed_child(),
-      autolaunch_stocks_lab_market_feed_child(),
-      autolaunch_robinhood_market_feed_child(),
+      chain_head_children(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -126,37 +124,12 @@ defmodule Autolaunch.Application do
     end
   end
 
-  defp autolaunch_lab_market_feed_child do
-    with false <- Autolaunch.Prelaunch.read_only?(),
-         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
-         {:ok, _config} <- Autolaunch.Lab.current() do
-      Autolaunch.LabMarketFeed
-    else
-      _disabled -> nil
-    end
-  end
-
-  # The Stocks feed runs only when the Stocks description extends the Base one.
-  defp autolaunch_stocks_lab_market_feed_child do
-    with false <- Autolaunch.Prelaunch.read_only?(),
-         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
-         {:ok, _config} <- Autolaunch.Stocks.Lab.current() do
-      Autolaunch.Stocks.LabMarketFeed
-    else
-      _disabled -> nil
-    end
-  end
-
-  # The Robinhood feed runs whenever a Robinhood deployment is described. It is
-  # its own child, so a Robinhood outage never reaches the Base feeds.
-  defp autolaunch_robinhood_market_feed_child do
-    with false <- Autolaunch.Prelaunch.read_only?(),
-         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
-         true <- Autolaunch.Robinhood.Lab.configured?() do
-      Autolaunch.Robinhood.MarketFeed
-    else
-      _disabled -> nil
-    end
+  # Each deployment's newest block, read on every machine that serves pages
+  # (`Autolaunch.ChainHead`).
+  defp chain_head_children do
+    if !Autolaunch.Prelaunch.read_only?() and
+         Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
+       do: Autolaunch.ChainHead.children()
   end
 
   # Tell Phoenix to update the endpoint configuration
