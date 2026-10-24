@@ -249,29 +249,28 @@ defmodule Autolaunch.AuctionMarket do
 
     with {:ok, page_changed?} <- page_changed?(held.page, snapshot.page) do
       if displaced? or held.degraded != unread? or page_changed? or old?(held) or
-           market_changed?(held.market, snapshot.market) do
-        held
-        |> Autolaunch.refresh_auction_reading(
-          Map.merge(
-            %{
-              read_block: snapshot.block.number,
-              block_hash: snapshot.block.hash,
-              read_at: DateTime.utc_now(),
-              degraded: unread?,
-              market: snapshot.market
-            },
-            if((displaced? and not unread?) or page_changed?,
-              do: %{page: snapshot.page},
-              else: %{}
-            )
-          ),
-          actor: @actor
-        )
-        |> written()
-      else
-        :ok
-      end
+           market_changed?(held.market, snapshot.market),
+         do: refresh(held, snapshot, unread?, (displaced? and not unread?) or page_changed?),
+         else: :ok
     end
+  end
+
+  defp refresh(held, snapshot, unread?, new_page?) do
+    held
+    |> Autolaunch.refresh_auction_reading(
+      Map.merge(
+        %{
+          read_block: snapshot.block.number,
+          block_hash: snapshot.block.hash,
+          read_at: DateTime.utc_now(),
+          degraded: unread?,
+          market: snapshot.market
+        },
+        if(new_page?, do: %{page: snapshot.page}, else: %{})
+      ),
+      actor: @actor
+    )
+    |> written()
   end
 
   defp written({:ok, _reading}), do: :ok

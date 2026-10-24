@@ -460,24 +460,21 @@ defmodule Autolaunch.Robinhood.DiscoveryTest do
     |> Jason.encode!()
     |> then(&File.write!(path, &1))
 
-    for {key, value} <- [
-          autolaunch_robinhood_deployment: path,
-          autolaunch_robinhood_chain_id: @chain_id
-        ] do
-      previous = Application.get_env(:autolaunch, key)
-      Application.put_env(:autolaunch, key, value)
-
-      on_exit(fn ->
-        if previous,
-          do: Application.put_env(:autolaunch, key, previous),
-          else: Application.delete_env(:autolaunch, key)
-      end)
-    end
-
+    put_env(:autolaunch_robinhood_deployment, path)
+    put_env(:autolaunch_robinhood_chain_id, @chain_id)
     on_exit(fn -> File.rm(path) end)
     {:ok, config} = Lab.current()
     config
   end
+
+  defp put_env(key, value) do
+    previous = Application.get_env(:autolaunch, key)
+    Application.put_env(:autolaunch, key, value)
+    on_exit(fn -> restore_env(key, previous) end)
+  end
+
+  defp restore_env(key, nil), do: Application.delete_env(:autolaunch, key)
+  defp restore_env(key, previous), do: Application.put_env(:autolaunch, key, previous)
 
   defp launchpad, do: Lab.address!(elem(Lab.current(), 1), :stocks_launchpad)
 

@@ -27,8 +27,8 @@ defmodule Autolaunch.ChainHead do
 
   @behaviour Autolaunch.ChainRefresh
 
-  alias Autolaunch.{ChainRefresh, Lab, SharedReading}
   alias Autolaunch.Chain.Rpc
+  alias Autolaunch.{ChainRefresh, Lab, SharedReading}
   alias Autolaunch.Robinhood.BlockClock
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.Lab, as: StocksLab
