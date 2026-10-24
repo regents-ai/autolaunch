@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "assets:build": "mix assets.build",
-    "typecheck": "tsc --project assets/tsconfig.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --project assets/tsconfig.json --noEmit && tsc --project test/browser/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:browser": "sh test/browser/walk.sh"
   },
   "dependencies": {
     "@privy-io/react-auth": "3.49.1",
@@ -37,6 +38,8 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "7.0.2",

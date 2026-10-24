@@ -91,3 +91,7 @@ Thumbs.db
 /deployment/
 
 /assets/vendor/regent_agent_access/
+
+# The browser walk's saved sign-in and what it keeps from a failed check.
+/test/browser/.auth/
+/test-results/

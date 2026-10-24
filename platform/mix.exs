@@ -14,6 +14,8 @@ defmodule Autolaunch.MixProject do
       version: "0.1.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
+      # The browser walk's scripts (test/browser) are run by Playwright, not ExUnit.
+      test_ignore_filters: [&String.starts_with?(&1, "test/browser/")],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
@@ -41,7 +43,8 @@ defmodule Autolaunch.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  # The browser walk's server runs in the test environment (playwright.config.ts).
+  defp elixirc_paths(:test), do: ["lib", "test/support", "test/browser/support/server"]
   defp elixirc_paths(_), do: ["lib"]
 
   # `mix usage_rules.sync` writes the marked block at the end of AGENTS.md: how to

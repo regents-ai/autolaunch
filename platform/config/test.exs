@@ -152,6 +152,21 @@ end
 # controller tests restore the release 30/300 themselves.
 config :autolaunch, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
 
+# The browser walk's server (playwright.config.ts) never leaves the machine. It runs
+# no background work, so no feed or ledger reaches a chain or a market on its own;
+# its chain nodes are a closed port on this machine, so their reads fail at once;
+# market prices and listings are unavailable, as under ExUnit; and any other
+# request outside it is refused and fails the walk (Autolaunch.WalkOffline).
+if System.get_env("AUTOLAUNCH_WALK") == "true" do
+  closed = "http://127.0.0.1:9"
+
+  config :autolaunch, Oban, testing: :manual
+  config :autolaunch, :chain_nodes, %{8453 => closed, 1 => closed}
+  config :autolaunch, :autolaunch_market_http_client, Autolaunch.TestStocksMarketHttpClient
+  config :req, default_options: [adapter: Autolaunch.WalkOffline]
+  config :autolaunch, :walk_outside_file, Path.expand("../tmp/walk-outside.txt", __DIR__)
+end
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

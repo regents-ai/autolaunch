@@ -1,10 +1,15 @@
-.PHONY: help check check-platform check-required-fixes check-cli readiness
+.PHONY: help check check-platform check-browser check-required-fixes check-cli readiness
 help:
-	@echo "Run make check for every gate, or check-platform, check-required-fixes or check-cli for one."
+	@echo "Run make check for every gate, or check-platform, check-browser, check-required-fixes or check-cli for one."
 	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
 check: check-platform check-required-fixes check-cli
+# The platform check ends with the browser walk.
 check-platform:
-	cd platform && mix precommit && npm run typecheck && npm test
+	cd platform && mix precommit && npm run typecheck && npm test && npm run test:browser
+# The browser walk alone (platform/test/browser): the layout checks at phone and
+# desktop width. It starts its own server on its own database.
+check-browser:
+	cd platform && npm run test:browser
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template
