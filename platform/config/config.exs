@@ -9,11 +9,6 @@ import Config
 
 config :ash_oban, pro?: false
 
-# mdex_native downloads its prebuilt native code from its maker's own mirror,
-# not GitHub: GitHub's download redirect now sends headers longer than Erlang's
-# HTTP client accepts, which stops a fresh build (see platform/Dockerfile).
-config :mdex_native, artifact_source: :cloudflare
-
 # Background jobs: the launch listing's and the auction finisher's
 # minute-by-minute checks, the stocks' half-hourly volume reads and the
 # five-minute read of the stocks each launchpad admits, one job at a time on
