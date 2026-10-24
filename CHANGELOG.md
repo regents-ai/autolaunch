@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 24 October 2026: releases fetch their parts directly
+- Nothing changes on the pages. Building a release now downloads its ready-made parts straight from where their makers publish them, with no extra steps.
+
 ## 24 October 2026: a calmer hand-over between releases
 - Nothing changes on the pages. When a new release replaces the site's server, open pages and work already under way now finish first instead of being cut off.
 
