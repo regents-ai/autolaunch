@@ -35,6 +35,10 @@ import {installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
 import {SiteButtons, SiteLight} from "./hooks/site_buttons"
 import {TradeViews} from "./hooks/trade_views"
+import {installVisitLog} from "./visit_log"
+
+// First, so an error anywhere below is reported too.
+installVisitLog()
 
 // The motion lab's own hooks load only on its page.
 const labHooks = window.location.pathname === "/animations"
