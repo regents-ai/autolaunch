@@ -1,5 +1,5 @@
 {
-  "total": 104,
+  "total": 105,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -365,7 +365,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "babd944a6c914c68d89f00c4229e20af95a57e8b9aee60cd3e269e3794101e5a"
+      "source_sha256": "75ec03a5ec9250987445787b9b72e0fbe98d3f46f1b586ad9c35344cbd7aff95"
+    },
+    {
+      "id": 145,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/account_live_test.exs",
+      "line": 44,
+      "test_name": "ACCOUNT_SHOWS_CREDITS_HISTORY",
+      "keep_because": "The Account page names each Credits history entry from the shared Credits library's fields, and a page still reading the library's earlier fields crashed /account every second for everyone who had bought Credits (v180, 26 Oct 2026). A signed-out review or an account with no Credits never sees it. The case fails if /account stops mounting with a bought purchase or stops showing it as Bought Credits, +5.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "75ec03a5ec9250987445787b9b72e0fbe98d3f46f1b586ad9c35344cbd7aff95"
     },
     {
       "id": 56,

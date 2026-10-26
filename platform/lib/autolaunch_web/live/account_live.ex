@@ -285,9 +285,8 @@ defmodule AutolaunchWeb.AccountLive do
   defp credits_rows(%Read{value: page}) do
     Enum.map(page.entries, fn entry ->
       %{
-        label: credits_label(entry.operation),
-        amount:
-          "Available: #{RegentCredits.Amount.format(entry.available_delta)} · Held: #{RegentCredits.Amount.format(entry.held_delta)}",
+        label: RegentCredits.History.Words.line(entry),
+        amount: signed(entry.direction) <> RegentCredits.Amount.format(entry.amount),
         occurred_at: Calendar.strftime(entry.at, "%d %b %Y %H:%M UTC")
       }
     end)
@@ -311,12 +310,9 @@ defmodule AutolaunchWeb.AccountLive do
     end)
   end
 
-  defp credits_label("purchase:" <> _), do: "Credits purchased"
-  defp credits_label("refund:" <> _), do: "Purchase refunded"
-  defp credits_label("gift:" <> _), do: "Credits given"
-  defp credits_label("attach:" <> _), do: "Credits added to your account"
-  defp credits_label("hold:" <> _), do: "Held Credits activity"
-  defp credits_label(_), do: "Credits activity"
+  defp signed(:in), do: "+"
+  defp signed(:out), do: "−"
+  defp signed(:none), do: ""
 
   defp points_status(%{reversal_of_entry_id: id}) when not is_nil(id), do: "Correction"
   defp points_status(%{points_micro_delta: 0}), do: "Allowance reached"
