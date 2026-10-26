@@ -14,10 +14,19 @@ defmodule Autolaunch.TestAutolaunchTreasuryChainClient do
     "0x3333333333333333333333333333333333333333"
   ]
   @browser_eoa "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  @key :test_autolaunch_treasury_observation
+  @client_key :autolaunch_treasury_chain_client
 
+  @doc "Installs these answers for the duration of the calling test, then restores what was there."
   def install(overrides \\ []) do
-    Application.put_env(:autolaunch, :autolaunch_treasury_chain_client, __MODULE__)
-    Application.put_env(:autolaunch, :test_autolaunch_treasury_observation, Map.new(overrides))
+    previous = Application.get_env(:autolaunch, @client_key)
+    Application.put_env(:autolaunch, @client_key, __MODULE__)
+    Application.put_env(:autolaunch, @key, Map.new(overrides))
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.delete_env(:autolaunch, @key)
+      restore(previous)
+    end)
   end
 
   def seed_verified!(address, overrides \\ []) do
@@ -39,7 +48,7 @@ defmodule Autolaunch.TestAutolaunchTreasuryChainClient do
 
   @impl true
   def canonical?(_number, hash) do
-    fixture = Application.get_env(:autolaunch, :test_autolaunch_treasury_observation, %{})
+    fixture = Application.get_env(:autolaunch, @key, %{})
 
     canonical_hashes =
       Map.get(fixture, :canonical_hashes, [Map.get(fixture, :block_hash, @hash)])
@@ -113,6 +122,8 @@ defmodule Autolaunch.TestAutolaunchTreasuryChainClient do
     }
   end
 
-  defp fixture(_address),
-    do: Application.get_env(:autolaunch, :test_autolaunch_treasury_observation, %{})
+  defp fixture(_address), do: Application.get_env(:autolaunch, @key, %{})
+
+  defp restore(nil), do: Application.delete_env(:autolaunch, @client_key)
+  defp restore(value), do: Application.put_env(:autolaunch, @client_key, value)
 end

@@ -356,11 +356,6 @@ defmodule Autolaunch.BidActionsTest do
 
     Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: system())
 
-    on_exit(fn ->
-      Application.delete_env(:autolaunch, :autolaunch_treasury_chain_client)
-      Application.delete_env(:autolaunch, :test_autolaunch_treasury_observation)
-    end)
-
     :ok
   end
 end
