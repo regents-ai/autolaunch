@@ -66,6 +66,7 @@ defmodule AutolaunchWeb do
 
       on_mount {AutolaunchWeb.Prelaunch, :default}
       on_mount {AutolaunchWeb.Live.Session, :shell}
+      on_mount AutolaunchWeb.VisitLog
 
       unquote(html_helpers())
     end

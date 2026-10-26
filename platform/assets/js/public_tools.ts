@@ -5,18 +5,32 @@
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 
 import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools.ts"
+import {report, visitId} from "./visit_log"
 
 function signedTransport() { return signedTools({
   origin: window.location.origin,
   trustedOrigins: [document.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')?.content ?? ""],
   audience: manifest.audience,
   proofHeaders: manifest.proof_headers,
-  requestHeaders: operation => ({"x-regent-client": `webmcp/${operation}`}),
+  requestHeaders: client,
   // Only the signed tools are operations; each is sent with its operation's own inputs.
   operations: manifest.tools.flatMap(entry =>
     "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
   ) as unknown as SignedOperation[],
 }) }
+
+// Every call names its tool and this visit, so the site's log can put the call
+// beside the rest of the visit (AutolaunchWeb.VisitLog). Neither is a credential.
+function client(tool: string): Record<string, string> {
+  const visit = visitId()
+  return {"x-regent-client": `webmcp/${tool}`, ...(visit && {"x-regent-visit": visit})}
+}
+
+// A call that got no answer. Anything but a read may already have reached the
+// site, so its outcome is unknown. The site never heard it, so the page reports it.
+function unsent(entry: Entry): void {
+  report({name: "tool.unsent", where: entry.name, outcome: entry.annotations.readOnlyHint ? "unreachable" : "outcome_unknown"})
+}
 
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
 type Input = Record<string, string | number | boolean>
@@ -149,8 +163,11 @@ function tool(entry: Entry, request: (input: Input) => Request, lifetime: AbortS
           const response = await signedTransport().execute(entry.name, input as SignedInput, signal)
           return {ok: response.ok, status: response.status, body: await response.json()}
         }
-        return await read({properties, required, request}, input, signal)
+        return await read(entry, {properties, required, request}, input, signal)
       } catch (error) {
+        // fetch fails with a TypeError when the network fails; the transport's own
+        // refusals, made before anything is sent, are plain Errors.
+        if (error instanceof TypeError && !signal.aborted) unsent(entry)
         return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "Read back a draft after an unanswered save before retrying with fresh proof."}}
       } finally {
         release()
@@ -159,7 +176,7 @@ function tool(entry: Entry, request: (input: Input) => Request, lifetime: AbortS
   }
 }
 
-async function read(definition: Definition, input: unknown, cancellation: AbortSignal): Promise<Result> {
+async function read(entry: Entry, definition: Definition, input: unknown, cancellation: AbortSignal): Promise<Result> {
   if (cancellation.aborted) return cancelled()
   if (!validInput(input, definition.properties, definition.required)) return invalidInput()
 
@@ -175,6 +192,7 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
       method: target.body ? "POST" : "GET",
       headers: {
         Accept: "application/json",
+        ...client(entry.name),
         ...(target.body ? {"Content-Type": "application/json"} : {}),
       },
       body: target.body ? JSON.stringify(target.body) : undefined,
@@ -201,9 +219,9 @@ async function read(definition: Definition, input: unknown, cancellation: AbortS
       ? {ok: response.ok, status: response.status, body, retry_after: retryAfter}
       : {ok: response.ok, status: response.status, body}
   } catch {
-    return cancellation.aborted
-      ? cancelled()
-      : failure("network_error", "The site's API could not be reached.")
+    if (cancellation.aborted) return cancelled()
+    unsent(entry)
+    return failure("network_error", "The site's API could not be reached.")
   }
 }
 

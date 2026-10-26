@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 26 October 2026: following a visit step by step
+- Nothing changes on the pages. The site's records now note each page opened, each button pressed and how it ended, under one code per visit, so a problem someone hits can be followed step by step. The records never hold your name, wallet, what you typed or which item you opened, only the kind of page.
+
 ## 26 October 2026: a newer database library
 - Nothing changes on the pages. The site moves to a newer release of the library it saves records with, which closes two published weaknesses and keeps every record in Autolaunch's own part of the shared database.
 - When a required detail is missing, the site again says which one, instead of failing with an unclear database error.
