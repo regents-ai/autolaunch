@@ -1,5 +1,5 @@
 {
-  "total": 109,
+  "total": 110,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1379,7 +1379,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+      "source_sha256": "556a13d4079560fd56bc15dd916c6ca0e976f6decdd771116f77b5f1757649d6"
     },
     {
       "id": 147,
@@ -1392,33 +1392,46 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+      "source_sha256": "556a13d4079560fd56bc15dd916c6ca0e976f6decdd771116f77b5f1757649d6"
+    },
+    {
+      "id": 150,
+      "group": "Visit log privacy",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/visit_log_test.exs",
+      "line": 73,
+      "test_name": "a page's own script calling the API belongs to its visit, by header or cookie",
+      "keep_because": "A visit is replayed only from its own lines; an API call the page's own script makes would otherwise be written as an outside agent's with no visit, and a call from outside a page must never borrow one. Fails if an /api call carrying the visit in x-regent-visit or the _visit cookie is not the page's, or one carrying neither is given a visit.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "556a13d4079560fd56bc15dd916c6ca0e976f6decdd771116f77b5f1757649d6"
     },
     {
       "id": 148,
       "group": "Visit log privacy",
       "framework": "exunit",
       "file": "test/autolaunch_web/visit_log_test.exs",
-      "line": 64,
+      "line": 89,
       "test_name": "the browser's reports keep only the lines a page can send, twenty at most",
       "keep_because": "Production log lines are read by Fly and kept; a header, browser report or event field copied in as sent could put an account, a private path or free text into them. Fails if POST /visit-log writes a name, place or outcome the page cannot send, or more than twenty lines a post.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+      "source_sha256": "556a13d4079560fd56bc15dd916c6ca0e976f6decdd771116f77b5f1757649d6"
     },
     {
       "id": 149,
       "group": "Visit log privacy",
       "framework": "exunit",
       "file": "test/autolaunch_web/visit_log_test.exs",
-      "line": 108,
+      "line": 133,
       "test_name": "a page's own path is written as its route, and a page the site lacks as unmatched",
       "keep_because": "Production log lines are read by Fly and kept; a header, browser report or event field copied in as sent could put an account, a private path or free text into them. Fails if a page error names its own path, such as a bid's number, rather than the page's route.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+      "source_sha256": "556a13d4079560fd56bc15dd916c6ca0e976f6decdd771116f77b5f1757649d6"
     }
   ],
   "legacy_folders_to_remove": [
