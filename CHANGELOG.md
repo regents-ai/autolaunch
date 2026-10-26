@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 26 October 2026: a newer database library
+- Nothing changes on the pages. The site moves to a newer release of the library it saves records with, which closes two published weaknesses and keeps every record in Autolaunch's own part of the shared database.
+
 ## 26 October 2026: your account page opens again
 - If you had bought Credits, your account page kept reloading and never finished opening. It opens normally again, and each line of your Credits activity says what happened and by how much, such as "Bought Credits" and "+5".
 
