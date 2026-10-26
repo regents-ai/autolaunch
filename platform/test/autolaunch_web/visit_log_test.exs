@@ -54,11 +54,36 @@ defmodule AutolaunchWeb.VisitLogTest do
       assert VisitLog.client(conn) == nil or VisitLog.client(conn) =~ @where
 
       case surface do
-        "webmcp" -> assert "webmcp/" <> VisitLog.client(conn) == client
-        "cli" -> assert String.starts_with?(client, "regents-cli/")
-        _other -> assert VisitLog.client(conn) == nil
+        "webmcp" ->
+          assert "webmcp/" <> VisitLog.client(conn) == client
+
+        "cli" ->
+          assert String.starts_with?(client, "regents-cli/")
+
+        "page" ->
+          assert VisitLog.client(conn) == nil and
+                   (path != "/api/v1/auctions" or conn.assigns.visit)
+
+        "agent_http" ->
+          assert VisitLog.client(conn) == nil and conn.assigns.visit == nil
       end
     end
+  end
+
+  test "a page's own script calling the API belongs to its visit, by header or cookie" do
+    visit = String.duplicate("v", 22)
+    api = fn -> conn(:get, "/api/v1/auctions") end
+
+    for sent <- [
+          put_req_header(api.(), "x-regent-visit", visit),
+          Plug.Test.put_req_cookie(api.(), "_visit", visit)
+        ] do
+      conn = VisitLog.call(sent, [])
+      assert {Logger.metadata()[:surface], conn.assigns.visit} == {"page", visit}
+    end
+
+    conn = VisitLog.call(api.(), [])
+    assert {Logger.metadata()[:surface], conn.assigns.visit} == {"agent_http", nil}
   end
 
   property "the browser's reports keep only the lines a page can send, twenty at most" do
