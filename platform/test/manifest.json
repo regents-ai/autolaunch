@@ -1,5 +1,5 @@
 {
-  "total": 105,
+  "total": 106,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1367,6 +1367,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "9defb37fce9ba69001c93112ea63a01df40413779182d1aad77ffd21ae09c4c7"
+    },
+    {
+      "id": 151,
+      "group": "Shared database helpers",
+      "framework": "exunit",
+      "file": "test/autolaunch/required_value_test.exs",
+      "line": 10,
+      "test_name": "a missing required value raises Ash's error, and a present one comes back",
+      "keep_because": "Every site on the shared database calls the one ash_required in public; version 6 there cannot find ash_raise_error, so a missing required value fails with \"function does not exist\" instead of Ash's error, and the Credits library's first migration can put version 6 back on a fresh database. Fails if public.ash_required is not version 7 after every migration has run.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f19f4ae2bfaa9e09efcf4523aa73685714ac0ccabeba8b16a0957c902b4d686d"
     }
   ],
   "legacy_folders_to_remove": [
