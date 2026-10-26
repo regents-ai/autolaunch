@@ -53,7 +53,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 8,
@@ -66,7 +66,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 9,
@@ -79,7 +79,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 10,
@@ -92,7 +92,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 11,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 12,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 25,
@@ -235,7 +235,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "ad10d7cce6d9345dfdfc4563263ed12bc796ef71f8206379faa05307b7a5d518"
+      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
     },
     {
       "id": 46,
