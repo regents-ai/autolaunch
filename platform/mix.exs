@@ -72,7 +72,7 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.36"},
+      {:ash, "~> 3.37"},
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3.25"},
       # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
@@ -132,7 +132,7 @@ defmodule Autolaunch.MixProject do
       {:cachex, "~> 4.1"},
       {:yaml_elixir, "== 2.12.2"},
       {:vix, "== 0.42.0"},
-      {:bandit, "~> 1.13"},
+      {:bandit, "~> 1.14"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:credo_ash,

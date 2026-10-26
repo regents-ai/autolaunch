@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 26 October 2026: safer web server
+- Nothing changes on the pages. The site moves to newer releases of its web server and its data library. The web server release closes eleven published weaknesses in how it handles connections.
+
 ## 24 October 2026: auction prices are read once for every page
 - Nothing changes on the pages. Every auction, on Base and on Robinhood, is now read from its own contract in one place, and every open page shows that one reading.
 
