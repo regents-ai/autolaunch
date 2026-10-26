@@ -13,13 +13,15 @@ defmodule AutolaunchWeb.VisitLog do
   `other`.
 
   - `visit`: a random id for one browser visit, kept in the `_visit` cookie until
-    the browser closes and sent by the page's own tools in `x-regent-visit`. It
-    is not tied to the account. Calls from outside a page have none.
+    the browser closes and sent by the page's own scripts in `x-regent-visit`
+    when they send no cookies. It is not tied to the account. Calls from outside
+    a page have none.
   - `actor`: `person:` or `agent:` and a one-way code for the account or agent,
     or `anonymous`. The code cannot be turned back into the account.
   - `surface`: `page`, `webmcp`, `cli`, `agent_http` or `job`. The page's tools
     say `x-regent-client: webmcp/<tool>`; Regents CLI says
-    `regents-cli/<version> <command>`.
+    `regents-cli/<version> <command>`. An API call that names neither but
+    carries a visit is the page's own script, so it is `page`.
 
   The events themselves come from `AutolaunchWeb.VisitLog.Events`; the browser
   adds the few only it can see through `AutolaunchWeb.VisitLogController`.
@@ -123,6 +125,7 @@ defmodule AutolaunchWeb.VisitLog do
     conn = fetch_cookies(conn)
     {surface, client} = surface(conn)
     {conn, visit} = visit(conn, surface)
+    surface = if surface == "agent_http" and visit, do: "page", else: surface
     Logger.metadata(visit: visit, surface: surface)
 
     conn
@@ -130,8 +133,9 @@ defmodule AutolaunchWeb.VisitLog do
     |> put_private(:visit_log_client, client)
   end
 
-  # A page keeps its cookie's visit; the page's own tools send theirs, since they
-  # send no cookies; a page opened without one starts a visit.
+  # A page keeps its cookie's visit, and a page opened without one starts a visit.
+  # An API call takes the visit its page's script sent, in the header when it
+  # sends no cookies, or in the cookie when it does.
   defp visit(conn, "page") do
     case conn.cookies[@cookie] do
       visit when is_binary(visit) ->
@@ -143,10 +147,8 @@ defmodule AutolaunchWeb.VisitLog do
   end
 
   defp visit(conn, _surface) do
-    case get_req_header(conn, "x-regent-visit") do
-      [visit] -> if Regex.match?(@visit, visit), do: {conn, visit}, else: {conn, nil}
-      _none -> {conn, nil}
-    end
+    sent = get_req_header(conn, "x-regent-visit") ++ List.wrap(conn.cookies[@cookie])
+    {conn, Enum.find(sent, &Regex.match?(@visit, &1))}
   end
 
   defp start(conn) do
