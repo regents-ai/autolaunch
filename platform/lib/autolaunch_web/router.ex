@@ -191,6 +191,7 @@ defmodule AutolaunchWeb.Router do
     pipe_through [:browser_auth, :browser_session]
 
     get "/auth/csrf", PrivySessionController, :csrf
+    post "/visit-log", VisitLogController, :create, log: false
     post "/auth/privy/session", PrivySessionController, :create
     get "/auth/session", PrivySessionController, :show
     delete "/auth/privy/session", PrivySessionController, :delete

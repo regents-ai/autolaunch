@@ -117,6 +117,7 @@ defmodule Autolaunch.MixProject do
       {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:logger_json, "~> 7.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:peep, "~> 5.0"},
       {:telemetry_poller, "~> 1.3"},

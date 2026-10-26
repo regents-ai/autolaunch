@@ -25,6 +25,7 @@ defmodule AutolaunchWeb.Prelaunch do
       not Prelaunch.read_only?() -> conn
       match?(["create" | _], path) -> refuse(conn, 404)
       account_path?(path) -> conn
+      visit_report?(conn.method, path) -> conn
       signed_account_request?(conn.method, path) -> conn
       conn.method in ["GET", "HEAD"] -> conn
       public_quote?(conn.method, path) -> conn
@@ -36,6 +37,10 @@ defmodule AutolaunchWeb.Prelaunch do
   defp account_path?(["auth" | _]), do: true
   defp account_path?(["api", "v1", "profile" | _]), do: true
   defp account_path?(_), do: false
+
+  # The browser's visit reports only write log lines (AutolaunchWeb.VisitLogController).
+  defp visit_report?("POST", ["visit-log"]), do: true
+  defp visit_report?(_, _), do: false
 
   # Pairing is account access; history is a private read despite its JSON body.
   # Metadata and all launch/wallet writes retain the prelaunch refusal.
