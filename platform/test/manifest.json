@@ -1,5 +1,5 @@
 {
-  "total": 105,
+  "total": 109,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1367,6 +1367,58 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "9defb37fce9ba69001c93112ea63a01df40413779182d1aad77ffd21ae09c4c7"
+    },
+    {
+      "id": 146,
+      "group": "Visit log privacy",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/visit_log_test.exs",
+      "line": 17,
+      "test_name": "an event keeps only fitting where and outcome values",
+      "keep_because": "Production log lines are read by Fly and kept; a header, browser report or event field copied in as sent could put an account, a private path or free text into them. Fails if any where or outcome outside the site's own patterns is written as sent instead of as other.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+    },
+    {
+      "id": 147,
+      "group": "Visit log privacy",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/visit_log_test.exs",
+      "line": 32,
+      "test_name": "a request's surface, tool and visit come only from fitting headers",
+      "keep_because": "Production log lines are read by Fly and kept; a header, browser report or event field copied in as sent could put an account, a private path or free text into them. Fails if a caller's x-regent-client or x-regent-visit header reaches a line without matching the site's own shapes.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+    },
+    {
+      "id": 148,
+      "group": "Visit log privacy",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/visit_log_test.exs",
+      "line": 64,
+      "test_name": "the browser's reports keep only the lines a page can send, twenty at most",
+      "keep_because": "Production log lines are read by Fly and kept; a header, browser report or event field copied in as sent could put an account, a private path or free text into them. Fails if POST /visit-log writes a name, place or outcome the page cannot send, or more than twenty lines a post.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
+    },
+    {
+      "id": 149,
+      "group": "Visit log privacy",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/visit_log_test.exs",
+      "line": 108,
+      "test_name": "a page's own path is written as its route, and a page the site lacks as unmatched",
+      "keep_because": "Production log lines are read by Fly and kept; a header, browser report or event field copied in as sent could put an account, a private path or free text into them. Fails if a page error names its own path, such as a bid's number, rather than the page's route.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "14c52735a7b660d4bd251eee81fc9857b21c19e38eb86ff65d780b442f11c7e8"
     }
   ],
   "legacy_folders_to_remove": [

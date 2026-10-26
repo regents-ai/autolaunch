@@ -14,6 +14,7 @@ defmodule Autolaunch.Application do
     # Debian image can lag by weeks. Req, Finch and Mint read this list through
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
+    :ok = AutolaunchWeb.VisitLog.Events.attach()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
