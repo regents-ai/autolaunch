@@ -138,9 +138,9 @@ Server: check prelaunch gate and paired actor → validate the fields → in one
 transaction read/create the owner's draft, run Ash `agent_save`, then store the
 picture and run Ash `agent_mark_image` → return the draft. A treasury owned by a
 private key also needs the owner's own acknowledgement on the create page, which no
-agent gives; an agent's treasury change takes back an earlier one. A smart contract
-account the agent chose waits for the owner's own tick on the create page before
-its launch review. Unknown, empty or
+agent gives; an agent's treasury change takes back an earlier one. A Safe or smart
+contract account the agent chose waits for the owner's own tick on the create page
+before its launch review. Unknown, empty or
 wrongly typed fields return `invalid_draft`; a bad picture `invalid_image` or
 `image_too_large`; closed prelaunch returns `prelaunch_read_only`. Revocation refuses
 access. Repeated saves retain one draft; concurrent saves use last-write-wins. If a
