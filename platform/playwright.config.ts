@@ -29,7 +29,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "mkdir -p tmp && rm -f tmp/walk-outside.txt && " +
+      "mkdir -p tmp && rm -f tmp/walk-outside.txt tmp/walk-lines.jsonl && " +
       "unset ETHEREUM_READ_RPC_URL BASE_READ_RPC_URL AUTOLAUNCH_BASE_DEPLOYMENT AUTOLAUNCH_LAB_AUTH " +
       "X_OAUTH_CLIENT_ID DATABASE_URL DATABASE_DIRECT_URL && " +
       `export AUTOLAUNCH_WALK=true AUTOLAUNCH_BROWSER_TEST=1 PORT=${port} AUTOLAUNCH_DB_POOL_SIZE=3 ` +

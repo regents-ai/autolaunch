@@ -21,5 +21,10 @@ config :autolaunch, :behind_fly_proxy, true
 # Do not print debug messages in production
 config :logger, level: :info
 
+# The visit lines (AutolaunchWeb.VisitLog) say what each request and page did,
+# by route. Phoenix's own request and connection lines would repeat them with
+# each raw path and its parameters, so they are off.
+config :phoenix, :logger, false
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

@@ -37,6 +37,18 @@ if config_env() == :dev and Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.
   end
 end
 
+# The browser walk's server (playwright.config.ts) writes its lines in production's
+# shape to a file, which test/browser/visits.spec.ts reads to replay a visit. The
+# tests print only warnings (config/test.exs); the walk's server writes its visit
+# lines too.
+if config_env() == :test and System.get_env("AUTOLAUNCH_WALK") == "true" do
+  config :logger, level: :info
+
+  config :logger, :default_handler,
+    config: [file: String.to_charlist(Path.expand("../tmp/walk-lines.jsonl", __DIR__))],
+    formatter: LoggerJSON.Formatters.Basic.new(metadata: AutolaunchWeb.VisitLog.fields())
+end
+
 # A lab site taking real sign-ins has nothing to verify them with unless both
 # public inputs are present, so it stops at boot rather than at the first
 # Sign in press.
@@ -257,6 +269,11 @@ end
 
 if config_env() == :prod do
   config :autolaunch, :session_options, secure: true, http_only: true
+
+  # One JSON object a line, which Fly Sentinel reads, carrying only the visit
+  # fields (AutolaunchWeb.VisitLog). Release commands write the same shape.
+  config :logger, :default_handler,
+    formatter: LoggerJSON.Formatters.Basic.new(metadata: AutolaunchWeb.VisitLog.fields())
 
   unless migrating? do
     # The serving site reads one canonical `safe` Base block through this

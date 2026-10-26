@@ -45,14 +45,16 @@ defmodule AutolaunchWeb.Endpoint do
   end
 
   plug Plug.RequestId
+  # Which visit, and which kind of caller, each line of this request belongs to.
+  plug AutolaunchWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug :refuse_blocked
 
-  # One budget per client address, shared by the health check, every /api
-  # address and the share pictures, answered or not. Every answer says what is left of it; past it the
-  # answer is 429 with Retry-After. The auction list has a second, smaller
-  # budget of its own.
+  # One budget per client address, shared by the health check, the browser's visit
+  # reports, every /api address and the share pictures, answered or not. Every
+  # answer says what is left of it; past it the answer is 429 with Retry-After.
+  # The auction list has a second, smaller budget of its own.
   plug :limit_rate
 
   plug AutolaunchWeb.Prelaunch
@@ -118,6 +120,9 @@ defmodule AutolaunchWeb.Endpoint do
       counted -> RegentAgentAccess.RateLimit.call(counted, @list_rate_limit)
     end
   end
+
+  defp limit_rate(%Plug.Conn{method: "POST", path_info: ["visit-log"]} = conn, _opts),
+    do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
 
   defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
