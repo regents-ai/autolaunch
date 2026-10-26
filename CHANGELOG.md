@@ -11,10 +11,10 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 26 October 2026: your account page opens again
 - If you had bought Credits, your account page kept reloading and never finished opening. It opens normally again, and each line of your Credits activity says what happened and by how much, such as "Bought Credits" and "+5".
 
-## 24 October 2026: releases fetch their parts directly
+## 26 October 2026: releases fetch their parts directly
 - Nothing changes on the pages. Building a release now downloads its ready-made parts straight from where their makers publish them, with no extra steps.
 
-## 24 October 2026: a calmer hand-over between releases
+## 26 October 2026: a calmer hand-over between releases
 - Nothing changes on the pages. When a new release replaces the site's server, open pages and work already under way now finish first instead of being cut off.
 
 ## 24 October 2026: auction prices are read once for every page
