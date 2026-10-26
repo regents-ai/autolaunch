@@ -582,7 +582,7 @@ paths:
                 "treasury_path":
                   "type": "string"
                   "enum": ["safe", "contract", "eoa"]
-                  "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page, and a smart contract account an agent chose needs the person's own confirmation there."
+                  "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page, and a Safe or smart contract account an agent chose needs the person's own confirmation there."
                 "image":
                   "type": "object"
                   "description": "The token's picture: a PNG, JPEG or WebP file up to 2 MB and 4096 by 4096 pixels."

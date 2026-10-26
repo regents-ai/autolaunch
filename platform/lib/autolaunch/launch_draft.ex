@@ -61,12 +61,12 @@ defmodule Autolaunch.LaunchDraft do
   end
 
   @doc """
-  Whether the creator still has to confirm a smart contract account their
-  paired agent chose as the treasury (`:confirm_agent_treasury`) before the
-  launch review is prepared.
+  Whether the creator still has to confirm a Safe or smart contract account
+  their paired agent chose as the treasury (`:confirm_agent_treasury`) before
+  the launch review is prepared.
   """
   def treasury_confirmation_needed?(draft) do
-    Map.get(draft, :treasury_path) == :contract and
+    Map.get(draft, :treasury_path) in [:safe, :contract] and
       Enum.any?([:treasury, :treasury_path], &(&1 in Map.get(draft, :agent_set_fields, [])))
   end
 

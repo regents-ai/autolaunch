@@ -569,13 +569,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   attr :treasury, :string, required: true
 
-  # A smart contract account the creator's paired agent chose as the treasury
-  # goes ahead only once the creator ticks that it is where the launch's money
-  # should go (`Autolaunch.LaunchDraft.treasury_confirmation_needed?/1`).
+  # A Safe or smart contract account the creator's paired agent chose as the
+  # treasury goes ahead only once the creator ticks that it receives the
+  # treasury funds (`Autolaunch.LaunchDraft.treasury_confirmation_needed?/1`).
   defp agent_treasury(assigns) do
     ~H"""
     <form id="launch-agent-treasury" class="agent-treasury" phx-change="confirm_agent_treasury">
-      <p>Your agent chose the treasury, a smart contract account:</p>
       <p class="agent-treasury__address">{@treasury}</p>
       <input type="hidden" name="treasury" value={@treasury} />
       <%!-- Keyed by the address, so a new treasury always starts unticked. --%>
@@ -584,7 +583,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         class="agent-treasury__confirm"
       >
         <input type="checkbox" name="confirmed" value="true" />
-        This is where my launch's money should go.
+        This smart contract will receive all treasury funds
       </label>
     </form>
     """
