@@ -79,8 +79,8 @@ Shared dependency versions follow ash-template's tested baseline. Run its
 `scripts/check-dependency-parity.py` with the template and all five site roots to
 compare every shared lock entry, including packages used by two sites but absent
 from the template. Keep product-only dependencies; do not update shared versions
-in one site independently. The baseline retains AshPostgres 2.13.0 because later
-versions through 2.14.5 fail the shared-schema upsert check.
+in one site independently. AshPostgres comes from Regent's copy of 2.15.2 with
+the upsert fix that keeps upserts in each site's own schema.
 
 Before deploying, `Autolaunch.Release.pending_migrations/0` must report no missing
 shared Agents, Credits or Points migrations. This release also needs Agents'
