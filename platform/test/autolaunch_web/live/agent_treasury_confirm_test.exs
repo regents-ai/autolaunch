@@ -1,8 +1,8 @@
 defmodule AutolaunchWeb.AgentTreasuryConfirmTest do
   @moduledoc """
-  A smart contract account a paired agent chose as a Revstake launch's
-  treasury is where the launch's money goes, so the launch review is prepared
-  only once the person has ticked that it is theirs, on the create page.
+  A Safe or smart contract account a paired agent chose as a Revstake
+  launch's treasury receives all its treasury funds, so the launch review is
+  prepared only once the person has ticked it, on the create page.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.AgentTreasuryConfirmTest do
   @agent_wallet "0x" <> String.duplicate("ad", 20)
   @contract "0x" <> String.duplicate("5c", 20)
   @other_contract "0x" <> String.duplicate("6d", 20)
+  @safe "0x" <> String.duplicate("7e", 20)
 
   setup do
     previous = Application.get_env(:autolaunch, :prelaunch_read_only)
@@ -22,8 +23,8 @@ defmodule AutolaunchWeb.AgentTreasuryConfirmTest do
   end
 
   # Sean, 24 Oct 2026, decision 6a: "Where the money goes should never change
-  # without the person noticing."
-  test "AGENT_TREASURY_NEEDS_TICK: an agent's smart contract treasury launches only after the person ticks it",
+  # without the person noticing." A Safe too: Sean, 26 Oct 2026, "1. a".
+  test "AGENT_TREASURY_NEEDS_TICK: an agent's Safe or smart contract treasury launches only after the person ticks it",
        %{conn: conn} do
     setup = LaunchFixture.actor()
     account = setup[:account]
@@ -75,6 +76,26 @@ defmodule AutolaunchWeb.AgentTreasuryConfirmTest do
     assert has_element?(view, "#launch-no-connections")
 
     # The review now goes on to the treasury's own checks on Base.
+    refute LaunchFixture.refusal(LaunchActions.prepare(draft.id, setup[:wallet], setup[:opts])) ==
+             :agent_treasury_unconfirmed
+
+    # The agent then picks a Safe: the person ticks again before the review.
+    {:ok, _draft} =
+      AgentDrafts.save("revstake", %{"treasury" => @safe, "treasury_path" => "safe"}, agent)
+
+    assert :agent_treasury_unconfirmed =
+             LaunchFixture.refusal(LaunchActions.prepare(draft.id, setup[:wallet], setup[:opts]))
+
+    # The page offers a Safe once its own check on Base has found it.
+    render_async(view, 5_000)
+    assert view |> element("#launch-agent-treasury") |> render() =~ @safe
+
+    view
+    |> element("#launch-agent-treasury")
+    |> render_change(%{"treasury" => @safe, "confirmed" => "true"})
+
+    refute has_element?(view, "#launch-agent-treasury")
+
     refute LaunchFixture.refusal(LaunchActions.prepare(draft.id, setup[:wallet], setup[:opts])) ==
              :agent_treasury_unconfirmed
   end

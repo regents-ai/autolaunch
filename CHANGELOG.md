@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 26 October 2026: a Safe your agent chose needs your tick too
+- When your paired agent sets your launch's treasury to a Safe, the create page now asks you to tick it before the launch review, as it already did for any other smart contract account. The tick reads "This smart contract will receive all treasury funds".
+
 ## 26 October 2026: safer web server
 - Nothing changes on the pages. The site moves to newer releases of its web server and its data library. The web server release closes eleven published weaknesses in how it handles connections.
 
