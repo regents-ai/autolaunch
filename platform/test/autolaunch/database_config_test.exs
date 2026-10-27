@@ -22,6 +22,7 @@ defmodule Autolaunch.DatabaseConfigTest do
     assert options[:ssl][:cacertfile] == CAStore.file_path()
     assert options[:ssl][:server_name_indication] == ~c"direct.dzx6qo6xqzvojpv5.flympg.net"
     assert is_function(options[:ssl][:customize_hostname_check][:match_fun], 2)
+    assert options[:pool_size] == 5
     assert options[:max_lifetime] == 480_000..540_000
     assert options[:idle_interval] == 15_000
     assert options[:backoff_type] == :rand_exp

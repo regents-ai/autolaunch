@@ -18,7 +18,10 @@ defmodule Autolaunch.DatabaseConfig do
     )
     |> require_runtime_target!(getenv)
     |> put_web_parameters()
+    # Every site shares one database, so the site holds five connections, as the
+    # template does; jobs and pages wait their turn for one.
     |> Keyword.merge(
+      pool_size: 5,
       max_lifetime: 480_000..540_000,
       idle_interval: 15_000,
       backoff_type: :rand_exp,

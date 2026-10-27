@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: steadier during updates
+- Nothing changes on the pages. Autolaunch now keeps a smaller, fixed number of links open to the database it shares with the other Regents sites, so an update to several sites at once no longer leaves every site briefly unable to load or save.
+
 ## 27 October 2026: one address for each page
 - An address ending in a slash, such as autolaunch.sh/contact/, now shows the site's "page not found" page, as the template does. Some of these showed an error page and others opened a second copy of the page. The same address without the slash opens the page as before; the home page is unchanged.
 
