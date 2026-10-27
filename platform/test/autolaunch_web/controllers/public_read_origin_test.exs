@@ -43,6 +43,10 @@ defmodule AutolaunchWeb.PublicReadOriginTest do
       {:post, "/api/v1/auctions/#{auction.id}/bid-quote"}
     ]
 
+    # The agent routes ask the sign-in service about each request; here it
+    # cannot be reached, and nothing leaves this machine.
+    Req.Test.stub(RegentAgents.Broker, &Req.Test.transport_error(&1, :econnrefused))
+
     for {method, path} <- private do
       response =
         build_conn()
