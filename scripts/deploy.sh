@@ -46,8 +46,12 @@ git archive "$commit" | tar -x -C "$export_dir"
 cp platform/deployment/*.json "$export_dir/deployment/"
 cd "$export_dir"
 
-echo "==> Deploying ${commit:0:7} to $app"
-exec fly deploy . \
+# Every site shares one production database, and a release briefly doubles a
+# site's connections, so releases from this machine take turns: the build and
+# release run under one lock that every site's deploy takes, and wait for it.
+lock=/tmp/regent-shared-db-release.lock
+echo "==> Deploying ${commit:0:7} to $app (waits for any other release holding $lock)"
+exec lockf -k "$lock" fly deploy . \
   --config platform/fly.toml \
   --app "$app" \
   --ha=false \

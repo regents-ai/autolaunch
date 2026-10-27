@@ -4,6 +4,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 27 October 2026: steadier during updates, quieter records
 - Nothing changes on the pages. Autolaunch now keeps a smaller, fixed number of links open to the database it shares with the other Regents sites, so an update to several sites at once no longer leaves every site briefly unable to load or save.
+- Updates to Autolaunch now wait their turn behind any other Regents site's update, so two sites never swap over at the same moment.
 - An address the site refuses outright no longer adds a line to the site's records for every try, so the records show what visitors did.
 
 ## 27 October 2026: one address for each page

@@ -190,7 +190,9 @@ scripts/deploy.sh autolaunch-sh
 
 The script refuses a working tree with any change and a commit that is not on
 origin/main, then builds on Fly's builders with `SOURCE_COMMIT` set to the full
-commit and deploys. Before any machine changes, fly.toml's `release_command` runs
+commit and deploys. It runs that under `lockf -k /tmp/regent-shared-db-release.lock`,
+the lock every site's deploy takes, so a release waits for any other site's release on
+the shared database to finish. Before any machine changes, fly.toml's `release_command` runs
 `/app/bin/migrate` on a temporary machine; a failed migration stops the deploy. The
 new image then starts beside the old one and takes traffic once `/healthz` is green.
 `/healthz` answers `ok <commit>`.
