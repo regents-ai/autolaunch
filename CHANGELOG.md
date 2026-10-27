@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: clearer agent list
+- On your Account page, each paired agent now shows its whole name, with its address and its copy and explorer buttons on the line beneath, as on every Regents site.
+
 ## 27 October 2026: steadier during updates, quieter records
 - Nothing changes on the pages. Autolaunch now keeps a smaller, fixed number of links open to the database it shares with the other Regents sites, so an update to several sites at once no longer leaves every site briefly unable to load or save.
 - Updates to Autolaunch now wait their turn behind any other Regents site's update, so two sites never swap over at the same moment.
