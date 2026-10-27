@@ -13,7 +13,7 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
    The header above runs the frame's whole width and answers to the screen's. */
 .shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
 .shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
-.shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
+.shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: var(--rg-layer-skip); padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
 .shell-skip:focus { transform: none; }
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
 /* The tools agents see open from the footer's first row, at every width. */
@@ -46,11 +46,11 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 /* Sign in, the closed Launch a token button and Copy to Agent match the regents.sh App
    button: a charcoal plate with corner marks that close into a full outline on hover. */
 .rg-button:is(.create-button, .account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); }
-.regent-token-menu { position: relative; z-index: 10; }
+.regent-token-menu { position: relative; z-index: var(--rg-layer-tip); }
 .regent-token-menu > summary { list-style: none; cursor: pointer; }
 .regent-token-menu > summary::-webkit-details-marker { display: none; }
 .regent-token-menu__panel { position: absolute; inset-block-start: 100%; inset-inline-start: 0; transform-origin: top left; width: 12rem; padding-block-start: .75rem; }
-.regent-token-menu__content { display: grid; padding: .5rem; background: var(--color-surface); color: var(--color-fg); border: 1px solid var(--hairline); box-shadow: 0 .5rem 1.5rem rgb(0 0 0 / .25); }
+.regent-token-menu__content { display: grid; padding: .5rem; background: var(--color-surface); color: var(--color-fg); border: 1px solid var(--hairline); box-shadow: var(--rg-layer-tip-shadow); }
 .regent-token-menu__content p { margin: 0; padding: .5rem .625rem; font-family: var(--font-family-title); }
 .regent-token-menu__content .regent-token-menu__note { font-family: var(--font-family-sans); font-size: .75rem; color: var(--color-fg-muted); }
 

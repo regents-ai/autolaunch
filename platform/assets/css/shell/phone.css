@@ -148,7 +148,7 @@
   #shell-drawer {
     position: fixed;
     inset: var(--shell-header-end) auto 0 0;
-    z-index: 40;
+    z-index: var(--rg-layer-panel);
     display: flex;
     flex-direction: column;
     width: min(20rem, calc(100% - 3rem));
@@ -159,6 +159,7 @@
     border-inline-end: 1px solid var(--hairline-strong);
     background: var(--color-bg);
     color: var(--color-fg);
+    box-shadow: var(--rg-layer-panel-shadow);
     visibility: hidden;
     transform: translateX(-100%);
     transition:
@@ -263,7 +264,7 @@
   .rg-button.shell-menu-scrim {
     position: fixed;
     inset: var(--shell-header-end) 0 0;
-    z-index: 39;
+    z-index: var(--rg-layer-shade);
     display: block;
     min-width: 0;
     min-height: 0;

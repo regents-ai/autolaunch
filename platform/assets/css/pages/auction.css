@@ -106,7 +106,7 @@
 .bid-help summary::before { content: ""; position: absolute; inset: 50% auto auto 50%; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; transform: translate(-50%, -50%); }
 .bid-help summary::-webkit-details-marker { display: none; }
 .bid-help summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-.bid-help__panel { position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); color: var(--color-fg); font-size: .875rem; line-height: 1.45; box-shadow: 0 12px 32px color-mix(in srgb, var(--color-bg) 60%, transparent); transform-origin: top left; }
+.bid-help__panel { position: absolute; z-index: var(--rg-layer-tip); top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); color: var(--color-fg); font-size: .875rem; line-height: 1.45; box-shadow: var(--rg-layer-tip-shadow); transform-origin: top left; }
 .bid-help__panel p { margin: 0; }
 .bid-ended { margin: 0; color: var(--color-fg-muted); }
 

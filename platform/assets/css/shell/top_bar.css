@@ -7,7 +7,7 @@
   --shell-header-end: calc(var(--rg-rule-width) + var(--shell-header) + env(safe-area-inset-top, 0px));
 }
 .rg-frame:has(#home-top) { border-block-start: 0; }
-.shell-top { position: sticky; inset-block-start: 0; z-index: 41; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-3); box-sizing: border-box; min-height: var(--shell-header-end); padding: env(safe-area-inset-top, 0px) var(--rg-panel-padding) 0; border-block: var(--rg-rule-width) solid var(--rg-page-rule); border-block-end-width: 1px; background: var(--color-surface); }
+.shell-top { position: sticky; inset-block-start: 0; z-index: var(--rg-layer-header); display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-3); box-sizing: border-box; min-height: var(--shell-header-end); padding: env(safe-area-inset-top, 0px) var(--rg-panel-padding) 0; border-block: var(--rg-rule-width) solid var(--rg-page-rule); border-block-end-width: 1px; background: var(--color-surface); }
 .theme-control { display: flex; }
 /* How many tools agents see, under the top bar (`AgentTools`). */
 /* The template's Regents Products menu: a nine-dot button whose panel hangs straight
@@ -17,10 +17,10 @@
 #shell-apps-button { flex: 0 0 auto; anchor-name: --shell-apps-button; }
 #home-top:has(#shell-apps:popover-open) #shell-apps-button { background: color-mix(in oklch, var(--color-fg) 10%, transparent); color: var(--color-fg); }
 /* A name for the icon, shown on hover and on keyboard focus. */
-.shell-tool__tip { position: absolute; inset-block-start: calc(100% + .35rem); inset-inline-start: 50%; z-index: 8; padding: .25rem .5rem; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); font-size: .75rem; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(-50%); transition: opacity var(--duration-fast) var(--ease-out); }
+.shell-tool__tip { position: absolute; inset-block-start: calc(100% + .35rem); inset-inline-start: 50%; z-index: var(--rg-layer-tip); padding: .25rem .5rem; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); font-size: .75rem; box-shadow: var(--rg-layer-tip-shadow); white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(-50%); transition: opacity var(--duration-fast) var(--ease-out); }
 .shell-tool:is(:hover, :focus-visible) > .shell-tool__tip { opacity: 1; }
 #home-top:has(#shell-apps:popover-open) .shell-tool__tip { opacity: 0; }
-.shell-apps { position: fixed; position-anchor: --shell-apps-button; inset: anchor(bottom) anchor(right) auto auto; width: min(16rem, calc(100% - 2rem)); max-height: calc(100dvh - 5rem); margin: .25rem 0 0; padding: 1rem; overflow: auto; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); }
+.shell-apps { position: fixed; position-anchor: --shell-apps-button; inset: anchor(bottom) anchor(right) auto auto; width: min(16rem, calc(100% - 2rem)); max-height: calc(100dvh - 5rem); margin: .25rem 0 0; padding: 1rem; overflow: auto; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); box-shadow: var(--rg-layer-tip-shadow); }
 .shell-apps h2 { margin: 0 0 .75rem; font-size: 1.1rem; }
 /* Four apps here, so two rows of two rather than the template's rows of three. */
 .shell-apps ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; margin: 0; padding: 0; list-style: none; }

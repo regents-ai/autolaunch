@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: menus and panels in one order
+- On a phone, the open side panel now runs to the foot of the screen, over the ticker of recent bids and trades, instead of leaving the ticker showing and pressable beneath it.
+- Menus, filters, hover names and the notice after a trade now lie flat on the page, without a soft shadow. The header, menus, side panel and notices stack in the same order as on the other Regents sites.
+
 ## 27 October 2026: Buy Credits never opens a wallet that can't pay
 - Pressing Buy on Credits the moment the page changed wallet or amount could open your wallet for a purchase it was certain to refuse, such as one with too little USDC or before the approval. Now the button shows why it can't go through, as it already did once the page caught up. Bids are unchanged.
 

@@ -36,7 +36,7 @@
 .stock-select__name { flex: 1; min-width: 0; overflow: hidden; color: var(--color-fg-muted); font-size: .8125rem; text-overflow: ellipsis; white-space: nowrap; }
 .stock-select__chevron { flex: none; color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out); }
 .stock-select__button[aria-expanded="true"] .stock-select__chevron { transform: rotate(180deg); }
-.stock-select__list { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); box-shadow: 0 12px 32px color-mix(in srgb, #000 22%, transparent); transform-origin: top center; }
+.stock-select__list { position: absolute; z-index: var(--rg-layer-tip); inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); box-shadow: var(--rg-layer-tip-shadow); transform-origin: top center; }
 .stock-select__list[hidden] { display: none; }
 
 /* The gallery: search, three sorts, then the cards, which scroll on their own. */
