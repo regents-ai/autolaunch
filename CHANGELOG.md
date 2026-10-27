@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: each agent keeps its pairing code
+- When you pair an agent, each agent you choose keeps its own code until it expires. Choosing another agent and coming back shows the same message and code again, instead of a new one each time. The refresh icon still makes a new code for the agent you have chosen.
+
 ## 27 October 2026: every amount shown the one Regents way
 - Every amount the site shows you to read now looks the same as on every Regents site: prices, bids, balances, rewards, refunds, raises, revenue, supply and dollar values, on the pages, in the ticker and in the share pictures. Amounts of 1 and above show two decimals with thousands separated ("26,590,000,000.00"), smaller amounts show their first three digits ("0.0000000123"), and digits are cut, never rounded up.
 - Large figures are written out in full instead of shortened to K, M or B, and tiny prices write their zeros out instead of counting them with a small number.
