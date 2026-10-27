@@ -24,7 +24,7 @@ Map as of 19 October 2026. A release that adds or changes something here updates
 | `/how-it-works` | Fixed contract rules, explained | **Gap** |
 | `/portfolio` | The signed-in wallet's bids and tokens | `autolaunch_web/live/robinhood_pages_live_test.exs` › "/portfolio outlives a Robinhood feed's new block" |
 | `/portfolio/bids/<id>` | One bid on its own page | **Gap** (its steps: see Wallet actions) |
-| `/account` | Profile, sign out, paired agents, pair another | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" |
+| `/account` | Profile, sign out, paired agents, pair another (each agent keeps its own code until it expires) | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT", › "PAIRING_CODE_KEPT_PER_AGENT" |
 | `/account/points` | Points balance and recent entries | **Gap** |
 | `/regent` | REGENT facts and revenue sources | **Gap** |
 | `/convert` | Memestock fee shares waiting to be sold, for the converter wallet | **Gap** |

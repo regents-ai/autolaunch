@@ -1,5 +1,5 @@
 {
-  "total": 115,
+  "total": 116,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -365,7 +365,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "75ec03a5ec9250987445787b9b72e0fbe98d3f46f1b586ad9c35344cbd7aff95"
+      "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
     },
     {
       "id": 145,
@@ -378,7 +378,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "75ec03a5ec9250987445787b9b72e0fbe98d3f46f1b586ad9c35344cbd7aff95"
+      "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
+    },
+    {
+      "id": 156,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/account_live_test.exs",
+      "line": 88,
+      "test_name": "PAIRING_CODE_KEPT_PER_AGENT",
+      "keep_because": "The pairing box made a new code on every agent choice, so choosing one agent, then another, then the first again showed a third code and the message already pasted to the first agent no longer matched the screen (27 Oct 2026). The case fails if coming back to an agent shows a different code while its code is still in time, or if \"Make a new code\" for one agent changes another agent's code.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
     },
     {
       "id": 56,
