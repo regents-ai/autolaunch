@@ -51,11 +51,33 @@ config :autolaunch, Oban,
   # machine holds that launch's next check back until then.
   lifeline: [rescue_after: {20, :minutes}]
 
+# `allowed` is what an agent may do here in each status, as signed
+# GET /api/agents/v1/whoami tells it: true to the agent routes and the agent
+# guide (agents.md), so change it with them.
 config :regent_agents,
   notifications: Autolaunch.Notifications,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
   account: {Autolaunch.Agents, :paired_account},
+  allowed: %{
+    "not_paired" => [
+      "Read public auctions, tokens, treasury reports and bid estimates.",
+      "Check your status here at any time.",
+      "Pair with the code your person makes with Pair New Agent in the side panel."
+    ],
+    "person_not_here" => [
+      "Read public auctions, tokens, treasury reports and bid estimates.",
+      "Check your status here at any time."
+    ],
+    "paired" => [
+      "Read public auctions, tokens, treasury reports and bid estimates.",
+      "Check your status here at any time, and check in for your person.",
+      "Read your person's Revstake and Memestock drafts, and save their text while launches are open.",
+      "Read your person's bids and tokens.",
+      "Read your person's Credits and Points.",
+      "Signing with a wallet, launching, bidding, trading, staking and claiming stay with your person."
+    ]
+  },
   ash_domains: [RegentAgents],
   siwa: [url: "https://siwa.regents.sh", audience: "autolaunch"]
 

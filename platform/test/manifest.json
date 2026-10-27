@@ -1,5 +1,5 @@
 {
-  "total": 117,
+  "total": 119,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -989,7 +989,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5083e93305b4f1a933ac742364a00830db800653a58835187d8d6dad87568dd2"
+      "source_sha256": "575e432178c48bbfd377216ad905eab723ca2f70ec656fb7b9afdf1312e9dbe6"
     },
     {
       "id": 115,
@@ -1523,6 +1523,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "b402bac2528dfcc4fffd9dbd9155e799570ad0ae24bf2d4e3529b3b70d66251b"
+    },
+    {
+      "id": 158,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 49,
+      "test_name": "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in",
+      "keep_because": "The shared whoami reads what an agent may do from the site's settings, which Autolaunch never set, so every signed whoami answered 500 (found 27 Oct 2026). The case signs in an agent through the stubbed sign-in service, checks it is told not paired, pairs it, checks it is told paired with this site's list of what it may do, and checks in. It fails without the setting.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "914e4292376888ef2effbb289d72005a5dc5891939c47d219cabadb71bb29a03"
+    },
+    {
+      "id": 159,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 74,
+      "test_name": "AGENT_WHOAMI_ANSWERS_A_PAIRING_WITHOUT_AN_ACCOUNT",
+      "keep_because": "Every status whoami can answer needs its own list of what the agent may do, or that answer is a 500. The case pairs an agent with a person who has no account here and checks whoami answers person_not_here with its list. It fails when that status has no list.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "914e4292376888ef2effbb289d72005a5dc5891939c47d219cabadb71bb29a03"
     }
   ],
   "legacy_folders_to_remove": [

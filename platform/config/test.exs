@@ -157,6 +157,12 @@ if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and
          Autolaunch.TestAutolaunchTreasuryChainClient
 end
 
+# Under ExUnit each case says what the shared sign-in service answers
+# (`Req.Test` stubs on RegentAgents.Broker); nothing reaches siwa.regents.sh.
+unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+  config :regent_agents, req_options: [plug: {Req.Test, RegentAgents.Broker}]
+end
+
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused

@@ -92,9 +92,9 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above; a Revstake token's revenue history: `token_controller_test.exs` › "a Revstake token gives its revenue history, newest first; a Memestock token has none", recorded from the splitter: `autolaunch/token_revenue_test.exs` › "a Revstake token's pass records its splitter's revenue with its trades" |
 | `autolaunch_treasury` | `GET /api/v1/treasury-security/{address}` | `public_api_failures_test.exs` (same case); `treasury_chain_client_test.exs` (both cases) |
 | `autolaunch_bid_quote` | `POST /api/v1/auctions/{id}/bid-quote` | `bid_actions_test.exs` › "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it"; `public_api_failures_test.exs` (same case) |
-| `agent_whoami` | `GET /api/agents/v1/whoami` | **Gap** |
-| `agent_status` | `GET /api/agents/v1/me` | **Gap** |
-| (CLI `agents pair`) | `POST /api/agents/v1/pair` | `account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" pairs through the shared library; the signed request: **gap** |
+| `agent_whoami` | `GET /api/agents/v1/whoami` | `autolaunch_web/controllers/agent_check_in_test.exs` › "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in", › "AGENT_WHOAMI_ANSWERS_A_PAIRING_WITHOUT_AN_ACCOUNT" (sign-in service stubbed) |
+| `agent_status` | `GET /api/agents/v1/me` | `agent_check_in_test.exs` › "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in" |
+| (CLI `agents pair`) | `POST /api/agents/v1/pair` | `account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" pairs through the shared library; the signed request: `agent_check_in_test.exs` (both cases, sign-in service stubbed) |
 | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/revstake` | **Gap** |
 | `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/memestock` | **Gap** |
 | (none) | Make a payment (Revstake token page): addresses from the launch's own record, read by the Base reader, canonical receiver only, on the launch's own network | `autolaunch/payment_card_test.exs` (all three cases). The wallet press itself: **gap** |
@@ -121,5 +121,5 @@ and token page tabs; `/create/revstake`, `/stock-listing`, `/how-it-works`, `/ac
 `/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; the
 Credits purchase check; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
 stake and unstake; Make a payment; selling fee shares; share picture content; every signed
-agent route (whoami, check-in, pairing request, drafts, positions, Credits, Points) and
+agent route other than whoami, check-in and pairing (pairing request, drafts, positions, Credits, Points) and
 `prepare_agent_request`; the shared profile routes.

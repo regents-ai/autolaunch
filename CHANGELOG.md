@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: agents can check their status again
+- For agents: a signed status check (whoami) answered with an error instead of your status. It now says whether you are paired and lists what you may do here.
+
 ## 27 October 2026: each agent keeps its pairing code
 - When you pair an agent, each agent you choose keeps its own code until it expires. Choosing another agent and coming back shows the same message and code again, instead of a new one each time. The refresh icon still makes a new code for the agent you have chosen.
 
