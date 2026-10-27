@@ -1,13 +1,13 @@
 defmodule AutolaunchWeb.VisitLog.Events do
   @moduledoc """
   Turns the framework's own `:telemetry` events into visit lines
-  (`AutolaunchWeb.VisitLog.record/4`):
+  (`AutolaunchWeb.VisitLog.record/4`); a page's own `page` line comes from
+  `AutolaunchWeb.VisitLog.on_mount/4`:
 
   - `request`: a page or file answered over HTTP, by route and outcome.
   - `tool.call`: an `/api` call, named by the tool or command the caller gave in
     `x-regent-client`, else by its route; the outcome is `ok` or the error code
     the answer carried.
-  - `page`: a connected page shown, by route.
   - `press`: an event a page or one of its components handled, as `View:event`.
     A wallet step reports what the wallet answered: `sent`, `signed` or why
     nothing was sent.
@@ -39,7 +39,6 @@ defmodule AutolaunchWeb.VisitLog.Events do
 
     [
       [:phoenix, :endpoint, :stop],
-      [:phoenix, :live_view, :handle_params, :stop],
       [:phoenix, :live_view, :handle_event, :stop],
       [:phoenix, :live_view, :handle_event, :exception],
       [:phoenix, :live_component, :handle_event, :stop],
@@ -67,19 +66,6 @@ defmodule AutolaunchWeb.VisitLog.Events do
         _page ->
           VisitLog.record("request", route, answer(conn), ms(duration))
       end
-    end
-  end
-
-  def handle(
-        [:phoenix, :live_view, :handle_params, :stop],
-        _measurements,
-        %{socket: socket, uri: uri},
-        _config
-      ) do
-    if Phoenix.LiveView.connected?(socket) do
-      %URI{path: path, host: host} = URI.parse(uri)
-      remember(socket)
-      VisitLog.record("page", VisitLog.route(socket.router, "GET", path, host))
     end
   end
 

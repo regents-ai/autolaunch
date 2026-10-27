@@ -95,4 +95,9 @@ test("signing in from the home page replays in order from the visit's lines", as
     const text = JSON.stringify(line)
     for (const written of [wallet, "did:privy", "valid-identity", "Bearer"]) expect(text).not.toContain(written)
   }
+
+  // How it works has no handle_params of its own, and its opening is still a line.
+  await page.goto("/how-it-works")
+  await ready(page)
+  await expect.poll(() => lines(visit).map(step)).toContain("page /how-it-works")
 })

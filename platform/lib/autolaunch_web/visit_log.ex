@@ -185,10 +185,26 @@ defmodule AutolaunchWeb.VisitLog do
 
   # on_mount, for every LiveView (AutolaunchWeb.live_view/0). The connected page
   # runs in its own process, so it takes the visit its first render passed on
-  # (AutolaunchWeb.Live.Session.render_context/1).
+  # (AutolaunchWeb.Live.Session.render_context/1). A page the router opened writes
+  # a `page` line when it opens and each time its address changes, whether or not
+  # it handles params itself; a view drawn inside another page is part of that page.
   def on_mount(:default, _params, session, socket) do
     visit = session["visit"]
     Logger.metadata(visit: visit, surface: "page", actor: actor(socket.assigns[:access_context]))
-    {:cont, Phoenix.Component.assign(socket, :visit, visit)}
+    socket = Phoenix.Component.assign(socket, :visit, visit)
+
+    if socket.router,
+      do: {:cont, Phoenix.LiveView.attach_hook(socket, :visit_log_page, :handle_params, &page/3)},
+      else: {:cont, socket}
+  end
+
+  defp page(_params, uri, socket) do
+    if Phoenix.LiveView.connected?(socket) do
+      %URI{path: path, host: host} = URI.parse(uri)
+      Logger.metadata(actor: actor(socket.assigns[:access_context]))
+      record("page", route(socket.router, "GET", path, host))
+    end
+
+    {:cont, socket}
   end
 end
