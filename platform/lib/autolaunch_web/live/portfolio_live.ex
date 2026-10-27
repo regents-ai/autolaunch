@@ -656,7 +656,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         <td>
           <span :if={@holding.claimable == []}>-</span>
           <span :for={{reward, index} <- Enum.with_index(@holding.claimable)}>
-            {if index > 0, do: " + "}<TokenDisplay.written value={reward.amount} unit={reward.symbol} />
+            {if index > 0, do: " + "}<TokenDisplay.tokens amount={reward.amount} unit={reward.symbol} />
           </span>
         </td>
       </tr>

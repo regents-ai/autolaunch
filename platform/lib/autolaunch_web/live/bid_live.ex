@@ -31,7 +31,6 @@ defmodule AutolaunchWeb.BidLive do
 
   alias Autolaunch.AuctionBook
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
-  alias Autolaunch.Stocks.Amounts
   alias Autolaunch.StoredImage
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
@@ -319,23 +318,17 @@ defmodule AutolaunchWeb.BidLive do
       {"Used", used && figure(used, bid.unit), used && average(used, exit.tokens, bid)},
       {"Not used", exit && figure(exit.currency, bid.unit), nil},
       {"Your max price", figure(bid.max_price, bid.unit), "per token"},
-      {"Tokens", exit && tokens(exit.tokens, bid.symbol), nil}
+      {"Tokens", exit && figure(exit.tokens, bid.symbol), nil}
     ]
     |> Enum.map(fn {label, figure, detail} -> {label, figure || "-", detail} end)
   end
 
   defp average(used, tokens, bid) do
     if Decimal.gt?(tokens, 0),
-      do: "#{tokens(tokens, bid.symbol)} at #{figure(Decimal.div(used, tokens), bid.unit)} each"
+      do: "#{figure(tokens, bid.symbol)} at #{figure(Decimal.div(used, tokens), bid.unit)} each"
   end
 
-  defp figure(amount, unit),
-    do:
-      "#{amount |> Decimal.to_string(:normal) |> TokenDisplay.short() |> TokenDisplay.zeros()} #{unit}"
-
-  defp tokens(amount, symbol),
-    do:
-      "#{amount |> Decimal.to_string(:normal) |> TokenDisplay.short(:down) |> Amounts.grouped()} #{symbol}"
+  defp figure(amount, unit), do: "#{TokenDisplay.short(amount)} #{unit}"
 
   # One line, then the button that settles the bid, or until when there is
   # nothing to press.
@@ -429,7 +422,7 @@ defmodule AutolaunchWeb.BidLive do
 
   defp claim(bid) do
     case Enum.find(bid.settlements, &(&1.kind == :exit)) do
-      %{tokens: tokens} -> "Claim #{tokens(tokens, bid.symbol)}"
+      %{tokens: tokens} -> "Claim #{figure(tokens, bid.symbol)}"
       nil -> "Claim #{bid.symbol}"
     end
   end
@@ -470,7 +463,7 @@ defmodule AutolaunchWeb.BidLive do
     verb = if exited(bid) == "Refunded", do: "Refunded", else: "Withdrew"
 
     filled =
-      if Decimal.gt?(row.tokens, 0), do: ", #{tokens(row.tokens, bid.symbol)} filled", else: ""
+      if Decimal.gt?(row.tokens, 0), do: ", #{figure(row.tokens, bid.symbol)} filled", else: ""
 
     %{
       words: "#{verb} #{figure(row.currency, bid.unit)}#{filled}",
@@ -481,7 +474,7 @@ defmodule AutolaunchWeb.BidLive do
 
   defp settlement(%{kind: :claim} = row, bid),
     do: %{
-      words: "Claimed #{tokens(row.tokens, bid.symbol)}",
+      words: "Claimed #{figure(row.tokens, bid.symbol)}",
       hash: row.transaction_hash,
       when: display_time(row.occurred_at)
     }

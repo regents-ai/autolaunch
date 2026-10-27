@@ -18,11 +18,10 @@ defmodule Autolaunch.TokenHoldings do
   alias Autolaunch.{Lab, LabAbi, LabRpc, Pool, Token}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
-  alias Autolaunch.Stocks.{Amounts, StakeActions}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias Autolaunch.Stocks.StakeActions
 
   @token_decimals 18
-  @shown_places 4
 
   @type claimable :: %{amount: String.t(), symbol: String.t()}
   @type holding :: %{
@@ -197,7 +196,7 @@ defmodule Autolaunch.TokenHoldings do
       |> Enum.filter(fn {atomic, _asset} -> atomic > 0 end)
       |> Enum.map(fn {atomic, asset} ->
         %{
-          amount: Amounts.compact_decimal(Rpc.format_units(atomic, asset.decimals)),
+          amount: Rpc.format_units(atomic, asset.decimals),
           symbol: asset.symbol
         }
       end)
@@ -209,23 +208,13 @@ defmodule Autolaunch.TokenHoldings do
         name: name,
         symbol: symbol,
         chain: pool.chain,
-        held: shown(position.held),
-        staked: shown(position.staked),
+        held: Rpc.format_units(position.held, @token_decimals),
+        staked: Rpc.format_units(position.staked, @token_decimals),
         claimable: claimable,
         unit: pool.currency.symbol,
         address: pool.token.address,
         token: token
       }
     end
-  end
-
-  # The same reading as the swap form's balance line: cut, never rounded up.
-  defp shown(atomic) do
-    atomic
-    |> Decimal.new()
-    |> Decimal.div(Decimal.new(Integer.pow(10, @token_decimals)))
-    |> Decimal.round(@shown_places, :down)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
   end
 end

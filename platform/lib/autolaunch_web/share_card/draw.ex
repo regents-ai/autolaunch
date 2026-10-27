@@ -66,29 +66,10 @@ defmodule AutolaunchWeb.ShareCard.Draw do
   the currency itself where no price is known.
   """
   def money(nil, _rate, _auction), do: nil
-  def money(amount, %Decimal{} = rate, _auction), do: "$" <> short(Decimal.mult(amount, rate))
-  def money(amount, _rate, auction), do: short(amount) <> " " <> auction.quote_token_symbol
+  def money(amount, %Decimal{} = rate, _auction), do: UsdValue.dollars(Decimal.mult(amount, rate))
 
-  @scales [{1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
-
-  @doc "An amount to three significant digits, with K, M or B for the large ones."
-  def short(amount) do
-    case Enum.find(@scales, fn {scale, _suffix} -> Decimal.gte?(amount, scale) end) do
-      {scale, suffix} -> amount |> Decimal.div(scale) |> figure() |> Kernel.<>(suffix)
-      nil -> figure(amount)
-    end
-  end
-
-  # Three significant digits, with a long run of zeros after the point counted.
-  defp figure(%Decimal{coef: coef, exp: exp} = amount) do
-    places = max(3 - length(Integer.digits(coef)) - exp, 0)
-
-    amount
-    |> Decimal.round(places)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-    |> TokenDisplay.zeros()
-  end
+  def money(amount, _rate, auction),
+    do: TokenDisplay.short(amount) <> " " <> auction.quote_token_symbol
 
   @doc """
   How long bidding has left at `now`, or where the auction stands once that

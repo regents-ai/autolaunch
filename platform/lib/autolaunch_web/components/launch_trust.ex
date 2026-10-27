@@ -14,7 +14,6 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
   use Phoenix.Component
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{BidPlaced, MarketCard}
   alias AutolaunchWeb.TokenDisplay
 
@@ -325,8 +324,8 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     </p>
     <ul class="launch-trust__positions">
       <li :for={position <- @pool.positions}>
-        <TokenDisplay.written value={amount(position.token_amount)} unit={@pool.token.symbol} /> and
-        <TokenDisplay.written value={amount(position.currency_amount)} unit={@pool.currency.symbol} />
+        <TokenDisplay.tokens amount={position.token_amount} unit={@pool.token.symbol} /> and
+        <TokenDisplay.tokens amount={position.currency_amount} unit={@pool.currency.symbol} />
         deposited
         <span :if={position.locked?} class="launch-trust__muted">
           · locked forever in the locker above
@@ -451,10 +450,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
       ]
     }
 
-  defp amount(value), do: value |> Amounts.compact_decimal() |> Amounts.grouped()
-
-  defp supply(%Decimal{} = supply),
-    do: supply |> Decimal.normalize() |> Decimal.to_string(:normal) |> Amounts.grouped()
+  defp supply(%Decimal{} = supply), do: RegentFormat.amount(supply)
 
   defp supply(nil), do: nil
 

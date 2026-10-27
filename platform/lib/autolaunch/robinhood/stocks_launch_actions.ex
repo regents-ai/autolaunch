@@ -283,7 +283,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       ["Launch fee", "None"],
       [
         "Minimum raise",
-        "#{Amounts.grouped(Rpc.format_units(LaunchActions.minimum_raise(), executable.stock_decimals))} #{fields.stock_symbol}"
+        "#{RegentFormat.token_amount(LaunchActions.minimum_raise(), executable.stock_decimals)} #{fields.stock_symbol}"
       ],
       ["Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"],
       ["Auction length", schedule_copy(@auction_duration_blocks)],
@@ -292,9 +292,14 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   end
 
   # The page shows a readable price; the review's facts keep the exact one.
-  defp starting_price(fields, executable),
-    do:
-      "#{Amounts.compact_decimal(Amounts.format_cca_price(executable.floor_price_q96, executable.stock_decimals, @new_decimals))} #{fields.stock_symbol} per token, the lowest the auction accepts"
+  defp starting_price(fields, executable) do
+    price =
+      executable.floor_price_q96
+      |> Amounts.format_cca_price(executable.stock_decimals, @new_decimals)
+      |> Decimal.new(max_digits: :infinity)
+
+    "#{RegentFormat.amount(price)} #{fields.stock_symbol} per token, the lowest the auction accepts"
+  end
 
   defp launch_data(fields, config) do
     LabAbi.encode(

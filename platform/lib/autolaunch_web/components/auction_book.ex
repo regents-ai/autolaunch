@@ -6,7 +6,6 @@ defmodule AutolaunchWeb.Components.AuctionBook do
   """
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
 
   @doc "A bid's place against the price now, in words."
@@ -57,12 +56,12 @@ defmodule AutolaunchWeb.Components.AuctionBook do
   end
 
   def return_line(%{status: {:minimum, missing}} = assigns) do
-    assigns = assign(assigns, missing: missing, shown: shortfall(missing))
+    assigns = assign(assigns, :missing, missing)
 
     ~H"""
     <p id={@id} class="auction-book__back">
       Your money can come back once the auction reaches its minimum
-      (<TokenDisplay.price amount={@shown} unit={@unit} />
+      (<TokenDisplay.price amount={@missing} unit={@unit} />
       <UsdValue.usd
         amount={@missing}
         rate={@usd_rate}
@@ -88,17 +87,6 @@ defmodule AutolaunchWeb.Components.AuctionBook do
       />.
     </p>
     """
-  end
-
-  # As the raise progress shows what is still needed: whole and grouped from
-  # 1,000 up, rounded up so the line never shows less than is missing.
-  defp shortfall(missing) do
-    decimal = Decimal.new(missing)
-
-    if Decimal.gte?(decimal, 1000),
-      do:
-        decimal |> Decimal.round(0, :ceiling) |> Decimal.to_string(:normal) |> Amounts.grouped(),
-      else: Decimal.to_string(decimal, :normal)
   end
 
   attr :id, :string, required: true

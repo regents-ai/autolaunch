@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.RegentLive do
   alias Autolaunch.{MemestockLanes, RegentFacts}
   alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{RegentNext, TokenLinks}
-  alias AutolaunchWeb.TokenDisplay
+  alias AutolaunchWeb.{TokenDisplay, UsdValue}
 
   @revenue_sources [
     {"Regents Labs", ["REGENT/ETH pool fees (0.1–0.3% of volume)", "Paid agent services"]},
@@ -322,16 +322,8 @@ defmodule AutolaunchWeb.RegentLive do
 
   defp market_cap(%{price_usd: :unavailable}), do: "Unavailable"
 
-  defp market_cap(%{price_usd: price, circulating_supply: circulating}) do
-    dollars =
-      price
-      |> Decimal.new()
-      |> Decimal.mult(Decimal.new(circulating))
-      |> Decimal.round(0, :down)
-      |> Decimal.to_string(:normal)
-
-    "$" <> Amounts.grouped(dollars)
-  end
+  defp market_cap(%{price_usd: price, circulating_supply: circulating}),
+    do: price |> Decimal.new() |> Decimal.mult(Decimal.new(circulating)) |> UsdValue.dollars()
 
   defp percent(bps), do: "#{bps |> Decimal.new() |> Decimal.div(100) |> Decimal.round(2)}%"
 end

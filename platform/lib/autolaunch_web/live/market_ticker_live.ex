@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.MarketTickerLive do
   use Phoenix.LiveView, layout: false
   alias Autolaunch.StoredImage
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.Paths
+  alias AutolaunchWeb.{Paths, TokenDisplay, UsdValue}
 
   # Every open page shares the one list `Autolaunch.MarketTicker` keeps.
   def mount(_, _, socket) do
@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.MarketTickerLive do
       tabindex={if @copy == 1, do: "-1"}
       class="market-ticker__entry market-ticker__entry--bid"
     >
-      <strong>{short(@bid.display_amount)} {@bid.display_symbol}</strong>
+      <strong>{TokenDisplay.short(@bid.display_amount)} {@bid.display_symbol}</strong>
       <span :if={@fdv}>@ {@fdv} FDV ·</span>
       <.token_mark auction={@bid.auction} />
     </.link>
@@ -84,7 +84,7 @@ defmodule AutolaunchWeb.MarketTickerLive do
       tabindex={if @copy == 1, do: "-1"}
       class={["market-ticker__entry", "market-ticker__entry--#{@trade.side}"]}
     >
-      <strong>{short(@trade.currency_amount)} {@trade.currency_symbol} {@verb}</strong>
+      <strong>{TokenDisplay.short(@trade.currency_amount)} {@trade.currency_symbol} {@verb}</strong>
       <.token_mark auction={@trade.token.auction} />
     </.link>
     """
@@ -107,14 +107,11 @@ defmodule AutolaunchWeb.MarketTickerLive do
     """
   end
 
-  # Three significant digits with a short suffix: 2.37, 59, 67.6k, 1.2M.
-  defp short(value), do: value |> MarketCard.compact() |> String.replace_suffix("K", "k")
-
   # The bid's maximum price for the whole token, in dollars at the auction
   # currency's market price; left out while no price is known.
   defp max_fdv(%{max_fdv: %Decimal{} = fdv} = bid, rates) do
     case MarketCard.figure_rate(rates, bid.auction) do
-      %Decimal{} = rate -> fdv |> Decimal.mult(rate) |> short()
+      %Decimal{} = rate -> fdv |> Decimal.mult(rate) |> UsdValue.dollars()
       nil -> nil
     end
   end

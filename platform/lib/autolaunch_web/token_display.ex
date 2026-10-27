@@ -2,18 +2,13 @@ defmodule AutolaunchWeb.TokenDisplay do
   @moduledoc false
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.Amounts
-
-  # Only production-sized supply figures are too wide for a summary row, so only
-  # they are shortened. The mantissa is truncated, never rounded up.
-  @scales [{Decimal.new(1_000_000_000), "B"}, {Decimal.new(1_000_000), "M"}]
-
   attr :amount, :string, default: nil
   attr :unit, :string, required: true
 
   @doc """
-  A read-only token amount. A wide figure is shortened on screen while the exact
-  amount stays readable to assistive technology and on hover. Never an input.
+  A read-only token amount, shown the one way every Regent page shows an amount
+  (`RegentFormat.amount/1`), its exact amount readable to assistive technology
+  and on hover. Never an input.
   """
   def amount(%{amount: nil} = assigns) do
     ~H"""
@@ -21,32 +16,17 @@ defmodule AutolaunchWeb.TokenDisplay do
     """
   end
 
-  def amount(assigns) do
-    assigns
-    |> assign(exact: assigns.amount, shown: compact(assigns.amount))
-    |> figure()
-  end
-
-  @significant_digits 4
+  def amount(assigns),
+    do: assigns |> assign(exact: assigns.amount, shown: short(assigns.amount)) |> figure()
 
   attr :amount, :string, default: nil
   attr :unit, :string, default: nil
   attr :fallback, :string, default: "No price yet"
 
-  attr :round, :atom,
-    default: :nearest,
-    values: [:nearest, :down],
-    doc: ":down for a figure that must never read higher than it is"
-
   @doc """
-  A read-only price. A price carrying more than four significant digits is
-  shortened, rounded to the nearest, and a long run of zeros after the point is
-  written as a count on screen, as in `0.0₇44`, while the same short figure
-  with its zeros written out stays readable to assistive technology and on
-  hover. A price of a million or more, such as a bid's limit set far above any
-  real price, is written as a supply figure is, `26.59B`, with its exact amount
-  readable to assistive technology and on hover. An amount that is not a plain
-  decimal is shown as written.
+  A read-only price, shown as `amount/1` shows an amount, or `fallback` while
+  there is none. An exact price can run to 96 decimal places, so the shown
+  figure is also the one given to assistive technology.
   """
   def price(%{amount: amount} = assigns) when is_nil(amount) or amount == "" do
     ~H"""
@@ -55,115 +35,47 @@ defmodule AutolaunchWeb.TokenDisplay do
   end
 
   def price(assigns) do
-    assigns
-    |> assign(price_figure(assigns.amount, assigns.round))
-    |> figure()
-  end
-
-  @doc "A plain decimal cut to four significant digits, as `price/1` shows it, as text."
-  def short(amount, round \\ :nearest), do: significant(amount, round)
-
-  # Four or more zeros straight after the point are hard to count, so the run
-  # is written as one zero with its length below it: 0.0000000444 is 0.0₇444.
-  @zero_run ~r/(?<![\d.])0\.(0{4,})(\d+)/
-
-  @doc "Text with each small figure's zeros after the point counted, as in `0.0₇444 REGENT`."
-  def zeros(text),
-    do:
-      Regex.replace(@zero_run, text, fn _all, run, rest ->
-        "0.0#{subscript(byte_size(run))}#{rest}"
-      end)
-
-  defp subscript(count),
-    do: count |> Integer.digits() |> Enum.map_join(&<<0x2080 + &1::utf8>>)
-
-  attr :amount, :string, required: true
-  attr :unit, :string, default: nil
-
-  @doc """
-  A read-only price shown with every digit it was given, only its zeros after
-  the point counted. The plain figure stays readable to assistive technology
-  and on hover.
-  """
-  def counted(assigns) do
-    assigns
-    |> assign(exact: assigns.amount, shown: zeros(assigns.amount))
-    |> figure()
+    shown = short(assigns.amount)
+    assigns |> assign(exact: shown, shown: shown) |> figure()
   end
 
   attr :amount, :string, required: true
   attr :unit, :string, default: nil
 
-  @doc """
-  A read-only token amount read from the chain, cut to four significant digits
-  and never rounded up, its whole part grouped in thousands and a long run of
-  zeros after the point counted, as in `94,450,000` or `0.0₆412`. The exact
-  amount stays readable to assistive technology and on hover.
-  """
-  def tokens(assigns) do
-    shown = assigns.amount |> significant(:down) |> Amounts.grouped() |> zeros()
-
-    assigns
-    |> assign(exact: assigns.amount, shown: shown)
-    |> figure()
-  end
+  @doc "A read-only token amount read from the chain, shown as `amount/1` shows one."
+  def tokens(assigns),
+    do: assigns |> assign(exact: assigns.amount, shown: short(assigns.amount)) |> figure()
 
   attr :value, :string, required: true
   attr :unit, :string, default: nil
 
   @doc """
-  A figure already written for the page, such as a grouped whole-token count,
+  A figure already written for the page, such as an amount a person typed,
   set like every other figure: the number, then its ticker.
   """
   def written(assigns),
     do: assigns |> assign(exact: assigns.value, shown: assigns.value) |> figure()
 
-  # Only a plain finite decimal is shortened: digits, one optional fraction,
-  # one optional leading minus. Decimal's parser would also take NaN, Infinity
-  # and exponents, none of which is a price. Exact Q96 prices carry up to 96
-  # decimal places, far past Decimal's default 34-digit parse limit, so the
-  # parse of an admitted string is unbounded.
+  # Only a plain finite decimal is a figure to shorten: digits, one optional
+  # fraction, one optional leading minus. Decimal's parser would also take NaN,
+  # Infinity and exponents. Exact Q96 prices carry up to 96 decimal places, far
+  # past Decimal's default 34-digit parse limit, so the parse is unbounded.
   @plain_decimal ~r/\A-?(?:0|[1-9]\d*)(?:\.\d+)?\z/
 
-  defp significant(amount, round) do
+  @doc """
+  An amount as text, as `amount/1` shows it: a plain decimal string or a
+  Decimal through `RegentFormat.amount/1`; any other text as written.
+  """
+  def short(%Decimal{} = amount), do: RegentFormat.amount(amount)
+
+  def short(amount) when is_binary(amount) do
     if Regex.match?(@plain_decimal, amount) do
-      amount |> decimal() |> rounded(round) |> Decimal.to_string(:normal)
+      {decimal, ""} = Decimal.parse(amount, max_digits: :infinity)
+      RegentFormat.amount(decimal)
     else
       amount
     end
   end
-
-  defp decimal(amount) do
-    {decimal, ""} = Decimal.parse(amount, max_digits: :infinity)
-    decimal
-  end
-
-  @million Decimal.new(1_000_000)
-
-  defp price_figure(amount, round) do
-    if Regex.match?(@plain_decimal, amount) and
-         Decimal.gte?(decimal(amount), @million) do
-      [exact: amount, shown: compact(amount)]
-    else
-      short = significant(amount, round)
-      [exact: short, shown: zeros(short)]
-    end
-  end
-
-  # In whole-number arithmetic: Decimal's own rounding would first cut an exact
-  # Q96 price to its context precision and could round it twice.
-  defp rounded(%Decimal{coef: 0}, _round), do: Decimal.new(0)
-
-  defp rounded(%Decimal{sign: sign, coef: coef, exp: exp}, round) do
-    cut = max(length(Integer.digits(coef)) - @significant_digits, 0)
-    unit = Integer.pow(10, cut)
-    kept = div(coef, unit)
-    kept = if round == :nearest and 2 * rem(coef, unit) >= unit, do: kept + 1, else: kept
-    trimmed(sign, kept, exp + cut)
-  end
-
-  defp trimmed(sign, coef, exp) when rem(coef, 10) == 0, do: trimmed(sign, div(coef, 10), exp + 1)
-  defp trimmed(sign, coef, exp), do: Decimal.new(sign, coef, exp)
 
   attr :text, :string, required: true
   attr :tickers, :list, default: [], doc: "the tickers to pick out; blanks are skipped"
@@ -181,7 +93,7 @@ defmodule AutolaunchWeb.TokenDisplay do
     """
   end
 
-  @number "(?<![\\w.])\\d(?:[\\d,\\x{2080}-\\x{2089}]|\\.(?=\\d))*(?!\\w)"
+  @number "(?<![\\w.])\\d(?:[\\d,]|\\.(?=\\d))*(?!\\w)"
 
   defp marks(text, tickers) do
     pattern = Regex.compile!("(#{@number})(?: (#{names(tickers)}))?|(#{names(tickers)})", "u")
@@ -258,21 +170,5 @@ defmodule AutolaunchWeb.TokenDisplay do
     ~H"""
     {" "}<span class="figure__unit">{@unit}</span>
     """
-  end
-
-  defp compact(amount) do
-    decimal = decimal(amount)
-
-    Enum.find_value(@scales, amount, fn {scale, suffix} ->
-      Decimal.gte?(decimal, scale) && mantissa(decimal, scale) <> suffix
-    end)
-  end
-
-  defp mantissa(decimal, scale) do
-    decimal
-    |> Decimal.div(scale)
-    |> Decimal.round(2, :floor)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
   end
 end
