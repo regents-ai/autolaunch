@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: Buy Credits never opens a wallet that can't pay
+- Pressing Buy on Credits the moment the page changed wallet or amount could open your wallet for a purchase it was certain to refuse, such as one with too little USDC or before the approval. Now the button shows why it can't go through, as it already did once the page caught up. Bids are unchanged.
+
 ## 27 October 2026: clearer agent list
 - On your Account page, each paired agent now shows its whole name, with its address and its copy and explorer buttons on the line beneath, as on every Regents site.
 

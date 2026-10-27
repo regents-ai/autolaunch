@@ -1,5 +1,5 @@
 {
-  "total": 114,
+  "total": 115,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1484,6 +1484,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "b227dbefbd56b6d713ae3bf2d65b34e367c984c300e8b3dbda9989e0c029e6a9"
+    },
+    {
+      "id": 155,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/credits_press_test.exs",
+      "line": 15,
+      "test_name": "a Buy certain to fail is never handed to the wallet",
+      "keep_because": "Property: for any amount, USDC balance and approval read at the latest block, a press that asks the server for its steps gets no Buy when the Buy button would be disabled (too little USDC, or no approval on the chain yet), and gets a Buy that may go through and every approval. It fails on the reply that skipped the check, which on Keyfleet on 27 Oct asked a wallet holding nothing to send.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "fabab02c511cf9b81928a159084ea00897649b247986d8d6aabff3d61ffd343e"
     }
   ],
   "legacy_folders_to_remove": [
