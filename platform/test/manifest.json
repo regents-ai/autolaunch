@@ -1,5 +1,5 @@
 {
-  "total": 111,
+  "total": 114,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1445,6 +1445,45 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "f19f4ae2bfaa9e09efcf4523aa73685714ac0ccabeba8b16a0957c902b4d686d"
+    },
+    {
+      "id": 152,
+      "group": "Addresses",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/trailing_slash_test.exs",
+      "line": 9,
+      "test_name": "a page address with a slash at the end is the site's not-found page",
+      "keep_because": "Fails if any page address ending in a slash answers 200 (a second address for the page) or crashes with 500, as /contact/ and /docs/ did on the live site on 27 Oct.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b227dbefbd56b6d713ae3bf2d65b34e367c984c300e8b3dbda9989e0c029e6a9"
+    },
+    {
+      "id": 153,
+      "group": "Addresses",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/trailing_slash_test.exs",
+      "line": 17,
+      "test_name": "an API address with a slash at the end is the API's not-found answer",
+      "keep_because": "Fails if an /api address ending in a slash answers anything but the API's own not_found JSON, so agents always get the error shape they read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b227dbefbd56b6d713ae3bf2d65b34e367c984c300e8b3dbda9989e0c029e6a9"
+    },
+    {
+      "id": 154,
+      "group": "Addresses",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/trailing_slash_test.exs",
+      "line": 25,
+      "test_name": "the homepage keeps its slash",
+      "keep_because": "Fails if the slash rule also refuses the homepage, whose address is the slash itself.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b227dbefbd56b6d713ae3bf2d65b34e367c984c300e8b3dbda9989e0c029e6a9"
     }
   ],
   "legacy_folders_to_remove": [
