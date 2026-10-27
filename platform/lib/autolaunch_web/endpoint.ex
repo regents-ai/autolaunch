@@ -65,6 +65,10 @@ defmodule AutolaunchWeb.Endpoint do
     documents: &AutolaunchWeb.PublicDocuments.document/1,
     guide: "/agents.md"
 
+  # After the error format is chosen, so a slash address is answered as any
+  # address that names nothing.
+  plug AutolaunchWeb.Plugs.NoTrailingSlash
+
   plug AutolaunchWeb.Plugs.Parsers,
     body_reader: {AutolaunchWeb.Plugs.BodyReader, :read_body, []},
     parsers: [:urlencoded, :multipart, :json],
