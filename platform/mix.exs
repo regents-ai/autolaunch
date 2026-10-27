@@ -5,6 +5,9 @@ defmodule Autolaunch.MixProject do
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "78f92d52ea1685f3d5efc4f4c2af0caf7bf1f4a5"
+  # RegentFormat shows amounts of any size exactly from this commit (1e32 and up
+  # raised before); the other packages move with their own releases.
+  @regent_format_ref "836a48396eed56daac95699aa810e4fe0e3d2210"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "d53b8f1283d12b1539ff710caae83342015b6279"
 
@@ -106,7 +109,7 @@ defmodule Autolaunch.MixProject do
       {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
       {:regent_format,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
+       git: @elixir_utils, ref: @regent_format_ref, sparse: "format", override: true},
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
       {:mdex, "== 0.14.2"},
