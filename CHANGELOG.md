@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: your USDC shown the one Regents way
+- The USDC balance in the Credits window now reads as on every Regents site: amounts of 1 and above show two decimals with thousands separated ("1,234.56"), smaller amounts show their first three digits ("0.000999"), and digits are cut, never rounded up. Amounts you type stay exactly as typed.
+- Nothing else changes on the pages. Credits and agent changes made on any Regents site still reach your open Account page straight away, now over one link to the shared database instead of two.
+
 ## 27 October 2026: menus and panels in one order
 - On a phone, the open side panel now runs to the foot of the screen, over the ticker of recent bids and trades, instead of leaving the ticker showing and pressable beneath it.
 - Menus, filters, hover names and the notice after a trade now lie flat on the page, without a soft shadow. The header, menus, side panel and notices stack in the same order as on the other Regents sites.

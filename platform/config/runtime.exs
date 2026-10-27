@@ -214,6 +214,12 @@ config :autolaunch, :autolaunch_indexer_chains, indexer_chains
 if database_config do
   config :autolaunch, :database_startup_enabled, true
   config :autolaunch, Autolaunch.Repo, database_config
+
+  unless migrating? do
+    config :autolaunch,
+           Autolaunch.Notifications,
+           Autolaunch.DatabaseConfig.notifications_config!(config_env())
+  end
 end
 
 # The finisher sends `migrate` for every ended auction on the launchpads this

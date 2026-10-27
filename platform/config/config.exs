@@ -52,6 +52,7 @@ config :autolaunch, Oban,
   lifeline: [rescue_after: {20, :minutes}]
 
 config :regent_agents,
+  notifications: Autolaunch.Notifications,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
   account: {Autolaunch.Agents, :paired_account},
@@ -59,6 +60,7 @@ config :regent_agents,
   siwa: [url: "https://siwa.regents.sh", audience: "autolaunch"]
 
 config :regent_credits,
+  notifications: Autolaunch.Notifications,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
   ash_domains: [RegentCredits],
