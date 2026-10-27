@@ -44,12 +44,14 @@ defmodule AutolaunchWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :autolaunch, prefix: "autolaunch_app"
   end
 
+  # Before the request is counted, so an address refused outright writes no
+  # visit line for each of its tries.
+  plug :refuse_blocked
+
   plug Plug.RequestId
   # Which visit, and which kind of caller, each line of this request belongs to.
   plug AutolaunchWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
-
-  plug :refuse_blocked
 
   # One budget per client address, shared by the health check, the browser's visit
   # reports, every /api address and the share pictures, answered or not. Every
