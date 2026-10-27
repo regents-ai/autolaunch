@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: each agent keeps its pairing code
+- When you pair an agent, each agent you choose keeps its own code until it expires. Choosing another agent and coming back shows the same message and code again, instead of a new one each time. The refresh icon still makes a new code for the agent you have chosen.
+
 ## 28 October 2026: a calmer home page
 - The Autolaunch name now sits at the left of the top bar, beside search, in the site's pixel lettering, next to its mark. It no longer sits above the links in the left column. On a phone the top bar shows the mark alone, as before.
 - When no auction is taking bids, "Coming next" now says so in one framed line: "No auction is taking bids. New auctions show here as soon as bidding opens." The row of stock buttons and the three finished-auction cards that sat there are gone; finished auctions stay in the list further down.
