@@ -520,17 +520,10 @@ defmodule AutolaunchWeb.Components.RegentNext do
 
   defp block(facts), do: grouped(facts.block_number)
 
-  # A USDC amount to the cent, never rounded up.
   defp usdc(amount), do: "#{dollars(amount)} USDC"
 
-  # A dollar amount, USDC or USDG, to the cent, never rounded up.
-  defp dollars(amount),
-    do:
-      amount
-      |> Decimal.new()
-      |> Decimal.round(2, :down)
-      |> Decimal.to_string(:normal)
-      |> Amounts.grouped()
+  # A dollar amount, USDC or USDG, as every Regent page writes an amount.
+  defp dollars(amount), do: amount |> Decimal.new() |> RegentFormat.amount()
 
   # A fraction as a percent to two decimal places, so a split's two parts
   # read to the same precision and add up to 100%.

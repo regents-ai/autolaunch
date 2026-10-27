@@ -331,7 +331,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
         <div class="token-swap__review-side">
           <p>
             <span class="token-swap__review-label">You get about</span>
-            <AutolaunchWeb.TokenDisplay.written value={@review.receive} unit={@review.buy_symbol} />
+            <AutolaunchWeb.TokenDisplay.tokens amount={@review.receive} unit={@review.buy_symbol} />
           </p>
           <img
             :if={@buy_image}
@@ -351,7 +351,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
           <div>
             <dt>Receive at least</dt>
             <dd>
-              <AutolaunchWeb.TokenDisplay.written value={@review.minimum} unit={@review.buy_symbol} />
+              <AutolaunchWeb.TokenDisplay.tokens amount={@review.minimum} unit={@review.buy_symbol} />
             </dd>
           </div>
           <div>
@@ -432,8 +432,8 @@ defmodule AutolaunchWeb.Components.SwapForm do
             value={@swapped["paid_units"]}
             unit={@swapped["sell_symbol"]}
           /> for
-          <AutolaunchWeb.TokenDisplay.written
-            value={@swapped["received_units"]}
+          <AutolaunchWeb.TokenDisplay.tokens
+            amount={@swapped["received_units"]}
             unit={@swapped["buy_symbol"]}
           />
         </p>
@@ -545,7 +545,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
   def step_note(_step, _index, _count, _next), do: nil
 
   defp output(:unread), do: "No quote right now"
-  defp output(amount) when is_binary(amount), do: amount
+  defp output(amount) when is_binary(amount), do: AutolaunchWeb.TokenDisplay.short(amount)
   defp output(nil), do: "0"
 
   attr :size, :string, required: true

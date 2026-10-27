@@ -163,7 +163,7 @@ defmodule AutolaunchWeb.ConvertComponent do
             </div>
             <p class="token-swap__leg-foot">
               <span>
-                <TokenDisplay.written value={@pool.fees.regent.accrued} unit={@pool.currency.symbol} />
+                <TokenDisplay.tokens amount={@pool.fees.regent.accrued} unit={@pool.currency.symbol} />
                 waiting
               </span>
             </p>

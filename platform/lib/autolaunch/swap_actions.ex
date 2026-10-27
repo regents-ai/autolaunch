@@ -168,7 +168,7 @@ defmodule Autolaunch.SwapActions do
          {:ok, quote} <- quote(trade, amount_in, pool.block, venue) do
       {:ok,
        %{
-         received: compact(units(quote, trade.buy), 8),
+         received: units(quote, trade.buy),
          rate: rate(trade, amount_in, quote, pool)
        }}
     end
@@ -197,15 +197,8 @@ defmodule Autolaunch.SwapActions do
            {:ok, %{atomic: atomic, decimals: asset.decimals, shown: held(atomic, asset.decimals)}}
   end
 
-  # A balance line: cut, never rounded up, to four decimal places.
-  defp held(atomic, decimals) do
-    atomic
-    |> Decimal.new()
-    |> Decimal.div(Decimal.new(Integer.pow(10, decimals)))
-    |> Decimal.round(4, :down)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-  end
+  # A balance line, as every Regent page writes an amount.
+  defp held(atomic, decimals), do: RegentFormat.token_amount(atomic, decimals)
 
   @doc "A whole-percent share of a balance from `balances/2`, as the exact amount to type."
   @spec portion(%{atomic: non_neg_integer(), decimals: non_neg_integer()}, 1..100) :: String.t()
@@ -222,10 +215,8 @@ defmodule Autolaunch.SwapActions do
       |> Decimal.new()
       |> Decimal.div(Decimal.new(Integer.pow(10, pool.currency.decimals)))
       |> Decimal.div(Decimal.div(token_atomic, Integer.pow(10, pool.token.decimals)))
-      |> Decimal.normalize()
-      |> Decimal.to_string(:normal)
 
-    "1 #{pool.token.symbol} = #{compact(price, 6)} #{pool.currency.symbol}"
+    "1 #{pool.token.symbol} = #{RegentFormat.amount(price)} #{pool.currency.symbol}"
   end
 
   # The pool and the two sides of the trade
@@ -447,8 +438,8 @@ defmodule Autolaunch.SwapActions do
     %{
       pay: units(amount_in, trade.sell),
       sell_symbol: trade.sell.symbol,
-      receive: compact(units(snapshot.quote, trade.buy), 8),
-      minimum: compact(units(min_out, trade.buy), 8),
+      receive: units(snapshot.quote, trade.buy),
+      minimum: units(min_out, trade.buy),
       buy_symbol: trade.buy.symbol,
       protection: protection_percent(protection),
       fees: fees(pool, trade)
@@ -541,7 +532,7 @@ defmodule Autolaunch.SwapActions do
 
     %{
       "received_atomic" => Integer.to_string(received),
-      "received_units" => compact(Rpc.format_units(received, context.buy_decimals), 8),
+      "received_units" => Rpc.format_units(received, context.buy_decimals),
       "paid_units" => Rpc.format_units(context.amount_in, context.sell_decimals),
       "sell_symbol" => context.sell_symbol,
       "buy_symbol" => context.buy_symbol
@@ -566,7 +557,6 @@ defmodule Autolaunch.SwapActions do
   defp topic_address("0x" <> hex), do: "0x" <> String.pad_leading(String.downcase(hex), 64, "0")
 
   defp units(amount, %{decimals: decimals}), do: Rpc.format_units(amount, decimals)
-  defp compact(value, significant), do: Amounts.compact_decimal(value, significant)
 
   defp decoded({:ok, value}), do: {:ok, value}
   defp decoded(:error), do: unavailable(:invalid_chain_response)

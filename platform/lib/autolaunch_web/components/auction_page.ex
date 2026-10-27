@@ -10,7 +10,6 @@ defmodule AutolaunchWeb.Components.AuctionPage do
   """
   use Phoenix.Component
 
-  alias AutolaunchWeb.Components.MarketCard
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
   alias Phoenix.LiveView.JS
 
@@ -47,14 +46,17 @@ defmodule AutolaunchWeb.Components.AuctionPage do
         <div class="auction-headline__stat">
           <dt>FDV</dt>
           <dd>
-            <strong><.short amount={@record.fdv} unit={@record.quote_token_symbol} /></strong>
+            <strong><TokenDisplay.amount amount={@record.fdv} unit={@record.quote_token_symbol} /></strong>
             <UsdValue.usd amount={@record.fdv} rate={@usd_rate} />
           </dd>
         </div>
         <div class="auction-headline__stat">
           <dt>Bids placed</dt>
           <dd>
-            <strong><.short amount={@record.bid_volume} unit={@record.quote_token_symbol} /></strong>
+            <strong><TokenDisplay.amount
+              amount={@record.bid_volume}
+              unit={@record.quote_token_symbol}
+            /></strong>
             <UsdValue.usd amount={@record.bid_volume} rate={@usd_rate} />
           </dd>
         </div>
@@ -63,18 +65,6 @@ defmodule AutolaunchWeb.Components.AuctionPage do
         See full details <span aria-hidden="true">→</span>
       </button>
     </div>
-    """
-  end
-
-  attr :amount, :any, required: true
-  attr :unit, :string, required: true
-
-  # A large total in four significant digits, a tiny one with its zeros counted.
-  defp short(%{amount: nil} = assigns), do: ~H"—"
-
-  defp short(assigns) do
-    ~H"""
-    <TokenDisplay.counted amount={MarketCard.compact(@amount)} unit={@unit} />
     """
   end
 

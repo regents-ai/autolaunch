@@ -315,7 +315,7 @@ defmodule AutolaunchWeb.Components.BidForm do
         <input type="hidden" name="fdv_shown" value={@fdv} />
         <p class="bid-box__sub">
           <span :if={@fdv_in_price_unit && @fdv_unit != @price_unit}>
-            ≈ <TokenDisplay.written value={figure(@fdv_in_price_unit)} unit={@price_unit} />
+            ≈ <TokenDisplay.amount amount={@fdv_in_price_unit} unit={@price_unit} />
           </span>
           <UsdValue.usd
             :if={@fdv_in_price_unit && @fdv_unit == @price_unit && @rate != :test_network}
@@ -420,10 +420,10 @@ defmodule AutolaunchWeb.Components.BidForm do
   defp expected(%{outlook: %{reaches?: true, about: about}} = assigns) when is_binary(about) do
     ~H"""
     <p class="bid-box__figure">
-      ≈ {figure(decimal(@outlook.about))} <span class="ticker">{@token}</span>
+      ≈ {TokenDisplay.short(decimal(@outlook.about))} <span class="ticker">{@token}</span>
     </p>
     <p :if={@outlook.at_least} class="bid-box__sub">
-      At least <span class="figure__value">{figure(decimal(@outlook.at_least), :floor)}</span>
+      At least <span class="figure__value">{TokenDisplay.short(decimal(@outlook.at_least))}</span>
       if the price rises to your max
     </p>
     """
@@ -524,22 +524,17 @@ defmodule AutolaunchWeb.Components.BidForm do
   defp stop_prices(_supply, _unit), do: []
 
   defp price_text(value, unit) do
-    short = value |> plain() |> TokenDisplay.short()
-    TokenDisplay.zeros(if unit in @dollars, do: "$" <> short, else: "#{short} #{unit}")
+    short = TokenDisplay.short(value)
+    if unit in @dollars, do: "$" <> short, else: "#{short} #{unit}"
   end
 
-  # A total: whole and grouped from a thousand up, cents from one up, and four
-  # significant digits below that.
-  defp figure(value, mode \\ :half_up) do
+  # The max FDV field's text when the price or a stop set it: whole and grouped
+  # from a thousand up, cents from one up, and exact below that.
+  defp figure(value) do
     cond do
-      Decimal.gte?(value, 1000) ->
-        value |> Decimal.round(0, mode) |> grouped()
-
-      Decimal.gte?(value, 1) ->
-        value |> Decimal.round(2, mode) |> Decimal.normalize() |> grouped()
-
-      true ->
-        value |> plain() |> TokenDisplay.short(if mode == :floor, do: :down, else: :nearest)
+      Decimal.gte?(value, 1000) -> value |> Decimal.round(0) |> grouped()
+      Decimal.gte?(value, 1) -> value |> Decimal.round(2) |> Decimal.normalize() |> grouped()
+      true -> plain(value)
     end
   end
 

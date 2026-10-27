@@ -36,7 +36,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidActions, BidSettlementActions, Lab, LabProjection}
   alias Autolaunch.Chain.{Client, Rpc}
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{AuctionBook, SwapForm}
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, Paths, TokenDisplay, UsdValue}
@@ -187,7 +186,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             <TokenDisplay.price
               amount={@prepared.facts.currency_refunded}
               unit={@prepared.facts.currency_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@prepared.facts.currency_refunded} rate={@rate} />
             comes back to your wallet now. The tokens this bid has bought are yours to claim after the auction.
@@ -274,7 +272,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             <TokenDisplay.price
               amount={@position.max_price}
               unit={@auction.quote_token_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@position.max_price} rate={@rate} per="per token" />
           </dd>
@@ -285,7 +282,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             <TokenDisplay.price
               amount={@position.currency_refunded}
               unit={@auction.quote_token_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@position.currency_refunded} rate={@rate} />
           </dd>
@@ -293,8 +289,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <div :if={positive?(@position.tokens_filled)}>
           <dt>Tokens won</dt>
           <dd>
-            <TokenDisplay.written
-              value={tokens(@position.tokens_filled)}
+            <TokenDisplay.tokens
+              amount={@position.tokens_filled}
               unit={@auction.token_symbol}
             />
           </dd>
@@ -302,8 +298,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <div :if={positive?(@position.tokens_claimed)}>
           <dt>Tokens claimed</dt>
           <dd>
-            <TokenDisplay.written
-              value={tokens(@position.tokens_claimed)}
+            <TokenDisplay.tokens
+              amount={@position.tokens_claimed}
               unit={@auction.token_symbol}
             />
           </dd>
@@ -418,7 +414,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             <TokenDisplay.price
               amount={@prepared.facts.currency_refunded}
               unit={@prepared.facts.currency_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@prepared.facts.currency_refunded} rate={@rate} />
           </dd>
@@ -426,8 +421,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <div :if={@prepared.facts.tokens_claimed || @prepared.facts.tokens_filled}>
           <dt>You get</dt>
           <dd>
-            <TokenDisplay.written
-              value={tokens(@prepared.facts.tokens_claimed || @prepared.facts.tokens_filled)}
+            <TokenDisplay.tokens
+              amount={@prepared.facts.tokens_claimed || @prepared.facts.tokens_filled}
               unit={@prepared.facts.token_symbol}
             />
           </dd>
@@ -824,11 +819,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   end
 
   defp settled_copy(%{"tokens_claimed_units" => tokens}, auction),
-    do: "#{tokens(tokens)} #{auction.token_symbol} tokens were delivered to your wallet."
+    do:
+      "#{TokenDisplay.short(tokens)} #{auction.token_symbol} tokens were delivered to your wallet."
 
   defp settled_copy(%{"currency_refunded_units" => refunded}, auction),
     do:
-      "#{TokenDisplay.short(refunded, :down)} #{auction.quote_token_symbol} was returned to your wallet."
+      "#{TokenDisplay.short(refunded)} #{auction.quote_token_symbol} was returned to your wallet."
 
   defp settled_copy(_none, _auction), do: nil
 
@@ -960,11 +956,11 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   @doc """
   The press that returns a failed auction's whole bid, with the amount that
-  comes back, rounded down. The bid page, the portfolio and both settlement
+  comes back. The bid page, the portfolio and both settlement
   dialogs use it so the one action has one name.
   """
   def refund_label(amount, symbol),
-    do: "Refund #{amount |> TokenDisplay.short(:down) |> TokenDisplay.zeros()} #{symbol}"
+    do: "Refund #{TokenDisplay.short(amount)} #{symbol}"
 
   # The auction's end and claim blocks, which never change, read once from
   # its reading (`Autolaunch.AuctionReading`); nil before its first.
@@ -1037,8 +1033,4 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     |> assign(:usd_rate_for, auction.id)
     |> UsdValue.assign_rate(:usd_rate, :base, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
   end
-
-  # A token amount cut to four significant digits, never rounded up, its whole
-  # part grouped in thousands: 68493.15 reads as 68,490.
-  defp tokens(value), do: value |> TokenDisplay.short(:down) |> Amounts.grouped()
 end

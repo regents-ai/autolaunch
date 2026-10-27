@@ -51,7 +51,7 @@ defmodule AutolaunchWeb.TokenPageFirstScreenTest do
 
     figures = view |> element("#token-figures") |> render()
     assert figures =~ "0.002"
-    assert figures =~ "2K REGENT"
+    assert figures =~ "2,000.00 REGENT"
     refute html =~ "Chart unavailable"
   end
 end

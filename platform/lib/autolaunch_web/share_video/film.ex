@@ -23,6 +23,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   """
 
   alias AutolaunchWeb.ShareCard.Draw
+  alias AutolaunchWeb.TokenDisplay
   alias Vix.Vips.{Image, Operation}
 
   @width 1080
@@ -989,7 +990,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   defp money(story, value),
     do: Draw.money(decimal(value), story.rate, story.auction)
 
-  defp amount(value), do: Draw.short(decimal(value))
+  defp amount(value), do: TokenDisplay.short(decimal(value))
 
   defp decimal(value) when value <= 0, do: Decimal.new(0)
   defp decimal(value), do: Decimal.from_float(value * 1.0)

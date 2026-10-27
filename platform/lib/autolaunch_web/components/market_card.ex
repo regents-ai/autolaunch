@@ -928,20 +928,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   @doc """
   A price per token in dollars where the currency's dollar price is known,
-  otherwise in the currency itself. A tiny price counts its zeros after the
-  point, as in `$0.0₄123`, with the plain figure kept for screen readers.
+  otherwise in the currency itself.
   """
   def price_figure(assigns) do
     price = decimal(assigns.amount)
-    usd = if price && assigns.rate, do: dollars(price, assigns.rate)
-    shown = if usd, do: TokenDisplay.zeros(usd)
-    assigns = assign(assigns, usd: usd, shown: shown)
+
+    assigns =
+      assign(
+        assigns,
+        :usd,
+        price && assigns.rate && UsdValue.dollars(Decimal.mult(price, assigns.rate))
+      )
 
     ~H"""
-    <span :if={@usd && @shown == @usd}>{@usd}</span>
-    <span :if={@usd && @shown != @usd}>
-      <span aria-hidden="true">{@shown}</span><span class="visually-hidden">{@usd}</span>
-    </span>
+    <span :if={@usd}>{@usd}</span>
     <TokenDisplay.price :if={!@usd} amount={@amount} unit={@unit} />
     """
   end
@@ -984,48 +984,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
       money(auction.bid_volume, nil, auction.quote_token_symbol) || "Not counted yet"
   end
 
-  # Dollar figures are shortened the way market lists write them, to three
-  # significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M.
-  defp dollars(%Decimal{} = amount, rate) do
-    value = Decimal.mult(amount, rate)
-    if Decimal.eq?(value, 0), do: "$0", else: "$" <> compact(value)
-  end
-
   @doc """
   An amount in dollars where its currency's dollar price is known, otherwise
-  in the currency itself, shortened as the lists write it; nil while the
-  amount is not known. A tiny amount counts its zeros after the point, as the
-  clearing price does.
+  in the currency itself; nil while the amount is not known.
   """
   def money(amount, rate, unit \\ nil)
   def money(nil, _rate, _unit), do: nil
 
   def money(%Decimal{} = amount, nil, unit),
-    do: TokenDisplay.zeros(String.trim("#{compact(amount)} #{unit}"))
+    do: String.trim("#{TokenDisplay.short(amount)} #{unit}")
 
-  def money(%Decimal{} = amount, rate, _unit), do: TokenDisplay.zeros(dollars(amount, rate))
-
-  @doc "An amount shortened to three significant digits: 0.0000123, 1.48, 24.7K, 1.48M."
-  def compact(value) do
-    # Rounded before the suffix is chosen, so 999,999 reads 1M, not 1000K.
-    value = value |> significant() |> Decimal.new()
-
-    [{1_000_000_000_000, "T"}, {1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
-    |> Enum.find(fn {size, _suffix} -> Decimal.gte?(value, size) end)
-    |> case do
-      {size, suffix} -> value |> Decimal.div(size) |> significant() |> Kernel.<>(suffix)
-      nil -> significant(value)
-    end
-  end
-
-  defp significant(%Decimal{coef: coef, exp: exp} = value) do
-    digits = coef |> Integer.digits() |> length()
-
-    value
-    |> Decimal.round(3 - digits - exp)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
-  end
+  def money(%Decimal{} = amount, rate, _unit), do: UsdValue.dollars(Decimal.mult(amount, rate))
 
   # Stored prices can run past a hundred decimal places.
   defp decimal(value) when is_binary(value) do

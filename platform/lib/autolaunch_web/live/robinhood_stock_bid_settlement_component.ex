@@ -35,7 +35,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Client, Rpc}
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.{AuctionBook, SwapForm}
   alias AutolaunchWeb.Live.Session
 
@@ -196,7 +195,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
             <TokenDisplay.price
               amount={@prepared.facts.stock_refunded}
               unit={@prepared.facts.stock_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@prepared.facts.stock_refunded} rate={@usd_rate} />
             comes back to your wallet now. The tokens this bid has bought are yours to claim after the auction.
@@ -352,7 +350,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
             <TokenDisplay.price
               amount={@prepared.facts.stock_refunded}
               unit={@prepared.facts.stock_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@prepared.facts.stock_refunded} rate={@rate} />
           </dd>
@@ -360,8 +357,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         <div :if={positive?(@prepared.facts.tokens_claimed || @prepared.facts.tokens_filled)}>
           <dt>You get</dt>
           <dd>
-            <TokenDisplay.written
-              value={tokens(@prepared.facts.tokens_claimed || @prepared.facts.tokens_filled)}
+            <TokenDisplay.tokens
+              amount={@prepared.facts.tokens_claimed || @prepared.facts.tokens_filled}
               unit={@token_symbol}
             />
           </dd>
@@ -372,7 +369,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
             <TokenDisplay.price
               amount={@prepared.facts.final_price}
               unit={@prepared.facts.stock_symbol}
-              round={:down}
             />
             <UsdValue.usd amount={@prepared.facts.final_price} rate={@rate} per="per token" />
           </dd>
@@ -791,11 +787,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   end
 
   defp settled_copy(%{"tokens_claimed_units" => tokens}, _prepared, token_symbol),
-    do: "#{tokens(tokens)} #{token_symbol} tokens were delivered to your wallet."
+    do: "#{TokenDisplay.short(tokens)} #{token_symbol} tokens were delivered to your wallet."
 
   defp settled_copy(%{"stock_refunded_units" => refunded}, prepared, _token_symbol),
     do:
-      "#{TokenDisplay.short(refunded, :down)} #{stock_symbol(%{prepared: prepared})} was returned to your wallet."
+      "#{TokenDisplay.short(refunded)} #{stock_symbol(%{prepared: prepared})} was returned to your wallet."
 
   defp settled_copy(_none, _prepared, _token_symbol), do: nil
 
@@ -889,8 +885,4 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
-
-  # A token amount cut to four significant digits, never rounded up, its whole
-  # part grouped in thousands: 68493.15 reads as 68,490.
-  defp tokens(value), do: value |> TokenDisplay.short(:down) |> Amounts.grouped()
 end

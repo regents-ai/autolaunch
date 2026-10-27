@@ -81,30 +81,6 @@ defmodule Autolaunch.Stocks.Amounts do
   end
 
   @doc """
-  A plain decimal shortened for reading: at most `significant` significant digits,
-  truncated (never rounded up) and marked with an ellipsis when digits were cut,
-  so a shown price is never higher than the exact one it stands for.
-  """
-  def compact_decimal(value, significant \\ 12)
-      when is_binary(value) and is_integer(significant) and significant > 0 do
-    case String.split(value, ".", parts: 2) do
-      [_whole] ->
-        value
-
-      [whole, fraction] ->
-        leading_zeros = byte_size(fraction) - byte_size(String.trim_leading(fraction, "0"))
-        whole_digits = if whole == "0", do: 0, else: byte_size(whole)
-
-        keep =
-          max(significant - whole_digits, 0) + if(whole_digits == 0, do: leading_zeros, else: 0)
-
-        if byte_size(fraction) <= keep,
-          do: value,
-          else: whole <> "." <> String.slice(fraction, 0, keep) <> "…"
-    end
-  end
-
-  @doc """
   A plain decimal with its whole part grouped in thousands for reading:
   "100000" reads as "100,000"; digits after the point are kept exactly.
   """
