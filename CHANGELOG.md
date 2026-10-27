@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: page addresses ending in a slash
+- An address such as autolaunch.sh/contact/ now shows the site's "page not found" page, as the template does, instead of an error page. autolaunch.sh/contact without the slash opens Contact as before.
+
 ## 26 October 2026: following a visit step by step
 - Nothing changes on the pages. The site's records now note each page opened, each button pressed and how it ended, under one code per visit, so a problem someone hits can be followed step by step. The records never hold your name, wallet, what you typed or which item you opened, only the kind of page.
 

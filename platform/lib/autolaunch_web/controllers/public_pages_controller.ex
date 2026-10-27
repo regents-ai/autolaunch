@@ -11,11 +11,22 @@ defmodule AutolaunchWeb.PublicPagesController do
 
   plug AutolaunchWeb.Plugs.PageShell when action == :show
 
+  # The router also answers an address with a slash at the end, which names no
+  # document, so that is the site's 404 like any other missing page.
   def show(conn, _params) do
     path = conn.request_path
-    %{markdown: markdown} = PublicDocuments.document(path)
 
-    render(conn, :show, [document: PublicDocuments.html(markdown)] ++ PublicDocuments.page(path))
+    case PublicDocuments.document(path) do
+      nil ->
+        raise AutolaunchWeb.NotFoundError
+
+      %{markdown: markdown} ->
+        render(
+          conn,
+          :show,
+          [document: PublicDocuments.html(markdown)] ++ PublicDocuments.page(path)
+        )
+    end
   end
 
   def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
