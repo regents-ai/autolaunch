@@ -79,4 +79,49 @@ defmodule AutolaunchWeb.AccountLiveTest do
     assert history =~ "Bought Credits"
     assert history =~ "+5"
   end
+
+  # PAIRING_CODE_KEPT_PER_AGENT: the pairing box held one code and made a new one
+  # on every agent choice, so choosing Codex, then Hermes, then Codex again showed
+  # a third code and the message already pasted to Codex no longer matched the
+  # screen (27 Oct 2026). Each agent now keeps its code until it expires, and
+  # "Make a new code" replaces only the chosen agent's, as ash-template's box does.
+  test "PAIRING_CODE_KEPT_PER_AGENT", %{conn: conn} do
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/account")
+
+    render_async(view, 1_000)
+    box = form(view, "#account-agents-pair")
+    shown = fn -> pairing_code(view) end
+
+    render_change(box, %{harness: "codex"})
+    codex = shown.()
+    render_change(box, %{harness: "hermes"})
+    hermes = shown.()
+    render_change(box, %{harness: "codex"})
+
+    assert codex != hermes
+    assert shown.() == codex
+
+    render_submit(box, %{harness: "codex"})
+    renewed = shown.()
+    assert renewed != codex
+
+    render_change(box, %{harness: "hermes"})
+    assert shown.() == hermes
+    render_change(box, %{harness: "codex"})
+    assert shown.() == renewed
+  end
+
+  # The code in the message the box shows for the chosen agent.
+  defp pairing_code(view) do
+    message = view |> element("#account-agents-pair pre:not([data-unused])") |> render()
+    [_, code] = Regex.run(~r/Pairing code:\s*([^\s<]+)/, message)
+    code
+  end
 end
