@@ -1,5 +1,5 @@
 {
-  "total": 116,
+  "total": 117,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1510,6 +1510,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fabab02c511cf9b81928a159084ea00897649b247986d8d6aabff3d61ffd343e"
+    },
+    {
+      "id": 157,
+      "group": "Money and reviewed funding conditions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/components/auction_book_test.exs",
+      "line": 14,
+      "test_name": "MINIMUM_SHORTFALL_NEVER_UNDERSTATED",
+      "keep_because": "Property: for any amount an auction is still short of its minimum, the line under a bid shows at least that much. Showing every amount the one Regents way cut digits off, so 1,234.567 missing read \"1,234.56\" and a bidder was told less was missing than is (27 Oct 2026). It fails on the line that cut the figure down.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "b402bac2528dfcc4fffd9dbd9155e799570ad0ae24bf2d4e3529b3b70d66251b"
     }
   ],
   "legacy_folders_to_remove": [

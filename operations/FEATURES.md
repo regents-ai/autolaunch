@@ -56,7 +56,7 @@ calls, atomically, after the chain read". What each action builds:
 | Bid on a Base auction | `autolaunch/bid_actions_test.exs` (every case); `autolaunch/bid_slippage_test.exs`; `autolaunch/chain/calls_test.exs` › "BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL"; `autolaunch/lab_bid_chain_client_test.exs` |
 | Bid on a Robinhood auction, see its standing | `autolaunch_web/live/robinhood_stock_bid_component_test.exs` (both cases). The bid itself: **gap** |
 | Add to, raise, or take back an outbid bid early | **Gap** |
-| Withdraw or claim after an auction | `autolaunch/bid_settlement_actions_test.exs` (all five cases) |
+| Withdraw or claim after an auction | `autolaunch/bid_settlement_actions_test.exs` (all five cases); the line saying how much the auction is still short of its minimum: `autolaunch_web/components/auction_book_test.exs` › "MINIMUM_SHORTFALL_NEVER_UNDERSTATED" |
 | Finish an ended auction | `autolaunch/auction_finish_test.exs` (all seven cases); `autolaunch/auction_finish_wallet_test.exs` |
 | Launch a Memestock token | `autolaunch/stocks/launch_actions_test.exs`; `autolaunch/stocks/amounts_test.exs` (all three cases); `autolaunch/memestock_discovery_test.exs` (all five cases) |
 | Launch a Revstake token | `autolaunch/launch_discovery_test.exs` (all seven cases); `autolaunch/treasury_chain_client_test.exs` (both cases) |

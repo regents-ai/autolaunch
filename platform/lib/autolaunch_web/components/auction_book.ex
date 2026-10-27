@@ -56,12 +56,12 @@ defmodule AutolaunchWeb.Components.AuctionBook do
   end
 
   def return_line(%{status: {:minimum, missing}} = assigns) do
-    assigns = assign(assigns, :missing, missing)
+    assigns = assign(assigns, missing: missing, shown: shortfall(missing))
 
     ~H"""
     <p id={@id} class="auction-book__back">
       Your money can come back once the auction reaches its minimum
-      (<TokenDisplay.price amount={@missing} unit={@unit} />
+      (<TokenDisplay.price amount={@shown} unit={@unit} />
       <UsdValue.usd
         amount={@missing}
         rate={@usd_rate}
@@ -88,6 +88,18 @@ defmodule AutolaunchWeb.Components.AuctionBook do
     </p>
     """
   end
+
+  # What is still missing, rounded up to the places every amount is shown to
+  # (`RegentFormat.amount/1`: two places from 1 up, three significant digits
+  # below), so the line never shows less than is missing.
+  defp shortfall(missing) do
+    decimal = Decimal.new(missing)
+    places = if Decimal.lt?(decimal, 1), do: 2 - leading_place(decimal), else: 2
+    decimal |> Decimal.round(places, :ceiling) |> Decimal.to_string(:normal)
+  end
+
+  # The place of the leading digit: 0 for units, -1 for tenths and so on.
+  defp leading_place(%Decimal{coef: coef, exp: exp}), do: length(Integer.digits(coef)) + exp - 1
 
   attr :id, :string, required: true
   attr :at, :any, required: true
