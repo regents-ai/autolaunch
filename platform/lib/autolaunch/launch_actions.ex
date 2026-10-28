@@ -507,8 +507,8 @@ defmodule Autolaunch.LaunchActions do
   # revoked, rebound or whose provider evidence has lapsed resolves to nothing.
   defp leased(%{lineage: lineage, account_id: account_id}) do
     case SessionAuthority.leased_account(lineage, account_id) do
-      nil -> unavailable(:session_unavailable)
-      account -> {:ok, account}
+      {:ok, nil} -> unavailable(:session_unavailable)
+      result -> result
     end
   end
 

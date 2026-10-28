@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.OnchainSteps do
   imply that wallet can send.
   """
 
-  import Phoenix.Component, only: [assign: 2]
+  import Phoenix.Component, only: [assign: 2, assign_new: 3]
   import Phoenix.LiveView, only: [push_event: 3, send_update_after: 4, start_async: 3]
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -44,8 +44,16 @@ defmodule AutolaunchWeb.OnchainSteps do
 
     if Map.get(assigns, :linked_for) == lease,
       do: socket,
-      else: socket |> assign(linked_for: lease) |> assign_wallets(leased_account(assigns))
+      else: adopt(socket, lease, leased_account(assigns))
   end
+
+  defp adopt(socket, lease, {:ok, account}),
+    do: socket |> assign(linked_for: lease) |> assign_wallets(account)
+
+  # A read that fails leaves the wallets as they were, and the next update reads
+  # them again.
+  defp adopt(socket, _lease, {:error, _error}),
+    do: socket |> assign_new(:linked, fn -> nil end) |> assign_new(:signed_in, fn -> nil end)
 
   @doc """
   The account as it reads now, before each of the panel's events and
@@ -67,7 +75,7 @@ defmodule AutolaunchWeb.OnchainSteps do
          true <- assigns[:current_human_id] == id do
       SessionAuthority.leased_account(lineage, id)
     else
-      _signed_out -> nil
+      _signed_out -> {:ok, nil}
     end
   end
 

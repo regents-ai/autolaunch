@@ -432,7 +432,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/ApiError"}
         "503":
-          description: The chain could not be read; nothing is left out, the whole answer is refused
+          description: The chain, or the signed-in account, could not be read just now (account_unavailable); nothing is left out, the whole answer is refused
           content:
             application/json:
               schema: {$ref: "#/components/schemas/ApiError"}
