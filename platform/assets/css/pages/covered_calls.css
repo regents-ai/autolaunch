@@ -1,5 +1,6 @@
 /* /covered-calls, the covered-call panel and the portfolio's covered-calls rows. Built as its
-   own stylesheet (config :esbuild) and linked only while covered calls are on. */
+   own stylesheet outside the public files (config :esbuild, covered_calls), and served and
+   linked only while covered calls are on. */
 .covered-calls { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
 .covered-calls__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 .covered-calls__intro { display: grid; gap: var(--space-1); max-width: 40rem; }

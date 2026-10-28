@@ -189,6 +189,13 @@ defmodule AutolaunchWeb.Router do
     post "/auctions/:id/bid-quote", AuctionController, :bid_quote
   end
 
+  # Covered calls' styles, at the address the other styles share; off, nothing is there.
+  scope "/assets/js", AutolaunchWeb do
+    pipe_through :covered_calls
+
+    get "/covered_calls.css", CoveredCallsController, :stylesheet
+  end
+
   scope "/api/v1", AutolaunchWeb do
     pipe_through [:api, :public_read, :covered_calls]
 

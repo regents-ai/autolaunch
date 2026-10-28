@@ -95,3 +95,4 @@ Thumbs.db
 # The browser walk's saved sign-in and what it keeps from a failed check.
 /test/browser/.auth/
 /test-results/
+/priv/covered_calls/

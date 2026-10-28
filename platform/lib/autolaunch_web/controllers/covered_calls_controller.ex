@@ -5,6 +5,9 @@ defmodule AutolaunchWeb.CoveredCallsController do
   signed-in person's own listings and holdings are read for the wallet they
   signed in with. Each calls the same `Autolaunch.CoveredCalls` operation the
   page and the agent routes call (`AutolaunchWeb.CoveredCallsAnswer`).
+
+  It also serves the covered-call styles, built outside `priv/static`
+  (`esbuild covered_calls`), so they are there only while covered calls are on.
   """
 
   use AutolaunchWeb, :controller
@@ -12,6 +15,19 @@ defmodule AutolaunchWeb.CoveredCallsController do
   alias Autolaunch.Actors.Human
   alias Autolaunch.CoveredCalls
   alias AutolaunchWeb.CoveredCallsAnswer, as: Answer
+
+  # Asked for on every page while on; the browser keeps its copy until the file changes.
+  # The path is the release's own built file; nothing in the request names it.
+  # sobelow_skip ["Traversal.FileModule"]
+  def stylesheet(conn, _params) do
+    css = File.read!(Application.app_dir(:autolaunch, "priv/covered_calls/covered_calls.css"))
+    etag = ~s("#{Base.encode16(:crypto.hash(:sha256, css), case: :lower)}")
+    conn = conn |> put_resp_header("etag", etag) |> put_resp_header("cache-control", "no-cache")
+
+    if etag in get_req_header(conn, "if-none-match"),
+      do: send_resp(conn, 304, ""),
+      else: conn |> put_resp_content_type("text/css") |> send_resp(200, css)
+  end
 
   def book(conn, %{"symbol" => symbol} = params) do
     if map_size(params) == 1,

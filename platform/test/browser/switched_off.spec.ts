@@ -1,3 +1,5 @@
+import {readdirSync, readFileSync} from "node:fs"
+import {join} from "node:path"
 import {expect, test} from "./support/test"
 import {signedIn} from "./support/person"
 
@@ -8,6 +10,28 @@ import {signedIn} from "./support/person"
 // layout that hands over their tools while on. The portfolio, which reads the
 // chain, and the documents are held by ExUnit (AutolaunchWeb.CoveredCallsOffTest).
 test.use(signedIn)
+
+// The walk's server built every asset (playwright.config.ts) before it started.
+const served = "priv/static"
+
+function files(folder: string): string[] {
+  return readdirSync(folder, {withFileTypes: true}).flatMap(entry =>
+    entry.isDirectory() ? files(join(folder, entry.name)) : [join(folder, entry.name)],
+  )
+}
+
+test("switched off, no file the site serves names covered calls, and their styles are not found", async ({request}) => {
+  const text = files(served).filter(file => /\.(js|css|map|json|txt|html|svg)$/.test(file))
+  expect(text.length, "the built assets were read").toBeGreaterThan(0)
+  expect(files(served).filter(file => named.test(file))).toEqual([])
+  expect(text.filter(file => named.test(readFileSync(file, "utf8")))).toEqual([])
+
+  const unknown = await request.get("/assets/js/nothing-here.css")
+  const styles = await request.get("/assets/js/covered_calls.css")
+  expect(unknown.status()).toBe(404)
+  expect(styles.status()).toBe(404)
+  expect(await styles.text()).toBe(await unknown.text())
+})
 
 const named = /covered[-_ ]?calls?|coveredcall/i
 

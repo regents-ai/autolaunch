@@ -41,6 +41,14 @@ defmodule AutolaunchWeb.CoveredCallsOffTest do
       |> pop_in(["info", "termsOfService"])
       |> elem(1)
 
+  test "COVERED_CALLS_OFF_NO_ASSET: the covered-call styles' address answers as an unknown asset" do
+    unknown = build_conn() |> get("/assets/js/nothing-here.css")
+    styles = build_conn() |> get("/assets/js/covered_calls.css")
+
+    assert unknown.status == 404
+    assert {styles.status, styles.resp_body} == {unknown.status, unknown.resp_body}
+  end
+
   test "COVERED_CALLS_OFF_UNNAMED: no agent document or page names covered calls" do
     for path <- @documents ++ @pages do
       body = build_conn() |> get(path) |> response(200) |> String.replace(@coming_soon, "")
