@@ -71,7 +71,7 @@ calls, atomically, after the chain read". What each action builds:
 | Stake, unstake, collect | `autolaunch/stocks/stake_actions_test.exs` › "settle on a Base Revstake launch is one collect(lp_token_id) step on the lp_locker". Stake and unstake: **gap** |
 | Make a payment into a Revstake split | **Gap** |
 | Sell fee shares on `/convert` | **Gap** |
-| Lab test funds (lab sites only) | **Gap** |
+| Lab test funds (lab sites only) | `autolaunch/stocks/faucet_test.exs` (refused on a Base mainnet site). Sending on a lab: **gap** |
 
 ## Shared links
 

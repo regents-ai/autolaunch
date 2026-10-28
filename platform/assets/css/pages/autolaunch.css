@@ -13,9 +13,12 @@
 .autolaunch-kicker, .autolaunch-micro { display: block; color: var(--rg-local-ink, var(--color-fg-muted)); font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
 /* The lab line stays at the top of the screen above the header, at a fixed height
    (`--shell-lab`, shell/top_bar.css) so the header, the side panel and the phone
-   menu open just under it; on a phone it takes two lines. */
-:root:has(.autolaunch-lab-warning) { --shell-lab: 2.5rem; }
+   menu open just under it: one line, two on a phone, three on the narrowest
+   screens or with large text. A jump to a heading or a focused control stops under
+   both. */
+:root:has(.autolaunch-lab-warning) { --shell-lab: 2.5rem; scroll-padding-block-start: var(--shell-top-end); }
 @media (max-width: 47.99rem) { :root:has(.autolaunch-lab-warning) { --shell-lab: 3.25rem; } }
+@media (max-width: 23.99rem) { :root:has(.autolaunch-lab-warning) { --shell-lab: 4.5rem; } }
 .autolaunch-lab-warning { position: sticky; inset-block-start: 0; z-index: var(--rg-layer-header); align-content: center; box-sizing: border-box; block-size: var(--shell-lab); margin: 0; padding: 0 var(--space-3); overflow: hidden; border-bottom: 1px solid var(--hairline-strong); background: var(--support-band-surface); color: var(--support-band-ink); font-size: .875rem; line-height: 1.25; }
 .regent-token-links__note, .regent-scope { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-token-links__note { flex-basis: 100%; }

@@ -111,7 +111,7 @@ graph, admits the fixture routes, and writes
 ```
 
 Addresses are lowercase. The website refuses a file whose `rpc_url` is not an admitted door for
-`Autolaunch.LabRpcUrl` (a door that is not loopback needs a `public_rpc_url` too) answering
+`Autolaunch.LabRpcUrl` (a door that is not loopback needs a `public_rpc_url` too),
 whose chain id or RPC doors differ from the Base description it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, or whose ABI set lacks a function or event the site

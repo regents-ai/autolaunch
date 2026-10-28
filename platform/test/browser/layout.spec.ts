@@ -86,3 +86,50 @@ test("the Regents Products name stays on screen with nothing to its right", asyn
     page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(await sideways()).toBeLessThanOrEqual(0)
 })
+
+// Found on Autolaunch on 28 Oct: on a lab site the lab line sat above the header in
+// the page, so the side panel and the phone menu opened behind the header and hid
+// their close buttons. The walk's site is not a lab, so the line is added here as
+// the page draws it.
+test("on a lab site the header, side panel and menu open under the lab line", async ({page, isMobile}) => {
+  for (const width of isMobile ? [320, 390] : [1280]) {
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/auctions")
+    await ready(page)
+    await page.evaluate(() => {
+      const line = document.createElement("p")
+      line.className = "autolaunch-lab-warning"
+      line.textContent = "Local Base fork · test assets · no mainnet value · sign in with Privy"
+      document.body.prepend(line)
+    })
+    await page.evaluate(() => window.scrollTo(0, 400))
+    const sliding = () =>
+      page.evaluate(() => document.getAnimations().filter(a => a instanceof CSSTransition).length)
+    const lab = page.locator(".autolaunch-lab-warning")
+    const box = async (selector: string) => (await page.locator(selector).boundingBox())!
+
+    // The whole line shows at the top of the screen, and the header sits right under it.
+    expect(await lab.evaluate(line => line.scrollHeight <= line.clientHeight)).toBe(true)
+    expect((await box(".autolaunch-lab-warning")).y).toBe(0)
+    const labBottom = (await box(".autolaunch-lab-warning")).height
+    expect((await box("#home-top")).y).toBeCloseTo(labBottom, 0)
+    const headerBottom = (await box("#home-top")).y + (await box("#home-top")).height
+
+    const aside = page.locator("#shell-aside")
+    if (!(await aside.isVisible())) await page.locator("[data-aside-toggle]:visible").last().click()
+    await expect(aside).toBeVisible()
+    await expect.poll(sliding).toBe(0)
+    expect((await box("#shell-aside")).y).toBeCloseTo(headerBottom, 0)
+    await page.getByRole("button", {name: "Close the side panel"}).click()
+    await expect(aside).toBeHidden()
+
+    if (isMobile) {
+      await page.locator("#mobile-menu-button").click()
+      await expect(page.locator("#shell-drawer")).toBeVisible()
+      await expect.poll(sliding).toBe(0)
+      expect((await box("#shell-drawer")).y).toBeCloseTo(headerBottom, 0)
+      await page.locator("[data-shell-menu-close]").click()
+      await expect(page.locator("#shell-drawer")).toBeHidden()
+    }
+  }
+})
