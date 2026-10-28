@@ -36,6 +36,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        inputs: %{},
        prepared: nil,
        refusal: nil,
+       unsent: false,
        wallet_for: nil,
        listing: nil,
        expiries: []
@@ -63,9 +64,14 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   def handle_event("change", params, socket),
     do: {:noreply, socket |> assign(inputs: inputs(socket.assigns.kind, params)) |> sync()}
 
+  # A press made before the panel holds steps for the form as pressed: the steps
+  # are built now and the pressed one handed back to send. When they can't be
+  # (the chain unreadable just now, or a form that doesn't read as an amount),
+  # the panel says so and nothing is sent; the page's follow-up `step_failed`
+  # keeps those words.
   def handle_event("prepare_and_send", %{"form" => form, "step" => name}, socket)
       when is_map(form) and is_binary(name) do
-    socket = assign(socket, inputs: inputs(socket.assigns.kind, form))
+    socket = assign(socket, inputs: inputs(socket.assigns.kind, form), unsent: false)
 
     with signer when is_binary(signer) <- signer(socket),
          {:ok, request} <- request(socket.assigns),
@@ -76,11 +82,19 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         do: {:reply, %{}, socket},
         else: {:reply, %{review: socket.assigns.review, send: name}, socket}
     else
-      _nothing_to_send -> {:reply, %{}, sync(socket)}
+      nil -> {:reply, %{}, sync(socket)}
+      {:error, _reason} -> {:reply, %{}, socket |> sync() |> unsent()}
     end
   end
 
   def handle_event("step_sent", params, socket), do: {:noreply, OnchainSteps.sent(socket, params)}
+
+  def handle_event(
+        "step_failed",
+        %{"reason" => "step_unknown"},
+        %{assigns: %{unsent: true}} = socket
+      ),
+      do: {:noreply, socket}
 
   def handle_event("step_failed", %{"reason" => reason}, socket) when is_binary(reason) do
     %{linked: linked, active: active} = socket.assigns
@@ -124,7 +138,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     case {signer(socket), request(socket.assigns)} do
       {signer, {:ok, request}} when is_binary(signer) ->
         %{inputs: inputs} = socket.assigns
-        assigns = socket.assigns
+        assigns = Map.take(socket.assigns, [:symbol, :kind, :current_human_id])
 
         socket
         |> assign(refusal: nil)
@@ -139,6 +153,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     end
     |> assign(mismatch: OnchainSteps.mismatch_note(socket.assigns.linked, socket.assigns.active))
   end
+
+  defp unsent(socket),
+    do: assign(socket, unsent: true, press_note: OnchainSteps.unsent_note())
 
   defp put_prepared(socket, signer, prepared) do
     review =
