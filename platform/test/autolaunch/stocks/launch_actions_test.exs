@@ -43,9 +43,9 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
   # step a person's wallet signs is the draft's own name, ticker, description,
   # website, picture and stock, for every draft the review admits, and nothing else.
   property "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft" do
-    text = fn limit ->
-      filter(string(:printable, max_length: limit), &(byte_size(&1) <= limit))
-    end
+    # Any printable text, cut back to whole characters within the field's byte limit,
+    # so every length up to the limit is reached and nothing is thrown away.
+    text = fn limit -> map(string(:printable, max_length: limit), &within(&1, limit)) end
 
     check all(
             name <- text.(64),
@@ -71,6 +71,14 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
       assert {%{function: "launch"}, [{^name, ^symbol, ^description, ^website, ^image, ^stock}]} =
                ABI.find_and_decode(@selectors, Base.decode16!(hex, case: :lower))
     end
+  end
+
+  defp within(text, limit) do
+    text
+    |> String.codepoints()
+    |> Enum.reduce_while("", fn point, kept ->
+      if byte_size(kept <> point) <= limit, do: {:cont, kept <> point}, else: {:halt, kept}
+    end)
   end
 
   # AT09: the exact tuple the launchpad executes.
