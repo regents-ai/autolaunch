@@ -29,11 +29,11 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
   attr :draft, :map, required: true, doc: "the person's draft, Revstake or Memestock"
 
   def agent_set_fields(assigns) do
-    assigns = assign(assigns, :rows, rows(assigns.draft))
+    assigns = assign(assigns, fields: set_fields(assigns.draft), labels: @labels)
 
     ~H"""
     <section
-      :if={@rows != []}
+      :if={@fields != []}
       id="agent-set-fields"
       class="agent-set"
       aria-labelledby="agent-set-title"
@@ -41,9 +41,9 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
       <h3 id="agent-set-title">Your agent filled these in</h3>
       <p>Check each one before you launch. Change any of them above and it is yours.</p>
       <dl>
-        <div :for={{label, value} <- @rows}>
-          <dt>{label}</dt>
-          <dd>{value}</dd>
+        <div :for={field <- @fields}>
+          <dt>{Map.fetch!(@labels, field)}</dt>
+          <dd><.value field={field} value={Map.get(@draft, field)} draft={@draft} /></dd>
         </div>
       </dl>
     </section>
@@ -54,14 +54,26 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
   def labels(fields) when is_list(fields),
     do: fields |> Enum.map(&Map.fetch!(@labels, String.to_existing_atom(&1))) |> Enum.uniq()
 
-  defp rows(%{agent_set_fields: fields} = draft) when is_list(fields),
-    do: Enum.map(fields, &{Map.fetch!(@labels, &1), value(&1, Map.get(draft, &1))})
+  defp set_fields(%{agent_set_fields: fields}) when is_list(fields), do: fields
+  defp set_fields(_draft), do: []
 
-  defp rows(_draft), do: []
+  # An address on Base is drawn as every Regent page draws one, to open and copy whole.
+  defp value(%{field: :treasury, value: "0x" <> _} = assigns), do: address(assigns)
 
-  defp value(:treasury_path, path), do: Map.fetch!(@paths, path)
-  defp value(:chain, chain), do: if(chain == :robinhood, do: "Robinhood Chain", else: "Base")
-  defp value(:image, _url), do: "Shown above"
-  defp value(_field, value) when value in [nil, ""], do: "Left empty"
-  defp value(_field, value), do: value
+  defp value(%{field: :stock_address, value: "0x" <> _, draft: %{chain: :base}} = assigns),
+    do: address(assigns)
+
+  defp value(assigns), do: ~H"{shown(@field, @value)}"
+
+  defp address(assigns) do
+    ~H"""
+    <Regent.Primitives.address id={"agent-set-#{@field}"} address={@value} />
+    """
+  end
+
+  defp shown(:treasury_path, path), do: Map.fetch!(@paths, path)
+  defp shown(:chain, chain), do: if(chain == :robinhood, do: "Robinhood Chain", else: "Base")
+  defp shown(:image, _url), do: "Shown above"
+  defp shown(_field, value) when value in [nil, ""], do: "Left empty"
+  defp shown(_field, value), do: value
 end

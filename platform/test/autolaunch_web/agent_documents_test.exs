@@ -31,6 +31,28 @@ defmodule AutolaunchWeb.AgentDocumentsTest do
     refute Enum.any?(bodies, &(&1 =~ "{{"))
   end
 
+  # PAIRING_MESSAGE_STEPS_ARE_WHERE_IT_SAYS: the message a person pastes to their
+  # agent sent it to "Pair with a person's account" steps at /llms.txt, which had
+  # no such steps (found by the agent journeys, 27 Oct 2026).
+  test "PAIRING_MESSAGE_STEPS_ARE_WHERE_IT_SAYS: the steps the pairing message names are in the document it names",
+       %{conn: conn} do
+    message = RegentAgents.PairingMessage.text("code", AutolaunchWeb.Endpoint.url(), :codex)
+    [_line, title, address] = Regex.run(~r/Follow the "([^"]+)" steps at (\S+)/, message)
+
+    [_before, steps] =
+      conn |> get(URI.parse(address).path) |> response(200) |> String.split("\n## #{title}\n")
+
+    [steps | _rest] = String.split(steps, "\n## ")
+
+    for command <- [
+          "auth login --site autolaunch",
+          "agents whoami",
+          "agents pair",
+          "agents status"
+        ],
+        do: assert(steps =~ "regents #{command}" or steps =~ "regents autolaunch #{command}")
+  end
+
   test "the signed agent guide states the prelaunch gate as this deployment has it", %{conn: conn} do
     previous = Application.get_env(:autolaunch, :prelaunch_read_only)
     on_exit(fn -> Application.put_env(:autolaunch, :prelaunch_read_only, previous) end)

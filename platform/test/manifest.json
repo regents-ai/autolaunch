@@ -1,5 +1,5 @@
 {
-  "total": 135,
+  "total": 137,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -989,33 +989,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
     },
     {
       "id": 116,
       "group": "Agent guides",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_documents_test.exs",
-      "line": 34,
+      "line": 51,
       "test_name": "the signed agent guide states the prelaunch gate as this deployment has it",
       "keep_because": "agents.md says whether draft saves are open from the deployment's own setting. It fails if the line is fixed text again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
     },
     {
       "id": 117,
       "group": "Agent guides",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_documents_test.exs",
-      "line": 45,
+      "line": 62,
       "test_name": "the short index leads to the whole guide, which carries every tool",
       "keep_because": "The short /llms.txt links /llms-full.txt and /sitemap.md, and the whole guide still names every manifest tool. It fails if the index grows back into the whole guide or a tool drops out of it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
     },
     {
       "id": 118,
@@ -1197,20 +1197,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
     },
     {
       "id": 132,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 103,
+      "line": 137,
       "test_name": "the launch review names every agent-set field and shows the community links",
       "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
     },
     {
       "id": 133,
@@ -1321,13 +1321,13 @@
       "group": "Creator drafts",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 70,
+      "line": 104,
       "test_name": "AGENT_SAVE_SHOWS_LIVE: an open create page shows an agent's save without a reload",
       "keep_because": "An agent can fill in a draft while the person has the create page open; the box naming what the agent set must show it then, on both create pages, so nothing an agent chose reaches a wallet step unseen. It fails when either page stops hearing of an agent's save.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
     },
     {
       "id": 142,
@@ -1757,6 +1757,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+    },
+    {
+      "id": 176,
+      "group": "Agent documents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_documents_test.exs",
+      "line": 37,
+      "test_name": "PAIRING_MESSAGE_STEPS_ARE_WHERE_IT_SAYS: the steps the pairing message names are in the document it names",
+      "keep_because": "The pairing message sent agents to \"Pair with a person's account\" steps at /llms.txt, which had none (found by the agent journeys, 27 Oct 2026). The case follows the message to the document and checks the steps and their commands are there. It fails without them.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
+    },
+    {
+      "id": 177,
+      "group": "Agent drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 70,
+      "test_name": "AGENT_SET_ADDRESS_IS_COPYABLE: an address the agent set can be copied whole and opened on Basescan",
+      "keep_because": "The list of what an agent filled in printed its addresses as bare text, against the rule that every address can be copied whole and opened (found by the agent journeys, 27 Oct 2026). The case checks the agent's treasury copies whole and links Basescan. It fails on the bare text.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
     }
   ],
   "legacy_folders_to_remove": [
