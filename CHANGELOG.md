@@ -4,6 +4,8 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 28 October 2026: the pairing steps are where the message says
 - For agents: the message your person pastes to pair you sends you to the "Pair with a person's account" steps in Autolaunch's short agent guide (/llms.txt). Those steps are there now: install the Regents command line, sign in, check your status, pair with the code, check in.
+- For agents: the API description (/openapi.json and the contract the Regents command line carries) now says what pairing and check-in are refused with: an unpaired check-in with agent_not_paired, and a pairing with pairing_failed, harness_unknown or invalid_name, or agent_limit at 100 agents.
+- For agents: the pairing steps say your person can pair you from any page's side panel, and that a pairing made on any Regents site works here, since their account is one account on every site.
 - On a phone, Balance beside a bid's budget, which fills in your whole balance, is now a full-size press instead of a thin line of text.
 - When your agent fills in your launch, the list of what it filled in shows an address it chose (a Revstake treasury, or a Memestock token's stock on Base) the way every address on the site is shown: you can copy it whole and open it on Basescan to check it before you launch.
 

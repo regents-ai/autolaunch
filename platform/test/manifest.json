@@ -1,5 +1,5 @@
 {
-  "total": 144,
+  "total": 145,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1874,6 +1874,19 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "421aa0e8db0856d915b95934a3ea3c5f22bd4c609916a10886d1480aee7db325"
+    },
+    {
+      "id": 185,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_contract_test.exs",
+      "line": 80,
+      "test_name": "AGENT_ROUTES_ANSWER_AS_THE_CONTRACT_SAYS: whoami, check-in and pairing answer only what the contract documents",
+      "keep_because": "The served contract, which the regents command line copies, said check-in refused with 404 and pairing with 403 or 422; the routes answer 403 agent_not_paired, 400 pairing_failed or harness_unknown or invalid_name, and 409 agent_limit, and whoami answers an unpaired agent 200 not_paired (found by the lead chief's review, 28 Oct 2026). The case drives each route through the real plugs and checks the contract documents the status and code it got. It fails on the old contract.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "2b0cdbdc35240eeaf9f8ada54997fc2580f961c8d28587f71b04cf55eb431c1c"
     }
   ],
   "legacy_folders_to_remove": [

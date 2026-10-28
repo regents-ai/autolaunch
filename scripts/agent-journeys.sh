@@ -37,7 +37,8 @@ set -eu
 SIWA_SERVER_REV=2ba5df09f5cb54abf28e96d39ad0b6fb45fa0347
 REGENTS_CLI_REV=02f89615c4d8ceaf4c6f597f07112e41f001adc6
 
-root=$(cd "$(dirname "$0")/.." && pwd)
+# Physical paths, as the system reports a running server's folder.
+root=$(cd "$(dirname "$0")/.." && pwd -P)
 platform=$root/platform
 work=$platform/tmp/agent-journeys
 state=$work/run
@@ -47,8 +48,8 @@ siwa_db=siwa_agent_journeys_$id
 site_db=autolaunch_agents_${id}_test
 siwa_dir=$work/siwa-server-$SIWA_SERVER_REV
 regents_dir=$work/regents-cli-$REGENTS_CLI_REV
-fork="python3 $platform/test/journeys/support/base_fork.py"
-main_checkout=$(cd "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+fork="uv run --no-project python $platform/test/journeys/support/base_fork.py"
+main_checkout=$(cd "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)/.." && pwd -P)
 export REGENT_BASE_RPC_URL="${REGENT_BASE_RPC_URL:-https://mainnet.base.org}"
 
 say() { printf '%s\n' "agent-journeys: $*"; }
@@ -85,6 +86,8 @@ stop_pid() {
     done
     if kill -0 "$pid" 2>/dev/null; then kill -9 "$pid" 2>/dev/null || true; fi
     say "stopped $1 (pid $pid)"
+  else
+    say "did not stop $1: pid $pid is no longer the server this script started in $2"
   fi
   rm -f "$file"
 }

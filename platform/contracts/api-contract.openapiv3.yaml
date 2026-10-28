@@ -478,6 +478,9 @@ paths:
           "description": "Fresh request proof required"
         "403":
           "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentNotPairedError"}
         "503":
           "description": "Dependency unavailable"
   /api/agents/v1/pair:
@@ -488,12 +491,18 @@ paths:
         -
           "SiwaProof": []
       "responses":
+        "400":
+          "description": "The code could not be used, or the body is not exactly code, name and harness (pairing_failed); the harness is not one this site offers (harness_unknown); the name can't be used (invalid_name)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentPairingError"}
         "401":
           "description": "Fresh request proof required"
-        "403":
-          "description": "Needs a pairing"
-        "422":
-          "description": "Invalid input"
+        "409":
+          "description": "The account already has 100 paired agents"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentLimitError"}
         "503":
           "description": "Dependency unavailable"
         "201":
@@ -1456,6 +1465,45 @@ components:
           required: [code, message, hint]
           properties:
             code: {type: string, enum: [invalid_request, internal_error, authentication_required, chain_unavailable]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentNotPairedError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [agent_not_paired]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentPairingError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [pairing_failed, harness_unknown, invalid_name]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentLimitError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [agent_limit]}
             message: {type: string}
             hint: {type: string, description: What to do next.}
     NotFoundApiError:

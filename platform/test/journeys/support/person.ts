@@ -116,7 +116,12 @@ export async function fitsAndPresses(page: Page, touch: boolean) {
   if (!touch) return
   const small = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>("button, a[href], [role=button], select, summary")]
-      .filter(el => el.offsetParent !== null && !el.closest("[hidden], [inert], p, li, td, dd"))
+      .filter(el => el.offsetParent !== null && !el.closest("[hidden], [inert]"))
+      // A link inside a sentence is part of the text, not a standalone press.
+      .filter(el => {
+        const block = el.tagName === "A" ? el.closest("p, li, td, dd") : null
+        return !block || block.textContent!.trim() === el.textContent!.trim()
+      })
       // Layout size, so a press animation caught part-way never reads as a small press.
       .filter(el => el.offsetWidth > 0 && (el.offsetHeight < 44 || el.offsetWidth < 44))
       .map(el => `${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 40)}" ${el.offsetWidth}x${el.offsetHeight}`),

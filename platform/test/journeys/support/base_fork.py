@@ -1,7 +1,7 @@
 """A local copy of Base carrying the v2 Autolaunch contracts exactly as deployed, switched on, for
 the agent journeys (scripts/agent-journeys.sh).
 
-  python3 base_fork.py start   RUN CONTRACTS   copy Base at its head onto a free loopback port (chain 31337)
+  python3 base_fork.py start   RUN CONTRACTS   copy Base at FORK_BLOCK onto a free loopback port (chain 31337)
   python3 base_fork.py prepare RUN CONTRACTS   stand-in stocks, then the switch-on steps from the Safe
   python3 base_fork.py configs RUN CONTRACTS   the site's two Base settings files, from the deployed manifests
   python3 base_fork.py stop    RUN CONTRACTS   stop the copy by its recorded pid
@@ -28,6 +28,9 @@ import urllib.request
 from pathlib import Path
 
 CHAIN_ID = 31337
+# The Base block every run copies, after the v2 deployments, so two runs start
+# from the same chain. Moving it is a commit, and the evidence names it.
+FORK_BLOCK = 53_180_000
 SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 # Anvil's tenth development account; the journeys' people hold the second and third.
 EXECUTOR = "0xa0ee7a142d267c1f36714e4a8f75612f20a79720"
@@ -102,8 +105,8 @@ class Fork:
             port = probe.getsockname()[1]
         log = open(self.run / "base-fork.log", "w")
         process = subprocess.Popen(
-            ["anvil", "--fork-url", "base", "--host", "127.0.0.1", "--port", str(port),
-             "--chain-id", str(CHAIN_ID), "--prune-history=64", "--silent"],
+            ["anvil", "--fork-url", "base", "--fork-block-number", str(FORK_BLOCK), "--host", "127.0.0.1",
+             "--port", str(port), "--chain-id", str(CHAIN_ID), "--prune-history=64", "--silent"],
             stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True, cwd=self.alias_dir,
         )
         (self.run / "base-fork.pid").write_text(str(process.pid))
@@ -117,7 +120,7 @@ class Fork:
                 time.sleep(0.5)
         else:
             sys.exit("the copy of Base did not come up")
-        print(f"copy of Base: chain {CHAIN_ID} on {self.url}, forked at block {int(self.rpc('eth_blockNumber'), 16)}")
+        print(f"copy of Base: chain {CHAIN_ID} on {self.url}, forked at Base block {FORK_BLOCK}")
 
     def prepare(self):
         fixture = self.alias_dir / "out/FixtureStockToken.sol/FixtureStockToken.json"
@@ -125,12 +128,15 @@ class Fork:
         stocks = self.manifest("stocks-v2")
         for admission in stocks["admissions"]:
             stock, pool = admission["stock"], admission["pool"]
-            live = int(self.cast("call", stock, "balanceOf(address)(uint256)", pool, rpc_url="base").split()[0])
+            live = int(
+                self.cast("call", stock, "balanceOf(address)(uint256)", pool, "--block", str(FORK_BLOCK), rpc_url="base")
+                .split()[0]
+            )
             self.rpc("anvil_setCode", [stock, runtime])
             if self.call(stock, "symbol()(string)").strip('"') != admission["symbol"]:
                 sys.exit(f"the stand-in at {stock} does not report {admission['symbol']}")
             self.send_as(SAFE, stock, "mint(address,uint256)", pool, str(live))
-            print(f"{admission['symbol']:7} stand-in installed; its pool holds {live / 1e8:,.4f} as on Base")
+            print(f"{admission['symbol']:7} stand-in installed; its pool holds {live / 1e8:,.4f} as on Base at {FORK_BLOCK}")
 
         launchpad, hook = self.address_of(stocks, "launchpad"), self.address_of(stocks, "hook")
         factory = self.address_of(self.manifest("revstake-v2"), "factory")
@@ -186,6 +192,8 @@ class Fork:
                     break
                 time.sleep(0.25)
             print("copy of Base stopped")
+        else:
+            print(f"did not stop the copy of Base: pid {pid} is no longer the Anvil this script started")
         pid_file.unlink()
         (self.run / "base-fork.port").unlink(missing_ok=True)
 
