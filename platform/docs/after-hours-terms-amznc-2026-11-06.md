@@ -1,8 +1,7 @@
 # After-hours Exposure: AMZNc, 30 October to 6 November 2026
 
-**Draft for Sean's approval.** The hash of this file's exact bytes is committed on chain as the
-series' terms (`termsHash`), so any change to the wording means a new hash before the series is
-created.
+These are the series' terms: the keccak256 hash of this file's exact bytes is its `termsHash` on
+Base, so the text cannot change.
 
 ## The tokens
 
@@ -57,4 +56,4 @@ changes as prices move.
 ## Eligibility
 
 Coinbase's stock tokens are only available to persons in eligible jurisdictions outside the United
-States. (Final wording to be approved by Sean.)
+States.
