@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: covered calls in the works
+- Nothing changes on the pages yet. Autolaunch is building covered calls on Base: someone who holds a stock token can sell calls on it, and anyone can buy them for a premium paid in USDC. The first stock is Amazon (AMZNc). They open once they are finished and checked.
+
 ## 27 October 2026: Buy Credits never opens a wallet that can't pay
 - Pressing Buy on Credits the moment the page changed wallet or amount could open your wallet for a purchase it was certain to refuse, such as one with too little USDC or before the approval. Now the button shows why it can't go through, as it already did once the page caught up. Bids are unchanged.
 
