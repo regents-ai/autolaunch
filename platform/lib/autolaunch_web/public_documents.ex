@@ -57,9 +57,9 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The regents-cli release every public document names: the one these guides
   # were checked against, its source commit and its published wheel.
   @regents_cli %{
-    version: "1.10.17",
-    commit: "773f8a676a5dc329a538c56c2275725963e8a880",
-    wheel_sha256: "2612ac98bfcf2f9399ca04c45f404498f33d4d099935e099cba2ee242018c561"
+    version: "1.10.19",
+    commit: "02f89615c4d8ceaf4c6f597f07112e41f001adc6",
+    wheel_sha256: "935c21569a740d90ea7d6951584ab6de3757af8fa07e2302f5c01ef69e959080"
   }
 
   # Where security reports go, as the contact page publishes it.

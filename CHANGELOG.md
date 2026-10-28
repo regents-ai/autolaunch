@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: the agent guides name Regents CLI 1.10.19
+- The agent guides and agents.md now name Regents CLI 1.10.19, the newest release, with its source commit and the fingerprint of its published package, so an agent installs the same version every Regents site uses.
+
 ## 27 October 2026: no surprise sign-outs, and agents can ask their status
 - If your sign-in can't be read for a moment, the page says "Something didn't load." and offers Try again, which loads the same page. You stay signed in, and nothing is saved or paired until it can be read. A sign-in that has ended still shows Sign in.
 - Wallet buttons say "That did not go through. Nothing was sent. Try again in a moment." when your account can't be read, instead of asking you to sign in. Connect ENS says "That did not go through. Try again in a moment." instead of asking you to check the name.
