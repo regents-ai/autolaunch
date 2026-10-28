@@ -202,6 +202,9 @@ owned by the regents-cli lane until it adds them.
 - Contract (`contracts/covered-calls`, `bin/gate.sh`, passes with the Mac's Foundry 1.5.1):
   - 29 unit tests: every call and refusal, the Friday 21:00 UTC expiry rule, the spec's three
     payoff cases, rounding, the fee, self-dealing, exact window boundaries, events.
+  - 9 rules tests from the review's third pass: the Friday 21:00 UTC rule recomputed from the
+    calendar, the fee as ceil(1%) never above the premium, and `claimable` equal to what `claim`
+    pays in every state.
   - 9 ordering tests from the review's second pass: cancel, claim and the after-window return in
     every order, never paying a unit twice or touching another listing, and `claimable`.
   - 13 recovery tests: every way a token, the issuer, Circle or staking can refuse, and a fuzzed
@@ -218,7 +221,8 @@ owned by the regents-cli lane until it adds them.
   pass found two medium findings, both from one call moving two tokens (a seller could not stop
   sales during a stock pause; a block on one token held up the other). Both are fixed by the
   split above; the five tests that failed on the first version are kept as lasting tests in
-  `test/CoveredCallsV1.recovery.t.sol`. The fix had its own second review, which found nothing above informational; its
+  `test/CoveredCallsV1.recovery.t.sol`. The fix had its own second review, and the expiry, fee and `claimable` changes a third; neither
+  found anything above informational; its
   tests are kept in `test/CoveredCallsV1.ordering.t.sol`. Its main informational point, that a
   seller's `owed` figure omits the after-window return until they claim, is answered by the
   `claimable` read, which every page and tool uses.
