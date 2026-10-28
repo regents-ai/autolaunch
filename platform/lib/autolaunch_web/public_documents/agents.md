@@ -60,6 +60,7 @@ Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries
 
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
 
+{{covered_calls}}
 ## Browser and CLI
 
 On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.

@@ -85,6 +85,19 @@ defmodule AutolaunchWeb.Router do
 
   def admit_motion_lab(conn, _opts), do: AutolaunchWeb.Showcase.admit(conn, :motion_lab)
 
+  # Covered-call routes exist only while the site offers covered calls; off,
+  # each answers as an address with nothing at it.
+  pipeline :covered_calls do
+    plug :admit_covered_calls
+  end
+
+  def admit_covered_calls(conn, _opts) do
+    Autolaunch.CoveredCalls.Deployment.enabled?() or
+      raise Phoenix.Router.NoRouteError, conn: conn, router: __MODULE__
+
+    conn
+  end
+
   def enforce_session_authority(conn, _opts),
     do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
@@ -148,6 +161,12 @@ defmodule AutolaunchWeb.Router do
     get "/account/points", AgentAccountController, :points
   end
 
+  scope "/api/agent/v1", AutolaunchWeb do
+    pipe_through [:api, :covered_calls]
+    get "/covered-calls/:symbol/positions", CoveredCallsAgentController, :positions
+    post "/covered-calls/:symbol/steps", CoveredCallsAgentController, :prepare
+  end
+
   scope "/api/v1" do
     pipe_through :api
     forward "/profile", RegentIdentity.HTTP, otp_app: :autolaunch
@@ -171,9 +190,27 @@ defmodule AutolaunchWeb.Router do
   end
 
   scope "/api/v1", AutolaunchWeb do
+    pipe_through [:api, :public_read, :covered_calls]
+
+    get "/covered-calls/:symbol", CoveredCallsController, :book
+  end
+
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through [:api, :covered_calls]
+
+    post "/covered-calls/:symbol/quote", CoveredCallsController, :quote
+  end
+
+  scope "/api/v1", AutolaunchWeb do
     pipe_through :session_api
 
     get "/me/positions", MyPositionsController, :show
+  end
+
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through [:session_api, :covered_calls]
+
+    get "/me/covered-calls/:symbol", CoveredCallsController, :mine
   end
 
   # A wallet's own share video, for the signed-in account that links it.
@@ -239,6 +276,7 @@ defmodule AutolaunchWeb.Router do
       live "/tokens/:symbol/:tail", MarketPageLive, :token
       live "/stock-listing", UpcomingLive, :show
       live "/stock-listing/:symbol", StockLive, :show
+      live "/covered-calls", CoveredCallsLive, :index
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid

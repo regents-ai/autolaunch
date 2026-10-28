@@ -103,6 +103,18 @@ defmodule Autolaunch.TestPrivyVerifier do
     )
   end
 
+  # A person the site has never seen: a fresh wallet the journey makes up for the
+  # run (freshPerson in test/journeys/support/person.ts), signing in for the
+  # first time.
+  def verify_access_token("journey-fresh-0x" <> hex = token) when byte_size(hex) == 40 do
+    session(
+      session_id: token <> "-session",
+      privy_user_id: "did:privy:" <> token,
+      wallet_address: "0x" <> hex,
+      wallet_addresses: ["0x" <> hex]
+    )
+  end
+
   # The access token is well-formed for this app but its own verification is
   # refused, which is the one refusal a fresh provider login can clear. The
   # catch-all below is the generic refusal, so both live in the same stage.

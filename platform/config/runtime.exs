@@ -187,6 +187,33 @@ if database_config do
   config :autolaunch, Autolaunch.Repo, database_config
 end
 
+# Covered calls are offered only on a site switched on with
+# AUTOLAUNCH_COVERED_CALLS=true; then the description of their contracts is
+# required, and it extends the Base description. Off, their pages answer not
+# found and no tool or route offers them (`Autolaunch.CoveredCalls.Deployment`).
+covered_calls_on =
+  case System.get_env("AUTOLAUNCH_COVERED_CALLS") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_COVERED_CALLS must be true or unset"
+  end
+
+if covered_calls_on do
+  covered_calls_path =
+    deployment_path.("AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT") ||
+      raise "AUTOLAUNCH_COVERED_CALLS=true needs AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT"
+
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_COVERED_CALLS=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  Autolaunch.CoveredCalls.Deployment.load!(covered_calls_path)
+
+  config :autolaunch,
+    covered_calls: :on,
+    autolaunch_base_covered_calls_deployment: covered_calls_path
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs

@@ -166,7 +166,7 @@ config :spark,
   ]
 
 config :autolaunch,
-  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points],
+  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points, Autolaunch.CoveredCalls],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
@@ -195,7 +195,8 @@ config :autolaunch, Autolaunch.ChainRefresh,
     Autolaunch.TokenTrades,
     Autolaunch.Indexer.ReadChain,
     Autolaunch.LaunchDiscovery.DiscoverMemestock,
-    Autolaunch.RegentFacts
+    Autolaunch.RegentFacts,
+    Autolaunch.CoveredCalls.Book
   ]
 
 # How long each server keeps a chain's saved stocks before reading them again;
@@ -248,7 +249,7 @@ config :esbuild,
   version: "0.28.2",
   autolaunch: [
     args:
-      ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.ts js/privy_bridge.tsx covered_calls=css/pages/covered_calls.css --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]

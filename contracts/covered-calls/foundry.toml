@@ -1,0 +1,47 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+# Covered calls build against the dependency snapshot the Base Memestake v2 package exports
+# (contracts/stocks-v2/lib, filled by its bootstrap-deps.py); it uses forge-std and solady only.
+libs = ["../stocks-v2/lib"]
+allow_paths = ["../stocks-v2"]
+
+# Same build identity as the other Autolaunch contract projects: Solidity 0.8.26, Cancun,
+# optimizer 200, via-IR, bytecode metadata disabled.
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+ffi = false
+fs_permissions = []
+
+# `test/fork/` runs only under the `fork` profile against a local Base fork (anvil --network base).
+no_match_path = "test/fork/**"
+
+[profile.default.fuzz]
+runs = 512
+seed = "0x434f564552"
+
+[profile.default.invariant]
+runs = 256
+depth = 128
+fail_on_revert = false
+
+[profile.fork]
+test = "test/fork"
+out = "out-fork"
+cache_path = "cache-fork"
+match_path = "test/fork/**"
+no_match_path = "none/**"
+
+[lint]
+ignore = ["test/**/*.sol", "script/**/*.sol"]
+# Expiry and the exercise window are the product, so time comparisons are intended. The only
+# external call before an event is the stock's `effectiveAt()` view, and every state-changing
+# function is `nonReentrant` and moves tokens after its event.
+exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "block-timestamp", "reentrancy-events"]

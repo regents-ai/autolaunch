@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: covered calls in the works
+- Nothing changes on the pages yet. Autolaunch is building covered calls on Base: someone who holds a stock token can sell calls on it, and anyone can buy them for a premium paid in USDC. The first stock is Amazon (AMZNc). They open once they are finished and checked.
+- Until then the pages, the site's scripts, the API description (/openapi.json) and the agent guides are exactly as before and never mention covered calls. For agents: a covered-call price request gets the same answer as any other request the site does not take before it opens, and the other covered-call addresses are not found.
+- Once they open, the covered calls page says, under its title, that they are available to eligible people outside the US. Any wallet can sell, buy and exercise them; nothing on the site checks who you are beyond the wallet you sign in with.
+
 ## 28 October 2026: the agent guides name Regents CLI 1.10.20
 - The agent guides and agents.md now name Regents CLI 1.10.20, the newest release, with its source commit and the fingerprint of its published package, so an agent installs the same version every Regents site uses.
 - The install line in every guide now asks for Python 3.14, so an agent gets the same setup every time.

@@ -193,3 +193,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Covered calls keep no shared reading between tests, so each reads its own chain.
+config :autolaunch, :covered_calls_book_kept_ms, 0

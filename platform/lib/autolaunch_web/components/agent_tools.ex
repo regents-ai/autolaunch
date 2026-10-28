@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.Components.AgentTools do
   @moduledoc """
-  The WebMCP tools every page offers an agent, read when this module compiles
-  from `priv/tool_manifest.json`, the file the pages register them from
-  (`assets/js/public_tools.ts` offers the entries scoped to the site). The
+  The WebMCP tools every page offers an agent right now
+  (`AutolaunchWeb.ToolManifest`), from `priv/tool_manifest.json`, the file the
+  pages register them from (`assets/js/public_tools.ts` offers the entries
+  scoped to the site). The
   button in the footer and on the developer guide says how many there are and opens a dialog listing
   each tool with its description, which copies the whole list as Markdown.
 
@@ -13,21 +14,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
 
   use Phoenix.Component
 
-  manifest = Application.app_dir(:autolaunch, "priv/tool_manifest.json")
-  @external_resource manifest
-
-  @tools (for %{"scope" => "site"} = tool <-
-                manifest |> File.read!() |> Jason.decode!() |> Map.fetch!("tools") do
-            %{name: tool["name"], title: tool["title"], description: tool["description"]}
-          end)
-
-  @label "#{length(@tools)} Agent Tools"
-
-  @markdown """
-  # Autolaunch: #{@label}
-
-  #{Enum.map_join(@tools, "\n\n", &"## #{&1.title}\n\n`#{&1.name}`\n\n#{&1.description}")}
-  """
+  alias AutolaunchWeb.ToolManifest
 
   attr :id, :string, required: true
   attr :dialog, :string, required: true, doc: "The id of the `dialog/1` it opens."
@@ -36,7 +23,7 @@ defmodule AutolaunchWeb.Components.AgentTools do
   The button naming how many tools agents see, which opens their list.
   """
   def button(assigns) do
-    assigns = assign(assigns, label: @label)
+    assigns = assign(assigns, label: label(tools()))
 
     ~H"""
     <button
@@ -58,7 +45,8 @@ defmodule AutolaunchWeb.Components.AgentTools do
 
   @doc "The dialog listing every tool, closed with its X, Escape or a press beside it."
   def dialog(assigns) do
-    assigns = assign(assigns, label: @label, tools: @tools, markdown: @markdown)
+    tools = tools()
+    assigns = assign(assigns, label: label(tools), tools: tools, markdown: markdown(tools))
 
     ~H"""
     <dialog
@@ -92,6 +80,22 @@ defmodule AutolaunchWeb.Components.AgentTools do
         </ol>
       </div>
     </dialog>
+    """
+  end
+
+  # The tools every page registers now (`AutolaunchWeb.ToolManifest`).
+  defp tools do
+    for %{"scope" => "site"} = tool <- ToolManifest.tools(),
+        do: %{name: tool["name"], title: tool["title"], description: tool["description"]}
+  end
+
+  defp label(tools), do: "#{length(tools)} Agent Tools"
+
+  defp markdown(tools) do
+    """
+    # Autolaunch: #{label(tools)}
+
+    #{Enum.map_join(tools, "\n\n", &"## #{&1.title}\n\n`#{&1.name}`\n\n#{&1.description}")}
     """
   end
 end
