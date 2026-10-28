@@ -9,7 +9,7 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
   @week 7 * 86_400
 
   property "a fill or an exercise pays the exact amount rounded up, as the contract does" do
-    check all amount <- integer(1..(1_000 * @unit)), per_token <- integer(1..10_000_000_000) do
+    check all(amount <- integer(1..(1_000 * @unit)), per_token <- integer(1..10_000_000_000)) do
       paid = Terms.usdc_for(amount, per_token, @unit)
       assert paid * @unit >= amount * per_token
       assert paid * @unit < amount * per_token + @unit
@@ -26,7 +26,7 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
   end
 
   property "the fee is 1% of the premium rounded up, never more than the premium" do
-    check all premium <- integer(1..1_000_000_000_000) do
+    check all(premium <- integer(1..1_000_000_000_000)) do
       fee = Terms.fee(premium)
       assert fee * 100 >= premium
       assert fee * 100 < premium + 100
@@ -35,13 +35,15 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
   end
 
   property "every expiry offered is a future Friday at 21:00 UTC, a week apart" do
-    check all now <- integer(1_700_000_000..2_100_000_000) do
+    check all(now <- integer(1_700_000_000..2_100_000_000)) do
       expiries = Terms.expiries(now)
       assert length(expiries) == 4
       assert Enum.all?(expiries, &(Terms.weekly?(&1) and &1 > now))
       assert hd(expiries) - now <= @week
 
-      assert expiries |> Enum.chunk_every(2, 1, :discard) |> Enum.all?(fn [a, b] -> b - a == @week end)
+      assert expiries
+             |> Enum.chunk_every(2, 1, :discard)
+             |> Enum.all?(fn [a, b] -> b - a == @week end)
 
       for expiry <- expiries do
         at = DateTime.from_unix!(expiry)
@@ -67,8 +69,11 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
   end
 
   property "typed token and dollar amounts are read exactly, and shown back as typed" do
-    check all whole <- integer(0..100_000), fraction <- integer(0..99_999_999),
-              whole + fraction > 0 do
+    check all(
+            whole <- integer(0..100_000),
+            fraction <- integer(0..99_999_999),
+            whole + fraction > 0
+          ) do
       text = "#{whole}." <> String.pad_leading(Integer.to_string(fraction), 8, "0")
       raw = F.parse_tokens(text, @unit)
       assert raw == whole * @unit + fraction

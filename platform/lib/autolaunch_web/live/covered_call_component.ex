@@ -415,26 +415,27 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       described = entry && OnchainSteps.describe(entry, "Base")
       approval? = not action_step?(name)
 
-      state =
-        cond do
-          described && described.state in [:pending, :stalled] -> :pending
-          described && described.state == :confirmed -> :done
-          described -> :failed
-          (approval? and prepared) && prepared.approved -> :done
-          true -> :ready
-        end
-
       %{
         name: name,
         label: label(name, assigns),
         approval?: approval?,
-        state: state,
+        state: step_state(described, approval?, prepared),
         words: described && described.state != :confirmed && described.words,
         entry: entry,
         stalled?: described && described.state == :stalled
       }
     end)
   end
+
+  # A sent step shows how it went; before any press, an approval the chain
+  # already holds shows as done and stays pressable.
+  defp step_state(%{state: state}, _approval?, _prepared) when state in [:pending, :stalled],
+    do: :pending
+
+  defp step_state(%{state: :confirmed}, _approval?, _prepared), do: :done
+  defp step_state(%{}, _approval?, _prepared), do: :failed
+  defp step_state(_unsent, true, %{approved: true}), do: :done
+  defp step_state(_unsent, _approval?, _prepared), do: :ready
 
   defp step_names(:list), do: ~w(stock_approval list)
   defp step_names(:fill), do: ~w(usdc_approval fill)

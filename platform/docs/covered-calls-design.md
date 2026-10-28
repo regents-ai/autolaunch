@@ -163,21 +163,25 @@ function claimable(uint256 listingId, address account) external view returns (ui
 
 ## 5. The site (`Autolaunch.CoveredCalls`)
 
-Behind `config :autolaunch, :covered_calls_enabled`, off by default and in production. With it
+Behind `AUTOLAUNCH_COVERED_CALLS=true` (`config :autolaunch, :covered_calls, :on`), off by default and in production. With it
 off, the routes answer not found and no tool or command is advertised.
 
 | Place | Purpose |
 | --- | --- |
-| `/covered-calls` | Two tabs. **Buy**: open listings for the stock with strike, premium, expiry, amount left, and a Buy button. **Sell**: one small form (amount, strike, expiry from the next four Fridays, minimum premium) with the suggested premium as a guide, payoff at three prices, Approve and List. |
-| `/stock-listing/:symbol` | For the chosen stock only, a "Sell covered calls" link to `/covered-calls`. |
-| `/portfolio` | A "Covered calls" section: listings sold (filled, open, settled) with Cancel and Collect; calls held with Exercise and Collect, each showing the share-equivalent. |
+| `/covered-calls` | Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, expiry from the next four Fridays, premium) beside a guide: the reference price, shares per token, suggested premiums for the next Friday at +1%, +3% and +5% strikes, the result at expiry at three prices, and the terms ("Dividends during the week stay with the tokens."). |
+| `/stock-listing/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
+| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with the wallet steps it allows now shown directly (Stop selling, Exercise, Collect <symbol>, Collect USDC), so every button there sends. |
 
 Ash domain `Autolaunch.CoveredCalls`:
 
-- `Event` — one row per contract log, written once under the `chain-events` rules (identity
-  `[:chain_id, :transaction_hash, :log_index]`), read by the existing indexer cursor.
-- `Listing` and `Holding` — read models rebuilt from events in the same transaction, with
-  calculations for what is open, owed and collectable. No pending transaction is ever stored.
+- **No tables.** The contract is the record: `Chain` reads listings, holdings, balances and
+  allowances at the latest block, so every figure matches the chain after a reload, and no
+  migration is needed. (The event ledger only runs where the deployment names start blocks, and a
+  new table needs Sean's go before production; reading the contract avoids both.)
+- `Book` — each market's listings, read once and shared by every visitor for five minutes and
+  read again soon after a confirmed press (`ChainRefresh`), as `RegentFacts` does.
+- `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
+  Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,
   claim, collect strike) on the server for `AutolaunchWeb.OnchainSteps`. A press that is certain to fail
   from the chain's own state at the latest block (sold out, past expiry, no approval yet) shows
@@ -189,10 +193,15 @@ Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
-| List open listings | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls` | via `/mcp` | `regents autolaunch covered-calls list` (regents-cli, gap) |
-| Suggested premium | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/quote` | via `/mcp` | gap |
-| My listings and holdings | `autolaunch_my_covered_calls` | `GET /api/v1/me/covered-calls` | via `/mcp` | gap |
-| Prepare a step (list, fill, cancel, exercise, claim, collect strike) | `autolaunch_covered_call_prepare` | `POST /api/v1/me/covered-calls/steps` | via `/mcp` | gap |
+| A stock's listings | `autolaunch_covered_call_listings` | `GET /api/v1/covered-calls/:symbol` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| Suggested premium | `autolaunch_covered_call_quote` | `POST /api/v1/covered-calls/:symbol/quote` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| My listings and holdings | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+| Prepare a step (list, fill, cancel, exercise, claim, collect strike) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
+
+Off, every one of these routes answers as an unknown address, and `/capabilities`, `/openapi.json`,
+the agent guides and the tools dialog leave them out (`AutolaunchWeb.ToolManifest`; the manifest's
+`feature` tag and the contract's `x-autolaunch-switch`). `docs/agent-parity.md` at the repository
+root has one row per action.
 
 The agent's own key signs every step; the site prepares and never signs. CLI rows are gaps
 owned by the regents-cli lane until it adds them.
@@ -226,9 +235,18 @@ owned by the regents-cli lane until it adds them.
   tests are kept in `test/CoveredCallsV1.ordering.t.sol`. Its main informational point, that a
   seller's `owed` figure omits the after-window return until they claim, is answered by the
   `claimable` read, which every page and tool uses.
-- Site: Ash action tests, StreamData properties for amounts and rounding, and the browser walk
-  at 390 and 1280 wide driving the real app against a local Base fork with the contract
-  deployed from a fork-only script.
+- Site, 28 Oct 2026:
+  - `test/journeys/covered_calls.spec.ts`, at 390 and 1280 against the journeys' copy of Base with
+    `CoveredCallsV1` deployed: list, buy (the seller receives the premium less exactly 1%), stop
+    selling, exercise while the issuer has transfers paused, a stock collection refused during
+    the pause with the words shown, the strike collected during the pause, both sides' stock
+    collected after it. 2 passed.
+  - 27 ExUnit cases: `autolaunch/covered_calls/terms_test.exs` (four properties),
+    `autolaunch/covered_calls/steps_test.exs`, `autolaunch_web/live/covered_calls_live_test.exs`,
+    `autolaunch_web/controllers/covered_calls_routes_test.exs`; `public_tools_features.test.ts`.
+  - The journey found one design flaw, fixed: the portfolio row's own "Stop selling" button opened
+    a panel holding a second "Stop selling", so the first press sent nothing. Rows now show their
+    wallet steps directly.
 
 ## 7. Open items
 
@@ -240,3 +258,9 @@ owned by the regents-cli lane until it adds them.
    (base-anvil) would also cover the newer `effectiveAt()` read. Installing either on the Mac
    changes the shared toolchain, so that waits for the toolchain owner.
 3. **Deployment.** A contract deployment is protected and waits for Sean's go naming it.
+4. **Follow-ups outside this lane.** The journeys' pinned sign-in service revision
+   (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
+   cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).
+5. **Gaps.** Hosted MCP (`/mcp`) and the regents CLI for every covered-call action
+   (`docs/agent-parity.md`); the agent route's cancel, exercise, claim and collect strike have no
+   test of their own; `/covered-calls` is not in the sitemap while on.

@@ -38,9 +38,11 @@ defmodule Autolaunch.CoveredCalls.Chain do
   change to it, and the reference price, at `block`.
   """
   def book(market, block, opts) do
-    with {:ok, count} <- Rpc.call_uint(market.contract, Call.encode("listingCount()", []), block, opts),
+    with {:ok, count} <-
+           Rpc.call_uint(market.contract, Call.encode("listingCount()", []), block, opts),
          {:ok, listings} <- listings(market.contract, count, block, opts),
-         {:ok, multiplier} <- Rpc.call_uint(market.stock, Call.encode("multiplier()", []), block, opts),
+         {:ok, multiplier} <-
+           Rpc.call_uint(market.stock, Call.encode("multiplier()", []), block, opts),
          {:ok, effective_at} <-
            Rpc.call_uint(market.stock, Call.encode("effectiveAt()", []), block, opts),
          {:ok, unit} <- unit(market, block, opts) do
@@ -59,26 +61,31 @@ defmodule Autolaunch.CoveredCalls.Chain do
 
   @doc "What `wallet` holds on each listing: calls it may exercise and stock it may claim."
   def holdings(market, listings, wallet, block, opts) do
-    Enum.reduce_while(listings, {:ok, []}, fn listing, {:ok, kept} ->
-      with {:ok, held} <- uint(market.contract, "held(uint256,address)", [listing.id, wallet], block, opts),
-           {:ok, claimable} <-
-             uint(market.contract, "claimable(uint256,address)", [listing.id, wallet], block, opts) do
-        if held == 0 and claimable == 0,
-          do: {:cont, {:ok, kept}},
-          else: {:cont, {:ok, [%{listing_id: listing.id, held: held, claimable: claimable} | kept]}}
-      else
-        error -> {:halt, error}
-      end
-    end)
+    listings
+    |> Enum.reduce_while({:ok, []}, &holding(market, &1, wallet, block, opts, &2))
     |> case do
       {:ok, kept} -> {:ok, Enum.reverse(kept)}
       error -> error
     end
   end
 
+  defp holding(market, listing, wallet, block, opts, {:ok, kept}) do
+    case position(market, listing.id, wallet, block, opts) do
+      {:ok, %{held: 0, claimable: 0}} -> {:cont, {:ok, kept}}
+      {:ok, position} -> {:cont, {:ok, [Map.put(position, :listing_id, listing.id) | kept]}}
+      error -> {:halt, error}
+    end
+  end
+
   @doc "One listing at `block`, or `:unknown_listing` when the contract has none by that id."
   def listing(market, id, block, opts) do
-    case Rpc.call_words(market.contract, Call.encode("listings(uint256)", [id]), block, @listing_words, opts) do
+    case Rpc.call_words(
+           market.contract,
+           Call.encode("listings(uint256)", [id]),
+           block,
+           @listing_words,
+           opts
+         ) do
       {:ok, words} ->
         case listing(id, words) do
           %{seller: "0x0000000000000000000000000000000000000000"} -> {:error, :unknown_listing}
@@ -114,7 +121,8 @@ defmodule Autolaunch.CoveredCalls.Chain do
 
   @doc "A wallet's balance of `token` and what it lets `spender` take, at `block`."
   def funds(token, wallet, spender, block, opts) do
-    with {:ok, balance} <- Rpc.call_uint(token, Abi.encode_erc20("balance_of", [wallet]), block, opts),
+    with {:ok, balance} <-
+           Rpc.call_uint(token, Abi.encode_erc20("balance_of", [wallet]), block, opts),
          {:ok, allowance} <-
            Rpc.call_uint(token, Abi.encode_erc20("allowance", [wallet, spender]), block, opts) do
       {:ok, %{balance: balance, allowance: allowance}}
@@ -128,7 +136,13 @@ defmodule Autolaunch.CoveredCalls.Chain do
 
   defp listings(contract, count, block, opts) do
     Enum.reduce_while(1..count, {:ok, []}, fn id, {:ok, kept} ->
-      case Rpc.call_words(contract, Call.encode("listings(uint256)", [id]), block, @listing_words, opts) do
+      case Rpc.call_words(
+             contract,
+             Call.encode("listings(uint256)", [id]),
+             block,
+             @listing_words,
+             opts
+           ) do
         {:ok, words} -> {:cont, {:ok, [listing(id, words) | kept]}}
         error -> {:halt, error}
       end
@@ -139,7 +153,18 @@ defmodule Autolaunch.CoveredCalls.Chain do
     end
   end
 
-  defp listing(id, [seller, expiry, returned, amount, filled, exercised, strike, premium, paid, collected]) do
+  defp listing(id, [
+         seller,
+         expiry,
+         returned,
+         amount,
+         filled,
+         exercised,
+         strike,
+         premium,
+         paid,
+         collected
+       ]) do
     %{
       id: id,
       seller: word_address(seller),
@@ -172,5 +197,6 @@ defmodule Autolaunch.CoveredCalls.Chain do
     do: Rpc.call_uint(contract, Call.encode(signature, arguments), block, opts)
 
   defp word_address(word),
-    do: "0x" <> (word |> Integer.to_string(16) |> String.pad_leading(40, "0") |> String.downcase())
+    do:
+      "0x" <> (word |> Integer.to_string(16) |> String.pad_leading(40, "0") |> String.downcase())
 end

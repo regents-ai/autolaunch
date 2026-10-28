@@ -3,8 +3,9 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   The portfolio's covered calls: for each market, the calls the signed-in
   wallet sold (with Stop selling, Collect USDC and Collect stock) and the calls
   it holds (with Exercise and Collect stock), each read now from the contract
-  (`Autolaunch.CoveredCalls.covered_call_positions/2`). The chosen action's
-  wallet panel opens under its row. The page re-reads it with
+  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Each action the
+  listing allows now is its own wallet panel under the row, so every button
+  there sends. The page re-reads it with
   `send_update(id: ..., read: true)` after a press lands.
   """
   use AutolaunchWeb, :live_component
@@ -18,7 +19,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   @impl true
   def mount(socket),
-    do: {:ok, assign(socket, positions: AsyncResult.loading(), action: nil, read_for: nil)}
+    do: {:ok, assign(socket, positions: AsyncResult.loading(), read_for: nil)}
 
   @impl true
   def update(%{read: true}, socket), do: {:ok, read(socket)}
@@ -32,13 +33,6 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   @impl true
-  def handle_event("act", %{"listing" => id, "kind" => kind, "symbol" => symbol}, socket)
-      when kind in ~w(cancel exercise claim collect_strike) do
-    action = {symbol, String.to_integer(id), String.to_existing_atom(kind)}
-    action = if socket.assigns.action == action, do: nil, else: action
-    {:noreply, assign(socket, action: action)}
-  end
-
   def handle_event("refresh", _params, socket), do: {:noreply, read(socket)}
 
   @impl true
@@ -55,13 +49,15 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     start_async(socket, :positions, fn ->
       {:ok, %{markets: markets}} = Deployment.current()
 
-      Enum.map(markets, fn market ->
-        case CoveredCalls.covered_call_positions(market.symbol, actor: actor) do
-          {:ok, positions} -> {market.symbol, {:ok, positions}}
-          {:error, error} -> {market.symbol, {:error, CoveredCalls.reason(error)}}
-        end
-      end)
+      Enum.map(markets, &read_market(&1, actor))
     end)
+  end
+
+  defp read_market(market, actor) do
+    case CoveredCalls.covered_call_positions(market.symbol, actor: actor) do
+      {:ok, positions} -> {market.symbol, {:ok, positions}}
+      {:error, error} -> {market.symbol, {:error, CoveredCalls.reason(error)}}
+    end
   end
 
   @impl true
@@ -80,7 +76,6 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         id={@id}
         symbol={symbol}
         read={read}
-        action={@action}
         myself={@myself}
         session_lease={@session_lease}
         current_human_id={@current_human_id}
@@ -136,24 +131,8 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
           </tr>
           <tr :if={row.actions != []} class="portfolio__actions">
             <td colspan="4">
-              <div class="portfolio__buttons">
-                <button
-                  :for={{kind, label} <- row.actions}
-                  type="button"
-                  class="rg-button rg-button--secondary"
-                  phx-click="act"
-                  phx-value-listing={row.listing.id}
-                  phx-value-kind={kind}
-                  phx-value-symbol={@symbol}
-                  phx-target={@myself}
-                  aria-expanded={to_string(@action == {@symbol, row.listing.id, kind})}
-                >
-                  {label}
-                </button>
-              </div>
               <.live_component
-                :for={{kind, _label} <- row.actions}
-                :if={@action == {@symbol, row.listing.id, kind}}
+                :for={kind <- row.actions}
                 module={CoveredCallComponent}
                 id={"#{@id}-#{kind}-#{row.listing.id}"}
                 kind={kind}
@@ -209,20 +188,20 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   defp actions(:sold, stage, listing, holding, claimable) do
     [
-      (stage == :exercise and holding != nil and holding.held > 0) && {:exercise, "Exercise"},
+      (stage == :exercise and holding != nil and holding.held > 0) && :exercise,
       (stage in [:open, :sold, :exercise] and Terms.available(listing) > 0 and
          not listing.stock_returned) &&
-        {:cancel, "Stop selling"},
-      Terms.strike_due(listing) > 0 && {:collect_strike, "Collect USDC"},
-      claimable > 0 && {:claim, "Collect stock"}
+        :cancel,
+      Terms.strike_due(listing) > 0 && :collect_strike,
+      claimable > 0 && :claim
     ]
     |> Enum.filter(& &1)
   end
 
   defp actions(:held, stage, _listing, holding, claimable) do
     [
-      (stage == :exercise and holding.held > 0) && {:exercise, "Exercise"},
-      claimable > 0 && {:claim, "Collect stock"}
+      (stage == :exercise and holding.held > 0) && :exercise,
+      claimable > 0 && :claim
     ]
     |> Enum.filter(& &1)
   end

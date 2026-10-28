@@ -80,12 +80,22 @@ defmodule Autolaunch.CoveredCalls.Steps do
                Review.step(
                  "list",
                  market.contract,
-                 Call.encode("list(uint256,uint256,uint256,uint64)", [amount, strike, premium, expiry])
+                 Call.encode("list(uint256,uint256,uint256,uint64)", [
+                   amount,
+                   strike,
+                   premium,
+                   expiry
+                 ])
                )
              ],
          blocked: blocked,
          approved: stock.allowance >= amount,
-         facts: %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}
+         facts: %{
+           amount: amount,
+           strike_per_token: strike,
+           premium_per_token: premium,
+           expiry: expiry
+         }
        }}
     end
   end
@@ -110,10 +120,21 @@ defmodule Autolaunch.CoveredCalls.Steps do
        %{
          steps:
            approval("usdc_approval", usdc.token, market.contract, premium) ++
-             [Review.step("fill", market.contract, Call.encode("fill(uint256,uint256)", [listing.id, amount]))],
+             [
+               Review.step(
+                 "fill",
+                 market.contract,
+                 Call.encode("fill(uint256,uint256)", [listing.id, amount])
+               )
+             ],
          blocked: blocked,
          approved: usdc.allowance >= premium,
-         facts: %{listing_id: listing.id, amount: amount, premium: premium, fee: Terms.fee(premium)}
+         facts: %{
+           listing_id: listing.id,
+           amount: amount,
+           premium: premium,
+           fee: Terms.fee(premium)
+         }
        }}
     end
   end
@@ -162,7 +183,9 @@ defmodule Autolaunch.CoveredCalls.Steps do
           true -> nil
         end
 
-      one_call(:cancel, "cancel(uint256)", listing, market, blocked, %{unsold: Terms.available(listing)})
+      one_call(:cancel, "cancel(uint256)", listing, market, blocked, %{
+        unsold: Terms.available(listing)
+      })
     end
   end
 
@@ -192,7 +215,9 @@ defmodule Autolaunch.CoveredCalls.Steps do
   defp one_call(kind, signature, listing, market, blocked, facts) do
     {:ok,
      %{
-       steps: [Review.step(Atom.to_string(kind), market.contract, Call.encode(signature, [listing.id]))],
+       steps: [
+         Review.step(Atom.to_string(kind), market.contract, Call.encode(signature, [listing.id]))
+       ],
        blocked: blocked,
        approved: true,
        facts: Map.put(facts, :listing_id, listing.id)

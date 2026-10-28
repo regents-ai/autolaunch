@@ -53,7 +53,9 @@ defmodule Autolaunch.CoveredCalls.Book do
   def handle_call({:read, symbol}, _from, kept) do
     case kept do
       %{^symbol => {reading, read_at}} ->
-        if read_at + kept_ms() > now(), do: {:reply, {:ok, reading}, kept}, else: reread(symbol, kept)
+        if read_at + kept_ms() > now(),
+          do: {:reply, {:ok, reading}, kept},
+          else: reread(symbol, kept)
 
       _none ->
         reread(symbol, kept)

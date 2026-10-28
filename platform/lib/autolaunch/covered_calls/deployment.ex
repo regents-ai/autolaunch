@@ -33,7 +33,8 @@ defmodule Autolaunch.CoveredCalls.Deployment do
   def enabled?, do: Application.get_env(:autolaunch, :covered_calls, :off) == :on
 
   @doc "The markets, each with the Base deployment's chain and doors, or why there are none."
-  @spec current() :: {:ok, %{chain_id: pos_integer(), markets: [market()], lab: map()}}
+  @spec current() ::
+          {:ok, %{chain_id: pos_integer(), markets: [market()], lab: map()}}
           | {:error, atom()}
   def current do
     with true <- enabled?() || {:error, :covered_calls_off},
