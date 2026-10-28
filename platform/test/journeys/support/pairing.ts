@@ -29,15 +29,15 @@ export async function openPanel(page: Page) {
 }
 
 // Picks an agent in the box and waits for its own message, which carries that
-// agent's own code, so it differs from every other agent's.
-let shown = ""
+// agent's own code, so it differs from the one on screen before the click.
 export async function chooseAgent(page: Page, root: string, label: string) {
-  await page.locator(root).getByText(label, {exact: true}).click()
   const message = page.locator(`${root} pre:not([data-unused]) code`)
-  await expect.poll(async () => (await message.textContent()) ?? "").not.toBe(shown)
+  const before = (await message.count()) ? await message.textContent() : null
+  await page.locator(root).getByText(label, {exact: true}).click()
+  await expect(page.locator(`${root} input[name='harness']:checked`)).toHaveAccessibleName(label)
+  await expect.poll(async () => message.textContent()).not.toBe(before)
   await expect(message).not.toContainText("XXXXXXXX")
-  shown = (await message.textContent())!
-  return shown
+  return (await message.textContent())!
 }
 
 /** The signed-in person makes a code in the side panel and `agent` signs in and pairs with it. */

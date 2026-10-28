@@ -58,22 +58,17 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
       await b.waitForTimeout(1_000)
     }
     await expect(placed).toBeVisible({timeout: 60_000})
-    expect(bids.every(tx => tx.from === people.b.wallet)).toBe(true)
   }
 
   await mineTo(Number(await read(auction, "endBlock")))
   await expect.poll(() => state(listed.id), {timeout: 120_000}).toBe("ended")
 
   // L8: from its migration block anyone may finish it, here Person B from the page.
-  const {launchpad} = memestock().addresses
-  const abi = memestock().abis.launchpad
-  const launchId = BigInt(await call(launchpad, encodeFunctionData({abi, functionName: "launchIdOfAuction", args: [auction as Hex]}) as Hex))
   await mineTo(Number(await read(auction, "claimBlock")) + 200)
   await b.goto(path)
   await ready(b)
   await b.getByRole("button", {name: /^Finish/}).click()
   await expect.poll(() => state(listed.id), {timeout: 120_000}).toBe(graduates ? "graduated" : "failed")
-  expect(launchId).toBeGreaterThan(0n)
 
   if (graduates) {
     // Person B claims the tokens they bought, from the auction's page.

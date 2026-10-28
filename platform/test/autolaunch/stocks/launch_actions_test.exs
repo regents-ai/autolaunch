@@ -12,6 +12,7 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
        |> Jason.decode!()
 
   @config %{abis: %{"launchpad" => @abi}}
+  @selectors ABI.parse_specification(@abi)
   @stock "0xb200000000000000000000c2e324d24d7eecd1fb"
   @launchpad "0x7777777777777777777777777777777777777777"
 
@@ -37,9 +38,10 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     block: %{number: 1_000_000, hash: "0x" <> String.duplicate("ab", 32)}
   }
 
-  # REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the step a person's wallet signs is the
-  # draft's own name, ticker, description, website, picture and stock, for every
-  # draft the review admits, and nothing else.
+  # REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the review's one step is this calldata
+  # (`review/6` saves `Review.step("launch", launchpad, launch_data(...))`), so the
+  # step a person's wallet signs is the draft's own name, ticker, description,
+  # website, picture and stock, for every draft the review admits, and nothing else.
   property "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft" do
     text = fn limit ->
       filter(string(:printable, max_length: limit), &(byte_size(&1) <= limit))
@@ -64,10 +66,10 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
       }
 
       "0x" <> hex = LaunchActions.launch_data(fields, @config)
-      <<_selector::binary-size(4), arguments::binary>> = Base.decode16!(hex, case: :lower)
 
-      assert [{^name, ^symbol, ^description, ^website, ^image, ^stock}] =
-               ABI.decode("launch((string,string,string,string,string,address))", arguments)
+      # Read back through the launchpad's own ABI: the selector must be its launch.
+      assert {%{function: "launch"}, [{^name, ^symbol, ^description, ^website, ^image, ^stock}]} =
+               ABI.find_and_decode(@selectors, Base.decode16!(hex, case: :lower))
     end
   end
 

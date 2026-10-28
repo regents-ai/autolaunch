@@ -57,13 +57,22 @@ defmodule AutolaunchWeb.Components.AgentSetFields do
   defp set_fields(%{agent_set_fields: fields}) when is_list(fields), do: fields
   defp set_fields(_draft), do: []
 
-  # An address on Base is drawn as every Regent page draws one, to open and copy whole.
-  defp value(%{field: :treasury, value: "0x" <> _} = assigns), do: address(assigns)
+  # A whole address on Base is drawn as every Regent page draws one, to open and
+  # copy whole. A draft is saved part-way, so anything else shows as written.
+  defp value(%{field: :treasury, value: value} = assigns) when is_binary(value) do
+    if whole_address?(value), do: address(assigns), else: written(assigns)
+  end
 
-  defp value(%{field: :stock_address, value: "0x" <> _, draft: %{chain: :base}} = assigns),
-    do: address(assigns)
+  defp value(%{field: :stock_address, value: value, draft: %{chain: :base}} = assigns)
+       when is_binary(value) do
+    if whole_address?(value), do: address(assigns), else: written(assigns)
+  end
 
-  defp value(assigns), do: ~H"{shown(@field, @value)}"
+  defp value(assigns), do: written(assigns)
+
+  defp whole_address?(value), do: value =~ ~r/\A0x[0-9a-fA-F]{40}\z/
+
+  defp written(assigns), do: ~H"{shown(@field, @value)}"
 
   defp address(assigns) do
     ~H"""

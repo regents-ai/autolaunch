@@ -105,7 +105,11 @@ defmodule AutolaunchWeb.AgentPairingPropertiesTest do
 
   # PAIRING_CODE_ENDS_AT_TEN_MINUTES
   property "PAIRING_CODE_ENDS_AT_TEN_MINUTES: a code pairs exactly when it is under ten minutes old" do
-    check all(age <- one_of([integer(0..1_200), integer(590..610)]), max_runs: 60) do
+    # The request is sent within a second of the clock moving, so the second before
+    # the edge is left out rather than raced.
+    edge = one_of([integer(590..597), integer(600..610)])
+
+    check all(age <- one_of([integer(0..597), integer(600..1_200), edge]), max_runs: 60) do
       code = code_for(person_id())
       hash = PairingCode.hash(code)
 
@@ -206,11 +210,19 @@ defmodule AutolaunchWeb.AgentPairingPropertiesTest do
     end
   end
 
-  # Pairing an agent that is already paired, or unpairing one that is not, is a read.
-  defp act(:pair, agent, person, paired) when not is_map_key(paired, agent) do
-    assert pair(agent, code_for(person.privy_user_id)).status == 201
-    Map.put(paired, agent, person)
+  # A paired agent may also redeem another person's code; whichever person the
+  # site then pairs it with, every later answer must name that person alone.
+  defp act(:pair, agent, person, paired) do
+    case pair(agent, code_for(person.privy_user_id)) do
+      %{status: 201} ->
+        Map.put(paired, agent, person)
+
+      %{status: status} when is_map_key(paired, agent) and status in 400..499 ->
+        paired
+    end
   end
+
+  # Unpairing one that is not paired is a read.
 
   defp act(:unpair, agent, _person, paired) when is_map_key(paired, agent) do
     owner = %Person{privy_user_id: paired[agent].privy_user_id}

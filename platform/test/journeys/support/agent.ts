@@ -1,4 +1,4 @@
-import {spawnSync} from "node:child_process"
+import {spawn, spawnSync} from "node:child_process"
 import {chmodSync, mkdirSync, mkdtempSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {generatePrivateKey, privateKeyToAccount} from "viem/accounts"
@@ -32,23 +32,34 @@ export class Agent {
     const result = spawnSync(process.env.REGENTS!, [...args, "--json"], {
       input: stdin === undefined ? "" : JSON.stringify(stdin),
       encoding: "utf8",
-      env: {
-        PATH: process.env.PATH,
-        HOME: process.env.HOME,
-        SIWA_AGENT_HOME: this.home,
-        SIWA_BROKER: process.env.SIWA_URL,
-        AUTOLAUNCH_BASE_URL: process.env.AUTOLAUNCH_URL,
-        PYTHON_GIL: "0",
-      },
+      env: this.env(),
       timeout: 60_000,
     })
-    let json: any = null
-    try {
-      json = JSON.parse(result.stdout)
-    } catch {
-      json = null
+    return {status: result.status ?? -1, json: parsed(result.stdout), stdout: result.stdout, stderr: result.stderr}
+  }
+
+  private env() {
+    return {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+      SIWA_AGENT_HOME: this.home,
+      SIWA_BROKER: process.env.SIWA_URL,
+      AUTOLAUNCH_BASE_URL: process.env.AUTOLAUNCH_URL,
+      PYTHON_GIL: "0",
     }
-    return {status: result.status ?? -1, json, stdout: result.stdout, stderr: result.stderr}
+  }
+
+  /** `regents autolaunch <args>`, without waiting: several can run at once. */
+  autolaunchAtOnce(args: string[], stdin?: unknown): Promise<Answer> {
+    return new Promise(resolve => {
+      const child = spawn(process.env.REGENTS!, ["autolaunch", ...args, "--json"], {env: this.env()})
+      let stdout = ""
+      let stderr = ""
+      child.stdout.on("data", chunk => (stdout += chunk))
+      child.stderr.on("data", chunk => (stderr += chunk))
+      child.on("close", status => resolve({status: status ?? -1, json: parsed(stdout), stdout, stderr}))
+      child.stdin.end(stdin === undefined ? "" : JSON.stringify(stdin))
+    })
   }
 
   /** `regents autolaunch <args>`. */
@@ -58,5 +69,13 @@ export class Agent {
 
   signIn(): Answer {
     return this.run(["auth", "login", "--site", "autolaunch"])
+  }
+}
+
+function parsed(stdout: string): any {
+  try {
+    return JSON.parse(stdout)
+  } catch {
+    return null
   }
 }

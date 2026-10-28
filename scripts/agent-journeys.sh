@@ -5,7 +5,7 @@
 #   scripts/agent-journeys.sh          start the stack, run every journey, stop it
 #   scripts/agent-journeys.sh up       start the stack and leave it running
 #   scripts/agent-journeys.sh test     run the journeys against a running stack
-#   scripts/agent-journeys.sh site     restart only the site, after a code change
+#   scripts/agent-journeys.sh site     restart only the site of a running stack, after a code change
 #   scripts/agent-journeys.sh down     stop the stack and drop its databases
 #
 # The stack, all on 127.0.0.1 and all started here:
@@ -28,8 +28,10 @@
 #                            revisions this one pins (default the repository's main checkout)
 #   SIWA_SERVER_REPO         a siwa-server checkout holding SIWA_SERVER_REV (default beside it)
 #   AUTOLAUNCH_JOURNEYS_PORT the site's port (default 4050, else a free one)
-# Every process it starts is stopped by its recorded pid, and its two databases
-# (autolaunch_agents_test, siwa_agent_journeys) are dropped by name on the way down.
+# Every process it starts is stopped by its recorded pid, once that pid is checked to be
+# still the process it started. Its two databases are named after this checkout
+# (autolaunch_agents_<id>_test, siwa_agent_journeys_<id>), so two checkouts never
+# share one, and they are dropped by those names on the way down.
 set -eu
 
 SIWA_SERVER_REV=2ba5df09f5cb54abf28e96d39ad0b6fb45fa0347
@@ -40,7 +42,9 @@ platform=$root/platform
 work=$platform/tmp/agent-journeys
 state=$work/run
 out=${AGENT_JOURNEYS_OUT:-$work/out}
-siwa_db=siwa_agent_journeys
+id=$(printf '%s' "$root" | shasum | cut -c1-6)
+siwa_db=siwa_agent_journeys_$id
+site_db=autolaunch_agents_${id}_test
 siwa_dir=$work/siwa-server-$SIWA_SERVER_REV
 regents_dir=$work/regents-cli-$REGENTS_CLI_REV
 fork="python3 $platform/test/journeys/support/base_fork.py"
@@ -65,22 +69,34 @@ wait_for() {
   done
 }
 
-# Stops one recorded process by its pid, and nothing else.
+# Stops one recorded process by its pid, and only while that pid is still the
+# server this script started in folder $2: after a restart the number may belong
+# to anything else.
 stop_pid() {
   file=$state/$1.pid
   [ -f "$file" ] || return 0
   pid=$(cat "$file")
-  if kill -0 "$pid" 2>/dev/null; then
-    kill "$pid"
+  if [ "$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')" = "$2" ]; then
+    kill "$pid" 2>/dev/null || true
     tries=0
     while kill -0 "$pid" 2>/dev/null && [ "$tries" -lt 20 ]; do
       sleep 0.5
       tries=$((tries + 1))
     done
-    if kill -0 "$pid" 2>/dev/null; then kill -9 "$pid"; fi
+    if kill -0 "$pid" 2>/dev/null; then kill -9 "$pid" 2>/dev/null || true; fi
     say "stopped $1 (pid $pid)"
   fi
   rm -f "$file"
+}
+
+already_up() {
+  for piece in site siwa base-fork; do
+    if [ -f "$state/$piece.pid" ]; then
+      say "a stack is already up; run scripts/agent-journeys.sh down first"
+      return 0
+    fi
+  done
+  return 1
 }
 
 siwa_env() {
@@ -135,12 +151,6 @@ contracts() {
 
 up() {
   mkdir -p "$state" "$out"
-  for piece in site siwa base-fork; do
-    if [ -f "$state/$piece.pid" ]; then
-      say "a stack is already up; run scripts/agent-journeys.sh down first"
-      exit 1
-    fi
-  done
 
   say "the v2 contracts and a copy of Base"
   contracts
@@ -152,6 +162,7 @@ up() {
   say "the sign-in service at $SIWA_SERVER_REV"
   if [ ! -f "$siwa_dir/.built" ]; then
     repo=${SIWA_SERVER_REPO:-$(dirname "$main_checkout")/siwa-server}
+    git -C "$repo" cat-file -e "$SIWA_SERVER_REV^{commit}" 2>/dev/null || git -C "$repo" fetch -q origin "$SIWA_SERVER_REV"
     mkdir -p "$siwa_dir"
     git -C "$repo" archive "$SIWA_SERVER_REV" | tar -x -C "$siwa_dir"
     (cd "$siwa_dir" && MIX_ENV=dev mix deps.get && MIX_ENV=dev mix compile) >"$out/siwa-build.log" 2>&1
@@ -175,7 +186,7 @@ up() {
   if lsof -nP -iTCP:"$site_port" -sTCP:LISTEN >/dev/null 2>&1; then site_port=$(free_port); fi
   cat >"$state/site.env" <<EOF
 MIX_ENV=test
-MIX_TEST_PARTITION=_agents
+MIX_TEST_PARTITION=_agents_$id
 AUTOLAUNCH_BROWSER_TEST=1
 AUTOLAUNCH_CHAIN_MODE=fork
 AUTOLAUNCH_DB_POOL_SIZE=3
@@ -189,6 +200,22 @@ EOF
   (cd "$platform" && site_env sh -c 'mix run --no-start test/journeys/support/drop.exs && mix db.setup') \
     >"$out/site-setup.log" 2>&1
   start_site
+  # The site learns which stocks the launchpad admits by reading its admission
+  # history, which on the copy goes back to the real deployment; the journeys
+  # start once it has every stock the deployed manifest admits.
+  say "waiting for the site to read the launchpad's admitted stocks"
+  wanted=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))['admissions']))" \
+    "$work/contracts/stocks-v2/deployments/base-mainnet/deployed-manifest.json")
+  tries=0
+  until [ "$(psql -h 127.0.0.1 -U postgres -d "$site_db" -Atc \
+    'select count(*) from autolaunch_app.stocks where admitted' 2>/dev/null || echo 0)" -ge "$wanted" ]; do
+    tries=$((tries + 1))
+    if [ "$tries" -gt 300 ]; then
+      say "the site did not read the admitted stocks; its log is in $out"
+      return 1
+    fi
+    sleep 1
+  done
 
   cat >"$state/stack.env" <<EOF
 AUTOLAUNCH_URL=http://127.0.0.1:$site_port
@@ -215,8 +242,8 @@ journeys() {
 }
 
 down() {
-  stop_pid site
-  stop_pid siwa
+  stop_pid site "$platform"
+  stop_pid siwa "$siwa_dir"
   if [ -f "$state/base-fork.pid" ]; then $fork stop "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1; fi
   if [ -f "$state/site.env" ]; then
     (cd "$platform" && site_env mix run --no-start test/journeys/support/drop.exs) >>"$out/site-setup.log" 2>&1
@@ -225,19 +252,24 @@ down() {
     (cd "$siwa_dir" && siwa_env 0 mix ecto.drop --force-drop) >>"$out/siwa-setup.log" 2>&1
   fi
   rm -f "$state/stack.env" "$state/site.env" "$state/siwa-keystore.bin"
-  say "down; autolaunch_agents_test and $siwa_db are dropped"
+  say "down; $site_db and $siwa_db are dropped"
 }
 
 case "${1:-all}" in
-  up) up ;;
+  up) if already_up; then exit 1; fi; up ;;
   test) shift; journeys "$@" ;;
-  site) stop_pid site; start_site ;;
+  site)
+    [ -f "$state/site.env" ] || { say "no stack is up; run scripts/agent-journeys.sh up"; exit 1; }
+    stop_pid site "$platform"
+    start_site
+    ;;
   down) mkdir -p "$out"; down ;;
   all)
+    if already_up; then exit 1; fi
     trap 'down' EXIT
     trap 'exit 130' INT TERM
     up
     journeys
     ;;
-  *) say "usage: scripts/agent-journeys.sh [up|test|down]"; exit 2 ;;
+  *) say "usage: scripts/agent-journeys.sh [all|up|test|site|down]"; exit 2 ;;
 esac

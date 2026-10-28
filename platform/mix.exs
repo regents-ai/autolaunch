@@ -14,8 +14,12 @@ defmodule Autolaunch.MixProject do
       version: "0.1.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
-      # The browser walk's scripts (test/browser) are run by Playwright, not ExUnit.
-      test_ignore_filters: [&String.starts_with?(&1, "test/browser/")],
+      # The browser walk's and the agent journeys' scripts (test/browser,
+      # test/journeys) are run by Playwright and scripts/agent-journeys.sh, not ExUnit.
+      test_ignore_filters: [
+        &String.starts_with?(&1, "test/browser/"),
+        &String.starts_with?(&1, "test/journeys/")
+      ],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),

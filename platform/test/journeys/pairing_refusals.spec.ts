@@ -25,6 +25,23 @@ test("a code works once, for the agent that used it and for any other", async ({
   unpair("did:privy:journey-a", first.address)
 })
 
+test("two agents redeeming one code at the same moment: exactly one pairs", async ({page}) => {
+  await signIn(page, people.a)
+  await page.goto("/auctions")
+  await ready(page)
+  await openPanel(page)
+  const code = codeIn(await chooseAgent(page, "#shell-pairing", "Pi"))
+  const agents = [new Agent("race-one"), new Agent("race-two"), new Agent("race-three")]
+  for (const agent of agents) expect(agent.signIn().status).toBe(0)
+  const answers = await Promise.all(agents.map(agent =>
+    agent.autolaunchAtOnce(["agents", "pair"], {code, name: "Race", harness: "pi"})))
+  expect(answers.filter(answer => answer.status === 0)).toHaveLength(1)
+  for (const answer of answers.filter(answer => answer.status !== 0))
+    expect(answer.json.error.code).toBe("pairing_failed")
+  const winner = agents[answers.findIndex(answer => answer.status === 0)]
+  unpair("did:privy:journey-a", winner.address)
+})
+
 test("ChatGPT and made-up harnesses are refused before the code is spent", async ({page}) => {
   await signIn(page, people.a)
   await page.goto("/auctions")

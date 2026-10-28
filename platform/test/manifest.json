@@ -1197,20 +1197,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 132,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 137,
+      "line": 142,
       "test_name": "the launch review names every agent-set field and shows the community links",
       "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 133,
@@ -1321,13 +1321,13 @@
       "group": "Creator drafts",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 104,
+      "line": 109,
       "test_name": "AGENT_SAVE_SHOWS_LIVE: an open create page shows an agent's save without a reload",
       "keep_because": "An agent can fill in a draft while the person has the create page open; the box naming what the agent set must show it then, on both create pages, so nothing an agent chose reaches a wallet step unseen. It fails when either page stops hearing of an agent's save.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 142,
@@ -1778,11 +1778,11 @@
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
       "line": 70,
       "test_name": "AGENT_SET_ADDRESS_IS_COPYABLE: an address the agent set can be copied whole and opened on Basescan",
-      "keep_because": "The list of what an agent filled in printed its addresses as bare text, against the rule that every address can be copied whole and opened (found by the agent journeys, 27 Oct 2026). The case checks the agent's treasury copies whole and links Basescan. It fails on the bare text.",
+      "keep_because": "The list of what an agent filled in printed its addresses as bare text, against the rule that every address can be copied whole and opened (found by the agent journeys, 27 Oct 2026). The case checks the agent's treasury copies whole and links Basescan. It fails on the bare text. It also checks a treasury saved part-way shows as written: drawn as an address it crashed the page (found by the adversarial review, 27 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 178,
@@ -1795,7 +1795,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
     },
     {
       "id": 179,
@@ -1808,72 +1808,72 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
     },
     {
       "id": 180,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
-      "line": 131,
+      "line": 135,
       "test_name": "ONLY_OFFERED_HARNESSES_PAIR: an agent pairs exactly when its harness is one this site offers, and never as ChatGPT",
       "keep_because": "ChatGPT pairs only through a plugin this site does not serve, so an agent naming it here must be refused before its code is spent. The property sends every known harness and made-up ones and checks only the site's offered list pairs.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
     },
     {
       "id": 181,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
-      "line": 151,
+      "line": 155,
       "test_name": "PAIR_TAKES_EXACTLY_CODE_NAME_AND_HARNESS: a pair request with any other set of fields spends nothing and is refused",
       "keep_because": "A pair request carrying a missing or extra field must spend nothing. The property sends every other set of fields and checks each is pairing_failed and the same code still pairs afterwards.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
     },
     {
       "id": 182,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
-      "line": 180,
+      "line": 184,
       "test_name": "AGENT_LIMIT_IS_ONE_HUNDRED",
       "keep_because": "One account holds at most a hundred agents. The case pairs a hundred and checks the next is refused as agent_limit.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
     },
     {
       "id": 183,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
-      "line": 188,
+      "line": 192,
       "test_name": "AN_AGENT_ACTS_ONLY_FOR_ITS_OWN_PERSON: every private answer names the account of the agent's current pairing, or refuses",
       "keep_because": "The worst thing an agent route can do is answer for someone else's account. The property runs random pairings, unpairings and check-ins across three people and four agents and checks every answer names the account of the agent's current pairing, or is agent_not_paired.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
     },
     {
       "id": 184,
       "group": "Memestock launch",
       "framework": "exunit",
       "file": "test/autolaunch/stocks/launch_actions_test.exs",
-      "line": 43,
+      "line": 45,
       "test_name": "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft",
       "keep_because": "The person's wallet signs the review's launch step, so that step must carry exactly the draft they reviewed. The property encodes random drafts at every byte limit, decodes the step with the launchpad's own ABI and checks every field comes back unchanged.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5d31d2ec580d0865b243fd7e4aa25d4cb086da6af98fe86d3eb2928981678502"
+      "source_sha256": "421aa0e8db0856d915b95934a3ea3c5f22bd4c609916a10886d1480aee7db325"
     }
   ],
   "legacy_folders_to_remove": [

@@ -76,7 +76,7 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
 
   // L5: the launchpad records the person's wallet and the reviewed stock, and the card says it is made.
   const created = launchCreated(await receipt(launch.hash))
-  expect(String(created.launcher ?? created.creator).toLowerCase()).toBe(people.a.wallet)
+  expect(String(created.launcher).toLowerCase()).toBe(people.a.wallet)
   expect(String(created.stock).toLowerCase()).toBe(AAPLC)
   // One launch per review: the page's confirmation and discovery, repeated and at once, list it once.
   const again = JSON.parse(onSite("confirm_again.exs", {
@@ -98,6 +98,7 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
   await expect(page.locator("main")).toContainText(draft.symbol)
   await fitsAndPresses(page, touch)
   const auctions = await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${draft.symbol}`)).json()
-  expect(auctions.data.map((auction: any) => auction.symbol ?? auction.token_symbol)).toEqual([draft.symbol])
+  expect(auctions.data.map((auction: any) => auction.token_symbol)).toEqual([draft.symbol])
+  expect(sent, "the person's wallet was asked for one transaction in all").toHaveLength(1)
   unpair("did:privy:journey-a", agent.address)
 })

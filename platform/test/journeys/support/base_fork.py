@@ -172,12 +172,22 @@ class Fork:
             print(f"{self.run / name} written from {package}'s deployed manifest")
 
     def stop(self):
-        pid = self.run / "base-fork.pid"
-        if pid.exists():
-            subprocess.run(["kill", pid.read_text().strip()], check=False)
-            pid.unlink()
-            (self.run / "base-fork.port").unlink(missing_ok=True)
+        """Stops the recorded Anvil, only while that pid is still an Anvil: after a
+        restart the number may belong to anything else."""
+        pid_file = self.run / "base-fork.pid"
+        if not pid_file.exists():
+            return
+        pid = pid_file.read_text().strip()
+        command = subprocess.run(["ps", "-p", pid, "-o", "comm="], capture_output=True, text=True).stdout.strip()
+        if Path(command).name == "anvil":
+            subprocess.run(["kill", pid], check=False)
+            for _ in range(40):
+                if subprocess.run(["kill", "-0", pid], capture_output=True).returncode != 0:
+                    break
+                time.sleep(0.25)
             print("copy of Base stopped")
+        pid_file.unlink()
+        (self.run / "base-fork.port").unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

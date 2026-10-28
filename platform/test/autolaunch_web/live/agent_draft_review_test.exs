@@ -96,6 +96,11 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
              view,
              "#agent-set-fields a[href='https://basescan.org/address/#{@treasury}']"
            )
+
+    # A draft is saved part-way, so a treasury that is not yet a whole address
+    # shows as the agent wrote it (found by the adversarial review, 27 Oct 2026).
+    {:ok, _draft} = AgentDrafts.save("revstake", %{"treasury" => "0x12"}, agent)
+    assert view |> element("#agent-set-fields") |> render() =~ "0x12"
   end
 
   # Production chief, 23 Oct 2026: the box stayed as the page opened while an
