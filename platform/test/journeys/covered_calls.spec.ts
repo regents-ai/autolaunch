@@ -10,7 +10,18 @@ import type {Locator, Page} from "@playwright/test"
 // Friday's expiry B exercises it while the issuer has stock transfers paused,
 // B's stock waits while A still collects the strike, and once transfers resume B
 // and A each collect their AMZNc. Feature map: operations/FEATURES.md, Wallet actions.
+//
+// The journey moves the copy's clock past expiry, so it puts the copy back the way it found it
+// when it ends: later journeys' stock prices would otherwise read as days old.
 test.use({wallet: people.a.wallet})
+
+let snapshot: string
+test.beforeEach(async () => {
+  snapshot = await rpc("evm_snapshot")
+})
+test.afterEach(async () => {
+  expect(await rpc("evm_revert", [snapshot]), "the copy of Base is put back").toBe(true)
+})
 
 const AMZNC = "0xb200000000000000000000d9192b6b456483c2e8"
 const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
