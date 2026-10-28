@@ -43,17 +43,23 @@ The Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` works too, through its Tra
 (to the deployer, value 0, the same data). It gives the same address and adds only the Safe's
 approvals.
 
-Gas used in the rehearsal: 1,083,828.
+The Safe transaction's operation must be **Call**, never delegatecall. Set the gas limit to at least
+1,200,000: Base estimated 1,103,368 and the rehearsal used 1,083,828.
+
+Right before signing, check the address still has no code. Anyone may send this same transaction;
+if someone already has, the address holds the promised code, the contract is deployed, and a second
+send would only fail and spend its fee.
 
 ## After it lands
 
 `packet.json` → `post_deploy` lists what to check, and each must match exactly:
 
+- the transaction's receipt has status 1;
 - the code at the address hashes to `runtime_code_keccak`;
 - `stock()`, `usdc()`, `staking()` are the three arguments, `unit()` is 100000000, `FEE_BPS()` is
   100 and `EXERCISE_WINDOW()` is 86400;
-- the source verifies on Basescan with `basescan_verify`, run from `contracts/covered-calls` with a
-  Basescan key.
+- the source verifies on Basescan with `basescan_verify`, run from `contracts/covered-calls` with
+  `ETHERSCAN_API_KEY` set and `../stocks-v2/lib` filled (`contracts/stocks-v2/bootstrap-deps.py`).
 
 Then the site's covered-calls deployment record names the address, and covered calls open when the
 switch is turned on, a separate release.
@@ -64,9 +70,13 @@ switch is turned on, a separate release.
   `bin/gate.sh` builds and tests (67 passed) at the packet's source commit.
 - On Base: the deterministic deployer's code hash matches, read from two public endpoints, and the
   predicted address is empty.
-- `rehearse.sh` on a copy of Base at block 53219530: the transaction succeeded from the Safe,
+- `rehearse.sh` on a copy of Base at block 53219903: the transaction succeeded from the Safe,
   the contract landed at the predicted address with the promised code hash and reads, and a whole
   life (list, buy, exercise, collect stock, collect strike) ran on it with the real AMZNc, USDC and
   live staking, the 1% fee landing in staking.
+- An independent review re-derived every argument from the repository's records and live Base,
+  rebuilt the creation code three ways, recomputed the salt, address and runtime code, and found the
+  packet correct; a dry run of the exact transaction on live Base (a read, nothing sent) returns the
+  predicted address from any sender.
 - Foundry's local copy of Base lacks the newer `effectiveAt()` read on stock tokens, so the
   rehearsal stands in its live value (0, nothing scheduled), as the fork suite does.

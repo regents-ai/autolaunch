@@ -14,7 +14,8 @@ import {WeeklyExpiry} from "../doubles/WeeklyExpiry.sol";
 /// @dev    Foundry's local B20 lacks the Cobalt `effectiveAt()` read live on Base since then, so it
 ///         stands in its mainnet value (0, nothing scheduled), as the fork suite does.
 contract DeployPacketRehearsal is Test {
-    address internal constant AMZNC_POOL = 0x532e0F46d1e528507FC9454d5847C231f23bDDf6;
+    /// An AMZNc/USDC pool holding AMZNc, used only to fund the test seller.
+    address internal constant AMZNC_HOLDER = 0x532e0F46d1e528507FC9454d5847C231f23bDDf6;
     uint256 internal constant TOKEN = 1e8;
     uint256 internal constant USD = 1e6;
 
@@ -48,7 +49,7 @@ contract DeployPacketRehearsal is Test {
     /// list, fill, exercise, claim and collectStrike on the deployed instance with real tokens.
     function test_wholeLifeOnTheDeployedInstance() public {
         vm.mockCall(address(stock), abi.encodeWithSignature("effectiveAt()"), abi.encode(uint256(0)));
-        vm.prank(AMZNC_POOL);
+        vm.prank(AMZNC_HOLDER);
         stock.transfer(seller, 2 * TOKEN);
         deal(address(usdc), buyer, 1_000 * USD);
         uint64 expiry = WeeklyExpiry.next(block.timestamp, 1);

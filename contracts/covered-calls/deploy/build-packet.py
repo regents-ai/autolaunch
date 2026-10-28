@@ -170,17 +170,25 @@ def main() -> None:
             "to": DEPLOYER,
             "value": "0",
             "data": salt + init_code[2:],
+            # Base estimated 1,103,368 and the rehearsal used 1,083,828 (28 Oct 2026).
+            "gas_limit_at_least": 1_200_000,
         },
         "signer": {
             "recommended": "your own wallet",
             "alternative_safe": SAFE,
+            "safe_operation": "Call (never delegatecall)",
             "why": (
                 "CoveredCallsV1 has no owner, admin, pause or upgrade, so whoever sends this transaction "
                 "gains no power over it, and the address is the same whoever sends it. One signature from "
                 "your wallet is the simplest; the Safe adds approvals and nothing else."
             ),
         },
+        "before_signing": (
+            f"Check {predicted} still has no code. Anyone may send this same transaction; if the "
+            "address already holds runtime_code_keccak, the contract is deployed and nothing needs sending."
+        ),
         "post_deploy": {
+            "receipt_status": "1",
             "runtime_code_keccak": keccak(code),
             "reads": {
                 "stock()": amznc["stock"],
@@ -190,6 +198,10 @@ def main() -> None:
                 "FEE_BPS()": "100",
                 "EXERCISE_WINDOW()": "86400",
             },
+            "basescan_verify_needs": (
+                "ETHERSCAN_API_KEY (an Etherscan key works for Base) and ../stocks-v2/lib filled by "
+                "contracts/stocks-v2/bootstrap-deps.py; run from contracts/covered-calls"
+            ),
             "basescan_verify": (
                 f"forge verify-contract {predicted} src/CoveredCallsV1.sol:CoveredCallsV1 --chain base "
                 f"--compiler-version v{artifact['metadata']['compiler']['version']} "
