@@ -27,9 +27,10 @@ defmodule Autolaunch.Stocks.ChainLaunch do
   @transient [:chain_unavailable, :invalid_chain_response]
   # Control characters other than a line break, every invisible format
   # character (zero-width spaces and joiners, reordering marks, soft hyphens,
-  # tag characters) and the Hangul fillers that draw as blank, any of which
-  # could make a name read as another.
-  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\x{115F}\x{1160}\x{3164}\x{FFA0}]/u
+  # tag characters), every character Unicode says a page may draw as nothing
+  # (variation selectors, combining joiners, fillers) and the blank braille
+  # cell, any of which could make a name read as another.
+  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}\x{2800}]/u
   # Line and paragraph separators, and carriage returns, read as line breaks.
   @breaks ~r/\r\n?|[\p{Zl}\p{Zp}]/u
 
@@ -110,7 +111,9 @@ defmodule Autolaunch.Stocks.ChainLaunch do
     with {:ok, "data:application/json;base64," <> encoded} <-
            token_string(pad, token, "tokenURI()", block),
          {:ok, json} <- Base.decode64(encoded),
-         {:ok, %{} = metadata} <- Jason.decode(json) do
+         # The token keeps the launch's bytes as they were sent, so text that is
+         # not valid is cleaned here as a name's is.
+         {:ok, %{} = metadata} <- json |> String.replace_invalid("") |> Jason.decode() do
       {:ok, metadata}
     else
       {:error, reason} when reason in @transient -> {:error, reason}
@@ -189,12 +192,12 @@ defmodule Autolaunch.Stocks.ChainLaunch do
     end
   end
 
-  @doc "A launch's website, kept only when it is a full https:// link."
+  @doc "A launch's website, kept only when it is a full https:// link with no space of any kind in it."
   @spec website(term()) :: String.t() | nil
   def website(value) do
     case text(value) do
       nil -> nil
-      link -> if LaunchLinks.web_link?(link), do: link
+      link -> if LaunchLinks.web_link?(link) and not (link =~ ~r/[\s\p{Z}]/u), do: link
     end
   end
 

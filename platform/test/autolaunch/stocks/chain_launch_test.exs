@@ -14,7 +14,7 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
 
   # Control characters other than a line break, every invisible format
   # character, line and paragraph separators, and the Hangul fillers.
-  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\x{115F}\x{1160}\x{3164}\x{FFA0}]/u
+  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}\x{2800}]/u
 
   # Any bytes at all, and text built from the characters that hide or reorder it.
   defp carried do
@@ -38,6 +38,13 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
               "\u2028",
               "\u2029",
               "\u3164",
+              "\u034F",
+              "\uFE0F",
+              "\u{E0100}",
+              "\u17B4",
+              "\u180B",
+              "\u2800",
+              "\u00A0",
               "\r",
               "\u0000",
               "\u0007",
@@ -82,6 +89,9 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
     assert ChainLaunch.text("\u{E0041}\u00AD") == nil
     assert ChainLaunch.line("AMZN\u3164") == "AMZN"
     assert ChainLaunch.line("Two\u2028lines") == "Two lines"
+    assert ChainLaunch.line("Ap\u034Fple\uFE0F\u2800") == "Apple"
+    assert ChainLaunch.website("https://example.com/a\u00A0b") == nil
+    assert ChainLaunch.website("https://example.com/ab") == "https://example.com/ab"
   end
 
   test "a picture is kept only when this site stores it, at this site's address" do

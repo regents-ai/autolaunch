@@ -239,6 +239,55 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert auctions() == []
   end
 
+  test "a description cut inside a character is listed with its whole characters",
+       %{launchpad: launchpad} do
+    admit_stock()
+    json = ~s({"description":"caf) <> <<0xC3>> <> ~s("})
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{
+        "name()" => "Cut",
+        "symbol()" => "CUT",
+        "tokenURI()" => "data:application/json;base64," <> Base.encode64(json)
+      }
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :listed}] = discoveries()
+    assert [%{summary: "caf"}] = auctions()
+  end
+
+  test "a launch taken again that the site cannot list yet waits, and is listed once it can",
+       %{launchpad: launchpad} do
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "Waiting", "symbol()" => "WAIT", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+
+    {1, _rows} =
+      Autolaunch.Repo.update_all("launch_discoveries",
+        set: [state: "unlisted", reason: "no_matching_review"]
+      )
+
+    # Its stock is not saved yet: the launch waits for it.
+    run_triggers()
+    assert [%{state: :pending, reason: "unsupported_stock"}] = discoveries()
+
+    admit_stock()
+    Autolaunch.Stocks.Assets.changed()
+    run_triggers()
+
+    assert [%{state: :listed}] = discoveries()
+    assert [%{token_symbol: "WAIT"}] = auctions()
+  end
+
   test "a launch an earlier pass left unlisted is listed on the next; one on a retired launchpad stays unlisted",
        %{launchpad: launchpad} do
     admit_stock()

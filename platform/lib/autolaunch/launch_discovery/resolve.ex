@@ -43,8 +43,10 @@ defmodule Autolaunch.LaunchDiscovery.Resolve do
   defp record({:unlisted, reason}, changeset),
     do: Ash.Changeset.force_change_attributes(changeset, state: :unlisted, reason: text(reason))
 
+  # A launch taken again from `unlisted` waits as `pending`, so the next pass
+  # takes it once more.
   defp record({:pending, reason}, changeset),
-    do: Ash.Changeset.force_change_attribute(changeset, :reason, text(reason))
+    do: Ash.Changeset.force_change_attributes(changeset, state: :pending, reason: text(reason))
 
   defp text(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp text(reason), do: reason |> inspect() |> String.slice(0, 120)
