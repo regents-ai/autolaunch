@@ -3,6 +3,7 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 28 October 2026: a calmer home page
+- The Autolaunch name now sits at the left of the top bar, beside search, in the site's pixel lettering, next to its mark. It no longer sits above the links in the left column. On a phone the top bar shows the mark alone, as before.
 - When no auction is taking bids, "Coming next" now says so in one framed line: "No auction is taking bids. New auctions show here as soon as bidding opens." The row of stock buttons and the three finished-auction cards that sat there are gone; finished auctions stay in the list further down.
 - The line under the title now always sits under it, on wide screens too, and reads "Back long-term agents early, through an auction where everyone pays the same price."
 - The list of launches now starts right under its tabs. A search shows "Results for …" and Clear search beside Filter (on a phone, on their own line under the tabs) instead of keeping an empty line open above the list. After Clear search, the keyboard is on Filter.

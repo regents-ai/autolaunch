@@ -13,8 +13,9 @@ defmodule AutolaunchWeb.Components.TopBar do
   def top_bar(assigns) do
     ~H"""
     <header class="shell-top home-top" id="home-top">
-      <%!-- On a phone, as in the template's shell, the bar starts with the mark
-           and Menu, which opens the rail folded into a drawer. --%>
+      <%!-- As in the template's shell, the bar starts with the mark and the site's
+           name in the pixel face, beside search. On a phone it keeps only the mark,
+           then Menu, which opens the rail folded into a drawer. --%>
       <a id="shell-brand" class="shell-brand" href="/" aria-label="Autolaunch home">
         <svg viewBox="0 0 512 512" aria-hidden="true">
           <rect width="512" height="512" fill="#000000" />
@@ -22,6 +23,7 @@ defmodule AutolaunchWeb.Components.TopBar do
             <rect :for={{x, y} <- mark_blocks()} x={x} y={y} width="64" height="64" />
           </g>
         </svg>
+        <span class="shell-brand__name">Autolaunch</span>
       </a>
       <Regent.Primitives.button
         variant="quiet"
