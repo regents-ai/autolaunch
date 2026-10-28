@@ -7,7 +7,8 @@ defmodule Autolaunch.CoveredCallsChain do
   other request goes to `Autolaunch.BaseRpcStub`.
 
   `install/1` switches covered calls on with a one-market settings file and puts
-  the chain; `put/1` changes it mid-test. Both are undone when the test exits.
+  the chain; `put/1` changes it mid-test (`unreadable: true` fails every contract
+  read). Both are undone when the test exits.
   """
 
   alias Autolaunch.{BaseRpcStub, Lab}
@@ -114,13 +115,19 @@ defmodule Autolaunch.CoveredCallsChain do
 
   def post(url, options) do
     case options[:json] do
-      %{method: "eth_call", params: [%{to: to, data: data}, _block]} ->
-        {:ok, %{status: 200, body: %{"result" => answer(String.downcase(to), data)}}}
+      %{method: "eth_call"} = call ->
+        call(Application.fetch_env!(:autolaunch, :covered_calls_chain), call)
 
       _other ->
         BaseRpcStub.post(url, options)
     end
   end
+
+  # `unreadable: true` makes every contract read fail, as a chain that can't be reached just now.
+  defp call(%{unreadable: true}, _call), do: {:ok, %{status: 503, body: ""}}
+
+  defp call(_state, %{params: [%{to: to, data: data}, _block]}),
+    do: {:ok, %{status: 200, body: %{"result" => answer(String.downcase(to), data)}}}
 
   @reads Map.new(
            ~w|listingCount() listings(uint256) unit() usdc() multiplier() effectiveAt()

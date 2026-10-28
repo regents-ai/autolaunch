@@ -9,7 +9,8 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.CoveredCallsChain
+  alias Autolaunch.{CoveredCallsChain, TestSupport}
+  alias AutolaunchWeb.OnchainSteps
 
   @unit CoveredCallsChain.unit()
 
@@ -94,5 +95,49 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     refute html =~ "Suggested premiums"
     assert has_element?(view, "#covered-call-list [data-onchain-step=list]")
+  end
+
+  # A press the panel can't build steps for says so, and the page's follow-up keeps the words:
+  # it never silently does nothing (the portfolio's buttons are these same panels).
+  test "a press the chain can't be read for says nothing was sent", %{conn: conn} do
+    assert_unsent(conn, %{unreadable: true}, "1")
+  end
+
+  test "a press with an amount that doesn't read says nothing was sent", %{conn: conn} do
+    assert_unsent(conn, %{}, "lots")
+  end
+
+  defp assert_unsent(conn, chain, amount) do
+    note = "#covered-call-fill-1 [role=status]"
+    CoveredCallsChain.install()
+    {view, panel} = signed_in_panel(conn)
+    CoveredCallsChain.put(chain)
+    refute has_element?(view, note, OnchainSteps.unsent_note())
+
+    render_hook(panel, "prepare_and_send", %{"form" => %{"amount" => amount}, "step" => "fill"})
+    assert_reply(view, reply)
+    assert reply == %{}
+    assert has_element?(view, note, OnchainSteps.unsent_note())
+
+    render_hook(panel, "step_failed", %{"step" => "fill", "reason" => "step_unknown"})
+    assert has_element?(view, note, OnchainSteps.unsent_note())
+  end
+
+  # A new signed-in person on a listing's Buy panel, their wallet open.
+  defp signed_in_panel(conn) do
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/covered-calls?listing=1")
+
+    render_async(view)
+    panel = with_target(view, "#covered-call-fill-1")
+    render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
+    render_async(view)
+    {view, panel}
   end
 end

@@ -51,8 +51,7 @@
     <meta :if={!@theme} name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0e0e" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <link
-      :if={AutolaunchWeb.ToolManifest.page_tools() != []}
-      phx-track-static
+      :if={Autolaunch.CoveredCalls.Deployment.enabled?()}
       rel="stylesheet"
       href={~p"/assets/js/covered_calls.css"}
     />

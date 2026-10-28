@@ -20,8 +20,9 @@ cbor_metadata = false
 ffi = false
 fs_permissions = []
 
-# `test/fork/` runs only under the `fork` profile against a local Base fork (anvil --network base).
-no_match_path = "test/fork/**"
+# `test/fork/` runs only under the `fork` profile against a local Base fork (anvil --network base),
+# and `test/rehearsal/` only under `deploy/rehearse.sh`.
+no_match_path = "test/{fork,rehearsal}/**"
 
 [profile.default.fuzz]
 runs = 512
@@ -38,6 +39,16 @@ out = "out-fork"
 cache_path = "cache-fork"
 match_path = "test/fork/**"
 no_match_path = "none/**"
+
+# The deploy packet's rehearsal (deploy/rehearse.sh), against a Base copy the packet's transaction
+# has just been sent on.
+[profile.rehearsal]
+test = "test/rehearsal"
+out = "out-fork"
+cache_path = "cache-fork"
+match_path = "test/rehearsal/**"
+no_match_path = "none/**"
+fs_permissions = [{ access = "read", path = "./deploy/packet.json" }]
 
 [lint]
 ignore = ["test/**/*.sol", "script/**/*.sol"]

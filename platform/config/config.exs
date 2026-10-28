@@ -249,7 +249,15 @@ config :esbuild,
   version: "0.28.2",
   autolaunch: [
     args:
-      ~w(js/app.ts js/privy_bridge.tsx covered_calls=css/pages/covered_calls.css --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
+  ],
+  # Covered calls' styles, built outside priv/static so nothing serves them while
+  # covered calls are off (AutolaunchWeb.CoveredCallsController.stylesheet/2).
+  covered_calls: [
+    args:
+      ~w(css/pages/covered_calls.css --bundle --outdir=../priv/covered_calls --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]

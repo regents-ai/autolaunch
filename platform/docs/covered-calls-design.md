@@ -205,7 +205,9 @@ stylesheet names them. Their parts sit apart and join only while on: the routes 
 `contracts/covered-calls.openapiv3.yaml` (`AutolaunchWeb.PublicDocuments`), the tools in
 `priv/covered_calls_tools.json` (`AutolaunchWeb.ToolManifest`, which the root layout hands the page
 as `#agent-feature-tools`, so `assets/js/public_tools.ts` carries none of them), and the styles in
-their own `covered_calls.css`, linked only while on. Before the site opens (prelaunch), the public
+their own `covered_calls.css`, built outside the public files (`esbuild covered_calls`, into
+`priv/covered_calls`) and served at `/assets/js/covered_calls.css` by a covered-call route, so off
+that address is not found, as on main, and only then linked. Before the site opens (prelaunch), the public
 quote is taken only while covered calls are on, and preparing wallet steps stays refused like every
 other wallet step.
 
