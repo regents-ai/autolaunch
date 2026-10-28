@@ -141,9 +141,32 @@ test("on a lab site the header, side panel and menu open under the lab line", as
       expect(await page.evaluate(() => window.scrollY)).toBe(400)
     }
 
-    // A jump to a part of the page stops right under the header.
-    await page.evaluate(() => { location.hash = "auctions-market" })
+    // A jump to a part of the page, or Skip to content, stops right under the header.
     // Within a pixel: the header's height can land on a half pixel.
-    await expect.poll(async () => Math.abs((await box("#auctions-market")).y - headerBottom)).toBeLessThanOrEqual(1)
+    for (const target of ["auctions-market", "shell-content"]) {
+      await page.evaluate(() => window.scrollTo(0, 400))
+      await page.evaluate(target => { location.hash = target }, target)
+      await expect.poll(async () => Math.abs((await box(`#${target}`)).y - headerBottom)).toBeLessThanOrEqual(1)
+    }
+
+    // A window drawn over the page scrolls on its own: focusing a field already in
+    // view leaves it where it is. Added here as the auction details window draws it.
+    const scrolled = await page.evaluate(async () => {
+      const sheet = document.createElement("div")
+      sheet.popover = "manual"
+      sheet.className = "auction-details-window"
+      sheet.style.cssText = "block-size: 300px; overflow: auto"
+      sheet.innerHTML = `<div style="block-size: 600px"></div><input id="lab-field"><div style="block-size: 600px"></div>`
+      document.querySelector("#shell-content")!.append(sheet)
+      sheet.showPopover()
+      // The field sits 40px from the window's top, in full view.
+      sheet.scrollTop = 560
+      document.getElementById("lab-field")!.focus()
+      await new Promise(requestAnimationFrame)
+      const top = sheet.scrollTop
+      sheet.remove()
+      return top
+    })
+    expect(scrolled).toBe(560)
   }
 })
