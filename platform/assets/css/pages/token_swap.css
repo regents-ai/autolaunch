@@ -194,7 +194,6 @@
   padding: clamp(1rem, 4vw, 1.5rem);
   border: 1px solid var(--hairline-strong);
   background: var(--color-surface-elevated);
-  box-shadow: 0 -12px 32px color-mix(in srgb, var(--color-bg) 70%, transparent);
 }
 .token-swap__review-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .token-swap__review-head h3 { margin: 0; color: var(--color-fg-muted); font-family: var(--font-family-ui); font-size: 1rem; font-weight: 400; text-transform: none; letter-spacing: normal; }

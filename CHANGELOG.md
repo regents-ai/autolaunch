@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: flat cards and windows
+- Token cards on the home page no longer lift or cast a shadow when you point at them; the picture still drifts closer. The Buy Credits window and the swap review sit flat on the page, with their thin outline, as everything else on Regents sites does.
+
 ## 28 October 2026: the agent skill's check-back heading
 - For agents: the section of the agent skill (/skill.md) on how often to look again is now headed "Check-back intervals". Its advice is unchanged.
 

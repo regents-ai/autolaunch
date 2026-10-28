@@ -113,15 +113,12 @@
 :is(#home-explore, #create-preview) .home-coin__raise:has([data-from]:not([hidden])) { opacity: 1; }
 @media (hover: hover) { :is(#home-explore, #create-preview) .home-coin:hover .home-coin__raise { opacity: 1; } }
 @media (prefers-reduced-motion: no-preference) { :is(#home-explore, #create-preview) .home-coin__raise { transition: opacity var(--duration-fast) var(--ease-out); } }
-/* The whole card rises a little toward the pointer or keyboard focus and its image drifts closer; still when motion is reduced. */
+/* The card's image drifts closer toward the pointer or keyboard focus; still when motion is reduced. The card itself stays flat. */
 @media (prefers-reduced-motion: no-preference) {
-  :is(#home-explore, #create-preview) .home-coin { transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out); }
   :is(#home-explore, #create-preview) .home-coin__art img, :is(#home-explore, #create-preview) .home-coin__fallback { transition: transform var(--duration-base) var(--ease-out); }
-  :is(#home-explore, #create-preview) .home-coin:has(:focus-visible) { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
   :is(#home-explore, #create-preview) .home-coin:has(:focus-visible) :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  :is(#home-explore, #create-preview) .home-coin:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--color-fg) 45%, transparent); }
   :is(#home-explore, #create-preview) .home-coin:hover :is(.home-coin__art img, .home-coin__fallback) { transform: scale(1.04); }
 }
 :is(#home-explore, #create-preview) .home-coin__floor { justify-self: end; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
