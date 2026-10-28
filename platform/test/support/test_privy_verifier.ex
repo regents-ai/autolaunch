@@ -83,6 +83,26 @@ defmodule Autolaunch.TestPrivyVerifier do
     )
   end
 
+  # The agent journeys' people (scripts/agent-journeys.sh). They hold Anvil's
+  # second and third development keys, so their wallets sign on the local fork.
+  def verify_access_token("journey-a") do
+    session(
+      session_id: "journey-a-session",
+      privy_user_id: "did:privy:journey-a",
+      wallet_address: "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+      wallet_addresses: ["0x70997970c51812dc3a010c7d01b50e0d17dc79c8"]
+    )
+  end
+
+  def verify_access_token("journey-b") do
+    session(
+      session_id: "journey-b-session",
+      privy_user_id: "did:privy:journey-b",
+      wallet_address: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+      wallet_addresses: ["0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"]
+    )
+  end
+
   # The access token is well-formed for this app but its own verification is
   # refused, which is the one refusal a fresh provider login can clear. The
   # catch-all below is the generic refusal, so both live in the same stage.

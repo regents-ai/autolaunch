@@ -1,5 +1,6 @@
 defmodule Autolaunch.Stocks.LaunchActionsTest do
   use ExUnit.Case, async: true
+  use ExUnitProperties
 
   alias Autolaunch.Chain.Abi
   alias Autolaunch.LabAbi
@@ -35,6 +36,40 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     },
     block: %{number: 1_000_000, hash: "0x" <> String.duplicate("ab", 32)}
   }
+
+  # REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the step a person's wallet signs is the
+  # draft's own name, ticker, description, website, picture and stock, for every
+  # draft the review admits, and nothing else.
+  property "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft" do
+    text = fn limit ->
+      filter(string(:printable, max_length: limit), &(byte_size(&1) <= limit))
+    end
+
+    check all(
+            name <- text.(64),
+            symbol <- text.(16),
+            description <- text.(512),
+            website <- string(:printable, max_length: 200),
+            image <- text.(256),
+            stock <- binary(length: 20),
+            max_runs: 200
+          ) do
+      fields = %{
+        name: name,
+        symbol: symbol,
+        description: description,
+        website: website,
+        image: image,
+        stock: "0x" <> Base.encode16(stock, case: :lower)
+      }
+
+      "0x" <> hex = LaunchActions.launch_data(fields, @config)
+      <<_selector::binary-size(4), arguments::binary>> = Base.decode16!(hex, case: :lower)
+
+      assert [{^name, ^symbol, ^description, ^website, ^image, ^stock}] =
+               ABI.decode("launch((string,string,string,string,string,address))", arguments)
+    end
+  end
 
   # AT09: the exact tuple the launchpad executes.
   test "the launch calldata carries only what the creator chose" do

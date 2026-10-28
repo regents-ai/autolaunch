@@ -5,7 +5,13 @@ A check is a test (`file › test name`; ExUnit files under `platform/test/`, th
 one under `platform/assets/test/`, the CLI's under `cli/test/`) or a script. **Gap** means
 nothing automated proves it today; it rests on manual review.
 
-Map as of 19 October 2026. A release that adds or changes something here updates its line.
+Map as of 27 October 2026. A release that adds or changes something here updates its line.
+
+The agent journeys (`scripts/agent-journeys.sh`, specs in `platform/test/journeys/`) start a whole
+local stack (a copy of Base with the v2 contracts as deployed, a sign-in service, this site and the
+regents command line) and play both sides: the regents binary is the agent, and Playwright at 390 with
+touch and at 1280 is its person. Run them for any release touching pairing, agent routes, drafts or
+launches.
 
 ## Pages
 
@@ -17,14 +23,14 @@ Map as of 19 October 2026. A release that adds or changes something here updates
 | `/tokens` | Every launched token, with chain and Verified filters and search | As `/auctions` |
 | Creator names (lists, auction and token pages, share pictures) | One name for a launch's creator: checked account, else short wallet | `autolaunch_web/live/creator_label_test.exs` (both cases); share pictures keep their layout: `autolaunch_web/share_card_test.exs` (both cases) |
 | `/tokens/<TICKER>/<tail>` | One token: price, Swap, Stake and Unstake tabs, Make a payment (Revstake) | First screen order (figures, then chart, then the widget): `autolaunch_web/live/token_page_first_screen_test.exs` › "the price, market cap, change and creator come before the chart and the trade widget". Its API record link and structured data: as the auction page. `market_page_test.exs` › "a token page whose token cannot be read is the plain error page, not a 404 or a 503"; `autolaunch_web/token_details_test.exs` › "LONG_POOL_PRICES_ARE_CUT_NOT_PARSED"; `autolaunch/token_trades_test.exs`; `autolaunch/pool_price_test.exs` (all four cases); `autolaunch_web/components/token_display_test.exs` (all three cases, and the properties "a short amount keeps four digits and never rounds a refund up", "counted zeros write back to the same figure"). The tabs: **gap** |
-| `/create` | Memestock launch form: draft autosave, paired stock, Base or Robinhood | `autolaunch_web/live/stocks_create_live_test.exs` › "autosaves each section and states the fixed minimum for the chosen stock", › "STOCK_LIST_UNREAD_SAYS_SO: a stock list that can't be read says so, with Try again"; `autolaunch/stocks/launch_draft_test.exs` › "another account can neither read nor update a Stocks draft" |
+| `/create` | Memestock launch form: draft autosave, paired stock, Base or Robinhood | `autolaunch_web/live/stocks_create_live_test.exs` › "autosaves each section and states the fixed minimum for the chosen stock", › "STOCK_LIST_UNREAD_SAYS_SO: a stock list that can't be read says so, with Try again"; `autolaunch/stocks/launch_draft_test.exs` › "another account can neither read nor update a Stocks draft". With an agent's whole draft, reviewed and signed on a copy of Base at 390 and 1280: `scripts/agent-journeys.sh`, `test/journeys/memestock_launch.spec.ts` |
 | `/create/revstake` | Revstake launch form on Base | `autolaunch/launch_draft_test.exs` (both cases). The page itself: **gap** |
 | `/stock-listing` | Stocks available to pair, each linking to its own page | `autolaunch_web/live/stock_listing_test.exs` (both cases) |
 | `/stock-listing/<symbol>` | One stock: addresses, company links, dated pool research | As above |
 | `/how-it-works` | Fixed contract rules, explained | **Gap** |
 | `/portfolio` | The signed-in wallet's bids and tokens | `autolaunch_web/live/robinhood_pages_live_test.exs` › "/portfolio outlives a Robinhood feed's new block" |
 | `/portfolio/bids/<id>` | One bid on its own page | **Gap** (its steps: see Wallet actions) |
-| `/account` | Profile, sign out, paired agents, pair another | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" |
+| `/account` | Profile, sign out, paired agents, pair another | `autolaunch_web/live/account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT"; the agent's check-in time, and the agent leaving the list once it is unpaired on regents.sh: `scripts/agent-journeys.sh`, `test/journeys/pairing.spec.ts` |
 | `/account/points` | Points balance and recent entries | **Gap** |
 | `/regent` | REGENT facts and revenue sources | **Gap** |
 | `/convert` | Memestock fee shares waiting to be sold, for the converter wallet | **Gap** |
@@ -59,7 +65,7 @@ calls, atomically, after the chain read". What each action builds:
 | Add to, raise, or take back an outbid bid early | **Gap** |
 | Withdraw or claim after an auction | `autolaunch/bid_settlement_actions_test.exs` (all five cases) |
 | Finish an ended auction | `autolaunch/auction_finish_test.exs` (all seven cases); `autolaunch/auction_finish_wallet_test.exs` |
-| Launch a Memestock token | `autolaunch/stocks/launch_actions_test.exs`; `autolaunch/stocks/amounts_test.exs` (all three cases); `autolaunch/memestock_discovery_test.exs` (all five cases) |
+| Launch a Memestock token | `autolaunch/stocks/launch_actions_test.exs` (and its property "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED"); `autolaunch/stocks/amounts_test.exs` (all three cases); `autolaunch/memestock_discovery_test.exs` (all five cases). The press itself, from an agent's draft: the page's button hands the person's wallet exactly the reviewed launch, the launchpad records their wallet and the stock, and eight confirmations at once list it once (`scripts/agent-journeys.sh`, `test/journeys/memestock_launch.spec.ts`). The auction opening, taking a bid, ending and being finished from its page, graduated (with the bidder's claim) and failed: `test/journeys/memestock_auction.spec.ts` |
 | Launch a Revstake token | `autolaunch/launch_discovery_test.exs` (all seven cases); `autolaunch/treasury_chain_client_test.exs` (both cases) |
 | Swap a token | **Gap** |
 | Stake, unstake, collect | `autolaunch/stocks/stake_actions_test.exs` › "settle on a Base Revstake launch is one collect(lp_token_id) step on the lp_locker". Stake and unstake: **gap** |
@@ -93,17 +99,17 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above; a Revstake token's revenue history: `token_controller_test.exs` › "a Revstake token gives its revenue history, newest first; a Memestock token has none", recorded from the splitter: `autolaunch/token_revenue_test.exs` › "a Revstake token's pass records its splitter's revenue with its trades" |
 | `autolaunch_treasury` | `GET /api/v1/treasury-security/{address}` | `public_api_failures_test.exs` (same case); `treasury_chain_client_test.exs` (both cases) |
 | `autolaunch_bid_quote` | `POST /api/v1/auctions/{id}/bid-quote` | `bid_actions_test.exs` › "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it"; `public_api_failures_test.exs` (same case) |
-| `agent_whoami` | `GET /api/agents/v1/whoami` | `autolaunch_web/controllers/agent_check_in_test.exs` (all four cases) |
-| `agent_status` | `GET /api/agents/v1/me` | `agent_check_in_test.exs` (all four cases) |
-| (CLI `agents pair`) | `POST /api/agents/v1/pair` | `account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" pairs through the shared library; the signed request: **gap** |
+| `agent_whoami` | `GET /api/agents/v1/whoami` | `autolaunch_web/controllers/agent_check_in_test.exs` (all four cases). Signed by the regents binary through a real sign-in service: `scripts/agent-journeys.sh`, `test/journeys/pairing.spec.ts` (P1, P2, P10) |
+| `agent_status` | `GET /api/agents/v1/me` | `agent_check_in_test.exs` (all four cases); `autolaunch_web/controllers/agent_pairing_properties_test.exs` › "AN_AGENT_ACTS_ONLY_FOR_ITS_OWN_PERSON"; signed, and answered while the sign-in service is down and once it is back: `test/journeys/pairing.spec.ts` (P8), `test/journeys/pairing_refusals.spec.ts` |
+| (CLI `agents pair`) | `POST /api/agents/v1/pair` | `account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" pairs through the shared library; the rules for every input: `agent_pairing_properties_test.exs` › "PAIRING_CODE_WORKS_ONCE", › "PAIRING_CODE_ENDS_AT_TEN_MINUTES", › "ONLY_OFFERED_HARNESSES_PAIR", › "PAIR_TAKES_EXACTLY_CODE_NAME_AND_HARNESS", › "AGENT_LIMIT_IS_ONE_HUNDRED"; from the person's side panel to the agent's name on their screen, and the refusals, signed by the regents binary: `test/journeys/pairing.spec.ts` (P3 to P7), `test/journeys/pairing_refusals.spec.ts`; the steps the pairing message names: `agent_documents_test.exs` › "PAIRING_MESSAGE_STEPS_ARE_WHERE_IT_SAYS" |
 | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/revstake` | **Gap** |
-| `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/memestock` | **Gap** |
+| `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/memestock` | The whole draft (text, picture, chain, stock) saved by the regents binary, a too-long name refused whole, and the open create page naming every field with the stock's address copyable: `test/journeys/memestock_launch.spec.ts` (L2); `autolaunch_web/live/agent_draft_review_test.exs` › "AGENT_SET_ADDRESS_IS_COPYABLE" |
 | (none) | Make a payment (Revstake token page): addresses from the launch's own record, read by the Base reader, canonical receiver only, on the launch's own network | `autolaunch/payment_card_test.exs` (all three cases). The wallet press itself: **gap** |
 | `autolaunch_revstake_draft_save`, `autolaunch_memestock_draft_save` | `PATCH /api/agent/v1/drafts/{kind}` | `autolaunch/agent_drafts_test.exs` (all three cases); the create page names every agent-set field: `autolaunch_web/live/agent_draft_review_test.exs` › "the create page names what the agent set, and forgets a field the person changes", › "the launch review names every agent-set field and shows the community links". The signed request itself: **gap** |
-| `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | Refusals: `agent_check_in_test.exs` › "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED", › "AGENT_PERSON_UNREAD_IS_503"; `sign_in_read_test.exs` › "a lost sign-in read is a 503 for the signed-in wallet's positions and share video". A working read: **gap** |
-| `account_balances` | `GET /api/agent/v1/account/balances` | **Gap** |
+| `autolaunch_my_positions` | `GET /api/agent/v1/positions` (and `GET /api/v1/me/positions` signed in) | Refusals: `agent_check_in_test.exs` › "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED", › "AGENT_PERSON_UNREAD_IS_503"; `sign_in_read_test.exs` › "a lost sign-in read is a 503 for the signed-in wallet's positions and share video". A working read for the paired person, and the refusal for an unpaired agent, signed by the regents binary: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts`. `wallet_required` for an account with no wallet: **gap** (no one without a wallet can sign in here) |
+| `account_balances` | `GET /api/agent/v1/account/balances` | Answers when paired, refused when not: `test/journeys/pairing.spec.ts` (P9), `test/journeys/pairing_refusals.spec.ts` |
 | `account_credits_history` | `POST /api/agent/v1/account/credits/history` | **Gap** |
-| `account_points` | `GET /api/agent/v1/account/points` | **Gap** |
+| `account_points` | `GET /api/agent/v1/account/points` | Refused when not paired: `test/journeys/pairing.spec.ts` (P2), `test/journeys/pairing_refusals.spec.ts`. The paired answer: **gap** |
 | `prepare_agent_request` | In the page, sends nothing | **Gap** |
 | (none) | `/api/v1/profile` (shared profile) | **Gap** |
 
@@ -121,6 +127,8 @@ Home tabs and filter results; list filter results on `/auctions` and `/tokens`; 
 and token page tabs; `/create/revstake`, `/stock-listing`, `/how-it-works`, `/account/points`,
 `/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; the
 Credits purchase check; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
-stake and unstake; Make a payment; selling fee shares; share picture content; the signed
-agent routes (pairing request, drafts, a working positions read, Credits, Points) and
-`prepare_agent_request`; the shared profile routes.
+stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
+draft routes, the paired Points and Credits history answers, and `prepare_agent_request`; an agent's
+positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
+agent journeys. On a fork site the line above the top bar pushes the side panel's own close button under
+the bar (the top bar's button still closes it).

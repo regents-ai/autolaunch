@@ -22,6 +22,11 @@ were archived before the cases were chosen:
 File hashes and the archive checksum are in `archive-manifest.json` beside it.
 Contract and public CLI test suites are outside this folder.
 
+`journeys/` holds the agent journeys, which need a whole local stack and so run from
+`scripts/agent-journeys.sh` at the repository root, not from `mix test`: an agent pairs with
+its person and fills in a Memestock launch, and the person reviews and signs it on a copy of
+Base. The regents binary is the agent; Playwright at 390 with touch and at 1280 is the person.
+
 This suite protects the selected invariants; it is not product acceptance. Manual
 functional review remains the priority. Do not restore broad callback/layout/mock
 matrices or add new cases without an agreed concrete reason.

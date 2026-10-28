@@ -1,5 +1,5 @@
 {
-  "total": 137,
+  "total": 144,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1783,6 +1783,97 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "842ea0402183ca788ab8537451f80c1f22919661e10b415d2331b3b636fe54f4"
+    },
+    {
+      "id": 178,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 73,
+      "test_name": "PAIRING_CODE_WORKS_ONCE: a code pairs exactly one agent, however many try it, in any order and at once",
+      "keep_because": "A pairing code is the only thing that ties an agent to a person's account. The property tries one code with one to four agents in every order, one after another and all at once, and checks exactly one pairing is made and every other try is refused as pairing_failed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+    },
+    {
+      "id": 179,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 107,
+      "test_name": "PAIRING_CODE_ENDS_AT_TEN_MINUTES: a code pairs exactly when it is under ten minutes old",
+      "keep_because": "A code that outlives ten minutes lets a pasted message pair an agent long after the person stopped watching. The property moves a fresh code's clock back by up to twenty minutes, most often around the ten-minute edge, and checks it pairs exactly when it is younger.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+    },
+    {
+      "id": 180,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 131,
+      "test_name": "ONLY_OFFERED_HARNESSES_PAIR: an agent pairs exactly when its harness is one this site offers, and never as ChatGPT",
+      "keep_because": "ChatGPT pairs only through a plugin this site does not serve, so an agent naming it here must be refused before its code is spent. The property sends every known harness and made-up ones and checks only the site's offered list pairs.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+    },
+    {
+      "id": 181,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 151,
+      "test_name": "PAIR_TAKES_EXACTLY_CODE_NAME_AND_HARNESS: a pair request with any other set of fields spends nothing and is refused",
+      "keep_because": "A pair request carrying a missing or extra field must spend nothing. The property sends every other set of fields and checks each is pairing_failed and the same code still pairs afterwards.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+    },
+    {
+      "id": 182,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 180,
+      "test_name": "AGENT_LIMIT_IS_ONE_HUNDRED",
+      "keep_because": "One account holds at most a hundred agents. The case pairs a hundred and checks the next is refused as agent_limit.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+    },
+    {
+      "id": 183,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 188,
+      "test_name": "AN_AGENT_ACTS_ONLY_FOR_ITS_OWN_PERSON: every private answer names the account of the agent's current pairing, or refuses",
+      "keep_because": "The worst thing an agent route can do is answer for someone else's account. The property runs random pairings, unpairings and check-ins across three people and four agents and checks every answer names the account of the agent's current pairing, or is agent_not_paired.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "7f669a2b83a8648c35bce9a58a0dba22ca33ceac68e4ddd8819b70f1d49aad8d"
+    },
+    {
+      "id": 184,
+      "group": "Memestock launch",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/launch_actions_test.exs",
+      "line": 43,
+      "test_name": "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft",
+      "keep_because": "The person's wallet signs the review's launch step, so that step must carry exactly the draft they reviewed. The property encodes random drafts at every byte limit, decodes the step with the launchpad's own ABI and checks every field comes back unchanged.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5d31d2ec580d0865b243fd7e4aa25d4cb086da6af98fe86d3eb2928981678502"
     }
   ],
   "legacy_folders_to_remove": [

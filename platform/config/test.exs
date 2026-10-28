@@ -152,6 +152,13 @@ unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
   config :regent_agents, req_options: [plug: {Req.Test, RegentAgents.Broker}]
 end
 
+# The agent journeys' server (scripts/agent-journeys.sh) checks signed agent
+# requests with a sign-in service of its own on this machine.
+if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and System.get_env("AUTOLAUNCH_SIWA_URL") do
+  config :regent_agents,
+    siwa: [url: System.get_env("AUTOLAUNCH_SIWA_URL"), audience: "autolaunch"]
+end
+
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused
