@@ -1,5 +1,5 @@
 {
-  "total": 132,
+  "total": 135,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1509,7 +1509,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
     },
     {
       "id": 157,
@@ -1600,20 +1600,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
     },
     {
       "id": 164,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 90,
+      "line": 109,
       "test_name": "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again",
       "keep_because": "Connect ENS with a sign-in that can't be read says That did not go through. Try again in a moment., not that the name doesn't fit. It fails while every failure said Use an ENS name controlled by your signed-in wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
     },
     {
       "id": 165,
@@ -1626,7 +1626,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
     },
     {
       "id": 166,
@@ -1639,59 +1639,59 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
     },
     {
       "id": 167,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 72,
+      "line": 73,
       "test_name": "HELD_TREASURY_TICK_WRITES_NOTHING: a page whose sign-in ended and can't be read confirms no treasury",
       "keep_because": "A create page whose sign-in has ended elsewhere, and whose next read of it loses its connection, keeps showing the account but cannot confirm the agent's treasury: the tick runs under the lease read again now. It fails while the tick was written without that read (the review of 61ad213d).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
     },
     {
       "id": 168,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 113,
+      "line": 114,
       "test_name": "HELD_PAGE_MAKES_NO_DRAFT: a closed review or an agent's save starts no draft for a held account",
       "keep_because": "On both create pages a closed or finished launch review, and on /create an agent's saved draft, start no draft for an account whose sign-in ended and cannot be read: a first draft is made only under the lease read again now, and an agent's save is only read. It fails on each of the three while they created the draft directly.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
     },
     {
       "id": 169,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 135,
+      "line": 136,
       "test_name": "WRITE_FAILURE_IS_NOT_A_SIGN_IN_READ: a write that fails under a lease raises as itself",
       "keep_because": "A write that raises inside SessionAuthority.transact_lease raises as itself and is not logged as a sign-in read. It fails while the whole transaction was rescued and turned into an error tuple.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
     },
     {
       "id": 170,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
-      "line": 152,
+      "line": 215,
       "test_name": "a write behind a fresh check runs only for a lease that reads as current now",
       "keep_because": "Session.fresh/2, which the Credits purchase report and check and the launch treasury check use because they call the chain first, runs its write only for a lease that reads as current: a lost read is sign_in_unread, an ended sign-in session_unavailable, no lease session_lease_required.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
     },
     {
       "id": 171,
@@ -1700,24 +1700,63 @@
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
       "line": 74,
       "test_name": "a wallet read that fails for any other reason is a real error",
-      "keep_because": "A wallet panel's account read that fails for a reason other than a lost connection raises the read-failed error, as a page's read does, instead of holding the wallets as unread. It fails while every failure was shown as unread.",
+      "keep_because": "On the real Account page, a wallet panel's own read of the account that fails for a reason other than a lost connection (42P01, injected at that read only) ends the page with the read-failed error, as a page's read does, instead of holding the wallets as unread. It fails while every failure was shown as unread.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
     },
     {
       "id": 172,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 100,
+      "line": 119,
       "test_name": "ENS_NAME_TAKEN_IS_NOT_TRY_AGAIN: a name another account holds is refused for good, not retried",
       "keep_because": "Saving an ENS name another account already holds answers name_taken, which Connect ENS words as taken, never as try again. It fails while every failed save was a try-again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+    },
+    {
+      "id": 173,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 153,
+      "test_name": "LEASE_WRITE_ON_A_CUT_CONNECTION_SAYS_TRY_AGAIN: a connection gone before the write begins is a try-again",
+      "keep_because": "With the case's own connection really cut (pg_terminate_backend) before the write's transaction begins, Session.transact/2 answers sign_in_unread and ConnectEns.record_name/3 try_again, logged once as a lost sign-in lease. It fails while Repo.transaction's raise at the start crashed the page, the pairing, the tick, the ENS save and the launch review.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 174,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 174,
+      "test_name": "IMAGE_UPLOAD_HELD_SAYS_TRY_AGAIN_OR_SIGNS_OUT: a picture saved on a held page",
+      "keep_because": "On both create pages a token picture whose save loses the sign-in's connection says to try again, not that the file is broken, and one whose sign-in has ended signs the page out. Upload progress reaches the page without its event recheck, so the save's own lease check answers. It fails while every refusal fell through to the broken-file note.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 175,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 114,
+      "test_name": "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",
+      "keep_because": "A paired person's account read that fails for a reason other than a lost connection (42P01) is the plain 500 from the check-in, whoami and the agent routes, not the try-again 503. It fails while every failed read answered 503 account_unavailable.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
     }
   ],
   "legacy_folders_to_remove": [

@@ -6,6 +6,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 - If your sign-in can't be read for a moment, the page says "Something didn't load." and offers Try again, which loads the same page. You stay signed in, and nothing is saved or paired until it can be read. A sign-in that has ended still shows Sign in.
 - Wallet buttons say "That did not go through. Nothing was sent. Try again in a moment." when your account can't be read, instead of asking you to sign in. Connect ENS says "That did not go through. Try again in a moment." instead of asking you to check the name.
 - Connect ENS now says when a name is already connected to another account, instead of asking you to check it.
+- A token picture that can't be saved for a moment says "That did not go through. Try again in a moment." instead of calling the file broken, and a sign-in that has ended signs the page out.
 - Agents can ask their status here first: not paired or paired, what they may do here and what to do next. Since a recent update that question had answered with an error.
 - An agent whose pairing doesn't lead to a Regent account is told it isn't paired and to ask its person to pair it with Pair New Agent. When its person's account can't be read for a moment, it is told to try again.
 

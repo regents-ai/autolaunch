@@ -38,7 +38,7 @@ Map as of 19 October 2026. A release that adds or changes something here updates
 | Action | Check |
 | --- | --- |
 | Sign in and sign out | `autolaunch_web/controllers/privy_session_controller_test.exs` (all three cases); `content_negotiation_test.exs` › "the existing session fetch still returns JSON" |
-| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (all four cases); `autolaunch_web/live/held_sign_in_writes_test.exs` (all four cases); the top bar then, on a phone: `browser/layout.spec.ts` › "the Regents Products name stays on screen with nothing to its right" |
+| Stay signed in when the sign-in can't be read for a moment (Try again, nothing saved meanwhile) | `autolaunch_web/live/sign_in_read_test.exs` (all six cases); `autolaunch_web/sign_in_unread_panels_test.exs` (all four cases); `autolaunch_web/live/held_sign_in_writes_test.exs` (all six cases); the top bar then, on a phone: `browser/layout.spec.ts` › "the Regents Products name stays on screen with nothing to its right" |
 | Connect or remove X | `content_negotiation_test.exs` › "JSON account-link requests retain CSRF protection". The connect itself: **gap** |
 | Buy Credits (Approve, then Buy) | Reading the wallet: `autolaunch_web/live/credits_panel_test.exs` › "CREDITS_PANEL_NO_NODE: a chain with no node reads as unavailable, with no crash". The wallet press: see Wallet actions. The purchase check: **gap** |
 
@@ -93,8 +93,8 @@ same requests as the WebMCP tools, against a stand-in server (`npm run test:pari
 | `autolaunch_token` | `GET /api/v1/tokens/{id}` | As above; a Revstake token's revenue history: `token_controller_test.exs` › "a Revstake token gives its revenue history, newest first; a Memestock token has none", recorded from the splitter: `autolaunch/token_revenue_test.exs` › "a Revstake token's pass records its splitter's revenue with its trades" |
 | `autolaunch_treasury` | `GET /api/v1/treasury-security/{address}` | `public_api_failures_test.exs` (same case); `treasury_chain_client_test.exs` (both cases) |
 | `autolaunch_bid_quote` | `POST /api/v1/auctions/{id}/bid-quote` | `bid_actions_test.exs` › "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it"; `public_api_failures_test.exs` (same case) |
-| `agent_whoami` | `GET /api/agents/v1/whoami` | `autolaunch_web/controllers/agent_check_in_test.exs` (all three cases) |
-| `agent_status` | `GET /api/agents/v1/me` | `agent_check_in_test.exs` (all three cases) |
+| `agent_whoami` | `GET /api/agents/v1/whoami` | `autolaunch_web/controllers/agent_check_in_test.exs` (all four cases) |
+| `agent_status` | `GET /api/agents/v1/me` | `agent_check_in_test.exs` (all four cases) |
 | (CLI `agents pair`) | `POST /api/agents/v1/pair` | `account_live_test.exs` › "ACCOUNT_SHOWS_A_PAIRED_AGENT" pairs through the shared library; the signed request: **gap** |
 | `autolaunch_revstake_draft`, `autolaunch_revstake_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/revstake` | **Gap** |
 | `autolaunch_memestock_draft`, `autolaunch_memestock_draft_save` | `GET` and `PATCH /api/agent/v1/drafts/memestock` | **Gap** |
