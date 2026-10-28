@@ -19,23 +19,41 @@ function signedTransport() { return signedTools({
   ) as unknown as SignedOperation[],
 }) }
 
-// The tools this page offers: an entry tagged with a feature only while the
-// site says that feature is on (AutolaunchWeb.ToolManifest), and
-// prepare_agent_request naming only the signed tools offered.
+// Tools the page is handed beside the ones built in here, while a feature is on
+// (AutolaunchWeb.ToolManifest.page_tools/0); none otherwise.
+function pageTools(): Entry[] {
+  const json = document.querySelector?.("#agent-feature-tools")?.getAttribute("content")
+  return json ? (JSON.parse(json) as Entry[]) : []
+}
+
+// Every tool this page offers: the built-in ones, then the page's, whose signed
+// tools join prepare_agent_request's operations.
 function offered(): Entry[] {
-  const features = (document.querySelector?.<HTMLMetaElement>('meta[name="agent-features"]')?.content ?? "").split(" ")
-  const tools = (manifest.tools as unknown as Entry[]).filter(entry => !entry.feature || features.includes(entry.feature))
-  const names = new Set(tools.map(entry => entry.name))
-  return tools.map(entry => {
-    if (entry.name !== "prepare_agent_request") return entry
-    const operation = entry.input_schema.properties.operation
-    return {
-      ...entry,
-      input_schema: {
-        ...entry.input_schema,
-        properties: {...entry.input_schema.properties, operation: {...operation, enum: operation.enum?.filter(name => names.has(name))}},
-      },
-    }
+  const added = pageTools()
+  const signed = added.filter(entry => "operation_input_schema" in entry).map(entry => entry.name)
+  const own = (manifest.tools as unknown as Entry[]).map(entry =>
+    entry.name === "prepare_agent_request" && signed.length > 0 ? withOperations(entry, signed) : entry,
+  )
+  return [...own, ...added]
+}
+
+function withOperations(entry: Entry, names: string[]): Entry {
+  const operation = entry.input_schema.properties.operation
+  return {
+    ...entry,
+    input_schema: {
+      ...entry.input_schema,
+      properties: {...entry.input_schema.properties, operation: {...operation, enum: [...(operation.enum ?? []), ...names]}},
+    },
+  }
+}
+
+// A page tool's own request: its path with each {field} filled from the input,
+// and the input fields it posts.
+function described({path, body}: NonNullable<Entry["request"]>): (input: Input) => Request {
+  return input => ({
+    path: path.replace(/\{(\w+)\}/g, (_match, field: string) => pathValue(input[field])),
+    ...(body && {body: Object.fromEntries(body.map(field => [field, input[field]]))}),
   })
 }
 
@@ -84,7 +102,8 @@ type Entry = {
   annotations: Annotations
   scope: string
   authentication?: string
-  feature?: string
+  // A page tool's own HTTP request (AutolaunchWeb.ToolManifest.page_tools/0).
+  request?: {path: string; body?: string[]}
 }
 
 export type PublicTool = {
@@ -266,18 +285,13 @@ const requests: Record<string, (input: Input) => Request> = {
     path: `/api/v1/auctions/${pathValue(input.id)}/bid-quote`,
     body: {amount: input.amount, max_price: input.max_price},
   }),
-  autolaunch_covered_call_listings: input => ({path: `/api/v1/covered-calls/${pathValue(input.symbol)}`}),
-  autolaunch_covered_call_quote: input => ({
-    path: `/api/v1/covered-calls/${pathValue(input.symbol)}/quote`,
-    body: {strike_per_token: input.strike_per_token, expiry: input.expiry},
-  }),
 }
 
 // Public requests and explicitly signed manifest operations register here.
 function publicTools(signal: AbortSignal): PublicTool[] {
   return offered()
-    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
-    .map(entry => tool(entry, requests[entry.name] ?? (() => { throw new Error("Signed request required") }), signal))
+    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.request || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
+    .map(entry => tool(entry, requests[entry.name] ?? (entry.request ? described(entry.request) : () => { throw new Error("Signed request required") }), signal))
 }
 
 let installed = false

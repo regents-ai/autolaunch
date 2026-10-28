@@ -198,9 +198,23 @@ Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 | My listings and holdings | `autolaunch_my_covered_calls` | `GET /api/agent/v1/covered-calls/:symbol/positions` (signed agent); `GET /api/v1/me/covered-calls/:symbol` (signed-in person) | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 | Prepare a step (list, fill, cancel, exercise, claim, collect strike) | `autolaunch_covered_call_prepare` | `POST /api/agent/v1/covered-calls/:symbol/steps` | gap (Autolaunch MCP lane) | gap (regents-cli lane) |
 
-Off, every one of these routes answers as an unknown address, and `/capabilities`, `/openapi.json`,
-the agent guides and the tools dialog leave them out (`AutolaunchWeb.ToolManifest`; the manifest's
-`feature` tag and the contract's `x-autolaunch-switch`). `docs/agent-parity.md` at the repository
+Off, every one of these routes answers as an unknown address and the site is byte for byte what it
+was before covered calls: `/openapi.json` is `contracts/api-contract.openapiv3.yaml` exactly,
+`/capabilities`, the agent guides and the tools dialog leave them out, and no page, script or
+stylesheet names them. Their parts sit apart and join only while on: the routes in
+`contracts/covered-calls.openapiv3.yaml` (`AutolaunchWeb.PublicDocuments`), the tools in
+`priv/covered_calls_tools.json` (`AutolaunchWeb.ToolManifest`, which the root layout hands the page
+as `#agent-feature-tools`, so `assets/js/public_tools.ts` carries none of them), and the styles in
+their own `covered_calls.css`, linked only while on. Before the site opens (prelaunch), the public
+quote is taken only while covered calls are on, and preparing wallet steps stays refused like every
+other wallet step.
+
+Eligibility is said once, under the page title: "Available to eligible people outside the US." No
+part of the site, the agent routes or the contract checks an address against a list or a place. The
+only address checks are ownership: the site builds steps only for a wallet the signed-in account (or
+the paired agent's account) links, and the contract lets only a listing's seller stop selling it or
+collect its strike, so no one can withdraw another person's stock or USDC. The issuer's own blocklist
+and pauses on AMZNc still apply, as they do to every transfer of it. `docs/agent-parity.md` at the repository
 root has one row per action.
 
 The agent's own key signs every step; the site prepares and never signs. CLI rows are gaps

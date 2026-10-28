@@ -98,6 +98,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <header class="covered-calls__header">
         <div class="covered-calls__intro">
           <h1>Covered calls on {@market.symbol}</h1>
+          <p id="covered-calls-eligibility" class="covered-calls__eligibility">
+            Available to eligible people outside the US.
+          </p>
           <p>
             Sell someone the right to buy your {@market.symbol} at a set price until Friday's close,
             and keep the premium they pay. Or buy that right. Paid in USDC on Base.

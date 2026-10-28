@@ -1,4 +1,5 @@
 import {test as base, expect, type BrowserContext, type Page} from "@playwright/test"
+import {randomBytes} from "node:crypto"
 import {rpc} from "./chain"
 
 // The journeys' people, as the browser test server's stand-in for Privy knows them
@@ -9,7 +10,19 @@ export const people = {
   b: {token: "journey-b", wallet: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"},
 } as const
 
-export type Person = (typeof people)[keyof typeof people]
+export type Person = {token: string; wallet: string}
+
+/**
+ * A person the site has never seen, with a wallet made up for this run: never signed in, never
+ * paired, holding nothing until the journey funds it. The copy of Base signs for it as it does
+ * for any account it is told to (anvil_impersonateAccount).
+ */
+export async function freshPerson(): Promise<Person> {
+  const wallet = `0x${randomBytes(20).toString("hex")}`
+  await rpc("anvil_impersonateAccount", [wallet])
+  await rpc("anvil_setBalance", [wallet, "0x56bc75e2d63100000"])
+  return {token: `journey-fresh-${wallet}`, wallet}
+}
 
 const bridge = /^\/assets\/js\/privy_bridge(-[0-9a-f]+)?\.js$/
 

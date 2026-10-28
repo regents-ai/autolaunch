@@ -1,10 +1,12 @@
-/* /covered-calls, the covered-call panel, and the portfolio's covered-calls rows. */
+/* /covered-calls, the covered-call panel and the portfolio's covered-calls rows. Built as its
+   own stylesheet (config :esbuild) and linked only while covered calls are on. */
 .covered-calls { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
 .covered-calls__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 .covered-calls__intro { display: grid; gap: var(--space-1); max-width: 40rem; }
 .covered-calls__intro > * { margin: 0; }
 .covered-calls__intro h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .covered-calls__intro p { color: var(--color-fg); line-height: 1.5; }
+.covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; }
 .covered-calls__tabs { display: flex; gap: var(--space-1); }
 .covered-calls__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
 .covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }

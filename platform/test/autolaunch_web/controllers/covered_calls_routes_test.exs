@@ -150,7 +150,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
         do: assert(build_conn() |> send_json(method, path, %{}) |> json_response(404) == unknown)
   end
 
-  test "COVERED_CALLS_ADVERTISED_ONLY_WHEN_ON: tools, routes, guides and the page's feature list follow the switch" do
+  test "COVERED_CALLS_ADVERTISED_ONLY_WHEN_ON: tools, routes, guides and the tools handed to the page follow the switch" do
     tools =
       ~w(autolaunch_covered_call_listings autolaunch_covered_call_quote autolaunch_my_covered_calls autolaunch_covered_call_prepare)
 
@@ -172,7 +172,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       assert "autolaunch_covered_call_prepare" in operations == offered?
       assert Map.has_key?(paths, "/api/v1/covered-calls/{symbol}") == offered?
       assert guide =~ "autolaunch_covered_call_prepare" == offered?
-      assert home =~ ~s(name="agent-features" content="covered_calls") == offered?
+      assert home =~ ~s(id="agent-feature-tools") == offered?
       assert home =~ "#{length(capabilities["tools"])} Agent Tools"
     end
   end

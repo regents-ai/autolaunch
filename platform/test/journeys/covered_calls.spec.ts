@@ -1,12 +1,14 @@
 import {readFileSync} from "node:fs"
 import {encodeFunctionData, parseAbi, type Hex} from "viem"
 import {balanceOf, call, mintStock, rpc, sendAs} from "./support/chain"
-import {expect, fitsAndPresses, holdWallet, people, ready, signIn, test, type Sent} from "./support/person"
+import {expect, fitsAndPresses, freshPerson, holdWallet, people, ready, signIn, test, type Sent} from "./support/person"
 import type {Locator, Page} from "@playwright/test"
 
 // Covered calls on AMZNc, end to end on the copy of Base with the deployed
 // CoveredCallsV1 (base_fork.py covered-calls). Person A lists two AMZNc as calls
-// and stops selling what is left after Person B buys one; in the 24 hours after
+// and stops selling what is left after B buys one. B is a wallet the site has never
+// seen, made up for the run and signing in for the first time, unpaired: buying and
+// exercising ask nothing of a wallet beyond what it holds. In the 24 hours after
 // Friday's expiry B exercises it while the issuer has stock transfers paused,
 // B's stock waits while A still collects the strike, and once transfers resume B
 // and A each collect their AMZNc. Feature map: operations/FEATURES.md, Wallet actions.
@@ -128,13 +130,14 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   const id = await read("listingCount")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - 2n * UNIT)
 
-  // Person B buys one of them from the Buy tab.
-  await sendAs(USDC_HOLDER, USDC, encodeFunctionData({abi, functionName: "transfer", args: [people.b.wallet as Hex, 1_000n * 10n ** 6n]}))
+  // B, a wallet the site has never seen, buys one of them from the Buy tab.
+  const fresh = await freshPerson()
+  await sendAs(USDC_HOLDER, USDC, encodeFunctionData({abi, functionName: "transfer", args: [fresh.wallet as Hex, 1_000n * 10n ** 6n]}))
   const buyer = await browser.newContext({...info.project.use, baseURL: process.env.AUTOLAUNCH_URL})
   const bought: Sent[] = []
-  const outside = await holdWallet(buyer, process.env.AUTOLAUNCH_URL!, people.b.wallet, bought)
+  const outside = await holdWallet(buyer, process.env.AUTOLAUNCH_URL!, fresh.wallet, bought)
   const b = await buyer.newPage()
-  await signIn(b, people.b)
+  await signIn(b, fresh)
   await expect
     .poll(async () => {
       await b.goto(`/covered-calls?listing=${id}`)
@@ -142,13 +145,14 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
       return b.locator(`#covered-call-${id}`).count()
     }, {timeout: 60_000})
     .toBe(1)
+  await expect(b.getByText("Available to eligible people outside the US.")).toBeVisible()
   await b.getByLabel("Amount").fill("1")
   await fitsAndPresses(b, touch)
   await buttonsOnScreen(b)
   const aUsdcBefore = await balanceOf(USDC, people.a.wallet)
   expect((await press(b, bought, "Approve USDC")).status).toBe("0x1")
   expect((await press(b, bought, "Buy calls")).status).toBe("0x1")
-  expect(await read("held", [id, people.b.wallet])).toBe(UNIT)
+  expect(await read("held", [id, fresh.wallet])).toBe(UNIT)
   // A received the 3 USDC premium less the 1% fee.
   expect((await balanceOf(USDC, people.a.wallet)) - aUsdcBefore).toBe(2_970_000n)
 
@@ -165,7 +169,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   const held = await row(b, "held", id, "Exercise")
   expect((await press(held, bought, "Approve USDC")).status).toBe("0x1")
   expect((await press(held, bought, "Exercise")).status).toBe("0x1")
-  expect(await read("claimable", [id, people.b.wallet])).toBe(UNIT)
+  expect(await read("claimable", [id, fresh.wallet])).toBe(UNIT)
 
   // While paused, B's stock can't leave: the press reaches the wallet and reverts, and the page says so.
   expect((await press(await row(b, "held", id, "Collect AMZNc"), bought, "Collect AMZNc")).status).toBe("0x0")
@@ -179,9 +183,9 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   // Transfers resume after the window: B collects the stock bought, A the one never sold.
   await sendAs(USDC_HOLDER, AMZNC, encodeFunctionData({abi, functionName: "setPaused", args: [false]}))
   await warpTo(expiry + 86_400 + 60)
-  const bStock = await balanceOf(AMZNC, people.b.wallet)
+  const bStock = await balanceOf(AMZNC, fresh.wallet)
   expect((await press(await row(b, "held", id, "Collect AMZNc"), bought, "Collect AMZNc")).status).toBe("0x1")
-  expect((await balanceOf(AMZNC, people.b.wallet)) - bStock).toBe(UNIT)
+  expect((await balanceOf(AMZNC, fresh.wallet)) - bStock).toBe(UNIT)
 
   expect((await press(await row(page, "sold", id, "Collect AMZNc"), sent, "Collect AMZNc")).status).toBe("0x1")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - UNIT)

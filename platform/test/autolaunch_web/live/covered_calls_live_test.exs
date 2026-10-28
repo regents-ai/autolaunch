@@ -42,6 +42,20 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert conn |> get("/stock-listing/AMZNc") |> html_response(200) =~ "Covered calls on AMZNc"
   end
 
+  test "who may use covered calls is said once, under the page title, and nowhere else",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    line = "Available to eligible people outside the US."
+    {:ok, view, _html} = live(conn, "/covered-calls")
+    html = render_async(view)
+
+    assert view |> element("h1 + #covered-calls-eligibility") |> render() =~ line
+    assert html |> String.split(line) |> length() == 2
+
+    for path <- ["/", "/stock-listing/AMZNc", "/docs", "/llms-full.txt"],
+        do: refute(conn |> get(path) |> response(200) =~ line)
+  end
+
   test "a listing's panel opens from its address with its amount left to buy", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls?listing=1")

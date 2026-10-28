@@ -30,6 +30,13 @@ defmodule AutolaunchWeb.PublicDocuments do
   @contract_path Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @external_resource @contract_path
   @contract YamlElixir.read_from_file!(@contract_path)
+  # Covered calls' routes and their components, added only while the site offers them.
+  @covered_calls_contract_path Path.expand(
+                                 "../../contracts/covered-calls.openapiv3.yaml",
+                                 __DIR__
+                               )
+  @external_resource @covered_calls_contract_path
+  @covered_calls_contract YamlElixir.read_from_file!(@covered_calls_contract_path)
 
   # Covered calls, in the agent guides only while the site offers them.
   @covered_calls_path Path.join(@directory, "covered_calls.md")
@@ -229,8 +236,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   @doc "The public API description, with this site's address as its server."
   def openapi do
-    @contract
-    |> Map.update!("paths", &offered_paths/1)
+    contract()
     |> Map.put("servers", [%{"url" => url("")}])
     |> Map.put("externalDocs", %{
       "url" => url("/docs"),
@@ -514,12 +520,20 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp covered_calls,
     do: if("covered_calls" in ToolManifest.features(), do: @covered_calls, else: "")
 
-  # A route behind a switch (`x-autolaunch-switch`) is described only while its
-  # feature is on.
-  defp offered_paths(paths) do
-    on = ToolManifest.features()
-    Map.filter(paths, fn {_path, item} -> Map.get(item, "x-autolaunch-switch") in [nil | on] end)
+  # The contract as the site offers it now: with covered calls switched off it is
+  # api-contract.openapiv3.yaml exactly; on, their paths and components join it.
+  defp contract do
+    if "covered_calls" in ToolManifest.features(),
+      do:
+        @contract
+        |> Map.update!("paths", &Map.merge(&1, @covered_calls_contract["paths"]))
+        |> Map.update!("components", &join_components(&1, @covered_calls_contract["components"])),
+      else: @contract
   end
+
+  # Each kind of component (schemas, parameters) with the added ones beside its own.
+  defp join_components(ours, added),
+    do: Map.merge(ours, added, fn _kind, own, more -> Map.merge(own, more) end)
 
   # The prelaunch gate as it stands on this deployment right now.
   defp read_only_now do

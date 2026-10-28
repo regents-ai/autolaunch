@@ -33,9 +33,6 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   @impl true
-  def handle_event("refresh", _params, socket), do: {:noreply, read(socket)}
-
-  @impl true
   def handle_async(:positions, {:ok, markets}, socket),
     do: {:noreply, assign(socket, positions: AsyncResult.ok(socket.assigns.positions, markets))}
 
