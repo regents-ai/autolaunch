@@ -68,3 +68,21 @@ test("on a phone, the open menu and side panel cover the bottom bar", async ({pa
   await expect.poll(sliding).toBe(0)
   expect(await onTop(bar.x + bar.width / 2, middle, "#shell-aside")).toBe(true)
 })
+
+// Found on Autolaunch on 19 Oct: while a sign-in can't be read the top bar shows
+// nothing to the right of Regents Products, and that button's hover name, centred
+// under it, reached 3px past a 390px phone's screen, so the page scrolled sideways.
+test("the Regents Products name stays on screen with nothing to its right", async ({page, isMobile}) => {
+  test.skip(!isMobile, "a phone's top bar")
+  await page.goto("/how-it-works")
+  await ready(page)
+  // What the top bar holds to the button's right while a sign-in can't be read: nothing.
+  await page.evaluate(() => {
+    const button = document.getElementById("shell-apps-button")!
+    for (let next = button.nextElementSibling; next; next = next.nextElementSibling)
+      if (!next.matches("#shell-apps")) (next as HTMLElement).style.display = "none"
+  })
+  const sideways = () =>
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(await sideways()).toBeLessThanOrEqual(0)
+})
