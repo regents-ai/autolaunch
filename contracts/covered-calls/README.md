@@ -5,6 +5,9 @@ token, paid in USDC. Product spec: [yield-borrow-spec.md](../../platform/docs/yi
 Design and measurements: [covered-calls-design.md](../../platform/docs/covered-calls-design.md).
 
 Status: **not deployed.** A deployment is a protected action and waits for Sean's go naming it.
+The AMZNc deployment is prepared for signature in [deploy/](deploy/README.md): one transaction
+through the deterministic deployer to `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`, rehearsed on a
+copy of Base.
 
 ## How it works
 
