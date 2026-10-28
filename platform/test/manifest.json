@@ -1,5 +1,5 @@
 {
-  "total": 126,
+  "total": 132,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1594,26 +1594,26 @@
       "group": "Browser wallet boundary",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 20,
-      "test_name": "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read asks to try again",
-      "keep_because": "A wallet panel whose wallets can't be read holds them as unread: nothing may act and a press says That did not go through. Try again in a moment., never Sign in; it reads them again on the next update. It fails while unread wallets were taken for signed out.",
+      "line": 43,
+      "test_name": "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read sends nothing and never asks to sign in",
+      "keep_because": "On the real Account page, a Credits panel whose wallets can't be read because the connection was lost hands the wallet no review for Approve or Buy even with the account's own wallet open, and its press note never asks the person to sign in; the page stays signed in. It fails on main, where the lost read signed the page out.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "3e35d3e1b4b1031f312a3000619a19928d554d9b0552c3ab9cf6451a17280d12"
+      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
     },
     {
       "id": 164,
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
-      "line": 46,
+      "line": 90,
       "test_name": "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again",
       "keep_because": "Connect ENS with a sign-in that can't be read says That did not go through. Try again in a moment., not that the name doesn't fit. It fails while every failure said Use an ENS name controlled by your signed-in wallet.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "3e35d3e1b4b1031f312a3000619a19928d554d9b0552c3ab9cf6451a17280d12"
+      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
     },
     {
       "id": 165,
@@ -1640,6 +1640,84 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
+    },
+    {
+      "id": 167,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 72,
+      "test_name": "HELD_TREASURY_TICK_WRITES_NOTHING: a page whose sign-in ended and can't be read confirms no treasury",
+      "keep_because": "A create page whose sign-in has ended elsewhere, and whose next read of it loses its connection, keeps showing the account but cannot confirm the agent's treasury: the tick runs under the lease read again now. It fails while the tick was written without that read (the review of 61ad213d).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+    },
+    {
+      "id": 168,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 113,
+      "test_name": "HELD_PAGE_MAKES_NO_DRAFT: a closed review or an agent's save starts no draft for a held account",
+      "keep_because": "On both create pages a closed or finished launch review, and on /create an agent's saved draft, start no draft for an account whose sign-in ended and cannot be read: a first draft is made only under the lease read again now, and an agent's save is only read. It fails on each of the three while they created the draft directly.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+    },
+    {
+      "id": 169,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 135,
+      "test_name": "WRITE_FAILURE_IS_NOT_A_SIGN_IN_READ: a write that fails under a lease raises as itself",
+      "keep_because": "A write that raises inside SessionAuthority.transact_lease raises as itself and is not logged as a sign-in read. It fails while the whole transaction was rescued and turned into an error tuple.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+    },
+    {
+      "id": 170,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 152,
+      "test_name": "a write behind a fresh check runs only for a lease that reads as current now",
+      "keep_because": "Session.fresh/2, which the Credits purchase report and check and the launch treasury check use because they call the chain first, runs its write only for a lease that reads as current: a lost read is sign_in_unread, an ended sign-in session_unavailable, no lease session_lease_required.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "81d31e836549e29b3077d6a9ceeb66ab2297b0b385b8d803677ca0a05fa1b03c"
+    },
+    {
+      "id": 171,
+      "group": "Browser wallet boundary",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 74,
+      "test_name": "a wallet read that fails for any other reason is a real error",
+      "keep_because": "A wallet panel's account read that fails for a reason other than a lost connection raises the read-failed error, as a page's read does, instead of holding the wallets as unread. It fails while every failure was shown as unread.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
+    },
+    {
+      "id": 172,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 100,
+      "test_name": "ENS_NAME_TAKEN_IS_NOT_TRY_AGAIN: a name another account holds is refused for good, not retried",
+      "keep_because": "Saving an ENS name another account already holds answers name_taken, which Connect ENS words as taken, never as try again. It fails while every failed save was a try-again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "845bf23a158c41f2130e325dd7e10027b5d5f1d959a5aa375526d9de52ecc1f7"
     }
   ],
   "legacy_folders_to_remove": [
