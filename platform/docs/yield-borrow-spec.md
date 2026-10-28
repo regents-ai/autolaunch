@@ -1,65 +1,81 @@
-# Yield & Borrow — product spec
+# Simple Covered Calls — product spec
 
-**Status:** Proposed · 27 October 2026  
-**Repository reviewed:** `regents-ai/autolaunch` at `6478f162da389cb4835b2da60a5935a44a96507d`  
-Market selection, fees, implementation and production activation remain separate decisions.
+**Status:** Proposed · 28 October 2026  
+**Codebase reviewed:** `regents-ai/autolaunch` at `65a51146b15812c1cc1f93075e454e5aa2df44da`
 
-## Product direction
+## Goal
 
-Extend Autolaunch with yield-bearing investment products and optional financing: buy or bring eligible assets, borrow USDC, reinvest, monitor and exit. Earn disclosed service fees contributing to REGENT staking.
+**Make selling a covered call on a supported stock token simple.** A person or agent brings or buys the stock token, chooses a sale price and expiry, receives a buyer's option premium, and manages settlement from Autolaunch.
 
-A later issuer offering could distribute investment-strategy shares and arrange financing with lenders/curators. Strategy shares represent portfolio assets and liabilities; an operator's Revstake token participates in routed business revenue. Financing is enabled per eligible asset, never assumed for every launch.
+Covered calls are the first release. The complete flow works without borrowing, a token launch or staking. Aave is the optional financing integration described below.
 
-## Proposed first release
+## First release and user flow
 
-Use **one existing yield-bearing asset and one funded lending market on Base**, with USDC debt. Morpho Blue is the recommended first integration. This tests demand and complete position management; it does not yet validate launching a new financeable strategy.
+Start with one qualified tokenized stock and one options execution/settlement integration; prefer Base. Use fully collateralized, physically settled calls with exercise only during a specified expiry window. Premium and strike payment are in USDC. Qualify the exact token, options contract and buyer/quote provider before enabling trading.
 
-External lenders/curator vaults provide USDC. Positions belong to each user's address or user-controlled account in the underlying protocol. Autolaunch operates the interface and execution preparation.
-
-| Surface | Required behavior |
+| Step | User experience |
 | --- | --- |
-| `/yield` | Show strategy, issuer, income source, yield period, borrowing cost, liquidity, fees and eligibility. |
-| `/yield/:slug` | Buy or bring collateral; borrow; optionally reinvest; add collateral; repay and withdraw. |
-| Existing `/portfolio` | Show collateral, accrued debt, equity, leverage, LTV, liquidation buffer, history and exit controls. |
-| Agent interfaces | Read strategies/authorized positions, simulate outcomes and prepare actions using existing identity and ownership rules. |
+| Choose stock and amount | Bring an existing supported stock balance, or buy through a qualified USDC route. Display the actual deliverable token and quantity. |
+| Choose terms | Offer a small set of quoted strikes and expiries. Explain strike as the price at which the user agrees to sell. |
+| Review and sell | Show premium after fees, expiry/exercise cutoff, capped upside and downside scenarios. Reserve the stock and sell to a funded counterparty. |
+| Track | Show filled quantity, reserved stock, premium received, current position value and settlement status in the existing portfolio. |
+| Settle and repeat | Exercise exchanges stock for strike payment; unexercised collateral becomes withdrawable after the exercise window closes. A new call requires a new quote and authorization. |
 
-Borrowing is independently useful. Reinvestment buys the same supported asset and adds it to the same position through confirmed steps. Interrupted flows show actual assets, debt and recovery actions.
+An executable quote needs an actual buyer; creating an offer earns no premium. If acquisition and sale are staged, show the stock held and recovery actions when the option sale fails. Early close is offered only with an executable buyback that extinguishes the obligation.
 
 ## Product requirements
 
-- **Admission:** Verify exact contracts, oracle, funded borrowing liquidity, yield entitlement while collateral is held, issuer/contract/liquidator permissions, valuation and redemption terms. Cap exposure against executable entry and stressed exit capacity.
-- **Limits:** Choose operating loan-to-value (LTV) below the market's liquidation LTV (LLTV). For Morpho, use the actual immutable market parameters and approved LLTV choices; do not copy illustrative report thresholds.
-- **Preview:** Show collateral, gross debt including financed fees, equity, LTV, liquidation buffer, current borrowing cost and all fees. Compare estimated income on equity with unlevered holding. Label periods/assumptions, separate incentives and price gains/losses, and avoid deducting embedded costs twice.
-- **Preparation and wallet presses:** Use fresh, block-stamped state. Refuse to prepare unsupported or stale risk-increasing quotes with an explanation. Preserve existing wallet behavior: every prepared wallet-button press reaches the wallet, including repeats while pending. Enforce applicable amount, debt/LTV, slippage, recipient and expiry bounds in execution; reconcile actual receipts.
-- **Authority:** A person or independently authorized agent signs with the eligible wallet. SIWA identity or pairing supplies no spending authority. Preserve account/wallet ownership checks and protocol-level repayment/withdrawal access independently of Autolaunch.
-- **Exit:** Quote transaction order, USDC needed upfront, health after every step, proceeds and liquidity constraints. Locked collateral is not repayment cash; withdrawal headroom may disappear near liquidation. Offer complete exit only with a demonstrated executable route. Keep supported repayment/recovery accessible.
+- **Real coverage:** Reserve the exact deliverable units: option quantity multiplied by the contract's underlying-unit multiplier, accounting for decimals and rounding. Use actual stock tokens supplied by the owner; Memestock tokens and stock locked in launch liquidity do not provide this coverage.
+- **Exclusive collateral:** Outstanding calls keep their required stock reserved onchain. Prevent uncovered fills, withdrawals, second calls or Aave pledges against the same units. Release unfilled collateral only after the relevant order can no longer execute.
+- **Terms and quotes:** Bind chain, token, quantity, strike, option expiry, exercise window, minimum net premium, fees, recipient and quote deadline. Validate issuer/holder/contract permissions, token corporate-action treatment and fresh price references. Preview values are distinct from actual fills.
+- **Execution:** Premium payment and creation of the covered obligation settle together. Contract/executor state enforces coverage, fill limits and replay protection, including partial fills and concurrent orders. Every prepared wallet-button press reaches the wallet, including repeats while pending.
+- **Settlement:** Deliver the exact stock token only against the required USDC strike payment. Expiry alone does not release stock while exercise or settlement remains possible. Show open, settlement-pending, settled and withdrawable states; reconcile balances from receipts. Users can recover eligible assets through contracts independently of the site.
+- **Performance:** Label premium as cash received. Show stock gains/losses, option liability or buyback cost, fees and combined performance separately. Explain retained stock downside and capped upside. For imported holdings, distinguish performance since opening from unknown historical cost basis.
+- **Authority:** Reuse wallet ownership checks. A person or independently authorized agent signs; SIWA identity or pairing grants no spending authority. The position and proceeds belong to that owner; the website does not custody customer balances.
 
-## Revenue and implementation
+### Illustrative payoff
 
-Define a USDC service fee with an explicit basis, rate and recipient. Route only collected platform fees through the verified USDC revenue path to REGENT staking. Principal, collateral, debt proceeds and user earnings remain separate; launchpad swap fees do not set this product's pricing.
+For one deliverable unit bought at 100 USDC, a 110 strike and 3 USDC premium, ignoring fees:
 
-Implement in the existing Phoenix/Ash platform, with a product-owned Carry domain and lending adapter. Reuse shared identity, UI, `AutolaunchWeb.OnchainSteps`, chain reads and receipt tracking. Shared changes follow ash-template/library ownership; avoid duplicate account or payment infrastructure.
+| Expiry outcome | Combined result |
+| --- | --- |
+| Stock at 80; call unexercised | Stock worth 80 plus 3 premium: loss of 17 |
+| Stock at 105; call unexercised | Stock worth 105 plus 3 premium: gain of 8 |
+| Stock at 120; call exercised | 110 sale proceeds plus 3 premium: gain of 13 |
 
-Extend existing HTTP, WebMCP and `regents autolaunch` descriptors for read/simulate/prepare, coordinating packaged CLI updates. Advertise implemented capabilities only after runtime enablement. Basic lending can reuse supported protocol entrypoints; combined swap/loop/unwind execution needs separate integration. Begin behind a feature flag.
+These are payoff examples, not premium or return promises. Actual exercise follows the contract's rules.
 
-## Acceptance criteria
+## Fit with Autolaunch
 
-1. Buy and bring-existing-collateral paths both work; borrowing needs no auction or reinvestment.
-2. Protocol ownership and continuing yield entitlement are demonstrated; balances reconcile after reload.
-3. Reinvestment, cancellation, failure and repeated wallet presses retain accurate balances and recovery actions; repeated/stale execution cannot exceed the reviewed maximum debt/exposure.
-4. Hypothetical 9% asset income, 5% borrowing cost and 3× exposure show 17% annual income on equity; 10% borrowing shows 7%, before fees and price changes.
-5. Stale data, unsupported inputs, expired quotes and exceeded bounds are handled at preparation/execution without adding a wallet-button gate.
-6. Partial repayment and complete exit reconcile with receipts and maintain protocol constraints at every intermediate step, with upfront cash requirements disclosed.
-7. Fees match previews, are recorded once per confirmed payment and reconcile through the REGENT revenue path.
+Add a `/covered-calls` entry and qualified actions from existing `/stock-listing/:symbol` pages. Extend existing `/portfolio` with underlying stock balances and option positions, including external holders.
 
-## Decisions and later work
+Implement a product-owned CoveredCalls domain, option quote/execution adapter and position/settlement tracking in the Phoenix/Ash platform. Reuse stock identity records, shared UI, `AutolaunchWeb.OnchainSteps`, chain reads and receipt tracking. Auction admission and the existing stock-to-CCA purchase adapter do not establish options eligibility or buy-and-write support.
 
-Before enabling, select the asset/market/oracle; verify permissions; set LTV, exposure, freshness and fee parameters; demonstrate entry, failure recovery and stressed exit.
+Extend HTTP, WebMCP and `regents autolaunch` contracts together for quotes, positions and prepared actions; coordinate packaged CLI updates. Shared changes follow ash-template/library ownership. Enable advertised capabilities with the implemented feature.
 
-Later options: atomic looping, bounded automation, lender distribution and issuer-created strategies, including independently assessed covered-call shares. Native Revstake/Memestock collateral, pooled leverage, cross-chain flows and new lending protocols/tokens are outside this pilot. This proposal does not reprioritize existing stock or covered-call work.
+Charge a disclosed fee on actual fills, with explicit failure/refund behavior and no duplicate charges. Route only collected platform fees through the verified USDC revenue path to REGENT staking. Stock collateral, option premiums owed to users and exercise proceeds remain user assets.
+
+## Optional financing: Aave
+
+Aave supplies optional lending; the options contract supplies the covered-call lifecycle. Core launch acceptance has no Aave dependency.
+
+A later financed flow can borrow USDC against separate, already-eligible Aave collateral. Read the user's entire Pool position, current LTV/liquidation thresholds, health factor, modes, limits and liquidity. Display borrowing cost and liquidation exposure alongside option economics.
+
+Borrowing against a future covered-call strategy share requires independent Aave listing, permissions, valuation net of short-call liabilities, and an executable liquidation/redemption route. Issuing a share does not make it eligible collateral. Do not pledge the stock reserved for calls to Aave.
+
+## Acceptance and launch decisions
+
+1. An external stock holder completes quote, covered sale, premium receipt, settlement and withdrawal without a loan or auction.
+2. Buy-and-write failure leaves accurately reported, recoverable stock; partial fills and cancellations release only unencumbered quantities.
+3. Fractional quantities, repeated presses and concurrent orders cannot oversell coverage or charge twice.
+4. Falling-stock, unexercised-expiry and exercised-above-strike cases match the payoff rules; exercise requires strike payment and collateral stays reserved through the exercise window.
+5. Supported early buyback shows its cost and releases collateral only after extinguishing the call.
+6. Positions, proceeds and fees reconcile after reload; agent and human flows preserve the same ownership and coverage rules.
+
+Before launch, select the token/chain, settlement implementation, buyer liquidity, quote source, expiry/corporate-action rules, fees and supported close route. Prove the complete option lifecycle before enabling. Additional stocks, automatic rolling, strategy vault shares and Aave financing follow this core product.
 
 ## References
 
-- [Existing product](../../README.md) · [Wallet rules](../../AGENTS.md) · [Wallet-step implementation](../lib/autolaunch_web/onchain_steps.ex)
-- [Morpho markets](https://docs.morpho.org/learn/concepts/blue/) · [Execution](https://docs.morpho.org/developers/contracts/bundles/)
-- [Borrow fees](https://docs.morpho.org/developers/borrow/guides/monetize-borrow-product/) · [Permissioned assets](https://docs.morpho.org/curate/concepts/permissioned-assets/)
+- [Existing product](../../README.md) · [Wallet rules](../../AGENTS.md) · [Wallet steps](../lib/autolaunch_web/onchain_steps.ex)
+- [Covered-call economics](https://www.optionseducation.org/strategies/all-strategies/covered-call-buy-write) · [Exercise mechanics](https://www.optionseducation.org/optionsoverview/exercising-options)
+- [Aave Pool](https://aave.com/docs/aave-v3/smart-contracts/pool) · [Aave collateral configuration](https://aave.com/docs/aave-v3/smart-contracts/pool-configurator)
