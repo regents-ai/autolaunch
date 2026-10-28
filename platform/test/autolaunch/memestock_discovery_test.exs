@@ -185,12 +185,12 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
     # The public lists carry it and its page opens, as for every listed launch.
     assert [%{id: ^auction_id}] =
-             Auction |> Ash.Query.for_read(:listed, %{}) |> Ash.read!(actor: nil)
+             Auction |> Ash.Query.for_read(:listed, %{}, actor: nil) |> Ash.read!()
 
     assert %{id: ^auction_id} =
              Auction
-             |> Ash.Query.for_read(:public_by_id, %{id: auction_id})
-             |> Ash.read_one!(actor: nil)
+             |> Ash.Query.for_read(:public_by_id, %{id: auction_id}, actor: nil)
+             |> Ash.read_one!()
   end
 
   test "a launch the chain cannot answer for yet stays pending with the reason",
