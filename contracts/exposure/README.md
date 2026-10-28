@@ -1,8 +1,8 @@
-# Autolaunch Exposure
+# After-hours Exposure
 
-Isolated exposure tokens: one Base stock token split, for a fixed term, into an **OVERNIGHT** token
-that carries the stock's close-to-open moves and a **SESSION** token that carries its open-to-close
-moves. Design and site plan: [exposure-design.md](../../platform/docs/exposure-design.md).
+One Base stock token split, for a fixed term, into an **OVERNIGHT** token (shown to customers as
+After-hours) that carries the stock's close-to-open moves and a **SESSION** token (Market-hours) that
+carries its open-to-close moves. Design and site plan: [exposure-design.md](../../platform/docs/exposure-design.md).
 
 Status: **not deployed.** A deployment is a protected action and waits for Sean's go naming it.
 
@@ -18,7 +18,7 @@ admin, upgrade, pause or fee.
 | `redeem(overnight, session)` | holder | Burns the caller's legs and sends the caller the stock they are worth. Before the end, equal amounts only (one raw unit per pair); after the end, any mix at the frozen ledgers. |
 | `endOnMissingPrint()` | anyone | After the next print's deadline passes with no print made final in time, ends the series at the last ledgers. |
 | `createSeries(terms)` | factory owner (the governance Safe) | Creates and lists a series. The owner has no power over it afterwards. |
-| `report(feed, at, isOpen, price, evidence)` | `PrintOracleV1` reporters | Votes a print, or changes the reporter's vote; it becomes final when a strict majority agree on the same price, and never changes after. |
+| `record(at, isOpen, roundId)` | anyone, an hour after `at` | `ChainlinkPrintOracleV1`: records the stock's Chainlink value in force at `at` (the named round, checked to be the last one updated at or before it). Recorded once, never changed. |
 
 - The two ledgers always sum to the last print, so a pair is always worth exactly its stock.
 - A print that takes either ledger to zero or below ends the series, and the other leg owns all the
@@ -42,6 +42,9 @@ factory suites. It builds against `../stocks-v2/lib` (forge-std and solady), fil
 `stocks-v2/bootstrap-deps.py`.
 
 The Base fork suite (`test/fork/`) creates a series through the factory on the real AMZNc token and
-settles it from a 2-of-3 `PrintOracleV1`. Base stock tokens are B20 precompiles, so it needs
-Foundry 1.8.4 or later: start `anvil --network base --fork-url <Base RPC>`, then
+settles it from the real Coinbase AMZN Chainlink feed over the week of 23 to 28 October 2026. Base
+stock tokens are B20 precompiles, so it needs Foundry 1.8.4 or later: start
+`anvil --network base --fork-url <Base RPC> --fork-block-number 53209576`, then
 `FOUNDRY_PROFILE=fork forge test --network base --fork-url http://127.0.0.1:<port>`.
+
+The first series' terms are planned in [series/amznc-2026-11-06.json](series/amznc-2026-11-06.json).

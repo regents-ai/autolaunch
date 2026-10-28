@@ -135,3 +135,35 @@ contract MockPrintOracle is IFinalizedPrintOracle {
         }
     }
 }
+
+/// @notice A Chainlink aggregator proxy with 8 decimals whose rounds the test writes. Round ids are
+///         (phase << 64 | n) like the real proxy; a missing round reverts like an OCR2 aggregator.
+contract MockAggregator {
+    struct Round {
+        int256 answer;
+        uint256 updatedAt;
+    }
+
+    mapping(uint80 roundId => Round) public rounds;
+    uint80 public latest;
+
+    function decimals() external pure returns (uint8) {
+        return 8;
+    }
+
+    function push(uint80 roundId, int256 answer, uint256 updatedAt) external {
+        rounds[roundId] = Round(answer, updatedAt);
+        latest = roundId;
+    }
+
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
+        Round memory r = rounds[latest];
+        return (latest, r.answer, r.updatedAt, r.updatedAt, latest);
+    }
+
+    function getRoundData(uint80 roundId) external view returns (uint80, int256, uint256, uint256, uint80) {
+        Round memory r = rounds[roundId];
+        require(r.updatedAt != 0, "No data present");
+        return (roundId, r.answer, r.updatedAt, r.updatedAt, roundId);
+    }
+}

@@ -2,16 +2,16 @@
 pragma solidity 0.8.26;
 
 /// @title IFinalizedPrintOracle
-/// @notice Official opening and closing prints for a stock, each the USD value of one whole raw
-///         stock token (the official equity price times the token's multiplier at that moment), as
-///         an 18-decimal number. A print is final once `finalizedAt` is set and never changes after.
+/// @notice Opening and closing prints for a stock, each the USD value of one whole raw stock token
+///         (the equity price times the token's multiplier at that moment), as an 18-decimal number.
+///         A print is final once `finalizedAt` is set and never changes after.
 interface IFinalizedPrintOracle {
     struct Print {
         /// USD per whole raw token, 18 decimals. Zero when there is no final print.
         uint128 priceWad;
         /// The scheduled open or close this print is for.
         uint64 observedAt;
-        /// When the print became final on chain, set by the oracle, never by a reporter.
+        /// When the print was recorded on chain, set by the oracle from the block time.
         uint64 finalizedAt;
     }
 

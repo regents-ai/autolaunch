@@ -7,7 +7,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {ExposureFactoryV1} from "../../src/ExposureFactoryV1.sol";
 import {ExposureSeriesV1} from "../../src/ExposureSeriesV1.sol";
-import {PrintOracleV1} from "../../src/PrintOracleV1.sol";
+import {ChainlinkPrintOracleV1, IAggregatorV3} from "../../src/ChainlinkPrintOracleV1.sol";
 
 interface IB20AssetFork {
     function multiplier() external view returns (uint256);
@@ -22,9 +22,10 @@ interface IPolicyRegistryFork {
 }
 
 /// @notice An exposure series on the real AMZNc B20 token on a local Base fork, created through the
-///         factory and settled from a 2-of-3 PrintOracleV1. Run with
-///         `FOUNDRY_PROFILE=fork forge test --network base --fork-url <anvil>`, where anvil is
-///         `anvil --network base --fork-url <Base RPC>` (Foundry 1.8.4 or later, for B20 precompiles).
+///         factory and settled from the real Coinbase AMZN Chainlink feed over the week of 23 to 28
+///         October 2026. Run against `anvil --network base --fork-url <Base RPC>
+///         --fork-block-number 53209576` (Foundry 1.8.4 or later, for B20 precompiles) with
+///         `FOUNDRY_PROFILE=fork forge test --network base --fork-url <anvil>`.
 ///         The issuer's admin and policy accounts are impersonated only to stage a split, a
 ///         blocklisting and a transfer pause, exactly as the issuer would.
 contract ExposureSeriesV1ForkTest is Test {
@@ -40,39 +41,38 @@ contract ExposureSeriesV1ForkTest is Test {
     bytes32 internal constant UNPAUSE_ROLE = keccak256("UNPAUSE_ROLE");
     uint8 internal constant TRANSFER = 0;
     uint256 internal constant TOKEN = 1e8;
-    bytes32 internal constant FEED = keccak256("AMZNc NASDAQ official open and close, USD per raw token, v1");
+    address internal constant AMZN_FEED = 0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295;
 
     IERC20 internal stock = IERC20(AMZNC);
-    PrintOracleV1 internal oracle;
+    ChainlinkPrintOracleV1 internal oracle;
     ExposureSeriesV1 internal series;
     uint64[] internal schedule;
     address internal safe = makeAddr("governance safe");
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
     address internal issuerOps = makeAddr("issuerOps");
-    address[3] internal reporters = [makeAddr("reporter1"), makeAddr("reporter2"), makeAddr("reporter3")];
 
     function setUp() public {
-        address[] memory list = new address[](3);
-        (list[0], list[1], list[2]) = (reporters[0], reporters[1], reporters[2]);
-        oracle = new PrintOracleV1(list, 2);
+        oracle = new ChainlinkPrintOracleV1(AMZN_FEED);
 
-        uint64 t = uint64(block.timestamp) + 1 hours;
-        schedule.push(t);
-        schedule.push(t + 17.5 hours);
-        schedule.push(t + 24 hours);
-        schedule.push(t + 41.5 hours);
-        schedule.push(t + 48 hours);
+        // Friday 23 Oct close, then Monday to Wednesday opens and closes (New York, summer time).
+        uint64 friClose = 1793217600 - 5 days; // Fri 23 Oct 2026 20:00 UTC
+        schedule.push(friClose);
+        for (uint64 day = 3; day <= 5; ++day) {
+            schedule.push(friClose + day * 1 days - 6.5 hours); // 13:30 UTC open
+            schedule.push(friClose + day * 1 days); // 20:00 UTC close
+        }
 
         ExposureFactoryV1 factory = new ExposureFactoryV1(safe);
+        bytes32 feedId = oracle.feedId();
         vm.prank(safe);
         series = factory.createSeries(
             ExposureSeriesV1.Terms({
                 asset: AMZNC,
                 oracle: address(oracle),
-                feedId: FEED,
+                feedId: feedId,
                 termsHash: keccak256("AMZNc exposure terms"),
-                maxReportDelay: 6 hours,
+                maxReportDelay: 7 days,
                 depositCap: 1_000_000e8,
                 boundaries: schedule,
                 overnightName: "AMZNc Overnight",
@@ -98,15 +98,22 @@ contract ExposureSeriesV1ForkTest is Test {
         vm.stopPrank();
     }
 
-    /// @dev Two reporters publish the print for boundary `index` ten minutes after it; then it is applied.
-    function _settle(uint256 index, uint128 priceWad) internal {
+    /// @dev Records the feed's value in force at boundary `index` (found by walking back from the
+    ///      latest round, as the site's keeper does) and applies it.
+    function _settle(uint256 index) internal {
         uint64 at = schedule[index];
-        vm.warp(at + 10 minutes);
-        for (uint256 i; i < 2; ++i) {
-            vm.prank(reporters[i]);
-            oracle.report(FEED, at, index % 2 == 1, priceWad, keccak256("evidence"));
-        }
+        if (block.timestamp < at + 1 hours) vm.warp(at + 1 hours);
+        oracle.record(at, index % 2 == 1, _roundInForce(at));
         series.settle();
+    }
+
+    function _roundInForce(uint64 at) internal view returns (uint80 roundId) {
+        (roundId,,,,) = IAggregatorV3(AMZN_FEED).latestRoundData();
+        while (true) {
+            (,,, uint256 updatedAt,) = IAggregatorV3(AMZN_FEED).getRoundData(roundId);
+            if (updatedAt <= at) return roundId;
+            --roundId;
+        }
     }
 
     function _redeem(address who, uint256 n, uint256 s) internal returns (uint256) {
@@ -119,41 +126,42 @@ contract ExposureSeriesV1ForkTest is Test {
         assertEq(series.asset(), AMZNC);
     }
 
-    /// The paper's worked example on the real token: deposit, four prints, split legs, redeem.
-    function test_fork_workedExampleWithRealStock() public {
-        _settle(0, 160e18);
+    /// This week on real data: AMZN's Chainlink values in force at each open and close from Friday's
+    /// close to Wednesday's, applied to a deposit of the real token, then the legs redeemed apart.
+    function test_fork_thisWeekOnTheRealFeed() public {
+        _settle(0); // Fri close 247.93375
         vm.prank(alice);
         series.mint(TOKEN);
         assertEq(stock.balanceOf(address(series)), TOKEN);
-
-        _settle(1, 172e18);
-        _settle(2, 166e18);
-        _settle(3, 178e18);
-        _settle(4, 170e18);
-        assertEq(series.overnightLedgerWad(), 104e18);
-        assertEq(series.sessionLedgerWad(), 66e18);
+        for (uint256 i = 1; i < schedule.length; ++i) {
+            _settle(i);
+        }
+        // Mon open 250.39085, close 248.98255; Tue 250.26999999, 254.2865; Wed 252.895, 252.9275.
+        assertEq(series.lastPriceWad(), 252.9275e18);
+        assertEq(series.overnightLedgerWad(), 126.31992499e18, "123.966875 + 2.457 + 1.28744999 - 1.3915");
+        assertEq(series.sessionLedgerWad(), 126.60757501e18, "123.966875 - 1.4083 + 4.01650001 + 0.0325");
+        assertEq(uint8(series.endReason()), uint8(ExposureSeriesV1.EndReason.Maturity));
 
         IERC20 session = IERC20(address(series.session()));
         vm.prank(alice);
         session.transfer(bob, TOKEN);
-        uint256 aliceBefore = stock.balanceOf(alice);
-        uint256 bobBefore = stock.balanceOf(bob);
-        assertEq(_redeem(alice, TOKEN, 0), TOKEN * 104 / 170);
-        assertEq(_redeem(bob, 0, TOKEN), TOKEN * 66 / 170);
-        assertEq(stock.balanceOf(alice) - aliceBefore, TOKEN * 104 / 170);
-        assertEq(stock.balanceOf(bob) - bobBefore, TOKEN * 66 / 170);
+        uint256 overnightOwed = TOKEN * 126.31992499e18 / 252.9275e18;
+        uint256 sessionOwed = TOKEN * 126.60757501e18 / 252.9275e18;
+        assertEq(_redeem(alice, TOKEN, 0), overnightOwed);
+        assertEq(_redeem(bob, 0, TOKEN), sessionOwed);
+        assertLe(overnightOwed + sessionOwed, TOKEN);
     }
 
     /// A split changes the shares each raw token represents, not the raw units the series holds or owes.
     function test_fork_splitLeavesRawBackingAlone() public {
-        _settle(0, 200e18);
+        _settle(0);
         vm.prank(alice);
         series.mint(3 * TOKEN);
         vm.prank(issuerOps);
         IB20AssetFork(AMZNC).updateMultiplier(2e18);
         assertEq(IB20AssetFork(AMZNC).multiplier(), 2e18);
-        // The oracle's price per raw token is unchanged by the split (half the equity price, twice the shares).
-        _settle(1, 200e18);
+        // Chainlink's total-return value is per raw token, so the split itself moves no ledger.
+        _settle(1);
         assertEq(stock.balanceOf(address(series)), 3 * TOKEN);
         assertEq(_redeem(alice, 3 * TOKEN, 3 * TOKEN), 3 * TOKEN);
     }
@@ -161,7 +169,7 @@ contract ExposureSeriesV1ForkTest is Test {
     /// The issuer's blocklist reaches the stock: a blocklisted holder cannot redeem until unblocked,
     /// and the refused payout burns nothing.
     function test_fork_blocklistedHolderWaitsUntilUnblocked() public {
-        _settle(0, 160e18);
+        _settle(0);
         vm.prank(bob);
         series.mint(2 * TOKEN);
         _blocklist(bob, true);
@@ -183,7 +191,7 @@ contract ExposureSeriesV1ForkTest is Test {
     }
 
     function test_fork_transferPauseDelaysButNeverLosesStock() public {
-        _settle(0, 160e18);
+        _settle(0);
         vm.prank(alice);
         series.mint(2 * TOKEN);
         _pauseTransfers(true);
@@ -195,7 +203,7 @@ contract ExposureSeriesV1ForkTest is Test {
         vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
         series.mint(TOKEN);
         // Prints keep applying while the stock is paused.
-        _settle(1, 150e18);
+        _settle(1);
 
         _pauseTransfers(false);
         assertEq(_redeem(alice, 2 * TOKEN, 2 * TOKEN), 2 * TOKEN);

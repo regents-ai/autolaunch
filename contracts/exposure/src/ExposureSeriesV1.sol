@@ -16,7 +16,7 @@ interface IStock {
 /// @title ExposureSeriesV1
 /// @notice Splits one Base stock token into two isolated exposure tokens for a fixed term. Depositing
 ///         raw stock mints the same amount of OVERNIGHT and SESSION; one of each always redeems for
-///         exactly one raw unit back. Between the official prints, OVERNIGHT carries every
+///         exactly one raw unit back. Between the scheduled prints, OVERNIGHT carries every
 ///         close-to-open move and SESSION every open-to-close move, in dollars on a ledger that
 ///         starts at half the stock's price. At the end of the term each leg redeems for its
 ///         ledger's share of the stock. There is no owner, admin, upgrade, pause or fee.
