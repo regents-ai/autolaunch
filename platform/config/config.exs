@@ -166,7 +166,7 @@ config :spark,
   ]
 
 config :autolaunch,
-  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points],
+  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points, Autolaunch.CoveredCalls],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
@@ -195,7 +195,8 @@ config :autolaunch, Autolaunch.ChainRefresh,
     Autolaunch.TokenTrades,
     Autolaunch.Indexer.ReadChain,
     Autolaunch.LaunchDiscovery.DiscoverMemestock,
-    Autolaunch.RegentFacts
+    Autolaunch.RegentFacts,
+    Autolaunch.CoveredCalls.Book
   ]
 
 # How long each server keeps a chain's saved stocks before reading them again;

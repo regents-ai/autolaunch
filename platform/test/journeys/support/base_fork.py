@@ -4,6 +4,7 @@ the agent journeys (scripts/agent-journeys.sh).
   python3 base_fork.py start   RUN CONTRACTS   copy Base at FORK_BLOCK onto a free loopback port (chain 31337)
   python3 base_fork.py prepare RUN CONTRACTS   stand-in stocks, then the switch-on steps from the Safe
   python3 base_fork.py configs RUN CONTRACTS   the site's two Base settings files, from the deployed manifests
+  python3 base_fork.py covered-calls RUN CONTRACTS   AMZNc covered calls: the contract and its settings file
   python3 base_fork.py stop    RUN CONTRACTS   stop the copy by its recorded pid
 
 RUN holds the copy's pid, port and settings files; CONTRACTS is a contracts/ folder whose stocks-v2
@@ -14,6 +15,9 @@ each pool's stock balance, read through it.
 On the copy only:
 - Base stock tokens carry a one-byte 0xef runtime a local chain cannot run, so FixtureStockToken is
   installed at each admitted stock and each pool is minted the stock balance it holds on Base.
+- For covered calls, LabStockToken (contracts/covered-calls/test/lab) is installed over AMZNc's
+  stand-in, keeping its balances, because covered calls read the B20 multiplier and its scheduled
+  change; then one CoveredCallsV1 is deployed for AMZNc against Base's USDC and live REGENT staking.
 - Whatever of the switch-on Base does not already have is done from the impersonated Safe: each stock
   admitted with its route, the hook's executor named (Anvil's last development account), the v2
   Revstake factory and Memestock launchpad open, and the v1 pair paused.
@@ -36,6 +40,10 @@ SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 EXECUTOR = "0xa0ee7a142d267c1f36714e4a8f75612f20a79720"
 V1_FACTORY = "0x635615ccef2ef24d0655fc2ebc47a14e005fef6e"
 V1_LAUNCHPAD = "0x1d36a95112835f81b1b499a808e556020c64cac2"
+# Anvil's first development account, unlocked on the copy, deploys the covered-call contract.
+DEPLOYER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+AMZNC = "0xb200000000000000000000d9192b6b456483c2e8"
+AMZN_FEED = "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
 USDC_HOLDER = "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb"  # Morpho Blue
 FAUCET = {
     "regent_holder": SAFE,
@@ -177,6 +185,33 @@ class Fork:
             (self.run / name).write_text(json.dumps(document, indent=1) + "\n")
             print(f"{self.run / name} written from {package}'s deployed manifest")
 
+    def covered_calls(self):
+        """AMZNc's stand-in with the B20 reads covered calls make, one CoveredCallsV1 for it, and the
+        site's covered-calls settings file."""
+        package = self.contracts / "covered-calls"
+        lab = json.loads((package / "out/LabStockToken.sol/LabStockToken.json").read_text())
+        self.rpc("anvil_setCode", [AMZNC, lab["deployedBytecode"]["object"]])
+        if self.call(AMZNC, "effectiveAt()(uint256)") != "0":
+            sys.exit("the AMZNc lab stand-in does not answer effectiveAt()")
+        stocks = json.loads((self.run / "base-memestock.json").read_text())["addresses"]
+        created = subprocess.run(
+            ["forge", "create", "src/CoveredCallsV1.sol:CoveredCallsV1", "--rpc-url", self.url,
+             "--from", DEPLOYER, "--unlocked", "--broadcast",
+             "--constructor-args", AMZNC, stocks["usdc"], stocks["live_staking"]],
+            capture_output=True, text=True, cwd=package,
+        )
+        if created.returncode:
+            sys.exit(created.stderr.strip()[:400])
+        contract = next(
+            line.split()[-1] for line in created.stdout.splitlines() if line.startswith("Deployed to:")
+        ).lower()
+        settings = {
+            "chain_id": CHAIN_ID,
+            "markets": [{"symbol": "AMZNc", "stock": AMZNC, "contract": contract, "feed": AMZN_FEED}],
+        }
+        (self.run / "covered-calls.json").write_text(json.dumps(settings, indent=1) + "\n")
+        print(f"AMZNc covered calls at {contract}; {self.run / 'covered-calls.json'} written")
+
     def stop(self):
         """Stops the recorded Anvil, only while that pid is still an Anvil: after a
         restart the number may belong to anything else."""
@@ -201,4 +236,10 @@ class Fork:
 if __name__ == "__main__":
     command, run, contracts = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
     fork = Fork(run, contracts)
-    {"start": fork.start, "prepare": fork.prepare, "configs": fork.configs, "stop": fork.stop}[command]()
+    {
+        "start": fork.start,
+        "prepare": fork.prepare,
+        "configs": fork.configs,
+        "covered-calls": fork.covered_calls,
+        "stop": fork.stop,
+    }[command]()

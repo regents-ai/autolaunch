@@ -10,8 +10,8 @@
 #
 # The stack, all on 127.0.0.1 and all started here:
 #   - a copy of Base (Anvil, chain 31337) carrying the v2 contracts as deployed,
-#     with stand-in stock tokens and launches switched on, on the copy only
-#     (test/journeys/support/base_fork.py);
+#     with stand-in stock tokens, launches switched on and AMZNc covered calls
+#     deployed, on the copy only (test/journeys/support/base_fork.py);
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
 #   - Autolaunch in the test environment on its own database, open for launches,
@@ -146,10 +146,11 @@ contracts() {
     fi
   done
   mkdir -p "$work"
-  git -C "$root" archive HEAD contracts/stocks-v2 contracts/revstake-v2 | tar -x -C "$work"
+  git -C "$root" archive HEAD contracts/stocks-v2 contracts/revstake-v2 contracts/covered-calls | tar -x -C "$work"
   [ -d "$work/contracts/stocks-v2/lib" ] || (cd "$work/contracts/stocks-v2" && python3 bootstrap-deps.py "$from")
   (cd "$work/contracts/stocks-v2" && forge build) >"$out/contracts-build.log" 2>&1
   (cd "$work/contracts/revstake-v2" && forge build) >>"$out/contracts-build.log" 2>&1
+  (cd "$work/contracts/covered-calls" && forge build) >>"$out/contracts-build.log" 2>&1
 }
 
 up() {
@@ -160,6 +161,7 @@ up() {
   $fork start "$state" "$work/contracts" >"$out/base-fork.log" 2>&1
   $fork prepare "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1
   $fork configs "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1
+  $fork covered-calls "$state" "$work/contracts" >>"$out/base-fork.log" 2>&1
   rpc=http://127.0.0.1:$(cat "$state/base-fork.port")
 
   say "the sign-in service at $SIWA_SERVER_REV"
@@ -198,6 +200,8 @@ PRIVY_APP_ID=autolaunch-fixture
 AUTOLAUNCH_BASE_DEPLOYMENT=$state/base-revstake.json
 AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=$state/base-memestock.json
 AUTOLAUNCH_BASE_DEPLOYMENT_ID=agent-journeys
+AUTOLAUNCH_COVERED_CALLS=true
+AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=$state/covered-calls.json
 AUTOLAUNCH_SIWA_URL=http://127.0.0.1:$siwa_port
 EOF
   (cd "$platform" && site_env sh -c 'mix run --no-start test/journeys/support/drop.exs && mix db.setup') \
