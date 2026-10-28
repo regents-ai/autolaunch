@@ -9,6 +9,11 @@ defmodule Autolaunch.CoveredCalls do
 
   use Ash.Domain, otp_app: :autolaunch
 
+  @doc "The refusal an operation answered with, as the atom its surfaces turn into words."
+  def reason(%{errors: [%{error: reason} | _]}) when is_atom(reason), do: reason
+  def reason(reason) when is_atom(reason), do: reason
+  def reason(_error), do: :chain_unavailable
+
   resources do
     resource Autolaunch.CoveredCalls.Market do
       define :covered_call_book, action: :book, args: [:symbol]

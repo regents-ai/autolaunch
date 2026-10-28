@@ -6,15 +6,17 @@ defmodule Autolaunch.CoveredCalls.Steps do
 
   Six actions, each one review of the steps the wallet sends in turn:
 
-    * `:list` — the stock allowance when it is short, then `list`
-    * `:fill` — the USDC allowance when it is short, then `fill`
-    * `:exercise` — the USDC allowance when it is short, then `exercise`
+    * `:list` — an exact stock approval, then `list`
+    * `:fill` — an exact USDC approval, then `fill`
+    * `:exercise` — an exact USDC approval, then `exercise`
     * `:cancel`, `:claim`, `:collect_strike` — one call each
 
+  The approval is always a step of its own, so it stays pressable once done.
   An action the chain's own state makes certain to fail (nothing left to buy,
   outside the exercise window, too little stock or USDC, an approval not yet
-  on the chain) comes back with `blocked` set to the reason; its steps are
-  still built, so a press that the chain has since allowed reaches the wallet.
+  on the chain) comes back with `blocked` set to the reason and `approved`
+  saying whether the allowance already covers it; its steps are still built,
+  so a press the chain has since allowed reaches the wallet.
   A request that cannot name a real action (an unknown listing, a zero amount,
   a date that is not a weekly expiry) is refused outright.
   """
@@ -73,7 +75,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
       {:ok,
        %{
          steps:
-           approval("stock_approval", market.stock, market.contract, amount, stock.allowance) ++
+           approval("stock_approval", market.stock, market.contract, amount) ++
              [
                Review.step(
                  "list",
@@ -82,6 +84,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
                )
              ],
          blocked: blocked,
+         approved: stock.allowance >= amount,
          facts: %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}
        }}
     end
@@ -106,9 +109,10 @@ defmodule Autolaunch.CoveredCalls.Steps do
       {:ok,
        %{
          steps:
-           approval("usdc_approval", usdc.token, market.contract, premium, usdc.allowance) ++
+           approval("usdc_approval", usdc.token, market.contract, premium) ++
              [Review.step("fill", market.contract, Call.encode("fill(uint256,uint256)", [listing.id, amount]))],
          blocked: blocked,
+         approved: usdc.allowance >= premium,
          facts: %{listing_id: listing.id, amount: amount, premium: premium, fee: Terms.fee(premium)}
        }}
     end
@@ -134,7 +138,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
       {:ok,
        %{
          steps:
-           approval("usdc_approval", usdc.token, market.contract, strike, usdc.allowance) ++
+           approval("usdc_approval", usdc.token, market.contract, strike) ++
              [
                Review.step(
                  "exercise",
@@ -143,6 +147,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
                )
              ],
          blocked: blocked,
+         approved: usdc.allowance >= strike,
          facts: %{listing_id: listing.id, amount: amount, strike: strike}
        }}
     end
@@ -189,16 +194,14 @@ defmodule Autolaunch.CoveredCalls.Steps do
      %{
        steps: [Review.step(Atom.to_string(kind), market.contract, Call.encode(signature, [listing.id]))],
        blocked: blocked,
+       approved: true,
        facts: Map.put(facts, :listing_id, listing.id)
      }}
   end
 
-  # An approval is its own step, for exactly the amount, only while the
-  # allowance is short of it.
-  defp approval(name, token, spender, amount, allowance) when allowance < amount,
+  # An approval is its own step, for exactly the amount.
+  defp approval(name, token, spender, amount),
     do: [Review.step(name, token, Abi.encode_erc20("approve", [spender, amount]))]
-
-  defp approval(_name, _token, _spender, _amount, _allowance), do: []
 
   defp listing(market, %{listing_id: id}, block, opts) when is_integer(id) and id > 0,
     do: Chain.listing(market, id, block, opts)
