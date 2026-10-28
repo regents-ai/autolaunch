@@ -71,7 +71,8 @@ calls, atomically, after the chain read". What each action builds:
 | Stake, unstake, collect | `autolaunch/stocks/stake_actions_test.exs` › "settle on a Base Revstake launch is one collect(lp_token_id) step on the lp_locker". Stake and unstake: **gap** |
 | Make a payment into a Revstake split | **Gap** |
 | Sell fee shares on `/convert` | **Gap** |
-| Lab test funds (lab sites only) | `autolaunch/stocks/faucet_test.exs` (refused on a Base mainnet site). Sending on a lab: **gap** |
+| Lab line, header, side panel and phone menu in order on a lab site; the page stays put as they open and close; a jump to a heading stops under the header | `browser/layout.spec.ts` › "on a lab site the header, side panel and menu open under the lab line" (320, 390, 1280) |
+| Lab test funds (lab sites only) | `autolaunch/stocks/faucet_test.exs` (refused on a Base mainnet site and on a lab until it is open). Sending on a lab: **gap** |
 
 ## Shared links
 
@@ -130,6 +131,5 @@ Credits purchase check; Robinhood bids; adding to, raising or taking back an out
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
 draft routes, the paired Points and Credits history answers, and `prepare_agent_request`; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
-agent journeys. On a fork site the line above the top bar pushes the side panel's own close button under
-the bar (the top bar's button still closes it). A bid's settlement button pressed before the card has read its review (its
+agent journeys. A bid's settlement button pressed before the card has read its review (its
 first moment on a slow page) sends nothing; once the review is there every press reaches the wallet.

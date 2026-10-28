@@ -64,6 +64,6 @@
   .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 /* On phones the side panel takes the whole screen under the header, from the
-   header's bottom line (`--shell-top-end`, shell/phone.css). */
+   header's bottom line (`--shell-top-end`, shell/top_bar.css). */
 @media (max-width: 47.99rem) { #shell-aside { inset: var(--shell-top-end) 0 0; width: auto; border-inline-start: 0; } }
 @media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }

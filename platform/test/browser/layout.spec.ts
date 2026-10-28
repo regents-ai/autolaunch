@@ -101,10 +101,11 @@ test("on a lab site the header, side panel and menu open under the lab line", as
       line.className = "autolaunch-lab-warning"
       line.textContent = "Local Base fork · test assets · no mainnet value · sign in with Privy"
       document.body.prepend(line)
-      // Room to scroll on every width, whatever the walk's database holds.
+      // Room to scroll on every width, whatever the walk's database holds. It goes
+      // after the page, where LiveView's updates never take it away.
       const room = document.createElement("div")
       room.style.blockSize = "200vh"
-      document.querySelector("#shell-content")!.append(room)
+      document.body.append(room)
     })
     await page.evaluate(() => window.scrollTo(0, 400))
     expect(await page.evaluate(() => window.scrollY)).toBe(400)
@@ -127,6 +128,8 @@ test("on a lab site the header, side panel and menu open under the lab line", as
     expect((await box("#shell-aside")).y).toBeCloseTo(headerBottom, 0)
     await page.getByRole("button", {name: "Close the side panel"}).click()
     await expect(aside).toBeHidden()
+    // Opening and closing move focus into the header; the page stays where it was.
+    expect(await page.evaluate(() => window.scrollY)).toBe(400)
 
     if (isMobile) {
       await page.locator("#mobile-menu-button").click()
@@ -135,6 +138,12 @@ test("on a lab site the header, side panel and menu open under the lab line", as
       expect((await box("#shell-drawer")).y).toBeCloseTo(headerBottom, 0)
       await page.locator("[data-shell-menu-close]").click()
       await expect(page.locator("#shell-drawer")).toBeHidden()
+      expect(await page.evaluate(() => window.scrollY)).toBe(400)
     }
+
+    // A jump to a part of the page stops right under the header.
+    await page.evaluate(() => { location.hash = "auctions-market" })
+    // Within a pixel: the header's height can land on a half pixel.
+    await expect.poll(async () => Math.abs((await box("#auctions-market")).y - headerBottom)).toBeLessThanOrEqual(1)
   }
 })

@@ -5,8 +5,7 @@ defmodule Autolaunch.LabRpcUrl do
   `admitted/1` is the site's own endpoint (`rpc_url`): the one its reads, its
   receipt checks and the faucet's impersonation calls reach. It is privileged
   and never reaches a browser or a log line. Admitted: loopback
-  `http://127.0.0.1:PORT` (a local lab), a private `http://…internal:PORT` URL
-  (Fly's private network) or an `https://` URL.
+  `http://127.0.0.1:PORT` (a local lab) or an `https://` URL.
 
   `public/2` is the endpoint wallets add for the chain (`public_rpc_url`):
   `https://` only. A description whose own door is loopback may omit it, and
@@ -55,13 +54,6 @@ defmodule Autolaunch.LabRpcUrl do
       else: {:error, :rpc_not_admitted}
   end
 
-  # Fly's private network: plain HTTP inside `.internal`, never on the public internet.
-  defp admitted_uri(%URI{scheme: "http", host: host, port: port} = uri) when is_binary(host) do
-    if bare?(uri) and port?(port) and internal?(host),
-      do: {:ok, URI.to_string(uri)},
-      else: {:error, :rpc_not_admitted}
-  end
-
   defp admitted_uri(%URI{scheme: "https", host: host} = uri) do
     if bare?(uri) and host?(host),
       do: {:ok, URI.to_string(uri)},
@@ -76,6 +68,4 @@ defmodule Autolaunch.LabRpcUrl do
   defp port?(port), do: is_integer(port) and port in 1..65_535
 
   defp host?(host), do: is_binary(host) and host != ""
-
-  defp internal?(host), do: host != ".internal" and String.ends_with?(host, ".internal")
 end
