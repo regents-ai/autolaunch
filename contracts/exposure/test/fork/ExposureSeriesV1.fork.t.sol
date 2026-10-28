@@ -152,6 +152,19 @@ contract ExposureSeriesV1ForkTest is Test {
         assertLe(overnightOwed + sessionOwed, TOKEN);
     }
 
+    /// Found in review on this feed's own history: in August 2026 its old feed (phase 1) and new
+    /// feed (phase 2) both published for nine days. Only the new feed's round counts for a moment
+    /// after it started, so nobody can choose between two prices.
+    function test_fork_overlappingFeedsGiveOnePrint() public {
+        uint64 moment = 1786320025;
+        uint80 phase1Round47 = (uint80(1) << 64) | 47;
+        uint80 phase2Round19 = (uint80(2) << 64) | 19;
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV1.RoundNotInForce.selector, phase1Round47));
+        oracle.record(moment, true, phase1Round47);
+        oracle.record(moment, true, phase2Round19);
+        assertEq(oracle.getPrint(oracle.feedId(), moment, true).priceWad, 274.475e18);
+    }
+
     /// A split changes the shares each raw token represents, not the raw units the series holds or owes.
     function test_fork_splitLeavesRawBackingAlone() public {
         _settle(0);

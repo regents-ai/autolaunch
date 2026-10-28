@@ -82,15 +82,23 @@ contract ChainlinkPrintOracleV1 is IFinalizedPrintOracle {
         return keccak256(abi.encode(scheduledAt, isOpen));
     }
 
-    /// @dev True when the round after `roundId` was updated after `at`, or `roundId` is the latest.
-    ///      Round ids are (phase << 64 | n); when a phase ends, its successor is the next phase's first.
+    /// @dev True when nothing replaced `roundId` by `at`: no newer feed phase had reported by then,
+    ///      and the next round of its own phase (if any) came later. Round ids are
+    ///      (phase << 64 | n). While Chainlink runs an old and a new feed side by side, only the
+    ///      newest phase that had reported by `at` counts, so a moment has exactly one print.
     function _nextRoundLater(uint80 roundId, uint256 at) internal view returns (bool) {
         (uint80 latest,,,,) = feed.latestRoundData();
+        uint256 phase = roundId >> 64;
+        uint256 latestPhase = latest >> 64;
+        if (phase > latestPhase || (phase == latestPhase && roundId > latest)) return false;
+        for (uint256 later = phase + 1; later <= latestPhase; ++later) {
+            (bool reported,, uint256 firstUpdatedAt) = _round(uint80((later << 64) | 1));
+            if (reported && firstUpdatedAt <= at) return false;
+        }
         if (roundId == latest) return true;
-        if (roundId > latest) return false;
         (bool found,, uint256 nextUpdatedAt) = _round(roundId + 1);
-        if (!found) (found,, nextUpdatedAt) = _round(uint80((((roundId >> 64) + 1) << 64) | 1));
-        return found && nextUpdatedAt > at;
+        // No next round in its phase: it was its phase's last, and no newer phase had reported.
+        return found ? nextUpdatedAt > at : phase < latestPhase;
     }
 
     /// @dev A round that does not exist reverts on some aggregators and reads as zeros on others.

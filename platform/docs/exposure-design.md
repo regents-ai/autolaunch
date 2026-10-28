@@ -77,6 +77,10 @@ Measured on the AMZN feed (rounds 300 to 481, 29 Sep to 28 Oct 2026):
   adjustment and show no jump.
 - During a corporate action the feed freezes and holds its value; an unscheduled market closure
   simply records no move. Neither ends a series.
+- When Chainlink moves the proxy to a new feed it runs both side by side for a while (AMZN's old and
+  new feeds both published for nine days in August 2026). Only the newest feed that had reported by
+  a moment counts for it, so each moment has exactly one print; in the days before the switch this
+  can differ slightly from what the proxy itself showed.
 
 ## 4. Running continuously
 
@@ -99,7 +103,8 @@ as the previous one ends. Holders redeem the finished week and mint into the nex
 30 October 16:00 to Friday 6 November 16:00 New York time, 11 prints. US clocks go back on Sunday 1
 November, so Friday's close is 20:00 UTC and the following week's opens and closes are 14:30 and
 21:00 UTC; no market holidays that week. Proposed cap 40 AMZNc (about $10,000) and a two-day
-recording window. Creating it needs the oracle deployed first; both are contract deployments and
+recording window (it must be well over the oracle's one-hour wait, or no print can ever count;
+the factory does not check this). Creating it needs the oracle deployed first; both are contract deployments and
 wait for Sean's go naming them.
 
 ## 6. The site (`Autolaunch.Exposure`, not built)
@@ -146,7 +151,7 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
 
 ## 8. Tests and evidence (28 October 2026)
 
-- `contracts/exposure/bin/gate.sh` (Foundry 1.5.1): 51 tests pass.
+- `contracts/exposure/bin/gate.sh` (Foundry 1.5.1): 54 tests pass.
   - 36 series tests: the worked example, mixed and pair redemptions, minting mid-term, both
     depletion directions and exact zero, maturity, missing first close, missing, late and misdated
     prints, six kinds of broken oracle (revert, short, long, dirty, gas burn, oversized reply), the
@@ -157,13 +162,14 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
   - 5 invariants over 256 runs × 128 random calls (mint, redeem, transfers, prints, missed prints,
     donations, seizures): pairs equal backing while live; ledgers within price; claims never exceed
     accounted stock after the end; every raw unit accounted for; fully backed unless seized.
-  - 9 Chainlink oracle tests (the round in force, rounds superseded, later or missing, a round
-    exactly at the moment, the latest round over a quiet weekend, a feed phase change, the one-hour
+  - 12 Chainlink oracle tests (the round in force, rounds superseded, later or missing, a round
+    exactly at the moment, the latest round over a quiet weekend, a feed phase change, overlapping
+    old and new feeds, a new feed with no rounds yet, missing rounds read as zeros, the one-hour
     wait, record once, bad answers, a series settling end to end) and 1 factory test.
   - Six deliberate bugs planted one at a time in the series (overdrawn depletion, skipped
     depletion, oversized oracle reply accepted, no seizure cut, single legs before the end, late
     print accepted): each made at least one test fail.
-- Base fork (Foundry 1.8.6, `anvil --network base --fork-block-number 53209576`): 5 tests pass on the
+- Base fork (Foundry 1.8.6, `anvil --network base --fork-block-number 53209576`): 6 tests pass on the
   real AMZNc token and the real AMZN Chainlink feed, through the factory:
   - This week for real: Friday 23 Oct close $247.93375 to Wednesday 28 Oct close $252.9275, seven
     prints found and recorded from the live feed's rounds. After-hours ends at $126.31992499 and
@@ -171,9 +177,13 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
   - A real 2-for-1 multiplier change leaves the raw backing intact; a real blocklisting stops the
     holder redeeming until unblocked and burns nothing; a real transfer pause delays mint and
     redeem while prints keep applying.
-- Two independent reviews (code, and economics against the paper). Fixed from them, each with a
-  lasting test: stock goes only to the redeeming account; a failing balance read or a total
-  seizure can no longer burn legs for nothing; the legs give Permit2 no standing allowance. No
+  - The feed's own August overlap: an old-feed round that would have priced a moment at $275.13 is
+    refused, and the new feed's $274.475 is the only print.
+- Three independent reviews (code, economics against the paper, and the Chainlink reader). Fixed
+  from them, each with a lasting test: stock goes only to the redeeming account; a failing balance
+  read or a total seizure can no longer burn legs for nothing; the legs give Permit2 no standing
+  allowance; overlapping Chainlink feeds give one print, not two to choose from; a proxy moved to a
+  feed with no rounds yet no longer stalls recording. No
   critical or high finding reproduces. Left as known behaviour: dust-sized claims cannot redeem
   during a shortfall; donations, rounding dust and a cut taken during a shortfall stay in the
   series; one holder can fill a series' cap (they can redeem it at any time).

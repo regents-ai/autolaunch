@@ -146,6 +146,17 @@ contract MockAggregator {
 
     mapping(uint80 roundId => Round) public rounds;
     uint80 public latest;
+    /// The real proxy reads a missing round as zeros; some aggregators revert instead.
+    bool public missingRoundsRevert = true;
+
+    function setMissingRoundsRevert(bool value) external {
+        missingRoundsRevert = value;
+    }
+
+    /// Points the proxy at a new phase that has not reported yet (round id `phase << 64 | 0`).
+    function switchPhase(uint80 phase) external {
+        latest = phase << 64;
+    }
 
     function decimals() external pure returns (uint8) {
         return 8;
@@ -163,7 +174,7 @@ contract MockAggregator {
 
     function getRoundData(uint80 roundId) external view returns (uint80, int256, uint256, uint256, uint80) {
         Round memory r = rounds[roundId];
-        require(r.updatedAt != 0, "No data present");
+        require(r.updatedAt != 0 || !missingRoundsRevert, "No data present");
         return (roundId, r.answer, r.updatedAt, r.updatedAt, roundId);
     }
 }

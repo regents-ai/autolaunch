@@ -76,6 +76,39 @@ contract ChainlinkPrintOracleV1Test is Test {
         oracle.record(at + 40 minutes, true, PHASE2 | 3);
     }
 
+    /// @notice Found in review on real Base data: while an old and a new feed run side by side, the
+    ///         old phase's round no longer counts once the new phase has reported, so a moment has
+    ///         one print and nobody can pick between two.
+    function test_OverlappingFeedsGiveOnePrint() public {
+        uint80 phase3 = uint80(3) << 64;
+        feed.push(phase3 | 1, 251e8, at - 1 hours); // new feed reported before the moment
+        feed.push(PHASE2 | 4, 260e8, at + 2 hours); // old feed still publishing
+        feed.push(phase3 | 2, 253e8, at + 3 hours);
+        vm.warp(at + 4 hours);
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV1.RoundNotInForce.selector, PHASE2 | 2));
+        oracle.record(at, true, PHASE2 | 2);
+        oracle.record(at, true, phase3 | 1);
+        assertEq(_print(true).priceWad, 251e18);
+    }
+
+    function test_ProxyOnANewFeedWithNoRoundsYet() public {
+        feed.switchPhase(3);
+        uint64 later = at + 30 minutes; // round 3 still in force
+        vm.warp(later + 1 hours);
+        oracle.record(later, true, PHASE2 | 3);
+        assertEq(oracle.getPrint(oracle.feedId(), later, true).priceWad, 255e18);
+    }
+
+    function test_MissingRoundsReadAsZeros() public {
+        feed.setMissingRoundsRevert(false);
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV1.RoundNotInForce.selector, PHASE2 | 9));
+        oracle.record(at, true, PHASE2 | 9);
+        uint64 quiet = at + 1 days;
+        vm.warp(quiet + 1 hours);
+        oracle.record(quiet, false, PHASE2 | 3); // the latest: the zero-read round after it is no round
+        assertEq(oracle.getPrint(oracle.feedId(), quiet, false).priceWad, 255e18);
+    }
+
     function test_TooEarlyAndOnlyOnce() public {
         uint64 recent = uint64(block.timestamp - 30 minutes);
         vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV1.TooEarly.selector, uint256(recent) + 1 hours));
