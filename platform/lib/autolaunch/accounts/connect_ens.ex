@@ -9,13 +9,15 @@ defmodule Autolaunch.Accounts.ConnectEns do
     lease = input.context[:session_lease]
 
     with %{lineage: lineage, account_id: ^id} <- lease,
-         {:ok, %{} = account} <- SessionAuthority.leased_account(lineage, id),
+         {:ok, %{} = account} <- leased(lineage, id),
          {:ok, details} <- read(input.arguments.name),
          true <- controls?(details, account),
-         {:ok, identity} <-
-           SessionAuthority.transact_lease(lineage, id, &record(details, &1)) do
+         {:ok, identity} <- recorded(lineage, id, details) do
       {:ok, %{name: identity.username, address: details.eth_address}}
     else
+      {:error, :try_again} ->
+        {:error, "That did not go through. Try again in a moment."}
+
       _ ->
         {:error,
          "Use an ENS name controlled by your signed-in wallet that also resolves to it. Check the name and try again."}
@@ -23,6 +25,23 @@ defmodule Autolaunch.Accounts.ConnectEns do
   end
 
   def run(_, _), do: {:error, "Sign in again to connect ENS."}
+
+  # A sign-in that could not be read just then (`SessionAuthority` logged it),
+  # or a save that failed, is a try-again, never a name that doesn't fit.
+  defp leased(lineage, id) do
+    case SessionAuthority.leased_account(lineage, id) do
+      {:error, _unread} -> {:error, :try_again}
+      leased -> leased
+    end
+  end
+
+  defp recorded(lineage, id, details) do
+    case SessionAuthority.transact_lease(lineage, id, &record(details, &1)) do
+      {:error, reason} when reason in [:wallet_changed, :stale_authority] -> {:error, reason}
+      {:error, _failed} -> {:error, :try_again}
+      recorded -> recorded
+    end
+  end
 
   defp record(details, account) do
     if controls?(details, account) do
