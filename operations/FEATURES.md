@@ -63,7 +63,7 @@ calls, atomically, after the chain read". What each action builds:
 | Bid on a Base auction | From the auction page with the person's own wallet, every press at least 44 px on a phone once the balance is read: `test/journeys/memestock_auction.spec.ts`, `test/journeys/memestock_launch.spec.ts` (L6); `autolaunch/bid_actions_test.exs` (every case); `autolaunch/bid_slippage_test.exs`; `autolaunch/chain/calls_test.exs` › "BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL"; `autolaunch/lab_bid_chain_client_test.exs` |
 | Bid on a Robinhood auction, see its standing | `autolaunch_web/live/robinhood_stock_bid_component_test.exs` (both cases). The bid itself: **gap** |
 | Add to, raise, or take back an outbid bid early | **Gap** |
-| Withdraw or claim after an auction | `autolaunch/bid_settlement_actions_test.exs` (all five cases) |
+| Withdraw or claim after an auction | `autolaunch/bid_settlement_actions_test.exs` (all five cases); a press before the card has its review is prepared and sent: `autolaunch_web/live/bid_settlement_press_test.exs` › "SETTLE_PRESS_BEFORE_REVIEW_SENDS", `onchain_steps.test.ts` › "a press with no review yet asks the server for one when the card prepares on press"; from the auction page with the person's own wallet: `test/journeys/memestock_auction.spec.ts` |
 | Finish an ended auction | `autolaunch/auction_finish_test.exs` (all seven cases); `autolaunch/auction_finish_wallet_test.exs` |
 | Launch a Memestock token | `autolaunch/stocks/launch_actions_test.exs` (and its property "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED"); `autolaunch/stocks/amounts_test.exs` (all three cases); `autolaunch/memestock_discovery_test.exs` (all five cases). The press itself, from an agent's draft: the page's button hands the person's wallet exactly the reviewed launch, the launchpad records their wallet and the stock, and eight confirmations at once list it once (`scripts/agent-journeys.sh`, `test/journeys/memestock_launch.spec.ts`). The auction opening, taking a bid, ending and being finished from its page, graduated (with the bidder's claim) and failed: `test/journeys/memestock_auction.spec.ts` |
 | Launch a Revstake token | `autolaunch/launch_discovery_test.exs` (all seven cases); `autolaunch/treasury_chain_client_test.exs` (both cases) |
@@ -131,5 +131,4 @@ Credits purchase check; Robinhood bids; adding to, raising or taking back an out
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
 draft routes, the paired Points and Credits history answers, and `prepare_agent_request`; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
-agent journeys. A bid's settlement button pressed before the card has read its review (its
-first moment on a slow page) sends nothing; once the review is there every press reaches the wallet.
+agent journeys.

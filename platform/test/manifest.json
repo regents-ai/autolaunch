@@ -1,5 +1,5 @@
 {
-  "total": 145,
+  "total": 147,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -157,7 +157,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 40,
@@ -170,7 +170,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 41,
@@ -183,7 +183,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 42,
@@ -196,7 +196,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 43,
@@ -209,7 +209,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 44,
@@ -222,7 +222,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 45,
@@ -326,7 +326,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 53,
@@ -339,7 +339,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 54,
@@ -1887,6 +1887,32 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "2b0cdbdc35240eeaf9f8ada54997fc2580f961c8d28587f71b04cf55eb431c1c"
+    },
+    {
+      "id": 186,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_settlement_press_test.exs",
+      "line": 53,
+      "test_name": "SETTLE_PRESS_BEFORE_REVIEW_SENDS: a settlement press with no review on the card is prepared and sent",
+      "keep_because": "A settlement card's button names its action before its review arrives, and a press in that moment sent nothing (found by the agent journeys, 28 Oct 2026). The case presses before the card has its review and checks the card prepares it and hands back its exit step. It fails without the card's prepare_and_send.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5fb30cbb77687ddbd8d06a95d45ff48a6d9b6894bc4f9dddf401ff56ca50c9ca"
+    },
+    {
+      "id": 187,
+      "group": "Wallet actions",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 234,
+      "test_name": "a press with no review yet asks the server for one when the card prepares on press",
+      "keep_because": "The page half of the same defect: a press on a card with no review inputs and no review sent nothing. The cases check such a card asks the server first, and that every other card behaves as before. They fail without asksServer.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     }
   ],
   "legacy_folders_to_remove": [

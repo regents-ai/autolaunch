@@ -17,10 +17,10 @@ async function read(auction: string, name: string): Promise<bigint> {
   return BigInt(await call(auction, encodeFunctionData({abi, functionName: name as any, args: []}) as Hex))
 }
 
-// The card's next wallet step once its review is on the page. Until then its
-// button names the action and a press sends nothing (operations/FEATURES.md, gaps).
-const reviewedStep = (page: import("@playwright/test").Page) =>
-  page.locator("[data-onchain-step]:visible:not([disabled]):not([data-onchain-step='settle'])").first()
+// The card's next wallet step, pressed whether or not its review has arrived:
+// a press before it asks the card for one and sends that.
+const nextStep = (page: import("@playwright/test").Page) =>
+  page.locator("[data-onchain-step]:visible:not([disabled])").first()
 
 async function state(id: string): Promise<string> {
   return (await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions/${id}`)).json()).data.state
@@ -58,7 +58,7 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
     const placed = b.locator(".bid-placed")
     for (let press = 0; press < 4 && !(await placed.isVisible()); press++) {
       const before = bids.length
-      await reviewedStep(b).click()
+      await nextStep(b).click()
       await expect.poll(() => bids.length, {timeout: 30_000}).toBeGreaterThan(before)
       await b.waitForTimeout(1_000)
     }
@@ -83,7 +83,7 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
     await ready(b)
     const claims = bids.length
     for (let press = 0; press < 3 && (await balanceOf(token, people.b.wallet)) === 0n; press++) {
-      await reviewedStep(b).click()
+      await nextStep(b).click()
       await expect.poll(() => bids.length, {timeout: 30_000}).toBeGreaterThan(claims + press)
     }
     expect(await balanceOf(token, people.b.wallet)).toBeGreaterThan(0n)
@@ -94,7 +94,7 @@ test("L7-L8: the auction opens, takes bids or none, ends, and is finished from i
     await ready(b)
     const returns = bids.length
     for (let press = 0; press < 3 && (await balanceOf(AAPLC, people.b.wallet)) < held; press++) {
-      await reviewedStep(b).click()
+      await nextStep(b).click()
       await expect.poll(() => bids.length, {timeout: 30_000}).toBeGreaterThan(returns + press)
     }
     expect(await balanceOf(AAPLC, people.b.wallet)).toBe(held)

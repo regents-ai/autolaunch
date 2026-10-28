@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: Withdraw and Claim work from the first moment
+- Pressing Withdraw, Return or Claim on your bid the moment its card appears now opens your wallet with the right step. Before, a press in the instant before the card had read your bid sent nothing.
+
 ## 28 October 2026: the side panel closes on a test copy of the site
 - On a test copy of Autolaunch, the "Local Base fork · test assets · no mainnet value" line now stays at the top of the screen, with the header just under it, and the side panel and phone menu open under the header. Before, the panel opened behind the header there, hiding its close button. The live site has no such line and looks the same as before.
 

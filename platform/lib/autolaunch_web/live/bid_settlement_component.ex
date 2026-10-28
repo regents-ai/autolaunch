@@ -253,6 +253,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       id={@id}
       class="bid-settlement"
       phx-hook="OnchainSteps"
+      data-onchain-prepare
     >
       <header class="bid-settlement__head">
         <Regent.Primitives.status tone={elem(@standing, 1)}>
@@ -459,6 +460,19 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     {:noreply, socket |> followed() |> offer()}
   end
 
+  # A press made before the card has read its review: the settlement is
+  # prepared now for the wallet that pressed, and its first step handed back to
+  # send, as the bid form does.
+  def handle_event("prepare_and_send", %{"form" => _no_inputs}, socket) do
+    case prepared_now(socket) do
+      {:ok, %{assigns: %{review: %{steps: [%{step: first} | _rest]} = review}} = socket} ->
+        {:reply, %{review: review, send: first}, socket}
+
+      {:error, socket} ->
+        {:reply, %{}, socket}
+    end
+  end
+
   def handle_event("step_sent", params, socket),
     do: {:noreply, OnchainSteps.sent(socket, params)}
 
@@ -550,6 +564,20 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       held?(assigns) -> socket
       assigns.prepared_for in [key, {:refused, key}] -> socket
       true -> start_prepare(socket, key)
+    end
+  end
+
+  defp prepared_now(%{assigns: %{review: %{}}} = socket), do: {:ok, socket}
+
+  defp prepared_now(socket) do
+    case settle_key(socket.assigns) do
+      nil ->
+        {:error, socket}
+
+      {signer, position_id, _status} = key ->
+        result = BidSettlementActions.prepare(position_id, signer, opts(socket))
+        socket = reviewed(socket, key, result)
+        if match?({:ok, _prepared}, result), do: {:ok, socket}, else: {:error, socket}
     end
   end
 
