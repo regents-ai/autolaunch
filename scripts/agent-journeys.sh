@@ -14,7 +14,7 @@
 #     (test/journeys/support/base_fork.py);
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
-#   - Autolaunch in the test environment on its own database, in fork chain mode,
+#   - Autolaunch in the test environment on its own database, open for launches,
 #     checking agent requests with that sign-in service;
 #   - the regents command line at REGENTS_CLI_REV, which the journeys run as the agent.
 # The journeys are test/journeys (Playwright at 390 with touch and at 1280). Each
@@ -191,7 +191,7 @@ up() {
 MIX_ENV=test
 MIX_TEST_PARTITION=_agents_$id
 AUTOLAUNCH_BROWSER_TEST=1
-AUTOLAUNCH_CHAIN_MODE=fork
+AUTOLAUNCH_LAUNCHES_OPEN=true
 AUTOLAUNCH_DB_POOL_SIZE=3
 PORT=$site_port
 PRIVY_APP_ID=autolaunch-fixture

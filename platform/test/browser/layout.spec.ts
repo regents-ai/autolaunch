@@ -101,8 +101,13 @@ test("on a lab site the header, side panel and menu open under the lab line", as
       line.className = "autolaunch-lab-warning"
       line.textContent = "Local Base fork · test assets · no mainnet value · sign in with Privy"
       document.body.prepend(line)
+      // Room to scroll on every width, whatever the walk's database holds.
+      const room = document.createElement("div")
+      room.style.blockSize = "200vh"
+      document.querySelector("#shell-content")!.append(room)
     })
     await page.evaluate(() => window.scrollTo(0, 400))
+    expect(await page.evaluate(() => window.scrollY)).toBe(400)
     const sliding = () =>
       page.evaluate(() => document.getAnimations().filter(a => a instanceof CSSTransition).length)
     const lab = page.locator(".autolaunch-lab-warning")

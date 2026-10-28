@@ -8,7 +8,14 @@ defmodule Autolaunch.Stocks.FaucetTest do
   @refused {:error, "Test funds are not available on this site."}
 
   setup do
-    on_exit(fn -> Application.delete_env(:autolaunch, :prelaunch_read_only) end)
+    setting = Application.fetch_env(:autolaunch, :prelaunch_read_only)
+
+    on_exit(fn ->
+      case setting do
+        {:ok, value} -> Application.put_env(:autolaunch, :prelaunch_read_only, value)
+        :error -> Application.delete_env(:autolaunch, :prelaunch_read_only)
+      end
+    end)
   end
 
   # The test environment describes Base mainnet (chain 8453), so no press sends
