@@ -10,7 +10,7 @@ defmodule Autolaunch.Lab do
   labels the deployment; the Stocks admission scan
   (`Autolaunch.Stocks.AdmissionScan`) reads a changed label as a new
   deployment and starts over. Chain
-  31337 is a test chain (a local lab or a hosted fork carrying test assets);
+  31337 is a test chain, a local lab's Base fork carrying test assets;
   `test_chain?/0` is what the lab-only features key off.
   """
 
@@ -60,10 +60,13 @@ defmodule Autolaunch.Lab do
   @doc "Whether a reviewed chain id is the test chain's."
   def test_chain?(chain_id), do: chain_id == @test_chain_id
 
+  @doc "The test chain's name, as every page of a lab site shows it."
+  def label, do: "Local Base fork"
+
   @doc "The network a reviewed chain id names, as every Base page shows it."
   def network_name(chain_id) do
     if test_chain?(chain_id),
-      do: "#{Autolaunch.ChainMode.label()} · chain #{@test_chain_id}",
+      do: "#{label()} · chain #{@test_chain_id}",
       else: "Base"
   end
 

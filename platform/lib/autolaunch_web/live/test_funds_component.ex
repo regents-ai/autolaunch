@@ -44,7 +44,7 @@ defmodule AutolaunchWeb.TestFundsComponent do
     >
       <header>
         <div>
-          <p class="autolaunch-kicker">{Autolaunch.ChainMode.label()}</p>
+          <p class="autolaunch-kicker">{Autolaunch.Lab.label()}</p>
           <Regent.Structure.section_bar>
             <h2 class="rg-section-bar__label">Test funds</h2>
           </Regent.Structure.section_bar>

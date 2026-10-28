@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: the side panel closes on a test copy of the site
+- On a test copy of Autolaunch, the "Local Base fork · test assets · no mainnet value" line now stays at the top of the screen, with the header just under it, and the side panel and phone menu open under the header. Before, the panel opened behind the header there, hiding its close button. The live site has no such line and looks the same as before.
+
 ## 28 October 2026: flat cards and windows
 - Token cards on the home page no longer lift or cast a shadow when you point at them; the picture still drifts closer. The Buy Credits window and the swap review sit flat on the page, with their thin outline, as everything else on Regents sites does.
 

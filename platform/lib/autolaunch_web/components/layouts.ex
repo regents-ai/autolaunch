@@ -11,18 +11,15 @@ defmodule AutolaunchWeb.Layouts do
   embed_templates("layouts/*")
 
   @doc """
-  The one line every page of a Base-fork site carries: "Local Base fork …" on
-  a lab, "Preview on a Base fork …" on a hosted fork preview.
+  The one line every page of a lab site carries, "Local Base fork · test assets
+  · no mainnet value", at the top of the screen above the header.
   """
   def lab_notice(assigns) do
-    assigns =
-      assigns
-      |> assign(:sign_in, sign_in_state())
-      |> assign(:fork_label, Autolaunch.ChainMode.label())
+    assigns = assign(assigns, sign_in: sign_in_state(), open: !Autolaunch.Prelaunch.read_only?())
 
     ~H"""
     <p :if={Autolaunch.Lab.test_chain?()} class="autolaunch-lab-warning" role="status">
-      {@fork_label} · test assets · no mainnet value<span :if={!Autolaunch.Prelaunch.read_only?()}>
+      {Autolaunch.Lab.label()} · test assets · no mainnet value<span :if={@open}>
         · {@sign_in}
       </span>
     </p>

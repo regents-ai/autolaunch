@@ -147,7 +147,7 @@
      does; its Close navigation bar is its first row. */
   #shell-drawer {
     position: fixed;
-    inset: var(--shell-header-end) auto 0 0;
+    inset: var(--shell-top-end) auto 0 0;
     z-index: var(--rg-layer-panel);
     display: flex;
     flex-direction: column;
@@ -263,7 +263,7 @@
      closes the drawer. */
   .rg-button.shell-menu-scrim {
     position: fixed;
-    inset: var(--shell-header-end) 0 0;
+    inset: var(--shell-top-end) 0 0;
     z-index: var(--rg-layer-shade);
     display: block;
     min-width: 0;

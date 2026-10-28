@@ -71,17 +71,6 @@ x_oauth_client_id =
 
 config :autolaunch, :x_oauth_client_id, x_oauth_client_id
 
-# Which chain this build runs against: `base` (the default) or `fork` (a
-# hosted Base fork carrying test assets, for a public preview). Fork mode
-# requires both Base descriptions below, serves with writes open, and keeps the
-# Base log ledger off exactly as a local lab does.
-chain_mode = Autolaunch.ChainMode.parse!(System.get_env("AUTOLAUNCH_CHAIN_MODE"))
-config :autolaunch, :chain_mode, chain_mode
-
-if chain_mode == :fork do
-  config :autolaunch, :prelaunch_read_only, false
-end
-
 # The motion lab at /animations (AutolaunchWeb.Showcase). Unset, it is off in
 # production and public elsewhere; any value but "public" or "off" stops the boot.
 showcase =
@@ -122,10 +111,6 @@ end
 
 base_deployment_path = deployment_path.("AUTOLAUNCH_BASE_DEPLOYMENT")
 
-if chain_mode == :fork and is_nil(base_deployment_path) do
-  raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_BASE_DEPLOYMENT"
-end
-
 base_deployment = base_deployment_path && Autolaunch.Lab.load!(base_deployment_path)
 
 if base_deployment do
@@ -137,10 +122,6 @@ end
 
 # The Base Stocks description extends the Base one and is refused without it.
 base_stocks_deployment_path = deployment_path.("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT")
-
-if chain_mode == :fork and is_nil(base_stocks_deployment_path) do
-  raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT"
-end
 
 if base_stocks_deployment_path do
   if is_nil(base_deployment) do
@@ -165,16 +146,6 @@ if robinhood_deployment_path do
     autolaunch_robinhood_deployment: robinhood_deployment_path,
     autolaunch_robinhood_chain_id: robinhood_deployment.chain_id
 end
-
-# Test funds: at most one grant per wallet and asset within this many seconds;
-# `0` is no cooldown. Unset means an hour on a public fork preview and none
-# on a local lab.
-config :autolaunch,
-       :faucet_cooldown_seconds,
-       Autolaunch.ChainMode.faucet_cooldown_seconds!(
-         chain_mode,
-         System.get_env("AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS")
-       )
 
 database_config =
   if config_env() == :prod and migrating? do

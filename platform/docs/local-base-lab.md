@@ -6,18 +6,16 @@ addresses are not the current launch terms. New launches use v2; see
 
 The lab is the current site running against an isolated Anvil fork of Base (chain 31337)
 that carries a locally deployed copy of the contract graph, so the launch, auction and bid
-flow can be tried with test assets. Launching and bidding need `AUTOLAUNCH_CHAIN_MODE=fork`
-(see "Chain mode" in [the platform README](../README.md)): in the default `base` chain mode a lab site is
-read-only, lists what the fork holds, answers 404 on `/create`, and refuses a fork
-endpoint that is not a loopback URL answering as chain 31337. Everything else on a lab site
-is labelled rather than switched: the REGENT facts panel and
+flow can be tried with test assets. Launching and bidding need `AUTOLAUNCH_LAUNCHES_OPEN=true`
+(see "Prelaunch read-only mode" in [the platform README](../README.md)); without it a lab
+site is read-only, lists what the fork holds and answers 404 on `/create`. Everything else
+on a lab site is labelled rather than switched: the REGENT facts panel and
 the Buy, Chart, Stake and Redeem links say they are public Base mainnet, subject staking and
 payments show an explicit unavailable state, and treasury evidence is reported as unavailable
-instead of drawn from the test fixture. Every page of a fork-mode lab site carries the line
-"Preview on a Base fork · test assets · no mainnet value", ending in "sign in with Privy"
-when real sign-in is configured (below) and "sign-in unavailable" otherwise; a read-only
-base-mode lab reads "Local Base fork · test assets · no mainnet value" under the prelaunch
-notice (`Autolaunch.ChainMode.label/0` names the fork).
+instead of drawn from the test fixture. Every page of a lab site carries the line
+"Local Base fork · test assets · no mainnet value" (`Autolaunch.Lab.label/0` names the fork)
+at the top of the screen, ending in "sign in with Privy" on an open site with real sign-in
+configured (below) and "sign-in unavailable" on an open site without it.
 
 ## Pieces
 
@@ -79,7 +77,7 @@ cd platform
 env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
     MIX_TEST_PARTITION=_lab PORT=4050 \
     AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
-    AUTOLAUNCH_CHAIN_MODE=fork \
+    AUTOLAUNCH_LAUNCHES_OPEN=true \
     PRIVY_APP_ID=browser-test-public-id \
     AUTOLAUNCH_BASE_DEPLOYMENT=/absolute/path/to/contracts/v1/reports/generated/local-base-lab/site-config.json \
     AUTOLAUNCH_BASE_DEPLOYMENT_ID=<run label> \
@@ -88,7 +86,8 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
 
 | Variable | Meaning |
 | --- | --- |
-| `AUTOLAUNCH_BASE_DEPLOYMENT` | Absolute path of `site-config.json`, the Base deployment description, in every environment; required in `fork` chain mode |
+| `AUTOLAUNCH_BASE_DEPLOYMENT` | Absolute path of `site-config.json`, the Base deployment description, in every environment |
+| `AUTOLAUNCH_LAUNCHES_OPEN=true` | Opens launching, bidding and the test-funds panel; without it the lab is read-only |
 | `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; the Stocks admission scan reads a changed label as a new deployment |
 | `PORT` | The port to serve on (test default 4050) |
 | `AUTOLAUNCH_DB_POOL_SIZE` | Database connections for this site (default 10); a long-lived lab site should ask for a few, such as 3, because several test servers share one local PostgreSQL |

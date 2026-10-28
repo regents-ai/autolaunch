@@ -8,17 +8,12 @@ defmodule Autolaunch.Stocks.Faucet do
   forked holder the Stocks lab names. Every press sends; the RPC's own error text is reported when
   it fails. The RPC URL only ever comes from a validated lab configuration's
   own door (`Autolaunch.LabRpcUrl.admitted/1`), and a read-only site refuses.
-
-  With a cooldown configured (`:faucet_cooldown_seconds`, from
-  `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS`), one asset goes to one wallet at most
-  once per window (`Autolaunch.Stocks.FaucetCooldown`); a press inside the
-  window is refused with the time the next one opens. `0` is no cooldown.
   """
 
   alias Autolaunch.Chain.Rpc
 
   alias Autolaunch.{Lab, LabAbi, Prelaunch}
-  alias Autolaunch.Stocks.{Amounts, Assets, FaucetCooldown}
+  alias Autolaunch.Stocks.{Amounts, Assets}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias RegentChain.Address
 
@@ -50,7 +45,6 @@ defmodule Autolaunch.Stocks.Faucet do
         token: Lab.address!(config, :regent),
         data: transfer_calldata(wallet, @regent_amount),
         wallet: wallet,
-        asset: "regent",
         symbol: "REGENT",
         amount: @regent_amount,
         decimals: 18
@@ -73,7 +67,6 @@ defmodule Autolaunch.Stocks.Faucet do
         token: stock.address,
         data: mint_calldata(wallet, amount),
         wallet: wallet,
-        asset: stock.address,
         symbol: stock.symbol,
         amount: amount,
         decimals: stock.decimals
@@ -95,7 +88,6 @@ defmodule Autolaunch.Stocks.Faucet do
         token: StocksLab.address!(config, :usdc),
         data: transfer_calldata(wallet, amount),
         wallet: wallet,
-        asset: "usdc",
         symbol: "USDC",
         amount: amount,
         decimals: 6
@@ -117,19 +109,8 @@ defmodule Autolaunch.Stocks.Faucet do
     end
   end
 
-  # A press sends at once without a cooldown; with one, `FaucetCooldown` sends
-  # inside the transaction that checks and records the grant.
-  defp grant(%{wallet: wallet, asset: asset} = order) do
-    FaucetCooldown.grant(
-      wallet,
-      asset,
-      Application.fetch_env!(:autolaunch, :faucet_cooldown_seconds),
-      fn -> send_grant(order) end
-    )
-  end
-
   # One impersonated transaction, then its receipt, then the wallet's new balance.
-  defp send_grant(%{rpc: rpc, holder: holder, token: token, data: data, wallet: wallet} = order) do
+  defp grant(%{rpc: rpc, holder: holder, token: token, data: data, wallet: wallet} = order) do
     # Anvil answers `anvil_impersonateAccount` with a null result; only an error
     # refuses the impersonation.
     with :ok <- fund_gas(rpc, holder),
