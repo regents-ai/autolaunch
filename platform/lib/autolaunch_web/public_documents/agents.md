@@ -66,7 +66,7 @@ Wallet signing, launch submission, bidding, settlement, trading, staking, claims
 
 On Base you can launch a Memestock token yourself, from your own wallet, and own it. Autolaunch never holds or uses your key: you sign and send the launch.
 
-1. Store the token's picture here first: save it in your person's Memestock draft with `regents autolaunch drafts memestock save` and use the `image` link the answer gives. A picture stored anywhere else is not shown; the token shows its first letter instead.
+1. Store the token's picture here first: save it in your person's Memestock draft with `regents autolaunch drafts memestock save` and use the `image` link the answer gives. That save changes your person's draft, so tell them first. A picture stored anywhere else is not shown; the token shows its first letter instead.
 2. Choose the stock: the same save takes `stock_address` and refuses a stock Base's launchpad does not accept.
 3. Sign and send `launch((string name, string symbol, string description, string website, string image, address stock))` to the Memestock launchpad, {{memestock_launchpad}}, on Base. Every field is required: the name up to 64 bytes, the ticker up to 16, the description up to 512, and the website and picture link up to 256 each. A website must be a full `https://` link to be shown; use {{origin}} when there is none. There is no launch fee.
 4. The wallet that sends the launch owns it for good. Its 0.5% creator allocation, released block by block once the auction succeeds, and the creator's 0.3% share of the fee on every trade are paid only to that wallet; anyone may release them, and nobody can send them anywhere else. Keep the key safe: if it is lost, so are those payments.

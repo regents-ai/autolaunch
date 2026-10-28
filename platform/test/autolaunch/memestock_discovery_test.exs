@@ -21,6 +21,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   @actor %System{}
   @launcher "0x1414141414141414141414141414141414141414"
   @stranger "0x9999999999999999999999999999999999999999"
+  # The launchpad the first Memestock launches used, which this site no longer runs.
+  @retired "0x7777777777777777777777777777777777777777"
   @new_token "0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
   @auction "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
   @stock "0xb200000000000000000000c2e324d24d7eecd1fb"
@@ -140,7 +142,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     BaseRpcStub.put(%{
       launcher: @stranger,
       token: %{
-        "name()" => " Stranger\u202E Coin\u0007 ",
+        "name()" => <<0xFF, 0xFE>> <> " Stranger\u202E\n Coin\u200B\u0007 ",
         "symbol()" => "STRG",
         "tokenURI()" =>
           token_uri(%{
@@ -191,6 +193,95 @@ defmodule Autolaunch.MemestockDiscoveryTest do
              Auction
              |> Ash.Query.for_read(:public_by_id, %{id: auction_id}, actor: nil)
              |> Ash.read_one!()
+
+    # An operator can still hide it, as any listed launch.
+    {:ok, _hidden} = Autolaunch.hide_auction(auction, actor: @actor)
+
+    assert nil ==
+             Auction
+             |> Ash.Query.for_read(:public_by_id, %{id: auction_id}, actor: nil)
+             |> Ash.read_one!()
+  end
+
+  test "a launch whose ticker breaks the site's rule is not listed", %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "Dots", "symbol()" => "..", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :unlisted, reason: "invalid_metadata"}] = discoveries()
+    assert auctions() == []
+  end
+
+  test "a launch an earlier pass left unlisted is listed on the next; one on a retired launchpad stays unlisted",
+       %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "Earlier", "symbol()" => "EARLY", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+    [discovery] = discoveries()
+
+    {:ok, _retired} =
+      Autolaunch.record_launch_discovery(
+        %{Map.take(discovery, record_fields()) | contract: @retired},
+        actor: @actor
+      )
+
+    # As the site left them before every Base Memestock launch was listed.
+    {2, _rows} =
+      Autolaunch.Repo.update_all("launch_discoveries",
+        set: [state: "unlisted", reason: "no_matching_review"]
+      )
+
+    run_triggers()
+
+    assert [
+             %{state: :listed, contract: ^launchpad},
+             %{state: :unlisted, reason: "launchpad_retired"}
+           ] =
+             Enum.sort_by(discoveries(), &(&1.contract != launchpad))
+
+    assert [%{token_symbol: "EARLY", origin: :chain}] = auctions()
+  end
+
+  test "a launch seen only on another chain is stored but not listed" do
+    for chain_id <- [46_630, 84_532] do
+      {:ok, _row} =
+        Autolaunch.record_launch_auction(
+          %{
+            kind: :stocks,
+            origin: :chain,
+            chain_id: chain_id,
+            auction_address: "0x" <> String.duplicate(Integer.to_string(rem(chain_id, 10)), 40),
+            creator_address: @stranger,
+            title: "Elsewhere",
+            token_symbol: "ELSE",
+            featured: false,
+            state: :active,
+            current_clearing_price: "0",
+            quote_token_address: @stock,
+            quote_token_symbol: "AAPLc",
+            quote_token_decimals: 8,
+            required_currency_raised: "1",
+            treasury_address: @stranger
+          },
+          actor: @actor
+        )
+    end
+
+    assert [] = Auction |> Ash.Query.for_read(:listed, %{}, actor: nil) |> Ash.read!()
+    assert [] = Auction |> Ash.Query.for_read(:list_public, %{}, actor: nil) |> Ash.read!()
   end
 
   test "a launch the chain cannot answer for yet stays pending with the reason",
@@ -335,11 +426,14 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   end
 
   # The launch's token: its name, symbol and metadata, as the launch wrote them.
+  # Its bytes as the contract holds them, which need not be valid text.
   defp token_string(selector, strings) do
     {_signature, value} =
       Enum.find(strings, fn {signature, _value} -> LabAbi.selector(signature) == selector end)
 
-    [[value] |> ABI.TypeEncoder.encode([:string]) |> Base.encode16(case: :lower)]
+    hex = Base.encode16(value, case: :lower)
+    padded = String.pad_trailing(hex, div(byte_size(hex) + 63, 64) * 64, "0")
+    [BaseRpcStub.hex_word(32), BaseRpcStub.hex_word(byte_size(value)), padded]
   end
 
   defp token_uri(metadata),

@@ -12,8 +12,8 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
   alias Autolaunch.LaunchLinks
   alias Autolaunch.Stocks.ChainLaunch
 
-  # Control characters other than a line break, and the marks that reorder text.
-  @hidden ~r/[\x{0000}-\x{0009}\x{000B}-\x{001F}\x{007F}-\x{009F}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u
+  # Control characters other than a line break, and every invisible format character.
+  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}]/u
 
   # Any bytes at all, and text built from the characters that hide or reorder it.
   defp carried do
@@ -24,7 +24,22 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
         list_of(
           one_of([
             string(:alphanumeric, max_length: 6),
-            member_of(["\u202E", "\u2066", "\u200F", "\u0000", "\u0007", "\n", " ", "\u009B"])
+            member_of([
+              "\u202E",
+              "\u2066",
+              "\u200F",
+              "\u200B",
+              "\u200D",
+              "\u2060",
+              "\uFEFF",
+              "\u00AD",
+              "\u{E0041}",
+              "\u0000",
+              "\u0007",
+              "\n",
+              " ",
+              "\u009B"
+            ])
           ]),
           max_length: 12
         ),
@@ -54,6 +69,12 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
 
       assert ChainLaunch.image(value) == nil
     end
+  end
+
+  test "a ticker with an invisible character inside reads as the letters it shows" do
+    assert ChainLaunch.text("AM\u200BZN") == "AMZN"
+    assert ChainLaunch.text("\uFEFFAMZN\u2060") == "AMZN"
+    assert ChainLaunch.text("\u{E0041}\u00AD") == nil
   end
 
   test "a picture is kept only when this site stores it, at this site's address" do

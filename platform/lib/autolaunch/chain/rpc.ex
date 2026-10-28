@@ -132,6 +132,12 @@ defmodule Autolaunch.Chain.Rpc do
   @doc "One ABI string answer, such as an ERC-20 `name()` or `symbol()`."
   def call_string(to, data, block, opts \\ []), do: call(to, data, block, &decode_string/1, opts)
 
+  @doc """
+  One ABI string answer as the bytes the contract holds, which need not be
+  valid UTF-8: text someone else wrote, such as a launch's token name.
+  """
+  def call_bytes(to, data, block, opts \\ []), do: call(to, data, block, &decode_bytes/1, opts)
+
   def request(method, params, opts \\ []) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
 
@@ -356,10 +362,15 @@ defmodule Autolaunch.Chain.Rpc do
   end
 
   # An ABI string is its offset word, its length word and its UTF-8 bytes.
-  defp decode_string("0x" <> hex) when byte_size(hex) >= 128 do
+  defp decode_string(result) do
+    bytes = decode_bytes(result)
+    true = String.valid?(bytes)
+    bytes
+  end
+
+  defp decode_bytes("0x" <> hex) when byte_size(hex) >= 128 do
     [_offset, length] = decode_words("0x" <> binary_part(hex, 0, 128), 2)
     {:ok, bytes} = Base.decode16(binary_part(hex, 128, length * 2), case: :mixed)
-    true = String.valid?(bytes)
     bytes
   end
 

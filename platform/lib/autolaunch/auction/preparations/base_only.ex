@@ -9,9 +9,19 @@ defmodule Autolaunch.Auction.Preparations.BaseOnly do
   @impl true
   def prepare(query, _opts, _context) do
     query
-    |> Ash.Query.filter(origin == :chain or not is_nil(creator_human_account_id))
+    |> created(Autolaunch.Stocks.Lab.chain_id())
     |> exclude_robinhood(Autolaunch.Robinhood.Lab.chain_id())
   end
+
+  defp created(query, nil), do: Ash.Query.filter(query, not is_nil(creator_human_account_id))
+
+  defp created(query, base),
+    do:
+      Ash.Query.filter(
+        query,
+        not is_nil(creator_human_account_id) or
+          (origin == :chain and kind == :stocks and chain_id == ^base)
+      )
 
   defp exclude_robinhood(query, nil), do: query
 

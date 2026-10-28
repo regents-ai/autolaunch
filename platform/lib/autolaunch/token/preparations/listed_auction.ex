@@ -5,10 +5,17 @@ defmodule Autolaunch.Token.Preparations.ListedAuction do
   # A token is listed when its auction is: see
   # `Autolaunch.Auction.Preparations.Listed`.
   @impl true
-  def prepare(query, _opts, _context), do: listed(query, Autolaunch.Robinhood.Lab.chain_id())
+  def prepare(query, _opts, _context), do: listed(query, Autolaunch.Stocks.Lab.chain_id())
 
-  defp listed(query, nil), do: Ash.Query.filter(query, exists(auction, true))
+  defp listed(query, nil), do: Ash.Query.filter(query, exists(auction, origin == :site))
 
-  defp listed(query, robinhood),
-    do: Ash.Query.filter(query, exists(auction, origin == :site or chain_id != ^robinhood))
+  defp listed(query, base),
+    do:
+      Ash.Query.filter(
+        query,
+        exists(
+          auction,
+          origin == :site or (origin == :chain and kind == :stocks and chain_id == ^base)
+        )
+      )
 end
