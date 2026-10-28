@@ -102,6 +102,7 @@ draft, save only the fields your person asked for, then read it back. Tell your 
 fields you set, a treasury above all, so they check them before they sign. If a save loses its answer,
 read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
+{{covered_calls}}
 ## Price movement without misleading comparisons
 
 A Revstake token read also carries `revenue_history`: each payment its splitter recognized,

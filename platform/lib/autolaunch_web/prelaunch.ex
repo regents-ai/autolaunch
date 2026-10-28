@@ -51,8 +51,10 @@ defmodule AutolaunchWeb.Prelaunch do
 
   defp signed_account_request?(_, _), do: false
 
-  # This existing POST only calculates a quote from stored public data.
+  # These POSTs only calculate a quote: a bid's from stored public data, a
+  # covered call's suggested premium from the chain's reference price.
   defp public_quote?("POST", ["api", "v1", "auctions", _id, "bid-quote"]), do: true
+  defp public_quote?("POST", ["api", "v1", "covered-calls", _symbol, "quote"]), do: true
   defp public_quote?(_, _), do: false
 
   # The response type and body are fixed here (a JSON error or the rendered

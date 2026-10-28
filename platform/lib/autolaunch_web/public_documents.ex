@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   """
 
   alias AutolaunchWeb.Components.AutolaunchHelpers
-  alias AutolaunchWeb.Paths
+  alias AutolaunchWeb.{Paths, ToolManifest}
 
   @directory Path.join(__DIR__, "public_documents")
   @names ~w(home docs about contact privacy terms llms llms-full agents skill)
@@ -31,12 +31,11 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @contract_path
   @contract YamlElixir.read_from_file!(@contract_path)
 
-  # Every browser tool the pages register, described once; the browser code
-  # imports the same file.
-  @tool_manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
-  @external_resource @tool_manifest_path
-  @manifest @tool_manifest_path |> File.read!() |> Jason.decode!()
-  @tools Map.fetch!(@manifest, "tools")
+  # Covered calls, in the agent guides only while the site offers them.
+  @covered_calls_path Path.join(@directory, "covered_calls.md")
+  @external_resource @covered_calls_path
+  @covered_calls File.read!(@covered_calls_path)
+
   @needs %{
     "none" => "Nothing",
     "siwa" => "Per-request SIWA proof",
@@ -44,11 +43,6 @@ defmodule AutolaunchWeb.PublicDocuments do
     "session" => "The person's sign-in",
     "wallet_signed" => "The person's sign-in and their wallet's confirmation"
   }
-  @tool_table """
-  | Tool | Where | Needs | What it does |
-  | --- | --- | --- | --- |
-  #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{if &1["scope"] == "site", do: "Every page", else: &1["scope"]} | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
-  """
 
   @description "Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
 
@@ -102,6 +96,9 @@ defmodule AutolaunchWeb.PublicDocuments do
        "One stock on Base or Robinhood Chain: its onchain token, price feed and trading pools, from dated research."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
+    "/covered-calls" =>
+      {"Covered calls",
+       "Sell covered calls on a Base stock token and keep the premium, or buy them, in USDC."},
     :bid =>
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
@@ -159,7 +156,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   def skill_guide, do: markdown("skill")
 
   @doc "The browser tool manifest served at `/capabilities`: every tool the pages register."
-  def capabilities, do: @manifest
+  def capabilities, do: ToolManifest.current()
 
   @doc "Whether the page at `path` also answers as Markdown."
   def markdown?(path), do: Map.has_key?(@paths, path)
@@ -233,6 +230,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   @doc "The public API description, with this site's address as its server."
   def openapi do
     @contract
+    |> Map.update!("paths", &offered_paths/1)
     |> Map.put("servers", [%{"url" => url("")}])
     |> Map.put("externalDocs", %{
       "url" => url("/docs"),
@@ -495,12 +493,32 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp markdown(name) do
     @sources[name]
     |> String.replace("{{key_facts}}", @key_facts)
-    |> String.replace("{{tools}}", @tool_table)
+    |> String.replace("{{covered_calls}}\n", covered_calls())
+    |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
     |> String.replace("{{regents_cli_commit}}", @regents_cli.commit)
     |> String.replace("{{regents_cli_wheel_sha256}}", @regents_cli.wheel_sha256)
     |> String.replace("{{read_only}}", read_only_now())
+  end
+
+  # Every tool the pages register now (`AutolaunchWeb.ToolManifest`).
+  defp tool_table do
+    """
+    | Tool | Where | Needs | What it does |
+    | --- | --- | --- | --- |
+    #{Enum.map_join(ToolManifest.tools(), "\n", &"| `#{&1["name"]}` | #{if &1["scope"] == "site", do: "Every page", else: &1["scope"]} | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
+    """
+  end
+
+  defp covered_calls,
+    do: if("covered_calls" in ToolManifest.features(), do: @covered_calls, else: "")
+
+  # A route behind a switch (`x-autolaunch-switch`) is described only while its
+  # feature is on.
+  defp offered_paths(paths) do
+    on = ToolManifest.features()
+    Map.filter(paths, fn {_path, item} -> Map.get(item, "x-autolaunch-switch") in [nil | on] end)
   end
 
   # The prelaunch gate as it stands on this deployment right now.

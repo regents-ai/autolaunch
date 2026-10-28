@@ -14,10 +14,30 @@ function signedTransport() { return signedTools({
   proofHeaders: manifest.proof_headers,
   requestHeaders: client,
   // Only the signed tools are operations; each is sent with its operation's own inputs.
-  operations: manifest.tools.flatMap(entry =>
+  operations: offered().flatMap(entry =>
     "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
   ) as unknown as SignedOperation[],
 }) }
+
+// The tools this page offers: an entry tagged with a feature only while the
+// site says that feature is on (AutolaunchWeb.ToolManifest), and
+// prepare_agent_request naming only the signed tools offered.
+function offered(): Entry[] {
+  const features = (document.querySelector?.<HTMLMetaElement>('meta[name="agent-features"]')?.content ?? "").split(" ")
+  const tools = (manifest.tools as unknown as Entry[]).filter(entry => !entry.feature || features.includes(entry.feature))
+  const names = new Set(tools.map(entry => entry.name))
+  return tools.map(entry => {
+    if (entry.name !== "prepare_agent_request") return entry
+    const operation = entry.input_schema.properties.operation
+    return {
+      ...entry,
+      input_schema: {
+        ...entry.input_schema,
+        properties: {...entry.input_schema.properties, operation: {...operation, enum: operation.enum?.filter(name => names.has(name))}},
+      },
+    }
+  })
+}
 
 // Every call names its tool and this visit, so the site's log can put the call
 // beside the rest of the visit (AutolaunchWeb.VisitLog). Neither is a credential.
@@ -64,6 +84,7 @@ type Entry = {
   annotations: Annotations
   scope: string
   authentication?: string
+  feature?: string
 }
 
 export type PublicTool = {
@@ -245,11 +266,16 @@ const requests: Record<string, (input: Input) => Request> = {
     path: `/api/v1/auctions/${pathValue(input.id)}/bid-quote`,
     body: {amount: input.amount, max_price: input.max_price},
   }),
+  autolaunch_covered_call_listings: input => ({path: `/api/v1/covered-calls/${pathValue(input.symbol)}`}),
+  autolaunch_covered_call_quote: input => ({
+    path: `/api/v1/covered-calls/${pathValue(input.symbol)}/quote`,
+    body: {strike_per_token: input.strike_per_token, expiry: input.expiry},
+  }),
 }
 
 // Public requests and explicitly signed manifest operations register here.
 function publicTools(signal: AbortSignal): PublicTool[] {
-  return (manifest.tools as unknown as Entry[])
+  return offered()
     .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
     .map(entry => tool(entry, requests[entry.name] ?? (() => { throw new Error("Signed request required") }), signal))
 }
