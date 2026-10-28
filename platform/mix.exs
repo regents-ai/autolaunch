@@ -187,6 +187,7 @@ defmodule Autolaunch.MixProject do
         "regent_blog.assets",
         "regent_identity.assets",
         "regent_agent_access.assets",
+        &clear_built_scripts/1,
         "esbuild autolaunch",
         "esbuild covered_calls"
       ],
@@ -195,6 +196,7 @@ defmodule Autolaunch.MixProject do
         "regent_blog.assets",
         "regent_identity.assets",
         "regent_agent_access.assets",
+        &clear_built_scripts/1,
         "esbuild autolaunch --minify",
         "esbuild covered_calls --minify",
         "phx.digest"
@@ -223,4 +225,9 @@ defmodule Autolaunch.MixProject do
       ]
     ]
   end
+
+  # Only `esbuild autolaunch` writes priv/static/assets/js, so each build starts
+  # it empty and the site ships exactly what that build made, never a file an
+  # earlier build left there.
+  defp clear_built_scripts(_args), do: File.rm_rf!("priv/static/assets/js")
 end
