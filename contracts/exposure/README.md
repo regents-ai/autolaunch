@@ -1,0 +1,47 @@
+# Autolaunch Exposure
+
+Isolated exposure tokens: one Base stock token split, for a fixed term, into an **OVERNIGHT** token
+that carries the stock's close-to-open moves and a **SESSION** token that carries its open-to-close
+moves. Design and site plan: [exposure-design.md](../../platform/docs/exposure-design.md).
+
+Status: **not deployed.** A deployment is a protected action and waits for Sean's go naming it.
+
+## How it works
+
+One `ExposureSeriesV1` per stock and term, listed by `ExposureFactoryV1`. A series has no owner,
+admin, upgrade, pause or fee.
+
+| Call | Who | What it does |
+| --- | --- | --- |
+| `settle()` | anyone | Applies the next scheduled print. The first close sets both ledgers to half its price and opens minting; an open moves OVERNIGHT by the change since the close; a close moves SESSION by the change since the open. |
+| `mint(assets)` | holder | Deposits `assets` raw stock from the caller and mints the caller `assets` of each leg. Open while the series is live and under its deposit cap. |
+| `redeem(overnight, session)` | holder | Burns the caller's legs and sends the caller the stock they are worth. Before the end, equal amounts only (one raw unit per pair); after the end, any mix at the frozen ledgers. |
+| `endOnMissingPrint()` | anyone | After the next print's deadline passes with no print made final in time, ends the series at the last ledgers. |
+| `createSeries(terms)` | factory owner (the governance Safe) | Creates and lists a series. The owner has no power over it afterwards. |
+| `report(feed, at, isOpen, price, evidence)` | `PrintOracleV1` reporters | Votes a print, or changes the reporter's vote; it becomes final when a strict majority agree on the same price, and never changes after. |
+
+- The two ledgers always sum to the last print, so a pair is always worth exactly its stock.
+- A print that takes either ledger to zero or below ends the series, and the other leg owns all the
+  stock. No leg can ever claim more than the stock behind the pairs.
+- Collateral is raw B20 units, so a split or dividend changes only the oracle's price per raw
+  token, never what the series holds or owes.
+- Stock only ever goes to the account redeeming, so the issuer's blocklist and pauses apply to it.
+- If the issuer takes stock from the series, every later redemption is cut by the same fraction and
+  minting stops until the stock is back. Nobody can race the others out, and legs worth something
+  are never burned for nothing.
+- Each call does constant work: no loop over holders or prints, no trade inside the vault.
+
+## Checks
+
+```sh
+bin/gate.sh
+```
+
+The offline gate: `forge fmt --check`, `forge build`, and the unit, fuzz, invariant, oracle and
+factory suites. It builds against `../stocks-v2/lib` (forge-std and solady), filled by
+`stocks-v2/bootstrap-deps.py`.
+
+The Base fork suite (`test/fork/`) creates a series through the factory on the real AMZNc token and
+settles it from a 2-of-3 `PrintOracleV1`. Base stock tokens are B20 precompiles, so it needs
+Foundry 1.8.4 or later: start `anvil --network base --fork-url <Base RPC>`, then
+`FOUNDRY_PROFILE=fork forge test --network base --fork-url http://127.0.0.1:<port>`.
