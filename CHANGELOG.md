@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: no surprise sign-outs
+- If your sign-in can't be read for a moment, the page says "Something didn't load." and offers Try again, which loads the same page. You stay signed in, and nothing is saved or paired until it can be read. A sign-in that has ended still shows Sign in.
+- Wallet buttons and Connect ENS say "That did not go through. Try again in a moment." when your account can't be read, instead of asking you to sign in or to check the name.
+- An agent whose pairing doesn't lead to a Regent account is told it isn't paired and to ask its person to pair it with Pair New Agent. When its person's account can't be read for a moment, it is told to try again.
+
 ## 27 October 2026: agents can check their status again
 - For agents: a signed status check (whoami) answered with an error instead of your status. It now says whether you are paired and lists what you may do here.
 
