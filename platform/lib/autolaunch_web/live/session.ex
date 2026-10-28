@@ -220,6 +220,25 @@ defmodule AutolaunchWeb.Live.Session do
 
   def transact(_socket, _write), do: {:error, :session_lease_required}
 
+  @doc """
+  Runs `write`, a write as the signed-in person that reads the chain or another
+  service before it saves and so cannot run inside `transact/2`'s database
+  transaction, only once `lease` reads as current now; `write` gets the account
+  as it reads now. A lapsed lease answers `{:error, :session_unavailable}`, and
+  one that could not be read `{:error, :sign_in_unread}` for a lost connection;
+  any other failed read raises, as a page's own read does. Nothing is written
+  in either case. It may run outside the page's process, in a background task.
+  """
+  def fresh(%{lineage: lineage, account_id: id}, write) do
+    case SessionAuthority.leased_account(lineage, id) do
+      {:ok, %{} = account} -> write.(account)
+      {:ok, nil} -> {:error, :session_unavailable}
+      {:error, error} -> with :unreadable <- unreadable(error), do: {:error, :sign_in_unread}
+    end
+  end
+
+  def fresh(_lease, _write), do: {:error, :session_lease_required}
+
   defp component_account(%{assigns: %{session_lease: nil}}), do: :signed_out
 
   defp component_account(%{assigns: %{session_lease: lease}}) do
