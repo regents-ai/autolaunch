@@ -28,6 +28,10 @@ contract CoveredCallsV1 is ReentrancyGuard {
     uint256 public constant FEE_BPS = 100;
     /// @notice How long after expiry a holder may exercise.
     uint256 public constant EXERCISE_WINDOW = 1 days;
+    /// @notice Every expiry is a Friday at 21:00 UTC: the US close in winter and an hour after it in
+    ///         summer, so a series never expires while the market is open. Unix time began on a
+    ///         Thursday, so that is 1 day 21 hours into a week counted from the epoch.
+    uint256 public constant WEEKLY_EXPIRY_OFFSET = 1 days + 21 hours;
     /// @notice The tag every fee deposit carries in REGENT staking's events.
     // forge-lint: disable-next-line(unsafe-typecast)
     bytes32 public constant FEE_SOURCE_TAG = bytes32("autolaunch-covered-calls");
@@ -79,6 +83,7 @@ contract CoveredCallsV1 is ReentrancyGuard {
     error ZeroAddress();
     error ZeroAmount();
     error ExpiryPassed(uint64 expiry);
+    error NotAWeeklyExpiry(uint64 expiry);
     error CorporateActionScheduled(uint256 effectiveAt);
     error UnknownListing(uint256 listingId);
     error NotSeller(address caller);
@@ -103,6 +108,7 @@ contract CoveredCallsV1 is ReentrancyGuard {
         returns (uint256 listingId)
     {
         if (amount == 0 || strikePerToken == 0 || premiumPerToken == 0) revert ZeroAmount();
+        if (expiry % 1 weeks != WEEKLY_EXPIRY_OFFSET) revert NotAWeeklyExpiry(expiry);
         if (expiry <= block.timestamp) revert ExpiryPassed(expiry);
         _requireNoCorporateActionBefore(expiry);
 
@@ -134,7 +140,7 @@ contract CoveredCallsV1 is ReentrancyGuard {
         _requireNoCorporateActionBefore(listing.expiry);
 
         uint256 premium = premiumFor(listingId, amount);
-        uint256 fee = premium * FEE_BPS / 10_000;
+        uint256 fee = FixedPointMathLib.mulDivUp(premium, FEE_BPS, 10_000);
         listing.filled += amount;
         held[listingId][msg.sender] += amount;
         emit Filled(listingId, msg.sender, amount, premium, fee);
@@ -216,6 +222,17 @@ contract CoveredCallsV1 is ReentrancyGuard {
         emit StrikeCollected(listingId, amount);
 
         usdc.safeTransfer(msg.sender, amount);
+    }
+
+    /// @notice All the stock `account` may `claim` from a listing right now, including, for the seller
+    ///         after the window, the unexercised stock that `claim` books first.
+    function claimable(uint256 listingId, address account) external view returns (uint256 amount) {
+        Listing storage listing = _listing(listingId);
+        amount = owed[listingId][account];
+        if (
+            account == listing.seller && !listing.stockReturned
+                && block.timestamp >= uint256(listing.expiry) + EXERCISE_WINDOW
+        ) amount += listing.amount - listing.exercised;
     }
 
     /// @notice The premium, in USDC, for `amount` raw stock of a listing.

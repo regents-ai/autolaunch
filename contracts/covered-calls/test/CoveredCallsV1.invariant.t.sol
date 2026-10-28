@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 
 import {CoveredCallsV1} from "../src/CoveredCallsV1.sol";
 import {B20Double, StakingDouble, UsdcDouble} from "./doubles/Doubles.sol";
+import {WeeklyExpiry} from "./doubles/WeeklyExpiry.sol";
 
 /// @notice Drives random sequences of every call by several accounts across time, with the stock's
 ///         transfer pause and blocklist, USDC's pause and blacklist, scheduled corporate actions and a
@@ -19,6 +20,8 @@ contract CoveredCallsHandler is Test {
     mapping(uint256 listingId => uint256) public listedOf;
     mapping(uint256 listingId => uint256) public claimedOf;
     uint256 public feesExpected;
+    /// Claims that paid something other than what `claimable` showed just before; must stay zero.
+    uint256 public claimMismatches;
     /// Successful calls of each kind, so a run that never reaches an action is visible.
     mapping(bytes4 selector => uint256) public succeeded;
 
@@ -52,13 +55,13 @@ contract CoveredCallsHandler is Test {
         return count == 0 ? 0 : 1 + seed % count;
     }
 
-    function list(uint256 who, uint256 amount, uint256 strike, uint256 premium, uint256 life) external {
+    function list(uint256 who, uint256 amount, uint256 strike, uint256 premium, uint256 weeksAhead) external {
         amount = bound(amount, 1, 50e8);
         strike = bound(strike, 1, 1_000e6);
         premium = bound(premium, 1, 100e6);
-        life = bound(life, 1 days, 14 days);
+        uint64 expiry = WeeklyExpiry.next(block.timestamp, bound(weeksAhead, 0, 2));
         vm.prank(_actor(who));
-        try calls.list(amount, strike, premium, uint64(block.timestamp + life)) returns (uint256 id) {
+        try calls.list(amount, strike, premium, expiry) returns (uint256 id) {
             listedOf[id] = amount;
             ++succeeded[this.list.selector];
         } catch {}
@@ -74,7 +77,7 @@ contract CoveredCallsHandler is Test {
         uint256 premium = (amount * l.premiumPerToken + 1e8 - 1) / 1e8;
         vm.prank(_actor(who));
         try calls.fill(id, amount) {
-            feesExpected += premium / 100;
+            feesExpected += (premium + 99) / 100;
             ++succeeded[this.fill.selector];
         } catch {}
     }
@@ -120,9 +123,12 @@ contract CoveredCallsHandler is Test {
             }
         }
         uint256 before = stock.balanceOf(account);
+        uint256 shown = calls.claimable(id, account);
         vm.prank(account);
         try calls.claim(id) {
-            claimedOf[id] += stock.balanceOf(account) - before;
+            uint256 paid = stock.balanceOf(account) - before;
+            claimedOf[id] += paid;
+            if (paid != shown) ++claimMismatches;
             ++succeeded[this.claim.selector];
         } catch {}
     }
@@ -166,7 +172,7 @@ contract CoveredCallsHandler is Test {
             stock.setBlocked(actors[a], false);
             usdc.setBlacklisted(actors[a], false);
         }
-        vm.warp(block.timestamp + 15 days + calls.EXERCISE_WINDOW());
+        vm.warp(block.timestamp + 22 days + calls.EXERCISE_WINDOW());
         for (uint256 id = 1; id <= calls.listingCount(); ++id) {
             CoveredCallsV1.Listing memory l = calls.listings(id);
             if (l.strikePaid != l.strikeCollected) {
@@ -253,6 +259,11 @@ contract CoveredCallsV1InvariantTest is Test {
         }
     }
 
+    /// A claim pays exactly what `claimable` showed for that account just before it.
+    function invariant_claimPaysWhatClaimableShows() public view {
+        assertEq(handler.claimMismatches(), 0);
+    }
+
     /// Stock is never created or lost.
     function invariant_stockIsConserved() public view {
         uint256 total = stock.balanceOf(address(calls));
@@ -262,7 +273,7 @@ contract CoveredCallsV1InvariantTest is Test {
         assertEq(total, stockSupply);
     }
 
-    /// Every fee reached staking exactly once: 1% of each premium paid, floored.
+    /// Every fee reached staking exactly once: 1% of each premium paid, rounded up.
     function invariant_feesReachStakingOnce() public view {
         assertEq(staking.deposited(), handler.feesExpected());
         assertEq(usdc.balanceOf(address(staking)), handler.feesExpected());

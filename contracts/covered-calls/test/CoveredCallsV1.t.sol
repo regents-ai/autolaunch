@@ -6,6 +6,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {CoveredCallsV1} from "../src/CoveredCallsV1.sol";
 import {B20Double, StakingDouble, UsdcDouble} from "./doubles/Doubles.sol";
+import {WeeklyExpiry} from "./doubles/WeeklyExpiry.sol";
 
 contract CoveredCallsV1Test is Test {
     uint256 internal constant TOKEN = 1e8; // one whole stock token, raw
@@ -23,7 +24,7 @@ contract CoveredCallsV1Test is Test {
 
     function setUp() public {
         vm.warp(1_800_000_000);
-        expiry = uint64(block.timestamp + 3 days);
+        expiry = WeeklyExpiry.next(block.timestamp, 0);
         stock = new B20Double();
         usdc = new UsdcDouble();
         staking = new StakingDouble(usdc);
@@ -74,9 +75,23 @@ contract CoveredCallsV1Test is Test {
         calls.list(TOKEN, 0, 3 * USD, expiry);
         vm.expectRevert(CoveredCallsV1.ZeroAmount.selector);
         calls.list(TOKEN, 110 * USD, 0, expiry);
-        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV1.ExpiryPassed.selector, uint64(block.timestamp)));
-        calls.list(TOKEN, 110 * USD, 3 * USD, uint64(block.timestamp));
+        uint64 lastWeek = expiry - 1 weeks;
+        vm.expectRevert(abi.encodeWithSelector(CoveredCallsV1.ExpiryPassed.selector, lastWeek));
+        calls.list(TOKEN, 110 * USD, 3 * USD, lastWeek);
         vm.stopPrank();
+    }
+
+    /// Every expiry is a Friday at 21:00 UTC; an hour either side, or a Thursday, is refused.
+    function test_list_acceptsOnlyFridayAt2100Utc() public {
+        uint64[3] memory wrong = [expiry - 1 hours, expiry + 1 hours, expiry - 1 days];
+        for (uint256 i; i < wrong.length; ++i) {
+            vm.prank(seller);
+            vm.expectRevert(abi.encodeWithSelector(CoveredCallsV1.NotAWeeklyExpiry.selector, wrong[i]));
+            calls.list(TOKEN, 110 * USD, 3 * USD, wrong[i]);
+        }
+        vm.prank(seller);
+        calls.list(TOKEN, 110 * USD, 3 * USD, expiry + 4 weeks);
+        assertEq(expiry % 1 weeks, 1 days + 21 hours);
     }
 
     function test_list_refusesAScheduledCorporateActionBeforeTheWindowCloses() public {
@@ -127,12 +142,12 @@ contract CoveredCallsV1Test is Test {
         calls.fill(id, 1);
     }
 
-    function test_fill_roundsTheFeeDownAndThePremiumUp() public {
+    function test_fill_roundsThePremiumAndTheFeeUp() public {
         uint256 id = _list();
-        // One raw unit: 3e6 * 1 / 1e8 rounds up to 1 micro-USDC; its 1% fee floors to zero.
+        // One raw unit: 3e6 * 1 / 1e8 rounds up to 1 micro-USDC, and its 1% fee rounds up to all of it.
         _fill(buyer, id, 1);
-        assertEq(usdc.balanceOf(seller), 1);
-        assertEq(staking.deposited(), 0);
+        assertEq(usdc.balanceOf(seller), 0);
+        assertEq(staking.deposited(), 1);
     }
 
     function test_fill_closesAtExpiry() public {
@@ -424,11 +439,9 @@ contract CoveredCallsV1Test is Test {
 
     // ---- fuzz: amounts ----
 
-    function testFuzz_premiumAndStrikeRoundUpAndFeeIsOnePercentFloored(
-        uint256 amount,
-        uint256 premiumPerToken,
-        uint256 strikePerToken
-    ) public {
+    function testFuzz_premiumStrikeAndFeeAllRoundUp(uint256 amount, uint256 premiumPerToken, uint256 strikePerToken)
+        public
+    {
         amount = bound(amount, 1, 10 * TOKEN);
         premiumPerToken = bound(premiumPerToken, 1, 10_000 * USD);
         strikePerToken = bound(strikePerToken, 1, 100_000 * USD);
@@ -441,8 +454,11 @@ contract CoveredCallsV1Test is Test {
         assertLt(premium * TOKEN, amount * premiumPerToken + TOKEN);
 
         _fill(buyer, id, amount);
-        assertEq(staking.deposited(), premium / 100);
-        assertEq(usdc.balanceOf(seller), premium - premium / 100);
+        uint256 fee = (premium + 99) / 100;
+        assertEq(staking.deposited(), fee);
+        assertEq(usdc.balanceOf(seller), premium - fee);
+        assertGe(fee * 100, premium);
+        assertLt(fee * 100, premium + 100);
 
         uint256 strike = calls.strikeFor(id, amount);
         assertGe(strike * TOKEN, amount * strikePerToken);

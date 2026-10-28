@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {CoveredCallsV1} from "../src/CoveredCallsV1.sol";
 import {B20Double, StakingDouble, UsdcDouble} from "./doubles/Doubles.sol";
+import {WeeklyExpiry} from "./doubles/WeeklyExpiry.sol";
 
 /// @notice What the tokens, the issuer, Circle and staking can refuse, and how each party still
 ///         recovers what is theirs. From the adversarial review of 28 Oct 2026: the five `F1`/`F2`
@@ -28,7 +29,7 @@ contract CoveredCallsV1RecoveryTest is Test {
 
     function setUp() public {
         vm.warp(1_800_000_000);
-        expiry = uint64(block.timestamp + 3 days);
+        expiry = WeeklyExpiry.next(block.timestamp, 0);
         stock = new B20Double();
         usdc = new UsdcDouble();
         staking = new StakingDouble(usdc);
@@ -218,13 +219,13 @@ contract CoveredCallsV1RecoveryTest is Test {
         assertEq(usdc.balanceOf(address(calls)), 0);
     }
 
-    /// The fee floors, so a premium under 100 micro-USDC carries none.
-    function test_tinyFillPaysNoFee() public {
+    /// The fee rounds up, so splitting a fill into dust never avoids it.
+    function test_tinyFillStillPaysTheFee() public {
         uint256 id = _list(10 * TOKEN);
         vm.prank(buyer);
         calls.fill(id, 3300); // premium ceil(3300 * 3e6 / 1e8) = 99 micro-USDC
         assertEq(calls.premiumFor(id, 3300), 99);
-        assertEq(staking.deposited(), 0);
+        assertEq(staking.deposited(), 1);
     }
 
     /// Staking refusing deposits stops fills that carry a fee; nothing else touches staking.

@@ -104,20 +104,25 @@ function cancel(uint256 listingId) external;              // seller: unsold rema
 function exercise(uint256 listingId, uint256 amount) external;  // holder pays the strike in window
 function claim(uint256 listingId) external;               // anyone: the stock it is owed
 function collectStrike(uint256 listingId) external;       // seller: the strike USDC paid so far
+function claimable(uint256 listingId, address account) external view returns (uint256);
 ```
 
 - **Prices** are USDC (6 decimals) per whole token (`10**decimals` raw units). A fill pays
   `ceil(amount × premiumPerToken / 10**decimals)`; an exercise pays
   `ceil(amount × strikePerToken / 10**decimals)`. Rounding always favours the seller, so
   splitting a fill or an exercise never pays less.
-- **Fee.** 1% (`FEE_BPS = 100`, a constant), floored, of each premium paid. The buyer's
+- **Fee.** 1% (`FEE_BPS = 100`, a constant), rounded up, of each premium paid. The buyer's
   premium goes 99% to the seller and 1% into live REGENT staking through
   `depositUSDC(fee, "autolaunch-covered-calls", listingId)`, the path the Memestake hook already
-  uses (fork-proven against the live contract). Nothing else is charged. A premium under 100
-  micro-USDC carries no fee.
-- **Times.** `expiry` is in the future; the exercise window is `[expiry, expiry + 24h)`. Fills
-  close at expiry. The site offers only Fridays at the US close (16:00 New York, so 20:00 or
-  21:00 UTC); the contract accepts any future time so it holds no calendar.
+  uses (fork-proven against the live contract). Nothing else is charged. Rounding up keeps the
+  fee exactly 1% in the house's favour, so splitting a fill into dust never avoids it.
+- **Times.** Every expiry is a Friday at 21:00 UTC, enforced by the contract
+  (`expiry % 1 weeks == 1 days + 21 hours`, since Unix time began on a Thursday). That is the US
+  close in winter (16:00 New York) and an hour after it in summer, so a series never expires while
+  the market is open, and the contract needs no daylight-saving rule. Every surface, site, WebMCP
+  and agents calling the contract directly, meets only weekly series. The exercise window is
+  `[expiry, expiry + 24h)`; fills close at expiry. (Coordinator review, 28 Oct: one way on chain so
+  agents cannot drift.)
 - **Coverage.** Each listing holds exactly the raw stock it may deliver. Fills can never exceed
   `amount − filled`; exercise can never exceed what the caller holds; `cancel` frees only the
   unsold remainder; after the window the seller's `claim` books only `amount − exercised`, once.
@@ -144,6 +149,12 @@ function collectStrike(uint256 listingId) external;       // seller: the strike 
   seller. The page states the window plainly.
 - Every fill carrying a fee calls live REGENT staking. If staking refuses deposits, fills stop;
   listing, cancel, exercise, claim and strike collection never touch it.
+- `list` and `fill` read `effectiveAt()` on the stock token, which answers 0 on Base mainnet today.
+  If that read ever reverted, `list` and `fill` would stop until it answered again; cancel,
+  exercise, claim and strike collection never read it. Raw-unit accounting means a split or a
+  dividend never breaks a series anyway, so the check is a second line of defence. A fork test of
+  the real read is added once Foundry's local B20 has it (Foundry 1.8.6 implements only the older
+  read set).
 - An instant (unscheduled) multiplier change cannot be detected. Prices are per raw unit, so the
   terms keep their value; pages show share-equivalents at the current multiplier.
 - All listings draw on one balance. If the issuer blocklisted and seized from the contract
@@ -189,15 +200,17 @@ owned by the regents-cli lane until it adds them.
 ## 6. Tests and evidence
 
 - Contract (`contracts/covered-calls`, `bin/gate.sh`, passes with the Mac's Foundry 1.5.1):
-  - 28 unit tests: every call and refusal, the spec's three payoff cases, rounding, the fee,
-    self-dealing, exact window boundaries, events.
+  - 29 unit tests: every call and refusal, the Friday 21:00 UTC expiry rule, the spec's three
+    payoff cases, rounding, the fee, self-dealing, exact window boundaries, events.
+  - 9 ordering tests from the review's second pass: cancel, claim and the after-window return in
+    every order, never paying a unit twice or touching another listing, and `claimable`.
   - 13 recovery tests: every way a token, the issuer, Circle or staking can refuse, and a fuzzed
     many-account scenario in which everyone recovers exactly what is theirs once restrictions lift.
-  - 6 invariants over random sequences of every call by four accounts across time, with all those
+  - 7 invariants over random sequences of every call by four accounts across time, with all those
     restrictions switching on and off: stock held equals stock owed, USDC held equals strike
     uncollected, nothing oversold, every listed unit accounted for, no token created or lost, each
-    fee paid exactly once; and after each run every restriction lifts, everyone collects, and the
-    contract ends holding nothing.
+    fee paid exactly once, every claim paying exactly what `claimable` showed; and after each run
+    every restriction lifts, everyone collects, and the contract ends holding nothing.
   - 7 fork tests on Base (Foundry 1.8.6, `anvil --network base`) with the real AMZNc token, Base
     USDC and live REGENT staking, staging a real blocklisting, a real transfer pause and a
     multiplier change through the issuer's own admin accounts.
@@ -205,7 +218,10 @@ owned by the regents-cli lane until it adds them.
   pass found two medium findings, both from one call moving two tokens (a seller could not stop
   sales during a stock pause; a block on one token held up the other). Both are fixed by the
   split above; the five tests that failed on the first version are kept as lasting tests in
-  `test/CoveredCallsV1.recovery.t.sol`. The fix has its own second review.
+  `test/CoveredCallsV1.recovery.t.sol`. The fix had its own second review, which found nothing above informational; its
+  tests are kept in `test/CoveredCallsV1.ordering.t.sol`. Its main informational point, that a
+  seller's `owed` figure omits the after-window return until they claim, is answered by the
+  `claimable` read, which every page and tool uses.
 - Site: Ash action tests, StreamData properties for amounts and rounding, and the browser walk
   at 390 and 1280 wide driving the real app against a local Base fork with the contract
   deployed from a fork-only script.

@@ -6,6 +6,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {CoveredCallsV1} from "../../src/CoveredCallsV1.sol";
+import {WeeklyExpiry} from "../doubles/WeeklyExpiry.sol";
 
 interface IB20AssetFork {
     function multiplier() external view returns (uint256);
@@ -59,7 +60,7 @@ contract CoveredCallsV1ForkTest is Test {
     function setUp() public {
         _stubEffectiveAt(0);
         calls = new CoveredCallsV1(AMZNC, USDC, LIVE_STAKING);
-        expiry = uint64(block.timestamp + 7 days);
+        expiry = WeeklyExpiry.next(block.timestamp, 1);
 
         vm.prank(AMZNC_POOL);
         stock.transfer(seller, 10 * TOKEN);
@@ -159,7 +160,7 @@ contract CoveredCallsV1ForkTest is Test {
         calls.list(TOKEN, 260 * USD, 4 * USD, expiry);
 
         vm.prank(seller);
-        uint256 early = calls.list(TOKEN, 260 * USD, 4 * USD, uint64(at - 1 days - 1));
+        uint256 early = calls.list(TOKEN, 260 * USD, 4 * USD, expiry - 1 weeks);
 
         vm.warp(at);
         vm.prank(issuerOps);
@@ -167,7 +168,7 @@ contract CoveredCallsV1ForkTest is Test {
         assertEq(IB20AssetFork(AMZNC).multiplier(), 2e18);
 
         vm.prank(seller);
-        uint256 id = calls.list(TOKEN, 130 * USD, 2 * USD, uint64(at + 7 days));
+        uint256 id = calls.list(TOKEN, 130 * USD, 2 * USD, expiry + 1 weeks);
         assertEq(calls.listings(id).amount, TOKEN);
         assertEq(calls.listings(early).amount, TOKEN);
         assertEq(stock.balanceOf(address(calls)), 2 * TOKEN);
