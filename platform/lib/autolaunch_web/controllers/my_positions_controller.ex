@@ -27,15 +27,6 @@ defmodule AutolaunchWeb.MyPositionsController do
         "Nobody is signed in on this site in this browser."
       )
 
-  def show(%{assigns: %{current_human_account: :unreadable}} = conn, _params),
-    do:
-      ApiError.send(
-        conn,
-        :service_unavailable,
-        "account_unavailable",
-        "Your account couldn’t be read just now."
-      )
-
   def show(%{assigns: %{current_human_account: account}} = conn, _params) do
     actor = %Human{human_account_id: account.id}
     respond(conn, actor, account)

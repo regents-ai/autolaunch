@@ -14,6 +14,7 @@ defmodule AutolaunchWeb.PairingBox do
   use AutolaunchWeb, :live_component
 
   alias AutolaunchWeb.Live.Session
+  alias AutolaunchWeb.ReadFailure
   alias RegentAgents.{Harness, PairingCode, PairingMessage, Person}
 
   require Logger
@@ -141,18 +142,30 @@ defmodule AutolaunchWeb.PairingBox do
     end
   end
 
+  # A code is made only under the page's lease read again now, so a page that
+  # keeps showing its account while the sign-in could not be read makes none.
   defp issue(socket, harness) do
     code =
-      case RegentAgents.issue_pairing_code(actor: socket.assigns.person) do
-        {:ok, issued} ->
-          issued
-
-        {:error, error} ->
-          Logger.warning("A pairing code couldn't be made: #{inspect(failure_kinds(error))}")
-          :unavailable
+      case Session.transact(socket, fn ->
+             RegentAgents.issue_pairing_code(actor: socket.assigns.person)
+           end) do
+        {:ok, issued} -> issued
+        {:error, error} -> unavailable(error)
       end
 
     assign(socket, chosen: harness, codes: Map.put(socket.assigns.codes, harness, code))
+  end
+
+  # An ended or missing sign-in (`:stale_authority`, `:session_lease_required`)
+  # is no failure, and a lost read of it was logged once where it was read
+  # (`SessionAuthority`). Anything else is logged here, by kind alone.
+  defp unavailable(reason) when is_atom(reason), do: :unavailable
+
+  defp unavailable(error) do
+    unless ReadFailure.lost_connection?(error),
+      do: Logger.warning("A pairing code couldn't be made: #{inspect(failure_kinds(error))}")
+
+    :unavailable
   end
 
   # The kinds of failure alone: the failure's words can hold the person's id.
