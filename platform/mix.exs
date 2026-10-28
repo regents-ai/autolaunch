@@ -141,7 +141,7 @@ defmodule Autolaunch.MixProject do
       {:cachex, "~> 4.1"},
       {:yaml_elixir, "== 2.12.2"},
       {:vix, "== 0.42.0"},
-      {:bandit, "~> 1.14"},
+      {:bandit, "~> 1.14 and >= 1.14.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:credo_ash,
