@@ -19,6 +19,9 @@
 /* A name for the icon, shown on hover and on keyboard focus. */
 .shell-tool__tip { position: absolute; inset-block-start: calc(100% + .35rem); inset-inline-start: 50%; z-index: var(--rg-layer-tip); padding: .25rem .5rem; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); font-size: .75rem; box-shadow: var(--rg-layer-tip-shadow); white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(-50%); transition: opacity var(--duration-fast) var(--ease-out); }
 .shell-tool:is(:hover, :focus-visible) > .shell-tool__tip { opacity: 1; }
+/* The Regents Products name lines up with the button's right edge, as its menu
+   does, so it never reaches past the screen when nothing sits to its right. */
+#shell-apps-button > .shell-tool__tip { inset-inline: auto 0; transform: none; }
 #home-top:has(#shell-apps:popover-open) .shell-tool__tip { opacity: 0; }
 .shell-apps { position: fixed; position-anchor: --shell-apps-button; inset: anchor(bottom) anchor(right) auto auto; width: min(16rem, calc(100% - 2rem)); max-height: calc(100dvh - 5rem); margin: .25rem 0 0; padding: 1rem; overflow: auto; border: 1px solid var(--hairline-strong); background: var(--color-surface); color: var(--color-fg); box-shadow: var(--rg-layer-tip-shadow); }
 .shell-apps h2 { margin: 0 0 .75rem; font-size: 1.1rem; }
