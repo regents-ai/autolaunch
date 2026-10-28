@@ -81,7 +81,7 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
   // One launch per review: the page's confirmation and discovery, repeated and at once, list it once.
   const again = JSON.parse(onSite("confirm_again.exs", {
     JOURNEY_LAUNCHER: people.a.wallet, JOURNEY_SYMBOL: draft.symbol, JOURNEY_LAUNCH_HASH: launch.hash,
-  }).split("JOURNEY_RESULT ")[1])
+  }).split("JOURNEY_RESULT ")[1].split("\n")[0])
   expect(new Set(again.answers.map((answer: any) => answer.auction)).size).toBe(1)
   expect(again.auction_rows).toBe(1)
   expect(again.review_state).toBe("chain_verified")

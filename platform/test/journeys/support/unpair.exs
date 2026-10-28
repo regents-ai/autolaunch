@@ -3,6 +3,7 @@
 # journeys can check what Autolaunch does once an agent is unpaired elsewhere.
 # Run with the journey site's settings: JOURNEY_PERSON (a Privy id) and
 # JOURNEY_AGENT (the agent's wallet).
+Logger.configure(level: :warning)
 {:ok, _apps} = Application.ensure_all_started([:postgrex, :ash, :phoenix_pubsub])
 
 {:ok, _pid} =

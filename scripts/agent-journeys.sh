@@ -79,7 +79,7 @@ stop_pid() {
   if [ "$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')" = "$2" ]; then
     kill "$pid" 2>/dev/null || true
     tries=0
-    while kill -0 "$pid" 2>/dev/null && [ "$tries" -lt 20 ]; do
+    while kill -0 "$pid" 2>/dev/null && [ "$tries" -lt 60 ]; do
       sleep 0.5
       tries=$((tries + 1))
     done

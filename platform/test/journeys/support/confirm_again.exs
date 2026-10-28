@@ -4,6 +4,7 @@
 # chain, against the copy of Base. Prints, as JSON, every answer, how many
 # auction rows carry the launch's auction, and the review's state. Run with the
 # journey site's settings: JOURNEY_LAUNCHER, JOURNEY_SYMBOL, JOURNEY_LAUNCH_HASH.
+Logger.configure(level: :warning)
 {:ok, _apps} = Application.ensure_all_started([:postgrex, :ash, :phoenix_pubsub, :req])
 
 {:ok, _pid} =
