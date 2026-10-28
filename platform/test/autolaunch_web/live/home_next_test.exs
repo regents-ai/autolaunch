@@ -1,10 +1,9 @@
 defmodule AutolaunchWeb.HomeNextTest do
   @moduledoc """
   The home page says what Autolaunch is and offers two ways in, then what a
-  visitor can join next: the auctions taking bids or opening soon, or, while
-  there are none, stocks ready to launch with and the latest results. The
-  tools agents see open from the footer and the developer guide, not from
-  the top of every page.
+  visitor can join next: the auctions taking bids or opening soon, and only
+  those. The tools agents see open from the footer and the developer guide,
+  not from the top of every page.
   """
   use AutolaunchWeb.ConnCase, async: false
 
@@ -25,15 +24,25 @@ defmodule AutolaunchWeb.HomeNextTest do
     refute coming =~ "Done Before"
   end
 
-  test "with nothing open, Coming next offers stocks to launch with and the latest results",
+  test "with nothing open, Coming next says so and the finished auction stays in the list",
        %{conn: conn} do
     TestSupport.project_auction(chain_id: 8453, title: "Done Before", state: :graduated)
 
     {:ok, view, _html} = live(conn, "/")
     coming = view |> element("section.home-next") |> render()
 
-    assert coming =~ "Done Before"
-    assert coming =~ ~s(href="/stock-listing/)
+    assert has_element?(view, "section.home-next .home-next__empty")
+    refute coming =~ "Done Before"
+    assert view |> element("#home-market") |> render() =~ "Done Before"
+  end
+
+  test "Clear search drops only the search and keeps the other filters", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/?q=frog&chain=base")
+
+    view |> element(".home-search-context button", "Clear search") |> render_click()
+
+    assert_patch(view, "/?chain=base")
+    assert has_element?(view, ".home-search-context[hidden]")
   end
 
   test "the tools agents see open from the footer and the developer guide", %{conn: conn} do

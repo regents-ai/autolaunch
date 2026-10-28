@@ -4,7 +4,6 @@
    right; the rail folds into a drawer that comes in from the left under the bar
    (`Rail.drawer/1`, `assets/js/shell_menu.ts`). A wider screen keeps the rail and
    the full top bar, and has none of these. */
-#home-top .shell-brand,
 .rg-button.mobile-menu-button,
 #shell-drawer,
 .rg-button.shell-menu-scrim,
@@ -63,6 +62,10 @@
   #home-top .shell-brand svg {
     width: 1.75rem;
     height: 1.75rem;
+  }
+
+  #home-top .shell-brand__name {
+    display: none;
   }
 
   .rg-button.mobile-menu-button {
