@@ -9,7 +9,7 @@ defmodule Autolaunch.Accounts.ConnectEns do
     lease = input.context[:session_lease]
 
     with %{lineage: lineage, account_id: ^id} <- lease,
-         account when not is_nil(account) <- SessionAuthority.leased_account(lineage, id),
+         {:ok, %{} = account} <- SessionAuthority.leased_account(lineage, id),
          {:ok, details} <- read(input.arguments.name),
          true <- controls?(details, account),
          {:ok, identity} <-

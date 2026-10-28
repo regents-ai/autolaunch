@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.Live.Session do
 
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.{EnsIdentity, SessionAuthority}
-  alias AutolaunchWeb.ClientAddress
+  alias AutolaunchWeb.{ClientAddress, ReadFailure}
 
   @public_root "/"
 
@@ -84,10 +84,11 @@ defmodule AutolaunchWeb.Live.Session do
 
   defp admit_or_guest(socket, %{"render_topic" => rendered}, handshake) do
     with %{lineage: lineage, generation: generation} = claim <- SessionAuthority.claim(handshake),
-         {^lineage, account} <- SessionAuthority.resolve(claim),
+         {:ok, ^lineage, account} <- resolve(claim),
          ^rendered <- SessionAuthority.topic(lineage) do
       hold(socket, lineage, generation, account)
     else
+      :unreadable -> assign_principal(socket, :unreadable)
       _guest -> assign_principal(socket, nil)
     end
   end
@@ -113,12 +114,15 @@ defmodule AutolaunchWeb.Live.Session do
 
   defp admit(socket, _rendered, _route, nil), do: {:halt, redirect(socket, to: @public_root)}
 
+  # A sign-in that could not be read just then is neither admitted nor refused:
+  # the page says something didn't load and the cookie stays as it is.
   defp admit(socket, rendered, route, %{lineage: lineage, generation: generation} = claim) do
-    with {^lineage, account} <- SessionAuthority.resolve(claim),
+    with {:ok, ^lineage, account} <- resolve(claim),
          ^rendered <- SessionAuthority.topic(lineage) do
       {:cont, hold(socket, lineage, generation, account)}
     else
-      {nil, nil} -> {:halt, redirect(socket, to: @public_root)}
+      :unreadable -> {:cont, assign_principal(socket, :unreadable)}
+      {:ok, nil, nil} -> {:halt, redirect(socket, to: @public_root)}
       _other_session -> {:halt, redirect(socket, to: route)}
     end
   end
@@ -204,22 +208,32 @@ defmodule AutolaunchWeb.Live.Session do
 
   defp component_account(%{assigns: %{session_lease: lease}}) do
     case leased(lease) do
-      nil ->
+      {:ok, nil} ->
         send(self(), {__MODULE__, :component_lease_lapsed})
         :lapsed
 
-      account ->
+      {:ok, account} ->
         account
+
+      :unreadable ->
+        :unreadable
     end
   end
 
-  defp take(socket, _take_account, :signed_out), do: socket
+  # A component whose account could not be read just then keeps the one it has.
+  defp take(socket, _take_account, signed_out_or_unread)
+       when signed_out_or_unread in [:signed_out, :unreadable],
+       do: socket
+
   defp take(socket, take_account, account), do: take_account.(socket, account)
 
+  # A lease that could not be read just then has not lapsed: the page keeps the
+  # account it holds, and the next event or result reads it again.
   defp recheck(socket, lease, lapsed) do
     case leased(lease) do
-      nil -> {:halt, socket |> lapse() |> lapsed.()}
-      account -> {:cont, assign_principal(socket, account)}
+      {:ok, nil} -> {:halt, socket |> lapse() |> lapsed.()}
+      {:ok, account} -> {:cont, assign_principal(socket, account)}
+      :unreadable -> {:cont, socket}
     end
   end
 
@@ -235,39 +249,62 @@ defmodule AutolaunchWeb.Live.Session do
     |> Phoenix.Component.assign(session_lease: nil, signed_out_reason: :expired)
   end
 
-  defp leased(%{lineage: lineage, account_id: account_id}),
-    do: SessionAuthority.leased_account(lineage, account_id)
+  defp leased(%{lineage: lineage, account_id: account_id}) do
+    case SessionAuthority.leased_account(lineage, account_id) do
+      {:error, error} -> unreadable(error)
+      leased -> leased
+    end
+  end
+
+  defp resolve(claim) do
+    case SessionAuthority.resolve(claim) do
+      {:error, error} -> unreadable(error)
+      resolved -> resolved
+    end
+  end
+
+  # A sign-in read that failed is logged by kind and module only
+  # (`AutolaunchWeb.ReadFailure`), and is never taken for a sign-in that ended.
+  defp unreadable(error) do
+    ReadFailure.log("sign-in read", error)
+    :unreadable
+  end
 
   defp rendered_topic(nil), do: %{}
   defp rendered_topic(lineage), do: %{"render_topic" => SessionAuthority.topic(lineage)}
 
   defp disconnected_account(session) do
-    {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
-    account
+    case session |> SessionAuthority.claim() |> resolve() do
+      {:ok, _lineage, account} -> account
+      :unreadable -> :unreadable
+    end
   end
 
   defp local_route(path, ""), do: path
   defp local_route(path, query), do: path <> "?" <> query
 
   defp assign_principal(socket, account) do
-    access_context = access_context(account)
-
     Phoenix.Component.assign(socket,
-      access_context: access_context,
-      account_control: AccessContext.account_control(access_context)
+      access_context: access_context(account),
+      account_control: account_control(account)
     )
   end
 
   # This only presents what the cookie can already prove and never refuses a
   # mount; :load_human still owns that.
   defp assign_shell_control(socket, session) do
-    access_context = access_context(disconnected_account(session))
-
     Phoenix.Component.assign(socket,
       current_path: "/",
-      account_control: AccessContext.account_control(access_context)
+      account_control: session |> disconnected_account() |> account_control()
     )
   end
+
+  # A sign-in that could not be read confers nothing, and the page says
+  # something didn't load in place of either Sign in or the person's name.
+  defp account_control(:unreadable), do: AccessContext.unreadable_account_control()
+
+  defp account_control(account),
+    do: account |> access_context() |> AccessContext.account_control()
 
   defp path_of(uri) when is_binary(uri) do
     case URI.parse(uri).path do
@@ -276,6 +313,8 @@ defmodule AutolaunchWeb.Live.Session do
     end
   end
 
-  defp access_context(nil), do: AccessContext.anonymous()
+  defp access_context(signed_out_or_unread) when signed_out_or_unread in [nil, :unreadable],
+    do: AccessContext.anonymous()
+
   defp access_context(account), do: AccessContext.human(account)
 end

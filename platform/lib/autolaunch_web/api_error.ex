@@ -54,6 +54,7 @@ defmodule AutolaunchWeb.ApiError do
       "Ask the person to sign in at #{PublicDocuments.url("/")} in this browser, then call again."
 
   defp hint("chain_unavailable"), do: "Try again in a moment."
+  defp hint("account_unavailable"), do: "Try again in a moment."
 
   defp hint("internal_error"),
     do:
