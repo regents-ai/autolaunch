@@ -47,4 +47,7 @@ stock tokens are B20 precompiles, so it needs Foundry 1.8.4 or later: start
 `anvil --network base --fork-url <Base RPC> --fork-block-number 53209576`, then
 `FOUNDRY_PROFILE=fork forge test --network base --fork-url http://127.0.0.1:<port>`.
 
-The first series' terms are planned in [series/amznc-2026-11-06.json](series/amznc-2026-11-06.json).
+`script/DeployAfterHours.s.sol` deploys the AMZN oracle and the factory (owned by the Governance and
+Regent Safe) and prints the Safe's `createSeries` call for the first AMZNc series; the fork suite's
+`DeployAfterHours.fork.t.sol` rehearses both and runs that series' whole week. Broadcasting is a
+protected action and waits for Sean's go.

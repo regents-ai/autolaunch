@@ -3,7 +3,7 @@
 **Status:** contracts written and tested, not deployed; site not built · 28 October 2026
 **Source:** "Isolated Exposure Tokens" (The Standard Reserve, October 2026), Sean's notes and decisions of 28 October 2026
 **Contracts:** [`contracts/exposure`](../../contracts/exposure/README.md)
-**First series plan:** [`contracts/exposure/series/amznc-2026-11-06.json`](../../contracts/exposure/series/amznc-2026-11-06.json)
+**First series:** [`contracts/exposure/script/DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol) · draft terms [`after-hours-terms-amznc-2026-11-06.md`](after-hours-terms-amznc-2026-11-06.md)
 
 ## 1. The product
 
@@ -99,13 +99,16 @@ as the previous one ends. Holders redeem the finished week and mint into the nex
 
 ## 5. First series (planned, not created)
 
-[`amznc-2026-11-06.json`](../../contracts/exposure/series/amznc-2026-11-06.json): AMZNc from Friday
+[`DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol): AMZNc from Friday
 30 October 16:00 to Friday 6 November 16:00 New York time, 11 prints. US clocks go back on Sunday 1
 November, so Friday's close is 20:00 UTC and the following week's opens and closes are 14:30 and
 21:00 UTC; no market holidays that week. Proposed cap 40 AMZNc (about $10,000) and a two-day
 recording window (it must be well over the oracle's one-hour wait, or no print can ever count;
 the factory does not check this). Creating it needs the oracle deployed first; both are contract deployments and
-wait for Sean's go naming them.
+wait for Sean's go naming them. The fork rehearsal deploys both with the script, sends the Safe's
+`createSeries` call exactly as the script prints it, checks all 11 times, the cap and the names,
+and runs the week through to redemption. The series commits to the hash of the approved terms
+([draft](after-hours-terms-amznc-2026-11-06.md)), so the wording must be final before creation.
 
 ## 6. The site (`Autolaunch.Exposure`, not built)
 
@@ -169,7 +172,7 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
   - Six deliberate bugs planted one at a time in the series (overdrawn depletion, skipped
     depletion, oversized oracle reply accepted, no seizure cut, single legs before the end, late
     print accepted): each made at least one test fail.
-- Base fork (Foundry 1.8.6, `anvil --network base --fork-block-number 53209576`): 6 tests pass on the
+- Base fork (Foundry 1.8.6, `anvil --network base --fork-block-number 53209576`): 7 tests pass on the
   real AMZNc token and the real AMZN Chainlink feed, through the factory:
   - This week for real: Friday 23 Oct close $247.93375 to Wednesday 28 Oct close $252.9275, seven
     prints found and recorded from the live feed's rounds. After-hours ends at $126.31992499 and
