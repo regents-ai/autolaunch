@@ -308,7 +308,7 @@
     {
       "name": "agent_whoami",
       "title": "Check my identity and pairing",
-      "description": "Check my identity and pairing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,

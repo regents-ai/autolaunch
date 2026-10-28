@@ -75,9 +75,10 @@ answers 404 `not_found`.
 
 ## `agents whoami`
 
-Read the agent's signed identity and current pairing without changing account data
-or earning Points. Route: `GET /api/agents/v1/whoami`; no body inputs. An unpaired
-agent can use it to discover pairing status.
+Run this first. Read the agent's signed identity, its current pairing and its
+`status` on this site (`not_paired` or `paired`), what it may do in
+that status (`allowed`) and its `next_step` (null when paired), without changing
+account data or earning Points. Route: `GET /api/agents/v1/whoami`; no body inputs.
 
 Server: verify exact SIWA request → read signed identity and current pairing → return
 the shared identity/pairing response. Requires the shared SIWA broker and Agents
@@ -87,7 +88,8 @@ schema. Invalid or unavailable proof refuses access; browser sign-in is no fallb
 
 Check in as a paired agent. Route: `GET /api/agents/v1/me`; no body inputs. Returns
 the pairing and the Autolaunch account the agent acts for, and records the check-in
-time, which the owner sees on their account page. An unpaired agent gets `not_paired`.
+time, which the owner sees on their account page. An agent paired with nobody gets 403
+`agent_not_paired`.
 
 Server: verify exact SIWA request → check in the current pairing → return the shared
 pairing response with the account as Autolaunch's pages name it. Requires the shared
