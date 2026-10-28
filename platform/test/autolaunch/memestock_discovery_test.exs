@@ -2,8 +2,9 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   @moduledoc """
   A Base Memestock launch is listed from the launchpad's own record and the
   transaction that created it, with no browser report: once, for the account
-  whose review sent it, never for a launch this site did not review, and not
-  until the chain can answer for it.
+  whose review sent it, and not until the chain can answer for it. A launch
+  this site did not review is listed too, under the wallet that sent it, with
+  only what passes the create page's checks.
   """
 
   use AutolaunchWeb.ConnCase, async: false
@@ -132,17 +133,64 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{state: :graduated, creator_human_account_id: ^creator}] = auctions()
   end
 
-  test "a launch made outside the site is not listed", %{launchpad: launchpad} do
-    BaseRpcStub.put(%{launcher: @stranger})
+  test "a launch made outside the site is listed under the wallet that sent it, with only what passes the site's checks",
+       %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{
+        "name()" => " Stranger\u202E Coin\u0007 ",
+        "symbol()" => "STRG",
+        "tokenURI()" =>
+          token_uri(%{
+            "description" => "Made\u0000 elsewhere.\nSecond line.",
+            "website" => "javascript:alert(1)",
+            "image" =>
+              "https://elsewhere.example/stock-images/#{Ecto.UUID.generate()}/#{String.duplicate("a", 64)}"
+          })
+      }
+    })
+
     mined(launchpad)
+    Autolaunch.Listings.subscribe()
 
     discover()
     run_triggers()
 
-    assert [%{state: :unlisted, reason: "no_matching_review", launcher: @stranger}] =
+    assert [%{state: :listed, creator_human_account_id: nil, reason: nil, launcher: @stranger}] =
              discoveries()
 
-    assert auctions() == []
+    assert [auction] = auctions()
+
+    assert %{
+             origin: :chain,
+             kind: :stocks,
+             state: :created,
+             auction_address: @auction,
+             token_address: @new_token,
+             creator_human_account_id: nil,
+             creator_address: @stranger,
+             title: "Stranger Coin",
+             token_symbol: "STRG",
+             summary: "Made elsewhere.\nSecond line.",
+             website: nil,
+             image: nil,
+             quote_token_symbol: "AAPLc",
+             quote_token_decimals: 8
+           } = auction
+
+    auction_id = auction.id
+    assert_received {:autolaunch_listings_changed, ^auction_id}
+
+    # The public lists carry it and its page opens, as for every listed launch.
+    assert [%{id: ^auction_id}] =
+             Auction |> Ash.Query.for_read(:listed, %{}) |> Ash.read!(actor: nil)
+
+    assert %{id: ^auction_id} =
+             Auction
+             |> Ash.Query.for_read(:public_by_id, %{id: auction_id})
+             |> Ash.read_one!(actor: nil)
   end
 
   test "a launch the chain cannot answer for yet stays pending with the reason",
@@ -278,9 +326,38 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
         selector == LabAbi.selector("launches(uint256)") ->
           launch_record(state.launcher)
+
+        true ->
+          token_string(selector, Map.get(state, :token, %{}))
       end
 
     "0x" <> Enum.join(words)
+  end
+
+  # The launch's token: its name, symbol and metadata, as the launch wrote them.
+  defp token_string(selector, strings) do
+    {_signature, value} =
+      Enum.find(strings, fn {signature, _value} -> LabAbi.selector(signature) == selector end)
+
+    [[value] |> ABI.TypeEncoder.encode([:string]) |> Base.encode16(case: :lower)]
+  end
+
+  defp token_uri(metadata),
+    do: "data:application/json;base64," <> Base.encode64(Jason.encode!(metadata))
+
+  defp admit_stock do
+    Autolaunch.record_stock_admission!(
+      %{
+        chain_id: 8453,
+        address: @stock,
+        symbol: "AAPLc",
+        name: "Apple Inc.",
+        decimals: 8,
+        route: "0x" <> String.duplicate("66", 20),
+        admitted: true
+      },
+      actor: @actor
+    )
   end
 
   # launcher, newToken, stock, auction, splitter, startBlock, endBlock,

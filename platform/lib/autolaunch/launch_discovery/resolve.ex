@@ -1,13 +1,16 @@
 defmodule Autolaunch.LaunchDiscovery.Resolve do
   @moduledoc """
   Matches one pending launch to the review it carried out and lists it for that
-  review's account, leaves it unlisted when no review of this site carried it
-  out, or keeps it pending with the reason the chain could not answer yet.
+  review's account, or keeps it pending with the reason the chain could not
+  answer yet. A Memestock launch no review of this site carried out is listed
+  from the chain under its launching wallet (`Autolaunch.Stocks.ChainLaunch`);
+  a Revstake one is left unlisted.
   """
 
   use Ash.Resource.Change
 
   alias Autolaunch.LaunchReviews
+  alias Autolaunch.Stocks.ChainLaunch
 
   @kinds %{base_revstake: :launch, base_memestock: :stocks_launch}
 
@@ -18,8 +21,14 @@ defmodule Autolaunch.LaunchDiscovery.Resolve do
     @kinds
     |> Map.fetch!(discovery.launchpad)
     |> LaunchReviews.recover(discovery)
+    |> from_chain(discovery)
     |> record(changeset)
   end
+
+  defp from_chain({:unlisted, :no_matching_review}, %{launchpad: :base_memestock} = discovery),
+    do: ChainLaunch.list(discovery)
+
+  defp from_chain(answer, _discovery), do: answer
 
   defp record({:listed, account_id, _result}, changeset),
     do:

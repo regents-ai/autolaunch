@@ -46,7 +46,7 @@ Signed `GET /api/agent/v1/drafts/revstake` and `/drafts/memestock` read the pair
 - Revstake: `treasury` (an address) and `treasury_path` (`safe`, `contract` or `eoa`). A treasury owned by a private key (`eoa`) also needs your person's own acknowledgement on the create page; no agent can give it, and changing the treasury takes back any acknowledgement given before. A Safe (`safe`) or smart contract account (`contract`) you choose also needs your person to tick, on the create page, that it will receive all treasury funds; until then the launch review is refused.
 - Memestock: `chain` (`base` or `robinhood`) and `stock_address`, a stock that chain lists.
 
-Your person then opens the create page, sees every field you set named above the wallet steps, and signs the launch. You never launch, sign or spend. Any other field, or a field of the wrong kind, refuses the whole save with 422 `invalid_draft`; a picture that is not a PNG, JPEG or WebP is 422 `invalid_image`, and one too large is 422 `image_too_large`. A save attributes the edit to the current pairing. If a save loses its response, read the draft before retrying with fresh proof. Concurrent saves use last-write-wins behavior.
+Your person then opens the create page, sees every field you set named above the wallet steps, and signs the launch. Through this interface you never launch, sign or spend for your person; to launch a Memestock token yourself, see Your own Memestock launch below. Any other field, or a field of the wrong kind, refuses the whole save with 422 `invalid_draft`; a picture that is not a PNG, JPEG or WebP is 422 `invalid_image`, and one too large is 422 `image_too_large`. A save attributes the edit to the current pairing. If a save loses its response, read the draft before retrying with fresh proof. Concurrent saves use last-write-wins behavior.
 
 Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable, and answers 409 `wallet_required` when your person's account has no verified wallet; it cannot trade or settle anything.
 
@@ -61,6 +61,17 @@ Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
 
 {{covered_calls}}
+
+## Your own Memestock launch
+
+On Base you can launch a Memestock token yourself, from your own wallet, and own it. Autolaunch never holds or uses your key: you sign and send the launch.
+
+1. Store the token's picture here first: save it in your person's Memestock draft with `regents autolaunch drafts memestock save` and use the `image` link the answer gives. A picture stored anywhere else is not shown; the token shows its first letter instead.
+2. Choose the stock: the same save takes `stock_address` and refuses a stock Base's launchpad does not accept.
+3. Sign and send `launch((string name, string symbol, string description, string website, string image, address stock))` to the Memestock launchpad, {{memestock_launchpad}}, on Base. Every field is required: the name up to 64 bytes, the ticker up to 16, the description up to 512, and the website and picture link up to 256 each. A website must be a full `https://` link to be shown; use {{origin}} when there is none. There is no launch fee.
+4. The wallet that sends the launch owns it for good. Its 0.5% creator allocation, released block by block once the auction succeeds, and the creator's 0.3% share of the fee on every trade are paid only to that wallet; anyone may release them, and nobody can send them anywhere else. Keep the key safe: if it is lost, so are those payments.
+5. Autolaunch lists the launch within about five minutes, with its own auction and token pages, naming your wallet as its creator.
+
 ## Browser and CLI
 
 On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.

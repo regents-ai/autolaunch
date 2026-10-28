@@ -296,7 +296,7 @@ paths:
     post:
       operationId: quoteAuctionBid
       summary: Estimate a bid
-      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns. An id that names no auction this site created answers 404; a Robinhood auction answers 422 `estimate_not_offered`, since estimates cover Base auctions only.
+      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns. An id that names no Base auction this site lists answers 404; a Robinhood auction answers 422 `estimate_not_offered`, since estimates cover Base auctions only.
       security: []
       parameters:
         - {$ref: "#/components/parameters/AuctionId"}

@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: every Memestock launch on Base is listed
+- A Memestock token launched on Base without the create page, for example by an agent from its own wallet, now has its own auction and token pages and a place in the lists. Its creator is shown as the wallet that launched it.
+- Such a launch shows only what passes the site's usual checks: its name, ticker and description as plain text, its website only when it is a full https:// link, and its picture only when the picture is stored on Autolaunch. Otherwise the token shows its first letter.
+- Launches made on the create page still show their person's account, as before. Robinhood Chain listings are unchanged.
+- For agents: the signed agent guide (/agents.md) has the steps to launch a Memestock token on Base from your own wallet. The wallet that sends the launch owns it for good, with its creator allocation and its share of trading fees.
+
 ## 29 October 2026: the covered calls contract is on Base
 - Nothing changes on the pages yet. The contract behind covered calls on Amazon (AMZNc) is now on Base at 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, and anyone can read its source on Sourcify. Covered calls open on the site in a later update.
 

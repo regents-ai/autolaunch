@@ -19,7 +19,7 @@ Use Autolaunch when you want to:
 2. Estimate a bid with `POST {{origin}}/api/v1/auctions/{id}/bid-quote`; it does not place one.
 3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can fill in the whole draft with the draft commands in [agents.md]({{origin}}/agents.md): the token's details, its picture, and its launch settings (a Revstake token's treasury, a Memestock token's chain and stock). The person opens {{origin}}/create for a Memestock token or {{origin}}/create/revstake for a Revstake token, sees every field the agent set named there, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
 
-Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.
+Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface. An agent can also launch a Memestock token on Base from its own wallet and own it: [agents.md]({{origin}}/agents.md) has the steps.
 
 ## Pair with a person's account
 

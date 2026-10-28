@@ -143,7 +143,7 @@ defmodule Autolaunch.TestSupport do
     id = Ecto.UUID.generate()
     now = DateTime.utc_now()
 
-    # A row without a creator is not a site-created Base auction; AE6 has to
+    # A row with no chain is not a listed Base auction; AE6 has to
     # prove it is filtered from every public read.
     {1, nil} =
       Autolaunch.Repo.insert_all("auctions", [

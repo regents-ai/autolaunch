@@ -506,6 +506,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     |> String.replace("{{regents_cli_commit}}", @regents_cli.commit)
     |> String.replace("{{regents_cli_wheel_sha256}}", @regents_cli.wheel_sha256)
     |> String.replace("{{read_only}}", read_only_now())
+    |> String.replace("{{memestock_launchpad}}", memestock_launchpad())
   end
 
   # Every tool the pages register now (`AutolaunchWeb.ToolManifest`).
@@ -534,6 +535,10 @@ defmodule AutolaunchWeb.PublicDocuments do
   # Each kind of component (schemas, parameters) with the added ones beside its own.
   defp join_components(ours, added),
     do: Map.merge(ours, added, fn _kind, own, more -> Map.merge(own, more) end)
+
+  # The Base Memestock launchpad an agent sends its own launch to.
+  defp memestock_launchpad,
+    do: "`#{Autolaunch.Stocks.Lab.address!(Autolaunch.Stocks.Lab.current!(), :launchpad)}`"
 
   # The prelaunch gate as it stands on this deployment right now.
   defp read_only_now do

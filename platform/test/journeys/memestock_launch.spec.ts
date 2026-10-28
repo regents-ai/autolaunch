@@ -101,6 +101,13 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
   await fitsAndPresses(page, touch)
   const auctions = await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${draft.symbol}`)).json()
   expect(auctions.data.map((auction: any) => auction.token_symbol)).toEqual([draft.symbol])
+
+  // A launch made through the site's review is the person's: their account, and their wallet on its page.
+  const row = JSON.parse(onSite("auction_row.exs", {
+    JOURNEY_AUCTION: String(created.auction), JOURNEY_PERSON: "did:privy:journey-a",
+  }).split("JOURNEY_RESULT ")[1].split("\n")[0])
+  expect(row).toMatchObject({origin: "site", persons_account: true, creator_wallet: people.a.wallet})
+  await expect(page.locator(".creator-label a")).toHaveAttribute("title", people.a.wallet)
   expect(sent, "the person's wallet was asked for one transaction in all").toHaveLength(1)
   unpair("did:privy:journey-a", agent.address)
 })

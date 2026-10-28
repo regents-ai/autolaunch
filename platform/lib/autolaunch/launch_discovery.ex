@@ -15,8 +15,10 @@ defmodule Autolaunch.LaunchDiscovery do
   looks for the saved review it carried out (`Autolaunch.LaunchReviews`): one
   whose signer is the launch's signer, whose exact target and calldata that
   transaction sent. A match lists the launch for that review's account. A
-  launch no review of this site carried out is `unlisted`. A launch the chain cannot answer for yet
-  stays `pending`, with the reason, until it can.
+  Memestock launch no review of this site carried out is listed from the chain
+  under the wallet that sent it (`Autolaunch.Stocks.ChainLaunch`); a Revstake
+  one is `unlisted`. A launch the chain cannot answer for yet stays `pending`,
+  with the reason, until it can.
   """
 
   use Ash.Resource,
