@@ -18,9 +18,11 @@ contract DeployAfterHours is Script {
     address internal constant SAFE = 0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e;
     address internal constant AMZNC = 0xb200000000000000000000d9192b6B456483C2E8;
     address internal constant AMZN_FEED = 0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295;
-    /// @notice 40 AMZNc (8 decimals), about $10,000.
-    uint256 internal constant DEPOSIT_CAP = 40e8;
-    uint64 internal constant MAX_REPORT_DELAY = 2 days;
+    /// @notice 0.4 AMZNc (8 decimals), about $100: the first series is a live demo (Sean, 28 Oct 2026).
+    uint256 internal constant DEPOSIT_CAP = 0.4e8;
+    /// @notice A week, so the prices can be recorded in two sittings: Friday's close on the evening
+    ///         itself, and the rest after the last close.
+    uint64 internal constant MAX_REPORT_DELAY = 7 days;
 
     error WrongChain(uint256 chainId);
 

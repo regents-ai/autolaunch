@@ -97,18 +97,25 @@ as the previous one ends. Holders redeem the finished week and mint into the nex
 ("Roll to next week"); legs held through a roll start the new week at 50/50 again. Each week needs a
 `createSeries` call from the Safe, prepared by the site from the exchange calendar.
 
-## 5. First series (planned, not created)
+## 5. First series: a $100 live demo (Sean, 28 Oct 2026)
 
 [`DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol): AMZNc from Friday
 30 October 16:00 to Friday 6 November 16:00 New York time, 11 prints. US clocks go back on Sunday 1
 November, so Friday's close is 20:00 UTC and the following week's opens and closes are 14:30 and
-21:00 UTC; no market holidays that week. Proposed cap 40 AMZNc (about $10,000) and a two-day
-recording window (it must be well over the oracle's one-hour wait, or no print can ever count;
-the factory does not check this). Creating it needs the oracle deployed first; both are contract deployments and
-wait for Sean's go naming them. The fork rehearsal deploys both with the script, sends the Safe's
-`createSeries` call exactly as the script prints it, checks all 11 times, the cap and the names,
-and runs the week through to redemption. The series commits to the hash of the approved terms
-([draft](after-hours-terms-amznc-2026-11-06.md)), so the wording must be final before creation.
+21:00 UTC; no market holidays that week. Capped at 0.4 AMZNc (about $100), with a seven-day recording
+window so the prices can be recorded in two sittings.
+
+| When | Who | What |
+| --- | --- | --- |
+| Now | Sean (deployer password) | `DeployAfterHours.run`: the AMZN Chainlink oracle and the factory owned by the Governance and Regent Safe. |
+| Before Fri 30 Oct 16:00 New York | Safe (2 of 3) | `createSeries` exactly as `firstSeriesCall` prints it, with the hash of the approved [terms](after-hours-terms-amznc-2026-11-06.md). |
+| Fri 30 Oct after 17:00 New York | Sean (deployer password) | With about 0.2 AMZNc and $55 USDC in the deployer: `AfterHoursDemo.recordAndSettle` (first close), then `AfterHoursDemo.seed`: mint a 0.2 AMZNc pair and open an Aerodrome pool for each leg against USDC at its ledger value. |
+| Fri 6 Nov after 17:00 New York | Sean (deployer password) | `AfterHoursDemo.recordAndSettle`: the other ten prints; the series ends and every leg redeems. |
+
+The agent prepares and starts each step; the wallet password and the funds are Sean's. The fork
+rehearsal (`DeployAfterHours.fork.t.sol`) runs this whole table on a Base fork: deploy, the Safe's
+call as printed, the Friday sitting with both pools opened at the right USDC amounts, and the
+closing sitting through to maturity.
 
 ## 6. The site (`Autolaunch.Exposure`, not built)
 

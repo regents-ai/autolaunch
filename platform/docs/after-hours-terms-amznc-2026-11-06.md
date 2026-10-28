@@ -20,7 +20,8 @@ AMZNc. At the end of the series each token can be returned on its own for its sh
 
 From the close on Friday 30 October 2026 (16:00 New York time) to the close on Friday 6 November 2026
 (16:00 New York time): 11 prices, the first close and then each open and close from Monday 2 to
-Friday 6 November. Deposits are limited to 40 AMZNc in total.
+Friday 6 November. This first series is a small live demonstration: deposits are limited to 0.4
+AMZNc in total.
 
 ## Prices
 
@@ -28,7 +29,7 @@ Each open and close is the value of the Coinbase AMZN Chainlink price feed on Ba
 New York time. That feed moves when the price changes by 0.5%, so it can differ from the exchange's
 official opening or closing price by up to about 0.5%; any difference is counted in the next window
 instead. When the market is closed or the feed is paused for a corporate action, no move is counted.
-A price must be recorded on chain within two days of its time.
+A price must be recorded on chain within seven days of its time.
 
 ## How each token's value moves
 
@@ -42,8 +43,8 @@ changes as prices move.
 - **A token can lose everything.** If a price takes either token's value to zero or below, the
   series ends at that price and the other token receives all the AMZNc. Near zero, a move in the
   other window can also cost you.
-- **The series can end early.** If a price is not recorded within two days of its time, anyone can
-  end the series at the last recorded values.
+- **The series can end early.** If a price is not recorded within seven days of its time, anyone
+  can end the series at the last recorded values.
 - **Prices come from Chainlink**, not from the exchange, as described above.
 - **Coinbase controls AMZNc.** It can pause transfers, block addresses, change how many shares each
   token represents, or take tokens. A blocked address cannot receive AMZNc from this series. If

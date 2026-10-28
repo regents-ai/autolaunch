@@ -65,12 +65,15 @@ contract ChainlinkPrintOracleV1 is IFinalizedPrintOracle {
         if (!found || updatedAt > scheduledAt || !_nextRoundLater(roundId, scheduledAt)) {
             revert RoundNotInForce(roundId);
         }
-        if (answer <= 0 || uint256(answer) > type(uint128).max / _scale) revert BadAnswer(answer);
-        uint256 priceWad = uint256(answer) * _scale;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        if (answer <= 0 || uint256(answer) > type(uint128).max / _scale) revert BadAnswer(answer); // positive first
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint256 priceWad = uint256(answer) * _scale; // answer is positive
 
         // forge-lint: disable-next-line(unsafe-typecast)
-        _prints[key] =
-            Print({priceWad: uint128(priceWad), observedAt: scheduledAt, finalizedAt: uint64(block.timestamp)});
+        uint128 price = uint128(priceWad); // capped above
+        // forge-lint: disable-next-line(unsafe-typecast)
+        _prints[key] = Print({priceWad: price, observedAt: scheduledAt, finalizedAt: uint64(block.timestamp)});
         emit PrintRecorded(scheduledAt, isOpen, roundId, priceWad);
     }
 
@@ -79,6 +82,7 @@ contract ChainlinkPrintOracleV1 is IFinalizedPrintOracle {
     }
 
     function printKey(uint64 scheduledAt, bool isOpen) public pure returns (bytes32) {
+        // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encode(scheduledAt, isOpen));
     }
 
