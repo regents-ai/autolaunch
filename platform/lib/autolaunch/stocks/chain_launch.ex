@@ -25,12 +25,13 @@ defmodule Autolaunch.Stocks.ChainLaunch do
 
   @actor %System{}
   @transient [:chain_unavailable, :invalid_chain_response]
-  # Control characters other than a line break, and every invisible format
+  # Control characters other than a line break, every invisible format
   # character (zero-width spaces and joiners, reordering marks, soft hyphens,
-  # tag characters), which could make a name read as another.
-  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}]/u
+  # tag characters) and the Hangul fillers that draw as blank, any of which
+  # could make a name read as another.
+  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\x{115F}\x{1160}\x{3164}\x{FFA0}]/u
   # Line and paragraph separators, and carriage returns, read as line breaks.
-  @breaks ~r/\r\n?|[\x{2028}\x{2029}]/u
+  @breaks ~r/\r\n?|[\p{Zl}\p{Zp}]/u
 
   @type answer ::
           {:listed, nil, map()}
@@ -113,7 +114,7 @@ defmodule Autolaunch.Stocks.ChainLaunch do
       {:ok, metadata}
     else
       {:error, reason} when reason in @transient -> {:error, reason}
-      _malformed -> {:ok, %{}}
+      _malformed -> {:error, :invalid_metadata}
     end
   end
 

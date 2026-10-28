@@ -219,6 +219,26 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert auctions() == []
   end
 
+  test "a launch whose metadata is not readable is not listed", %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{
+        "name()" => "Garbled",
+        "symbol()" => "GRBL",
+        "tokenURI()" => "data:application/json;base64,not base64"
+      }
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :unlisted, reason: "invalid_metadata"}] = discoveries()
+    assert auctions() == []
+  end
+
   test "a launch an earlier pass left unlisted is listed on the next; one on a retired launchpad stays unlisted",
        %{launchpad: launchpad} do
     admit_stock()

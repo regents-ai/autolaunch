@@ -25,6 +25,8 @@ defmodule Autolaunch.LaunchDiscovery.Resolve do
     |> record(changeset)
   end
 
+  # A site review's launch sent from a wallet other than the review's signer
+  # matches no review, so it too is listed here, under the wallet that sent it.
   defp from_chain({:unlisted, :no_matching_review}, %{launchpad: :base_memestock} = discovery),
     do: ChainLaunch.list(discovery)
 

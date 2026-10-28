@@ -12,8 +12,9 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
   alias Autolaunch.LaunchLinks
   alias Autolaunch.Stocks.ChainLaunch
 
-  # Control characters other than a line break, and every invisible format character.
-  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}]/u
+  # Control characters other than a line break, every invisible format
+  # character, line and paragraph separators, and the Hangul fillers.
+  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\x{115F}\x{1160}\x{3164}\x{FFA0}]/u
 
   # Any bytes at all, and text built from the characters that hide or reorder it.
   defp carried do
@@ -34,6 +35,10 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
               "\uFEFF",
               "\u00AD",
               "\u{E0041}",
+              "\u2028",
+              "\u2029",
+              "\u3164",
+              "\r",
               "\u0000",
               "\u0007",
               "\n",
@@ -75,6 +80,8 @@ defmodule Autolaunch.Stocks.ChainLaunchTest do
     assert ChainLaunch.text("AM\u200BZN") == "AMZN"
     assert ChainLaunch.text("\uFEFFAMZN\u2060") == "AMZN"
     assert ChainLaunch.text("\u{E0041}\u00AD") == nil
+    assert ChainLaunch.line("AMZN\u3164") == "AMZN"
+    assert ChainLaunch.line("Two\u2028lines") == "Two lines"
   end
 
   test "a picture is kept only when this site stores it, at this site's address" do
