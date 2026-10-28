@@ -54,6 +54,23 @@ async function warpTo(at: number) {
   await rpc("evm_mine")
 }
 
+/**
+ * Every wallet button on the page sits wholly on screen, so a person never scrolls sideways to
+ * find one (at 390 the Buy panel once sat inside a sideways-scrolling table).
+ */
+async function buttonsOnScreen(page: Page) {
+  const off = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>("[data-onchain-step]")]
+      .filter(el => el.offsetParent !== null)
+      .filter(el => {
+        const box = el.getBoundingClientRect()
+        return box.left < 0 || box.right > document.documentElement.clientWidth
+      })
+      .map(el => el.textContent!.trim()),
+  )
+  expect(off, "wallet buttons off the side of the screen").toEqual([])
+}
+
 /** Presses the named wallet step in `scope` once it can be pressed, and waits for its transaction to land. */
 async function press(scope: Page | Locator, sent: Sent[], name: string) {
   const button = scope.getByRole("button", {name, exact: true})
@@ -78,6 +95,7 @@ async function row(page: Page, side: "sold" | "held", id: bigint, name: string):
       return found.getByRole("button", {name, exact: true}).count()
     }, {timeout: 60_000})
     .toBeGreaterThan(0)
+  await buttonsOnScreen(page)
   return found
 }
 
@@ -104,6 +122,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await page.getByLabel("Strike price").fill("300")
   await page.getByLabel("Premium").fill("3")
   await fitsAndPresses(page, touch)
+  await buttonsOnScreen(page)
   expect((await press(page, sent, "Approve AMZNc")).status).toBe("0x1")
   expect((await press(page, sent, "List calls")).status).toBe("0x1")
   const id = await read("listingCount")
@@ -125,6 +144,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
     .toBe(1)
   await b.getByLabel("Amount").fill("1")
   await fitsAndPresses(b, touch)
+  await buttonsOnScreen(b)
   const aUsdcBefore = await balanceOf(USDC, people.a.wallet)
   expect((await press(b, bought, "Approve USDC")).status).toBe("0x1")
   expect((await press(b, bought, "Buy calls")).status).toBe("0x1")

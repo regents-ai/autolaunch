@@ -142,10 +142,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </thead>
             <tbody :for={listing <- @open} id={"covered-call-#{listing.id}"}>
               <tr>
-                <td>{F.usd(listing.strike_per_token)}</td>
-                <td>{F.usd(listing.premium_per_token)} <small>per {@market.symbol}</small></td>
-                <td>{F.expiry(listing.expiry)}</td>
-                <td>
+                <td data-label="Strike">{F.usd(listing.strike_per_token)}</td>
+                <td data-label="Premium">
+                  {F.usd(listing.premium_per_token)} <small>per {@market.symbol}</small>
+                </td>
+                <td data-label="Expiry">{F.expiry(listing.expiry)}</td>
+                <td data-label="Available">
                   {F.tokens(Terms.available(listing), @reading.unit)} {@market.symbol}
                   <small>{shares(Terms.available(listing), @reading)}</small>
                 </td>
@@ -159,29 +161,18 @@ defmodule AutolaunchWeb.CoveredCallsLive do
                   </.link>
                 </td>
               </tr>
-              <tr :if={@selected == listing.id} class="covered-calls__panel-row">
-                <td colspan="5">
-                  <p class="covered-calls__note">
-                    Each call lets you buy {@market.symbol} at {F.usd(listing.strike_per_token)} from {F.expiry(
-                      listing.expiry
-                    )} until {F.window_closes(listing.expiry)}. You
-                    can let it lapse.
-                  </p>
-                  <.live_component
-                    module={CoveredCallComponent}
-                    id={"covered-call-fill-#{listing.id}"}
-                    kind={:fill}
-                    symbol={@market.symbol}
-                    unit={@reading.unit}
-                    listing={listing}
-                    session_lease={@session_lease}
-                    current_human_id={@human_id}
-                  />
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
+        <.buy_panel
+          :for={listing <- @open}
+          :if={@selected == listing.id}
+          listing={listing}
+          market={@market}
+          unit={@reading.unit}
+          session_lease={@session_lease}
+          human_id={@human_id}
+        />
         <div :if={@reading && @open == []} class="market-list__scroll market-list__empty">
           <h2>No calls for sale right now</h2>
           <p>New listings appear here as soon as a seller lists them.</p>
@@ -234,6 +225,38 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </aside>
       </section>
     </article>
+    """
+  end
+
+  attr :listing, :map, required: true
+  attr :market, :map, required: true
+  attr :unit, :integer, required: true
+  attr :session_lease, :any, required: true
+  attr :human_id, :any, required: true
+
+  # The chosen listing's Buy panel, under the list so it is never wider than the screen.
+  defp buy_panel(assigns) do
+    ~H"""
+    <section class="covered-calls__panel" aria-labelledby={"covered-call-buy-#{@listing.id}-title"}>
+      <h3 id={"covered-call-buy-#{@listing.id}-title"}>
+        Buy calls at {F.usd(@listing.strike_per_token)}, {F.expiry(@listing.expiry)}
+      </h3>
+      <p class="covered-calls__note">
+        Each call lets you buy {@market.symbol} at {F.usd(@listing.strike_per_token)} from {F.expiry(
+          @listing.expiry
+        )} until {F.window_closes(@listing.expiry)}. You can let it lapse.
+      </p>
+      <.live_component
+        module={CoveredCallComponent}
+        id={"covered-call-fill-#{@listing.id}"}
+        kind={:fill}
+        symbol={@market.symbol}
+        unit={@unit}
+        listing={@listing}
+        session_lease={@session_lease}
+        current_human_id={@human_id}
+      />
+    </section>
     """
   end
 

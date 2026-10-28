@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
     ~H"""
     <div :if={@rows != []} class="market-list__scroll">
-      <table class="market-list__table portfolio__table">
+      <table class="market-list__table portfolio__table covered-calls__table">
         <caption class="visually-hidden">Your {@symbol} covered calls</caption>
         <thead>
           <tr>
@@ -124,10 +124,10 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         </thead>
         <tbody :for={row <- @rows} id={"#{@id}-#{row.side}-#{row.listing.id}"}>
           <tr>
-            <td>{describe(row.what, @unit, @symbol)}</td>
-            <td>{F.usd(row.listing.strike_per_token)}</td>
-            <td>{F.expiry(row.listing.expiry)}</td>
-            <td>{row.status}</td>
+            <td data-label="Calls">{describe(row.what, @unit, @symbol)}</td>
+            <td data-label="Strike">{F.usd(row.listing.strike_per_token)}</td>
+            <td data-label="Expiry">{F.expiry(row.listing.expiry)}</td>
+            <td data-label="Status">{row.status}</td>
           </tr>
           <tr :if={row.actions != []} class="portfolio__actions">
             <td colspan="4">

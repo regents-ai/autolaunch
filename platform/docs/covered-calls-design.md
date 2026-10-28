@@ -247,6 +247,13 @@ owned by the regents-cli lane until it adds them.
   - The journey found one design flaw, fixed: the portfolio row's own "Stop selling" button opened
     a panel holding a second "Stop selling", so the first press sent nothing. Rows now show their
     wallet steps directly.
+  - Screenshots at 390 then found the Buy panel inside a sideways-scrolling table, its buttons off
+    the screen (the journey's clicks scroll, so it had passed). The panel now sits below the list
+    and, on a phone, each listing is a block of labelled figures. The journey now checks every
+    wallet button is wholly on screen; that check failed on the old layout ("Approve USDC", "Buy
+    calls") and passes on the new.
+  - The journey moved the copy's clock and so broke the Memestock auction journey run after it;
+    it now restores the copy (snapshot and revert). Full journeys: 14 passed.
 
 ## 7. Open items
 

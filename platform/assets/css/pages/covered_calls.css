@@ -14,8 +14,8 @@
 .covered-calls__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .covered-calls__table small { color: var(--color-fg-muted); }
 .covered-calls__row-action { text-align: right; }
-.covered-calls__panel-row > td { padding-block: var(--space-2) var(--space-4); }
-.covered-calls__panel-row .covered-calls__note { margin-block-end: var(--space-2); }
+.covered-calls__panel { display: grid; gap: var(--space-2); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.covered-calls__panel h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 .covered-calls__sell { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5, 2rem); }
 .covered-calls__form, .covered-calls__guide { display: grid; gap: var(--space-3); min-width: 0; }
 .covered-calls__guide { padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
@@ -56,7 +56,13 @@
   .covered-calls__sell { grid-template-columns: minmax(0, 1fr); }
   .covered-call-panel__step { grid-template-columns: minmax(0, 1fr); }
   .covered-call-panel__step .rg-button { inline-size: 100%; }
-  .covered-calls__table thead th:nth-child(4), .covered-calls__table tbody td:nth-child(4) { display: none; }
+  /* On a phone each listing is a block of labelled figures, never wider than the screen. */
+  .covered-calls__table thead { display: none; }
+  .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding-block: var(--space-2); }
+  .covered-calls__table tbody td { padding: 0; text-align: left; }
+  .covered-calls__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
+  .covered-calls__table .covered-calls__row-action, .covered-calls__table .portfolio__actions > td { grid-column: 1 / -1; }
+  .covered-calls__table .covered-calls__row-action .rg-button { inline-size: 100%; justify-content: center; }
 }
 
 /* The action on /stock-listing/<symbol>. */
