@@ -131,4 +131,5 @@ stake and unstake; Make a payment; selling fee shares; share picture content; th
 draft routes, the paired Points and Credits history answers, and `prepare_agent_request`; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
 agent journeys. On a fork site the line above the top bar pushes the side panel's own close button under
-the bar (the top bar's button still closes it).
+the bar (the top bar's button still closes it). A bid's settlement button pressed before the card has read its review (its
+first moment on a slow page) sends nothing; once the review is there every press reaches the wallet.
