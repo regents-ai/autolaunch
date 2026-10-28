@@ -245,7 +245,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_info({:agent_draft_saved, "memestock"}, socket) do
     unsaved = Map.take(socket.assigns.draft_values, Map.keys(socket.assigns.draft_errors))
 
-    case current_or_new_draft(human_actor(socket)) do
+    case saved_draft(human_actor(socket)) do
       {:ok, draft} ->
         socket = assign_draft(socket, draft)
 
@@ -492,7 +492,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # A listed launch's draft was already started over
   # (`Autolaunch.LaunchedDrafts`).
   defp load_draft(socket, %Human{} = actor) do
-    case current_or_new_draft(actor) do
+    case current_or_new_draft(socket, actor) do
       {:ok, draft} -> assign_draft(socket, draft)
       {:error, _error} -> assign(socket, status: :error)
     end
@@ -546,7 +546,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp save_draft(socket, actor, write),
     do:
       Session.transact(socket, fn ->
-        with {:ok, draft} <- current_or_new_draft(actor), do: write.(draft)
+        with {:ok, draft} <- found_or_new_draft(actor), do: write.(draft)
       end)
 
   defp attach_image(socket, actor, bytes, entry),
@@ -563,10 +563,28 @@ defmodule AutolaunchWeb.StocksCreateLive do
         )
       )
 
-  defp current_or_new_draft(actor) do
+  # The account's draft; a first one is made only under the page's lease read
+  # again now, like every other draft write.
+  defp current_or_new_draft(socket, actor) do
+    case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> Session.transact(socket, fn -> found_or_new_draft(actor) end)
+      read -> read
+    end
+  end
+
+  # Only ever run inside `Session.transact/2`.
+  defp found_or_new_draft(actor) do
     case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
       {:ok, nil} -> Autolaunch.create_stocks_launch_draft(%{}, actor: actor)
-      other -> other
+      read -> read
+    end
+  end
+
+  # The draft the person's agent just saved, read only: it exists already.
+  defp saved_draft(actor) do
+    case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> {:error, :draft_missing}
+      read -> read
     end
   end
 

@@ -21,6 +21,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
+    sign_in_unread: "That did not go through. Try again in a moment.",
     wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
@@ -319,13 +320,17 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     if Lab.test_chain?(), do: nil, else: production_report(draft)
   end
 
+  # The observation is saved as the person once the chain is read, so it runs
+  # only while the panel's lease reads as current now (`Session.fresh/2`).
   defp verify_treasury(hashes, socket) do
     result =
-      Autolaunch.observe_treasury_security(
-        socket.assigns.draft.treasury,
-        Map.take(hashes, ["usdc", "regent", "outbound"]),
-        actor: actor(socket)
-      )
+      Session.fresh(socket.assigns.session_lease, fn _account ->
+        Autolaunch.observe_treasury_security(
+          socket.assigns.draft.treasury,
+          Map.take(hashes, ["usdc", "regent", "outbound"]),
+          actor: actor(socket)
+        )
+      end)
 
     case result do
       {:ok, report} ->

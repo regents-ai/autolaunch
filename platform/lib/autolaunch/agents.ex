@@ -38,6 +38,9 @@ defmodule Autolaunch.Agents do
           wallet_addresses: account.wallet_addresses || []
         }
 
+      # The library's contract says nil here, which its whoami answers as
+      # person_not_here; Sean's one-account rule forbids that answer, so this
+      # raises until RegentAgents.HTTP takes agent_not_paired for it.
       {:error, :not_paired} ->
         raise AgentNotPairedError
 

@@ -259,13 +259,16 @@ defmodule AutolaunchWeb.CreditsPanel do
   # refused as not seen yet, and the page reports again every two seconds, for
   # up to five minutes. Each report counts against the person's report
   # allowance; past it, the page waits its turn the same way.
+  # The report is a write as the person, so it is sent only while the panel's
+  # lease reads as current now (`Session.fresh/2`); one that could not be read
+  # is reported again like a Buy the chain does not hold yet.
   defp report(socket, hash, review, tries, wait_ms \\ 0) do
-    account = socket.assigns.account
+    lease = socket.assigns.session_lease
     number = Map.fetch!(socket.assigns.numbers, review.id)
 
     start_async(socket, {:report, hash}, fn ->
       Process.sleep(wait_ms)
-      {review, tries, send_report(account, review, number, hash)}
+      {review, tries, Session.fresh(lease, &send_report(&1, review, number, hash))}
     end)
   end
 
@@ -286,6 +289,7 @@ defmodule AutolaunchWeb.CreditsPanel do
   # Reported again: past the allowance, before the chain holds the Buy, or when
   # the chain could not be read. Any other refusal is final.
   defp again?(:limited), do: true
+  defp again?({:error, :sign_in_unread}), do: true
 
   defp again?({:error, %Ash.Error.Invalid{errors: errors}}),
     do: Enum.any?(errors, &match?(%Refused{reason: :not_seen_yet}, &1))
@@ -293,15 +297,18 @@ defmodule AutolaunchWeb.CreditsPanel do
   defp again?({:error, %Ash.Error.Unknown{}}), do: true
   defp again?(_refused), do: false
 
+  # Checking credits the purchase once it counts, a write as the person, so it
+  # runs only while the lease reads as current now. Unchecked, the shared
+  # Credits library's own minute-by-minute check still credits it.
   defp check_purchase(socket, hash, shown) do
-    actor = Credits.person(socket.assigns.account)
+    lease = socket.assigns.session_lease
     id = shown.purchase.id
 
     socket
     |> put_purchase(hash, shown)
     |> start_async({:purchase, hash}, fn ->
       Process.sleep(@recheck_ms)
-      RegentCredits.check_purchase(id, actor: actor)
+      Session.fresh(lease, &RegentCredits.check_purchase(id, actor: Credits.person(&1)))
     end)
   end
 

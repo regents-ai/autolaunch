@@ -466,26 +466,31 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   # commits first and is seen, and two protected writes cannot deadlock.
   #
   # A row or account that cannot be read refuses the write with the read's own
-  # error, logged; so does a database that refuses the transaction itself, which
-  # raises instead of answering (only those two exceptions are turned into an
-  # error here).
+  # error, logged as a sign-in read. Only the two locked reads are guarded so:
+  # the callback's own failures come back, or raise, exactly as they happen.
   defp guarded(lineage, current?, callback) do
     Repo.transaction(fn ->
-      with {:ok, row} <-
-             lineage
-             |> digest()
-             |> lookup()
-             |> Ash.Query.lock(:for_update)
-             |> Ash.read_one()
-             |> logged(),
+      with {:ok, row} <- locked_row(lineage),
            true <- current?.(row),
-           {:ok, %{} = account} <- verified(row.human_account_id, :for_update) do
+           {:ok, %{} = account} <- locked_account(row.human_account_id) do
         commit(callback.(account))
       else
         {:error, error} -> Repo.rollback(error)
         _lapsed -> Repo.rollback(:stale_authority)
       end
     end)
+  end
+
+  # A connection lost mid-read raises rather than answering; it is the
+  # sign-in read's own failure.
+  defp locked_row(lineage) do
+    lineage |> digest() |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one() |> logged()
+  rescue
+    failure in [Postgrex.Error, DBConnection.ConnectionError] -> logged({:error, failure})
+  end
+
+  defp locked_account(account_id) do
+    verified(account_id, :for_update)
   rescue
     failure in [Postgrex.Error, DBConnection.ConnectionError] -> logged({:error, failure})
   end

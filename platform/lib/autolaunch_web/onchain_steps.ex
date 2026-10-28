@@ -21,6 +21,7 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Chain.Client
+  alias AutolaunchWeb.{ReadFailedError, ReadFailure}
   alias RegentChain.{Address, Outcome, Presses}
 
   @recheck_ms 2_000
@@ -50,11 +51,15 @@ defmodule AutolaunchWeb.OnchainSteps do
   defp adopt(socket, lease, {:ok, account}),
     do: socket |> assign(linked_for: lease) |> assign_wallets(account)
 
-  # Wallets that could not be read are unread, never signed out: nothing may
-  # act, a press says to try again, and the next update reads them again. The
-  # failure is logged where it was read (`SessionAuthority`).
-  defp adopt(socket, _lease, {:error, _error}),
-    do: socket |> assign(linked: :unread) |> assign_new(:signed_in, fn -> nil end)
+  # Wallets that could not be read because the connection was lost are unread,
+  # never signed out: nothing may act, a press says to try again, and the next
+  # update reads them again. Any other failure is a real error, as on a page
+  # (`AutolaunchWeb.ReadFailure`). Either is logged where it was read
+  # (`SessionAuthority`).
+  defp adopt(socket, _lease, {:error, error}) do
+    unless ReadFailure.lost_connection?(error), do: raise(ReadFailedError)
+    socket |> assign(linked: :unread) |> assign_new(:signed_in, fn -> nil end)
+  end
 
   @doc """
   The account as it reads now, before each of the panel's events and
@@ -257,7 +262,7 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   def failure_note(reason, :unread, _active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),
-      do: "That did not go through. Try again in a moment."
+      do: "That did not go through. Nothing was sent. Try again in a moment."
 
   def failure_note(reason, nil, _active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),

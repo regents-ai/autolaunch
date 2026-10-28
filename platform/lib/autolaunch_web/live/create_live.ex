@@ -115,6 +115,8 @@ defmodule AutolaunchWeb.CreateLive do
   # The person ticked that the smart contract account their agent chose is
   # where the launch's money goes. One the agent changed since this page
   # showed it is not confirmed; the page shows the new one to check instead.
+  # The tick is written under the page's lease read again now, so a page whose
+  # sign-in could not be read, or has ended, confirms nothing.
   def handle_event(
         "confirm_agent_treasury",
         %{"treasury" => treasury, "confirmed" => "true"},
@@ -123,9 +125,8 @@ defmodule AutolaunchWeb.CreateLive do
       when is_binary(treasury) do
     actor = human_actor(socket)
 
-    with {:ok, draft} <- reload_draft(actor),
-         {:ok, _confirmed} <-
-           Autolaunch.confirm_launch_agent_treasury(draft, treasury, actor: actor),
+    with {:ok, _confirmed} <-
+           Session.transact(socket, fn -> confirm_treasury(actor, treasury) end),
          {:ok, draft} <- reload_draft(actor) do
       {:noreply, assign_loaded_draft(socket, draft, actor)}
     else
@@ -402,7 +403,7 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   defp load_create(socket, actor) do
-    case current_or_new_draft(actor) do
+    case current_or_new_draft(socket, actor) do
       {:ok, draft} ->
         socket
         |> assign_loaded_draft(draft, actor)
@@ -503,7 +504,7 @@ defmodule AutolaunchWeb.CreateLive do
   defp save_draft(socket, actor, write),
     do:
       Session.transact(socket, fn ->
-        with {:ok, draft} <- current_or_new_draft(actor), do: write.(draft)
+        with {:ok, draft} <- found_or_new_draft(actor), do: write.(draft)
       end)
 
   defp attach_image(socket, actor, bytes, entry),
@@ -520,11 +521,25 @@ defmodule AutolaunchWeb.CreateLive do
         )
       )
 
-  defp current_or_new_draft(actor) do
+  # The account's draft; a first one is made only under the page's lease read
+  # again now, like every other draft write.
+  defp confirm_treasury(actor, treasury) do
+    with {:ok, draft} <- reload_draft(actor),
+         do: Autolaunch.confirm_launch_agent_treasury(draft, treasury, actor: actor)
+  end
+
+  defp current_or_new_draft(socket, actor) do
+    case Autolaunch.get_my_account_launch_draft(actor: actor) do
+      {:ok, nil} -> Session.transact(socket, fn -> found_or_new_draft(actor) end)
+      read -> read
+    end
+  end
+
+  # Only ever run inside `Session.transact/2`.
+  defp found_or_new_draft(actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do
       {:ok, nil} -> Autolaunch.create_launch_draft(%{}, actor: actor)
-      {:ok, draft} -> {:ok, draft}
-      {:error, error} -> {:error, error}
+      read -> read
     end
   end
 
