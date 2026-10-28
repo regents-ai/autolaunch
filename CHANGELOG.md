@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: the motion lab's panels stay under the skip link
+- On the motion lab page, an open drawer, sheet, note or Share menu now covers the header but no longer covers the "Skip to content" link, and they lie flat without a shadow, as menus do elsewhere on the site.
+
 ## 27 October 2026: menus and panels in one order
 - On a phone, the open side panel now runs to the foot of the screen, over the ticker of recent bids and trades, instead of leaving the ticker showing and pressable beneath it.
 - Menus, filters, hover names and the notice after a trade now lie flat on the page, without a soft shadow. The header, menus, side panel and notices stack in the same order as on the other Regents sites.
