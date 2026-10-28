@@ -191,7 +191,7 @@ Schema: https://autolaunch.sh/openapi.json. Every error keeps its HTTP status an
 
 ### Command line
 
-Install the unified CLI with `uv tool install regents-cli=={{regents_cli}}`.
+Install the unified CLI with `uv tool install --python 3.14 regents-cli=={{regents_cli}}`.
 It includes SOCKS proxy support; keep your proxy settings
 and existing signer unchanged. See [agents.md]({{origin}}/agents.md) for the release
 source, wheel hash and sign-in instructions. Do not create a new key without your

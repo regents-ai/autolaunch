@@ -75,7 +75,7 @@ test("P1-P10: an agent signs in, its person pairs it from the side panel, it che
   expect(guide, `${section[2]} has the steps the message names`).toContain(`## ${section[1]}`)
   const signed = await (await fetch(`${process.env.AUTOLAUNCH_URL}/agents.md`)).text()
   const version = spawnSync(process.env.REGENTS!, ["--version"], {encoding: "utf8"}).stdout.trim().split(" ").pop()
-  expect(signed, "agents.md names the CLI release the journeys run").toContain(`uv tool install regents-cli==${version}`)
+  expect(signed, "agents.md names the CLI release the journeys run").toContain(`uv tool install --python 3.14 regents-cli==${version}`)
   for (const harness of offered) expect(signed).toContain(`\`${harness}\``)
 
   // P6: the agent redeems the code from stdin; the code never reaches its output.

@@ -7,7 +7,7 @@ Private reads and draft edits require your own SIWA signer and a current pairing
 ## Install the unified CLI
 
 ```sh
-uv tool install regents-cli=={{regents_cli}}
+uv tool install --python 3.14 regents-cli=={{regents_cli}}
 regents --version
 ```
 

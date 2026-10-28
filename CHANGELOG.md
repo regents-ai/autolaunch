@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: the agent guides name Regents CLI 1.10.20
+- The agent guides and agents.md now name Regents CLI 1.10.20, the newest release, with its source commit and the fingerprint of its published package, so an agent installs the same version every Regents site uses.
+- The install line in every guide now asks for Python 3.14, so an agent gets the same setup every time.
+
 ## 28 October 2026: each agent keeps its pairing code
 - When you pair an agent, each agent you choose keeps its own code until it expires. Choosing another agent and coming back shows the same message and code again, instead of a new one each time. The refresh icon still makes a new code for the agent you have chosen.
 
