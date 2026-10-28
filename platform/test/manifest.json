@@ -1,5 +1,5 @@
 {
-  "total": 115,
+  "total": 126,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -27,7 +27,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 5,
@@ -40,7 +40,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 7,
@@ -300,7 +300,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 51,
@@ -976,7 +976,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5083e93305b4f1a933ac742364a00830db800653a58835187d8d6dad87568dd2"
+      "source_sha256": "575e432178c48bbfd377216ad905eab723ca2f70ec656fb7b9afdf1312e9dbe6"
     },
     {
       "id": 115,
@@ -1497,6 +1497,149 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fabab02c511cf9b81928a159084ea00897649b247986d8d6aabff3d61ffd343e"
+    },
+    {
+      "id": 156,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 44,
+      "test_name": "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in",
+      "keep_because": "An agent hears its status from whoami (not_paired, then paired with this site's allowed list and no next step) and its check-in names its person's shared Regent account. It fails without this site's allowed list, where every whoami answered 500.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
+    },
+    {
+      "id": 157,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 40,
+      "test_name": "SIGN_IN_READ_LOST_KEEPS_SIGN_IN: a lost connection is Try again, and signs no one out",
+      "keep_because": "A sign-in read that answers as a lost connection is the try-again page (503) and a 503 from /auth/session, never signed out; a page whose socket connects then shows Something didn't load with Try again for the same address and query; the same cookie is signed in once the read works. It fails while a failed read is taken for an ended sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 158,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 88,
+      "test_name": "a connection cut during the sign-in read is the try-again page",
+      "keep_because": "The case's own connection cut as the account is read is the try-again page, logged as connection_lost by kind and module only. It fails while a failed read is taken for an ended sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 159,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 68,
+      "test_name": "a sign-in read that fails for any other reason is the plain error page, and signs no one out",
+      "keep_because": "A sign-in read that fails for a reason other than a lost connection is the plain error page (500), logged by kind and module only, as the site's other reads are; the same cookie is signed in once it reads. It fails while every failure was shown as signed out or as Try again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 160,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 99,
+      "test_name": "a lost sign-in read is a 503 for the signed-in wallet's positions and share video",
+      "keep_because": "/api/v1/me/positions and a wallet's share video answer 503 while the sign-in reads as a lost connection, never 401 or a missing video. It fails while a failed read is taken for no sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 161,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 115,
+      "test_name": "SIGN_IN_READ_LOST_WRITES_NOTHING: a page whose sign-in can't be read makes no code and saves no draft",
+      "keep_because": "A page that keeps showing its account while its sign-in can't be read makes no pairing code and saves neither a Revstake nor a Memestock draft, saying each could not be made or saved. It fails while those writes ran as the held person with no fresh lease check.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 162,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 162,
+      "test_name": "a sign-in that has ended is still signed out",
+      "keep_because": "A sign-in past its 30 days still shows Sign in and /auth/session says signed out, never Try again. It passes with or without the read fix and fails against a fix that takes an ended sign-in for a failed read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 163,
+      "group": "Browser wallet boundary",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 20,
+      "test_name": "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read asks to try again",
+      "keep_because": "A wallet panel whose wallets can't be read holds them as unread: nothing may act and a press says That did not go through. Try again in a moment., never Sign in; it reads them again on the next update. It fails while unread wallets were taken for signed out.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3e35d3e1b4b1031f312a3000619a19928d554d9b0552c3ab9cf6451a17280d12"
+    },
+    {
+      "id": 164,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 46,
+      "test_name": "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again",
+      "keep_because": "Connect ENS with a sign-in that can't be read says That did not go through. Try again in a moment., not that the name doesn't fit. It fails while every failure said Use an ENS name controlled by your signed-in wallet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "3e35d3e1b4b1031f312a3000619a19928d554d9b0552c3ab9cf6451a17280d12"
+    },
+    {
+      "id": 165,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 81,
+      "test_name": "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED: a pairing that names no Regent account is agent_not_paired",
+      "keep_because": "A pairing that names no Regent account is 403 agent_not_paired from the check-in, whoami and the agent routes, with the hint to pair again with Pair New Agent. It fails while whoami answered person_not_here, the check-in refused with person_not_here and the agent routes said try again, against the one-account rule.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
+    },
+    {
+      "id": 166,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 98,
+      "test_name": "AGENT_PERSON_UNREAD_IS_503: a person's account that can't be read is account_unavailable",
+      "keep_because": "A paired person's account that can't be read is 503 account_unavailable from the check-in, whoami and the agent routes. It fails while the check-in and whoami answered 500.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71fe1ddcb78c012d290d6e460303b0a6fb24bec37f657a725bf882856f805c7c"
     }
   ],
   "legacy_folders_to_remove": [

@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 27 October 2026: no surprise sign-outs, and agents can ask their status
+- If your sign-in can't be read for a moment, the page says "Something didn't load." and offers Try again, which loads the same page. You stay signed in, and nothing is saved or paired until it can be read. A sign-in that has ended still shows Sign in.
+- Wallet buttons and Connect ENS say "That did not go through. Try again in a moment." when your account can't be read, instead of asking you to sign in or to check the name.
+- Agents can ask their status here first: not paired or paired, what they may do here and what to do next. Since a recent update that question had answered with an error.
+- An agent whose pairing doesn't lead to a Regent account is told it isn't paired and to ask its person to pair it with Pair New Agent. When its person's account can't be read for a moment, it is told to try again.
+
 ## 27 October 2026: the motion lab's panels stay under the skip link
 - On the motion lab page, an open drawer, sheet, note or Share menu now covers the header but no longer covers the "Skip to content" link, and they lie flat without a shadow, as menus do elsewhere on the site.
 
