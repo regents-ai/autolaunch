@@ -132,6 +132,11 @@ input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; 
 .bid-box__balance { margin-inline-start: auto; padding: 0; border: 0; background: none; color: var(--color-fg-muted); font: inherit; cursor: pointer; transition: color 150ms ease; }
 @media (hover: hover) and (pointer: fine) { .bid-box__balance:hover { color: var(--color-fg); } }
 .bid-box__balance:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+/* On a touch screen Balance is a full 44px press, by the design system's touch rule;
+   a mouse keeps the line's own height. */
+@media (hover: none), (pointer: coarse) {
+  .bid-box__balance { display: inline-flex; align-items: center; justify-content: flex-end; min-block-size: 44px; min-inline-size: 44px; }
+}
 .bid-box__fdv { display: flex; align-items: baseline; gap: 2px; min-width: 0; }
 .bid-box__prefix { flex: none; color: var(--color-fg); }
 .bid-box__unit { flex: none; margin-inline-start: 6px; color: var(--color-fg-muted); font-size: .9375rem; }

@@ -96,6 +96,8 @@ test("L1-L6: the agent fills in the whole draft, the person reviews it and signs
   await open.click()
   await ready(page)
   await expect(page.locator("main")).toContainText(draft.symbol)
+  // Measured once the bid form has read the person's balance, which adds its own press.
+  await expect(page.locator(".bid-box__balance")).toBeVisible({timeout: 30_000})
   await fitsAndPresses(page, touch)
   const auctions = await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${draft.symbol}`)).json()
   expect(auctions.data.map((auction: any) => auction.token_symbol)).toEqual([draft.symbol])

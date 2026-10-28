@@ -60,7 +60,7 @@ calls, atomically, after the chain read". What each action builds:
 
 | Action | Check |
 | --- | --- |
-| Bid on a Base auction | `autolaunch/bid_actions_test.exs` (every case); `autolaunch/bid_slippage_test.exs`; `autolaunch/chain/calls_test.exs` › "BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL"; `autolaunch/lab_bid_chain_client_test.exs` |
+| Bid on a Base auction | From the auction page with the person's own wallet, every press at least 44 px on a phone once the balance is read: `test/journeys/memestock_auction.spec.ts`, `test/journeys/memestock_launch.spec.ts` (L6); `autolaunch/bid_actions_test.exs` (every case); `autolaunch/bid_slippage_test.exs`; `autolaunch/chain/calls_test.exs` › "BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL"; `autolaunch/lab_bid_chain_client_test.exs` |
 | Bid on a Robinhood auction, see its standing | `autolaunch_web/live/robinhood_stock_bid_component_test.exs` (both cases). The bid itself: **gap** |
 | Add to, raise, or take back an outbid bid early | **Gap** |
 | Withdraw or claim after an auction | `autolaunch/bid_settlement_actions_test.exs` (all five cases) |
