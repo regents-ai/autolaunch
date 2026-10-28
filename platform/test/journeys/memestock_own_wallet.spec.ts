@@ -34,9 +34,15 @@ async function read(to: string, abi: any, functionName: string, args: unknown[] 
 const nextStep = (page: import("@playwright/test").Page) =>
   page.locator("[data-onchain-step]:visible:not([disabled])").first()
 
+// The auction list answers six requests a minute, so it is polled slowly; one
+// auction's own address is read for its state.
 async function listed(symbol: string): Promise<any> {
   const answer = await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions?q=${symbol}`)).json()
-  return answer.data.find((auction: any) => auction.token_symbol === symbol)
+  return answer.data?.find((auction: any) => auction.token_symbol === symbol)
+}
+
+async function state(id: string): Promise<string> {
+  return (await (await fetch(`${process.env.AUTOLAUNCH_URL}/api/v1/auctions/${id}`)).json()).data.state
 }
 
 test("L9: an agent launches from its own wallet, owns the launch, is paid its creator share, and the site lists it under that wallet", async ({page, browser}, info) => {
@@ -83,8 +89,8 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
   const token = String(created.newToken).toLowerCase()
 
   // The site finds it on its own cycle (every five minutes) and lists it under the agent's wallet.
-  await expect.poll(() => listed(draft.symbol), {timeout: 8 * 60_000, intervals: [10_000]}).toBeTruthy()
-  const listing = await listed(draft.symbol)
+  let listing: any
+  await expect.poll(async () => (listing = await listed(draft.symbol)), {timeout: 8 * 60_000, intervals: [10_000]}).toBeTruthy()
   expect(listing.address.toLowerCase()).toBe(auction)
   const row = JSON.parse(onSite("auction_row.exs", {JOURNEY_AUCTION: auction, JOURNEY_PERSON: "did:privy:journey-a"})
     .split("JOURNEY_RESULT ")[1].split("\n")[0])
@@ -105,7 +111,7 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
   const b = await bidder.newPage()
   await mintStock(AAPLC, people.b.wallet, 10n ** 9n)
   await signIn(b, people.b)
-  await expect.poll(async () => (await listed(draft.symbol)).state, {timeout: 120_000}).toBe("active")
+  await expect.poll(() => state(listing.id), {timeout: 120_000}).toBe("active")
   await b.goto(new URL(listing.url).pathname)
   await ready(b)
   await b.locator(".bid-switch label", {hasText: "AAPLc"}).click()
@@ -121,11 +127,11 @@ test("L9: an agent launches from its own wallet, owns the launch, is paid its cr
 
   await mineTo(Number(await read(auction, abis.auction, "endBlock")))
   await mineTo(Number(await read(auction, abis.auction, "claimBlock")) + 200)
-  await expect.poll(async () => (await listed(draft.symbol)).state, {timeout: 120_000}).toBe("ended")
+  await expect.poll(() => state(listing.id), {timeout: 120_000}).toBe("ended")
   await b.goto(new URL(listing.url).pathname)
   await ready(b)
   await b.getByRole("button", {name: /^Finish/}).click()
-  await expect.poll(async () => (await listed(draft.symbol)).state, {timeout: 120_000}).toBe("graduated")
+  await expect.poll(() => state(listing.id), {timeout: 120_000}).toBe("graduated")
 
   // The creator allocation vests to the agent's wallet and to no one else: anyone may release it.
   await mineTo(Number(mined.blockNumber) + 100_000)
