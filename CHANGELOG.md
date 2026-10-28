@@ -5,6 +5,46 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 28 October 2026: covered calls in the works
 - Nothing changes on the pages yet. Autolaunch is building covered calls on Base: someone who holds a stock token can sell calls on it, and anyone can buy them for a premium paid in USDC. The first stock is Amazon (AMZNc). They open once they are finished and checked.
 
+## 28 October 2026: a security update to the web server
+- The site's web server takes its latest security fix. Nothing changes in how the site looks or works.
+
+## 28 October 2026: Withdraw and Claim work from the first moment
+- Pressing Withdraw, Return or Claim on your bid the moment its card appears now opens your wallet with the right step. Before, a press in the instant before the card had read your bid sent nothing.
+
+## 28 October 2026: the side panel closes on a test copy of the site
+- On a test copy of Autolaunch, the "Local Base fork · test assets · no mainnet value" line now stays at the top of the screen, with the header just under it, and the side panel and phone menu open under the header. Before, the panel opened behind the header there, hiding its close button. The live site has no such line and looks the same as before.
+
+## 28 October 2026: flat cards and windows
+- Token cards on the home page no longer lift or cast a shadow when you point at them; the picture still drifts closer. The Buy Credits window and the swap review sit flat on the page, with their thin outline, as everything else on Regents sites does.
+
+## 28 October 2026: the agent skill's check-back heading
+- For agents: the section of the agent skill (/skill.md) on how often to look again is now headed "Check-back intervals". Its advice is unchanged.
+
+## 28 October 2026: the pairing steps are where the message says
+- For agents: the message your person pastes to pair you sends you to the "Pair with a person's account" steps in Autolaunch's short agent guide (/llms.txt). Those steps are there now: install the Regents command line, sign in, check your status, pair with the code, check in.
+- For agents: the API description (/openapi.json and the contract the Regents command line carries) now says what pairing and check-in are refused with: an unpaired check-in with agent_not_paired, and a pairing with pairing_failed, harness_unknown or invalid_name, or agent_limit at 100 agents.
+- For agents: the pairing steps say your person can pair you from any page's side panel, and that a pairing made on any Regents site works here, since their account is one account on every site.
+- On a phone, Balance beside a bid's budget, which fills in your whole balance, is now a full-size press instead of a thin line of text.
+- When your agent fills in your launch, the list of what it filled in shows an address it chose (a Revstake treasury, or a Memestock token's stock on Base) the way every address on the site is shown: you can copy it whole and open it on Basescan to check it before you launch.
+
+## 28 October 2026: the agent guides name Regents CLI 1.10.19
+- The agent guides and agents.md now name Regents CLI 1.10.19, the newest release, with its source commit and the fingerprint of its published package, so an agent installs the same version every Regents site uses.
+
+## 27 October 2026: no surprise sign-outs, and agents can ask their status
+- If your sign-in can't be read for a moment, the page says "Something didn't load." and offers Try again, which loads the same page. You stay signed in, and nothing is saved or paired until it can be read. A sign-in that has ended still shows Sign in.
+- Wallet buttons say "That did not go through. Nothing was sent. Try again in a moment." when your account can't be read, instead of asking you to sign in. Connect ENS says "That did not go through. Try again in a moment." instead of asking you to check the name.
+- Connect ENS now says when a name is already connected to another account, instead of asking you to check it.
+- A token picture that can't be saved for a moment says "That did not go through. Try again in a moment." instead of calling the file broken, and a sign-in that has ended signs the page out.
+- Agents can ask their status here first: not paired or paired, what they may do here and what to do next. Since a recent update that question had answered with an error.
+- An agent whose pairing doesn't lead to a Regent account is told it isn't paired and to ask its person to pair it with Pair New Agent. When its person's account can't be read for a moment, it is told to try again.
+
+## 27 October 2026: the motion lab's panels stay under the skip link
+- On the motion lab page, an open drawer, sheet, note or Share menu now covers the header but no longer covers the "Skip to content" link, and they lie flat without a shadow, as menus do elsewhere on the site.
+
+## 27 October 2026: menus and panels in one order
+- On a phone, the open side panel now runs to the foot of the screen, over the ticker of recent bids and trades, instead of leaving the ticker showing and pressable beneath it.
+- Menus, filters, hover names and the notice after a trade now lie flat on the page, without a soft shadow. The header, menus, side panel and notices stack in the same order as on the other Regents sites.
+
 ## 27 October 2026: Buy Credits never opens a wallet that can't pay
 - Pressing Buy on Credits the moment the page changed wallet or amount could open your wallet for a purchase it was certain to refuse, such as one with too little USDC or before the approval. Now the button shows why it can't go through, as it already did once the page caught up. Bids are unchanged.
 

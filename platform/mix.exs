@@ -6,7 +6,7 @@ defmodule Autolaunch.MixProject do
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "e796a9d527b839121145d2515da9f4d5689fe80b"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "0c72c964b017678ce6a710309cb8c3de3650c0e9"
+  @design_system_ref "d53b8f1283d12b1539ff710caae83342015b6279"
 
   def project do
     [
@@ -14,8 +14,12 @@ defmodule Autolaunch.MixProject do
       version: "0.1.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
-      # The browser walk's scripts (test/browser) are run by Playwright, not ExUnit.
-      test_ignore_filters: [&String.starts_with?(&1, "test/browser/")],
+      # The browser walk's and the agent journeys' scripts (test/browser,
+      # test/journeys) are run by Playwright and scripts/agent-journeys.sh, not ExUnit.
+      test_ignore_filters: [
+        &String.starts_with?(&1, "test/browser/"),
+        &String.starts_with?(&1, "test/journeys/")
+      ],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),

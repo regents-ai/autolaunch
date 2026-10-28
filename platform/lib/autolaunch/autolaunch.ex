@@ -296,10 +296,6 @@ defmodule Autolaunch do
       define :verify_stocks_launch_review, action: :verify
     end
 
-    # The test-funds cooldown ledger, written only by `Stocks.Faucet` inside
-    # the transaction that sends a grant.
-    resource Autolaunch.Stocks.FaucetGrant
-
     # The stocks the launchpads admit as launch currencies, read from the chain.
     resource Autolaunch.Stocks.Stock do
       define :chain_stocks, action: :on_chain, args: [:chain_id]

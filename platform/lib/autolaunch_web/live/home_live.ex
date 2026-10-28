@@ -439,7 +439,7 @@ defmodule AutolaunchWeb.HomeLive do
           >{label}</.link>
         </nav>
         <span :if={@local_lab} class="home-network">
-          {Autolaunch.ChainMode.label()} · test assets
+          {Autolaunch.Lab.label()} · test assets
         </span>
         <details
           id="home-filters"

@@ -31,23 +31,11 @@ existing bid-quote POST is a read-only calculation and remains available too.
   public listings remain readable; the database itself is not changed or locked.
 
 `Autolaunch.Prelaunch.read_only?/0` is fail-closed: missing or malformed configuration
-keeps the site read-only. Only `AUTOLAUNCH_LAUNCHES_OPEN=true` (or fork chain mode) and a full
+keeps the site read-only. Only `AUTOLAUNCH_LAUNCHES_OPEN=true` and a full
 application restart enable writes; any other value of that variable stops the boot. Do not enable this before contract
 addresses, chain configuration and real user journeys have been accepted. The two
 planned sidebar options remain disabled independently; contract deployment does not
 implement those products automatically. Deployment and migrations are separate approvals.
-
-## Chain mode
-
-`AUTOLAUNCH_CHAIN_MODE` selects the chain a build runs against (`Autolaunch.ChainMode`):
-
-| Value | What it is |
-| --- | --- |
-| `base` (default when unset) | Real Base. Exactly the behaviour above: production is read-only until the explicit configuration change, and the lab configurations are refused in production. |
-| `fork` | A Base fork (chain 31337) carrying the lab contract graph, with test assets and no mainnet value. Admitted in every environment, production included. Both lab configurations are required, `prelaunch_read_only` resolves to `false` without any script, the Base log ledger stays off, every lab auction is read by its own reading job, and the test-funds faucet applies a per-wallet, per-asset cooldown. |
-
-Any other value stops the boot. Running a lab site in fork mode is in
-[docs/local-base-lab.md](docs/local-base-lab.md).
 
 ## Database schema
 
@@ -161,8 +149,7 @@ Set `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongs
 description variables, in every environment (it is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`
 and must name the same Base description). This turns on `/create/stocks`, USDC
 bids on Stocks auctions, reading Stocks auctions and the test-funds panel. Details are in
-[docs/stocks.md](docs/stocks.md). The same two files drive a lab site in `fork` chain mode
-([docs/local-base-lab.md](docs/local-base-lab.md)).
+[docs/stocks.md](docs/stocks.md).
 
 ## Protected paths
 
@@ -275,7 +262,6 @@ verification and the remaining release checks.
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
-| `AUTOLAUNCH_CHAIN_MODE` | Optional | `base` (default) or `fork`; see "Chain mode" above and [docs/local-base-lab.md](docs/local-base-lab.md) for the variables fork mode adds. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using

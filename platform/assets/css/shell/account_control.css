@@ -1,5 +1,5 @@
 .account-control { position: relative; display: flex; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; flex: 0 1 auto; }
-.account-control__status { position: relative; z-index: 5; width: 100%; max-width: 34rem; margin: var(--space-2) 0 0; padding: var(--space-2); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-fg); overflow-wrap: anywhere; }
+.account-control__status { position: relative; z-index: var(--rg-layer-tip); width: 100%; max-width: 34rem; margin: var(--space-2) 0 0; padding: var(--space-2); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-fg); overflow-wrap: anywhere; }
 
 .x-oauth-result { min-height: 100dvh; margin: 0; padding-block: var(--space-4); background: var(--color-bg); color: var(--color-fg); font-family: var(--font-family-ui); }
 .x-oauth-sheet { max-inline-size: 42rem; margin-block: var(--space-6); }
@@ -25,12 +25,12 @@
 :root:not([data-aside="open"]) .shell, .shell:not(:has(#shell-aside)) { --shell-aside: 0px; }
 /* The header runs over the side panel, which opens under the header's bottom line
    (design-system STYLE.md, "The side panel opens under the header"), at the
-   template's `--shell-header-end` (shell/top_bar.css), with its right edge at the
-   frame's inner edge, as the header's is. The panel stops above the market ticker,
-   which runs along the bottom of every page, and is hidden only once it has slid
-   shut. */
-#shell-aside { position: fixed; inset-block: var(--shell-header-end) 0; inset-inline-end: calc((100% - min(100% - 2 * var(--rg-page-gutter), var(--rg-frame-max))) / 2 + var(--rg-rule-width)); z-index: 30; display: grid; align-content: start; width: var(--shell-aside); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); transition: visibility var(--duration-slow); }
-body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-height); }
+   template's `--shell-top-end` (shell/top_bar.css), with its right edge at the
+   frame's inner edge, as the header's is. Wider than a phone, the panel stops above
+   the market ticker, which runs along the bottom of every page; on a phone it covers
+   the ticker as it covers the page. It is hidden only once it has slid shut. */
+#shell-aside { position: fixed; inset-block: var(--shell-top-end) 0; inset-inline-end: calc((100% - min(100% - 2 * var(--rg-page-gutter), var(--rg-frame-max))) / 2 + var(--rg-rule-width)); z-index: var(--rg-layer-panel); display: grid; align-content: start; width: var(--shell-aside); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); box-shadow: var(--rg-layer-panel-shadow); transition: visibility var(--duration-slow); }
+@media (min-width: 48rem) { body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-height); } }
 /* Its parts keep their width while it slides, so nothing inside rewraps. */
 #shell-aside > * { min-inline-size: calc(var(--shell-aside-open) - 1px); }
 /* Shown at once on opening, so focus can move into it. */
@@ -64,6 +64,6 @@ body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-hei
   .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 /* On phones the side panel takes the whole screen under the header, from the
-   header's bottom line (`--shell-header-end`, shell/phone.css). */
-@media (max-width: 47.99rem) { #shell-aside { inset: var(--shell-header-end) 0 0; width: auto; border-inline-start: 0; } }
+   header's bottom line (`--shell-top-end`, shell/top_bar.css). */
+@media (max-width: 47.99rem) { #shell-aside { inset: var(--shell-top-end) 0 0; width: auto; border-inline-start: 0; } }
 @media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }

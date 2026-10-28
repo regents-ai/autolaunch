@@ -4,6 +4,7 @@ defmodule AutolaunchWeb.PrivySessionController do
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.{RequestRateLimiter, SessionAuthority, VerifiedSession}
   alias Autolaunch.Privy
+  alias AutolaunchWeb.{ReadFailedError, ReadFailure, UnavailableError}
 
   require Logger
 
@@ -59,11 +60,20 @@ defmodule AutolaunchWeb.PrivySessionController do
   after the claim is exactly current. Anything else — missing, malformed,
   superseded, revoked or absent authority, or an account whose verified evidence
   has lapsed — leaves the request anonymous.
+
+  A sign-in that could not be read just then is neither, and the cookie stays as
+  it is. As everywhere on the site (`AutolaunchWeb.ReadFailure`), a lost
+  connection is the try-again page (503) and any other failure the plain error
+  page (500); `SessionAuthority` has logged it.
   """
   def enforce_authority(conn) do
-    {lineage, account} = conn |> claim() |> SessionAuthority.resolve()
+    case conn |> claim() |> SessionAuthority.resolve() do
+      {:ok, lineage, account} ->
+        conn |> assign(:current_lineage, lineage) |> assign(:current_human_account, account)
 
-    conn |> assign(:current_lineage, lineage) |> assign(:current_human_account, account)
+      {:error, error} ->
+        raise if ReadFailure.lost_connection?(error), do: UnavailableError, else: ReadFailedError
+    end
   end
 
   defp admit_bootstrap(conn, nil) do

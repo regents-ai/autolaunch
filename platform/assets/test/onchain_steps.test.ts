@@ -1,7 +1,7 @@
 import {getAddress, type Hash, type Hex} from "viem"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {press, pressCalls, type Review} from "../js/hooks/onchain_steps"
+import {asksServer, press, pressCalls, type Review} from "../js/hooks/onchain_steps"
 import {replaceActiveEthereumWallet, type EthereumProvider} from "../js/wallet_actions/connected_wallet"
 
 const signer = getAddress("0x1111111111111111111111111111111111111111")
@@ -225,5 +225,22 @@ describe("a batch press sends the review's calls together or not at all", () => 
       ["onchain_atomic", {review_id: "review-batch", atomic: false}],
       ["step_failed", {step: "calls", reason: "step_unknown"}],
     ])
+  })
+})
+
+// SETTLE_PRESS_BEFORE_REVIEW_SENDS: a settlement card's button names its action
+// before its review arrives, and a press then sent nothing (found by the agent
+// journeys, 28 Oct 2026).
+describe("a press with no review yet asks the server for one when the card prepares on press", () => {
+  it("asks on a card marked to prepare on press, and on a card whose inputs have no matching review", () => {
+    expect(asksServer(undefined, {}, true)).toBe(true)
+    expect(asksServer(undefined, {amount: "1"}, false)).toBe(true)
+    expect(asksServer({...review, inputs: {amount: "1"}}, {amount: "2"}, false)).toBe(true)
+  })
+
+  it("sends the review it has, and leaves a card with neither inputs nor that mark as it was", () => {
+    expect(asksServer(review, {}, true)).toBe(false)
+    expect(asksServer({...review, inputs: {amount: "1"}}, {amount: "1"}, false)).toBe(false)
+    expect(asksServer(undefined, {}, false)).toBe(false)
   })
 })

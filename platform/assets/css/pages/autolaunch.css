@@ -11,7 +11,17 @@
 .autolaunch-heading :is(.rg-section-bar__diamond, .rg-section-bar__leader) { display: none; }
 .autolaunch-heading h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .autolaunch-kicker, .autolaunch-micro { display: block; color: var(--rg-local-ink, var(--color-fg-muted)); font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
-.autolaunch-lab-warning { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--hairline-strong); background: var(--support-band-surface); color: var(--support-band-ink); font-size: .875rem; }
+/* The lab line stays at the top of the screen above the header, at a fixed height
+   (`--shell-lab`, shell/top_bar.css) so the header, the side panel and the phone
+   menu open just under it: one line, two on a phone, three on the narrowest
+   screens or with large text. A jump to the page or a heading in it stops under both
+   (windows drawn over the page scroll on their own); the page's own padding would
+   also move it whenever focus lands in the header or the menu. */
+:root:has(.autolaunch-lab-warning) { --shell-lab: 2.5rem; }
+:root:has(.autolaunch-lab-warning) :is(#shell-content, #shell-content [id]):not(:is(dialog, [popover]) *) { scroll-margin-block-start: var(--shell-top-end); }
+@media (max-width: 47.99rem) { :root:has(.autolaunch-lab-warning) { --shell-lab: 3.25rem; } }
+@media (max-width: 23.99rem) { :root:has(.autolaunch-lab-warning) { --shell-lab: 4.5rem; } }
+.autolaunch-lab-warning { position: sticky; inset-block-start: 0; z-index: var(--rg-layer-header); align-content: center; box-sizing: border-box; block-size: var(--shell-lab); margin: 0; padding: 0 var(--space-3); overflow: hidden; border-bottom: 1px solid var(--hairline-strong); background: var(--support-band-surface); color: var(--support-band-ink); font-size: .875rem; line-height: 1.25; }
 .regent-token-links__note, .regent-scope { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-token-links__note { flex-basis: 100%; }
 .autolaunch-exact-value { font-family: var(--font-family-mono); overflow-wrap: anywhere; }

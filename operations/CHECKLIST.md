@@ -21,24 +21,27 @@ that proves each one, with the gaps; a release that adds or changes one of them 
    output, and what was not proven.
 4. Pages it touches, in headless Chromium at 390 with touch and at 1280: every standalone
    press at least 44 px on touch, no sideways scroll, no console or content-policy errors.
-5. Every bug found while making the release has a test that fails without its fix.
-6. The changelog says what people and agents noticed, with no release numbers, commits or
+5. A release touching pairing, agent routes, drafts or launches runs `scripts/agent-journeys.sh`
+   (see [FEATURES.md](FEATURES.md)) and keeps its output: an agent pairs, fills in a Memestock draft,
+   and its person reviews and signs it on a copy of Base, at 390 with touch and at 1280.
+6. Every bug found while making the release has a test that fails without its fix.
+7. The changelog says what people and agents noticed, with no release numbers, commits or
    internal names.
 
 ## The release
 
-7. A release whose diff from the live commit adds a migration, or moves a shared library
+8. A release whose diff from the live commit adds a migration, or moves a shared library
    pin that ships one, follows [RELEASE.md](RELEASE.md) first: a fresh backup and its id
    in the evidence. The deploy runs the migrations itself.
-8. Write down the release the site can go back to (`fly releases -a autolaunch-sh`).
-9. Start a `fly logs -a autolaunch-sh` tail before the deploy, saved in the evidence folder,
+9. Write down the release the site can go back to (`fly releases -a autolaunch-sh`).
+10. Start a `fly logs -a autolaunch-sh` tail before the deploy, saved in the evidence folder,
    and keep it until the checks after the deploy are done.
-10. Push the head to main, then deploy it from a clean checkout with
+11. Push the head to main, then deploy it from a clean checkout with
     `scripts/deploy.sh autolaunch-sh` ([platform/README.md](../platform/README.md#deployment)).
 
 ## After the release
 
-11. The live checks pass, `/healthz` names the deployed commit, and the pages the release
+12. The live checks pass, `/healthz` names the deployed commit, and the pages the release
     touched are checked on autolaunch.sh.
-12. The saved log tail shows no errors.
-13. Add the release's row to [RELEASES.md](../RELEASES.md).
+13. The saved log tail shows no errors.
+14. Add the release's row to [RELEASES.md](../RELEASES.md).

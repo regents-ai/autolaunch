@@ -134,7 +134,7 @@ limits; on 429, wait the `Retry-After` seconds, and back off on repeated failure
 private work when the pairing is revoked. Alert only for a meaningful change, a decision or a
 blocker. Never say a schedule exists until your host confirms it.
 
-## When to check again
+## Check-back intervals
 
 | Use | Suggested interval | Deadline or event handling |
 | --- | --- | --- |

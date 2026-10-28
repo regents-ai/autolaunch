@@ -61,7 +61,7 @@ defmodule AutolaunchWeb.ErrorsAdmin do
 
   defp admin(session) do
     case session |> SessionAuthority.claim() |> SessionAuthority.resolve() do
-      {lineage, %{privy_user_id: id} = account} when is_binary(lineage) ->
+      {:ok, lineage, %{privy_user_id: id} = account} when is_binary(lineage) ->
         if admin_id?(id), do: {lineage, account}
 
       _signed_out ->
@@ -71,8 +71,8 @@ defmodule AutolaunchWeb.ErrorsAdmin do
 
   defp recheck(socket, lineage, account_id) do
     case SessionAuthority.leased_account(lineage, account_id) do
-      %{privy_user_id: id} -> if admin_id?(id), do: {:cont, socket}, else: leave(socket)
-      nil -> leave(socket)
+      {:ok, %{privy_user_id: id}} -> if admin_id?(id), do: {:cont, socket}, else: leave(socket)
+      _ended_or_unread -> leave(socket)
     end
   end
 

@@ -4,20 +4,19 @@ defmodule AutolaunchWeb.Plugs.PageShell do
 
   import Plug.Conn
 
+  alias Autolaunch.AccessContext
+
   @impl Plug
   def init(opts), do: opts
 
   @impl Plug
   def call(conn, _opts) do
-    access =
-      case conn.assigns[:current_human_account] do
-        nil -> Autolaunch.AccessContext.anonymous()
-        account -> Autolaunch.AccessContext.human(account)
-      end
-
     conn
     |> Phoenix.Controller.put_layout(html: {AutolaunchWeb.Layouts, :app})
     |> assign(:current_path, conn.request_path)
-    |> assign(:account_control, Autolaunch.AccessContext.account_control(access))
+    |> assign(:account_control, account_control(conn.assigns[:current_human_account]))
   end
+
+  defp account_control(nil), do: AccessContext.account_control(AccessContext.anonymous())
+  defp account_control(account), do: AccessContext.account_control(AccessContext.human(account))
 end

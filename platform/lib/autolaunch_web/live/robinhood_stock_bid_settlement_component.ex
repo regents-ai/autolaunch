@@ -581,7 +581,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   # come back yet.
   defp early_check(%{assigns: assigns} = socket) do
     cond do
-      is_nil(assigns.linked) -> socket
+      assigns.linked in [nil, :unread] -> socket
       assigns.checking or held?(assigns) -> socket
       !early_due?(assigns) -> socket
       true -> start_early(socket)

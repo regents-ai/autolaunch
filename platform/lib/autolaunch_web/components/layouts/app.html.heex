@@ -23,7 +23,10 @@
         phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["inert"])}
       >
         <AutolaunchWeb.Components.LearnNavigation.navigation current_path={@current_path} />
-        {@inner_content}
+        <%!-- A sign-in that could not be read just then is never shown as signed
+             out: the page says so and offers to load it again. --%>
+        <.sign_in_unread :if={@account_control.kind == :unreadable} href={@reload_path} />
+        {if @account_control.kind != :unreadable, do: @inner_content}
       </main>
       <.product_links
         id="shell-footer"

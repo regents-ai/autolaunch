@@ -127,7 +127,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     # That refresh does not move the end: a minute later the sign-in is over.
     age_sign_in!(refreshed, 60)
     assert SessionAuthority.exact(refreshed) == {:error, :reset}
-    assert SessionAuthority.leased_account(refreshed.lineage, account.id) == nil
+    assert SessionAuthority.leased_account(refreshed.lineage, account.id) == {:ok, nil}
     assert SessionAuthority.sign_in(refreshed, account.id) == {:error, :reset}
   end
 

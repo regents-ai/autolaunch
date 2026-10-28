@@ -29,6 +29,7 @@ defmodule AutolaunchWeb.CreateLive do
   alias AutolaunchWeb.Components.AutolaunchHelpers
   alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.UsdValue
 
   import AutolaunchWeb.Components.DraftCarryOver, only: [keep_draft: 2]
@@ -114,6 +115,8 @@ defmodule AutolaunchWeb.CreateLive do
   # The person ticked that the smart contract account their agent chose is
   # where the launch's money goes. One the agent changed since this page
   # showed it is not confirmed; the page shows the new one to check instead.
+  # The tick is written under the page's lease read again now, so a page whose
+  # sign-in could not be read, or has ended, confirms nothing.
   def handle_event(
         "confirm_agent_treasury",
         %{"treasury" => treasury, "confirmed" => "true"},
@@ -122,9 +125,8 @@ defmodule AutolaunchWeb.CreateLive do
       when is_binary(treasury) do
     actor = human_actor(socket)
 
-    with {:ok, draft} <- reload_draft(actor),
-         {:ok, _confirmed} <-
-           Autolaunch.confirm_launch_agent_treasury(draft, treasury, actor: actor),
+    with {:ok, _confirmed} <-
+           Session.transact(socket, fn -> confirm_treasury(actor, treasury) end),
          {:ok, draft} <- reload_draft(actor) do
       {:noreply, assign_loaded_draft(socket, draft, actor)}
     else
@@ -266,8 +268,8 @@ defmodule AutolaunchWeb.CreateLive do
         end
 
       actor ->
-        with {:ok, draft} <- current_or_new_draft(actor),
-             {:ok, _saved} <- autosave_draft(event, draft, values, actor),
+        with {:ok, _saved} <-
+               save_draft(socket, actor, &autosave_draft(event, &1, values, actor)),
              {:ok, reloaded} <- reload_draft(actor) do
           {:ok, assign_loaded_draft(socket, reloaded, actor)}
         else
@@ -365,15 +367,7 @@ defmodule AutolaunchWeb.CreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, stored} <-
-           LaunchDraftImageStorage.store_and_attach(
-             draft,
-             bytes,
-             entry.client_type,
-             entry.client_name,
-             actor
-           ) do
+         {:ok, stored} <- attach_image(socket, actor, bytes, entry) do
       {:noreply, assign_saved_image(socket, stored, actor)}
     else
       {:error, :image_changed} ->
@@ -388,6 +382,16 @@ defmodule AutolaunchWeb.CreateLive do
          assign(socket,
            image_notice: "That picture is too big. Choose one no larger than 4096 by 4096 pixels."
          )}
+
+      # Upload progress reaches the page without its event recheck, so the
+      # save's own lease check (`Session.transact/2`) answers for it: a lost
+      # connection is a try-again, and an ended sign-in lapses the page.
+      {:error, :sign_in_unread} ->
+        {:noreply,
+         assign(socket, image_notice: "That did not go through. Try again in a moment.")}
+
+      {:error, ended} when ended in [:stale_authority, :session_lease_required] ->
+        {:noreply, Session.lapse(socket)}
 
       _error ->
         {:noreply,
@@ -409,7 +413,7 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   defp load_create(socket, actor) do
-    case current_or_new_draft(actor) do
+    case current_or_new_draft(socket, actor) do
       {:ok, draft} ->
         socket
         |> assign_loaded_draft(draft, actor)
@@ -504,11 +508,48 @@ defmodule AutolaunchWeb.CreateLive do
   defp checked(%{state: :checking} = check, {:exit, _reason}), do: %{check | state: :unread}
   defp checked(check, _stale), do: check
 
-  defp current_or_new_draft(actor) do
+  # Draft writes run under the page's lease read again now
+  # (`AutolaunchWeb.Live.Session.transact/2`), so a page whose sign-in could not
+  # be read just then writes nothing.
+  defp save_draft(socket, actor, write),
+    do:
+      Session.transact(socket, fn ->
+        with {:ok, draft} <- found_or_new_draft(actor), do: write.(draft)
+      end)
+
+  defp attach_image(socket, actor, bytes, entry),
+    do:
+      save_draft(
+        socket,
+        actor,
+        &LaunchDraftImageStorage.store_and_attach(
+          &1,
+          bytes,
+          entry.client_type,
+          entry.client_name,
+          actor
+        )
+      )
+
+  defp confirm_treasury(actor, treasury) do
+    with {:ok, draft} <- reload_draft(actor),
+         do: Autolaunch.confirm_launch_agent_treasury(draft, treasury, actor: actor)
+  end
+
+  # The account's draft; a first one is made only under the page's lease read
+  # again now, like every other draft write.
+  defp current_or_new_draft(socket, actor) do
+    case Autolaunch.get_my_account_launch_draft(actor: actor) do
+      {:ok, nil} -> Session.transact(socket, fn -> found_or_new_draft(actor) end)
+      read -> read
+    end
+  end
+
+  # Only ever run inside `Session.transact/2`.
+  defp found_or_new_draft(actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do
       {:ok, nil} -> Autolaunch.create_launch_draft(%{}, actor: actor)
-      {:ok, draft} -> {:ok, draft}
-      {:error, error} -> {:error, error}
+      read -> read
     end
   end
 
@@ -561,6 +602,8 @@ defmodule AutolaunchWeb.CreateLive do
     if marked == %{}, do: unmarked(failure), else: marked
   end
 
+  # A lost connection was logged where the sign-in was read.
+  defp draft_field_errors({:error, :sign_in_unread}), do: %{}
   defp draft_field_errors(failure), do: unmarked(failure)
 
   # Anything but a refused field is not the creator's to fix: it is logged,

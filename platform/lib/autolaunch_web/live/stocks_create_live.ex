@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.{AgentDrafts, ImageColor, Listings, Stocks, Ticker}
   alias Autolaunch.Stocks.{LaunchDraft, LaunchDraftImageStorage}
   alias AutolaunchWeb.Components.{AutolaunchHelpers, StockSelect}
+  alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
   alias AutolaunchWeb.ReadFailure
   alias RegentChain.Address
@@ -244,7 +245,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   def handle_info({:agent_draft_saved, "memestock"}, socket) do
     unsaved = Map.take(socket.assigns.draft_values, Map.keys(socket.assigns.draft_errors))
 
-    case current_or_new_draft(human_actor(socket)) do
+    case saved_draft(human_actor(socket)) do
       {:ok, draft} ->
         socket = assign_draft(socket, draft)
 
@@ -311,10 +312,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
         end
 
       actor ->
-        with {:ok, draft} <- current_or_new_draft(actor),
-             {:ok, saved} <- autosave(event, draft, values, actor) do
-          {:ok, assign_draft(socket, saved)}
-        else
+        case save_draft(socket, actor, &autosave(event, &1, values, actor)) do
+          {:ok, saved} -> {:ok, assign_draft(socket, saved)}
           error -> {:error, draft_field_errors(error)}
         end
     end
@@ -328,8 +327,12 @@ defmodule AutolaunchWeb.StocksCreateLive do
                do: {:ok, assign_sketch(socket, sketch)}
 
         actor ->
-          with {:ok, draft} <- current_or_new_draft(actor),
-               {:ok, saved} <- Autolaunch.choose_stocks_launch_chain(draft, chain, actor: actor),
+          with {:ok, saved} <-
+                 save_draft(
+                   socket,
+                   actor,
+                   &Autolaunch.choose_stocks_launch_chain(&1, chain, actor: actor)
+                 ),
                do: {:ok, assign_draft(socket, saved)}
       end
 
@@ -459,15 +462,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
-         {:ok, stored} <-
-           LaunchDraftImageStorage.store_and_attach(
-             draft,
-             bytes,
-             entry.client_type,
-             entry.client_name,
-             actor
-           ) do
+         {:ok, stored} <- attach_image(socket, actor, bytes, entry) do
       {:noreply,
        socket
        |> assign_draft(stored.draft)
@@ -486,6 +481,16 @@ defmodule AutolaunchWeb.StocksCreateLive do
            image_notice: "That picture is too big. Choose one no larger than 4096 by 4096 pixels."
          )}
 
+      # Upload progress reaches the page without its event recheck, so the
+      # save's own lease check (`Session.transact/2`) answers for it: a lost
+      # connection is a try-again, and an ended sign-in lapses the page.
+      {:error, :sign_in_unread} ->
+        {:noreply,
+         assign(socket, image_notice: "That did not go through. Try again in a moment.")}
+
+      {:error, ended} when ended in [:stale_authority, :session_lease_required] ->
+        {:noreply, Session.lapse(socket)}
+
       _error ->
         {:noreply,
          assign(socket,
@@ -497,7 +502,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   # A listed launch's draft was already started over
   # (`Autolaunch.LaunchedDrafts`).
   defp load_draft(socket, %Human{} = actor) do
-    case current_or_new_draft(actor) do
+    case current_or_new_draft(socket, actor) do
       {:ok, draft} -> assign_draft(socket, draft)
       {:error, _error} -> assign(socket, status: :error)
     end
@@ -545,10 +550,51 @@ defmodule AutolaunchWeb.StocksCreateLive do
   defp assign_image_color(socket, image),
     do: assign(socket, image_color: ImageColor.for_url(image))
 
-  defp current_or_new_draft(actor) do
+  # Draft writes run under the page's lease read again now
+  # (`AutolaunchWeb.Live.Session.transact/2`), so a page whose sign-in could not
+  # be read just then writes nothing.
+  defp save_draft(socket, actor, write),
+    do:
+      Session.transact(socket, fn ->
+        with {:ok, draft} <- found_or_new_draft(actor), do: write.(draft)
+      end)
+
+  defp attach_image(socket, actor, bytes, entry),
+    do:
+      save_draft(
+        socket,
+        actor,
+        &LaunchDraftImageStorage.store_and_attach(
+          &1,
+          bytes,
+          entry.client_type,
+          entry.client_name,
+          actor
+        )
+      )
+
+  # The account's draft; a first one is made only under the page's lease read
+  # again now, like every other draft write.
+  defp current_or_new_draft(socket, actor) do
+    case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> Session.transact(socket, fn -> found_or_new_draft(actor) end)
+      read -> read
+    end
+  end
+
+  # Only ever run inside `Session.transact/2`.
+  defp found_or_new_draft(actor) do
     case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
       {:ok, nil} -> Autolaunch.create_stocks_launch_draft(%{}, actor: actor)
-      other -> other
+      read -> read
+    end
+  end
+
+  # The draft the person's agent just saved, read only: it exists already.
+  defp saved_draft(actor) do
+    case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> {:error, :draft_missing}
+      read -> read
     end
   end
 
@@ -564,6 +610,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
     if marked == %{}, do: unmarked(failure), else: marked
   end
 
+  # A lost connection was logged where the sign-in was read.
+  defp draft_field_errors({:error, :sign_in_unread}), do: %{}
   defp draft_field_errors(failure), do: unmarked(failure)
 
   # Anything but a refused field is not the creator's to fix: it is logged,

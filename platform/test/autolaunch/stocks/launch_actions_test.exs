@@ -1,5 +1,6 @@
 defmodule Autolaunch.Stocks.LaunchActionsTest do
   use ExUnit.Case, async: true
+  use ExUnitProperties
 
   alias Autolaunch.Chain.Abi
   alias Autolaunch.LabAbi
@@ -11,6 +12,7 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
        |> Jason.decode!()
 
   @config %{abis: %{"launchpad" => @abi}}
+  @selectors ABI.parse_specification(@abi)
   @stock "0xb200000000000000000000c2e324d24d7eecd1fb"
   @launchpad "0x7777777777777777777777777777777777777777"
 
@@ -35,6 +37,49 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     },
     block: %{number: 1_000_000, hash: "0x" <> String.duplicate("ab", 32)}
   }
+
+  # REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the review's one step is this calldata
+  # (`review/6` saves `Review.step("launch", launchpad, launch_data(...))`), so the
+  # step a person's wallet signs is the draft's own name, ticker, description,
+  # website, picture and stock, for every draft the review admits, and nothing else.
+  property "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft" do
+    # Any printable text, cut back to whole characters within the field's byte limit,
+    # so every length up to the limit is reached and nothing is thrown away.
+    text = fn limit -> map(string(:printable, max_length: limit), &within(&1, limit)) end
+
+    check all(
+            name <- text.(64),
+            symbol <- text.(16),
+            description <- text.(512),
+            website <- string(:printable, max_length: 200),
+            image <- text.(256),
+            stock <- binary(length: 20),
+            max_runs: 200
+          ) do
+      fields = %{
+        name: name,
+        symbol: symbol,
+        description: description,
+        website: website,
+        image: image,
+        stock: "0x" <> Base.encode16(stock, case: :lower)
+      }
+
+      "0x" <> hex = LaunchActions.launch_data(fields, @config)
+
+      # Read back through the launchpad's own ABI: the selector must be its launch.
+      assert {%{function: "launch"}, [{^name, ^symbol, ^description, ^website, ^image, ^stock}]} =
+               ABI.find_and_decode(@selectors, Base.decode16!(hex, case: :lower))
+    end
+  end
+
+  defp within(text, limit) do
+    text
+    |> String.codepoints()
+    |> Enum.reduce_while("", fn point, kept ->
+      if byte_size(kept <> point) <= limit, do: {:cont, kept <> point}, else: {:halt, kept}
+    end)
+  end
 
   # AT09: the exact tuple the launchpad executes.
   test "the launch calldata carries only what the creator chose" do

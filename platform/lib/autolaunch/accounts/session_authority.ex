@@ -29,9 +29,10 @@ defmodule Autolaunch.Accounts.SessionAuthority do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.VerifiedSession
+  alias Autolaunch.Accounts.{HumanAccount, VerifiedSession}
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Repo
+  alias AutolaunchWeb.{ReadFailedError, ReadFailure}
 
   @actor %System{}
   @lineage_bytes 32
@@ -189,15 +190,17 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   `{:ok, nil}` is a valid claim bound to no account; only `{:ok, account_id}`
   confers one, and that account is read from the row rather than the cookie.
+  A row that could not be read is that read's own error, never a lifecycle
+  answer.
   """
-  @spec exact(claim() | nil) :: {:ok, integer() | nil} | {:error, :superseded | :reset}
+  @spec exact(claim() | nil) :: {:ok, integer() | nil} | {:error, :superseded | :reset | term()}
   def exact(%{lineage: lineage} = claim) when is_binary(lineage) do
-    row = lineage |> digest() |> row()
-
-    case state(row, claim) do
-      :exact -> {:ok, row.human_account_id}
-      :ensurable -> {:ok, nil}
-      other -> {:error, other}
+    with {:ok, row} <- row(lineage) do
+      case state(row, claim) do
+        :exact -> {:ok, row.human_account_id}
+        :ensurable -> {:ok, nil}
+        other -> {:error, other}
+      end
     end
   end
 
@@ -272,31 +275,45 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   @doc """
   The lineage and verified account an exactly current claim resolves to.
 
-  `{nil, nil}` means the claim itself is not current; `{lineage, nil}` means it
-  is current but confers no verified account.
+  `{:ok, nil, nil}` means the claim itself is not current; `{:ok, lineage, nil}`
+  means it is current but confers no verified account. `{:error, error}` means
+  the row or the account could not be read just then: that says nothing about
+  the sign-in, which stays as it was.
   """
-  @spec resolve(claim() | nil) :: {String.t() | nil, Ash.Resource.record() | nil}
+  @spec resolve(claim() | nil) ::
+          {:ok, String.t() | nil, Ash.Resource.record() | nil} | {:error, term()}
   def resolve(claim) do
     case exact(claim) do
-      {:ok, account_id} -> {claim.lineage, verified(account_id)}
-      {:error, _lifecycle} -> {nil, nil}
+      {:ok, account_id} ->
+        with {:ok, account} <- verified(account_id), do: {:ok, claim.lineage, account}
+
+      {:error, lifecycle} when lifecycle in [:superseded, :reset] ->
+        {:ok, nil, nil}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
   @doc """
-  The verified account a mounted lease still resolves to, or `nil`.
+  The verified account a mounted lease still resolves to: `{:ok, account}`,
+  `{:ok, nil}` once the lease has lapsed, or `{:error, error}` when the row or
+  the account could not be read just then, which says nothing about the lease.
 
   A same-account refresh advances the generation beneath a mounted socket, so a
   lease revalidates the lineage, its account, its revocation and the account's
   provider evidence rather than the generation it mounted with, and a lapsed
   sign-in ends it.
   """
-  @spec leased_account(String.t(), integer()) :: Ash.Resource.record() | nil
+  @spec leased_account(String.t(), integer()) ::
+          {:ok, Ash.Resource.record() | nil} | {:error, term()}
   def leased_account(lineage, account_id) when is_binary(lineage) and is_integer(account_id) do
-    if leased?(lineage |> digest() |> row(), account_id), do: verified(account_id)
+    with {:ok, row} <- row(lineage) do
+      if leased?(row, account_id), do: verified(account_id), else: {:ok, nil}
+    end
   end
 
-  def leased_account(_lineage, _account_id), do: nil
+  def leased_account(_lineage, _account_id), do: {:ok, nil}
 
   @doc """
   Runs `callback` against the account the exact claim locks.
@@ -304,7 +321,10 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   The lock, the revalidation and the callback share one repository transaction
   in one process, so a protected write cannot outlive a concurrent revocation,
   account switch, generation advance or lapse of provider evidence, and cannot
-  survive its own failure.
+  survive its own failure. A claim that no longer holds answers
+  `{:error, :stale_authority}`, and one that could not be read because the
+  connection was lost `{:error, :sign_in_unread}`; any other failed read
+  raises. The callback's own `{:error, reason}` comes back as it is.
   """
   @spec transact_exact(claim() | nil, callback()) :: {:ok, term()} | {:error, term()}
   def transact_exact(%{lineage: lineage} = claim, callback) when is_binary(lineage),
@@ -426,7 +446,19 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   defp lock(digest),
     do: digest |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one!()
 
-  defp row(digest), do: digest |> lookup() |> Ash.read_one!()
+  # The row a sign-in is read from. A failed read is logged and handed back as
+  # it is, so a read that fails for a moment is never taken for a sign-in that
+  # ended.
+  defp row(lineage), do: lineage |> digest() |> lookup() |> Ash.read_one() |> logged()
+
+  # Every failed sign-in read is logged here, once, by kind and module only
+  # (`AutolaunchWeb.ReadFailure`); callers decide what the person sees.
+  defp logged({:error, error} = failed) do
+    ReadFailure.log("sign-in read", error)
+    failed
+  end
+
+  defp logged(read), do: read
 
   defp lookup(digest),
     do:
@@ -434,35 +466,85 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   # Every protected write locks the authority row and then the account row, in
   # that one order, and reads the provider evidence only from behind the second
-  # lock. A concurrent lapse therefore either waits for the callback to commit or
-  # commits first and is seen, and two protected writes cannot deadlock.
+  # lock. The account row is taken `FOR SHARE`: a concurrent lapse of its
+  # evidence (an update of that row) still waits for the callback to commit or
+  # commits first and is seen, while the `FOR KEY SHARE` that every insert or
+  # update referencing the account takes for its foreign key (an agent's draft
+  # save, another site's rows) never waits behind it, so the two cannot
+  # deadlock. No callback updates the account row itself.
+  #
+  # Failures are sorted as everywhere on the site (`AutolaunchWeb.ReadFailure`):
+  # a lost connection, whether the sign-in read lost it or it was gone before
+  # the transaction could begin, refuses the write with `{:error,
+  # :sign_in_unread}`, logged once; any other failed sign-in read raises the
+  # read-failed error. The callback's own answers come back as they are.
   defp guarded(lineage, current?, callback) do
-    Repo.transaction(fn ->
-      row = lineage |> digest() |> lock()
+    lineage
+    |> locked_transaction(current?, callback)
+    |> sorted()
+  rescue
+    failure in [DBConnection.ConnectionError, Postgrex.Error] ->
+      if ReadFailure.lost_connection?(failure) do
+        ReadFailure.log("sign-in lease", failure)
+        {:error, :sign_in_unread}
+      else
+        reraise failure, __STACKTRACE__
+      end
+  end
 
-      with true <- current?.(row),
-           account when not is_nil(account) <- verified(row.human_account_id, :for_update) do
+  defp locked_transaction(lineage, current?, callback) do
+    Repo.transaction(fn ->
+      with {:ok, row} <- locked_row(lineage),
+           true <- current?.(row),
+           {:ok, %{} = account} <- verified_read(row.human_account_id, "FOR SHARE") do
         commit(callback.(account))
       else
+        {:error, error} -> Repo.rollback({:sign_in_read, error})
         _lapsed -> Repo.rollback(:stale_authority)
       end
     end)
   end
 
+  defp locked_row(lineage),
+    do: lineage |> digest() |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one()
+
+  # A locked sign-in read that fails inside the transaction is rolled back with
+  # its own error, or, by Ash itself, with its own query; either is logged here,
+  # once.
+  defp sorted({:error, {:sign_in_read, error}}), do: {:error, sign_in_unread(error)}
+
+  defp sorted({:error, %Ash.Query{resource: resource} = query})
+       when resource in [__MODULE__, HumanAccount],
+       do: {:error, sign_in_unread(query)}
+
+  defp sorted(result), do: result
+
+  defp sign_in_unread(error) do
+    case ReadFailure.log("sign-in read", error) do
+      :connection_lost -> :sign_in_unread
+      :failed -> raise ReadFailedError
+    end
+  end
+
+  # The account a sign-in names, while its provider evidence is current:
+  # `{:ok, nil}` when there is no such account or its evidence has lapsed, and
+  # the read's own error when it could not be read.
   defp verified(account_id, lock \\ nil)
 
-  defp verified(nil, _lock), do: nil
+  defp verified(nil, _lock), do: {:ok, nil}
 
-  defp verified(account_id, lock) do
-    with {:ok, account} when not is_nil(account) <-
-           Accounts.get_human_account(account_id,
-             actor: %Human{human_account_id: account_id},
-             query: [lock: lock]
-           ),
-         true <- VerifiedSession.current?(account) do
-      account
-    else
-      _lapsed -> nil
+  defp verified(account_id, lock), do: account_id |> verified_read(lock) |> logged()
+
+  defp verified_read(nil, _lock), do: {:ok, nil}
+
+  defp verified_read(account_id, lock) do
+    case Accounts.get_human_account(account_id,
+           actor: %Human{human_account_id: account_id},
+           not_found_error?: false,
+           query: [lock: lock]
+         ) do
+      {:ok, account} -> {:ok, if(account && VerifiedSession.current?(account), do: account)}
+      {:error, error} -> {:error, error}
     end
   end
 

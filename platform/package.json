@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "assets:build": "mix assets.build",
-    "typecheck": "tsc --project assets/tsconfig.json --noEmit && tsc --project test/browser/tsconfig.json --noEmit",
+    "typecheck": "tsc --project assets/tsconfig.json --noEmit && tsc --project test/browser/tsconfig.json --noEmit && tsc --project test/journeys/tsconfig.json --noEmit",
     "test": "vitest run",
     "test:browser": "sh test/browser/walk.sh"
   },

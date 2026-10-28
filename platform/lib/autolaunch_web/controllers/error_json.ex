@@ -5,7 +5,15 @@ defmodule AutolaunchWeb.ErrorJSON do
   every error is JSON, whatever the request asked for.
   """
 
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ApiError}
+
+  # The account an agent's pairing names could not be read just now.
+  def render("503.json", %{reason: %AccountUnavailableError{}}),
+    do: ApiError.body("account_unavailable", "Account access is unavailable.")
+
+  # The agent's pairing names no Regent account.
+  def render("403.json", %{reason: %AgentNotPairedError{}}),
+    do: ApiError.body("agent_not_paired", "This agent is not paired with an account.")
 
   def render(template, _assigns), do: ApiError.body(code(template), message(template))
 

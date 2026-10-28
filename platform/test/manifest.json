@@ -1,5 +1,5 @@
 {
-  "total": 115,
+  "total": 147,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -27,7 +27,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 5,
@@ -40,7 +40,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch_web/controllers/privy_session_controller_test.exs",
       "original_source_sha256": "becfeffc53b5da58fcdfcb2061ecf53eef26727469100ffcff9db73ccfee3dbf",
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 7,
@@ -157,7 +157,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 40,
@@ -170,7 +170,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 41,
@@ -183,7 +183,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 42,
@@ -196,7 +196,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 43,
@@ -209,7 +209,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 44,
@@ -222,7 +222,7 @@
       "generated_case": null,
       "original_file": "assets/test/onchain_steps.test.ts",
       "original_source_sha256": "3ce5c2e7094c5459ce43cbf5f32e36fd22cd64bab11618ff06d3295024ebfefe",
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 45,
@@ -300,7 +300,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "3bddafcd51d851e63b09e1c8b16b2b5a116a47a70c5d57ba268b8553af264bd2"
+      "source_sha256": "292dbee63e0af74fa29d56cbd3ac50e9322b24559e1debee2b62924fafd76850"
     },
     {
       "id": 51,
@@ -326,7 +326,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 53,
@@ -339,7 +339,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f32fe7af2314e65d8717daa3c241580052a0a6cc5f2f69f29f594b3562855740"
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     },
     {
       "id": 54,
@@ -976,7 +976,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5083e93305b4f1a933ac742364a00830db800653a58835187d8d6dad87568dd2"
+      "source_sha256": "575e432178c48bbfd377216ad905eab723ca2f70ec656fb7b9afdf1312e9dbe6"
     },
     {
       "id": 115,
@@ -989,33 +989,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
     },
     {
       "id": 116,
       "group": "Agent guides",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_documents_test.exs",
-      "line": 34,
+      "line": 51,
       "test_name": "the signed agent guide states the prelaunch gate as this deployment has it",
       "keep_because": "agents.md says whether draft saves are open from the deployment's own setting. It fails if the line is fixed text again.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
     },
     {
       "id": 117,
       "group": "Agent guides",
       "framework": "exunit",
       "file": "test/autolaunch_web/agent_documents_test.exs",
-      "line": 45,
+      "line": 62,
       "test_name": "the short index leads to the whole guide, which carries every tool",
       "keep_because": "The short /llms.txt links /llms-full.txt and /sitemap.md, and the whole guide still names every manifest tool. It fails if the index grows back into the whole guide or a tool drops out of it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "13bc7167ef7f35ed0e8e13dc0f8580dee2c0d3558a54839fce4e7e1a2c46d3fc"
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
     },
     {
       "id": 118,
@@ -1197,20 +1197,20 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 132,
       "group": "Agent authority",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 103,
+      "line": 142,
       "test_name": "the launch review names every agent-set field and shows the community links",
       "keep_because": "The launch review, built from the draft as it stands at the press, names the agent's fields and shows every community link, so an agent's save after the page opened cannot reach the wallet step unseen (security review, 21 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 133,
@@ -1321,13 +1321,13 @@
       "group": "Creator drafts",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
-      "line": 70,
+      "line": 109,
       "test_name": "AGENT_SAVE_SHOWS_LIVE: an open create page shows an agent's save without a reload",
       "keep_because": "An agent can fill in a draft while the person has the create page open; the box naming what the agent set must show it then, on both create pages, so nothing an agent chose reaches a wallet step unseen. It fails when either page stops hearing of an agent's save.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d04c5bd41ffe824c87187f72efd9d60ddda48d18ee6d9cfaf1e16814c2dce76f"
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
     },
     {
       "id": 142,
@@ -1497,6 +1497,422 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "fabab02c511cf9b81928a159084ea00897649b247986d8d6aabff3d61ffd343e"
+    },
+    {
+      "id": 156,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 44,
+      "test_name": "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in",
+      "keep_because": "An agent hears its status from whoami (not_paired, then paired with this site's allowed list and no next step) and its check-in names its person's shared Regent account. It fails without this site's allowed list, where every whoami answered 500.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+    },
+    {
+      "id": 157,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 40,
+      "test_name": "SIGN_IN_READ_LOST_KEEPS_SIGN_IN: a lost connection is Try again, and signs no one out",
+      "keep_because": "A sign-in read that answers as a lost connection is the try-again page (503) and a 503 from /auth/session, never signed out; a page whose socket connects then shows Something didn't load with Try again for the same address and query; the same cookie is signed in once the read works. It fails while a failed read is taken for an ended sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 158,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 88,
+      "test_name": "a connection cut during the sign-in read is the try-again page",
+      "keep_because": "The case's own connection cut as the account is read is the try-again page, logged as connection_lost by kind and module only. It fails while a failed read is taken for an ended sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 159,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 68,
+      "test_name": "a sign-in read that fails for any other reason is the plain error page, and signs no one out",
+      "keep_because": "A sign-in read that fails for a reason other than a lost connection is the plain error page (500), logged by kind and module only, as the site's other reads are; the same cookie is signed in once it reads. It fails while every failure was shown as signed out or as Try again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 160,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 99,
+      "test_name": "a lost sign-in read is a 503 for the signed-in wallet's positions and share video",
+      "keep_because": "/api/v1/me/positions and a wallet's share video answer 503 while the sign-in reads as a lost connection, never 401 or a missing video. It fails while a failed read is taken for no sign-in.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 161,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 115,
+      "test_name": "SIGN_IN_READ_LOST_WRITES_NOTHING: a page whose sign-in can't be read makes no code and saves no draft",
+      "keep_because": "A page that keeps showing its account while its sign-in can't be read makes no pairing code and saves neither a Revstake nor a Memestock draft, saying each could not be made or saved. It fails while those writes ran as the held person with no fresh lease check.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 162,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/sign_in_read_test.exs",
+      "line": 162,
+      "test_name": "a sign-in that has ended is still signed out",
+      "keep_because": "A sign-in past its 30 days still shows Sign in and /auth/session says signed out, never Try again. It passes with or without the read fix and fails against a fix that takes an ended sign-in for a failed read.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+    },
+    {
+      "id": 163,
+      "group": "Browser wallet boundary",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 43,
+      "test_name": "WALLETS_UNREAD_SAY_TRY_AGAIN: a wallet panel whose wallets can't be read sends nothing and never asks to sign in",
+      "keep_because": "On the real Account page, a Credits panel whose wallets can't be read because the connection was lost hands the wallet no review for Approve or Buy even with the account's own wallet open, and its press note never asks the person to sign in; the page stays signed in. It fails on main, where the lost read signed the page out.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+    },
+    {
+      "id": 164,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 109,
+      "test_name": "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again",
+      "keep_because": "Connect ENS with a sign-in that can't be read says That did not go through. Try again in a moment., not that the name doesn't fit. It fails while every failure said Use an ENS name controlled by your signed-in wallet.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+    },
+    {
+      "id": 165,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 81,
+      "test_name": "AGENT_PAIRING_WITHOUT_ACCOUNT_IS_NOT_PAIRED: a pairing that names no Regent account is agent_not_paired",
+      "keep_because": "A pairing that names no Regent account is 403 agent_not_paired from the check-in, whoami and the agent routes, with the hint to pair again with Pair New Agent. It fails while whoami answered person_not_here, the check-in refused with person_not_here and the agent routes said try again, against the one-account rule.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+    },
+    {
+      "id": 166,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 98,
+      "test_name": "AGENT_PERSON_UNREAD_IS_503: a person's account that can't be read is account_unavailable",
+      "keep_because": "A paired person's account that can't be read is 503 account_unavailable from the check-in, whoami and the agent routes. It fails while the check-in and whoami answered 500.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+    },
+    {
+      "id": 167,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 73,
+      "test_name": "HELD_TREASURY_TICK_WRITES_NOTHING: a page whose sign-in ended and can't be read confirms no treasury",
+      "keep_because": "A create page whose sign-in has ended elsewhere, and whose next read of it loses its connection, keeps showing the account but cannot confirm the agent's treasury: the tick runs under the lease read again now. It fails while the tick was written without that read (the review of 61ad213d).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 168,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 114,
+      "test_name": "HELD_PAGE_MAKES_NO_DRAFT: a closed review or an agent's save starts no draft for a held account",
+      "keep_because": "On both create pages a closed or finished launch review, and on /create an agent's saved draft, start no draft for an account whose sign-in ended and cannot be read: a first draft is made only under the lease read again now, and an agent's save is only read. It fails on each of the three while they created the draft directly.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 169,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 136,
+      "test_name": "WRITE_FAILURE_IS_NOT_A_SIGN_IN_READ: a write that fails under a lease raises as itself",
+      "keep_because": "A write that raises inside SessionAuthority.transact_lease raises as itself and is not logged as a sign-in read. It fails while the whole transaction was rescued and turned into an error tuple.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 170,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 215,
+      "test_name": "a write behind a fresh check runs only for a lease that reads as current now",
+      "keep_because": "Session.fresh/2, which the Credits purchase report and check and the launch treasury check use because they call the chain first, runs its write only for a lease that reads as current: a lost read is sign_in_unread, an ended sign-in session_unavailable, no lease session_lease_required.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 171,
+      "group": "Browser wallet boundary",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 74,
+      "test_name": "a wallet read that fails for any other reason is a real error",
+      "keep_because": "On the real Account page, a wallet panel's own read of the account that fails for a reason other than a lost connection (42P01, injected at that read only) ends the page with the read-failed error, as a page's read does, instead of holding the wallets as unread. It fails while every failure was shown as unread.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+    },
+    {
+      "id": 172,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/sign_in_unread_panels_test.exs",
+      "line": 119,
+      "test_name": "ENS_NAME_TAKEN_IS_NOT_TRY_AGAIN: a name another account holds is refused for good, not retried",
+      "keep_because": "Saving an ENS name another account already holds answers name_taken, which Connect ENS words as taken, never as try again. It fails while every failed save was a try-again.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "c23b6415254ad38868be664d7816123fe1b3a25b0bab2a9bcfe50f7a2d22a876"
+    },
+    {
+      "id": 173,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 153,
+      "test_name": "LEASE_WRITE_ON_A_CUT_CONNECTION_SAYS_TRY_AGAIN: a connection gone before the write begins is a try-again",
+      "keep_because": "With the case's own connection really cut (pg_terminate_backend) before the write's transaction begins, Session.transact/2 answers sign_in_unread and ConnectEns.record_name/3 try_again, logged once as a lost sign-in lease. It fails while Repo.transaction's raise at the start crashed the page, the pairing, the tick, the ENS save and the launch review.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 174,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/held_sign_in_writes_test.exs",
+      "line": 174,
+      "test_name": "IMAGE_UPLOAD_HELD_SAYS_TRY_AGAIN_OR_SIGNS_OUT: a picture saved on a held page",
+      "keep_because": "On both create pages a token picture whose save loses the sign-in's connection says to try again, not that the file is broken, and one whose sign-in has ended signs the page out. Upload progress reaches the page without its event recheck, so the save's own lease check answers. It fails while every refusal fell through to the broken-file note.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a470089456f5f37bd2af7b4a61fb34623e93947f2febf9ad888e6c746078be22"
+    },
+    {
+      "id": 175,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_check_in_test.exs",
+      "line": 114,
+      "test_name": "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",
+      "keep_because": "A paired person's account read that fails for a reason other than a lost connection (42P01) is the plain 500 from the check-in, whoami and the agent routes, not the try-again 503. It fails while every failed read answered 503 account_unavailable.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "eafbb920a1d196bf6fce71650e2942d47489fa8a768ca746dfb590a568b9757c"
+    },
+    {
+      "id": 176,
+      "group": "Agent documents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_documents_test.exs",
+      "line": 37,
+      "test_name": "PAIRING_MESSAGE_STEPS_ARE_WHERE_IT_SAYS: the steps the pairing message names are in the document it names",
+      "keep_because": "The pairing message sent agents to \"Pair with a person's account\" steps at /llms.txt, which had none (found by the agent journeys, 27 Oct 2026). The case follows the message to the document and checks the steps and their commands are there. It fails without them.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cb33e0ae15a192ee23bc11970e5531d162505160bb65c9f01deb9f54943ba697"
+    },
+    {
+      "id": 177,
+      "group": "Agent drafts",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/agent_draft_review_test.exs",
+      "line": 70,
+      "test_name": "AGENT_SET_ADDRESS_IS_COPYABLE: an address the agent set can be copied whole and opened on Basescan",
+      "keep_because": "The list of what an agent filled in printed its addresses as bare text, against the rule that every address can be copied whole and opened (found by the agent journeys, 27 Oct 2026). The case checks the agent's treasury copies whole and links Basescan. It fails on the bare text. It also checks a treasury saved part-way shows as written: drawn as an address it crashed the page (found by the adversarial review, 27 Oct 2026).",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "cf7cf100b650c7a80ec6434e5446eabc9926e180767907cfbb1e677922008c50"
+    },
+    {
+      "id": 178,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 73,
+      "test_name": "PAIRING_CODE_WORKS_ONCE: a code pairs exactly one agent, however many try it, in any order and at once",
+      "keep_because": "A pairing code is the only thing that ties an agent to a person's account. The property tries one code with one to four agents in every order, one after another and all at once, and checks exactly one pairing is made and every other try is refused as pairing_failed.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
+    },
+    {
+      "id": 179,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 107,
+      "test_name": "PAIRING_CODE_ENDS_AT_TEN_MINUTES: a code pairs exactly when it is under ten minutes old",
+      "keep_because": "A code that outlives ten minutes lets a pasted message pair an agent long after the person stopped watching. The property moves a fresh code's clock back by up to twenty minutes, most often around the ten-minute edge, and checks it pairs exactly when it is younger.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
+    },
+    {
+      "id": 180,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 135,
+      "test_name": "ONLY_OFFERED_HARNESSES_PAIR: an agent pairs exactly when its harness is one this site offers, and never as ChatGPT",
+      "keep_because": "ChatGPT pairs only through a plugin this site does not serve, so an agent naming it here must be refused before its code is spent. The property sends every known harness and made-up ones and checks only the site's offered list pairs.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
+    },
+    {
+      "id": 181,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 155,
+      "test_name": "PAIR_TAKES_EXACTLY_CODE_NAME_AND_HARNESS: a pair request with any other set of fields spends nothing and is refused",
+      "keep_because": "A pair request carrying a missing or extra field must spend nothing. The property sends every other set of fields and checks each is pairing_failed and the same code still pairs afterwards.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
+    },
+    {
+      "id": 182,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 184,
+      "test_name": "AGENT_LIMIT_IS_ONE_HUNDRED",
+      "keep_because": "One account holds at most a hundred agents. The case pairs a hundred and checks the next is refused as agent_limit.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
+    },
+    {
+      "id": 183,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_pairing_properties_test.exs",
+      "line": 192,
+      "test_name": "AN_AGENT_ACTS_ONLY_FOR_ITS_OWN_PERSON: every private answer names the account of the agent's current pairing, or refuses",
+      "keep_because": "The worst thing an agent route can do is answer for someone else's account. The property runs random pairings, unpairings and check-ins across three people and four agents and checks every answer names the account of the agent's current pairing, or is agent_not_paired.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "71bfdbcc784e2b3d6111cf54e04b0c15576e2da1a7d270d1282a0e88aa56c9be"
+    },
+    {
+      "id": 184,
+      "group": "Memestock launch",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/launch_actions_test.exs",
+      "line": 45,
+      "test_name": "REVIEW_SIGNS_ONLY_WHAT_WAS_REVIEWED: the launch step decodes back to exactly the reviewed draft",
+      "keep_because": "The person's wallet signs the review's launch step, so that step must carry exactly the draft they reviewed. The property encodes random drafts at every byte limit, decodes the step with the launchpad's own ABI and checks every field comes back unchanged.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "ee49b41c2b0e181c9e5444f4c79fd52e815bc9e900c715e2aa2b68fc7b3da295"
+    },
+    {
+      "id": 185,
+      "group": "Agent authority",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/controllers/agent_contract_test.exs",
+      "line": 80,
+      "test_name": "AGENT_ROUTES_ANSWER_AS_THE_CONTRACT_SAYS: whoami, check-in and pairing answer only what the contract documents",
+      "keep_because": "The served contract, which the regents command line copies, said check-in refused with 404 and pairing with 403 or 422; the routes answer 403 agent_not_paired, 400 pairing_failed or harness_unknown or invalid_name, and 409 agent_limit, and whoami answers an unpaired agent 200 not_paired (found by the lead chief's review, 28 Oct 2026). The case drives each route through the real plugs and checks the contract documents the status and code it got. It fails on the old contract.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "2b0cdbdc35240eeaf9f8ada54997fc2580f961c8d28587f71b04cf55eb431c1c"
+    },
+    {
+      "id": 186,
+      "group": "Wallet actions",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/bid_settlement_press_test.exs",
+      "line": 53,
+      "test_name": "SETTLE_PRESS_BEFORE_REVIEW_SENDS: a settlement press with no review on the card is prepared and sent",
+      "keep_because": "A settlement card's button names its action before its review arrives, and a press in that moment sent nothing (found by the agent journeys, 28 Oct 2026). The case presses before the card has its review and checks the card prepares it and hands back its exit step. It fails without the card's prepare_and_send.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "5fb30cbb77687ddbd8d06a95d45ff48a6d9b6894bc4f9dddf401ff56ca50c9ca"
+    },
+    {
+      "id": 187,
+      "group": "Wallet actions",
+      "framework": "vitest",
+      "file": "assets/test/onchain_steps.test.ts",
+      "line": 234,
+      "test_name": "a press with no review yet asks the server for one when the card prepares on press",
+      "keep_because": "The page half of the same defect: a press on a card with no review inputs and no review sent nothing. The cases check such a card asks the server first, and that every other card behaves as before. They fail without asksServer.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
     }
   ],
   "legacy_folders_to_remove": [

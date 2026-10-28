@@ -111,7 +111,7 @@ graph, admits the fixture routes, and writes
 ```
 
 Addresses are lowercase. The website refuses a file whose `rpc_url` is not an admitted door for
-the chain mode (loopback in `base` mode; `Autolaunch.LabRpcUrl` for `fork` mode, where `public_rpc_url` is required as well and must equal the Agent lab's) answering
+`Autolaunch.LabRpcUrl` (a door that is not loopback needs a `public_rpc_url` too),
 whose chain id or RPC doors differ from the Base description it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, or whose ABI set lacks a function or event the site
@@ -130,11 +130,11 @@ written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerate
 
 Environment: `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongside the
 Base description variables, in every environment. It is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`
-and must name the same Base description; `AUTOLAUNCH_CHAIN_MODE=fork` requires it.
+and must name the same Base description.
 
 ## Faucet
 
-Fork sites only (a local lab), rendered as a "Test funds" panel on `/create/stocks`
+Local labs only (chain 31337), rendered as a "Test funds" panel on `/create/stocks`
 and on auction pages for a signed-in account whose selected wallet the account holds.
 `Autolaunch.Stocks.Faucet` performs one fork transaction per press using `anvil_impersonateAccount`
 on the site's own `rpc_url` of a validated lab configuration (the private door; never the public
@@ -148,11 +148,7 @@ one) and refuses on a read-only site or without a lab:
 
 The holder's ETH is topped up on the fork when it cannot pay gas. Every press sends; the RPC's
 own error text is reported on failure, the receipt is awaited, and the wallet's new balance is
-shown. With `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS` above zero (the default is 3600 in `fork` chain
-mode and 0 on a local lab) one asset goes to one wallet at most once per window: the buttons stay
-enabled, every press performs the check, and a press inside the window reports "That test asset
-was already sent to this wallet recently; try again after HH:MM UTC." The check and the record
-(`Autolaunch.Stocks.FaucetGrant`, table `faucet_grants`) share the transaction that sends the grant. Nothing here signs with the user's wallet or touches mainnet. The `erc20` ABI in the
+shown. Nothing here signs with the user's wallet or touches mainnet. The `erc20` ABI in the
 configuration must declare `approve`, `transfer`, `balanceOf`, `allowance`, `decimals` and the
 `Approval` event; `mint` calldata is built from its fixed signature.
 

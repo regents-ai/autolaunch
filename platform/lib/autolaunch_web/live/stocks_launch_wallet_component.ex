@@ -21,6 +21,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
+    sign_in_unread: "That did not go through. Try again in a moment.",
     wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
     invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",

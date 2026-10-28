@@ -8,7 +8,7 @@
 /* The dropdowns are the shared pills (rg-pill-select), at the list's smaller type. */
 .market-list__filters .rg-pill-select > :is(select, summary) { font-size: .8125rem; }
 .market-list__verified-menu.is-active summary { border-color: var(--color-fg); }
-.market-list__verified-menu fieldset { position: absolute; left: 0; top: calc(100% + 8px); transform-origin: top left; z-index: 3; display: grid; gap: 10px; width: min(240px, calc(100vw - 2rem)); margin: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); box-shadow: 0 8px 24px #0002; font-size: .8125rem; }
+.market-list__verified-menu fieldset { position: absolute; left: 0; top: calc(100% + 8px); transform-origin: top left; z-index: var(--rg-layer-tip); display: grid; gap: 10px; width: min(240px, calc(100vw - 2rem)); margin: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); box-shadow: var(--rg-layer-tip-shadow); font-size: .8125rem; }
 .market-list__verified-menu legend { float: left; margin-bottom: 2px; color: var(--color-fg-muted); font-size: .75rem; }
 .market-list__verified-menu label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .market-list__verified-menu small { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.4; }

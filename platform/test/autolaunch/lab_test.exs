@@ -9,35 +9,30 @@ defmodule Autolaunch.LabTest do
   # the RPC doors and the chain id proves which doors are admitted: an admitted
   # pair reaches the address check (`:invalid_addresses`), a refused one never
   # does.
-  test "the site's door is loopback, private or https; every other door needs a public one", %{
+  test "the site's door is loopback or https; an https door needs a public one", %{
     tmp_dir: dir
   } do
     loopback = "http://127.0.0.1:8545"
-    internal = "http://autolaunch-fork.internal:8545"
     https = "https://base-admin.example.test/rpc"
     public = "https://base.example.test"
 
     # Loopback with no public door: the local lab shape; wallets get loopback.
     assert {:error, :invalid_addresses} = load(dir, %{"rpc_url" => loopback})
 
-    # A private or https own door requires the public door wallets use.
-    assert {:error, :missing_public_rpc} = load(dir, %{"rpc_url" => internal})
+    # An https own door requires the public door wallets use.
     assert {:error, :missing_public_rpc} = load(dir, %{"rpc_url" => https})
-
-    assert {:error, :invalid_addresses} =
-             load(dir, %{"rpc_url" => internal, "public_rpc_url" => public})
 
     assert {:error, :invalid_addresses} =
              load(dir, %{"rpc_url" => https, "public_rpc_url" => public})
 
-    # Plain http outside loopback and the private network is never the site's door.
+    # Plain http outside loopback is never the site's door.
     assert {:error, :rpc_not_admitted} =
              load(dir, %{"rpc_url" => "http://base.example.test:8545", "public_rpc_url" => public})
 
     # Neither door carries credentials, a query or a fragment.
     for own <- [
-          "http://user:secret@autolaunch-fork.internal:8545",
-          "http://autolaunch-fork.internal:8545?x=1",
+          "http://user:secret@127.0.0.1:8545",
+          "https://base-admin.example.test/rpc?x=1",
           "https://base-admin.example.test/rpc#x"
         ] do
       assert {:error, :rpc_not_admitted} =
@@ -53,7 +48,7 @@ defmodule Autolaunch.LabTest do
           ""
         ] do
       assert {:error, :invalid_public_rpc} =
-               load(dir, %{"rpc_url" => internal, "public_rpc_url" => wallet_door})
+               load(dir, %{"rpc_url" => https, "public_rpc_url" => wallet_door})
     end
   end
 

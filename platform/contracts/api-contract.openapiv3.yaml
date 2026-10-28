@@ -442,16 +442,20 @@ paths:
     "get":
       "operationId": "agent_whoami"
       "summary": "Check my identity and pairing"
+      description: Run this first; it works before pairing. Answers your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing and awards no Points.
       "security":
         -
           "SiwaProof": []
       "responses":
         "200":
-          "description": "Success"
+          "description": "Your status on this site, what you may do in it and your next step"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentStatusEnvelope"}
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent's pairing leads to no Regent account (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -472,8 +476,11 @@ paths:
               schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
         "401":
           "description": "Fresh request proof required"
-        "404":
-          "description": "This agent is not paired with an account"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentNotPairedError"}
         "503":
           "description": "Dependency unavailable"
   /api/agents/v1/pair:
@@ -484,12 +491,18 @@ paths:
         -
           "SiwaProof": []
       "responses":
+        "400":
+          "description": "The code could not be used, or the body is not exactly code, name and harness (pairing_failed); the harness is not one this site offers (harness_unknown); the name can't be used (invalid_name)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentPairingError"}
         "401":
           "description": "Fresh request proof required"
-        "403":
-          "description": "Needs a pairing"
-        "422":
-          "description": "Invalid input"
+        "409":
+          "description": "The account already has 100 paired agents"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentLimitError"}
         "503":
           "description": "Dependency unavailable"
         "201":
@@ -528,7 +541,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -546,7 +559,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input: invalid_draft, invalid_image or image_too_large"
         "503":
@@ -610,7 +623,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -628,7 +641,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input: invalid_draft, invalid_image or image_too_large"
         "503":
@@ -691,7 +704,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "409":
           "description": "Your person's Regent account has no verified wallet to read (wallet_required)"
         "422":
@@ -714,7 +727,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -735,7 +748,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid cursor (invalid_cursor) or unsupported body fields (invalid_request)"
           content:
@@ -772,7 +785,7 @@ paths:
         "401":
           "description": "Fresh request proof required"
         "403":
-          "description": "Needs a pairing"
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
         "422":
           "description": "Invalid input"
         "503":
@@ -932,6 +945,43 @@ components:
         human_backed: {type: boolean}
         same_person_agent_count: {type: [integer, "null"], minimum: 1}
         account: {$ref: "#/components/schemas/PairedAccount"}
+    AgentStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/AgentStatus"}
+    AgentStatus:
+      type: object
+      additionalProperties: false
+      required: [agent, audience, authenticated, pairing, status, allowed, next_step]
+      properties:
+        agent:
+          type: object
+          required: [wallet, registry_listing]
+          properties:
+            wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+            registry_listing: {type: [string, "null"], format: uri, description: "The agent's page in the agent registry, or null when it has none."}
+        audience: {type: string, const: autolaunch}
+        authenticated: {type: boolean, const: true}
+        pairing:
+          type: [object, "null"]
+          description: Null until a person pairs this agent.
+          required: [id, paired_at]
+          properties:
+            id: {type: string, format: uuid}
+            paired_at: {type: string, format: date-time}
+        status:
+          type: string
+          enum: [not_paired, paired]
+          description: "not_paired: no person has paired this agent. paired: it acts for its person."
+        allowed:
+          type: array
+          items: {type: string}
+          description: What the agent may do on this site in this status, in short plain sentences.
+        next_step:
+          type: [string, "null"]
+          description: What to do next, in one sentence; null when paired.
     CheckedInAgentEnvelope:
       type: object
       additionalProperties: false
@@ -1415,6 +1465,45 @@ components:
           required: [code, message, hint]
           properties:
             code: {type: string, enum: [invalid_request, internal_error, authentication_required, chain_unavailable]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentNotPairedError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [agent_not_paired]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentPairingError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [pairing_failed, harness_unknown, invalid_name]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentLimitError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [agent_limit]}
             message: {type: string}
             hint: {type: string, description: What to do next.}
     NotFoundApiError:

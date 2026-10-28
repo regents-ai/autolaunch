@@ -123,7 +123,7 @@ export const OnchainSteps: Hook = {
         report({name: "press.unsent", where: name, outcome: "lost"})
       }
 
-      const asks = Object.keys(form).length > 0 && (!this.review || !sameInputs(this.review.inputs, form))
+      const asks = asksServer(this.review, form, this.el.hasAttribute("data-onchain-prepare"))
       if (activeEthereumWallet() && asks) {
         void this.pushEventTo(this.el, "prepare_and_send", {form, step: name})
           .then(async ([result]) => {
@@ -286,6 +286,21 @@ export function formInputs(root: HTMLElement): Record<string, string> {
     }
   })
   return inputs
+}
+
+/**
+ * Whether a press asks the server for the review to send (`prepare_and_send`)
+ * instead of sending the one the page holds: on a card with review inputs, when
+ * it has no review or the form on screen no longer matches it; on a card marked
+ * `data-onchain-prepare`, which has no inputs, when it has no review yet.
+ */
+export function asksServer(
+  review: Review | undefined,
+  form: Record<string, string>,
+  preparesOnPress: boolean,
+): boolean {
+  if (Object.keys(form).length > 0) return !review || !sameInputs(review.inputs, form)
+  return preparesOnPress && !review
 }
 
 function sameInputs(review: Record<string, string>, form: Record<string, string>): boolean {

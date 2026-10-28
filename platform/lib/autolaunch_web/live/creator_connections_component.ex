@@ -109,14 +109,20 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
      )}
   end
 
-  def handle_async(:connect_ens, _error, socket) do
-    {:noreply,
-     assign(socket,
-       resolving: false,
-       notice:
-         "Could not verify ENS. The name must be controlled by your signed-in wallet and resolve to it. Check it and try again."
-     )}
+  # A refused name says why in its own words (`Autolaunch.Accounts.ConnectEns`):
+  # try again, taken by another account, or not this wallet's. Anything else is
+  # a real error, as on a page (`AutolaunchWeb.ReadFailure`).
+  def handle_async(:connect_ens, {:ok, {:error, %Ash.Error.Invalid{errors: errors}}}, socket) do
+    case Enum.find_value(errors, &refusal/1) do
+      nil -> raise AutolaunchWeb.ReadFailedError
+      notice -> {:noreply, assign(socket, resolving: false, notice: notice)}
+    end
   end
+
+  def handle_async(:connect_ens, _failed, _socket), do: raise(AutolaunchWeb.ReadFailedError)
+
+  defp refusal(%{field: :name, message: message}) when is_binary(message), do: message
+  defp refusal(_error), do: nil
 
   def render(assigns) do
     assigns = assign(assigns, :rows, row_assigns(assigns))

@@ -26,4 +26,12 @@ defmodule Autolaunch.AccessContext do
       wallet_address: account.wallet_address
     }
   end
+
+  @doc """
+  The account control while a sign-in could not be read just then: neither Sign
+  in nor a name, since the person may well still be signed in. The page says
+  something didn't load instead.
+  """
+  def unreadable_account_control,
+    do: %AccountControl{kind: :unreadable, label: "Something didn’t load"}
 end

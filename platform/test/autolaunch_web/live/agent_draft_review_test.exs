@@ -64,6 +64,45 @@ defmodule AutolaunchWeb.AgentDraftReviewTest do
     assert review =~ @treasury
   end
 
+  # AGENT_SET_ADDRESS_IS_COPYABLE: the list printed an address an agent set as
+  # bare text, so the person could neither copy it whole nor open it on the
+  # explorer to check it (found by the agent journeys, 27 Oct 2026).
+  test "AGENT_SET_ADDRESS_IS_COPYABLE: an address the agent set can be copied whole and opened on Basescan",
+       %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    code =
+      RegentAgents.issue_pairing_code!(
+        actor: %RegentAgents.Person{privy_user_id: account.privy_user_id}
+      )
+
+    RegentAgents.pair_agent!(code.code, "Address Agent", :codex,
+      actor: %RegentAgents.Agent{wallet: @wallet}
+    )
+
+    {:ok, agent, _account} = Agents.resolve(@wallet)
+    {:ok, _draft} = AgentDrafts.save("revstake", %{"treasury" => @treasury}, agent)
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/create/revstake")
+
+    assert has_element?(view, "#agent-set-fields [data-copy-text='#{@treasury}']")
+
+    assert has_element?(
+             view,
+             "#agent-set-fields a[href='https://basescan.org/address/#{@treasury}']"
+           )
+
+    # A draft is saved part-way, so a treasury that is not yet a whole address
+    # shows as the agent wrote it (found by the adversarial review, 27 Oct 2026).
+    {:ok, _draft} = AgentDrafts.save("revstake", %{"treasury" => "0x12"}, agent)
+    assert view |> element("#agent-set-fields") |> render() =~ "0x12"
+  end
+
   # Production chief, 23 Oct 2026: the box stayed as the page opened while an
   # agent filled in the draft, so the person saw an agent's fields only after
   # a reload.
