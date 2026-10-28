@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 28 October 2026: a security update to the web server
+- The site's web server takes its latest security fix. Nothing changes in how the site looks or works.
+
 ## 28 October 2026: Withdraw and Claim work from the first moment
 - Pressing Withdraw, Return or Claim on your bid the moment its card appears now opens your wallet with the right step. Before, a press in the instant before the card had read your bid sent nothing.
 
