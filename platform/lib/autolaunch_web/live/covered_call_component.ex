@@ -32,7 +32,14 @@ defmodule AutolaunchWeb.CoveredCallComponent do
      socket
      |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
-     |> assign(inputs: %{}, prepared: nil, refusal: nil, wallet_for: nil, listing: nil, expiries: [])}
+     |> assign(
+       inputs: %{},
+       prepared: nil,
+       refusal: nil,
+       wallet_for: nil,
+       listing: nil,
+       expiries: []
+     )}
   end
 
   @impl true
@@ -40,7 +47,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   def update(assigns, socket) do
     socket = assign(socket, assigns)
-    socket = if socket.assigns.inputs == %{}, do: assign(socket, inputs: defaults(socket.assigns)), else: socket
+
+    socket =
+      if socket.assigns.inputs == %{},
+        do: assign(socket, inputs: defaults(socket.assigns)),
+        else: socket
+
     {:ok, socket |> OnchainSteps.adopt() |> sync()}
   end
 
@@ -72,7 +84,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   def handle_event("step_failed", %{"reason" => reason}, socket) when is_binary(reason) do
     %{linked: linked, active: active} = socket.assigns
-    {:noreply, assign(socket, press_note: OnchainSteps.failure_note(reason, linked, active, "Base"))}
+
+    {:noreply,
+     assign(socket, press_note: OnchainSteps.failure_note(reason, linked, active, "Base"))}
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket),
@@ -82,8 +96,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   def handle_async(:prepare, {:ok, {inputs, signer, result}}, socket) do
     if inputs == socket.assigns.inputs and signer == signer(socket) do
       case result do
-        {:ok, prepared} -> {:noreply, socket |> put_prepared(signer, prepared) |> OnchainSteps.refresh_later()}
-        {:error, reason} -> {:noreply, socket |> assign(prepared: nil, refusal: reason) |> OnchainSteps.put_review(nil)}
+        {:ok, prepared} ->
+          {:noreply, socket |> put_prepared(signer, prepared) |> OnchainSteps.refresh_later()}
+
+        {:error, reason} ->
+          {:noreply,
+           socket |> assign(prepared: nil, refusal: reason) |> OnchainSteps.put_review(nil)}
       end
     else
       {:noreply, socket}
@@ -156,7 +174,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
          {:ok, strike} <- amount(F.parse_usd(inputs["strike"])),
          {:ok, premium} <- amount(F.parse_usd(inputs["premium"])),
          {expiry, ""} <- Integer.parse(inputs["expiry"] || "") do
-      {:ok, %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}}
+      {:ok,
+       %{amount: amount, strike_per_token: strike, premium_per_token: premium, expiry: expiry}}
     else
       {:error, _reason} = error -> error
       _no_expiry -> {:error, :not_a_weekly_expiry}
@@ -211,7 +230,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         phx-submit="change"
         phx-target={@myself}
       >
-        <.list_fields :if={@kind == :list} id={@id} inputs={@inputs} expiries={@expiries} symbol={@symbol} />
+        <.list_fields
+          :if={@kind == :list}
+          id={@id}
+          inputs={@inputs}
+          expiries={@expiries}
+          symbol={@symbol}
+        />
         <label :if={@kind in [:fill, :exercise]} class="covered-call-panel__field">
           <span>Amount</span>
           <span class="covered-call-panel__input">
@@ -240,7 +265,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             variant={if step.approval?, do: "secondary", else: nil}
             data-onchain-step={step.name}
             disabled={!step.approval? and @blocked != nil}
-            aria-describedby={!step.approval? and @blocked && "#{@id}-why"}
+            aria-describedby={(!step.approval? and @blocked) && "#{@id}-why"}
           >
             <span data-press-label>{step.label}</span>
           </P.button>
@@ -278,21 +303,37 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     <label class="covered-call-panel__field">
       <span>Amount to lock</span>
       <span class="covered-call-panel__input">
-        <input name="amount" value={@inputs["amount"]} inputmode="decimal" autocomplete="off" data-onchain-input="amount" />
+        <input
+          name="amount"
+          value={@inputs["amount"]}
+          inputmode="decimal"
+          autocomplete="off"
+          data-onchain-input="amount"
+        />
         <span aria-hidden="true">{@symbol}</span>
       </span>
     </label>
     <label class="covered-call-panel__field">
       <span>Strike price</span>
       <span class="covered-call-panel__input">
-        <input name="strike" value={@inputs["strike"]} inputmode="decimal" autocomplete="off" data-onchain-input="strike" />
+        <input
+          name="strike"
+          value={@inputs["strike"]}
+          inputmode="decimal"
+          autocomplete="off"
+          data-onchain-input="strike"
+        />
         <span aria-hidden="true">USDC per {@symbol}</span>
       </span>
     </label>
     <label class="covered-call-panel__field">
       <span>Expiry</span>
       <select name="expiry" data-onchain-input="expiry">
-        <option :for={expiry <- @expiries} value={expiry} selected={Integer.to_string(expiry) == @inputs["expiry"]}>
+        <option
+          :for={expiry <- @expiries}
+          value={expiry}
+          selected={Integer.to_string(expiry) == @inputs["expiry"]}
+        >
           {F.expiry(expiry)}
         </option>
       </select>
@@ -300,7 +341,13 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     <label class="covered-call-panel__field">
       <span>Premium</span>
       <span class="covered-call-panel__input">
-        <input name="premium" value={@inputs["premium"]} inputmode="decimal" autocomplete="off" data-onchain-input="premium" />
+        <input
+          name="premium"
+          value={@inputs["premium"]}
+          inputmode="decimal"
+          autocomplete="off"
+          data-onchain-input="premium"
+        />
         <span aria-hidden="true">USDC per {@symbol}</span>
       </span>
     </label>
@@ -373,7 +420,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
           described && described.state in [:pending, :stalled] -> :pending
           described && described.state == :confirmed -> :done
           described -> :failed
-          approval? and prepared && prepared.approved -> :done
+          (approval? and prepared) && prepared.approved -> :done
           true -> :ready
         end
 
@@ -405,13 +452,18 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp blocked_words(nil, _assigns), do: nil
   defp blocked_words(:approve_first, _assigns), do: "Approve first"
-  defp blocked_words(:not_enough_stock, %{symbol: symbol}), do: "Not enough #{symbol} in this wallet"
+
+  defp blocked_words(:not_enough_stock, %{symbol: symbol}),
+    do: "Not enough #{symbol} in this wallet"
+
   defp blocked_words(:not_enough_usdc, _assigns), do: "Not enough USDC on Base"
+
   defp blocked_words(:corporate_action, _assigns),
     do: "A split or dividend is scheduled before this expiry"
 
   defp blocked_words(:fills_closed, _assigns), do: "Sales closed at expiry"
   defp blocked_words(:sold_out, _assigns), do: "Not that many left"
+
   defp blocked_words(:outside_exercise_window, %{listing: listing}),
     do: "Exercise is open from #{F.expiry(listing.expiry)} to #{F.window_closes(listing.expiry)}"
 

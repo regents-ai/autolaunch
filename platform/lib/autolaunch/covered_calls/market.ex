@@ -24,7 +24,7 @@ defmodule Autolaunch.CoveredCalls.Market do
   actions do
     action :book, :map do
       argument :symbol, :string, allow_nil?: false
-      run fn input, _context -> Book.read(input.arguments.symbol) end
+      run fn input, _context -> input.arguments.symbol |> Book.read() |> __MODULE__.refused() end
     end
 
     action :quote, :map do
@@ -33,7 +33,9 @@ defmodule Autolaunch.CoveredCalls.Market do
       argument :expiry, :integer, allow_nil?: false
 
       run fn input, _context ->
-        Quote.suggest(input.arguments.symbol, input.arguments.strike_per_token, input.arguments.expiry)
+        input.arguments.symbol
+        |> Quote.suggest(input.arguments.strike_per_token, input.arguments.expiry)
+        |> __MODULE__.refused()
       end
     end
 
@@ -42,8 +44,10 @@ defmodule Autolaunch.CoveredCalls.Market do
       argument :wallet, :string
 
       run fn input, %{actor: actor} ->
-        with {:ok, wallet} <- Signer.wallet(actor, input.arguments[:wallet]),
-             do: Positions.read(input.arguments.symbol, wallet)
+        with {:ok, wallet} <- Signer.wallet(actor, input.arguments[:wallet]) do
+          Positions.read(input.arguments.symbol, wallet)
+        end
+        |> __MODULE__.refused()
       end
     end
 
@@ -67,9 +71,18 @@ defmodule Autolaunch.CoveredCalls.Market do
             error -> error
           end
         end
+        |> __MODULE__.refused()
       end
     end
   end
+
+  # Ash turns a bare `{:error, atom}` into text, so a refusal is handed over as
+  # an error that keeps its atom for `Autolaunch.CoveredCalls.reason/1`.
+  @doc false
+  def refused({:error, reason}) when is_atom(reason),
+    do: {:error, Ash.Error.Unknown.UnknownError.exception(error: reason)}
+
+  def refused(result), do: result
 
   policies do
     policy action([:book, :quote]) do

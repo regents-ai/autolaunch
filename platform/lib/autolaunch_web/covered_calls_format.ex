@@ -32,7 +32,8 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def parse_usd(text), do: parse(text, @usdc_unit)
 
   @doc "A raw amount at `per_token` USDC per whole token, in micro-USDC, rounded up as the contract does."
-  def total(raw, per_token, unit), do: Autolaunch.CoveredCalls.Terms.usdc_for(raw, per_token, unit)
+  def total(raw, per_token, unit),
+    do: Autolaunch.CoveredCalls.Terms.usdc_for(raw, per_token, unit)
 
   @doc "A weekly expiry as its day and time in UTC, the time the contract keeps."
   def expiry(unix) when is_integer(unix),
