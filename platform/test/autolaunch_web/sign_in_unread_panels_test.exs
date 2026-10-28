@@ -71,20 +71,39 @@ defmodule AutolaunchWeb.SignInUnreadPanelsTest do
     assert has_element?(view, ~s([data-account-target="profile"]))
   end
 
-  test "a wallet read that fails for any other reason is a real error" do
+  test "a wallet read that fails for any other reason is a real error", %{conn: conn} do
     account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+    handler = "fail-wallet-read-#{inspect(self())}"
 
-    socket = %Phoenix.LiveView.Socket{
-      assigns: %{
-        __changed__: %{},
-        session_lease: current_lease(account.id),
-        current_human_id: account.id
-      }
-    }
+    # Only the wallet panel's own read of the account fails, and not as a lost
+    # connection: renamed for this case's sandboxed transaction, 42P01.
+    :telemetry.attach(
+      handler,
+      [:ash, :accounts, :read, :start],
+      fn _event, _measurements, %{resource: resource}, _config ->
+        {:current_stacktrace, stack} = Process.info(self(), :current_stacktrace)
 
-    # Renamed for this case's sandboxed transaction only: 42P01, not a lost connection.
-    Repo.query!(~s|ALTER TABLE autolaunch_app.#{@ens} RENAME TO #{@ens}_unread|)
-    assert_raise ReadFailedError, fn -> OnchainSteps.adopt(socket) end
+        if resource == Autolaunch.Accounts.HumanAccount and
+             Enum.any?(stack, &match?({OnchainSteps, :adopt, _arity, _location}, &1)) do
+          :telemetry.detach(handler)
+          Repo.query!(~s|ALTER TABLE autolaunch_app.#{@ens} RENAME TO #{@ens}_unread|)
+        end
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    {{exception, _stack}, _call} =
+      catch_exit(
+        conn
+        |> Phoenix.ConnTest.init_test_session(session)
+        |> connects_with(session)
+        |> live("/account")
+      )
+
+    assert %ReadFailedError{} = exception
   end
 
   test "CONNECT_ENS_UNREAD_SAYS_TRY_AGAIN: Connect ENS with an unreadable sign-in says try again" do

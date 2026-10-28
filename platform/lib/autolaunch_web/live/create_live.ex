@@ -383,6 +383,16 @@ defmodule AutolaunchWeb.CreateLive do
            image_notice: "That picture is too big. Choose one no larger than 4096 by 4096 pixels."
          )}
 
+      # Upload progress reaches the page without its event recheck, so the
+      # save's own lease check (`Session.transact/2`) answers for it: a lost
+      # connection is a try-again, and an ended sign-in lapses the page.
+      {:error, :sign_in_unread} ->
+        {:noreply,
+         assign(socket, image_notice: "That did not go through. Try again in a moment.")}
+
+      {:error, ended} when ended in [:stale_authority, :session_lease_required] ->
+        {:noreply, Session.lapse(socket)}
+
       _error ->
         {:noreply,
          assign(socket,
@@ -521,13 +531,13 @@ defmodule AutolaunchWeb.CreateLive do
         )
       )
 
-  # The account's draft; a first one is made only under the page's lease read
-  # again now, like every other draft write.
   defp confirm_treasury(actor, treasury) do
     with {:ok, draft} <- reload_draft(actor),
          do: Autolaunch.confirm_launch_agent_treasury(draft, treasury, actor: actor)
   end
 
+  # The account's draft; a first one is made only under the page's lease read
+  # again now, like every other draft write.
   defp current_or_new_draft(socket, actor) do
     case Autolaunch.get_my_account_launch_draft(actor: actor) do
       {:ok, nil} -> Session.transact(socket, fn -> found_or_new_draft(actor) end)
@@ -592,6 +602,8 @@ defmodule AutolaunchWeb.CreateLive do
     if marked == %{}, do: unmarked(failure), else: marked
   end
 
+  # A lost connection was logged where the sign-in was read.
+  defp draft_field_errors({:error, :sign_in_unread}), do: %{}
   defp draft_field_errors(failure), do: unmarked(failure)
 
   # Anything but a refused field is not the creator's to fix: it is logged,

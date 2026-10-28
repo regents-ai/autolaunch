@@ -3,7 +3,7 @@ defmodule Autolaunch.DatabaseFaults do
   A lost database connection, made at a chosen moment in a request: the case's
   own sandboxed connection is cut (`pg_terminate_backend`, from a second
   connection), as it would be if the database went away just then
-  (`cut_when/2`), or one table's reads answer as a lost connection while the
+  (`cut_when/2`) or between two requests (`cut_now/0`), or one table's reads answer as a lost connection while the
   connection itself keeps working (`lose_reads_of/1`), as when one pooled
   connection is lost and the next is healthy. Only a synchronous ConnCase may
   use them.
@@ -42,6 +42,26 @@ defmodule Autolaunch.DatabaseFaults do
     )
 
     on_exit(fn -> :telemetry.detach(handler) end)
+  end
+
+  @doc """
+  Cuts this case's database connection now, as if the database went away
+  between two requests: the next statement on it, even the start of a
+  transaction, fails with the connection's own error.
+  """
+  def cut_now do
+    %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
+
+    cutter =
+      start_supervised!(
+        Supervisor.child_spec(
+          {Postgrex,
+           Keyword.take(Repo.config(), [:hostname, :port, :username, :password, :database])},
+          id: make_ref()
+        )
+      )
+
+    Postgrex.query!(cutter, "SELECT pg_terminate_backend($1)", [backend])
   end
 
   @doc """

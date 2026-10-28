@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
   import Autolaunch.DatabaseFaults
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.Accounts.SessionAuthority
+  alias Autolaunch.Accounts.{ConnectEns, SessionAuthority}
   alias Autolaunch.{AgentDrafts, Agents, LaunchActions, LaunchFixture, Repo, TestSupport}
   alias AutolaunchWeb.Live.Session
 
@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
   @agent_wallet "0x" <> String.duplicate("ad", 20)
   @contract "0x" <> String.duplicate("5c", 20)
   @authority "session_authorities"
+  @png File.read!("test/support/fixtures/launch-draft.png")
 
   setup do
     previous = Application.get_env(:autolaunch, :prelaunch_read_only)
@@ -147,6 +148,68 @@ defmodule AutolaunchWeb.HeldSignInWritesTest do
 
     assert %Postgrex.Error{postgres: %{code: :undefined_table}} = raised
     refute log =~ "sign-in read"
+  end
+
+  test "LEASE_WRITE_ON_A_CUT_CONNECTION_SAYS_TRY_AGAIN: a connection gone before the write begins is a try-again" do
+    writes = [
+      {fn lease ->
+         Session.transact(%{assigns: %{session_lease: lease}}, fn -> flunk("wrote") end)
+       end, {:error, :sign_in_unread}},
+      {fn lease -> ConnectEns.record_name(lease.lineage, lease.account_id, %{}) end,
+       {:error, :try_again}}
+    ]
+
+    # Each cut takes the case's rows with it, so each write starts afresh.
+    for {write, answer} <- writes do
+      account = TestSupport.register_creator!()
+      lease = current_lease(account.id)
+      cut_now()
+
+      {result, log} = ExUnit.CaptureLog.with_log(fn -> write.(lease) end)
+      assert result == answer
+      assert log =~ "sign-in lease connection_lost"
+    end
+  end
+
+  test "IMAGE_UPLOAD_HELD_SAYS_TRY_AGAIN_OR_SIGNS_OUT: a picture saved on a held page" do
+    for {path, field} <- [{"/create/revstake", :launch_image}, {"/create", :stocks_image}] do
+      account = TestSupport.register_creator!()
+      {view, session} = open(build_conn(), path, account.id)
+      render_async(view, 2_000)
+      picture = [%{name: "launch.png", content: @png, type: "image/png"}]
+
+      # The connection is lost as the picture is saved.
+      lose_reads_of(@authority)
+      upload = file_input(view, "#" <> upload_form(view), field, picture)
+      render_upload(upload, "launch.png")
+      notice = view |> element(".image-upload [role=alert]") |> render()
+      assert notice =~ "Try again", path
+      refute notice =~ "PNG", path
+      restore_reads_of(@authority)
+
+      # The sign-in has ended: the page signs out instead of blaming the file.
+      session
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> SessionAuthority.claim()
+      |> SessionAuthority.revoke()
+
+      upload = file_input(view, "#" <> upload_form(view), field, picture)
+      render_upload(upload, "launch.png")
+      assert has_element?(view, ~s([data-account-target="sign-in"])), path
+      refute render(view) =~ "That file is not a complete PNG", path
+    end
+  end
+
+  # The form that holds the page's picture input.
+  defp upload_form(view) do
+    [form] =
+      view
+      |> render()
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("form:has(input[type=file])")
+      |> LazyHTML.attribute("id")
+
+    form
   end
 
   test "a write behind a fresh check runs only for a lease that reads as current now" do

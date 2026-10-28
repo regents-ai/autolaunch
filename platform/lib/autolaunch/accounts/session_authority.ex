@@ -29,9 +29,10 @@ defmodule Autolaunch.Accounts.SessionAuthority do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Autolaunch.Accounts
-  alias Autolaunch.Accounts.VerifiedSession
+  alias Autolaunch.Accounts.{HumanAccount, VerifiedSession}
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Repo
+  alias AutolaunchWeb.{ReadFailedError, ReadFailure}
 
   @actor %System{}
   @lineage_bytes 32
@@ -320,7 +321,10 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   The lock, the revalidation and the callback share one repository transaction
   in one process, so a protected write cannot outlive a concurrent revocation,
   account switch, generation advance or lapse of provider evidence, and cannot
-  survive its own failure.
+  survive its own failure. A claim that no longer holds answers
+  `{:error, :stale_authority}`, and one that could not be read because the
+  connection was lost `{:error, :sign_in_unread}`; any other failed read
+  raises. The callback's own `{:error, reason}` comes back as it is.
   """
   @spec transact_exact(claim() | nil, callback()) :: {:ok, term()} | {:error, term()}
   def transact_exact(%{lineage: lineage} = claim, callback) when is_binary(lineage),
@@ -450,7 +454,7 @@ defmodule Autolaunch.Accounts.SessionAuthority do
   # Every failed sign-in read is logged here, once, by kind and module only
   # (`AutolaunchWeb.ReadFailure`); callers decide what the person sees.
   defp logged({:error, error} = failed) do
-    AutolaunchWeb.ReadFailure.log("sign-in read", error)
+    ReadFailure.log("sign-in read", error)
     failed
   end
 
@@ -462,37 +466,64 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   # Every protected write locks the authority row and then the account row, in
   # that one order, and reads the provider evidence only from behind the second
-  # lock. A concurrent lapse therefore either waits for the callback to commit or
-  # commits first and is seen, and two protected writes cannot deadlock.
+  # lock. The account row is taken `FOR SHARE`: a concurrent lapse of its
+  # evidence (an update of that row) still waits for the callback to commit or
+  # commits first and is seen, while the `FOR KEY SHARE` that every insert or
+  # update referencing the account takes for its foreign key (an agent's draft
+  # save, another site's rows) never waits behind it, so the two cannot
+  # deadlock. No callback updates the account row itself.
   #
-  # A row or account that cannot be read refuses the write with the read's own
-  # error, logged as a sign-in read. Only the two locked reads are guarded so:
-  # the callback's own failures come back, or raise, exactly as they happen.
+  # Failures are sorted as everywhere on the site (`AutolaunchWeb.ReadFailure`):
+  # a lost connection, whether the sign-in read lost it or it was gone before
+  # the transaction could begin, refuses the write with `{:error,
+  # :sign_in_unread}`, logged once; any other failed sign-in read raises the
+  # read-failed error. The callback's own answers come back as they are.
   defp guarded(lineage, current?, callback) do
+    lineage
+    |> locked_transaction(current?, callback)
+    |> sorted()
+  rescue
+    failure in [DBConnection.ConnectionError, Postgrex.Error] ->
+      if ReadFailure.lost_connection?(failure) do
+        ReadFailure.log("sign-in lease", failure)
+        {:error, :sign_in_unread}
+      else
+        reraise failure, __STACKTRACE__
+      end
+  end
+
+  defp locked_transaction(lineage, current?, callback) do
     Repo.transaction(fn ->
       with {:ok, row} <- locked_row(lineage),
            true <- current?.(row),
-           {:ok, %{} = account} <- locked_account(row.human_account_id) do
+           {:ok, %{} = account} <- verified_read(row.human_account_id, "FOR SHARE") do
         commit(callback.(account))
       else
-        {:error, error} -> Repo.rollback(error)
+        {:error, error} -> Repo.rollback({:sign_in_read, error})
         _lapsed -> Repo.rollback(:stale_authority)
       end
     end)
   end
 
-  # A connection lost mid-read raises rather than answering; it is the
-  # sign-in read's own failure.
-  defp locked_row(lineage) do
-    lineage |> digest() |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one() |> logged()
-  rescue
-    failure in [Postgrex.Error, DBConnection.ConnectionError] -> logged({:error, failure})
-  end
+  defp locked_row(lineage),
+    do: lineage |> digest() |> lookup() |> Ash.Query.lock(:for_update) |> Ash.read_one()
 
-  defp locked_account(account_id) do
-    verified(account_id, :for_update)
-  rescue
-    failure in [Postgrex.Error, DBConnection.ConnectionError] -> logged({:error, failure})
+  # A locked sign-in read that fails inside the transaction is rolled back with
+  # its own error, or, by Ash itself, with its own query; either is logged here,
+  # once.
+  defp sorted({:error, {:sign_in_read, error}}), do: {:error, sign_in_unread(error)}
+
+  defp sorted({:error, %Ash.Query{resource: resource} = query})
+       when resource in [__MODULE__, HumanAccount],
+       do: {:error, sign_in_unread(query)}
+
+  defp sorted(result), do: result
+
+  defp sign_in_unread(error) do
+    case ReadFailure.log("sign-in read", error) do
+      :connection_lost -> :sign_in_unread
+      :failed -> raise ReadFailedError
+    end
   end
 
   # The account a sign-in names, while its provider evidence is current:
@@ -502,14 +533,18 @@ defmodule Autolaunch.Accounts.SessionAuthority do
 
   defp verified(nil, _lock), do: {:ok, nil}
 
-  defp verified(account_id, lock) do
+  defp verified(account_id, lock), do: account_id |> verified_read(lock) |> logged()
+
+  defp verified_read(nil, _lock), do: {:ok, nil}
+
+  defp verified_read(account_id, lock) do
     case Accounts.get_human_account(account_id,
            actor: %Human{human_account_id: account_id},
            not_found_error?: false,
            query: [lock: lock]
          ) do
       {:ok, account} -> {:ok, if(account && VerifiedSession.current?(account), do: account)}
-      {:error, error} -> logged({:error, error})
+      {:error, error} -> {:error, error}
     end
   end
 

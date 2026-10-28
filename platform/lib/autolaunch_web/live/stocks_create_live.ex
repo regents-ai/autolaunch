@@ -481,6 +481,16 @@ defmodule AutolaunchWeb.StocksCreateLive do
            image_notice: "That picture is too big. Choose one no larger than 4096 by 4096 pixels."
          )}
 
+      # Upload progress reaches the page without its event recheck, so the
+      # save's own lease check (`Session.transact/2`) answers for it: a lost
+      # connection is a try-again, and an ended sign-in lapses the page.
+      {:error, :sign_in_unread} ->
+        {:noreply,
+         assign(socket, image_notice: "That did not go through. Try again in a moment.")}
+
+      {:error, ended} when ended in [:stale_authority, :session_lease_required] ->
+        {:noreply, Session.lapse(socket)}
+
       _error ->
         {:noreply,
          assign(socket,
@@ -600,6 +610,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
     if marked == %{}, do: unmarked(failure), else: marked
   end
 
+  # A lost connection was logged where the sign-in was read.
+  defp draft_field_errors({:error, :sign_in_unread}), do: %{}
   defp draft_field_errors(failure), do: unmarked(failure)
 
   # Anything but a refused field is not the creator's to fix: it is logged,

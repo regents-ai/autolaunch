@@ -214,6 +214,9 @@ defmodule AutolaunchWeb.Live.Session do
   (`SessionAuthority.transact_lease/3`). A page that keeps showing its account
   while the sign-in could not be read therefore writes nothing: `write` runs
   only for a lease that reads as current, and its answer comes back as it is.
+  A lapsed lease answers `{:error, :stale_authority}` and a lost connection
+  `{:error, :sign_in_unread}` (Try again); any other failed read raises, as a
+  page's own read does. `fresh/2` sorts its failures the same way.
   """
   def transact(%{assigns: %{session_lease: %{lineage: lineage, account_id: id}}}, write),
     do: SessionAuthority.transact_lease(lineage, id, fn _account -> write.() end)
@@ -221,13 +224,18 @@ defmodule AutolaunchWeb.Live.Session do
   def transact(_socket, _write), do: {:error, :session_lease_required}
 
   @doc """
-  Runs `write`, a write as the signed-in person that reads the chain or another
-  service before it saves and so cannot run inside `transact/2`'s database
-  transaction, only once `lease` reads as current now; `write` gets the account
-  as it reads now. A lapsed lease answers `{:error, :session_unavailable}`, and
-  one that could not be read `{:error, :sign_in_unread}` for a lost connection;
-  any other failed read raises, as a page's own read does. Nothing is written
-  in either case. It may run outside the page's process, in a background task.
+  Runs `write` only once `lease` reads as current now; `write` gets the account
+  as it reads now. It is only for writes that record a fact the chain proves,
+  such as a purchase the chain holds or a treasury's on-chain security, which
+  read the chain before they save and so cannot run inside `transact/2`'s
+  database transaction; the lease is not held while `write` runs. Every other
+  write as the person goes through `transact/2`.
+
+  A lapsed lease answers `{:error, :session_unavailable}`, and one that could
+  not be read because the connection was lost `{:error, :sign_in_unread}`
+  (Try again); any other failed read raises, as a page's own read does.
+  Nothing is written in those cases. It may run outside the page's process, in
+  a background task.
   """
   def fresh(%{lineage: lineage, account_id: id}, write) do
     case SessionAuthority.leased_account(lineage, id) do

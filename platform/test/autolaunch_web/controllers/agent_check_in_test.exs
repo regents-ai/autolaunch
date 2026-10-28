@@ -110,4 +110,19 @@ defmodule AutolaunchWeb.AgentCheckInTest do
     assert %{"error" => %{"code" => "account_unavailable"}} =
              conn |> get("/api/agent/v1/positions") |> json_response(503)
   end
+
+  test "AGENT_PERSON_READ_FAILED_IS_500: a person's account read that fails for another reason is a real error",
+       %{conn: conn} do
+    siwa_verifies()
+    account = TestSupport.register_creator!()
+    pair!(conn, account.privy_user_id)
+    # Renamed for this case's sandboxed transaction only: 42P01, not a lost connection.
+    Autolaunch.Repo.query!(
+      "ALTER TABLE autolaunch_app.account_ens_identities RENAME TO account_ens_identities_unread"
+    )
+
+    for path <- ["/api/agents/v1/me", "/api/agents/v1/whoami", "/api/agent/v1/positions"] do
+      {500, _headers, _body} = assert_error_sent(500, fn -> get(conn, path) end)
+    end
+  end
 end

@@ -6,7 +6,7 @@ defmodule Autolaunch.Agents do
   """
   alias Autolaunch.{Accounts, Repo}
   alias Autolaunch.Actors.{Agent, System}
-  alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ReadFailure}
+  alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ReadFailedError, ReadFailure}
 
   def resolve(wallet) do
     with {:ok, pairing} <- RegentAgents.Authority.resolve(Repo, wallet),
@@ -49,9 +49,10 @@ defmodule Autolaunch.Agents do
     end
   end
 
-  # The person's shared account, or `:not_paired` when the pairing names none;
-  # a read that fails is logged by kind and module only and answered as
-  # unavailable.
+  # The person's shared account, or `:not_paired` when the pairing names none.
+  # A read that fails is logged by kind and module only and sorted as on a
+  # page (`AutolaunchWeb.ReadFailure`): a lost connection is unavailable, the
+  # agent's 503 try-again; anything else is the plain error, its 500.
   defp person(privy_id) do
     case Accounts.get_by_privy_did(privy_id, actor: %System{}) do
       {:ok, %{} = account} ->
@@ -61,8 +62,10 @@ defmodule Autolaunch.Agents do
         {:error, :not_paired}
 
       {:error, error} ->
-        ReadFailure.log("agent's person read", error)
-        {:error, :account_unavailable}
+        case ReadFailure.log("agent's person read", error) do
+          :connection_lost -> {:error, :account_unavailable}
+          :failed -> raise ReadFailedError
+        end
     end
   end
 end

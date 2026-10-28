@@ -62,6 +62,7 @@ defmodule Autolaunch.Accounts.ConnectEns do
   """
   def record_name(lineage, id, details) do
     case SessionAuthority.transact_lease(lineage, id, &record(details, &1)) do
+      {:error, :sign_in_unread} -> {:error, :try_again}
       {:error, :stale_authority} -> {:error, :signed_out}
       {:error, :wallet_changed} -> {:error, :wallet_changed}
       {:error, error} -> if name_taken?(error), do: {:error, :name_taken}, else: failed(error)
