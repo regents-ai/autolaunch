@@ -427,7 +427,7 @@ defmodule AutolaunchWeb.ExposureLive do
 
   # The stock's applied prices as a line for the price chart, in dollars.
   defp history(%{prints: prints}) do
-    prices = Enum.map(prints, &(&1.price / 1.0e18))
+    prices = Enum.map(prints, fn print -> print.price / 1.0e18 end)
 
     %{
       points: prices |> Enum.with_index() |> Enum.map(fn {price, index} -> [index, price] end),
