@@ -311,6 +311,14 @@
 
 }
 
+/* On a touch screen the balance is a full 44px press, however few digits it shows. */
+@media (hover: none), (pointer: coarse) {
+  #home-top .shell-credits {
+    min-inline-size: 2.75rem;
+    min-block-size: 2.75rem;
+  }
+}
+
 /* Narrower than 22.5rem the header has no room for the balance: the account menu
    shows it instead, as its balance row, which opens the same window. */
 @media (max-width: 22.49rem) {
