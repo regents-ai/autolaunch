@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: browser agents can use the site's tools in Chrome
+- Nothing changes on the pages. Every page of autolaunch.sh now takes part in Chrome's WebMCP trial, so an agent in Chrome can find and use the tools the pages offer (auction lists, token details and the rest) without a special browser setting. The trial runs until 29 March 2027.
+
 ## 29 October 2026: every Memestock launch on Base is listed
 - A Memestock token launched on Base without the create page, for example by an agent from its own wallet, now has its own auction and token pages and a place in the lists. Its creator is shown as the wallet that launched it.
 - Such a launch shows only what passes the site's usual checks: its name, ticker and description as plain text with hidden characters taken out, its website only when it is a full https:// link, and its picture only when the picture is stored on Autolaunch. Otherwise the token shows its first letter. A launch whose ticker is not capital letters and numbers, up to ten, is not listed, as the create page would refuse it.

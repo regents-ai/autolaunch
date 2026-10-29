@@ -24,9 +24,7 @@ defmodule AutolaunchWeb.Router do
     plug AutolaunchWeb.Plugs.Theme
     plug AutolaunchWeb.Plugs.Panels
     plug :protect_from_forgery
-
-    # Browser agents may use the tools the pages register, from this site only.
-    plug :put_secure_browser_headers, %{"permissions-policy" => "tools=(self)"}
+    plug :put_secure_browser_headers
     # Every page can start sign-in from its top bar.
     plug :put_content_security_policy, :sign_in
   end
