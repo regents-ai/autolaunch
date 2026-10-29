@@ -11,14 +11,14 @@ receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
 
 ## First series (Safe step)
 
-[`safe-create-first-series.json`](safe-create-first-series.json) is the Safe Transaction Builder batch:
+[`safe-relaunch-first-series.json`](safe-relaunch-first-series.json) is the Safe Transaction Builder batch:
 one `createSeries` call to the factory, as `firstSeriesCall` prints it for the V2 oracle and the terms
 Sean approved on 29 Oct (`platform/priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md`, keccak256
 `0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f`). Decoded: AMZNc, the V2 oracle
 and its feed id, a seven-day recording window, a 0.4 AMZNc cap, the 11 closes and opens from Fri 30
 Oct 20:00 UTC to Fri 6 Nov 21:00 UTC, legs "AMZNc After-hours to 6 Nov 2026" (AMZNc-AH-1106) and
 "AMZNc Market-hours to 6 Nov 2026" (AMZNc-MH-1106). Simulated from the Safe against Base on 29 Oct:
-succeeds, about 2.4M gas, creating the series at `0x77b82face369db560677a903b13e747891096cb7`. It
+succeeds, about 2.4M gas. It
 must execute before Fri 30 Oct 16:00 New York time.
 
 ## First series as created
@@ -31,3 +31,11 @@ batch, not the file above. Read from Base: series `0x77b82face369db560677a903b13
 commit dd83312a), cap 0.4 AMZNc, seven-day recording window, the 11 prices of 30 Oct to 6 Nov. Legs:
 After-hours `0x8112D5DEfb35474Fd3Bc7Db9b7b24d86492BbA2F` (AMZNc-AH-1106), Market-hours
 `0xA8F0bE850BE09Efa971eb04653340E3F421AbD91` (AMZNc-MH-1106). The V2 batch above was not executed.
+
+## Relaunch (Sean's 1b, 29 Oct)
+
+Sean chose to relaunch the first series correctly. The batch, renamed `safe-relaunch-first-series.json`
+so it can't be mixed up with the earlier one, carries the same `createSeries` call: the V2 recorder, the
+approved terms and a 0.4 AMZNc cap. Simulated from the Safe at 17:5x UTC on 29 Oct, with Safe nonce 73:
+it succeeds, uses about 2.4M gas and creates `0xcae5aad4cc21700b32931404c366efd4fc1ddfa0`. The series at
+`0x77b8…6cb7` stays unused and the site doesn't list it.
