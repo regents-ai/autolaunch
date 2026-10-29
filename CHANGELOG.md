@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: covered calls on Amazon (AMZNc)
+- Covered calls are open at /covered-calls, for eligible people outside the US. Sell calls on your AMZNc: choose an amount, a strike price, a Friday expiry and a premium, and keep the premium buyers pay. Or buy calls from the list, each the right to buy AMZNc at its strike for the 24 hours after Friday 21:00 UTC. Everything is paid in USDC on Base, and 1% of each premium goes to REGENT stakers.
+- Each action works as Stake does on a token page: review it, then confirm each step in your wallet. Your calls, sold and held, are on your Portfolio with Stop selling, Exercise and Collect. The Stocks page, the AMZNc stock page and the menu link to them.
+- For agents: the covered-call tools and routes are in the agent guide and /openapi.json, with the same steps a person confirms.
+
 ## 29 October 2026: the last amounts in the one Regents way
 - A stock's liquidity and past week's trading volume, on the stock pages and when you pick a stock to launch, are written in full like every other amount ("$1,234,567.89" instead of "$1.2M").
 - A share picture or video draws every figure whole, smaller if it has to, instead of cutting it off with "…", and the video's figures now match the picture's to the cent.

@@ -4,7 +4,7 @@ Status: **deployed on Base** at [`0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`](h
 transaction [`0xaa52f5ca…d6ba3a`](https://basescan.org/tx/0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a) in block 53,230,752, sent by Sean
 from his own keystore (`0x9b2C414614aEE294202c1219520955EF3B596031`). Every check under "After it lands" passed against
 Base itself, and the source is verified on Basescan (exact match) and Sourcify; `deployed.json` is the record. Covered calls
-stay switched off on the site until a separate release turns them on.
+are switched on on autolaunch.sh by `platform/fly.toml` with `site-markets.json` (below).
 
 ## What it is
 
@@ -82,8 +82,19 @@ if the address already holds the promised code, the contract is deployed and not
 - the source verifies on Basescan with `basescan_verify`, run from `contracts/covered-calls` with
   `ETHERSCAN_API_KEY` set and `../stocks-v2/lib` filled (`contracts/stocks-v2/bootstrap-deps.py`).
 
-Then the site's covered-calls deployment record names the address, and covered calls open when the
-switch is turned on, a separate release.
+## Switching the site on
+
+`site-markets.json` is the markets file the site reads (`Autolaunch.CoveredCalls.Deployment`); a
+test holds it to `deployed.json` (`platform/test/autolaunch/covered_calls/deployment_test.exs`).
+`platform/fly.toml` sets `AUTOLAUNCH_COVERED_CALLS=true` and places it at
+`/app/deployment/covered-calls.json`, so the release copies it beside the other deployment files:
+
+```bash
+cp contracts/covered-calls/deploy/site-markets.json platform/deployment/covered-calls.json
+```
+
+Turning covered calls off again is the same release without those two `[env]` lines and the
+`[[files]]` entry: the pages answer not found and no tool names them.
 
 ## A week on Base, without sending anything
 

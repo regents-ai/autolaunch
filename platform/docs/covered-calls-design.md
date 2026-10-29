@@ -168,7 +168,7 @@ function claimable(uint256 listingId, address account) external view returns (ui
 
 ## 5. The site (`Autolaunch.CoveredCalls`)
 
-Behind `AUTOLAUNCH_COVERED_CALLS=true` (`config :autolaunch, :covered_calls, :on`), off by default and in production. With it
+Behind `AUTOLAUNCH_COVERED_CALLS=true` (`config :autolaunch, :covered_calls, :on`), off by default, on in production since the 29 October 2026 switch-on (`platform/fly.toml`). With it
 off, the routes answer not found and no tool or command is advertised.
 
 | Place | Purpose |
