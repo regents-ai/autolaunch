@@ -213,11 +213,17 @@ async function signed(entry: Entry, input: Record<string, unknown>, signal: Abor
   }
 }
 
-// A signed call that got no answer may already have reached the site, so its
-// outcome is unknown.
+// A signed call that got no answer. A change may already have reached the site, so
+// its outcome is unknown; a read changed nothing, so it was cancelled or the site
+// could not be reached. A call the agent cancelled is not reported.
 function unanswered(entry: Entry, signal: AbortSignal) {
   if (!signal.aborted) unsent(entry)
-  return {ok: false, error: {code: "signed_request_failed", message: "The site's answer was lost, so it is not known whether this happened.", hint: "Read back a draft after an unanswered save before you try again."}}
+  if (!entry.annotations.readOnlyHint) {
+    return {ok: false, error: {code: "signed_request_failed", message: "The site's answer was lost, so it is not known whether this happened.", hint: "Read back a draft after an unanswered save before you try again."}}
+  }
+  return signal.aborted
+    ? {ok: false, error: {code: "cancelled", message: "The read was cancelled; nothing changed."}}
+    : {ok: false, error: {code: "unreachable", message: "The site could not be reached. Try again."}}
 }
 
 // Reasons that mean the tool itself is set up wrongly, not the agent's input.

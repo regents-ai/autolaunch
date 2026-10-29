@@ -6,6 +6,13 @@
 import {afterEach, expect, it, vi} from "vitest"
 import pageTools from "../../priv/covered_calls_tools.json" with {type: "json"}
 
+// What the page reports to the site's visit log.
+const reported: Array<{name: string; where: string; outcome: string}> = []
+vi.mock("../js/visit_log", () => ({
+  report: (line: {name: string; where: string; outcome: string}) => { reported.push(line) },
+  visitId: () => null,
+}))
+
 type Registered = {
   name: string
   inputSchema: {properties: Record<string, unknown>}
@@ -43,7 +50,25 @@ afterEach(() => {
   delete globals.window
   delete globals.fetch
   delete globals.regentsSign
+  reported.length = 0
 })
+
+const proof = {
+  "x-siwa-signature": "sig", "x-siwa-signature-input": "input", "x-siwa-receipt": "receipt",
+  "x-key-id": "key", "x-timestamp": "1", "x-agent-wallet-address": "0xabc", "x-agent-chain-id": "8453",
+  "content-digest": "sha-256=:x:",
+}
+
+const {"content-digest": _digest, ...withoutDigest} = proof
+
+function signsEverything() {
+  ;(globalThis as unknown as Record<string, unknown>).regentsSign = async (request: {body?: string}) =>
+    ({headers: request.body === undefined ? withoutDigest : proof})
+}
+
+function networkFails() {
+  ;(globalThis as unknown as Record<string, unknown>).fetch = async () => { throw new TypeError("fetch failed") }
+}
 
 it("a page's own tools are registered only when the server hands them over", async () => {
   for (const tools of [null, pageTools.tools]) {
@@ -128,6 +153,43 @@ it("a signed call cancelled before it starts never asks the signer", async () =>
 
   expect(await points.execute({}, {signal: cancelled.signal})).toMatchObject({ok: false, error: {code: "cancelled"}})
   expect(asked).toBe(0)
+})
+
+it("a save whose answer is lost is reported as unknown, and the agent is told to read it back", async () => {
+  const save = (await registeredWith(null)).find(tool => tool.name === "autolaunch_revstake_draft_save")!
+  signsEverything()
+  networkFails()
+
+  expect(await save.execute({}, undefined)).toMatchObject({ok: false, error: {code: "signed_request_failed"}})
+  expect(reported).toEqual([{name: "tool.unsent", where: "autolaunch_revstake_draft_save", outcome: "outcome_unknown"}])
+})
+
+it("a signed read that can't reach the site says so; a cancelled one is not reported", async () => {
+  const points = (await registeredWith(null)).find(tool => tool.name === "account_points")!
+  signsEverything()
+  networkFails()
+
+  expect(await points.execute({}, undefined)).toMatchObject({ok: false, error: {code: "unreachable"}})
+  expect(reported).toEqual([{name: "tool.unsent", where: "account_points", outcome: "unreachable"}])
+
+  reported.length = 0
+  const sending = new AbortController()
+  ;(globalThis as unknown as Record<string, unknown>).fetch = async () => {
+    sending.abort()
+    throw new DOMException("aborted", "AbortError")
+  }
+  expect(await points.execute({}, {signal: sending.signal})).toMatchObject({ok: false, error: {code: "cancelled"}})
+  expect(reported).toEqual([])
+})
+
+it("a signer that fails sends nothing and says so", async () => {
+  const fetched: Array<{url: string; init: RequestInit}> = []
+  const points = (await registeredWith(null, fetched)).find(tool => tool.name === "account_points")!
+  ;(globalThis as unknown as Record<string, unknown>).regentsSign = async () => { throw new Error("signer crashed") }
+
+  expect(await points.execute({}, undefined)).toMatchObject({ok: false, error: {code: "signer_unavailable"}})
+  expect(fetched).toHaveLength(0)
+  expect(reported).toEqual([])
 })
 
 it("a handed public tool makes the request it describes, from its own input", async () => {
