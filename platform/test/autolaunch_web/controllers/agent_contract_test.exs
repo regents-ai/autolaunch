@@ -77,12 +77,46 @@ defmodule AutolaunchWeb.AgentContractTest do
     assert code in get_in(schema, ["properties", "error", "properties", "code", "enum"])
   end
 
+  # Longer than any wallet address, so it can only appear if the answer names it.
+  @human_id "0x" <> String.duplicate("9", 64)
+
+  test "WHOAMI_NAMES_WHO_STANDS_BEHIND: whoami says whether a verified person backs the agent, never who" do
+    Req.Test.stub(RegentAgents.Broker, fn broker ->
+      {:ok, body, broker} = Plug.Conn.read_body(broker)
+      wallet = Jason.decode!(body)["headers"]["x-agent-wallet-address"]
+
+      Req.Test.json(broker, %{
+        "code" => "http_envelope_valid",
+        "data" => %{
+          "verified" => true,
+          "principal" => %{
+            "kind" => "wallet",
+            "wallet_address" => wallet,
+            "chain_id" => 8453,
+            "audience" => "autolaunch"
+          },
+          "agentRegistration" => nil,
+          "agentBook" => %{"humanId" => @human_id, "agentCount" => 2}
+        }
+      })
+    end)
+
+    conn = agent() |> get("/api/agents/v1/whoami")
+
+    assert %{"human_backed" => true, "same_person_agent_count" => 2} =
+             json_response(conn, 200)["data"]["agent"]
+
+    refute conn.resp_body =~ @human_id
+  end
+
   test "AGENT_ROUTES_ANSWER_AS_THE_CONTRACT_SAYS: whoami, check-in and pairing answer only what the contract documents" do
     conn = agent() |> get("/api/agents/v1/whoami")
     assert %{"status" => "not_paired"} = json_response(conn, 200)["data"]
-    whoami = documented("/api/agents/v1/whoami", "get", 200)
-    status = resolve(whoami["properties"]["data"])["properties"]["status"]
-    assert "not_paired" in status["enum"]
+    whoami = resolve(documented("/api/agents/v1/whoami", "get", 200)["properties"]["data"])
+    assert "not_paired" in whoami["properties"]["status"]["enum"]
+
+    assert json_response(conn, 200)["data"]["agent"] |> Map.keys() |> Enum.sort() ==
+             Enum.sort(Map.keys(whoami["properties"]["agent"]["properties"]))
 
     assert_refusal(agent() |> get("/api/agents/v1/me"), "/api/agents/v1/me", "get")
 

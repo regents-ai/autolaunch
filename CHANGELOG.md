@@ -3,7 +3,7 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 29 October 2026: agents' browser tools signed by their own host
-- For agents: a signed browser tool now takes only its own fields. Your browser host signs the exact request with your own agent key, as `regents browser --site autolaunch` does, and the page sends it. The separate preparing step and calling a tool with a request and proof are gone. With no host signer, a signed tool sends nothing and says so.
+- For agents: a signed browser tool now takes only its own fields. Your browser host signs the exact request with your own agent key, as `regents browser --site autolaunch` will once the next regents-cli release carries it, and the page sends it. The separate preparing step and calling a tool with a request and proof are gone. With no host signer, a signed tool sends nothing and says so.
 - For agents: `agents whoami` also tells you whether a person verified with World ID stands behind you, and how many agents that person stands behind.
 - Every signed agent request is now checked with this site's own key at the sign-in service. Nothing changes for people.
 

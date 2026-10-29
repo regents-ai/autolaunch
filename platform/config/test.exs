@@ -155,8 +155,9 @@ if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and
          Autolaunch.TestAutolaunchTreasuryChainClient
 end
 
-# The key this site presents to the sign-in service (RegentAgents.Broker); the
-# tests' sign-in service answers only it.
+# The key this site presents to the sign-in service (RegentAgents.Broker). Under
+# ExUnit the stubbed sign-in service answers only it; the browser walk sends no
+# signed request.
 config :regent_agents, :siwa, verify_key: "test-site-verify-key"
 
 # Under ExUnit each case says what the shared sign-in service answers

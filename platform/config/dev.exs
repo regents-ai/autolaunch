@@ -26,10 +26,14 @@ config :autolaunch, AutolaunchWeb.Endpoint,
     esbuild_covered_calls: {Esbuild, :install_and_run, [:covered_calls, ~w(--watch)]}
   ]
 
-# The sign-in service's development key for this site, from its `config/dev.exs`,
-# so a sign-in service run on this machine checks agents' signed requests.
-# https://siwa.regents.sh refuses it.
+# The sign-in service's development key for this site, from its `config/dev.exs`.
+# Only a sign-in service run on this machine accepts it, so signed agent requests
+# work here once AUTOLAUNCH_SIWA_URL names one; https://siwa.regents.sh refuses it.
 config :regent_agents, :siwa, verify_key: "siwa-dev-autolaunch-site-verify-key-0001"
+
+if siwa_url = System.get_env("AUTOLAUNCH_SIWA_URL") do
+  config :regent_agents, :siwa, url: siwa_url
+end
 
 # ## SSL Support
 #

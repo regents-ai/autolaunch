@@ -105,6 +105,31 @@ it("a signed tool sends the request the host signed, with its proof and no cooki
   expect(fetched[0].init.headers).toMatchObject(proof)
 })
 
+it("input that doesn't fit a signed tool is refused in words before the signer is asked", async () => {
+  const fetched: Array<{url: string; init: RequestInit}> = []
+  const points = (await registeredWith(null, fetched)).find(tool => tool.name === "account_points")!
+  let asked = 0
+  ;(globalThis as unknown as Record<string, unknown>).regentsSign = async () => { asked++; return {headers: {}} }
+
+  expect(await points.execute({input: {}, request: {}, proof: {}}, undefined)).toMatchObject({
+    ok: false,
+    error: {code: "invalid_request", message: "input is not a field of this tool, or is not the kind of value it takes.", details: {reason: "invalid_field:input"}},
+  })
+  expect(asked).toBe(0)
+  expect(fetched).toHaveLength(0)
+})
+
+it("a signed call cancelled before it starts never asks the signer", async () => {
+  const points = (await registeredWith(null)).find(tool => tool.name === "account_points")!
+  let asked = 0
+  ;(globalThis as unknown as Record<string, unknown>).regentsSign = async () => { asked++; return {headers: {}} }
+  const cancelled = new AbortController()
+  cancelled.abort()
+
+  expect(await points.execute({}, {signal: cancelled.signal})).toMatchObject({ok: false, error: {code: "cancelled"}})
+  expect(asked).toBe(0)
+})
+
 it("a handed public tool makes the request it describes, from its own input", async () => {
   const fetched: Array<{url: string; init: RequestInit}> = []
   const registered = await registeredWith(pageTools.tools, fetched)
