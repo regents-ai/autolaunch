@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: every amount shown the one Regents way
+- Every amount the site shows you to read now looks the same as on every Regents site: prices, bids, balances, rewards, refunds, raises, revenue, supply and dollar values, on the pages, in the ticker and in the share pictures. Amounts of 1 and above show two decimals with thousands separated ("26,590,000,000.00"), smaller amounts show their first three digits ("0.0000000123"), and digits are cut, never rounded up.
+- Large figures are written out in full instead of shortened to K, M or B, and tiny prices write their zeros out instead of counting them with a small number.
+- Amounts you type, what a review asks your wallet to send, and the exact figures on a token's facts are unchanged.
+- For agents: wallet positions now give each held, staked and claimable amount exactly, to its last digit, as every other amount there already was.
+
 ## 29 October 2026: your USDC shown the one Regents way
 - The USDC balance in the Credits window now reads as on every Regents site: amounts of 1 and above show two decimals with thousands separated ("1,234.56"), smaller amounts show their first three digits ("0.000999"), and digits are cut, never rounded up.
 

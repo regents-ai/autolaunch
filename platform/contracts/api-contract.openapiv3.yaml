@@ -1429,11 +1429,11 @@ components:
         name: {type: string}
         symbol: {type: string}
         chain: {type: string, enum: [base, robinhood]}
-        held: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Cut to four decimal places, never rounded up."}
-        staked: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Cut to four decimal places, never rounded up."}
+        held: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Exact, to its last digit."}
+        staked: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Exact, to its last digit."}
         claimable:
           type: array
-          description: "What staking has earned, each amount cut to twelve significant digits, never rounded up."
+          description: "What staking has earned, each amount exact."
           items:
             type: object
             additionalProperties: false

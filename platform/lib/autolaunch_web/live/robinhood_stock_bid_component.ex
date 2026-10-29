@@ -334,8 +334,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <p>
                 Bid <span class="figure__value">#{bid["bid_id"]}</span>
                 ·
-                <TokenDisplay.written
-                  value={bid["stock_committed_units"]}
+                <TokenDisplay.tokens
+                  amount={bid["stock_committed_units"]}
                   unit={@reading.stock["symbol"]}
                 />
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
@@ -428,8 +428,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <dt>Bid budget</dt>
           <dd>
             about
-            <TokenDisplay.written
-              value={@prepared.facts.stock_quote}
+            <TokenDisplay.tokens
+              amount={@prepared.facts.stock_quote}
               unit={@prepared.facts.stock_symbol}
             />
           </dd>

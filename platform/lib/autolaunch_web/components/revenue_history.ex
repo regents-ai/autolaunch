@@ -2,13 +2,12 @@ defmodule AutolaunchWeb.Components.RevenueHistory do
   @moduledoc """
   A Revstake token's revenue history on its page: each payment its splitter
   recognized, newest first, with its amount in its own asset, the day it
-  landed and a link to its transaction. Amounts are exact, as the splitter
-  counted them, with their thousands grouped. The rows settle in one after another
+  landed and a link to its transaction, each amount written as every Regent page
+  writes one. The rows settle in one after another
   as they arrive (`MotionCascade`). Read only: nothing here asks a wallet.
   """
   use Phoenix.Component
 
-  alias Autolaunch.Stocks.Amounts
   alias AutolaunchWeb.Components.BidPlaced
   alias AutolaunchWeb.Motion
   alias Phoenix.LiveView.AsyncResult
@@ -51,6 +50,5 @@ defmodule AutolaunchWeb.Components.RevenueHistory do
     """
   end
 
-  defp amount(amount),
-    do: amount |> Decimal.normalize() |> Decimal.to_string(:normal) |> Amounts.grouped()
+  defp amount(amount), do: RegentFormat.amount(amount)
 end

@@ -13,8 +13,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Lab
-  alias Autolaunch.Stocks.{Amounts, LaunchActions}
-  alias AutolaunchWeb.{LaunchSteps, OnchainSteps}
+  alias Autolaunch.Stocks.LaunchActions
+  alias AutolaunchWeb.{LaunchSteps, OnchainSteps, TokenDisplay}
   alias AutolaunchWeb.Live.Session
 
   @copy %{
@@ -124,7 +124,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             <div>
               <dt>Minimum raise</dt>
               <dd>
-                {Amounts.grouped(@prepared.facts["minimum_raise_units"])} {@prepared.facts[
+                {TokenDisplay.short(@prepared.facts["minimum_raise_units"])} {@prepared.facts[
                   "stock_symbol"
                 ]}. If bids fall short, each bidder takes back their whole bid.
               </dd>
@@ -142,7 +142,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             <div>
               <dt>Starting price</dt>
               <dd>
-                {Amounts.compact_decimal(@prepared.facts["floor_price_executable"])} {@prepared.facts[
+                {TokenDisplay.short(@prepared.facts["floor_price_executable"])} {@prepared.facts[
                   "stock_symbol"
                 ]} per token, the lowest the auction accepts
               </dd>

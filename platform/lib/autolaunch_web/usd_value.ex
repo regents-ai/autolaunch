@@ -11,11 +11,8 @@ defmodule AutolaunchWeb.UsdValue do
 
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
-  alias Autolaunch.Stocks.{Amounts, MarketData, PriceFeeds}
-  alias AutolaunchWeb.TokenDisplay
+  alias Autolaunch.Stocks.{MarketData, PriceFeeds}
   alias Phoenix.LiveView.AsyncResult
-
-  @significant_digits 4
 
   @doc """
   Reads a chain's dollar prices into `key` in the background, as `assign_async/3`
@@ -83,19 +80,15 @@ defmodule AutolaunchWeb.UsdValue do
   attr :class, :string, default: nil
 
   @doc """
-  The amount's dollar value, such as `≈ $1,234.50`; nothing for an amount that
-  is not a number. A value under a ten-thousandth of a dollar counts its zeros,
-  as in `≈ $0.0₄1245`, with the plain figure kept for assistive technology.
+  The amount's dollar value, such as `≈ $1,234.50`, written as
+  `RegentFormat.amount/1` writes an amount; nothing for an amount that is not a
+  number.
   """
   def usd(assigns) do
-    text = text(decimal(assigns.amount), assigns.rate, assigns.per)
-    assigns = assign(assigns, text: text, shown: text && TokenDisplay.zeros(text))
+    assigns = assign(assigns, :text, text(decimal(assigns.amount), assigns.rate, assigns.per))
 
     ~H"""
-    <span :if={@text && @shown == @text} class={["usd-value", @class]}>{@text}</span>
-    <span :if={@text && @shown != @text} class={["usd-value", @class]}>
-      <span aria-hidden="true">{@shown}</span><span class="visually-hidden">{@text}</span>
-    </span>
+    <span :if={@text} class={["usd-value", @class]}>{@text}</span>
     """
   end
 
@@ -118,23 +111,6 @@ defmodule AutolaunchWeb.UsdValue do
 
   defp decimal(_amount), do: nil
 
-  # Whole dollars and cents from a dollar up; below that, enough significant
-  # digits to tell a tiny per-token price from nothing.
-  defp dollars(value) do
-    cond do
-      Decimal.eq?(value, 0) ->
-        "$0"
-
-      Decimal.gte?(Decimal.abs(value), 1) ->
-        "$" <> (value |> Decimal.round(2) |> Decimal.to_string(:normal) |> Amounts.grouped())
-
-      true ->
-        "$" <> (value |> significant() |> Decimal.to_string(:normal))
-    end
-  end
-
-  defp significant(%Decimal{coef: coef, exp: exp} = value) do
-    digits = coef |> Integer.digits() |> length()
-    value |> Decimal.round(@significant_digits - digits - exp) |> Decimal.normalize()
-  end
+  @doc "A dollar figure, such as `$1,234.50` or `$0.0123`, as every Regent page writes one."
+  def dollars(value), do: "$" <> RegentFormat.amount(value)
 end

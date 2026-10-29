@@ -10,9 +10,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
-  alias Autolaunch.Stocks.{Amounts, Assets, LaunchActions, LaunchDraft, PriceFeeds}
+  alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, PriceFeeds}
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.{DraftMarks, TokenDisplay}
+  alias AutolaunchWeb.DraftMarks
   alias Phoenix.LiveView.JS
 
   @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
@@ -516,8 +516,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp minimum_raise(nil), do: "Choose a stock"
 
   defp minimum_raise(stock) do
-    {:ok, amount} = Amounts.format_units(LaunchActions.minimum_raise(), stock.decimals)
-    TokenDisplay.zeros("#{TokenDisplay.short(amount, :down)} #{stock.symbol}")
+    "#{RegentFormat.token_amount(LaunchActions.minimum_raise(), stock.decimals)} #{stock.symbol}"
   end
 
   defp fixed_terms(:base, ticker), do: LaunchActions.terms(ticker)

@@ -23,6 +23,7 @@ defmodule AutolaunchWeb.ShareVideo.Story do
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.ShareCard.Draw
+  alias AutolaunchWeb.{TokenDisplay, UsdValue}
 
   @token_decimals 18
 
@@ -219,10 +220,10 @@ defmodule AutolaunchWeb.ShareVideo.Story do
         Draw.money(bid.display_amount, story.rate, story.auction)
 
       bid.display_symbol in ["USDC", "USDG"] ->
-        "$" <> Draw.short(bid.display_amount)
+        UsdValue.dollars(bid.display_amount)
 
       true ->
-        Draw.short(bid.display_amount) <> " " <> bid.display_symbol
+        TokenDisplay.short(bid.display_amount) <> " " <> bid.display_symbol
     end
   end
 

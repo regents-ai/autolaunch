@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Client
-  alias Autolaunch.Stocks.{Amounts, StakeActions}
+  alias Autolaunch.Stocks.StakeActions
   alias AutolaunchWeb.Components.{ShareDialog, SwapForm}
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainCalls, OnchainSteps, ShareVideo, TokenDetails, TokenDisplay}
@@ -819,11 +819,9 @@ defmodule AutolaunchWeb.StakeComponent do
   defp balance(%{balance: balance}), do: balance
   defp balance(_unread), do: nil
 
-  # The whole balance as the big figure: four significant digits, grouped.
+  # The whole balance as the big figure.
   defp big(nil), do: "0"
-
-  defp big(%{shown: shown}),
-    do: shown |> TokenDisplay.short(:down) |> Amounts.grouped() |> TokenDisplay.zeros()
+  defp big(%{shown: shown}), do: TokenDisplay.short(shown)
 
   defp stake_foot(:unread), do: "Your balance can't be read right now"
   defp stake_foot(_position), do: "All of it, in one step"
