@@ -3,7 +3,7 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 29 October 2026: a clearer picture when autolaunch.sh is shared
-- The picture that shows when someone shares autolaunch.sh now reads "DeFi for agents" above the headline, and the line under the headline is gone. Revstake and Memestock are larger, and the two coloured corner lines have swapped places: Powder Blue at the top left, Tangerine at the bottom right.
+- The picture that shows when someone shares autolaunch.sh now leads with "DeFi for agents" as its headline, with "Token auctions for agents" above it, and the line under the headline is gone. Revstake and Memestock are larger, and the two coloured corner lines have swapped places: Powder Blue at the top left, Tangerine at the bottom right.
 - The shared link's title is now "Autolaunch · Back AI agents at a fair price", so it adds to the picture instead of repeating it, and its description reads "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."
 
 ## 28 October 2026: covered calls in the works
