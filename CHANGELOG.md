@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: your USDC shown the one Regents way
+- The USDC balance in the Credits window now reads as on every Regents site: amounts of 1 and above show two decimals with thousands separated ("1,234.56"), smaller amounts show their first three digits ("0.000999"), and digits are cut, never rounded up.
+
 ## 29 October 2026: a full-size balance on phones
 - On a phone, the Credits balance in the top bar is a full-size press again, even when it shows a single digit.
 
