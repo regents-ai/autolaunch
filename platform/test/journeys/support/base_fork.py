@@ -5,6 +5,7 @@ the agent journeys (scripts/agent-journeys.sh).
   python3 base_fork.py prepare RUN CONTRACTS   stand-in stocks, then the switch-on steps from the Safe
   python3 base_fork.py configs RUN CONTRACTS   the site's two Base settings files, from the deployed manifests
   python3 base_fork.py covered-calls RUN CONTRACTS   AMZNc covered calls: the contract and its settings file
+  python3 base_fork.py exposure RUN CONTRACTS   AMZNc Afterhours Exposed Tokens: a series and its settings file
   python3 base_fork.py stop    RUN CONTRACTS   stop the copy by its recorded pid
 
 RUN holds the copy's pid, port and settings files; CONTRACTS is a contracts/ folder whose stocks-v2
@@ -18,6 +19,9 @@ On the copy only:
 - For covered calls, LabStockToken (contracts/covered-calls/test/lab) is installed over AMZNc's
   stand-in, keeping its balances, because covered calls read the B20 multiplier and its scheduled
   change; then one CoveredCallsV1 is deployed for AMZNc against Base's USDC and live REGENT staking.
+- For Afterhours Exposed Tokens, ExposureFactoryV1 and ChainlinkPrintOracleV2 (pinned to the AMZN
+  feed's phase) are deployed and one AMZNc series created whose three prices (a close, an open and
+  a close) fall in the copy's next few hours, so a journey can record and apply each one.
 - Whatever of the switch-on Base does not already have is done from the impersonated Safe: each stock
   admitted with its route, the hook's executor named (Anvil's last development account), the v2
   Revstake factory and Memestock launchpad open, and the v1 pair paused.
@@ -45,6 +49,10 @@ DEPLOYER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 AMZNC = "0xb200000000000000000000d9192b6b456483c2e8"
 AMZN_FEED = "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
 USDC_HOLDER = "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb"  # Morpho Blue
+AERODROME_FACTORY = "0x420dd381b31aef6683db6b902084cb0ffece40da"
+# The approved terms of the first AMZNc series (platform/priv/exposure_terms), so the page's
+# terms link opens a file the site serves.
+EXPOSURE_TERMS = "0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f"
 FAUCET = {
     "regent_holder": SAFE,
     "regent_amount": str(1_000 * 10**18),
@@ -212,6 +220,44 @@ class Fork:
         (self.run / "covered-calls.json").write_text(json.dumps(settings, indent=1) + "\n")
         print(f"AMZNc covered calls at {contract}; {self.run / 'covered-calls.json'} written")
 
+    def exposure(self):
+        """One AMZNc Afterhours Exposed Tokens series, its factory and oracle, and the site's
+        settings file. Its prices are a close ten minutes after the copy's time, an open two
+        hours later and a close two hours after that."""
+        package = self.contracts / "exposure"
+        oracle = self.create(package, "src/ChainlinkPrintOracleV2.sol:ChainlinkPrintOracleV2", AMZN_FEED)
+        factory = self.create(package, "src/ExposureFactoryV1.sol:ExposureFactoryV1", DEPLOYER)
+        now = int(self.rpc("eth_getBlockByNumber", ["latest", False])["timestamp"], 16)
+        first = now + 600
+        boundaries = f"[{first},{first + 7_200},{first + 14_400}]"
+        feed_id = self.call(oracle, "feedId()(bytes32)")
+        terms = (
+            f"({AMZNC},{oracle},{feed_id},{EXPOSURE_TERMS},604800,40000000,{boundaries},"
+            '"AMZNc After-hours journey","AMZNc-AH-J","AMZNc Market-hours journey","AMZNc-MH-J")'
+        )
+        signature = (
+            "createSeries((address,address,bytes32,bytes32,uint64,uint256,uint64[],string,string,string,string))"
+        )
+        series = self.cast("call", "--from", DEPLOYER, factory, signature + "(address)", terms).lower()
+        self.send_as(DEPLOYER, factory, signature, terms)
+        if self.call(factory, "isSeries(address)(bool)", series) != "true":
+            sys.exit("the factory did not list the journey's series")
+        usdc = json.loads((self.run / "base-memestock.json").read_text())["addresses"]["usdc"]
+        settings = {"chain_id": CHAIN_ID, "usdc": usdc, "pool_factory": AERODROME_FACTORY, "series": [series]}
+        (self.run / "exposure.json").write_text(json.dumps(settings, indent=1) + "\n")
+        print(f"AMZNc series {series} (prices at {boundaries}); {self.run / 'exposure.json'} written")
+
+    def create(self, package, contract, *args):
+        """Deploys `contract` from the unlocked deployer and returns its address."""
+        created = subprocess.run(
+            ["forge", "create", contract, "--rpc-url", self.url, "--from", DEPLOYER, "--unlocked",
+             "--broadcast", "--constructor-args", *args],
+            capture_output=True, text=True, cwd=package,
+        )
+        if created.returncode:
+            sys.exit(created.stderr.strip()[:400])
+        return next(line.split()[-1] for line in created.stdout.splitlines() if line.startswith("Deployed to:")).lower()
+
     def stop(self):
         """Stops the recorded Anvil, only while that pid is still an Anvil: after a
         restart the number may belong to anything else."""
@@ -241,5 +287,6 @@ if __name__ == "__main__":
         "prepare": fork.prepare,
         "configs": fork.configs,
         "covered-calls": fork.covered_calls,
+        "exposure": fork.exposure,
         "stop": fork.stop,
     }[command]()

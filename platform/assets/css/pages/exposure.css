@@ -58,6 +58,7 @@
 
 @media (hover: none) and (pointer: coarse) {
   .exposure__tabs a, .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }
+  .exposure-panel__balance button { min-block-size: 2.75rem; min-inline-size: 2.75rem; }
 }
 
 @media (max-width: 47.99rem) {
