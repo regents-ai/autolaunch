@@ -179,8 +179,8 @@ defmodule AutolaunchWeb.Router do
 
   scope "/api/agent/v1", AutolaunchWeb do
     pipe_through [:api, :exposure]
-    get "/afterhours-exposed/:series/holdings", ExposureAgentController, :holdings
-    post "/afterhours-exposed/:series/steps", ExposureAgentController, :prepare
+    get "/after-hour-stocks/:series/holdings", ExposureAgentController, :holdings
+    post "/after-hour-stocks/:series/steps", ExposureAgentController, :prepare
   end
 
   scope "/api/v1" do
@@ -220,7 +220,7 @@ defmodule AutolaunchWeb.Router do
   end
 
   # A series' terms, the exact bytes its `termsHash` fingerprints.
-  scope "/afterhours-exposed", AutolaunchWeb do
+  scope "/after-hour-stocks", AutolaunchWeb do
     pipe_through :exposure
 
     get "/terms/:hash", ExposureController, :terms
@@ -229,8 +229,8 @@ defmodule AutolaunchWeb.Router do
   scope "/api/v1", AutolaunchWeb do
     pipe_through [:api, :public_read, :exposure]
 
-    get "/afterhours-exposed", ExposureController, :index
-    get "/afterhours-exposed/:series", ExposureController, :show
+    get "/after-hour-stocks", ExposureController, :index
+    get "/after-hour-stocks/:series", ExposureController, :show
   end
 
   scope "/api/v1", AutolaunchWeb do
@@ -260,7 +260,7 @@ defmodule AutolaunchWeb.Router do
   scope "/api/v1", AutolaunchWeb do
     pipe_through [:session_api, :exposure]
 
-    get "/me/afterhours-exposed/:series", ExposureController, :mine
+    get "/me/after-hour-stocks/:series", ExposureController, :mine
   end
 
   # A wallet's own share video, for the signed-in account that links it.
@@ -327,7 +327,7 @@ defmodule AutolaunchWeb.Router do
       live "/stock-listing", UpcomingLive, :show
       live "/stock-listing/:symbol", StockLive, :show
       live "/covered-calls", CoveredCallsLive, :index
-      live "/afterhours-exposed", ExposureLive, :show
+      live "/after-hour-stocks", ExposureLive, :show
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid

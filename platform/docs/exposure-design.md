@@ -1,4 +1,4 @@
-# Afterhours Exposed Tokens — design note
+# After-hours Exposure — design note
 
 **Status:** contracts deployed on Base; first series created 29 October 2026; site built, switched off · 29 October 2026
 **Source:** "Isolated Exposure Tokens" (The Standard Reserve, October 2026), Sean's notes and decisions of 28 October 2026
@@ -7,7 +7,7 @@
 
 ## 1. The product
 
-Afterhours Exposed Tokens splits a stock token into two tokens: one that earns the stock's moves while the
+After-hours Exposure splits a stock token into two tokens: one that earns the stock's moves while the
 market is closed, and one that earns its moves during the trading day. Hold one for a levered
 position on just that window, with no loan and no liquidation; hold both and you simply own the stock.
 
@@ -128,8 +128,8 @@ chain at the latest block.
 
 | Place | Purpose |
 | --- | --- |
-| `/afterhours-exposed` | The newest series (`?series=<address>` for another listed one): stock, term, status, deposits against the cap, last price; each token's value, share of the stock, how much it moves in its window and its pool price; Mint and Return tabs; every applied price and the next, with Record price and Apply price; the terms and their fingerprint. |
-| `/afterhours-exposed/terms/{hash}` | A series' terms, the exact bytes whose keccak256 it holds (`platform/priv/exposure_terms`). |
+| `/after-hour-stocks` | The newest series (`?series=<address>` for another listed one): stock, term, status, deposits against the cap, last price; each token's value, share of the stock, how much it moves in its window and its pool price; Mint and Return tabs; every applied price and the next, with Record price and Apply price; the terms and their fingerprint. |
+| `/after-hour-stocks/terms/{hash}` | A series' terms, the exact bytes whose keccak256 it holds (`platform/priv/exposure_terms`). |
 
 Ash domain `Autolaunch.Exposure`, resource `Series` with four generic actions every surface calls:
 `list`, `series`, `holdings` (the acting account's own wallet) and `prepare` (steps for `mint`,
@@ -144,10 +144,10 @@ Agent surfaces, one Ash action each, same inputs, results and refusals everywher
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
-| List series | `autolaunch_afterhours_exposed_list` | `GET /api/v1/afterhours-exposed` | gap | gap |
-| One series | `autolaunch_afterhours_exposed_series` | `GET /api/v1/afterhours-exposed/{series}` | gap | gap |
-| My holding | `autolaunch_my_afterhours_exposed` | `GET /api/agent/v1/afterhours-exposed/{series}/holdings` (`GET /api/v1/me/afterhours-exposed/{series}` signed in) | gap | gap |
-| Prepare a step (mint, redeem, update, end) | `autolaunch_afterhours_exposed_prepare` | `POST /api/agent/v1/afterhours-exposed/{series}/steps` | gap | gap |
+| List series | `autolaunch_after_hour_stocks_list` | `GET /api/v1/after-hour-stocks` | gap | gap |
+| One series | `autolaunch_after_hour_stocks_series` | `GET /api/v1/after-hour-stocks/{series}` | gap | gap |
+| My holding | `autolaunch_my_after_hour_stocks` | `GET /api/agent/v1/after-hour-stocks/{series}/holdings` (`GET /api/v1/me/after-hour-stocks/{series}` signed in) | gap | gap |
+| Prepare a step (mint, redeem, update, end) | `autolaunch_after_hour_stocks_prepare` | `POST /api/agent/v1/after-hour-stocks/{series}/steps` | gap | gap |
 
 The owner's own key signs every step; the site prepares and never signs.
 

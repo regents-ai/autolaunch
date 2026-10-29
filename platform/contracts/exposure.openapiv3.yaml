@@ -1,17 +1,17 @@
-# Afterhours Exposed Tokens, added to api-contract.openapiv3.yaml only while the site offers it
+# After-hours Exposure, added to api-contract.openapiv3.yaml only while the site offers it
 # (AUTOLAUNCH_EXPOSURE=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
 # is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
 paths:
-  /api/v1/afterhours-exposed:
+  /api/v1/after-hour-stocks:
     get:
       operationId: listExposureSeries
-      summary: List Afterhours Exposed Tokens series
-      description: Every Afterhours Exposed Tokens series this site offers on Base, newest first, as each stands at the
+      summary: List After-hours Exposure series
+      description: Every After-hours Exposure series this site offers on Base, newest first, as each stands at the
         latest block. A series splits one stock token for a fixed term into an After-hours token (the
         stock's moves from each close to the next open) and a Market-hours token (its moves from each
         open to the close). Stock and token amounts are raw token units, prices and ledger values WAD
         dollars per stock token, pool quotes micro-USDC, times Unix seconds. Needs no account; the page
-        tool autolaunch_afterhours_exposed_list calls it.
+        tool autolaunch_after_hour_stocks_list calls it.
       security: []
       responses:
         '200':
@@ -36,12 +36,12 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/afterhours-exposed/{series}:
+  /api/v1/after-hour-stocks/{series}:
     get:
       operationId: getExposureSeries
-      summary: Read an Afterhours Exposed Tokens series
-      description: One Afterhours Exposed Tokens series at the latest block, in the shape of each entry of
-        listExposureSeries. Needs no account; the page tool autolaunch_afterhours_exposed_series calls it.
+      summary: Read an After-hours Exposure series
+      description: One After-hours Exposure series at the latest block, in the shape of each entry of
+        listExposureSeries. Needs no account; the page tool autolaunch_after_hour_stocks_series calls it.
       security: []
       parameters:
       - $ref: '#/components/parameters/ExposureSeriesAddress'
@@ -74,10 +74,10 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/v1/me/afterhours-exposed/{series}:
+  /api/v1/me/after-hour-stocks/{series}:
     get:
       operationId: getMyExposure
-      summary: Read your Afterhours Exposed Tokens holding
+      summary: Read your After-hours Exposure holding
       description: What the signed-in wallet holds of one series and what it can return now, read at the
         latest block. Only the wallet the person signed in with is read. Needs the site's sign-in in the
         same browser.
@@ -120,10 +120,10 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         default:
           $ref: '#/components/responses/OtherError'
-  /api/agent/v1/afterhours-exposed/{series}/holdings:
+  /api/agent/v1/after-hour-stocks/{series}/holdings:
     get:
-      operationId: autolaunch_my_afterhours_exposed
-      summary: Read your person's Afterhours Exposed Tokens holding
+      operationId: autolaunch_my_after_hour_stocks
+      summary: Read your person's After-hours Exposure holding
       description: What the paired person's signed-in wallet holds of one series and what it can return
         now, read at the latest block. Changes nothing.
       security:
@@ -163,11 +163,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExposureError'
-  /api/agent/v1/afterhours-exposed/{series}/steps:
+  /api/agent/v1/after-hour-stocks/{series}/steps:
     post:
-      operationId: autolaunch_afterhours_exposed_prepare
-      summary: Prepare an Afterhours Exposed Tokens step
-      description: The wallet steps for one Afterhours Exposed Tokens action, built from the chain at the latest block,
+      operationId: autolaunch_after_hour_stocks_prepare
+      summary: Prepare an After-hours Exposure step
+      description: The wallet steps for one After-hours Exposure action, built from the chain at the latest block,
         for one of the person's own wallets (`signer`, or the wallet they signed in with). The site only
         prepares; the wallet's own key signs and sends each step. An action the chain's current state
         makes certain to fail answers 200 with `blocked`, and its steps. Changes nothing.

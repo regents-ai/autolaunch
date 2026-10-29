@@ -4,13 +4,13 @@ import {balanceOf, call, mintStock, rpc} from "./support/chain"
 import {expect, fitsAndPresses, people, ready, signIn, test, type Sent} from "./support/person"
 import type {Page} from "@playwright/test"
 
-// Afterhours Exposed Tokens on AMZNc, end to end on the copy of Base with one series whose
+// After-hours Exposure on AMZNc, end to end on the copy of Base with one series whose
 // three prices (a close, an open and a close) fall in the copy's next few hours
 // (base_fork.py exposure). Person A records and applies the first close, which opens minting;
 // mints a pair; returns part of it as pairs; records and applies the open and the last close,
 // which ends the series; then returns each token on its own for its share of the stock.
 // Every press goes through the page's own wallet buttons. Feature map:
-// operations/FEATURES.md, Afterhours Exposed Tokens.
+// operations/FEATURES.md, After-hours Exposure.
 //
 // The journey moves the copy's clock, so it puts the copy back the way it found it when it ends.
 test.use({wallet: people.a.wallet})
@@ -86,7 +86,7 @@ async function press(page: Page, sent: Sent[], name: string) {
 }
 
 /** Opens the page fresh and waits for the series to be read. */
-async function open(page: Page, path = "/afterhours-exposed") {
+async function open(page: Page, path = "/after-hour-stocks") {
   await page.goto(path)
   await ready(page)
   await expect(page.locator("#exposure-overnight")).toBeVisible({timeout: 30_000})
@@ -102,7 +102,7 @@ async function recordAndApply(page: Page, sent: Sent[], index: number) {
   expect(await read("settled")).toBe(BigInt(index + 1))
 }
 
-test("afterhours exposed tokens: record the first close, mint, return pairs, run to the end and return each token", async ({page, sent}, info) => {
+test("after-hours exposure: record the first close, mint, return pairs, run to the end and return each token", async ({page, sent}, info) => {
   const touch = info.project.name === "phone"
   await mintStock(AMZNC, people.a.wallet, UNIT)
   const start = await balanceOf(AMZNC, people.a.wallet)
@@ -136,7 +136,7 @@ test("afterhours exposed tokens: record the first close, mint, return pairs, run
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 5_000_000n)
 
   // Return 0.02 pairs for 0.02 AMZNc.
-  await open(page, "/afterhours-exposed?tab=return")
+  await open(page, "/after-hour-stocks?tab=return")
   await page.getByRole("textbox", {name: "Pairs"}).fill("0.02")
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Return")).status).toBe("0x1")
@@ -150,7 +150,7 @@ test("afterhours exposed tokens: record the first close, mint, return pairs, run
 
   // After the end each token returns its own share; the copy's feed did not move, so
   // the two halves come back as the 0.03 AMZNc behind them.
-  await open(page, "/afterhours-exposed?tab=return")
+  await open(page, "/after-hour-stocks?tab=return")
   await page.getByRole("button", {name: "Max", exact: true}).click()
   await expect(page.getByRole("textbox", {name: "After-hours"})).toHaveValue("0.03")
   await expect(page.getByRole("textbox", {name: "Market-hours"})).toHaveValue("0.03")

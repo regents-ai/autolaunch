@@ -1,4 +1,4 @@
-# Afterhours Exposed Tokens on Base
+# After-hours Exposure on Base
 
 Deployed by `autolaunch-deployer` (`0x9b2C414614aEE294202c1219520955EF3B596031`) on Sean's go;
 receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
@@ -44,8 +44,8 @@ it succeeds, uses about 2.4M gas and creates `0xcae5aad4cc21700b32931404c366efd4
 
 [`safe-create-monday-series.json`](safe-create-monday-series.json): one `createSeries` call, as
 `mondaySeriesCall` prints it for the V2 recorder and the draft terms
-(`platform/priv/exposure_terms/0x0b0a03fb91ecdb27960ecbef9331d61b58f6b5587de9e28311e1a4aca7d434fb.md`). Decoded: AMZNc, the V2 recorder and its feed id,
+(`platform/priv/exposure_terms/0x113bf2ab2479b22de3d393ed5484352a32a8e74c123bc02ac1e1cb70ec497e7c.md`). Decoded: AMZNc, the V2 recorder and its feed id,
 a seven-day recording window, a 40 AMZNc cap, the 9 closes and opens from Mon 2 Nov 21:00 UTC to Fri
 6 Nov 21:00 UTC, legs "AMZNc After-hours 2 to 6 Nov 2026" (AMZNc-AH-1102) and "AMZNc Market-hours 2 to
-6 Nov 2026" (AMZNc-MH-1102). Simulated from the Safe on 29 Oct: it succeeds. Signed after the relaunch,
+6 Nov 2026" (AMZNc-MH-1102). Simulated from the Safe on 29 Oct: it succeeds. The draft terms were retitled After-hours Exposure on 29 Oct (Sean's rename; nothing else in them changed), so their fingerprint and this batch were rebuilt with `mondaySeriesCall`; the rebuilt call simulates from the Safe at Base block 53,254,661 (about 2.47M gas). Signed after the relaunch,
 it creates `0x1df53a86c8260c20Ab79b5f620544209Bd454266`. It must execute before Mon 2 Nov 16:00 New York.

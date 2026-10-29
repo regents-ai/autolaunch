@@ -1,4 +1,4 @@
-# Afterhours Exposed Tokens — technical specification
+# After-hours Exposure — technical specification
 
 **Status (29 Oct 2026):** series factory and the pinned-phase price oracle (V2) deployed on Base. The
 Safe created the first series (a capped ~$100 demonstration on AMZNc) from the earlier batch, so it
@@ -17,7 +17,7 @@ is reproduced in the appendix exactly as it is in the repository.
 
 A Base stock token (a Coinbase "B20" tokenized stock such as AMZNc) earns its return in two windows:
 from one close to the next open (nights and weekends), and from the open to the close (the trading
-day). Afterhours Exposed Tokens splits one stock token, for a fixed term, into two ordinary ERC-20 tokens:
+day). After-hours Exposure splits one stock token, for a fixed term, into two ordinary ERC-20 tokens:
 
 | Customer name | Contract name | Earns one share's dollar move over |
 | --- | --- | --- |
@@ -289,7 +289,7 @@ and applies prices on schedule, a portfolio section, and a link from the stock p
 
 ## 8. CLI
 
-Not built. The regents CLI gains `afterhours-exposed list`, `show`, `mine` and `steps` over the
+Not built. The regents CLI gains `after-hour-stocks list`, `show`, `mine` and `steps` over the
 routes above once the switch is on; until then `docs/agent-parity.md` lists each as a gap.
 
 ## 9. Questions for the reviewer

@@ -3,7 +3,7 @@
   "chainId": "8453",
   "createdAt": 1793296304775,
   "meta": {
-    "name": "Afterhours Exposed Tokens: relaunch the first AMZNc series on the V2 recorder",
+    "name": "After-hours Exposure: relaunch the first AMZNc series on the V2 recorder",
     "description": "Relaunch: ExposureFactoryV1.createSeries for AMZNc, Fri 30 Oct to Fri 6 Nov 2026 closes, cap 0.4 AMZNc, oracle ChainlinkPrintOracleV2 0x64b8404E979EC2791E68f55d959d011EA4EEA88a, terms 0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f; creates 0xcae5aad4cc21700b32931404c366efd4fc1ddfa0",
     "txBuilderVersion": "1.16.5",
     "createdFromSafeAddress": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",

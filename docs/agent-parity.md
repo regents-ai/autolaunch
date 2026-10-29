@@ -31,7 +31,7 @@ the switch goes on, so the CLI never offers them while the site does not.
 | Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
-## Afterhours Exposed Tokens
+## After-hours Exposure
 
 Offered only while the site's switch is on (`AUTOLAUNCH_EXPOSURE=true`). Off, no route, tool,
 guide section or command offers them. Every action is one operation in `Autolaunch.Exposure`;
@@ -40,13 +40,13 @@ the **regents-cli lane**, to be added to `cli/commands.json` when the switch goe
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| List every series | `exposure_series_list` | `/afterhours-exposed` (series list) | `autolaunch_afterhours_exposed_list` (`GET /api/v1/afterhours-exposed`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Read a series | `exposure_series` | `/afterhours-exposed` | `autolaunch_afterhours_exposed_series` (`GET /api/v1/afterhours-exposed/{series}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Read my holding | `exposure_holdings` | `/afterhours-exposed`, Mint and Return panels | `autolaunch_my_afterhours_exposed` (`GET /api/agent/v1/afterhours-exposed/{series}/holdings`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Mint a pair | `prepare_exposure`, kind `mint` | `/afterhours-exposed`, Mint: Approve, Mint | `autolaunch_afterhours_exposed_prepare` (`POST /api/agent/v1/afterhours-exposed/{series}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Return tokens for the stock | `prepare_exposure`, kind `redeem` | `/afterhours-exposed?tab=return`: Return | `autolaunch_afterhours_exposed_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Record and apply the next price | `prepare_exposure`, kind `update` | `/afterhours-exposed`, Prices: Record price, Apply price | `autolaunch_afterhours_exposed_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| End a series whose price was missed | `prepare_exposure`, kind `end` | `/afterhours-exposed`, Prices: End series (shown once the window has passed) | `autolaunch_afterhours_exposed_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| List every series | `exposure_series_list` | `/after-hour-stocks` (series list) | `autolaunch_after_hour_stocks_list` (`GET /api/v1/after-hour-stocks`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read a series | `exposure_series` | `/after-hour-stocks` | `autolaunch_after_hour_stocks_series` (`GET /api/v1/after-hour-stocks/{series}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read my holding | `exposure_holdings` | `/after-hour-stocks`, Mint and Return panels | `autolaunch_my_after_hour_stocks` (`GET /api/agent/v1/after-hour-stocks/{series}/holdings`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Mint a pair | `prepare_exposure`, kind `mint` | `/after-hour-stocks`, Mint: Approve, Mint | `autolaunch_after_hour_stocks_prepare` (`POST /api/agent/v1/after-hour-stocks/{series}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Return tokens for the stock | `prepare_exposure`, kind `redeem` | `/after-hour-stocks?tab=return`: Return | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Record and apply the next price | `prepare_exposure`, kind `update` | `/after-hour-stocks`, Prices: Record price, Apply price | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| End a series whose price was missed | `prepare_exposure`, kind `end` | `/after-hour-stocks`, Prices: End series (shown once the window has passed) | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
 The browser cells name the pages the covered-call pages lane is building; a headless walk with
 an agent's own wallet through each one is still to be added to `operations/FEATURES.md`.

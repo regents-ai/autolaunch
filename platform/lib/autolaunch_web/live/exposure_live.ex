@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureLive do
   @moduledoc """
-  `/afterhours-exposed`: Afterhours Exposed Tokens on a Base stock. One series at a time, the newest
+  `/after-hour-stocks`: After-hours Exposure on a Base stock. One series at a time, the newest
   unless `?series=<address>` names another the site offers: its two tokens with
   what each is worth now, the prices it has applied, and panels to mint pairs,
   return tokens for the stock, and record the next price. Every figure is read
@@ -27,7 +27,7 @@ defmodule AutolaunchWeb.ExposureLive do
          {:ok, config} <- Deployment.current() do
       {:ok,
        socket
-       |> assign(AutolaunchWeb.PublicDocuments.page("/afterhours-exposed"))
+       |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
        |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)}
     else
       _off -> raise NotFoundError
@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.ExposureLive do
     <article class="exposure">
       <header class="exposure__header">
         <div class="exposure__intro">
-          <h1>Afterhours Exposed Tokens</h1>
+          <h1>After-hours Exposure</h1>
           <p>
             Split a stock token into two for a week. After-hours carries the stock's moves while
             the market is closed, from each close to the next open. Market-hours carries its moves
@@ -338,7 +338,7 @@ defmodule AutolaunchWeb.ExposureLive do
             <li>Coinbase controls {@series.stock.symbol} and can pause or block it.</li>
           </ul>
           <p class="exposure__muted">
-            <.link href={~p"/afterhours-exposed/terms/#{@series.terms_hash}"}>Full terms</.link>
+            <.link href={~p"/after-hour-stocks/terms/#{@series.terms_hash}"}>Full terms</.link>
             · fingerprint on Base <code class="exposure__hash">{short_hash(@series.terms_hash)}</code>
           </p>
         </section>
@@ -349,7 +349,7 @@ defmodule AutolaunchWeb.ExposureLive do
             <li :for={address <- Enum.reverse(@all)}>
               <P.address id={"exposure-series-#{address}"} address={address} />
               <.link
-                patch={~p"/afterhours-exposed?series=#{address}"}
+                patch={~p"/after-hour-stocks?series=#{address}"}
                 aria-current={address == @series.address && "page"}
               >
                 {if address == @series.address, do: "Showing", else: "Show"}
@@ -466,7 +466,7 @@ defmodule AutolaunchWeb.ExposureLive do
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
-    if query == [], do: ~p"/afterhours-exposed", else: ~p"/afterhours-exposed?#{query}"
+    if query == [], do: ~p"/after-hour-stocks", else: ~p"/after-hour-stocks?#{query}"
   end
 
   defp ticker(series), do: String.replace_suffix(series.stock.symbol, "c", "")

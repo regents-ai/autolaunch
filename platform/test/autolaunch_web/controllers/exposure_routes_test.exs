@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureRoutesTest do
   @moduledoc """
-  The Afterhours Exposed Tokens HTTP routes against a stubbed Base chain: off,
+  The After-hours Exposure HTTP routes against a stubbed Base chain: off,
   every route is an address with nothing at it and nothing advertises them; on,
   the public reads answer anyone, a series' terms are served as the exact bytes
   its fingerprint names, and a paired agent's steps are built only for a wallet
@@ -15,15 +15,15 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   @series ExposureChain.series()
   # The page itself is checked in AutolaunchWeb.ExposureLiveTest.
   @routes [
-    {:get, "/afterhours-exposed/terms/#{ExposureChain.terms_hash()}"},
+    {:get, "/after-hour-stocks/terms/#{ExposureChain.terms_hash()}"},
     {:get, "/assets/js/exposure.css"},
-    {:get, "/api/v1/afterhours-exposed"},
-    {:get, "/api/v1/afterhours-exposed/#{ExposureChain.series()}"},
-    {:get, "/api/v1/me/afterhours-exposed/#{ExposureChain.series()}"},
-    {:get, "/api/agent/v1/afterhours-exposed/#{ExposureChain.series()}/holdings"},
-    {:post, "/api/agent/v1/afterhours-exposed/#{ExposureChain.series()}/steps"}
+    {:get, "/api/v1/after-hour-stocks"},
+    {:get, "/api/v1/after-hour-stocks/#{ExposureChain.series()}"},
+    {:get, "/api/v1/me/after-hour-stocks/#{ExposureChain.series()}"},
+    {:get, "/api/agent/v1/after-hour-stocks/#{ExposureChain.series()}/holdings"},
+    {:post, "/api/agent/v1/after-hour-stocks/#{ExposureChain.series()}/steps"}
   ]
-  @tools ~w(autolaunch_afterhours_exposed_list autolaunch_afterhours_exposed_series autolaunch_my_afterhours_exposed autolaunch_afterhours_exposed_prepare)
+  @tools ~w(autolaunch_after_hour_stocks_list autolaunch_after_hour_stocks_series autolaunch_my_after_hour_stocks autolaunch_after_hour_stocks_prepare)
 
   # Past the prelaunch gate, which refuses wallet steps until the site opens.
   defp open_site do
@@ -117,9 +117,9 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
 
       assert Enum.all?(@tools, &(&1 in names)) == offered?
       assert Enum.any?(@tools, &(&1 in names)) == offered?
-      assert "autolaunch_afterhours_exposed_prepare" in operations == offered?
-      assert Map.has_key?(paths, "/api/v1/afterhours-exposed/{series}") == offered?
-      assert guide =~ "Afterhours Exposed Tokens" == offered?
+      assert "autolaunch_after_hour_stocks_prepare" in operations == offered?
+      assert Map.has_key?(paths, "/api/v1/after-hour-stocks/{series}") == offered?
+      assert guide =~ "After-hours Exposure" == offered?
       assert home =~ ~s(/assets/js/exposure.css) == offered?
     end
   end
@@ -129,13 +129,13 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
 
     [listed] =
       build_conn()
-      |> get("/api/v1/afterhours-exposed")
+      |> get("/api/v1/after-hour-stocks")
       |> json_response(200)
       |> Map.fetch!("data")
 
     series =
       build_conn()
-      |> get("/api/v1/afterhours-exposed/#{@series}")
+      |> get("/api/v1/after-hour-stocks/#{@series}")
       |> json_response(200)
       |> Map.fetch!("data")
 
@@ -149,10 +149,10 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     assert length(series["schedule"]) == 11
     assert [%{"kind" => "close", "price" => _}, %{"kind" => "open"}] = series["prints"]
     assert series["next"]["kind"] == "close"
-    assert series["terms_url"] =~ "/afterhours-exposed/terms/#{ExposureChain.terms_hash()}"
+    assert series["terms_url"] =~ "/after-hour-stocks/terms/#{ExposureChain.terms_hash()}"
 
     unknown =
-      build_conn() |> get("/api/v1/afterhours-exposed/0x1234567890123456789012345678901234567890")
+      build_conn() |> get("/api/v1/after-hour-stocks/0x1234567890123456789012345678901234567890")
 
     assert unknown |> json_response(404) |> code() == "unknown_series"
   end
@@ -160,13 +160,13 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   test "a series' terms are served as the exact bytes its fingerprint names" do
     ExposureChain.install()
 
-    terms = build_conn() |> get("/afterhours-exposed/terms/#{ExposureChain.terms_hash()}")
+    terms = build_conn() |> get("/after-hour-stocks/terms/#{ExposureChain.terms_hash()}")
     assert terms.status == 200
 
     assert "0x" <> Base.encode16(ExKeccak.hash_256(terms.resp_body), case: :lower) ==
              ExposureChain.terms_hash()
 
-    missing = build_conn() |> get("/afterhours-exposed/terms/0x" <> String.duplicate("ab", 32))
+    missing = build_conn() |> get("/after-hour-stocks/terms/0x" <> String.duplicate("ab", 32))
     assert missing |> json_response(404) |> code() == "unknown_terms"
   end
 
@@ -183,7 +183,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     {wallet, signed} = paired_agent()
 
     steps = fn body ->
-      send_json(signed.(), "POST", "/api/agent/v1/afterhours-exposed/#{@series}/steps", body)
+      send_json(signed.(), "POST", "/api/agent/v1/after-hour-stocks/#{@series}/steps", body)
     end
 
     stranger = "0x" <> String.duplicate("ab", 20)
@@ -204,7 +204,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
 
     holdings =
       signed.()
-      |> get("/api/agent/v1/afterhours-exposed/#{@series}/holdings")
+      |> get("/api/agent/v1/after-hour-stocks/#{@series}/holdings")
       |> json_response(200)
 
     assert %{"wallet" => ^wallet, "stock" => 50_000_000} = holdings["data"]

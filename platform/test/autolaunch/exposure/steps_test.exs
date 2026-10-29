@@ -1,6 +1,6 @@
 defmodule Autolaunch.Exposure.StepsTest do
   @moduledoc """
-  The wallet steps for Afterhours Exposed Tokens, built from the series' state
+  The wallet steps for After-hours Exposure, built from the series' state
   at the latest block: exact calldata, an exact approval first, the reason a
   press is certain to fail named from the chain, the round of the pinned feed
   phase in force at a price's moment, and steps only for a wallet of the

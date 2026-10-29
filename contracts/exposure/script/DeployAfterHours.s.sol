@@ -8,7 +8,7 @@ import {ExposureFactoryV1} from "../src/ExposureFactoryV1.sol";
 import {ExposureSeriesV1} from "../src/ExposureSeriesV1.sol";
 
 /// @title DeployAfterHours
-/// @notice Afterhours Exposed Tokens on Base: `run` deploys the AMZN Chainlink print oracle, pinned to
+/// @notice After-hours Exposure on Base: `run` deploys the AMZN Chainlink print oracle, pinned to
 ///         the feed's current phase; `firstSeriesCall` and `mondaySeriesCall` print the Safe's
 ///         `createSeries` call to the deployed factory for the first AMZNc series (Fri 30 Oct to Fri
 ///         6 Nov 2026 closes) and the public one (Mon 2 Nov to Fri 6 Nov 2026 closes).

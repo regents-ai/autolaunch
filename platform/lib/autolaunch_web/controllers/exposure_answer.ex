@@ -40,10 +40,10 @@ defmodule AutolaunchWeb.ExposureAnswer do
 
   @refusals %{
     unknown_series:
-      {:not_found, "There is no Afterhours Exposed Tokens series at that address on this site."},
+      {:not_found, "There is no After-hours Exposure series at that address on this site."},
     unknown_terms:
       {:not_found,
-       "There are no Afterhours Exposed Tokens terms with that fingerprint on this site."},
+       "There are no After-hours Exposure terms with that fingerprint on this site."},
     invalid_amount:
       {:unprocessable_entity,
        "Send each amount as a whole number of raw units, above zero in total."},
@@ -55,7 +55,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
     authentication_required: {:unauthorized, "Nobody is signed in on this site in this browser."},
     chain_unavailable:
       {:service_unavailable,
-       "Afterhours Exposed Tokens could not be read from the chain just now."}
+       "After-hours Exposure could not be read from the chain just now."}
   }
 
   @doc "Answers with `result`'s figures shaped by `shape`, or with the refusal it carries."
@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
       feed_phase: series.phase,
       terms_hash: series.terms_hash,
       terms_url:
-        AutolaunchWeb.Endpoint.url() <> "/afterhours-exposed/terms/" <> series.terms_hash,
+        AutolaunchWeb.Endpoint.url() <> "/after-hour-stocks/terms/" <> series.terms_hash,
       status: series.status,
       end_reason: series.end_reason,
       price: series.price,
