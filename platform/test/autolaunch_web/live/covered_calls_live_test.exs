@@ -4,13 +4,16 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   calls still for sale with the amount left, a listing's panel opens from its
   own address, the Sell tab carries the terms and the guide, and with covered
   calls switched off the address is not found and the stock page offers nothing.
+
+  A panel works as the token page's Stake does: its button reviews the form as
+  it stands and opens the wallet steps over it, one wallet button at a time;
+  the button is disabled only when the chain makes the action certain to fail.
   """
   use AutolaunchWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
   alias Autolaunch.{CoveredCallsChain, TestSupport}
-  alias AutolaunchWeb.OnchainSteps
 
   @unit CoveredCallsChain.unit()
 
@@ -63,8 +66,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     render_async(view)
 
     assert has_element?(view, "#covered-call-fill-1 input[name=amount][value='6']")
-    assert has_element?(view, "#covered-call-fill-1 [data-onchain-step=usdc_approval]")
-    assert has_element?(view, "#covered-call-fill-1 [data-onchain-step=fill]")
+    assert has_element?(view, "#covered-call-fill-1 button[data-account-target=sign-in]")
   end
 
   test "with nothing for sale the Buy tab says so", %{conn: conn} do
@@ -94,33 +96,83 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     html = render_async(view)
 
     refute html =~ "Suggested premiums"
-    assert has_element?(view, "#covered-call-list [data-onchain-step=list]")
+    assert has_element?(view, "#covered-call-list button[data-account-target=sign-in]")
   end
 
-  # A press the panel can't build steps for says so, and the page's follow-up keeps the words:
-  # it never silently does nothing (the portfolio's buttons are these same panels).
-  test "a press the chain can't be read for says nothing was sent", %{conn: conn} do
-    assert_unsent(conn, %{unreadable: true}, "1")
-  end
-
-  test "a press with an amount that doesn't read says nothing was sent", %{conn: conn} do
-    assert_unsent(conn, %{}, "lots")
-  end
-
-  defp assert_unsent(conn, chain, amount) do
-    note = "#covered-call-fill-1 [role=status]"
+  test "Buy calls reviews the amount as typed: the USDC approval, then the purchase",
+       %{conn: conn} do
     CoveredCallsChain.install()
-    {view, panel} = signed_in_panel(conn)
-    CoveredCallsChain.put(chain)
-    refute has_element?(view, note, OnchainSteps.unsent_note())
+    {view, _panel} = signed_in_panel(conn)
 
-    render_hook(panel, "prepare_and_send", %{"form" => %{"amount" => amount}, "step" => "fill"})
-    assert_reply(view, reply)
-    assert reply == %{}
-    assert has_element?(view, note, OnchainSteps.unsent_note())
+    assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
 
-    render_hook(panel, "step_failed", %{"step" => "fill", "reason" => "step_unknown"})
-    assert has_element?(view, note, OnchainSteps.unsent_note())
+    view
+    |> element("#covered-call-fill-1-form")
+    |> render_submit(%{"amount" => "2"})
+
+    refute has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
+    assert has_element?(view, "#covered-call-fill-1-review-panel", "You pay")
+    assert has_element?(view, "#covered-call-fill-1-review-panel", "$6.00")
+    assert has_element?(view, "#covered-call-fill-1-review-panel [data-step=usdc_approval]")
+    assert has_element?(view, "#covered-call-fill-1-review-panel [data-step=fill]")
+
+    assert has_element?(
+             view,
+             "#covered-call-fill-1 [data-onchain-step=usdc_approval]",
+             "Approve USDC"
+           )
+
+    render_click(element(view, "#covered-call-fill-1-review-panel button[aria-label=Close]"))
+    assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
+  end
+
+  test "an approval already on the chain shows as done, and the wallet button names the purchase",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{usdc_allowance: 1_000_000_000})
+    {view, _panel} = signed_in_panel(conn)
+
+    view |> element("#covered-call-fill-1-form") |> render_submit(%{"amount" => "1"})
+
+    assert has_element?(view, "#covered-call-fill-1 [data-step=usdc_approval][data-state=done]")
+    assert has_element?(view, "#covered-call-fill-1 [data-onchain-step=fill]", "Confirm purchase")
+  end
+
+  test "a purchase the wallet can't pay for is disabled with the reason, and nothing opens",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{usdc_balance: 1_000_000})
+    {view, _panel} = signed_in_panel(conn)
+
+    view |> element("#covered-call-fill-1-form") |> render_change(%{"amount" => "2"})
+    render_async(view)
+
+    assert has_element?(view, "#covered-call-fill-1-review[disabled]")
+    assert has_element?(view, "#covered-call-fill-1-why", "Not enough USDC on Base")
+
+    view |> element("#covered-call-fill-1-form") |> render_submit(%{"amount" => "2"})
+    assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
+    assert has_element?(view, "#covered-call-fill-1-notice", "Not enough USDC on Base.")
+  end
+
+  # A review that can't be built says so and opens nothing; it never silently does nothing.
+  test "a review the chain can't be read for says so and opens nothing", %{conn: conn} do
+    CoveredCallsChain.install()
+    {view, _panel} = signed_in_panel(conn)
+    CoveredCallsChain.put(%{unreadable: true})
+
+    view |> element("#covered-call-fill-1-form") |> render_submit(%{"amount" => "1"})
+
+    assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
+    assert has_element?(view, "#covered-call-fill-1-notice", "Base couldn't be read just now.")
+  end
+
+  test "an amount that doesn't read asks for one and opens nothing", %{conn: conn} do
+    CoveredCallsChain.install()
+    {view, _panel} = signed_in_panel(conn)
+
+    view |> element("#covered-call-fill-1-form") |> render_submit(%{"amount" => "lots"})
+
+    assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
+    assert has_element?(view, "#covered-call-fill-1-notice", "Enter an amount above zero.")
   end
 
   # A new signed-in person on a listing's Buy panel, their wallet open.

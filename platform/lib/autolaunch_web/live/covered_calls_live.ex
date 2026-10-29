@@ -32,7 +32,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       {:ok,
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/covered-calls"))
-       |> assign(market: market, book: AsyncResult.loading(), tab: :buy, selected: nil)
+       |> assign(market: market, book: AsyncResult.loading(), tab: :buy, selected: nil, done: nil)
        |> read_book()}
     else
       _off -> raise NotFoundError
@@ -52,6 +52,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   def handle_event("refresh", _params, socket), do: {:noreply, read_book(socket)}
+  def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
   # A press landed here: every open page of this market reads it again.
   def handle_info({:covered_calls_changed, symbol}, socket) do
@@ -60,6 +61,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   end
 
   def handle_info(:read_again, socket), do: {:noreply, read_book(socket)}
+
+  # A panel's last step landed; the page says what moved.
+  def handle_info({:covered_call_done, done}, socket), do: {:noreply, assign(socket, done: done)}
 
   def handle_async(:book, {:ok, {:ok, book}}, socket),
     do: {:noreply, assign(socket, book: AsyncResult.ok(socket.assigns.book, book))}
@@ -95,6 +99,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
     ~H"""
     <article class="covered-calls">
+      <CoveredCallComponent.toast
+        :if={@done}
+        id="covered-call-done"
+        done={@done}
+        dismiss="dismiss_done"
+      />
       <header class="covered-calls__header">
         <div class="covered-calls__intro">
           <h1>Covered calls on {@market.symbol}</h1>
