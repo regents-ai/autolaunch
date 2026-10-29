@@ -151,13 +151,56 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, note, OnchainSteps.unsent_note())
   end
 
+  test "the portfolio lists the tokens a wallet holds, their value and a way back to Return", %{
+    conn: conn
+  } do
+    ExposureChain.install(%{
+      wallet: %{stock: 0, allowance: 0, overnight: 10_000_000, session: 5_000_000}
+    })
+
+    {view, _account} = signed_in(conn, "/portfolio")
+    render_async(view)
+    row = "#portfolio-exposure-#{@series}"
+
+    # 0.1 After-hours at $131 and 0.05 Market-hours at $125.
+    assert has_element?(view, row, "AMZNc to Fri 6 Nov, 4:00pm")
+    assert has_element?(view, "#{row} td[data-label=After-hours]", "0.1")
+    assert has_element?(view, "#{row} td[data-label=Market-hours]", "0.05")
+    assert has_element?(view, "#{row} td[data-label=Value]", "$19.35")
+
+    assert has_element?(
+             view,
+             "#{row} a[href='/after-hour-stocks?series=#{@series}&tab=return']",
+             "Return"
+           )
+  end
+
+  test "the portfolio points a wallet without tokens to the page", %{conn: conn} do
+    ExposureChain.install()
+    {view, _account} = signed_in(conn, "/portfolio")
+    render_async(view)
+
+    assert has_element?(view, "#portfolio-exposure", "No tokens yet")
+    assert has_element?(view, "#portfolio-exposure a[href='/after-hour-stocks']")
+  end
+
   # A new signed-in person on the page, their wallet open.
   defp signed_in_panel(conn, selector) do
-    account = TestSupport.register_creator!()
-    session = signed_in_session(account.id)
-
     path =
       if selector =~ "redeem", do: "/after-hour-stocks?tab=return", else: "/after-hour-stocks"
+
+    {view, account} = signed_in(conn, path)
+    render_async(view)
+    panel = with_target(view, selector)
+    render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
+    render_async(view)
+    {view, panel}
+  end
+
+  # A new signed-in person on `path`.
+  defp signed_in(conn, path) do
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
 
     {:ok, view, _html} =
       conn
@@ -165,10 +208,6 @@ defmodule AutolaunchWeb.ExposureLiveTest do
       |> connects_with(session)
       |> live(path)
 
-    render_async(view)
-    panel = with_target(view, selector)
-    render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
-    render_async(view)
-    {view, panel}
+    {view, account}
   end
 end

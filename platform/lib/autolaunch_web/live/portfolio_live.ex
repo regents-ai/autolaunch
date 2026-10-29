@@ -332,6 +332,13 @@ defmodule AutolaunchWeb.PortfolioLive do
         current_human_id={@human_id}
       />
 
+      <.live_component
+        :if={@account_control.kind != :sign_in and Autolaunch.Exposure.Deployment.enabled?()}
+        module={AutolaunchWeb.ExposurePortfolioComponent}
+        id="portfolio-exposure"
+        current_human_id={@human_id}
+      />
+
       <section
         :if={@account_control.kind != :sign_in}
         id="autolaunch-held-tokens"

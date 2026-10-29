@@ -142,6 +142,15 @@ test("after-hours exposure: record the first close, mint, return pairs, run to t
   expect((await press(page, sent, "Return")).status).toBe("0x1")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 3_000_000n)
 
+  // The portfolio lists the 0.03 of each still held, and its Return leads back to the Return tab.
+  await page.goto("/portfolio")
+  const held = page.locator("#portfolio-exposure tbody tr")
+  await expect(held).toHaveCount(1, {timeout: 30_000})
+  await expect(held.locator("td[data-label=After-hours]")).toHaveText("0.03")
+  await expect(held.locator("td[data-label=Market-hours]")).toHaveText("0.03")
+  await held.getByRole("link", {name: "Return"}).click()
+  await expect(page.getByRole("textbox", {name: "Pairs"})).toBeVisible({timeout: 30_000})
+
   // The open and the last close end the series.
   await recordAndApply(page, sent, 1)
   await recordAndApply(page, sent, 2)
