@@ -24,10 +24,7 @@
 .exposure__leg-facts dd { font-size: 1.0625rem; }
 .exposure__trade { justify-self: start; }
 
-.exposure__tabs { display: flex; gap: var(--space-1); }
-.exposure__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; }
-.exposure__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
-.exposure__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
+#exposure-act-panel { display: grid; }
 .exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .exposure__table.market-list__table :is(td, th) { font-variant-numeric: tabular-nums; text-align: left; }
 .exposure__next td { color: var(--color-fg-muted); }
@@ -57,7 +54,7 @@
 .exposure-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
 
 @media (hover: none) and (pointer: coarse) {
-  .exposure__tabs a, .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }
+  .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }
   .exposure-panel__balance button { min-block-size: 2.75rem; min-inline-size: 2.75rem; }
 }
 

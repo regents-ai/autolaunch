@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.ExposureLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
+  import AutolaunchWeb.Components.PriceChart, only: [price_chart: 1]
 
   alias Autolaunch.Exposure
   alias Autolaunch.Exposure.Deployment
@@ -63,6 +64,13 @@ defmodule AutolaunchWeb.ExposureLive do
   end
 
   def handle_event("refresh", _params, socket), do: {:noreply, read_series(socket)}
+
+  def handle_event("tab", %{"tab" => tab}, socket) when tab in ["mint", "return"] do
+    tab = String.to_existing_atom(tab)
+
+    {:noreply,
+     push_patch(socket, to: tab_path(socket.assigns.reading.result, tab, socket.assigns.all))}
+  end
 
   # A press landed here: every open page of this series reads it again.
   def handle_info({:exposure_changed, address}, socket) do
@@ -165,7 +173,12 @@ defmodule AutolaunchWeb.ExposureLive do
 
         <section class="exposure__section" aria-labelledby="exposure-tokens-title">
           <h2 id="exposure-tokens-title" class="exposure__title">Tokens</h2>
-          <div class="exposure__legs">
+          <div
+            id="exposure-legs"
+            class="exposure__legs"
+            phx-hook="MotionCascade"
+            data-variant={AutolaunchWeb.Motion.standard("grid")}
+          >
             <.leg
               id="exposure-overnight"
               title="After-hours"
@@ -187,17 +200,37 @@ defmodule AutolaunchWeb.ExposureLive do
           </div>
         </section>
 
-        <section class="exposure__section" aria-labelledby="exposure-act-title">
-          <h2 id="exposure-act-title" class="visually-hidden">Mint or return</h2>
-          <nav class="exposure__tabs" aria-label="Mint or return">
-            <.link patch={tab_path(@series, :mint, @all)} aria-current={@tab == :mint && "page"}>
-              Mint
-            </.link>
-            <.link patch={tab_path(@series, :return, @all)} aria-current={@tab == :return && "page"}>
-              Return
-            </.link>
-          </nav>
-          <div class="exposure__act">
+        <section
+          id="exposure-act"
+          class="exposure__section"
+          aria-label="Mint or return"
+          phx-hook="MotionTabs"
+          data-active={@tab}
+          data-variant={AutolaunchWeb.Motion.standard("tabs")}
+        >
+          <div class="token-trade__tabs" role="tablist" aria-label="Mint or return">
+            <span
+              id="exposure-act-ink"
+              class="token-trade__ink"
+              data-ink
+              aria-hidden="true"
+              phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
+            ></span>
+            <button
+              :for={{tab, label} <- [mint: "Mint", return: "Return"]}
+              type="button"
+              role="tab"
+              id={"exposure-act-tab-#{tab}"}
+              data-tab={tab}
+              aria-selected={to_string(tab == @tab)}
+              aria-controls="exposure-act-panel"
+              phx-click="tab"
+              phx-value-tab={tab}
+            >
+              {label}
+            </button>
+          </div>
+          <div id="exposure-act-panel" role="tabpanel" aria-labelledby={"exposure-act-tab-#{@tab}"}>
             <div :if={@tab == :mint} class="exposure__panel">
               <p class="exposure__muted">
                 Deposit {@series.stock.symbol} and receive the same amount of each token.
@@ -227,6 +260,13 @@ defmodule AutolaunchWeb.ExposureLive do
 
         <section class="exposure__section" aria-labelledby="exposure-prices-title">
           <h2 id="exposure-prices-title" class="exposure__title">Prices</h2>
+          <.price_chart
+            id="exposure-chart"
+            label={"#{@series.stock.symbol} at each price"}
+            history={history(@series)}
+            unit="USD"
+            count_label="Prices"
+          />
           <div class="market-list__scroll">
             <table class="market-list__table exposure__table">
               <caption class="visually-hidden">Prices this series has applied</caption>
@@ -340,7 +380,12 @@ defmodule AutolaunchWeb.ExposureLive do
       <p class="exposure__muted">
         {@token.symbol} <P.address id={"#{@id}-address"} address={@token.address} />
       </p>
-      <dl class="exposure__leg-facts">
+      <dl
+        id={"#{@id}-facts"}
+        class="exposure__leg-facts"
+        phx-hook="MotionCount"
+        data-variant={AutolaunchWeb.Motion.standard("count")}
+      >
         <div>
           <dt>Value</dt>
           <dd>{if @series.settled > 0, do: F.usd(@ledger), else: "—"}</dd>
@@ -373,6 +418,18 @@ defmodule AutolaunchWeb.ExposureLive do
       </.link>
     </section>
     """
+  end
+
+  # The stock's applied prices as a line for the price chart, in dollars.
+  defp history(%{prints: prints}) do
+    prices = Enum.map(prints, &(&1.price / 1.0e18))
+
+    %{
+      points: prices |> Enum.with_index() |> Enum.map(fn {price, index} -> [index, price] end),
+      low: Enum.min(prices, fn -> 0.0 end),
+      high: Enum.max(prices, fn -> 0.0 end),
+      trades: length(prices)
+    }
   end
 
   defp pool_price(nil), do: "No pool yet"

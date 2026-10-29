@@ -33,6 +33,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert view |> element("#exposure-session") |> render() =~ "$2.51"
     assert has_element?(view, "#exposure-print-0", "$250.00")
     assert has_element?(view, "#exposure-print-1", "$256.00")
+    assert has_element?(view, "#exposure-chart[data-points='[[0,250.0],[1,256.0]]']", "Up 2.4%")
     assert html =~ "0.1 of 0.4 AMZNc"
     assert html =~ "Live, 2 of 11 prices applied"
     assert html =~ "Fri 30 Oct, 4:00pm to Fri 6 Nov, 4:00pm"

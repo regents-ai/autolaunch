@@ -15,6 +15,7 @@ defmodule AutolaunchWeb.Components.PriceChart do
   attr :history, :map, required: true, doc: "from `Autolaunch.PriceHistory.pool/4`, or nil"
   attr :unit, :string, required: true, doc: "the currency the price is in"
   attr :color, :string, default: nil, doc: "the image colour, or nil for the plain line"
+  attr :count_label, :string, default: "Trades", doc: "what the history's count counts"
 
   # One point is a price, not a line.
   def price_chart(%{history: %{points: [_first, _second | _rest]}} = assigns) do
@@ -41,7 +42,7 @@ defmodule AutolaunchWeb.Components.PriceChart do
           <dd><TokenDisplay.price amount={plain(@history.high)} unit={@unit} /></dd>
         </div>
         <div>
-          <dt>Trades</dt>
+          <dt>{@count_label}</dt>
           <dd>{@history.trades}</dd>
         </div>
       </dl>
