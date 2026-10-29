@@ -19,7 +19,9 @@ the contract gates and release configuration remain authoritative.
 
 The website defaults to a read-only preview before contract deployment. Explore,
 public records, search, filters and the public read APIs remain available. The
-existing bid-quote POST is a read-only calculation and remains available too.
+existing bid-quote POST is a read-only calculation and remains available too, and so
+are the hosted MCP server at `/mcp` (its tools read, and keep a connected app's identity
+and pairing) and the connector's sign-in under `/oauth`.
 
 - The Create button is shown disabled, titled "Available after contract deployment".
 - Creation, bids, payments, staking and account changes are disabled in the UI.
@@ -303,6 +305,28 @@ production they are served at `/metrics` on port 9091, which `fly.toml`'s `[metr
 section names for Fly's managed Prometheus. That port is not a Fly service, so it is
 reachable only over Fly's private network; the public site has no `/metrics` page.
 Fly Sentinel reads them from Prometheus under its site health set.
+
+## Hosted MCP and the Claude connector
+
+`POST /mcp` is the site's one hosted MCP server: `AshAi.Mcp.Router` behind
+`AutolaunchWeb.Plugs.McpAgent`, serving the tools `priv/capabilities.json` marks hosted
+(`AutolaunchWeb.Capabilities.hosted_tools/0`), each as its Ash action under its policies.
+Today that is `autolaunch_auction_counts` for a paired agent signing each call with its own
+wallet, and the connector's four identity tools for a connected app. McpAgent refuses a query
+string, another method or address, another site's page, a body that is not JSON and a batch
+before any credential is read; then exactly one credential is taken, and an agent no person
+paired is refused `agent_not_paired` as on every signed route. Every other browser tool keeps a
+reason in `priv/capabilities.json` until its operation becomes one action whose answer is the
+tool's.
+
+The Claude connector (`Autolaunch.OAuth`, Boruta through elixir-utils' `RegentOAuth`) adds the
+sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in
+the pairing box and `/agents/claude`, all behind `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`. Its
+tables, `oauth_*` in `autolaunch_app`, are added by migration `20261029200000`. Switching it on
+needs, in order: the migration run; `autolaunch` in `RegentMCPAgents`' known audiences in
+elixir-utils (the boot stops on `RegentMCPAgents.configure!/0` until then) and in the sign-in
+service's hosted signing list; this site's `SIWA_HOSTED_SIGNING_KEY`; then the switch, which is a
+sign-in release.
 
 ## How often the site reads the chain
 

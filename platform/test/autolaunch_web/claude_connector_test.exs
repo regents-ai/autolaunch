@@ -389,6 +389,18 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       refute "autolaunch_auction_counts" in tool_names(token)
     end
 
+    test "working as its agent never moves when the agent was last in touch" do
+      subject = subject!()
+      %{access: token} = connect!(subject, @agent_scopes)
+      assert %{"isError" => false} = tool(token, "pair_identity", pair_args(code!(subject)))
+      [%{last_contact_at: paired_at}] = agents(subject)
+
+      assert post_mcp(rpc("ping"), token).status == 200
+      assert "autolaunch_auction_counts" in tool_names(token)
+      assert %{"isError" => false} = counts(token)
+      assert [%{last_contact_at: ^paired_at}] = agents(subject)
+    end
+
     test "the hosted signer is asked for the account's address once, not on every call" do
       subject = subject!()
       %{access: token} = connect!(subject, @agent_scopes)

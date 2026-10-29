@@ -183,7 +183,7 @@ is off in production.
 | Switch off: the connector's sign-in is not found, `/mcp` takes no app's token, Claude is neither offered nor shown, and an agent pairs as before | `autolaunch_web/claude_connector_test.exs` › "its sign-in is not found, /mcp takes no app's token, and Claude is neither offered nor shown", › "an agent's sign-in and pairing work as before, and a Claude pairing is refused" |
 | Switch on: Claude in the pairing box, `/agents/claude`, and its lines in `/llms.txt`, `/agents.md` and the sitemap | `autolaunch_web/claude_connector_test.exs` › "Claude is offered in the pairing box, and its page and guide lines are shown" |
 | Switch on: a connected app pairs one hosted agent with its own account's code only, checks in, keeps one identity across reconnects, and loses access when it disconnects or is unpaired | `autolaunch_web/claude_connector_test.exs` (the eleven cases under "with the connector on") |
-| Switch on, with the agent permission: a paired app reads the auction counts as its agent; never as another account's agent; the identity's wallet is read once, and once while the signer is down | `autolaunch_web/claude_connector_test.exs` (the six cases under "with the connector on and the agent permission") |
+| Switch on, with the agent permission: a paired app reads the auction counts as its agent, and doing so never counts as a check-in; never as another account's agent; the identity's wallet is read once, and once while the signer is down | `autolaunch_web/claude_connector_test.exs` (the seven cases under "with the connector on and the agent permission") |
 | The consent page and its redirect back to Claude | **Gap** (not walked; the walk runs with the switch off) |
 
 ## Gaps, in one list
