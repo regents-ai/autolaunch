@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: covered calls that follow your trade
+- On the Sell tab the guide now follows what you type: suggested premiums for the week you pick, each with Use to fill the form, and the result at expiry for your own strike and premium.
+- Every date shows the whole exercise window, Friday 21:00 UTC to Saturday 21:00 UTC. The three steps under the title change with the tab, for buyers and for sellers, and a purchase shows the premium you pay now and what exercising would cost.
+- How the suggested premium is worked out, and where the price comes from, is one tap away. A Contract section at the foot links the verified code on Basescan.
+
 ## 29 October 2026: covered calls on Amazon (AMZNc)
 - Covered calls are open at /covered-calls, for eligible people outside the US. Sell calls on your AMZNc: choose an amount, a strike price, a Friday expiry and a premium, and keep the premium buyers pay. Or buy calls from the list, each the right to buy AMZNc at its strike for the 24 hours after Friday 21:00 UTC. Everything is paid in USDC on Base, and 1% of each premium goes to REGENT stakers.
 - Each action works as Stake does on a token page: review it, then confirm each step in your wallet. Your calls, sold and held, are on your Portfolio with Stop selling, Exercise and Collect. The Stocks page, the AMZNc stock page and the menu link to them.
