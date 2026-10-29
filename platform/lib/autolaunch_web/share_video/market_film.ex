@@ -24,9 +24,10 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   alias AutolaunchWeb.UsdValue
   alias Vix.Vips.Image
 
-  @width Canvas.width()
-  @height Canvas.height()
-  @fps Canvas.fps()
+  # The frame `AutolaunchWeb.ShareVideo.Canvas` encodes.
+  @width 1080
+  @height 1350
+  @fps 30
 
   @field "#111110"
   @strip "#1c1c1a"

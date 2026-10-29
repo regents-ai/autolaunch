@@ -17,12 +17,6 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
   @fps 30
   @frames 300
 
-  @doc "The frame's width, height, frames a second and frame count."
-  def width, do: @width
-  def height, do: @height
-  def fps, do: @fps
-  def frames, do: @frames
-
   @doc """
   The video's MP4 bytes from `frame`, a function from a frame's index to its
   image, with what drawing and encoding it took: the time in milliseconds,

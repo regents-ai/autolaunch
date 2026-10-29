@@ -25,10 +25,11 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   alias AutolaunchWeb.TokenDisplay
   alias Vix.Vips.{Image, Operation}
 
-  @width Canvas.width()
-  @height Canvas.height()
-  @fps Canvas.fps()
-  @frames Canvas.frames()
+  # The frame `AutolaunchWeb.ShareVideo.Canvas` encodes.
+  @width 1080
+  @height 1350
+  @fps 30
+  @frames 300
 
   @field "#111110"
   @strip "#1c1c1a"
