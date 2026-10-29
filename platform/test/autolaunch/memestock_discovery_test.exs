@@ -220,6 +220,23 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert auctions() == []
   end
 
+  test "a launch whose name is empty once its hidden characters are gone is not listed",
+       %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "\u200B\u3164 ", "symbol()" => "BLANK", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :unlisted, reason: "invalid_metadata"}] = discoveries()
+    assert auctions() == []
+  end
+
   test "a launch whose metadata is not readable is not listed", %{launchpad: launchpad} do
     admit_stock()
 

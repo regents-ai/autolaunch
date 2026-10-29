@@ -1964,33 +1964,33 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "053df9bdcaa76f32afeeb4c2a2f72c119a5e952b0cc37142bc77c15fba5d2161"
+      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
     },
     {
       "id": 192,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 265,
+      "line": 282,
       "test_name": "a launch taken again that the site cannot list yet waits, and is listed once it can",
       "keep_because": "Found by the second review: a launch an earlier pass left unlisted that the chain or the stock list could not answer for yet stayed unlisted and was never taken again. It now waits as pending and is listed once it can be.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "053df9bdcaa76f32afeeb4c2a2f72c119a5e952b0cc37142bc77c15fba5d2161"
+      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
     },
     {
       "id": 193,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 328,
+      "line": 345,
       "test_name": "the two test launches the operator hid are never listed",
       "keep_because": "Sean, 29 Oct 2026, \"Hide both\": the release's data change marks Base Memestock launches 1 and 2 (V2 AUTOLAUNCH TEST) hidden, and no resolve pass lists them afterwards, while launch 3 is untouched.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "053df9bdcaa76f32afeeb4c2a2f72c119a5e952b0cc37142bc77c15fba5d2161"
+      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
     },
     {
       "id": 194,

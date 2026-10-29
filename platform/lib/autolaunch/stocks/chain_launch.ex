@@ -123,7 +123,7 @@ defmodule Autolaunch.Stocks.ChainLaunch do
 
   defp row(pad, launch, stock) do
     symbol = line(launch.symbol)
-    title = line(launch.name) || symbol
+    title = line(launch.name)
 
     if title && Ticker.complete?(symbol) do
       {:ok,
