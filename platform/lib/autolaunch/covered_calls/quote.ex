@@ -5,8 +5,10 @@ defmodule Autolaunch.CoveredCalls.Quote do
   enforced: the seller sets the minimum premium, and a buyer pays exactly what
   the listing asks.
 
-  The suggestion is the Black-Scholes price of the call with a fixed yearly
-  volatility of 30% and no interest (`Autolaunch.CoveredCalls.Terms`). It is not
+  The suggestion is the Black-Scholes price of the call with an assumed yearly
+  volatility of 30% (a fixed figure, not a market quote) and no interest
+  (`Autolaunch.CoveredCalls.Terms`), counted to the close of the exercise
+  window, the last moment the buyer may exercise. It is not
   offered while the reference price is older than four days, which covers a
   weekend and a holiday; feeds stop updating outside market hours and during a
   corporate action.
@@ -49,7 +51,13 @@ defmodule Autolaunch.CoveredCalls.Quote do
 
   def spot(_book), do: {:error, :price_unavailable}
 
-  @doc "The suggested premium per whole token at `strike` for `expiry`, from `spot`."
+  @doc """
+  The suggested premium per whole token at `strike` for the series that
+  expires at `expiry`, from `spot`, counted to the window's close.
+  """
   def premium(spot, strike, expiry, now),
-    do: Terms.suggested_premium(spot, strike, expiry, now, @volatility)
+    do: Terms.suggested_premium(spot, strike, expiry + Terms.exercise_window(), now, @volatility)
+
+  @doc "The yearly volatility the suggestion assumes."
+  def volatility, do: @volatility
 end

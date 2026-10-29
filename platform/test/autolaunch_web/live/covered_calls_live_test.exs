@@ -14,6 +14,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   import Phoenix.LiveViewTest
 
   alias Autolaunch.{CoveredCallsChain, TestSupport}
+  alias AutolaunchWeb.CoveredCallsFormat, as: F
 
   @unit CoveredCallsChain.unit()
 
@@ -85,7 +86,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     for expiry <- expiries,
         do: assert(has_element?(view, "select[name=expiry] option[value='#{expiry}']"))
 
-    assert html =~ "Dividends during the week stay with the tokens."
+    assert html =~ "Dividends during the week stay with the tokens"
     assert html =~ "$254.00"
     assert html =~ "Suggested premiums"
   end
@@ -230,6 +231,78 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     refute has_element?(view, "#portfolio-covered-calls-claim-1")
   end
 
+  test "the guide follows the List form: the window chosen, the strike and premium typed", %{
+    conn: conn
+  } do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=sell")
+    render_async(view)
+    [first, second | _later] = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
+
+    assert has_element?(view, "#covered-calls-outcome h3", "Example")
+    assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(first))
+
+    view
+    |> element("#covered-call-list-form")
+    |> render_change(%{
+      "amount" => "2",
+      "strike" => "260",
+      "premium" => "3",
+      "expiry" => "#{second}"
+    })
+
+    assert has_element?(
+             view,
+             "#covered-calls-outcome h3",
+             "Your trade: $260.00 strike, $3.00 premium"
+           )
+
+    assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(second))
+  end
+
+  test "a suggested strike and premium fill the List form when chosen", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=sell")
+    render_async(view)
+
+    button = element(view, "#covered-calls-suggestions tbody tr:first-child button")
+
+    [strike, premium] =
+      for name <- ~w(strike premium), do: render(button) |> attribute("phx-value-#{name}")
+
+    render_click(button)
+
+    assert has_element?(view, "#covered-call-list-strike[value='#{strike}']")
+    assert has_element?(view, "#covered-call-list-premium[value='#{premium}']")
+    assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
+  end
+
+  test "the steps follow the tab: a buyer's on Buy, a seller's on Sell", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls")
+    render_async(view)
+    assert has_element?(view, ".covered-calls__steps", "Exercise")
+    refute has_element?(view, ".covered-calls__steps", "Settle")
+
+    view |> element(".covered-calls__tabs a", "Sell calls") |> render_click()
+    assert has_element?(view, ".covered-calls__steps", "Settle")
+  end
+
+  test "the contract is named at the foot of the page with its verified code on Basescan",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls")
+    contract = CoveredCallsChain.contract()
+
+    assert has_element?(
+             view,
+             "a[href='https://basescan.org/address/#{contract}#code']",
+             "Verified on Basescan"
+           )
+
+    assert has_element?(view, "#covered-calls-contract")
+  end
+
   test "a listing's address that isn't for sale says so", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls?listing=7")
@@ -253,5 +326,10 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
     render_async(view)
     {view, panel}
+  end
+
+  defp attribute(html, name) do
+    [value] = html |> LazyHTML.from_fragment() |> LazyHTML.attribute(name)
+    value
   end
 end

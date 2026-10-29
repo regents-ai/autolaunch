@@ -14,7 +14,9 @@
 .covered-calls__steps strong::before { content: counter(step) " "; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 .covered-calls__tabs { display: flex; gap: var(--space-1); }
 .covered-calls__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
-.covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
+.covered-calls__tabs { border-bottom: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); }
+.covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 9%, var(--color-surface)); box-shadow: inset 0 -3px 0 var(--color-fg); }
+.covered-calls__tabs .covered-calls__mine { margin-inline-start: auto; font-weight: 500; text-decoration: underline; text-underline-offset: .2em; }
 .covered-calls__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
 .covered-calls__section { display: grid; gap: var(--space-2); min-width: 0; }
 .covered-calls__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
@@ -40,6 +42,12 @@
 .covered-calls__mini td + td, .covered-calls__mini th + td { text-align: right; }
 .covered-calls__mini small { color: var(--color-fg-muted); }
 .covered-calls__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
+.covered-calls__more { font-size: .875rem; line-height: 1.5; }
+.covered-calls__more summary { cursor: pointer; font-weight: 600; min-block-size: 2rem; display: flex; align-items: center; }
+.covered-calls__more > :not(summary) { margin: var(--space-1) 0 0; color: var(--color-fg-muted); }
+.covered-calls__use { min-block-size: 2rem; padding-inline: var(--space-2); font-size: .8125rem; }
+.covered-calls__contract dd { min-width: 0; overflow-wrap: anywhere; }
+.covered-call-panel__hint { color: var(--color-fg-muted); font-size: .8125rem; }
 
 /* The panel works as the token page's Stake and Claim do: the form, and the review that opens
    over it (`.token-swap__stack`, `.token-swap__review`), share one cell. */
