@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
   """
   use AutolaunchWeb.ConnCase, async: false
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   alias Autolaunch.{CoveredCallsChain, ExposureChain, TestSupport}
@@ -53,7 +54,19 @@ defmodule AutolaunchWeb.ShareMarketTest do
 
       # 4 calls sold at $3.00: $12.00, less $0.12 to REGENT staking.
       assert story.figures == [{"Earned", "$11.88"}, {"Calls held", "0 AMZNc"}]
-      assert story.mine?
+    end
+
+    test "calls held count only while they can still be used, never once lapsed" do
+      now = CoveredCallsChain.now()
+      lapsed = now - Autolaunch.CoveredCalls.Terms.exercise_window() - 3_600
+
+      CoveredCallsChain.put(%{
+        held: 2 * CoveredCallsChain.unit(),
+        listings: [CoveredCallsChain.listing(%{}), CoveredCallsChain.listing(%{expiry: lapsed})]
+      })
+
+      assert {:ok, %{figures: [_earned, {"Calls held", "2.00 AMZNc"}]}} =
+               MarketStory.covered_calls("AMZNc", "0x3333333333333333333333333333333333333333")
     end
 
     test "the picture is drawn for a market the site offers, and nowhere else", %{conn: conn} do
@@ -91,6 +104,39 @@ defmodule AutolaunchWeb.ShareMarketTest do
 
       signed_in = init_test_session(build_conn(), %{human_account_id: account.id})
       assert %{"ahead" => 0} = signed_in |> get(path) |> json_response(202)
+    end
+
+    test "each wallet of an account has its own video, never another wallet's" do
+      account = TestSupport.register_creator!()
+      now = DateTime.utc_now()
+      first = "0x" <> String.duplicate("a", 40)
+      second = "0x" <> String.duplicate("b", 40)
+
+      assert {:waiting, _ahead} =
+               ShareVideo.fetch_market(:covered_calls, "AMZNc", first, account.id, now)
+
+      assert {:waiting, _ahead} =
+               ShareVideo.fetch_market(:covered_calls, "AMZNc", second, account.id, now)
+
+      assert %{success: 2} = Oban.drain_queue(queue: :share_videos)
+
+      assert {:ok, mine} =
+               ShareVideo.fetch_market(:covered_calls, "AMZNc", first, account.id, now)
+
+      assert {:ok, theirs} =
+               ShareVideo.fetch_market(:covered_calls, "AMZNc", second, account.id, now)
+
+      assert mine =~ "ftyp" and theirs =~ "ftyp"
+
+      wallets =
+        Autolaunch.Repo.all(
+          from(r in "share_video_requests",
+            where: r.subject == "AMZNc" and not is_nil(r.wallet),
+            select: r.wallet
+          )
+        )
+
+      assert Enum.sort(wallets) == [first, second]
     end
 
     test "the share window starts with everyone's video; a person's own waits behind its switch" do
@@ -131,10 +177,59 @@ defmodule AutolaunchWeb.ShareMarketTest do
     assert build_conn() |> get("/covered-calls/AMZNc/share.mp4") |> response(404)
   end
 
+  test "switched off, a series' picture and videos are not there", %{conn: conn} do
+    series = ExposureChain.series()
+    assert conn |> get("/after-hour-stocks/#{series}/share.png") |> response(404)
+    assert build_conn() |> get("/after-hour-stocks/#{series}/share.mp4") |> response(404)
+  end
+
   describe "After-hours Exposure" do
     setup do
       ExposureChain.install()
       :ok
+    end
+
+    test "the feed's rounds since a moment, from the one in force then" do
+      now = ExposureChain.now()
+      {:ok, config} = Autolaunch.Exposure.Deployment.current()
+      {:ok, block, opts} = Autolaunch.Exposure.Chain.latest(config.lab)
+
+      assert {:ok, %{decimals: 8, points: points}} =
+               Autolaunch.PriceFeedHistory.since(ExposureChain.feed(), now - 86_400, block, opts)
+
+      assert points == [
+               {now - 3 * 86_400, 25_000_000_000},
+               {now - 7_200, 25_600_000_000},
+               {now - 60, 25_700_000_000}
+             ]
+
+      assert {:ok, %{points: [{_in_force, 25_600_000_000}, _latest]}} =
+               Autolaunch.PriceFeedHistory.since(ExposureChain.feed(), now - 3_600, block, opts)
+    end
+
+    test "a series that ended before its first price shows the price and that none was applied" do
+      ExposureChain.put(%{status: 2, end_reason: 4, prices: []})
+
+      assert {:ok, story} = MarketStory.exposure(ExposureChain.series(), nil)
+      assert [{"Price", "$257.00"}, {"Prices", "None applied"}] = story.figures
+      assert story.bands == []
+      assert story.badge == "Ended"
+    end
+
+    test "a wallet's own holdings, only at the address of the account that links it",
+         %{conn: conn} do
+      account = TestSupport.register_creator!()
+
+      path =
+        "/after-hour-stocks/#{ExposureChain.series()}/wallets/#{account.wallet_address}/share.mp4"
+
+      assert_error_sent(404, fn -> get(conn, path) end)
+
+      signed_in = init_test_session(build_conn(), %{human_account_id: account.id})
+      assert %{"ahead" => 0} = signed_in |> get(path) |> json_response(202)
+
+      assert {:ok, %{figures: [{"After-hours", "0 " <> _}, {"Market-hours", "0 " <> _}]}} =
+               MarketStory.exposure(ExposureChain.series(), account.wallet_address)
     end
 
     test "the story colours the line by window and closes on what each token is worth" do
@@ -144,7 +239,12 @@ defmodule AutolaunchWeb.ShareMarketTest do
       assert [%{from: ^close, to: ^open, window: :after}, %{from: ^open, window: :market} | _rest] =
                story.bands
 
-      assert Enum.all?(story.bands, &(&1.to <= ExposureChain.now()))
+      # The window in progress runs past now, so the line's tip takes its colour.
+      assert Enum.any?(
+               story.bands,
+               &(&1.from <= ExposureChain.now() and ExposureChain.now() < &1.to)
+             )
+
       assert [{"After-hours", "$" <> _night}, {"Market-hours", "$" <> _day}] = story.figures
       assert length(story.dots) == length(story.bands)
       assert story.badge == "Live"

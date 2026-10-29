@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ShareCard do
   @moduledoc """
-  The picture and page details a shared auction or token link shows on X and
-  other sites.
+  The picture and page details a shared auction, token, covered-calls or
+  After-hours Exposure link shows on X and other sites.
 
   The picture is a dark panel inside a tangerine border, with the Autolaunch
   mark and autolaunch.sh along its top and one strip on its left: the token's
@@ -15,8 +15,13 @@ defmodule AutolaunchWeb.ShareCard do
   where X lays the site's name. A figure the site does not know yet is left
   out, never shown as zero.
 
+  A covered-call market's or an After-hours Exposure series' picture takes the
+  same strip with the stock's mark, the product's name, where it stands, its
+  two figures and the stock's price as a line, read from the chain
+  (`AutolaunchWeb.ShareVideo.MarketStory`).
+
   Crawlers read the page without signing in or running scripts, so both the
-  picture and the page details come from the stored records. Names and
+  picture and the page details come from the stored records or the chain. Names and
   tickers are the creator's own words, so they are drawn as plain text,
   without the symbols the picture's fonts cannot draw, and cut short to fit.
   """
@@ -28,7 +33,7 @@ defmodule AutolaunchWeb.ShareCard do
 
   alias AutolaunchWeb.Components.{AutolaunchHelpers, CreatorLabel}
   alias AutolaunchWeb.{Paths, PublicDocuments}
-  alias AutolaunchWeb.ShareCard.Cache
+  alias AutolaunchWeb.ShareCard.{Cache, MarketPictures}
   alias AutolaunchWeb.ShareVideo.MarketStory
   alias Vix.Vips.{Image, Operation}
 
@@ -104,6 +109,31 @@ defmodule AutolaunchWeb.ShareCard do
     }
     |> then(&Map.put(&1, :structured_data, PublicDocuments.auction_data(auction, &1)))
   end
+
+  @doc """
+  The page details for the covered calls page (`:covered_calls`, by the
+  market's symbol) or an After-hours Exposure series (`:exposure`, by its
+  address): the page's own title and words, its address and the market's
+  picture.
+  """
+  @spec market_meta(:covered_calls | :exposure, String.t()) :: map()
+  def market_meta(kind, subject) do
+    [page_title: title, page_description: description] = PublicDocuments.page(page_path(kind))
+
+    %{
+      title: "#{title} on Autolaunch",
+      description: description,
+      url: page_url(kind, subject),
+      image: market_image_url(kind, subject, DateTime.utc_now()),
+      image_alt: "#{title} on Autolaunch: the stock's price and where the market stands"
+    }
+  end
+
+  defp page_path(:covered_calls), do: "/covered-calls"
+  defp page_path(:exposure), do: "/after-hour-stocks"
+
+  defp page_url(:covered_calls, _symbol), do: url(~p"/covered-calls")
+  defp page_url(:exposure, series), do: url(~p"/after-hour-stocks?#{[series: series]}")
 
   @doc "The page details for How Autolaunch works."
   @spec how_it_works_meta() :: map()
@@ -299,7 +329,7 @@ defmodule AutolaunchWeb.ShareCard do
           {:ok, binary()} | {:error, term()}
   def market_png(kind, subject, now),
     do:
-      Cache.fetch({kind, subject}, bucket(now), fn ->
+      MarketPictures.fetch({kind, subject}, bucket(now), fn ->
         with {:ok, story} <- MarketStory.read(kind, subject, nil),
              {:ok, logo} <- stock_logo(story.ticker, @logo) do
           draw(

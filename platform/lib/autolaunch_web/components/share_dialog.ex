@@ -190,15 +190,19 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const post = dialog.querySelector("[data-share-post]")
           const button = () => this.el.querySelector("[data-share-video]")
           const mine = () => this.el.querySelector("[data-share-mine]")
-          // The person's own video only once they switch it on.
+          // The person's own video only once they switch it on in this opening
+          // of the window. The choice lives here, not in the box, which the page
+          // sets back as it draws itself again.
+          this.mineOn = false
           const address = (el) =>
-            mine() && mine().checked ? el.dataset.shareVideoMine : el.dataset.shareVideo
+            this.mineOn && el.dataset.shareVideoMine ? el.dataset.shareVideoMine : el.dataset.shareVideo
 
           // What the window shows for its video, drawn again after every update
           // of the page, so the page never sets it back.
           this.show = () => {
             const video = this.video
             const el = button()
+            if (mine()) mine().checked = this.mineOn
             if (!el || !video) return
             const label = el.querySelector("[data-share-video-label]")
             const status = this.el.querySelector("[data-share-video-status]")
@@ -244,10 +248,15 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           // A video this page already has shows as it stands straight away.
           if (button() && videos.has(address(button()))) this.prepare()
 
-          if (mine()) mine().addEventListener("change", () => this.prepare())
+          this.el.addEventListener("change", (event) => {
+            if (!event.target.matches("[data-share-mine]")) return
+            this.mineOn = event.target.checked
+            this.prepare()
+          })
 
           this.el.addEventListener("click", (event) => {
             if (event.target.closest("[data-share-open]")) {
+              this.mineOn = false
               dialog.showModal()
               this.prepare()
             }

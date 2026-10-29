@@ -87,6 +87,38 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
     image
   end
 
+  @doc """
+  A figure in bold `color`, stepping down in size until it is at most `max`
+  wide, and past its last step drawn at the size that fits: never cut short.
+  """
+  def figure(value, color, max, sizes \\ [50, 44, 38, 32, 28])
+
+  def figure(value, color, max, [size | smaller]) do
+    layer = text!(value, :bold, size, color)
+
+    cond do
+      Image.width(layer) <= max -> layer
+      smaller != [] -> figure(value, color, max, smaller)
+      true -> figure(value, color, max, [div(size * max, Image.width(layer))])
+    end
+  end
+
+  @doc "A line's tip at frame `index`: a dot ringed on `field`, with a pulse once a second."
+  def tip_svg(x, y, color, field, index) do
+    phase = rem(index, @fps) / @fps
+
+    """
+    <circle cx="#{n(x)}" cy="#{n(y)}" r="#{n(9 + 16 * phase)}" fill="#{color}" opacity="#{n(0.45 * (1 - phase))}"/>
+    <circle cx="#{n(x)}" cy="#{n(y)}" r="9" fill="#{color}" stroke="#{field}" stroke-width="3"/>
+    """
+  end
+
+  @doc "How far frame `index` is from frame `from` to frame `to`, from 0.0 to 1.0."
+  def progress(index, from, to), do: min(max((index - from) / (to - from), 0.0), 1.0)
+
+  @doc "Progress eased in and out."
+  def ease(p), do: -(:math.cos(:math.pi() * p) - 1) / 2
+
   @doc "A number as SVG writes a coordinate, to one decimal place."
   def n(value), do: :erlang.float_to_binary(value * 1.0, decimals: 1)
 

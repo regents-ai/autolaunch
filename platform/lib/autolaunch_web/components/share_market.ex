@@ -12,10 +12,8 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   """
   use Phoenix.Component
 
-  use AutolaunchWeb, :verified_routes
-
   alias AutolaunchWeb.Components.ShareDialog
-  alias AutolaunchWeb.{PublicDocuments, ShareCard, ShareVideo}
+  alias AutolaunchWeb.{ShareCard, ShareVideo}
 
   attr :id, :string, required: true
   attr :kind, :atom, required: true, values: [:covered_calls, :exposure]
@@ -57,16 +55,16 @@ defmodule AutolaunchWeb.Components.ShareMarket do
   defp wallet(%{kind: :signed_in, wallet_address: wallet}) when is_binary(wallet), do: wallet
   defp wallet(_signed_out), do: nil
 
-  # The post names the product as its page does, so a new title reaches it.
-  defp message(:covered_calls, symbol),
-    do:
-      "#{title("/covered-calls")} on $#{symbol}, on Autolaunch (Base). #{url(~p"/covered-calls")}"
+  # The post names the product and links its page, as the page's own details do.
+  defp message(:covered_calls, symbol) do
+    meta = ShareCard.market_meta(:covered_calls, symbol)
+    "#{meta.title} (Base): $#{symbol}. #{meta.url}"
+  end
 
-  defp message(:exposure, series),
-    do:
-      "#{title("/after-hour-stocks")} on Autolaunch (Base). #{url(~p"/after-hour-stocks?#{[series: series]}")}"
-
-  defp title(path), do: Keyword.fetch!(PublicDocuments.page(path), :page_title)
+  defp message(:exposure, series) do
+    meta = ShareCard.market_meta(:exposure, series)
+    "#{meta.title} (Base). #{meta.url}"
+  end
 
   defp mine_label(:covered_calls), do: "My calls"
   defp mine_label(:exposure), do: "My holdings"

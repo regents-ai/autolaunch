@@ -18,17 +18,28 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   and the figures and lays them over the still layers.
   """
 
-  import AutolaunchWeb.ShareVideo.Canvas, only: [text!: 4, fit!: 5, faded: 2, flat: 2, n: 1]
+  import AutolaunchWeb.ShareVideo.Canvas,
+    only: [
+      text!: 4,
+      fit!: 5,
+      faded: 2,
+      flat: 2,
+      svg!: 1,
+      n: 1,
+      progress: 3,
+      ease: 1,
+      figure: 3,
+      tip_svg: 5
+    ]
 
   alias AutolaunchWeb.ShareCard.Draw
   alias AutolaunchWeb.ShareVideo.Canvas
   alias AutolaunchWeb.TokenDisplay
-  alias Vix.Vips.{Image, Operation}
+  alias Vix.Vips.Image
 
   # The frame `AutolaunchWeb.ShareVideo.Canvas` encodes.
   @width 1080
   @height 1350
-  @fps 30
   @frames 300
 
   @field "#111110"
@@ -305,8 +316,10 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         ],
         into: %{} do
       {badge, pill} = still_pill(pill_words, pill_color)
-      {:ok, {canvas, _flags}} = Operation.svgload_buffer(still_svg(chain, color, logo, pill))
-      {:ok, still} = Image.copy_memory(flat(canvas, words ++ badge))
+
+      {:ok, still} =
+        Image.copy_memory(flat(svg!(still_svg(chain, color, logo, pill)), words ++ badge))
+
       {kind, still}
     end
   end
@@ -429,13 +442,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
       #{stake_svg(film, tip, index, staked?)}
       #{marks_svg(film, index)}
       #{notes_svg(film, index)}
-      #{tip_svg(tip_x, tip_y, tag_color, index)}
+      #{tip_svg(tip_x, tip_y, tag_color, @field, index)}
       #{pill_svg(tag_box, tag_color)}
       #{if earned_box, do: pill_svg(earned_box, @gold), else: ""}
     </svg>
     """
 
-    {:ok, {chart, _flags}} = Operation.svgload_buffer(svg)
+    chart = svg!(svg)
 
     still = still(film, graduated?)
 
@@ -498,10 +511,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
           ease(progress(index, from, @trading_to)) * (film.story.now - film.graduated_at)
     end
   end
-
-  defp progress(index, from, to), do: min(max((index - from) / (to - from), 0.0), 1.0)
-
-  defp ease(p), do: -(:math.cos(:math.pi() * p) - 1) / 2
 
   defp pop(p) do
     p = min(max(p, 0.0), 1.0)
@@ -824,15 +833,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     %{x: x(film, film.graduated_at) - w / 2, y: @top + 9 - 19, w: w, h: 38}
   end
 
-  defp tip_svg(x, y, color, index) do
-    phase = rem(index, @fps) / @fps
-
-    """
-    <circle cx="#{n(x)}" cy="#{n(y)}" r="#{n(9 + 16 * phase)}" fill="#{color}" opacity="#{n(0.45 * (1 - phase))}"/>
-    <circle cx="#{n(x)}" cy="#{n(y)}" r="9" fill="#{color}" stroke="#{@field}" stroke-width="3"/>
-    """
-  end
-
   # The tip's tag: above and right of the dot if it fits there, otherwise
   # at the first other corner clear of the notes showing.
   defp tag_box(x, y, tag, notes) do
@@ -925,7 +925,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     rows
     |> Enum.with_index()
     |> Enum.flat_map(fn {{label, value, color}, row} ->
-      value = figure(value, color)
+      value = figure(value, color, @words_w)
       top = @strip_y + 40 + row * 124
 
       [
@@ -933,21 +933,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         {value, @right - Image.width(value), top + 32}
       ]
     end)
-  end
-
-  # A figure steps down in size until it fits beside the name, and past its
-  # last step it is drawn at the size that fits, so a long one is never cut
-  # short and never runs into the name.
-  defp figure(value, color, sizes \\ [50, 44, 38, 32, 28])
-
-  defp figure(value, color, [size | smaller]) do
-    layer = text!(value, :bold, size, color)
-
-    cond do
-      Image.width(layer) <= @words_w -> layer
-      smaller != [] -> figure(value, color, smaller)
-      true -> figure(value, color, [div(size * @words_w, Image.width(layer))])
-    end
   end
 
   # While an auction runs, its pill counts down to the end as of the line's
@@ -966,8 +951,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     width = Image.width(badge) + 36
     x = badge_x() - 18 + film.mark_w + 24
 
-    {:ok, {pill, _flags}} =
-      Operation.svgload_buffer(
+    pill =
+      svg!(
         ~s|<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{@pill_h}"><rect x="1" y="1" width="#{width - 2}" height="#{@pill_h - 2}" rx="#{div(@pill_h, 2) - 1}" fill="none" stroke="#{@blue}" stroke-width="2"/></svg>|
       )
 

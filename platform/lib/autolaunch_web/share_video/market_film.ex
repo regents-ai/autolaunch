@@ -17,7 +17,18 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   strip. Each frame draws only the line, its tip and the strikes or dots so far.
   """
 
-  import AutolaunchWeb.ShareVideo.Canvas, only: [text!: 4, faded: 2, flat: 2, svg!: 1, n: 1]
+  import AutolaunchWeb.ShareVideo.Canvas,
+    only: [
+      text!: 4,
+      faded: 2,
+      flat: 2,
+      svg!: 1,
+      n: 1,
+      progress: 3,
+      ease: 1,
+      figure: 3,
+      tip_svg: 5
+    ]
 
   alias AutolaunchWeb.ShareCard.Draw
   alias AutolaunchWeb.ShareVideo.{Canvas, MarketStory}
@@ -27,7 +38,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   # The frame `AutolaunchWeb.ShareVideo.Canvas` encodes.
   @width 1080
   @height 1350
-  @fps 30
 
   @field "#111110"
   @strip "#1c1c1a"
@@ -96,7 +106,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   # The stock over the chart and the time it covers.
   defp phase(story) do
     ticker = text!(story.ticker, :bold, 40, @platinum)
-    period = text!(period(story.kind), :regular, 28, @muted)
+    period = text!(period(story.from), :regular, 28, @muted)
 
     [
       {ticker, @x0, 52},
@@ -105,8 +115,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     ]
   end
 
-  defp period(:covered_calls), do: "Last 2 weeks"
-  defp period(:exposure), do: "This series"
+  defp period(from),
+    do: "Since " <> (from |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b"))
 
   # A flat line still gets room above and below.
   defp range(prices) do
@@ -229,7 +239,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     |> Enum.with_index()
     |> Enum.flat_map(fn {{label, value}, row} ->
       label = text!(label, :regular, 26, @muted)
-      value = figure(value, [50, 44, 38, 32, 28])
+      value = figure(value, @platinum, @words_w)
       top = @strip_y + 40 + row * 124
 
       [
@@ -237,18 +247,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
         {value, @right - Image.width(value), top + 32}
       ]
     end)
-  end
-
-  # A figure steps down in size until it fits beside the name, and past its
-  # last step it is drawn at the size that fits: never cut short.
-  defp figure(value, [size | smaller]) do
-    layer = text!(value, :bold, size, @platinum)
-
-    cond do
-      Image.width(layer) <= @words_w -> layer
-      smaller != [] -> figure(value, smaller)
-      true -> figure(value, [div(size * @words_w, Image.width(layer))])
-    end
   end
 
   # --- one frame ----------------------------------------------------------------
@@ -272,7 +270,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
       #{levels_svg(film, index)}
       #{line_svg(film, tip)}
       #{dots_svg(film, tip, index)}
-      #{tip_svg(tip_x, tip_y, tip_color(story, tip), index)}
+      #{tip_svg(tip_x, tip_y, tip_color(story, tip), @field, index)}
       #{pill_svg(tag_box, tip_color(story, tip))}
       #{Enum.map_join(level_boxes(film, index), "\n", fn {box, _tag, opacity} -> pill_svg(box, @blue, opacity) end)}
     </svg>
@@ -295,9 +293,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
     story.from + p * (story.now - story.from)
   end
 
-  defp progress(index, from, to), do: min(max((index - from) / (to - from), 0.0), 1.0)
-  defp ease(p), do: -(:math.cos(:math.pi() * p) - 1) / 2
-
   defp x(story, at),
     do: @x0 + (at - story.from) / max(story.now - story.from, 1) * (@x1 - @x0)
 
@@ -309,6 +304,9 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   # The feed's own steps up to the tip, each price held until the next, so a
   # short dip is drawn as it happened. A step is cut where a window begins, so
   # each part takes the colour of its window.
+  # Before the line starts there is nothing to draw.
+  defp line_svg(%{story: %{from: from}}, tip) when tip <= from, do: ""
+
   defp line_svg(film, tip) do
     story = film.story
 
@@ -317,6 +315,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
       |> Enum.concat(Enum.map(story.line, &elem(&1, 0)))
       |> Enum.filter(&(&1 > story.from and &1 < tip))
       |> Enum.concat([story.from, tip])
+      |> Enum.map(&(&1 * 1.0))
       |> Enum.sort()
       |> Enum.dedup()
 
@@ -420,16 +419,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
   end
 
   # --- the tip -----------------------------------------------------------------
-
-  defp tip_svg(x, y, color, index) do
-    phase = rem(index, @fps) / @fps
-    ring = 14 + 18 * phase
-
-    """
-    <circle cx="#{n(x)}" cy="#{n(y)}" r="#{n(ring)}" fill="none" stroke="#{color}" stroke-width="3" opacity="#{n(1 - phase)}"/>
-    <circle cx="#{n(x)}" cy="#{n(y)}" r="11" fill="#{color}" stroke="#{@field}" stroke-width="4"/>
-    """
-  end
 
   # The price beside the tip, kept inside the chart.
   defp tag_box(x, y, tag) do

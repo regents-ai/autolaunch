@@ -116,11 +116,12 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])
     end
 
-    # A person's requests for one market or series and kind in the last day,
-    # newest first.
+    # A person's requests for one market or series, kind and wallet in the
+    # last day, newest first.
     read :own_market do
       argument :human_account_id, :integer, allow_nil?: false
       argument :subject, :string, allow_nil?: false
+      argument :wallet, :string, allow_nil?: false
 
       argument :kind, :atom,
         allow_nil?: false,
@@ -128,7 +129,7 @@ defmodule Autolaunch.ShareVideoRequest do
 
       filter expr(
                human_account_id == ^arg(:human_account_id) and subject == ^arg(:subject) and
-                 kind == ^arg(:kind) and inserted_at > ago(1, :day)
+                 kind == ^arg(:kind) and wallet == ^arg(:wallet) and inserted_at > ago(1, :day)
              )
 
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])

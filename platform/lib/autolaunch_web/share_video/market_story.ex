@@ -16,7 +16,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   Only the signed-in person who links the wallet is ever shown it.
 
   Prices are floats: they only draw the line. The figures are written from the
-  chain's own whole numbers, as every amount on the site is.
+  chain's own whole numbers, as every amount on the site is; a seller's
+  premium is worked out from each listing's totals.
   """
 
   alias Autolaunch.CoveredCalls
@@ -67,13 +68,11 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          {:ok, book} <- CoveredCalls.Chain.book(market, block, opts),
          from = block.timestamp - @covered_calls_days * 86_400,
          {:ok, history} <- PriceFeedHistory.since(market.feed, from, block, opts),
-         {:ok, figures} <- covered_call_figures(market, book, wallet, block, opts) do
-      open = Enum.filter(book.listings, &(CoveredCalls.Terms.stage(&1, block.timestamp) == :open))
-
+         open = stage(book.listings, block.timestamp, [:open]),
+         {:ok, figures} <- covered_call_figures(market, book, open, wallet, block, opts) do
       {:ok,
        %{
          kind: :covered_calls,
-         subject: market.symbol,
          title: title("/covered-calls"),
          badge: open_badge(length(open)),
          symbol: market.symbol,
@@ -84,8 +83,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          bands: [],
          dots: [],
          levels: strikes(open),
-         figures: figures,
-         mine?: wallet != nil
+         figures: figures
        }}
     end
   end
@@ -103,7 +101,6 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
       {:ok,
        %{
          kind: :exposure,
-         subject: address,
          title: title("/after-hour-stocks"),
          badge: status_badge(series.status),
          symbol: series.stock.symbol,
@@ -111,11 +108,10 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
          from: from,
          now: block.timestamp,
          line: line(history, from, block.timestamp),
-         bands: bands(series.boundaries, block.timestamp),
+         bands: bands(series, block.timestamp),
          dots: Enum.map(series.prints, &{&1.at, &1.price / @wad}),
          levels: [],
-         figures: figures,
-         mine?: wallet != nil
+         figures: figures
        }}
     end
   end
@@ -132,8 +128,8 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
 
   # --- covered calls ---------------------------------------------------------------
 
-  # The strikes of the open calls, the few nearest the price, each with the
-  # day its calls expire.
+  # The lowest strikes of the open calls, each with the first day its calls
+  # expire.
   defp strikes(open) do
     open
     |> Enum.group_by(& &1.strike_per_token)
@@ -152,9 +148,10 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   defp open_badge(1), do: "1 call open"
   defp open_badge(count), do: "#{count} calls open"
 
-  defp covered_call_figures(_market, book, nil, block, _opts) do
-    open = Enum.filter(book.listings, &(CoveredCalls.Terms.stage(&1, block.timestamp) == :open))
+  defp stage(listings, now, stages),
+    do: Enum.filter(listings, &(CoveredCalls.Terms.stage(&1, now) in stages))
 
+  defp covered_call_figures(_market, book, open, nil, _block, _opts) do
     price =
       case CoveredCalls.Quote.spot(book) do
         {:ok, spot} -> UsdValue.dollars(usdc(spot))
@@ -170,11 +167,15 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     {:ok, [{"Price", price}, {"Calls from", premium}]}
   end
 
-  defp covered_call_figures(market, book, wallet, block, opts) do
+  # A seller's premium is worked out from each listing's totals; the contract
+  # rounds each fill up on its own, so what it paid can be a micro-USDC a fill
+  # more. Calls held count only while they can still be used: a call left
+  # after its exercise window has lapsed.
+  defp covered_call_figures(market, book, _open, wallet, block, opts) do
     wallet = String.downcase(wallet)
+    usable = stage(book.listings, block.timestamp, [:open, :sold, :exercise])
 
-    with {:ok, holdings} <-
-           CoveredCalls.Chain.holdings(market, book.listings, wallet, block, opts) do
+    with {:ok, holdings} <- CoveredCalls.Chain.holdings(market, usable, wallet, block, opts) do
       earned =
         book.listings
         |> Enum.filter(&(&1.seller == wallet))
@@ -209,33 +210,37 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     do: min(first - @exposure_lead, now - @exposure_days * 86_400)
 
   # The series' windows: from its first close, close to open is after hours and
-  # open to close is market hours. A window still to come is left out; one in
-  # progress runs to now.
-  defp bands(boundaries, now) do
-    boundaries
+  # open to close is market hours. A window still to come is left out, and so
+  # is every window after a series ended early: it ends at its last price.
+  defp bands(series, now) do
+    until = if series.status == :ended, do: last_print_at(series), else: now
+
+    series.boundaries
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.with_index()
-    |> Enum.filter(fn {[from, _to], _index} -> from < now end)
+    |> Enum.filter(fn {[from, _to], _index} -> from < until end)
     |> Enum.map(fn {[from, to], index} ->
-      %{from: from, to: min(to, now), window: if(rem(index, 2) == 0, do: :after, else: :market)}
+      %{from: from, to: to, window: if(rem(index, 2) == 0, do: :after, else: :market)}
     end)
   end
 
-  # Before its first price the series has no token values yet: the stock's
-  # price now and when the series opens.
+  defp last_print_at(%{settled: 0, boundaries: [first | _]}), do: first
+
+  defp last_print_at(%{settled: settled, boundaries: boundaries}),
+    do: Enum.at(boundaries, settled - 1)
+
   defp status_badge(:pending), do: "Opens soon"
   defp status_badge(:active), do: "Live"
   defp status_badge(:ended), do: "Ended"
 
-  defp exposure_figures(%{settled: 0} = series, history, nil, _block, _opts) do
-    {_at, answer} = List.last(history.points)
+  # Before its first price the series has no token values yet: the stock's
+  # price now and when the series opens, or, for one that ended before any
+  # price, that none was applied.
+  defp exposure_figures(%{status: :pending} = series, history, nil, _block, _opts),
+    do: {:ok, [feed_price(history), {"Opens", ExposureFormat.moment(series.next.at)}]}
 
-    {:ok,
-     [
-       {"Price", UsdValue.dollars(Decimal.new(1, answer, -history.decimals))},
-       {"Opens", ExposureFormat.moment(series.next.at)}
-     ]}
-  end
+  defp exposure_figures(%{settled: 0}, history, nil, _block, _opts),
+    do: {:ok, [feed_price(history), {"Prices", "None applied"}]}
 
   defp exposure_figures(series, _history, nil, _block, _opts),
     do:
@@ -257,6 +262,11 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
           "#{RegentFormat.token_amount(held.session, decimals)} #{series.session.symbol}"}
        ]}
     end
+  end
+
+  defp feed_price(history) do
+    {_at, answer} = List.last(history.points)
+    {"Price", UsdValue.dollars(Decimal.new(1, answer, -history.decimals))}
   end
 
   # What one token of a window is worth now: dollars while the series runs,

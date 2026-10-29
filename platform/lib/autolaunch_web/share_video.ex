@@ -140,11 +140,13 @@ defmodule AutolaunchWeb.ShareVideo do
   end
 
   defp answer(target, wallet, account, now) when is_integer(account) do
-    case own(target, account) do
+    wallet = String.downcase(wallet)
+
+    case own(target, account, wallet) do
       {:ok, own} ->
         saved = Enum.find(own, &(&1.state == :ready and &1.stored?))
-        key = own_key(target, account)
-        remake = fn -> made(target, String.downcase(wallet), account, key, saved) end
+        key = own_key(target, account, wallet)
+        remake = fn -> made(target, wallet, account, key, saved) end
         own_standing(own, saved, now, remake)
 
       {:error, error} ->
@@ -265,15 +267,22 @@ defmodule AutolaunchWeb.ShareVideo do
   defp level(:failed), do: :error
   defp level(_kind), do: :warning
 
-  defp own(%{auction_id: auction_id, kind: kind}, account),
+  # A person's videos of a market are each wallet's own, so one wallet's
+  # holdings never stand in for another's.
+  defp own(%{auction_id: auction_id, kind: kind}, account, _wallet),
     do: Autolaunch.own_share_video_requests(account, auction_id, kind, actor: %System{})
 
-  defp own(%{subject: subject, kind: kind}, account),
-    do: Autolaunch.own_market_share_video_requests(account, subject, kind, actor: %System{})
+  defp own(%{subject: subject, kind: kind}, account, wallet),
+    do:
+      Autolaunch.own_market_share_video_requests(account, subject, kind, wallet, actor: %System{})
 
   defp key(target, now), do: Enum.join([target.id, target.kind, bucket(now)], ":")
 
-  defp own_key(target, account), do: Enum.join([target.id, target.kind, "account", account], ":")
+  defp own_key(%{auction_id: _launch} = target, account, _wallet),
+    do: Enum.join([target.id, target.kind, "account", account], ":")
+
+  defp own_key(target, account, wallet),
+    do: Enum.join([target.id, target.kind, "account", account, wallet], ":")
 
   defp bucket(now), do: now |> DateTime.to_unix() |> div(900) |> Integer.to_string()
 end
