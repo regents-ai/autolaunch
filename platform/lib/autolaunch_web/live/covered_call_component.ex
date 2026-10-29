@@ -790,6 +790,6 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp refusal_words(:not_a_weekly_expiry), do: "Choose one of the Friday expiries."
   defp refusal_words(:expiry_passed), do: "That expiry has passed. Choose a later Friday."
   defp refusal_words(:unknown_listing), do: "This listing isn't on Base."
-  defp refusal_words(:wrong_signer), do: nil
+  defp refusal_words(:wrong_signer), do: "Use one of your account's own wallets."
   defp refusal_words(_unavailable), do: "Base couldn't be read just now. Try again in a moment."
 end

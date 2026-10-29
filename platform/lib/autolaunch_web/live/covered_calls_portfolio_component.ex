@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     {:noreply,
      socket
      |> assign(positions: AsyncResult.ok(socket.assigns.positions, kept), unread: unread)
-     |> read_when_due(kept)}
+     |> read_when_due(kept, unread)}
   end
 
   def handle_async(:positions, {:exit, reason}, socket),
@@ -125,17 +125,19 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   # A listing changes what it allows at its expiry and when its window
   # closes, with no press on the chain: the section reads again just after
-  # the next of those times among the wallet's own listings, counted from the
-  # clock now, so kept figures still wait for their next change (the page
-  # passes `:covered_calls_due` back as `read: true`).
-  defp read_when_due(socket, markets) do
+  # the next of those times among the wallet's own listings. A fresh reading
+  # counts from its own block, so a read that lands just before a change is
+  # timed again; kept figures count from the clock, so they never wait on a
+  # time already past (the page passes `:covered_calls_due` back as `read: true`).
+  defp read_when_due(socket, markets, unread) do
     if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
-    now = System.os_time(:second)
+    clock = System.os_time(:second)
 
     wait =
       markets
       |> Enum.flat_map(fn
-        {_symbol, {:ok, positions}} ->
+        {symbol, {:ok, positions}} ->
+          now = if symbol in unread, do: clock, else: positions.now
           List.wrap(Terms.next_wait(changes(positions), now))
 
         {_symbol, {:error, _reason}} ->
