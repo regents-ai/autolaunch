@@ -130,16 +130,16 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
     end
   end
 
+  # The agent stays the request's `actor` assign too, which the visit log names
+  # (`AutolaunchWeb.VisitLog`), as on the signed routes.
   defp agent(conn) do
     conn = AgentAccess.call(conn, [])
 
     if conn.halted do
       counted(conn, :siwa_request)
     else
-      {actor, assigns} = Map.pop!(conn.assigns, :actor)
-
-      %{conn | assigns: assigns}
-      |> Ash.PlugHelpers.set_actor(actor)
+      conn
+      |> Ash.PlugHelpers.set_actor(conn.assigns.actor)
       |> counted(:siwa_request)
     end
   end
@@ -174,6 +174,7 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
       agent = %{agent | connection: principal}
 
       conn
+      |> assign(:actor, agent)
       |> Ash.PlugHelpers.set_actor(agent)
       |> AgentAccess.recheck_before_send(agent)
     else
