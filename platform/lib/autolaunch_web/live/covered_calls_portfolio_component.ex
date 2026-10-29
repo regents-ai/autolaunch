@@ -5,8 +5,9 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   it holds (with Exercise and Collect stock), each read now from the contract
   (`Autolaunch.CoveredCalls.covered_call_positions/2`). Each action the
   listing allows now is its own wallet panel under the row, so every button
-  there sends. The page re-reads it with
-  `send_update(id: ..., read: true)` after a press lands.
+  there reviews its action. The page re-reads it with
+  `send_update(id: ..., read: true)` after a press lands, and hands it what a
+  confirmed action moved with `send_update(id: ..., done: done)`.
   """
   use AutolaunchWeb, :live_component
 
@@ -19,10 +20,11 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   @impl true
   def mount(socket),
-    do: {:ok, assign(socket, positions: AsyncResult.loading(), read_for: nil)}
+    do: {:ok, assign(socket, positions: AsyncResult.loading(), read_for: nil, done: nil)}
 
   @impl true
   def update(%{read: true}, socket), do: {:ok, read(socket)}
+  def update(%{done: done}, socket), do: {:ok, assign(socket, done: done)}
 
   def update(assigns, socket) do
     socket = assign(socket, assigns)
@@ -31,6 +33,9 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       do: {:ok, socket},
       else: {:ok, socket |> assign(read_for: socket.assigns.current_human_id) |> read()}
   end
+
+  @impl true
+  def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
   @impl true
   def handle_async(:positions, {:ok, markets}, socket),
@@ -62,6 +67,13 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     ~H"""
     <section id={@id} class="portfolio__section" aria-labelledby={"#{@id}-title"}>
       <h2 id={"#{@id}-title"} class="portfolio__title">Covered calls</h2>
+      <CoveredCallComponent.toast
+        :if={@done}
+        id={"#{@id}-done"}
+        done={@done}
+        dismiss="dismiss_done"
+        target={@myself}
+      />
       <p :if={@positions.failed} class="portfolio__hint" role="alert">
         Your covered calls are unavailable right now.
       </p>
@@ -128,18 +140,20 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
           </tr>
           <tr :if={row.actions != []} class="portfolio__actions">
             <td colspan="4">
-              <.live_component
-                :for={kind <- row.actions}
-                module={CoveredCallComponent}
-                id={"#{@id}-#{kind}-#{row.listing.id}"}
-                kind={kind}
-                symbol={@symbol}
-                unit={@unit}
-                listing={row.listing}
-                holding={row.holding && row.holding.held}
-                session_lease={@session_lease}
-                current_human_id={@current_human_id}
-              />
+              <div>
+                <.live_component
+                  :for={kind <- row.actions}
+                  module={CoveredCallComponent}
+                  id={"#{@id}-#{kind}-#{row.listing.id}"}
+                  kind={kind}
+                  symbol={@symbol}
+                  unit={@unit}
+                  listing={row.listing}
+                  holding={row.holding && row.holding.held}
+                  session_lease={@session_lease}
+                  current_human_id={@current_human_id}
+                />
+              </div>
             </td>
           </tr>
         </tbody>

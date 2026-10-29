@@ -6,7 +6,9 @@ defmodule Autolaunch.CoveredCalls.Book do
   One reading per market is kept for five minutes (`:covered_calls_book_kept_ms`;
   0 keeps nothing, as the tests run); a landed press on the chain
   (`Autolaunch.ChainRefresh`) shortens that to ten seconds from when it was
-  taken, so the next visit after a person acts reads again. It is taken inside
+  taken, so the next visit after a person acts reads again. A covered-call
+  step that lands drops its market's reading at once (`expire/1`), so the page
+  that sent it, and the portfolio, show what it changed. It is taken inside
   this process, so visitors who ask while it is being taken wait for that one
   reading instead of each starting their own, as `Autolaunch.RegentFacts` does.
   A reading never disables a button: a press is checked against the chain when
@@ -27,6 +29,10 @@ defmodule Autolaunch.CoveredCalls.Book do
   @doc "The shared reading of `symbol`'s market, at most five minutes old, and when it was taken."
   @spec read(String.t()) :: {:ok, map()} | {:error, atom()}
   def read(symbol), do: GenServer.call(__MODULE__, {:read, symbol}, @read_timeout)
+
+  @doc "Drops `symbol`'s reading, so the next read takes a new one."
+  @spec expire(String.t()) :: :ok
+  def expire(symbol), do: GenServer.call(__MODULE__, {:expire, symbol}, @read_timeout)
 
   @impl Autolaunch.ChainRefresh
   def refresh(chain_id) do
@@ -50,6 +56,8 @@ defmodule Autolaunch.CoveredCalls.Book do
   end
 
   @impl GenServer
+  def handle_call({:expire, symbol}, _from, kept), do: {:reply, :ok, Map.delete(kept, symbol)}
+
   def handle_call({:read, symbol}, _from, kept) do
     case kept do
       %{^symbol => {reading, read_at}} ->

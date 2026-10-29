@@ -5,11 +5,13 @@ import {expect, fitsAndPresses, freshPerson, holdWallet, people, ready, signIn, 
 import type {Locator, Page} from "@playwright/test"
 
 // Covered calls on AMZNc, end to end on the copy of Base with the deployed
-// CoveredCallsV1 (base_fork.py covered-calls). Person A lists two AMZNc as calls
-// and stops selling what is left after B buys one. B is a wallet the site has never
-// seen, made up for the run and signing in for the first time, unpaired: buying and
-// exercising ask nothing of a wallet beyond what it holds. In the 24 hours after
-// Friday's expiry B exercises it while the issuer has stock transfers paused,
+// CoveredCallsV1 (base_fork.py covered-calls: the deployed contract's own code at its Base
+// address). Person A lists three AMZNc as calls and stops selling what is left after B buys
+// one, then the same one again. B is a wallet the site has never seen, made up for the run
+// and signing in for the first time, unpaired: buying and exercising ask nothing of a wallet
+// beyond what it holds. Each action is reviewed, then sent one wallet step at a time, and the
+// page says what moved once the last step lands. In the 24 hours after
+// Friday's expiry B exercises both while the issuer has stock transfers paused,
 // B's stock waits while A still collects the strike, and once transfers resume B
 // and A each collect their AMZNc. Feature map: operations/FEATURES.md, Wallet actions.
 //
@@ -73,6 +75,20 @@ async function buttonsOnScreen(page: Page) {
   expect(off, "wallet buttons off the side of the screen").toEqual([])
 }
 
+/**
+ * Presses the panel's own button (List calls, Buy calls, Stop selling...) in `scope`, which
+ * reviews the action and opens its wallet steps over the form, as Stake does on a token page.
+ */
+async function review(scope: Page | Locator, name: string) {
+  const button = scope.getByRole("button", {name, exact: true})
+  await expect(button).toBeEnabled({timeout: 60_000})
+  await button.click()
+  await expect(scope.locator(".token-swap__review:not([hidden])")).toHaveCount(1)
+}
+
+/** The note the panel shows once the chain confirms its last step. */
+const toast = (page: Page, title: string) => page.locator(".token-swap__toast", {hasText: title})
+
 /** Presses the named wallet step in `scope` once it can be pressed, and waits for its transaction to land. */
 async function press(scope: Page | Locator, sent: Sent[], name: string) {
   const button = scope.getByRole("button", {name, exact: true})
@@ -101,6 +117,13 @@ async function row(page: Page, side: "sold" | "held", id: bigint, name: string):
   return found
 }
 
+/** Collects from the portfolio row: the row's button reviews it, the wallet step sends it. */
+async function collect(page: Page, side: "sold" | "held", id: bigint, name: string, sent: Sent[]) {
+  const found = await row(page, side, id, name)
+  await review(found, name)
+  return press(found, sent, "Confirm collection")
+}
+
 async function waitFor(hash: string): Promise<any> {
   for (let i = 0; i < 120; i++) {
     const found = await rpc("eth_getTransactionReceipt", [hash])
@@ -112,10 +135,10 @@ async function waitFor(hash: string): Promise<any> {
 
 test("covered calls: list, buy, stop selling, exercise through a pause, collect stock and USDC", async ({page, sent, browser}, info) => {
   const touch = info.project.name === "phone"
-  await mintStock(AMZNC, people.a.wallet, 2n * UNIT)
+  await mintStock(AMZNC, people.a.wallet, 3n * UNIT)
   const aStock = await balanceOf(AMZNC, people.a.wallet)
 
-  // Person A lists two AMZNc as calls at a 300 USDC strike and a 3 USDC premium.
+  // Person A lists three AMZNc as calls at a 300 USDC strike and a 3 USDC premium.
   await signIn(page, people.a)
   await page.goto("/covered-calls?tab=sell")
   await ready(page)
@@ -127,17 +150,20 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   expect(await styles.text()).toContain(".covered-calls__tabs")
   const unchanged = await page.request.get("/assets/js/covered_calls.css", {headers: {"if-none-match": styles.headers()["etag"]}})
   expect(unchanged.status(), "the browser's copy is kept while the file is the same").toBe(304)
-  await page.getByLabel("Amount to lock").fill("2")
+  await page.getByLabel("Amount").fill("3")
   await page.getByLabel("Strike price").fill("300")
   await page.getByLabel("Premium").fill("3")
   await fitsAndPresses(page, touch)
+  await review(page, "List calls")
+  await fitsAndPresses(page, touch)
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Approve AMZNc")).status).toBe("0x1")
-  expect((await press(page, sent, "List calls")).status).toBe("0x1")
+  expect((await press(page, sent, "Confirm listing")).status).toBe("0x1")
+  await expect(toast(page, "Listed")).toBeVisible()
   const id = await read("listingCount")
-  expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - 2n * UNIT)
+  expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - 3n * UNIT)
 
-  // B, a wallet the site has never seen, buys one of them from the Buy tab.
+  // B, a wallet the site has never seen, buys one of them from the Buy tab, then one more.
   const fresh = await freshPerson()
   await sendAs(USDC_HOLDER, USDC, encodeFunctionData({abi, functionName: "transfer", args: [fresh.wallet as Hex, 1_000n * 10n ** 6n]}))
   const buyer = await browser.newContext({...info.project.use, baseURL: process.env.AUTOLAUNCH_URL})
@@ -155,16 +181,31 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await expect(b.getByText("Available to eligible people outside the US.")).toBeVisible()
   await b.getByLabel("Amount").fill("1")
   await fitsAndPresses(b, touch)
+  await review(b, "Buy calls")
+  await fitsAndPresses(b, touch)
   await buttonsOnScreen(b)
   const aUsdcBefore = await balanceOf(USDC, people.a.wallet)
   expect((await press(b, bought, "Approve USDC")).status).toBe("0x1")
-  expect((await press(b, bought, "Buy calls")).status).toBe("0x1")
+  expect((await press(b, bought, "Confirm purchase")).status).toBe("0x1")
+  await expect(toast(b, "Bought")).toBeVisible()
   expect(await read("held", [id, fresh.wallet])).toBe(UNIT)
-  // A received the 3 USDC premium less the 1% fee.
-  expect((await balanceOf(USDC, people.a.wallet)) - aUsdcBefore).toBe(2_970_000n)
+  // The form takes the amount left from the listing as it now reads.
+  await expect(b.getByLabel("Amount")).toHaveValue("2")
+  // The same purchase again is a review of its own: it starts at the approval, never "done".
+  await b.getByLabel("Amount").fill("1")
+  await review(b, "Buy calls")
+  await expect(b.locator("[data-step=usdc_approval]")).toHaveAttribute("data-state", "ready")
+  expect((await press(b, bought, "Approve USDC")).status).toBe("0x1")
+  expect((await press(b, bought, "Confirm purchase")).status).toBe("0x1")
+  await expect(b.locator(".token-swap__review:not([hidden])")).toHaveCount(0)
+  expect(await read("held", [id, fresh.wallet])).toBe(2n * UNIT)
+  // A received each 3 USDC premium less the 1% fee.
+  expect((await balanceOf(USDC, people.a.wallet)) - aUsdcBefore).toBe(5_940_000n)
 
   // Person A stops selling the one left, from the portfolio.
-  expect((await press(await row(page, "sold", id, "Stop selling"), sent, "Stop selling")).status).toBe("0x1")
+  const selling = await row(page, "sold", id, "Stop selling")
+  await review(selling, "Stop selling")
+  expect((await press(selling, sent, "Confirm stop")).status).toBe("0x1")
   expect(await read("claimable", [id, people.a.wallet])).toBe(UNIT)
 
   // Friday's expiry passes; the issuer pauses AMZNc transfers.
@@ -172,30 +213,31 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await warpTo(expiry + 60)
   await sendAs(USDC_HOLDER, AMZNC, encodeFunctionData({abi, functionName: "setPaused", args: [true]}))
 
-  // B exercises: only USDC moves, so the pause doesn't stop it.
+  // B exercises both: only USDC moves, so the pause doesn't stop it.
   const held = await row(b, "held", id, "Exercise")
+  await review(held, "Exercise")
   expect((await press(held, bought, "Approve USDC")).status).toBe("0x1")
-  expect((await press(held, bought, "Exercise")).status).toBe("0x1")
-  expect(await read("claimable", [id, fresh.wallet])).toBe(UNIT)
+  expect((await press(held, bought, "Confirm exercise")).status).toBe("0x1")
+  expect(await read("claimable", [id, fresh.wallet])).toBe(2n * UNIT)
 
   // While paused, B's stock can't leave: the press reaches the wallet and reverts, and the page says so.
-  expect((await press(await row(b, "held", id, "Collect AMZNc"), bought, "Collect AMZNc")).status).toBe("0x0")
-  await expect(b.getByText("This did not go through and nothing moved.")).toBeVisible()
+  expect((await collect(b, "held", id, "Collect AMZNc", bought)).status).toBe("0x0")
+  await expect(b.getByText("That did not go through and nothing moved. Close this and review again.")).toBeVisible()
 
-  // A still collects the 300 USDC strike during the pause.
+  // A still collects the 600 USDC strike during the pause.
   const aUsdc = await balanceOf(USDC, people.a.wallet)
-  expect((await press(await row(page, "sold", id, "Collect USDC"), sent, "Collect USDC")).status).toBe("0x1")
-  expect((await balanceOf(USDC, people.a.wallet)) - aUsdc).toBe(300_000_000n)
+  expect((await collect(page, "sold", id, "Collect USDC", sent)).status).toBe("0x1")
+  expect((await balanceOf(USDC, people.a.wallet)) - aUsdc).toBe(600_000_000n)
 
   // Transfers resume after the window: B collects the stock bought, A the one never sold.
   await sendAs(USDC_HOLDER, AMZNC, encodeFunctionData({abi, functionName: "setPaused", args: [false]}))
   await warpTo(expiry + 86_400 + 60)
   const bStock = await balanceOf(AMZNC, fresh.wallet)
-  expect((await press(await row(b, "held", id, "Collect AMZNc"), bought, "Collect AMZNc")).status).toBe("0x1")
-  expect((await balanceOf(AMZNC, fresh.wallet)) - bStock).toBe(UNIT)
+  expect((await collect(b, "held", id, "Collect AMZNc", bought)).status).toBe("0x1")
+  expect((await balanceOf(AMZNC, fresh.wallet)) - bStock).toBe(2n * UNIT)
 
-  expect((await press(await row(page, "sold", id, "Collect AMZNc"), sent, "Collect AMZNc")).status).toBe("0x1")
-  expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - UNIT)
+  expect((await collect(page, "sold", id, "Collect AMZNc", sent)).status).toBe("0x1")
+  expect(await balanceOf(AMZNC, people.a.wallet)).toBe(aStock - 2n * UNIT)
   expect(await read("claimable", [id, people.a.wallet])).toBe(0n)
 
   await buyer.close()

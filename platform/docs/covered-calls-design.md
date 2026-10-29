@@ -170,7 +170,14 @@ off, the routes answer not found and no tool or command is advertised.
 | --- | --- |
 | `/covered-calls` | Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, expiry from the next four Fridays, premium) beside a guide: the reference price, shares per token, suggested premiums for the next Friday at +1%, +3% and +5% strikes, the result at expiry at three prices, and the terms ("Dividends during the week stay with the tokens."). |
 | `/stock-listing/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
-| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with the wallet steps it allows now shown directly (Stop selling, Exercise, Collect <symbol>, Collect USDC), so every button there sends. |
+| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with a button for each action it allows now (Stop selling, Exercise, Collect <symbol>, Collect USDC). |
+
+Every panel works as the token page's Stake and Claim do (`AutolaunchWeb.CoveredCallComponent`):
+its button reviews the form as it stands and opens the wallet steps over it, one wallet button at a
+time with "Confirm in wallet" while the wallet has the press, an approval the chain already holds
+shown as done; when the chain confirms the last step the review closes and the page says what
+moved. The panel's button is disabled only when the chain makes the action certain to fail, with
+the reason beside it.
 
 Ash domain `Autolaunch.CoveredCalls`:
 
@@ -261,8 +268,9 @@ owned by the regents-cli lane until it adds them.
     `autolaunch/covered_calls/steps_test.exs`, `autolaunch_web/live/covered_calls_live_test.exs`,
     `autolaunch_web/controllers/covered_calls_routes_test.exs`; `public_tools_features.test.ts`.
   - The journey found one design flaw, fixed: the portfolio row's own "Stop selling" button opened
-    a panel holding a second "Stop selling", so the first press sent nothing. Rows now show their
-    wallet steps directly.
+    a panel holding a second "Stop selling", so the first press sent nothing. (Since the switch-on
+    on 29 October, each row's button opens the review over it, as Claim rewards does, and the
+    wallet button there is named for its step: "Confirm stop", "Confirm collection".)
   - Screenshots at 390 then found the Buy panel inside a sideways-scrolling table, its buttons off
     the screen (the journey's clicks scroll, so it had passed). The panel now sits below the list
     and, on a phone, each listing is a block of labelled figures. The journey now checks every

@@ -131,6 +131,16 @@ defmodule AutolaunchWeb.PortfolioLive do
     {:noreply, socket}
   end
 
+  # A covered-call panel's last step landed; its section says what moved.
+  def handle_info({:covered_call_done, done}, socket) do
+    send_update(AutolaunchWeb.CoveredCallsPortfolioComponent,
+      id: "portfolio-covered-calls",
+      done: done
+    )
+
+    {:noreply, socket}
+  end
+
   # A swap confirmed, so the wallets hold something else now.
   def handle_info(:reload_pool, socket), do: {:noreply, request_reads(socket)}
 

@@ -1,0 +1,11 @@
+{
+  "chain_id": 8453,
+  "markets": [
+    {
+      "symbol": "AMZNc",
+      "stock": "0xb200000000000000000000d9192b6b456483c2e8",
+      "contract": "0x0b2fe2810f9219bdd5e5e304dc8a1a4c84ea553e",
+      "feed": "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
+    }
+  ]
+}
