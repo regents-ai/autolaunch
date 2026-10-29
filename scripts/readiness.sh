@@ -206,6 +206,13 @@ for (const path of pages) {
   const policy = (answer.headers.get("permissions-policy") || "").split(",").map((v) => v.trim());
   check(`${path} sends Permissions-Policy: tools=(self)`, policy.includes("tools=(self)"),
     `permissions-policy=${answer.headers.get("permissions-policy")}`);
+  // Chrome turns WebMCP on for autolaunch.sh only with a live origin-trial token:
+  // a version byte, a 64-byte signature, a 4-byte length and the JSON it signs.
+  const token = Buffer.from(answer.headers.get("origin-trial") || "", "base64");
+  const trial = token.length > 69 ? parses(token.subarray(69, 69 + token.readUInt32BE(65)).toString()) : null;
+  check(`${path} sends a live WebMCP origin-trial token for https://autolaunch.sh`,
+    Boolean(trial) && trial.feature === "WebMCP" && trial.origin === "https://autolaunch.sh:443" &&
+    trial.expiry * 1000 > Date.now(), JSON.stringify(trial));
 }
 const manifestAnswer = await get("/capabilities");
 const manifest = parses(manifestAnswer.body);
