@@ -49,7 +49,12 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def parse_usd(text) when is_binary(text) do
     with cents when is_integer(cents) <-
            text |> String.trim() |> String.replace_prefix("$", "") |> parse(100),
-         do: cents * div(@usdc_unit, 100)
+         micro = cents * div(@usdc_unit, 100),
+         true <- micro <= @largest do
+      micro
+    else
+      _not_a_price -> nil
+    end
   end
 
   def parse_usd(_text), do: nil

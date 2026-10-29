@@ -49,12 +49,14 @@ defmodule Autolaunch.CoveredCalls.Book do
   def init(nil), do: {:ok, %{}}
 
   @impl GenServer
+  # However many refreshes arrive, a reading stays good for ten seconds from
+  # when it was taken, so a crowd asking at once costs one read.
   def handle_cast(:refresh, kept) do
-    soon = Autolaunch.ChainRefresh.gap_s() * 1_000 - kept_ms()
+    gap = Autolaunch.ChainRefresh.gap_s() * 1_000
 
     {:noreply,
-     Map.new(kept, fn {symbol, {reading, read_at}} ->
-       {symbol, {reading, min(read_at, read_at + soon)}}
+     Map.new(kept, fn {symbol, {reading, taken_at, good_until}} ->
+       {symbol, {reading, taken_at, min(good_until, taken_at + gap)}}
      end)}
   end
 
@@ -63,8 +65,8 @@ defmodule Autolaunch.CoveredCalls.Book do
   @impl GenServer
   def handle_call({:read, symbol}, _from, kept) do
     case kept do
-      %{^symbol => {reading, read_at}} ->
-        if read_at + kept_ms() > now(),
+      %{^symbol => {reading, _taken_at, good_until}} ->
+        if good_until > now(),
           do: {:reply, {:ok, reading}, kept},
           else: reread(symbol, kept)
 
@@ -79,7 +81,8 @@ defmodule Autolaunch.CoveredCalls.Book do
          {:ok, block, opts} <- Chain.latest(config.lab),
          {:ok, book} <- Chain.book(market, block, opts) do
       reading = Map.merge(book, %{market: market, read_at: DateTime.utc_now()})
-      {:reply, {:ok, reading}, Map.put(kept, symbol, {reading, now()})}
+      taken_at = now()
+      {:reply, {:ok, reading}, Map.put(kept, symbol, {reading, taken_at, taken_at + kept_ms()})}
     else
       {:error, reason} -> {:reply, {:error, reason}, kept}
     end

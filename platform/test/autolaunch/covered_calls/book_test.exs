@@ -39,6 +39,17 @@ defmodule Autolaunch.CoveredCalls.BookTest do
     assert refilled == 5 * @unit
   end
 
+  test "a crowd asking to read again keeps a fresh reading: one read per ten seconds" do
+    CoveredCallsChain.install()
+    {:ok, %{chain_id: chain_id}} = Autolaunch.CoveredCalls.Deployment.current()
+    {:ok, before} = Book.read("AMZNc")
+    assert [%{filled: filled}] = before.listings
+
+    CoveredCallsChain.put(%{listings: [CoveredCallsChain.listing(%{filled: 5 * @unit})]})
+    for _visitor <- 1..5, do: Book.refresh(chain_id)
+    assert {:ok, %{listings: [%{filled: ^filled}]}} = Book.read("AMZNc")
+  end
+
   test "a wallet's positions are read at the latest block, never from the kept reading" do
     CoveredCallsChain.install()
     {:ok, kept} = Book.read("AMZNc")

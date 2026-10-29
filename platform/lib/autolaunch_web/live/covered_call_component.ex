@@ -184,10 +184,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         assign(socket, notice: no_signer(socket.assigns))
 
       {_signer, {:error, reason}} ->
-        assign(socket,
-          notice:
-            refusal_words(reason) || "Enter an amount above zero, with a dot for decimals (1.5)."
-        )
+        assign(socket, notice: refusal_words(reason) || unreadable(socket.assigns.kind))
 
       {signer, {:ok, request}} ->
         case prepare(socket.assigns, request, signer) do
@@ -216,14 +213,16 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             |> assign(notice: blocked_words(prepared.blocked, socket.assigns) <> ".")
 
           {:error, reason} ->
-            assign(socket,
-              notice:
-                refusal_words(reason) ||
-                  "Enter an amount above zero, with a dot for decimals (1.5)."
-            )
+            assign(socket, notice: refusal_words(reason) || unreadable(socket.assigns.kind))
         end
     end
   end
+
+  # A form whose figures don't read: what each figure takes.
+  defp unreadable(:list),
+    do: "Enter an amount above zero and prices to the cent, with a dot for decimals (1.50)."
+
+  defp unreadable(_kind), do: "Enter an amount above zero, with a dot for decimals (1.5)."
 
   defp no_signer(%{linked: nil}), do: "Sign in to use your wallet here."
 

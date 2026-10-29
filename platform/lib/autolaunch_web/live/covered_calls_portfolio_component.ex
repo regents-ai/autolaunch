@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     {:noreply,
      socket
      |> assign(positions: AsyncResult.ok(socket.assigns.positions, kept), unread: unread)
-     |> read_when_due(Enum.reject(kept, fn {symbol, _read} -> symbol in unread end))}
+     |> read_when_due(kept)}
   end
 
   def handle_async(:positions, {:exit, reason}, socket),
@@ -125,16 +125,18 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   # A listing changes what it allows at its expiry and when its window
   # closes, with no press on the chain: the section reads again just after
-  # the next of those times among the wallet's own listings, each market from
-  # its own reading (the page passes `:covered_calls_due` back as `read: true`).
+  # the next of those times among the wallet's own listings, counted from the
+  # clock now, so kept figures still wait for their next change (the page
+  # passes `:covered_calls_due` back as `read: true`).
   defp read_when_due(socket, markets) do
     if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
+    now = System.os_time(:second)
 
     wait =
       markets
       |> Enum.flat_map(fn
         {_symbol, {:ok, positions}} ->
-          List.wrap(Terms.next_wait(changes(positions), positions.now))
+          List.wrap(Terms.next_wait(changes(positions), now))
 
         {_symbol, {:error, _reason}} ->
           []
@@ -182,6 +184,14 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         current_human_id={@current_human_id}
       />
     </section>
+    """
+  end
+
+  defp market(%{read: {:error, :wallet_required}} = assigns) do
+    ~H"""
+    <p class="portfolio__hint" role="alert">
+      Your account has no wallet yet, so it has no {@symbol} covered calls.
+    </p>
     """
   end
 

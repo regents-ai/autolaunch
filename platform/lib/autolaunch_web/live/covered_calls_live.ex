@@ -58,12 +58,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
     # A shared link to one listing reads the market again unless it was read
     # in the last ten seconds, so it is never turned away on an old reading.
-    if selected, do: Book.refresh(socket.assigns.chain_id)
+    socket = assign(socket, tab: tab, selected: selected)
 
-    {:noreply,
-     socket
-     |> assign(tab: tab, selected: selected)
-     |> then(&if(selected, do: read_book(&1), else: &1))}
+    if selected && connected?(socket) do
+      Book.refresh(socket.assigns.chain_id)
+      {:noreply, read_book(socket)}
+    else
+      {:noreply, socket}
+    end
   end
 
   # The Refresh press asks every reader of the chain to read again, so the
@@ -346,7 +348,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     rows =
       for percent <- @suggested_strikes do
         strike = round_cents(spot * (100 + percent) / 100)
-        premium = Quote.premium(spot, strike, expiry, reading.now)
+        # To the cent, as the form takes a premium.
+        premium = max(round_cents(Quote.premium(spot, strike, expiry, reading.now)), 10_000)
         %{percent: percent, strike: strike, premium: premium}
       end
 
