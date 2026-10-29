@@ -143,7 +143,7 @@ Gas (mock suite, indicative): `settle` ≈ 50k, `redeem` ≈ 59k, first `mint` f
 
 **Rule.** The oracle is pinned to the feed phase (the underlying Chainlink aggregator) the proxy pointed
 at when it was deployed. The print for moment T is that phase's value in force at T: its last round
-with `updatedAt ≤ T`, provided `T − updatedAt ≤ 4 days`.
+with `updatedAt ≤ T`, provided `T − updatedAt ≤ 84 hours`.
 
 **Recording.** Anyone calls `record(T, isOpen, n)` at least one hour after T, naming round `n` of the
 pinned phase. Rounds are read through the proxy as `getRoundData(phase << 64 | n)` (the aggregators
@@ -153,7 +153,7 @@ themselves only answer the proxy: a direct read from a contract reverts "No acce
 2. round `n + 1` does not exist yet or was updated after T (rounds within a phase are numbered in time
    order, and a round created later than T + 1 hour cannot carry an earlier `updatedAt`, which is its
    publication block time);
-3. `T − updatedAt ≤ 4 days`;
+3. `T − updatedAt ≤ 84 hours`;
 4. the answer is positive and fits uint128 once scaled from 8 to 18 decimals.
 
 It stores `{price, observedAt = T, finalizedAt = block.timestamp}` once, forever, and the source
@@ -169,14 +169,19 @@ print is a pure function of one aggregator's history (`test_ProxySwitchDoesNotCh
 real feed, phase 1 and phase 2 both published for nine days in August 2026; the fork suite records a
 moment in that overlap from phase 2 only (`test_fork_overlapGivesOnePrintOnThePinnedPhase`).
 
-**Retirement and staleness.** When Chainlink retires the pinned aggregator it stops updating. Its
-values then age past four days and prints are refused, so the series ends at its last applied values
-through the series' own missing-print rule (`maxReportDelay` after the refused print). Four days covers
-the longest normal gap: Friday's last update to a Tuesday open after a holiday Monday. Over 30 Sep–28
-Oct the oldest in-force value at any 09:30 or 16:00 was 17.6 hours (a Wednesday open). A
-corporate-action freeze longer than four days also ends the series. Later series use a new oracle on
-the then-current phase. The keeper and the website show each print's source round and its age, so
-an unusually old value is visible even within the limit.
+**Retirement and staleness.** When Chainlink retires the pinned aggregator it stops updating but
+stays readable. For up to 84 hours its frozen last value is still used, so moves in that time are not
+counted (found in review on the feed's own history: phase 1 stopped on Friday 14 August at 264.4296,
+and an oracle pinned to it would have priced the next Monday's open and close at that value).
+After 84 hours prints are refused and the series ends at its last applied values through its own
+missing-print rule (`maxReportDelay` after the refused print); the keeper script makes that call
+itself once the deadline passes. 84 hours clears the longest normal gap in all 492 rounds of the
+current phase, 75.9 hours (Friday evening to Tuesday after Labor Day); over 30 Sep–28 Oct the oldest
+in-force value at any 09:30 or 16:00 was 17.6 hours. A corporate-action freeze longer than 84 hours
+also ends the series. Fully closing the frozen window would need a staleness rule that knows the
+market calendar; for a one-week series we accept it. Later series use a new oracle on the
+then-current phase; the deploy script refuses to prepare a series on an oracle whose phase is no
+longer the proxy's. The website shows each print's source round and its age.
 
 **What a print means.** A print is the feed's latest value at 09:30 or 16:00, not the exchange's
 official auction price. The feed (8 decimals, total-return: equity price × token multiplier) updates
@@ -221,14 +226,15 @@ open or close next to the feed value and report the per-leg divergence.
 | Factory owner | Can only list new series; cannot touch existing ones. |
 | Permit2 default allowance | Disabled on legs. |
 | Feed migration or proxy switch | Phase pinned at deploy (section 4). |
-| Stopped or retired feed | Values older than four days are refused; the series ends at its last values (`test_RefusesARoundOlderThanTheStalenessLimit`). |
+| Stopped or retired feed | Values older than 84 hours are refused and the keeper ends the series at its last values once the deadline passes (`test_RefusesARoundOlderThanTheStalenessLimit`, `test_KeeperEndsTheSeriesOnADeadFeed`); a holiday weekend still prices (`test_HolidayWeekendGapStillPrices`). |
 | Keeper picking the wrong round | The oracle verifies the round; the keeper's search is fuzzed against a linear scan (`testFuzz_KeeperFindsTheRoundInForce`) and runs on the real feed in the fork suite. |
 
 ### 5.3 Accepted limits
 
 - Prices are Chainlink's scheduled values, not official auction prints; differences move returns
   between the legs (section 4).
-- A feed stop or a corporate-action freeze longer than four days ends the series at its last values.
+- A feed stop or a corporate-action freeze longer than 84 hours ends the series at its last values;
+  within 84 hours of a stop, its frozen value is used and moves are not counted.
 - Knock-out at zero (2.2); leverage varies with the path (P/N, P/S); ledgers add dollar moves, they do
   not compound.
 - `maxReportDelay` must be well above the oracle's one-hour wait or no print can ever count; the
@@ -239,9 +245,9 @@ open or close next to the feed value and report the per-leg divergence.
 
 ### 5.4 Verification performed
 
-- Offline gate (`contracts/exposure/bin/gate.sh`, Foundry 1.5.1): 54 tests — 36 series unit/fuzz,
+- Offline gate (`contracts/exposure/bin/gate.sh`, Foundry 1.5.1): 56 checks — 36 series unit/fuzz,
   5 invariants (256 runs × 128 calls over mint, redeem, transfers, prints, missed prints, donations,
-  seizures), 12 oracle, 1 factory. Fuzz runs 1,024 per property.
+  seizures), 14 oracle and keeper, 1 factory. Fuzz runs 1,024 per property.
 - Mutation check (re-run 29 Oct on the final code): seven deliberate bugs planted one at a time in
   the series (overdrawn depletion, skipped depletion, oversized oracle reply accepted, no seizure
   cut, single legs before the end, late print accepted, legs burned for nothing); each made at least
@@ -255,7 +261,8 @@ open or close next to the feed value and report the per-leg divergence.
   and Aerodrome refusing them after the deadline), and the closing sitting through maturity, with the
   week's feed rounds stood in on the pinned phase.
 - Independent reviews: three agent reviews (code; economics against the paper; the Chainlink reader),
-  an outside second look at the full bundle, and an agent review of the pinned-phase oracle. Every
+  an outside second look at the full bundle, and an agent review of the pinned-phase oracle (which
+  set the 84-hour limit, the keeper's dead-feed handling and the deploy-time phase check). Every
   finding acted on has a lasting test.
 - Deployed bytecode checked against the build: factory byte-for-byte.
 
@@ -340,7 +347,7 @@ mine` to confirm from chain.
    is anything better that still never over-claims the stock?
 2. Is the "value in force at T" rule on a 0.5%-deviation Chainlink feed acceptable for attributing
    moves between windows, or is there a better on-chain-only rule with the same feed?
-3. Is pinning one feed phase, with a four-day staleness limit, the right answer to aggregator
+3. Is pinning one feed phase, with an 84-hour staleness limit, the right answer to aggregator
    migrations for a one-week series?
 4. Any path by which `endOnMissingPrint` can fire while a valid print exists, or by which `settle` can
    apply a wrong print?

@@ -60,7 +60,7 @@ decides which series exist.
 `ChainlinkPrintOracleV2` takes each open and close from the stock's Coinbase Chainlink feed on Base
 (AMZN: `0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295`), pinned to the feed version (Chainlink "phase")
 in use when the oracle is deployed. The print for a scheduled time is that version's latest value at
-the moment, if it is at most four days old. An hour after the moment, anyone records it by naming the
+the moment, if it is at most 84 hours old. An hour after the moment, anyone records it by naming the
 round; the oracle checks it and keeps the value and its source round for good. No owner and no
 reporters. Full rules and the reasons for them: [after-hours-exposure-spec.md](after-hours-exposure-spec.md), section 4.
 
@@ -76,7 +76,8 @@ Measured on the AMZN feed (29 Sep to 28 Oct 2026):
 - The value is total return (price times the token's multiplier), so splits and dividends need no
   adjustment and show no jump.
 - During a corporate action or an unscheduled closure the feed holds its value and no move is
-  counted. A stop longer than four days ends the series at its last values.
+  counted. A stop longer than 84 hours ends the series at its last values; within 84 hours of a
+  stop, the frozen value is used.
 - Chainlink migrates a feed by running a new aggregator beside the old one (AMZN's both published for
   nine days in August 2026) and switching the proxy at a time not recorded on chain. Pinning one
   version keeps each print independent of when it is recorded.
@@ -162,7 +163,7 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
 
 ## 8. Tests and evidence (28 October 2026)
 
-- `contracts/exposure/bin/gate.sh` (Foundry 1.5.1): 54 tests pass.
+- `contracts/exposure/bin/gate.sh` (Foundry 1.5.1): 56 checks pass.
   - 36 series tests: the worked example, mixed and pair redemptions, minting mid-term, both
     depletion directions and exact zero, maturity, missing first close, missing, late and misdated
     prints, six kinds of broken oracle (revert, short, long, dirty, gas burn, oversized reply), the
@@ -173,9 +174,9 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
   - 5 invariants over 256 runs × 128 random calls (mint, redeem, transfers, prints, missed prints,
     donations, seizures): pairs equal backing while live; ledgers within price; claims never exceed
     accounted stock after the end; every raw unit accounted for; fully backed unless seized.
-  - 12 Chainlink oracle tests (the pinned phase, the round in force and its source, rounds
+  - 14 Chainlink oracle and keeper tests (the pinned phase, the round in force and its source, rounds
     superseded, later or missing, a round exactly at the moment, a quiet weekend, a proxy switch not
-    changing a print, the four-day staleness limit, the one-hour wait, record once, bad answers, the
+    changing a print, the 84-hour staleness limit and a holiday weekend, the keeper on a dead feed, the one-hour wait, record once, bad answers, the
     keeper's round search fuzzed, a series settling end to end) and 1 factory test.
   - Six deliberate bugs planted one at a time in the series (overdrawn depletion, skipped
     depletion, oversized oracle reply accepted, no seizure cut, single legs before the end, late

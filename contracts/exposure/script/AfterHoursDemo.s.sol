@@ -38,7 +38,9 @@ contract AfterHoursDemo is Script {
     /// @notice How long after the script is simulated the pool transactions may still land.
     uint256 internal constant SEED_WINDOW = 1 hours;
 
-    /// @notice Records and applies every print whose recording time has come, in order.
+    /// @notice Records and applies every print whose recording time has come, in order. A print the
+    ///         feed cannot give (its value is too old) stops the run; once that print's recording
+    ///         deadline has passed, it ends the series at its last values instead.
     function recordAndSettle(ExposureSeriesV1 series) external {
         ChainlinkPrintOracleV2 oracle = ChainlinkPrintOracleV2(series.oracle());
         vm.startBroadcast();
@@ -48,7 +50,17 @@ contract AfterHoursDemo is Script {
             if (block.timestamp < uint256(at) + oracle.RECORD_DELAY()) break;
             bool isOpen = index % 2 == 1;
             if (oracle.getPrint(oracle.feedId(), at, isOpen).finalizedAt == 0) {
-                oracle.record(at, isOpen, roundInForce(oracle, at));
+                uint64 round = roundInForce(oracle, at);
+                if (at - _updatedAt(oracle, round) > oracle.MAX_STALENESS()) {
+                    if (block.timestamp > uint256(at) + series.maxReportDelay()) {
+                        series.endOnMissingPrint();
+                        console.log("feed too old; series ended at print", index);
+                    } else {
+                        console.log("feed too old for print", index, "- waiting");
+                    }
+                    break;
+                }
+                oracle.record(at, isOpen, round);
             }
             series.settle();
             console.log("applied print", index, series.lastPriceWad());

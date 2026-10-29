@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
 
-import {ChainlinkPrintOracleV2} from "../src/ChainlinkPrintOracleV2.sol";
+import {ChainlinkPrintOracleV2, IAggregatorProxy} from "../src/ChainlinkPrintOracleV2.sol";
 import {ExposureFactoryV1} from "../src/ExposureFactoryV1.sol";
 import {ExposureSeriesV1} from "../src/ExposureSeriesV1.sol";
 
@@ -39,6 +39,11 @@ contract DeployAfterHours is Script {
 
     /// @notice The calldata the Safe sends to `factory` to create the first series.
     function firstSeriesCall(address oracle, bytes32 termsHash) external view returns (bytes memory data) {
+        ChainlinkPrintOracleV2 printOracle = ChainlinkPrintOracleV2(oracle);
+        // The oracle must be on the phase the proxy serves now, and the recording window must leave
+        // room after the oracle's one-hour wait.
+        require(printOracle.phase() == IAggregatorProxy(AMZN_FEED).phaseId(), "oracle is on a retiring feed phase");
+        require(MAX_REPORT_DELAY > printOracle.RECORD_DELAY(), "recording window shorter than the oracle's wait");
         data = abi.encodeCall(ExposureFactoryV1.createSeries, (firstSeriesTerms(oracle, termsHash)));
         console.logBytes(data);
     }

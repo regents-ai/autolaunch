@@ -99,11 +99,61 @@ contract ChainlinkPrintOracleV2Test is Test {
     ///         its last applied values rather than recording a frozen price for ever.
     function test_RefusesARoundOlderThanTheStalenessLimit() public {
         uint64 lastUpdate = at + 10 minutes; // round 3, the phase's last
-        uint64 limit = lastUpdate + 4 days;
+        uint64 limit = lastUpdate + 84 hours;
         vm.warp(limit + 1 + 1 hours);
-        oracle.record(limit, true, 3); // exactly four days old: still counts
+        oracle.record(limit, true, 3); // exactly 84 hours old: still counts
         vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV2.RoundTooOld.selector, uint256(lastUpdate)));
         oracle.record(limit + 1, false, 3);
+    }
+
+    /// @notice Found in review: the longest normal gap in the feed's history (Labor Day weekend,
+    ///         75.9 hours) still prices, so the limit only refuses a stopped or retired feed.
+    function test_HolidayWeekendGapStillPrices() public {
+        uint64 tuesdayOpen = at + 10 minutes + 75.9 hours;
+        vm.warp(tuesdayOpen + 1 hours);
+        oracle.record(tuesdayOpen, true, 3);
+        assertEq(_print(tuesdayOpen, true).priceWad, 255e18);
+    }
+
+    /// @notice Found in review: the keeper stops on a dead feed instead of failing, and once the
+    ///         print's recording deadline has passed it ends the series at its last values.
+    function test_KeeperEndsTheSeriesOnADeadFeed() public {
+        MockStock stock = new MockStock();
+        uint64[] memory schedule = new uint64[](3);
+        (schedule[0], schedule[1], schedule[2]) = (at, at + 4 days, at + 4 days + 6.5 hours);
+        ExposureSeriesV1 series = new ExposureSeriesV1(_terms(address(stock), schedule, 2 days));
+        AfterHoursDemo keeper = new AfterHoursDemo();
+        keeper.recordAndSettle(series); // first close, from round 2
+        assertEq(series.settled(), 1);
+
+        vm.warp(schedule[1] + 1 hours); // the feed has not updated since round 3: too old
+        keeper.recordAndSettle(series);
+        assertEq(uint8(series.status()), uint8(ExposureSeriesV1.Status.Active), "waits before the deadline");
+
+        vm.warp(schedule[1] + 2 days + 1);
+        keeper.recordAndSettle(series);
+        assertEq(uint8(series.endReason()), uint8(ExposureSeriesV1.EndReason.MissingPrint));
+        assertEq(series.lastPriceWad(), 252e18);
+    }
+
+    function _terms(address stock, uint64[] memory schedule, uint64 delay)
+        internal
+        view
+        returns (ExposureSeriesV1.Terms memory)
+    {
+        return ExposureSeriesV1.Terms({
+            asset: stock,
+            oracle: address(oracle),
+            feedId: oracle.feedId(),
+            termsHash: bytes32(0),
+            maxReportDelay: delay,
+            depositCap: 1_000_000e8,
+            boundaries: schedule,
+            overnightName: "N",
+            overnightSymbol: "N",
+            sessionName: "S",
+            sessionSymbol: "S"
+        });
     }
 
     function test_TooEarlyAndOnlyOnce() public {

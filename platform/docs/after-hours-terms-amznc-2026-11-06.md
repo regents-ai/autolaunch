@@ -30,9 +30,9 @@ tokens follow those scheduled feed values, not the exchange's official opening a
 The feed updates when its price moves by 0.5% or more, or at least once a day while the market is
 open, and it can lag, so a value can differ from the official price. A move the feed has not shown
 yet is counted in whichever window it appears, which can shift value from one token to the other.
-When the market is closed or the feed is paused for a corporate action, no move is counted. A feed
-value more than four days old is not used, and a price must be recorded on chain within seven days
-of its time.
+When the market is closed or the feed is paused for a corporate action, no move is counted. If the
+feed stops, its last value is used for up to 84 hours and not after; a price must be recorded on
+chain within seven days of its time.
 
 ## How each token's value moves
 
@@ -48,7 +48,7 @@ one AMZNc), not a fixed number of dollars; its dollar value then moves with AMZN
   series ends at that price and the other token receives all the AMZNc. Near zero, a move in the
   other window can also cost you.
 - **The series can end early.** If a price cannot be recorded within seven days of its time,
-  including when the feed has stopped updating for more than four days, anyone can end the series at
+  including when the feed has stopped updating for more than 84 hours, anyone can end the series at
   the last recorded values.
 - **Prices come from Chainlink**, not from the exchange, and differences can favour either token, as
   described above.

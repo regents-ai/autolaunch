@@ -24,9 +24,10 @@ interface IAggregatorProxy {
 ///      them at a time that is not recorded on chain, so following the proxy would let the record
 ///      time decide which aggregator's value counts. The underlying aggregators only answer the
 ///      proxy, so rounds are read through the proxy by their phase id. When Chainlink retires the
-///      pinned aggregator it stops updating, its values go stale, and prints are refused: series then
-///      end at their last applied values through the series' own missing-print rule. Later series use
-///      a new oracle on the new phase.
+///      pinned aggregator it stops updating: for up to `MAX_STALENESS` its frozen last value is still
+///      used (moves in that time are not counted), after which prints are refused and series end at
+///      their last applied values through the series' own missing-print rule. Later series use a new
+///      oracle on the new phase.
 ///
 ///      Base's Coinbase stock feeds report the token's total-return value (equity price times the
 ///      token's multiplier), so a split or dividend needs no adjustment. They update on a 0.5% move
@@ -37,9 +38,10 @@ contract ChainlinkPrintOracleV2 is IFinalizedPrintOracle {
     /// @notice How long after a scheduled time before its print may be recorded, so every round
     ///         stamped at or before it has landed.
     uint256 public constant RECORD_DELAY = 1 hours;
-    /// @notice The oldest a round may be at the moment it prices. Covers a weekend with a holiday
-    ///         Monday; anything older means the feed has stopped or been retired.
-    uint256 public constant MAX_STALENESS = 4 days;
+    /// @notice The oldest a round may be at the moment it prices: 84 hours. The longest normal gap in
+    ///         the AMZN feed's history is 75.9 hours (Friday evening to Tuesday after Labor Day); anything
+    ///         older means the feed has stopped, been retired or is paused for longer than a weekend.
+    uint256 public constant MAX_STALENESS = 84 hours;
 
     IAggregatorProxy public immutable feed;
     uint16 public immutable phase;
