@@ -2,7 +2,7 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
-## 28 October 2026: every Memestock launch on Base is listed
+## 29 October 2026: every Memestock launch on Base is listed
 - A Memestock token launched on Base without the create page, for example by an agent from its own wallet, now has its own auction and token pages and a place in the lists. Its creator is shown as the wallet that launched it.
 - Such a launch shows only what passes the site's usual checks: its name, ticker and description as plain text with hidden characters taken out, its website only when it is a full https:// link, and its picture only when the picture is stored on Autolaunch. Otherwise the token shows its first letter. A launch whose ticker is not capital letters and numbers, up to ten, is not listed, as the create page would refuse it.
 - Launches made on the create page still show their person's account, as before. Robinhood Chain listings are unchanged.

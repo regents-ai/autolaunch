@@ -10,6 +10,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   use AutolaunchWeb.ConnCase, async: false
 
   require Ash.Query
+  import Ecto.Query, only: [from: 2]
 
   alias Autolaunch.{Accounts, Auction, BaseRpcStub, LabAbi, LaunchDiscovery, LaunchReviews}
   alias Autolaunch.Actors.{Human, System}
@@ -322,6 +323,58 @@ defmodule Autolaunch.MemestockDiscoveryTest do
              Enum.sort_by(discoveries(), &(&1.contract != launchpad))
 
     assert [%{token_symbol: "EARLY", origin: :chain}] = auctions()
+  end
+
+  test "the two test launches the operator hid are never listed" do
+    mainnet = "0x1d4bc582a9193061d53c4bfa429d366ed38eed0b"
+
+    for launch_id <- 1..3 do
+      {:ok, _discovery} =
+        Autolaunch.record_launch_discovery(
+          %{
+            launchpad: :base_memestock,
+            chain_id: 8453,
+            contract: mainnet,
+            launch_id: launch_id,
+            launcher: @stranger,
+            auction: "0x" <> String.duplicate(Integer.to_string(launch_id), 40),
+            transaction_hash: "0x" <> String.duplicate("0#{launch_id}", 32)
+          },
+          actor: @actor
+        )
+    end
+
+    {1, _rows} =
+      Autolaunch.Repo.update_all(from(d in "launch_discoveries", where: d.launch_id == 3),
+        set: [state: "listed"]
+      )
+
+    [{migration, _bytecode}] =
+      Code.require_file(
+        "priv/repo/migrations/20261029030000_hide_two_test_memestock_launches.exs"
+      )
+
+    Ecto.Migration.Runner.run(
+      Autolaunch.Repo,
+      Autolaunch.Repo.config(),
+      20_261_029_030_000,
+      migration,
+      :forward,
+      :up,
+      :up,
+      log: false,
+      prefix: Autolaunch.Repo.config()[:migration_default_prefix]
+    )
+
+    run_triggers()
+
+    assert [
+             %{launch_id: 1, state: :unlisted, reason: "operator_hidden"},
+             %{launch_id: 2, state: :unlisted, reason: "operator_hidden"},
+             %{launch_id: 3, state: :listed}
+           ] = Enum.sort_by(discoveries(), & &1.launch_id)
+
+    assert auctions() == []
   end
 
   test "a launch seen only on another chain is stored but not listed" do

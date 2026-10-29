@@ -1,5 +1,5 @@
 {
-  "total": 149,
+  "total": 154,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1939,6 +1939,71 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
+    },
+    {
+      "id": 190,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/chain_launch_test.exs",
+      "line": 64,
+      "test_name": "CHAIN_LAUNCH_SHOWS_ONLY_WHAT_PASSES: text, website and picture are kept only as a page may show them",
+      "keep_because": "Every Memestock launch on Base is listed, including ones made outside the site, whose text, website and picture no create page checked. For any bytes a launch can carry, the site keeps only text with nothing hidden in it, a full https:// website with no space in it and a picture it stores.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6e11f71420592732dc87bab2277e53c2b52de4ca26500290746ff2086fc5bb66"
+    },
+    {
+      "id": 191,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 139,
+      "test_name": "a launch made outside the site is listed under the wallet that sent it, with only what passes the site's checks",
+      "keep_because": "Sean's choice (28 Oct 2026, list everything): a launch sent straight to the launchpad, as an agent sends one from its own wallet, is listed under that wallet with no account, on the public lists and its own page, with invalid bytes, hidden characters, an unsafe link and an outside picture removed, and an operator can still hide it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "053df9bdcaa76f32afeeb4c2a2f72c119a5e952b0cc37142bc77c15fba5d2161"
+    },
+    {
+      "id": 192,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 265,
+      "test_name": "a launch taken again that the site cannot list yet waits, and is listed once it can",
+      "keep_because": "Found by the second review: a launch an earlier pass left unlisted that the chain or the stock list could not answer for yet stayed unlisted and was never taken again. It now waits as pending and is listed once it can be.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "053df9bdcaa76f32afeeb4c2a2f72c119a5e952b0cc37142bc77c15fba5d2161"
+    },
+    {
+      "id": 193,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 328,
+      "test_name": "the two test launches the operator hid are never listed",
+      "keep_because": "Sean, 29 Oct 2026, \"Hide both\": the release's data change marks Base Memestock launches 1 and 2 (V2 AUTOLAUNCH TEST) hidden, and no resolve pass lists them afterwards, while launch 3 is untouched.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "053df9bdcaa76f32afeeb4c2a2f72c119a5e952b0cc37142bc77c15fba5d2161"
+    },
+    {
+      "id": 194,
+      "group": "Agents",
+      "framework": "playwright",
+      "file": "test/journeys/memestock_own_wallet.spec.ts",
+      "line": 48,
+      "test_name": "L9: an agent launches from its own wallet, owns the launch, is paid its creator share, and the site lists it under that wallet",
+      "keep_because": "End to end on the Base copy: the launchpad records the agent's wallet as creator, the creator allocation and the creator's fee share pay that wallet, and the site's own discovery lists the launch under it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8062ac3b708ef18056ba46f1ebe9ebe24556a2cbd45cec8aeba140f66af9e936"
     }
   ],
   "legacy_folders_to_remove": [
