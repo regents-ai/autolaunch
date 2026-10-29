@@ -124,7 +124,7 @@ test("afterhours exposed tokens: record the first close, mint, return pairs, run
   await expect(page.getByText("Live, 1 of 3 prices applied")).toBeVisible()
 
   // Mint 0.05 AMZNc: an exact approval, then the mint.
-  await page.getByLabel("Amount").fill("0.05")
+  await page.getByRole("textbox", {name: "Amount"}).fill("0.05")
   await fitsAndPresses(page, touch)
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Approve AMZNc")).status).toBe("0x1")
@@ -137,7 +137,7 @@ test("afterhours exposed tokens: record the first close, mint, return pairs, run
 
   // Return 0.02 pairs for 0.02 AMZNc.
   await open(page, "/afterhours-exposed?tab=return")
-  await page.getByLabel("Pairs").fill("0.02")
+  await page.getByRole("textbox", {name: "Pairs"}).fill("0.02")
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Return")).status).toBe("0x1")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 3_000_000n)
@@ -152,8 +152,8 @@ test("afterhours exposed tokens: record the first close, mint, return pairs, run
   // the two halves come back as the 0.03 AMZNc behind them.
   await open(page, "/afterhours-exposed?tab=return")
   await page.getByRole("button", {name: "Max", exact: true}).click()
-  await expect(page.getByLabel("After-hours")).toHaveValue("0.03")
-  await expect(page.getByLabel("Market-hours")).toHaveValue("0.03")
+  await expect(page.getByRole("textbox", {name: "After-hours"})).toHaveValue("0.03")
+  await expect(page.getByRole("textbox", {name: "Market-hours"})).toHaveValue("0.03")
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Return")).status).toBe("0x1")
   expect(await balanceOf(overnight, people.a.wallet)).toBe(0n)

@@ -11,7 +11,7 @@
 .exposure__section { display: grid; gap: var(--space-3); min-width: 0; }
 .exposure__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
 
-.exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-3); margin: 0; }
+.exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: var(--space-3); margin: 0; }
 .exposure__facts > div, .exposure__leg-facts > div { display: grid; gap: .125rem; min-width: 0; }
 .exposure__facts dt, .exposure__leg-facts dt { color: var(--color-fg-muted); font-size: .8125rem; }
 .exposure__facts dd, .exposure__leg-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -29,7 +29,7 @@
 .exposure__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
 .exposure__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
 .exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
-.exposure__table td, .exposure__table th { font-variant-numeric: tabular-nums; }
+.exposure__table.market-list__table :is(td, th) { font-variant-numeric: tabular-nums; text-align: left; }
 .exposure__next td { color: var(--color-fg-muted); }
 .exposure__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
 .exposure__hash { font-size: .8125rem; }
@@ -67,8 +67,8 @@
   .exposure-panel__step .rg-button { inline-size: 100%; }
   /* On a phone each price is a block of labelled figures, never wider than the screen. */
   .exposure__table thead { display: none; }
-  .exposure__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding-block: var(--space-2); }
-  .exposure__table tbody td { padding: 0; text-align: left; }
+  .exposure__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-2) 12px; }
+  .exposure__table.market-list__table tbody td { padding: 0; text-align: left; white-space: normal; }
   .exposure__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
   .exposure__next td[colspan] { grid-column: 1 / -1; }
 }
