@@ -18,6 +18,12 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def usd(nil), do: "—"
   def usd(micro) when is_integer(micro), do: "$" <> RegentFormat.token_amount(micro, 6)
 
+  @doc """
+  USDC a person pays, rounded up to the cent before it is shown, so a review
+  never shows less than the wallet will be asked for.
+  """
+  def usd_due(micro) when is_integer(micro), do: usd(div(micro + 9_999, 10_000) * 10_000)
+
   @doc "A raw stock amount as whole tokens, without trailing zeros."
   def tokens(raw, unit) when is_integer(raw) and is_integer(unit) do
     raw
@@ -35,9 +41,16 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def parse_tokens(text, unit) when is_binary(text), do: parse(String.trim(text), unit)
   def parse_tokens(_text, _unit), do: nil
 
-  @doc "A typed dollar amount as USDC micro-units, read as `parse_tokens/2` reads, after one optional `$`."
-  def parse_usd(text) when is_binary(text),
-    do: text |> String.trim() |> String.replace_prefix("$", "") |> parse(@usdc_unit)
+  @doc """
+  A typed dollar price as USDC micro-units, read as `parse_tokens/2` reads,
+  after one optional `$`, to the cent: a price is shown to the cent, so a
+  typed one never carries more than the page can show.
+  """
+  def parse_usd(text) when is_binary(text) do
+    with cents when is_integer(cents) <-
+           text |> String.trim() |> String.replace_prefix("$", "") |> parse(100),
+         do: cents * div(@usdc_unit, 100)
+  end
 
   def parse_usd(_text), do: nil
 

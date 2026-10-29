@@ -89,9 +89,13 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_info({:covered_call_pressed, _press}, socket), do: {:noreply, read_book(socket)}
 
-  # A listing's expiry or a scheduled multiplier change came: the page and its
-  # panels read again, so a button the chain held back comes back.
-  def handle_info(:covered_calls_due, socket), do: {:noreply, read_book(socket)}
+  # A listing's expiry or a scheduled multiplier change came: the shared book
+  # is taken anew unless it was taken in the last ten seconds, and the page
+  # and its panels read it, so a button the chain held back comes back.
+  def handle_info(:covered_calls_due, socket) do
+    Book.refresh(socket.assigns.chain_id)
+    {:noreply, read_book(socket)}
+  end
 
   # A panel's last step landed; the page says what moved.
   def handle_info({:covered_call_done, done}, socket), do: {:noreply, assign(socket, done: done)}

@@ -201,7 +201,7 @@ Ash domain `Autolaunch.CoveredCalls`:
   (unless read in the last ten seconds), and just after the next open listing's expiry or a
   scheduled multiplier change, so a Buy the chain held back comes back by itself.
 - Dollar figures follow the one Regents rule (`RegentFormat.token_amount/2`: two decimals from $1,
-  three significant digits below, cut). Typed amounts are digits with at most one dot.
+  three significant digits below, cut). Typed amounts are digits with at most one dot, and typed prices go to the cent. An amount a person pays is shown rounded up to the cent, never below what the wallet is asked for.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
   Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,

@@ -102,8 +102,21 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
 
     assert F.parse_tokens("$5", @unit) == nil
     assert F.parse_usd(" $5 ") == 5_000_000
+    assert F.parse_usd("250.01") == 250_010_000
+    assert F.parse_usd("250.005") == nil
     assert F.parse_tokens(Integer.to_string(2 ** 128), 1) == nil
     assert F.parse_tokens(Integer.to_string(2 ** 128 - 1), 1) == 2 ** 128 - 1
+  end
+
+  property "a dollar amount a person pays is shown rounded up to the cent, never below it" do
+    check all(micro <- integer(1..1_000_000_000_000_000)) do
+      shown =
+        F.usd_due(micro) |> String.trim_leading("$") |> String.replace(",", "") |> Decimal.new()
+
+      exact = Decimal.div(Decimal.new(micro), 1_000_000)
+      assert Decimal.compare(shown, exact) != :lt
+      assert Decimal.compare(Decimal.sub(shown, exact), Decimal.new("0.01")) == :lt
+    end
   end
 
   property "a dollar figure on a page is cut, never rounded up, and never more than 1% short" do

@@ -21,7 +21,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   `listing` an action is on, `expiries` for a new listing, `holding` for an
   exercise, and the panel's `session_lease` and `current_human_id`. A landed
   step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
-  naming the listing (`nil` for a new one) and the wallet that sent it.
+  naming the listing and its seller (both `nil` for a new one) and the wallet
+  that sent it.
   """
   use AutolaunchWeb, :live_component
 
@@ -238,7 +239,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     send(
       self(),
       {:covered_calls_changed, socket.assigns.symbol,
-       %{listing_id: socket.assigns.listing[:id], wallet: signer}}
+       %{
+         listing_id: socket.assigns.listing[:id],
+         seller: socket.assigns.listing[:seller],
+         wallet: signer
+       }}
     )
 
     case socket.assigns.review do
@@ -643,12 +648,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:fill, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["You pay", F.usd(facts.premium)]
+      ["You pay", F.usd_due(facts.premium)]
     ]
 
   defp facts(:exercise, facts, %{unit: unit, symbol: symbol}),
     do: [
-      ["You pay", F.usd(facts.strike)],
+      ["You pay", F.usd_due(facts.strike)],
       ["To collect", "#{F.tokens(facts.amount, unit)} #{symbol}"]
     ]
 
@@ -666,10 +671,12 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     ]
 
   defp done_lines(:fill, facts, %{unit: unit, symbol: symbol}),
-    do: ["#{F.tokens(facts.amount, unit)} #{symbol} of calls for #{F.usd(facts.premium)}"]
+    do: ["#{F.tokens(facts.amount, unit)} #{symbol} of calls for #{F.usd_due(facts.premium)}"]
 
   defp done_lines(:exercise, facts, %{unit: unit, symbol: symbol}),
-    do: ["#{F.tokens(facts.amount, unit)} #{symbol} for #{F.usd(facts.strike)}, ready to collect"]
+    do: [
+      "#{F.tokens(facts.amount, unit)} #{symbol} for #{F.usd_due(facts.strike)}, ready to collect"
+    ]
 
   defp done_lines(:claim, facts, %{unit: unit, symbol: symbol}),
     do: ["#{F.tokens(facts.amount, unit)} #{symbol}"]
