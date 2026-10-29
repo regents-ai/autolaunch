@@ -1,8 +1,9 @@
 # After-hours Exposure — technical specification
 
-**Status (29 Oct 2026):** price oracle and series factory deployed on Base; the first series (a capped
-~$100 live demonstration on AMZNc) is prepared for the Governance and Regent Safe to create; website
-and CLI not built.
+**Status (29 Oct 2026):** series factory deployed on Base; the pinned-phase price oracle (V2) is ready
+to deploy; the first series (a capped ~$100 live demonstration on AMZNc) is prepared for the Governance
+and Regent Safe to create once the oracle is deployed and the revised terms are approved; website and
+CLI not built.
 **Code:** `contracts/exposure/` in `regents-ai/autolaunch`, branch `claude/project-thread-0cczxg`.
 **Source idea:** "Isolated Exposure Tokens", The Standard Reserve, October 2026.
 
@@ -132,43 +133,60 @@ ReentrancyGuard, Ownable) and forge-std, from the pinned `contracts/stocks-v2/li
 | `ExposureSeriesV1` | One stock, one term: holds the stock, mints/burns legs, applies prints, pays redemptions. ~5.1 KB runtime. | None. No pause, upgrade, fee, sweep. |
 | `ExposureLegV1` | OVERNIGHT or SESSION: plain transferable ERC-20; only its series can mint/burn, and it burns only from the series' caller (holders never approve the series). Permit2 standing allowance disabled. | None (series is immutable). |
 | `ExposureFactoryV1` | Creates and lists series (`isSeries`), emits `SeriesCreated`. | Governance and Regent Safe; it has no power over a series after creation. |
-| `ChainlinkPrintOracleV1` | Turns one Chainlink feed into append-only open/close prints. | None. |
+| `ChainlinkPrintOracleV2` | Turns one fixed phase of one Chainlink feed into append-only open/close prints, with each print's source round. | None. |
 | `IFinalizedPrintOracle` | The narrow interface the series reads: `getPrint(feedId, scheduledAt, isOpen) → (priceWad, observedAt, finalizedAt)`. | — |
 
 Gas (mock suite, indicative): `settle` ≈ 50k, `redeem` ≈ 59k, first `mint` for a new holder ≈ 203k,
 `createSeries` ≈ 2.4M (simulated on Base for the 11-print series).
 
-## 4. Prices: `ChainlinkPrintOracleV1`
+## 4. Prices: `ChainlinkPrintOracleV2`
 
-**Rule.** The print for moment T is the feed's value in force at T: the last round with
-`updatedAt ≤ T`.
+**Rule.** The oracle is pinned to the feed phase (the underlying Chainlink aggregator) the proxy pointed
+at when it was deployed. The print for moment T is that phase's value in force at T: its last round
+with `updatedAt ≤ T`, provided `T − updatedAt ≤ 4 days`.
 
-**Recording.** Anyone calls `record(T, isOpen, roundId)` at least one hour after T. The oracle checks:
+**Recording.** Anyone calls `record(T, isOpen, n)` at least one hour after T, naming round `n` of the
+pinned phase. Rounds are read through the proxy as `getRoundData(phase << 64 | n)` (the aggregators
+themselves only answer the proxy: a direct read from a contract reverts "No access"). The oracle checks:
 
-1. the named round exists and `updatedAt ≤ T`;
-2. it was not superseded by T: no newer feed phase had reported by T (every later phase's first round
-   is missing or stamped after T), and the round after it in its own phase is missing (it was its
-   phase's last, or is the latest) or stamped after T;
-3. the answer is positive and fits uint128 once scaled from the feed's decimals to 18.
+1. round `n` exists and `updatedAt ≤ T`;
+2. round `n + 1` does not exist yet or was updated after T (rounds within a phase are numbered in time
+   order, and a round created later than T + 1 hour cannot carry an earlier `updatedAt`, which is its
+   publication block time);
+3. `T − updatedAt ≤ 4 days`;
+4. the answer is positive and fits uint128 once scaled from 8 to 18 decimals.
 
-It stores `{price, observedAt = T, finalizedAt = block.timestamp}` once, forever. `getPrint` answers
-only for its own `feedId = keccak256(abi.encode(chainid, feed))`.
+It stores `{price, observedAt = T, finalizedAt = block.timestamp}` once, forever, and the source
+`{roundId, updatedAt}` (`sourceOf`). `getPrint` answers only for its own
+`feedId = keccak256(abi.encode(chainid, proxy, phase))`.
 
-**Why phases matter.** Chainlink proxies change aggregators by "phase" (round id = phase << 64 | n)
-and run old and new aggregators side by side for a while. On the real AMZN feed, phase 1 and phase 2
-both published for nine days in August 2026; without rule 2's phase check, two different prices
-(275.13 and 274.475) could be recorded for the same moment and the first recorder would choose. The
-fix is proven on that real history in the fork suite (`test_fork_overlappingFeedsGiveOnePrint`).
+**Why the phase is pinned** (found by the second review). Chainlink migrates a feed by running a new
+aggregator beside the old one and later pointing the proxy at it; the switch time is not recorded on
+chain, and the new aggregator can already hold rounds from before the switch. If the oracle followed
+the proxy, the print for a 09:30 open could be the old aggregator's value when recorded at 10:31 and
+the new one's when recorded after an 11:00 switch, whichever came first. With the phase pinned, a
+print is a pure function of one aggregator's history (`test_ProxySwitchDoesNotChangeAPrint`). On the
+real feed, phase 1 and phase 2 both published for nine days in August 2026; the fork suite records a
+moment in that overlap from phase 2 only (`test_fork_overlapGivesOnePrintOnThePinnedPhase`).
 
-**Measured feed behaviour** (AMZN `0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295`, rounds 300–481,
-29 Sep–28 Oct 2026): 8 decimals; updates 24/5 (overnight and pre-market included, restarts Sunday
-20:00 New York, holds over weekends); deviation 0.5% or 24-hour heartbeat, about six updates per
-day; `updatedAt` is the publication block time. Consequences, disclosed in the terms:
+**Retirement and staleness.** When Chainlink retires the pinned aggregator it stops updating. Its
+values then age past four days and prints are refused, so the series ends at its last applied values
+through the series' own missing-print rule (`maxReportDelay` after the refused print). Four days covers
+the longest normal gap: Friday's last update to a Tuesday open after a holiday Monday. Over 30 Sep–28
+Oct the oldest in-force value at any 09:30 or 16:00 was 17.6 hours (a Wednesday open). A
+corporate-action freeze longer than four days also ends the series. Later series use a new oracle on
+the then-current phase. The keeper and the website show each print's source round and its age, so
+an unusually old value is visible even within the limit.
 
-- The value in force at 09:30 or 16:00 can differ from the exchange's official auction price by up to
-  about 0.5%; that difference is attributed to the next window rather than lost.
-- During corporate-action freezes, weekends and unscheduled closures the feed holds its value, so no
-  move is recorded and the series does not end.
+**What a print means.** A print is the feed's latest value at 09:30 or 16:00, not the exchange's
+official auction price. The feed (8 decimals, total-return: equity price × token multiplier) updates
+when its own price moves by 0.5% or more, or at least every 24 hours while the market trades, and
+holds over weekends, holidays and corporate-action pauses; it can also lag. So a print can differ
+from the official open or close by more than 0.5%, and any move the feed has not yet shown is counted
+in whichever window it appears. Total backing is unaffected, but returns can move between the two
+legs, and the error can accumulate for one leg over a term. The product is therefore described as
+exposure to scheduled Chainlink values. During the demo week we record, for every print, the official
+open or close next to the feed value and report the per-leg divergence.
 
 ## 5. Security argument
 
@@ -183,7 +201,7 @@ day; `updatedAt` is the publication block time. Consequences, disclosed in the t
 | I5 | Splitting a redemption never pays more | Floor on each piece; pairs exact. | `testFuzz_SplittingNeverPaysMore` |
 | I6 | A print cannot be skipped, replayed, reordered or chosen | `settle` takes no input; index is `settled`; oracle keyed by exact (T, isOpen); oracle records once. | `test_PrintsApplyOnlyInOrder`, oracle `test_TooEarlyAndOnlyOnce` |
 | I7 | An available timely print can never be overridden by the timeout | `endOnMissingPrint` reverts if the eligible print exists; the gas floor prevents starving the read. | `test_TimelyPrintBlocksTimeoutHoweverLateItIsApplied`, `testFuzz_LowGasCannotFakeAnOutage` (25k–400k gas) |
-| I8 | One moment has exactly one recordable Chainlink print | Section 4, rule 2. | oracle `test_OverlappingFeedsGiveOnePrint`, fork `test_fork_overlappingFeedsGiveOnePrint` |
+| I8 | One moment has exactly one recordable Chainlink print, whenever it is recorded | One pinned phase; rules 1–2 of section 4. | `test_ProxySwitchDoesNotChangeAPrint`, `test_RefusesARoundThatWasNotInForce`, fork `test_fork_overlapGivesOnePrintOnThePinnedPhase` |
 
 ### 5.2 Threats considered
 
@@ -202,13 +220,15 @@ day; `updatedAt` is the publication block time. Consequences, disclosed in the t
 | Oversupply / bad factory input | Constructor validates schedule shape, report delay (0 < d ≤ 7 days) and nonzero cap. Calendar correctness (holidays, DST) is the Safe's responsibility; the first series' times were generated from the New York calendar and are asserted in the fork rehearsal. |
 | Factory owner | Can only list new series; cannot touch existing ones. |
 | Permit2 default allowance | Disabled on legs. |
-| Feed migration overlap | Section 4. |
-| Proxy pointing at an empty new phase | Treated as "nothing follows yet"; recording continues (`test_ProxyOnANewFeedWithNoRoundsYet`). |
+| Feed migration or proxy switch | Phase pinned at deploy (section 4). |
+| Stopped or retired feed | Values older than four days are refused; the series ends at its last values (`test_RefusesARoundOlderThanTheStalenessLimit`). |
+| Keeper picking the wrong round | The oracle verifies the round; the keeper's search is fuzzed against a linear scan (`testFuzz_KeeperFindsTheRoundInForce`) and runs on the real feed in the fork suite. |
 
 ### 5.3 Accepted limits
 
-- Prices are Chainlink's in-force values, not official auction prints (up to ~0.5% attribution
-  error per print, moved to the next window).
+- Prices are Chainlink's scheduled values, not official auction prints; differences move returns
+  between the legs (section 4).
+- A feed stop or a corporate-action freeze longer than four days ends the series at its last values.
 - Knock-out at zero (2.2); leverage varies with the path (P/N, P/S); ledgers add dollar moves, they do
   not compound.
 - `maxReportDelay` must be well above the oracle's one-hour wait or no print can ever count; the
@@ -229,23 +249,26 @@ day; `updatedAt` is the publication block time. Consequences, disclosed in the t
 - Base fork (Foundry 1.8.6 `anvil --network base`, block 53,209,576), 7 tests on the real AMZNc B20
   token and real AMZN Chainlink feed: a series over 23–28 Oct 2026 real prices (ends 126.31992499 /
   126.60757501 at 252.9275; each leg redeems for exactly its share); real 2-for-1 multiplier change;
-  real issuer blocklisting and transfer pause; the August feed overlap; and a full rehearsal of
-  deployment, the Safe's `createSeries` call as printed, minting, both Aerodrome pools and maturity.
-- Three independent adversarial reviews (code; economics against the paper; the Chainlink reader).
-  No critical or high finding reproduces against the final code; every fix has a lasting test.
-- Deployed bytecode checked against the build: factory byte-for-byte; oracle equal after masking its
-  three constructor-set immutables.
+  real issuer blocklisting and transfer pause; a moment in the August feed overlap priced from the
+  pinned phase only; and a full rehearsal of deployment, the Safe's `createSeries` call as printed,
+  the Friday sitting (first print, minting, both Aerodrome pools landing 50 minutes after simulation,
+  and Aerodrome refusing them after the deadline), and the closing sitting through maturity, with the
+  week's feed rounds stood in on the pinned phase.
+- Independent reviews: three agent reviews (code; economics against the paper; the Chainlink reader),
+  an outside second look at the full bundle, and an agent review of the pinned-phase oracle. Every
+  finding acted on has a lasting test.
+- Deployed bytecode checked against the build: factory byte-for-byte.
 
 ## 6. Deployment and the first series
 
 | Item | Value |
 | --- | --- |
 | Chain | Base (8453) |
-| `ChainlinkPrintOracleV1` | `0x6e80e0b65F50666E230276FD5bEf61059aC65f98` (feed AMZN `0x06A8…B295`, feedId `0xf8b06b9f…a306`) |
+| Price oracle | `ChainlinkPrintOracleV2` on phase 2 of the AMZN feed `0x06A8…B295`: **to be deployed** (replaces `ChainlinkPrintOracleV1` at `0x6e80e0b65F50666E230276FD5bEf61059aC65f98`, deployed 28 Oct and never used by a series) |
 | `ExposureFactoryV1` | `0xAECE72c94CaC843f9Ecd54aC6Ca833bF4CFED048`, owner Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` (2 of 3) |
-| Deployer | `0x9b2C414614aEE294202c1219520955EF3B596031` (blocks 53,219,732–3) |
-| First series | AMZNc `0xb200000000000000000000d9192b6B456483C2E8`; Fri 30 Oct 2026 16:00 → Fri 6 Nov 2026 16:00 New York (11 prints; 20:00 UTC first close, then 14:30/21:00 UTC after the 1 Nov clock change); cap 0.4 AMZNc (~$100); recording window 7 days; legs "AMZNc After-hours to 6 Nov 2026" (AMZNc-AH-1106) and "AMZNc Market-hours to 6 Nov 2026" (AMZNc-MH-1106); termsHash `0x5fb35de4a9b0a0b9fcf37641d6777e413680c016e690df395283ca421ef23e7a` = keccak256 of `platform/docs/after-hours-terms-amznc-2026-11-06.md`. Predicted address `0x77b82face369db560677a903b13e747891096cb7`; not yet created. |
-| Demo | After the first close: record + settle, mint a 0.2 AMZNc pair, open two Aerodrome volatile pools (each leg vs USDC at its ledger value). After the last close: record and settle the remaining ten prints. Scripts: `script/AfterHoursDemo.s.sol`. |
+| Deployer | `0x9b2C414614aEE294202c1219520955EF3B596031` (factory block 53,219,733) |
+| First series | AMZNc `0xb200000000000000000000d9192b6B456483C2E8`; Fri 30 Oct 2026 16:00 → Fri 6 Nov 2026 16:00 New York (11 prints; 20:00 UTC first close, then 14:30/21:00 UTC after the 1 Nov clock change); cap 0.4 AMZNc (~$100); recording window 7 days; legs "AMZNc After-hours to 6 Nov 2026" (AMZNc-AH-1106) and "AMZNc Market-hours to 6 Nov 2026" (AMZNc-MH-1106); termsHash = keccak256 of `platform/docs/after-hours-terms-amznc-2026-11-06.md` (revised after the second review; awaiting approval). Not yet created. |
+| Demo | After the first close: record + settle, mint a 0.2 AMZNc pair, open two Aerodrome volatile pools (each leg vs USDC at its ledger value) with a one-hour deadline. After the last close: record and settle the remaining ten prints. Scripts: `script/AfterHoursDemo.s.sol`. The pools only show the mechanics working; they are far too small to be useful trading liquidity. |
 
 ## 7. Website (planned; `Autolaunch.Exposure`, behind `config :autolaunch, :exposure_enabled`)
 
@@ -259,10 +282,10 @@ current state makes it certain to fail, with the reason beside it.
 
 | Route | LiveView | Shows | Actions |
 | --- | --- | --- | --- |
-| `/after-hours` | `AfterHoursLive :index` | One card per live series: stock, term, next print time, both ledgers, each leg's pool price, minted vs cap. | — |
-| `/after-hours/:series` | `AfterHoursLive :series` | Price path so far (each print, which leg moved), current ledgers and leverage (P/N, P/S), final split after the end, terms link. | Mint pair, Redeem pair, Buy/Sell either leg (Aerodrome), Redeem after the end, Roll (redeem then mint into next week's series), Record/Settle when due. |
+| `/after-hours` | `AfterHoursLive :index` | One card per live series: stock, term, next print time, minted vs cap, and for each leg its ledger value and its pool price, labelled separately. | — |
+| `/after-hours/:series` | `AfterHoursLive :series` | Price path so far (each print with its source round and age, which leg moved), current leverage (P/N, P/S), terms link. For each leg three values, never merged: ledger (its dollar allocation now), pool quote (what it sells for), and stock amount (AMZNc it redeems for: before the end only as a pair; after the end its fixed share, e.g. 104/170 AMZNc, whose dollar value moves with AMZNc). | Mint pair, Redeem pair, Buy/Sell either leg (Aerodrome), Redeem after the end, Record/Settle when due. No Roll in v1: rolling one leg means redeeming, minting a new pair and selling the unwanted leg, which is left until that trade is specified. |
 | `/stock-listing/:symbol` | existing `StockLive` | Link to the stock's live series. | — |
-| `/portfolio` | existing `PortfolioLive` | "After-hours" section: legs held, value in stock and dollars, what they redeem for. | Same steps as the series page. |
+| `/portfolio` | existing `PortfolioLive` | "After-hours" section: legs held with the same three values, and whether each can be redeemed now. | Same steps as the series page. |
 
 Disabled-only-when-certain-to-fail cases: series not Active (mint), cap reached, vault short after a
 seizure (mint), unequal amounts before the end (redeem), no approval on chain yet (mint shows the
@@ -287,7 +310,8 @@ same words and refusals across the page, WebMCP, hosted MCP and CLI.
   the existing indexer cursor), `Holding` and `Ledger` read models rebuilt from events; balances are
   always read from chain.
 - `Steps`: builds the unsigned calls above (approve exact amount → `mint`; `redeem`; `record` with
-  the round in force found by walking back from the latest round; `settle`; `endOnMissingPrint`).
+  the round of the pinned phase in force, found by binary search exactly as `AfterHoursDemo.roundInForce`;
+  `settle`; `endOnMissingPrint`).
 - Oban cron job `RecordPrints`: an hour after each scheduled open/close of every live series, finds
   the round in force, calls `record` then `settle`, using a dedicated keeper wallet with gas only.
   It holds no customer key and chooses nothing; anyone can make the same calls.
@@ -316,8 +340,8 @@ mine` to confirm from chain.
    is anything better that still never over-claims the stock?
 2. Is the "value in force at T" rule on a 0.5%-deviation Chainlink feed acceptable for attributing
    moves between windows, or is there a better on-chain-only rule with the same feed?
-3. Is the phase-overlap rule (newest phase that had reported by T wins) correct for Chainlink proxies,
-   including aggregator changes we have not seen?
+3. Is pinning one feed phase, with a four-day staleness limit, the right answer to aggregator
+   migrations for a one-week series?
 4. Any path by which `endOnMissingPrint` can fire while a valid print exists, or by which `settle` can
    apply a wrong print?
 5. Any rounding, shortfall or reentrancy path that pays more than owed or locks value?

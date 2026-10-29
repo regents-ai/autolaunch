@@ -7,7 +7,8 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {ExposureFactoryV1} from "../../src/ExposureFactoryV1.sol";
 import {ExposureSeriesV1} from "../../src/ExposureSeriesV1.sol";
-import {ChainlinkPrintOracleV1, IAggregatorV3} from "../../src/ChainlinkPrintOracleV1.sol";
+import {AfterHoursDemo} from "../../script/AfterHoursDemo.s.sol";
+import {ChainlinkPrintOracleV2} from "../../src/ChainlinkPrintOracleV2.sol";
 
 interface IB20AssetFork {
     function multiplier() external view returns (uint256);
@@ -44,7 +45,8 @@ contract ExposureSeriesV1ForkTest is Test {
     address internal constant AMZN_FEED = 0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295;
 
     IERC20 internal stock = IERC20(AMZNC);
-    ChainlinkPrintOracleV1 internal oracle;
+    ChainlinkPrintOracleV2 internal oracle;
+    AfterHoursDemo internal keeper = new AfterHoursDemo();
     ExposureSeriesV1 internal series;
     uint64[] internal schedule;
     address internal safe = makeAddr("governance safe");
@@ -53,7 +55,7 @@ contract ExposureSeriesV1ForkTest is Test {
     address internal issuerOps = makeAddr("issuerOps");
 
     function setUp() public {
-        oracle = new ChainlinkPrintOracleV1(AMZN_FEED);
+        oracle = new ChainlinkPrintOracleV2(AMZN_FEED);
 
         // Friday 23 Oct close, then Monday to Wednesday opens and closes (New York, summer time).
         uint64 friClose = 1793217600 - 5 days; // Fri 23 Oct 2026 20:00 UTC
@@ -98,22 +100,13 @@ contract ExposureSeriesV1ForkTest is Test {
         vm.stopPrank();
     }
 
-    /// @dev Records the feed's value in force at boundary `index` (found by walking back from the
-    ///      latest round, as the site's keeper does) and applies it.
+    /// @dev Records the feed's value in force at boundary `index` (found with the keeper's own
+    ///      search over the pinned phase) and applies it.
     function _settle(uint256 index) internal {
         uint64 at = schedule[index];
         if (block.timestamp < at + 1 hours) vm.warp(at + 1 hours);
-        oracle.record(at, index % 2 == 1, _roundInForce(at));
+        oracle.record(at, index % 2 == 1, keeper.roundInForce(oracle, at));
         series.settle();
-    }
-
-    function _roundInForce(uint64 at) internal view returns (uint80 roundId) {
-        (roundId,,,,) = IAggregatorV3(AMZN_FEED).latestRoundData();
-        while (true) {
-            (,,, uint256 updatedAt,) = IAggregatorV3(AMZN_FEED).getRoundData(roundId);
-            if (updatedAt <= at) return roundId;
-            --roundId;
-        }
     }
 
     function _redeem(address who, uint256 n, uint256 s) internal returns (uint256) {
@@ -152,17 +145,18 @@ contract ExposureSeriesV1ForkTest is Test {
         assertLe(overnightOwed + sessionOwed, TOKEN);
     }
 
-    /// Found in review on this feed's own history: in August 2026 its old feed (phase 1) and new
-    /// feed (phase 2) both published for nine days. Only the new feed's round counts for a moment
-    /// after it started, so nobody can choose between two prices.
-    function test_fork_overlappingFeedsGiveOnePrint() public {
+    /// This feed's own history: in August 2026 its old aggregator (phase 1) and new one (phase 2)
+    /// both published for nine days, at slightly different prices. Pinned to phase 2, a moment in
+    /// that overlap has exactly one print, the keeper finds it, and phase 1 cannot be named at all.
+    function test_fork_overlapGivesOnePrintOnThePinnedPhase() public {
+        assertEq(oracle.phase(), 2);
         uint64 moment = 1786320025;
-        uint80 phase1Round47 = (uint80(1) << 64) | 47;
-        uint80 phase2Round19 = (uint80(2) << 64) | 19;
-        vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV1.RoundNotInForce.selector, phase1Round47));
-        oracle.record(moment, true, phase1Round47);
-        oracle.record(moment, true, phase2Round19);
+        assertEq(keeper.roundInForce(oracle, moment), 19);
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkPrintOracleV2.RoundNotInForce.selector, uint64(18)));
+        oracle.record(moment, true, 18);
+        oracle.record(moment, true, 19);
         assertEq(oracle.getPrint(oracle.feedId(), moment, true).priceWad, 274.475e18);
+        assertEq(oracle.sourceOf(moment, true).roundId, (uint80(2) << 64) | 19);
     }
 
     /// A split changes the shares each raw token represents, not the raw units the series holds or owes.

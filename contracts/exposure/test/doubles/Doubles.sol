@@ -137,7 +137,7 @@ contract MockPrintOracle is IFinalizedPrintOracle {
 }
 
 /// @notice A Chainlink aggregator proxy with 8 decimals whose rounds the test writes. Round ids are
-///         (phase << 64 | n) like the real proxy; a missing round reverts like an OCR2 aggregator.
+///         (phase << 64 | n) like the real proxy, and a missing round reads as zeros, as on Base.
 contract MockAggregator {
     struct Round {
         int256 answer;
@@ -145,36 +145,23 @@ contract MockAggregator {
     }
 
     mapping(uint80 roundId => Round) public rounds;
-    uint80 public latest;
-    /// The real proxy reads a missing round as zeros; some aggregators revert instead.
-    bool public missingRoundsRevert = true;
-
-    function setMissingRoundsRevert(bool value) external {
-        missingRoundsRevert = value;
-    }
-
-    /// Points the proxy at a new phase that has not reported yet (round id `phase << 64 | 0`).
-    function switchPhase(uint80 phase) external {
-        latest = phase << 64;
-    }
+    uint16 public phaseId = 2;
 
     function decimals() external pure returns (uint8) {
         return 8;
     }
 
-    function push(uint80 roundId, int256 answer, uint256 updatedAt) external {
-        rounds[roundId] = Round(answer, updatedAt);
-        latest = roundId;
+    /// The proxy moving to a new aggregator.
+    function setPhaseId(uint16 phase) external {
+        phaseId = phase;
     }
 
-    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
-        Round memory r = rounds[latest];
-        return (latest, r.answer, r.updatedAt, r.updatedAt, latest);
+    function push(uint80 roundId, int256 answer, uint256 updatedAt) external {
+        rounds[roundId] = Round(answer, updatedAt);
     }
 
     function getRoundData(uint80 roundId) external view returns (uint80, int256, uint256, uint256, uint80) {
         Round memory r = rounds[roundId];
-        require(r.updatedAt != 0 || !missingRoundsRevert, "No data present");
         return (roundId, r.answer, r.updatedAt, r.updatedAt, roundId);
     }
 }

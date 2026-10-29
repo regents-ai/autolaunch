@@ -3,19 +3,21 @@ pragma solidity 0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
 
-import {ChainlinkPrintOracleV1} from "../src/ChainlinkPrintOracleV1.sol";
+import {ChainlinkPrintOracleV2} from "../src/ChainlinkPrintOracleV2.sol";
 import {ExposureFactoryV1} from "../src/ExposureFactoryV1.sol";
 import {ExposureSeriesV1} from "../src/ExposureSeriesV1.sol";
 
 /// @title DeployAfterHours
-/// @notice After-hours Exposure on Base: `run` deploys the AMZN Chainlink print oracle and the series
-///         factory owned by the Governance and Regent Safe; `firstSeriesCall` prints the Safe's
-///         `createSeries` call for the first AMZNc series (Fri 30 Oct to Fri 6 Nov 2026 closes).
-/// @dev Deploying is a protected action: broadcast only on Sean's go naming it. The terms hash is
+/// @notice After-hours Exposure on Base: `run` deploys the AMZN Chainlink print oracle, pinned to the
+///         feed's current phase; `firstSeriesCall` prints the Safe's `createSeries` call to the
+///         deployed factory for the first AMZNc series (Fri 30 Oct to Fri 6 Nov 2026 closes).
+/// @dev The factory (owned by the Governance and Regent Safe) was deployed on 28 Oct 2026 at `FACTORY`.
+///      Deploying is a protected action: broadcast only on Sean's go naming it. The terms hash is
 ///      keccak256 of the approved terms file's exact bytes
-///      (platform/docs/after-hours-terms-amznc-2026-11-06.md), passed in once that wording is final.
+///      (platform/docs/after-hours-terms-amznc-2026-11-06.md).
 contract DeployAfterHours is Script {
     address internal constant SAFE = 0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e;
+    address public constant FACTORY = 0xAECE72c94CaC843f9Ecd54aC6Ca833bF4CFED048;
     address internal constant AMZNC = 0xb200000000000000000000d9192b6B456483C2E8;
     address internal constant AMZN_FEED = 0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295;
     /// @notice 0.4 AMZNc (8 decimals), about $100: the first series is a live demo (Sean, 28 Oct 2026).
@@ -26,14 +28,13 @@ contract DeployAfterHours is Script {
 
     error WrongChain(uint256 chainId);
 
-    function run() external returns (ChainlinkPrintOracleV1 oracle, ExposureFactoryV1 factory) {
+    function run() external returns (ChainlinkPrintOracleV2 oracle) {
         if (block.chainid != 8453) revert WrongChain(block.chainid);
         vm.startBroadcast();
-        oracle = new ChainlinkPrintOracleV1(AMZN_FEED);
-        factory = new ExposureFactoryV1(SAFE);
+        oracle = new ChainlinkPrintOracleV2(AMZN_FEED);
         vm.stopBroadcast();
-        console.log("ChainlinkPrintOracleV1", address(oracle));
-        console.log("ExposureFactoryV1", address(factory));
+        console.log("ChainlinkPrintOracleV2", address(oracle));
+        console.log("pinned phase", oracle.phase());
     }
 
     /// @notice The calldata the Safe sends to `factory` to create the first series.
@@ -60,7 +61,7 @@ contract DeployAfterHours is Script {
         terms = ExposureSeriesV1.Terms({
             asset: AMZNC,
             oracle: oracle,
-            feedId: ChainlinkPrintOracleV1(oracle).feedId(),
+            feedId: ChainlinkPrintOracleV2(oracle).feedId(),
             termsHash: termsHash,
             maxReportDelay: MAX_REPORT_DELAY,
             depositCap: DEPOSIT_CAP,

@@ -57,30 +57,29 @@ decides which series exist.
 
 ## 3. Prices: Chainlink (Sean, 28 Oct 2026)
 
-`ChainlinkPrintOracleV1` takes each open and close from the stock's Coinbase Chainlink feed on Base
-(AMZN: `0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295`). The print for a scheduled time is the feed's
-value **in force at that moment**: the last round updated at or before it. An hour after the moment,
-anyone records it by naming that round; the oracle checks the round was in force (the next round
-came later, or there is none) and keeps the value for good. No owner and no reporters. The series
-reads it through `IFinalizedPrintOracle`, with a fixed gas budget and reply size, and accepts a print
-only if it was recorded within `maxReportDelay` of its time.
+`ChainlinkPrintOracleV2` takes each open and close from the stock's Coinbase Chainlink feed on Base
+(AMZN: `0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295`), pinned to the feed version (Chainlink "phase")
+in use when the oracle is deployed. The print for a scheduled time is that version's latest value at
+the moment, if it is at most four days old. An hour after the moment, anyone records it by naming the
+round; the oracle checks it and keeps the value and its source round for good. No owner and no
+reporters. Full rules and the reasons for them: [after-hours-exposure-spec.md](after-hours-exposure-spec.md), section 4.
 
-Measured on the AMZN feed (rounds 300 to 481, 29 Sep to 28 Oct 2026):
+Measured on the AMZN feed (29 Sep to 28 Oct 2026):
 
 - It runs 24/5: it updates overnight and before the open, restarts Sunday 20:00 New York time, and
-  holds its last value over weekends. About six updates a day.
-- It updates on a 0.5% move (or a 24-hour heartbeat), so the value in force at 09:30 or 16:00 can
-  differ from the exchange's official price by up to about 0.5%. On 28 Oct the last update before
-  the close was at 10:38. Any such gap is not lost: it lands in the next window instead. Customer
-  copy says the prints are Chainlink's values at the open and close, not the official auction prices.
+  holds its last value over weekends. About six updates a day; the oldest value in force at any open
+  or close was 17.6 hours.
+- It updates on a 0.5% move or a 24-hour heartbeat and can lag, so a print is not the exchange's
+  official price and can differ from it by more than 0.5%. A move the feed has not shown yet lands in
+  whichever window it appears, which can shift value between the two tokens. The product is
+  described as exposure to scheduled Chainlink values, and the demo week measures the divergence.
 - The value is total return (price times the token's multiplier), so splits and dividends need no
   adjustment and show no jump.
-- During a corporate action the feed freezes and holds its value; an unscheduled market closure
-  simply records no move. Neither ends a series.
-- When Chainlink moves the proxy to a new feed it runs both side by side for a while (AMZN's old and
-  new feeds both published for nine days in August 2026). Only the newest feed that had reported by
-  a moment counts for it, so each moment has exactly one print; in the days before the switch this
-  can differ slightly from what the proxy itself showed.
+- During a corporate action or an unscheduled closure the feed holds its value and no move is
+  counted. A stop longer than four days ends the series at its last values.
+- Chainlink migrates a feed by running a new aggregator beside the old one (AMZN's both published for
+  nine days in August 2026) and switching the proxy at a time not recorded on chain. Pinning one
+  version keeps each print independent of when it is recorded.
 
 ## 4. Running continuously
 
@@ -93,9 +92,10 @@ A single series cannot safely run forever:
    and an ordinary gap knocks it out, which ends the series anyway.
 
 So the product runs continuously as **back-to-back weekly series**: each one starts at Friday's close
-as the previous one ends. Holders redeem the finished week and mint into the next in one review
-("Roll to next week"); legs held through a roll start the new week at 50/50 again. Each week needs a
-`createSeries` call from the Safe, prepared by the site from the exchange calendar.
+as the previous one ends. Holders redeem the finished week and can mint into the next, which gives
+them both new legs at 50/50; keeping only one side means selling the other. A one-press single-leg
+roll is left out of v1 until that trade is specified. Each week needs a `createSeries` call from the
+Safe, prepared by the site from the exchange calendar.
 
 ## 5. First series: a $100 live demo (Sean, 28 Oct 2026)
 
@@ -107,8 +107,9 @@ window so the prices can be recorded in two sittings.
 
 | When | Who | What |
 | --- | --- | --- |
-| Now | Sean (deployer password) | `DeployAfterHours.run`: the AMZN Chainlink oracle and the factory owned by the Governance and Regent Safe. |
-| Before Fri 30 Oct 16:00 New York | Safe (2 of 3) | `createSeries` exactly as `firstSeriesCall` prints it, with the hash of the approved [terms](after-hours-terms-amznc-2026-11-06.md) (Sean, 28 Oct 2026): `0x5fb35de4a9b0a0b9fcf37641d6777e413680c016e690df395283ca421ef23e7a`, the keccak256 of the file's exact bytes. |
+| Done 28 Oct | Sean (deployer password) | The factory owned by the Governance and Regent Safe (`0xAECE72c94CaC843f9Ecd54aC6Ca833bF4CFED048`). The first oracle deployed with it (V1, `0x6e80e0b6…5f98`) is superseded by V2 after the second review. |
+| Before Fri 30 Oct 16:00 New York | Sean (deployer password) | `DeployAfterHours.run`: `ChainlinkPrintOracleV2` on the AMZN feed's current phase. |
+| Before Fri 30 Oct 16:00 New York | Safe (2 of 3) | `createSeries` exactly as `firstSeriesCall` prints it, with the keccak256 of the exact bytes of the [terms](after-hours-terms-amznc-2026-11-06.md), revised after the second review and awaiting Sean's approval. |
 | Fri 30 Oct after 17:00 New York | Sean (deployer password) | With about 0.2 AMZNc and $55 USDC in the deployer: `AfterHoursDemo.recordAndSettle` (first close), then `AfterHoursDemo.seed`: mint a 0.2 AMZNc pair and open an Aerodrome pool for each leg against USDC at its ledger value. |
 | Fri 6 Nov after 17:00 New York | Sean (deployer password) | `AfterHoursDemo.recordAndSettle`: the other ten prints; the series ends and every leg redeems. |
 
@@ -124,7 +125,7 @@ Behind `config :autolaunch, :exposure_enabled`, off by default. Same patterns as
 | Place | Purpose |
 | --- | --- |
 | `/after-hours` | This week's series per stock: next print, both ledgers, each leg's pool price, minted against the cap. |
-| `/after-hours/:series` | One series: prices so far, Mint pair, Redeem pair, Buy or sell either leg, Roll to next week, and after the end Redeem at the final split. Shows each leg's current leverage (price ÷ ledger), not a fixed 2×. |
+| `/after-hours/:series` | One series: prices so far with each one's feed update and age, Mint pair, Redeem pair, Buy or sell either leg, and after the end Redeem at the final split. For each leg its ledger value, pool price and stock amount shown separately, and its current leverage (price ÷ ledger), not a fixed 2×. |
 | `/stock-listing/:symbol` | A link to the stock's live series. |
 | `/portfolio` | An "After-hours Exposure" section: legs held, their value in stock and dollars, and what they redeem for. |
 
@@ -137,7 +138,7 @@ Ash domain `Autolaunch.Exposure`:
   roll, record print, settle, end on missing print. A press certain to fail from the chain's own
   state (series not live, cap reached, stock short after a seizure) shows the button disabled with
   the reason; nothing else blocks a press.
-- Oban job `SettleSeries`: an hour after each open and close, finds the feed round in force, calls
+- Oban job `SettleSeries`: an hour after each open and close, finds the feed round in force on the pinned version, calls
   `record`, then `settle` on every series due. It holds no customer key and chooses no price; anyone
   can make the same calls.
 
@@ -172,10 +173,10 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
   - 5 invariants over 256 runs × 128 random calls (mint, redeem, transfers, prints, missed prints,
     donations, seizures): pairs equal backing while live; ledgers within price; claims never exceed
     accounted stock after the end; every raw unit accounted for; fully backed unless seized.
-  - 12 Chainlink oracle tests (the round in force, rounds superseded, later or missing, a round
-    exactly at the moment, the latest round over a quiet weekend, a feed phase change, overlapping
-    old and new feeds, a new feed with no rounds yet, missing rounds read as zeros, the one-hour
-    wait, record once, bad answers, a series settling end to end) and 1 factory test.
+  - 12 Chainlink oracle tests (the pinned phase, the round in force and its source, rounds
+    superseded, later or missing, a round exactly at the moment, a quiet weekend, a proxy switch not
+    changing a print, the four-day staleness limit, the one-hour wait, record once, bad answers, the
+    keeper's round search fuzzed, a series settling end to end) and 1 factory test.
   - Six deliberate bugs planted one at a time in the series (overdrawn depletion, skipped
     depletion, oversized oracle reply accepted, no seizure cut, single legs before the end, late
     print accepted): each made at least one test fail.
@@ -209,6 +210,6 @@ REGENT staking through the existing `depositUSDC` path; the vault itself takes n
    redeeming account, so a blocklisted holder cannot redeem; but the legs are ordinary tokens, so a
    blocklisted holder can still move or sell them and the new holder can redeem.
 4. **Disclosures** on every page and tool: the knock-out at zero, leverage that moves with the
-   price, prints are Chainlink's values (within about 0.5% of the official price), the end on a
+   price, prints are scheduled Chainlink values that can differ from the official price, the end on a
    missing print, the blocklist point above, and that an issuer blocklist on the series itself
    would freeze every holder. The paper's SPY history is not a return claim for any stock.

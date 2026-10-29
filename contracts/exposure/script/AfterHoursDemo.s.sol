@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
 
-import {ChainlinkPrintOracleV1, IAggregatorV3} from "../src/ChainlinkPrintOracleV1.sol";
+import {ChainlinkPrintOracleV2} from "../src/ChainlinkPrintOracleV2.sol";
 import {ExposureSeriesV1} from "../src/ExposureSeriesV1.sol";
 
 interface IERC20Approve {
@@ -35,10 +35,12 @@ contract AfterHoursDemo is Script {
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address internal constant AERODROME_ROUTER = 0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43;
     uint256 internal constant DEMO_PAIR = 0.2e8;
+    /// @notice How long after the script is simulated the pool transactions may still land.
+    uint256 internal constant SEED_WINDOW = 1 hours;
 
     /// @notice Records and applies every print whose recording time has come, in order.
     function recordAndSettle(ExposureSeriesV1 series) external {
-        ChainlinkPrintOracleV1 oracle = ChainlinkPrintOracleV1(series.oracle());
+        ChainlinkPrintOracleV2 oracle = ChainlinkPrintOracleV2(series.oracle());
         vm.startBroadcast();
         while (series.status() != ExposureSeriesV1.Status.Ended) {
             uint256 index = series.settled();
@@ -46,7 +48,7 @@ contract AfterHoursDemo is Script {
             if (block.timestamp < uint256(at) + oracle.RECORD_DELAY()) break;
             bool isOpen = index % 2 == 1;
             if (oracle.getPrint(oracle.feedId(), at, isOpen).finalizedAt == 0) {
-                oracle.record(at, isOpen, roundInForce(oracle.feed(), at));
+                oracle.record(at, isOpen, roundInForce(oracle, at));
             }
             series.settle();
             console.log("applied print", index, series.lastPriceWad());
@@ -54,8 +56,13 @@ contract AfterHoursDemo is Script {
         vm.stopBroadcast();
     }
 
-    /// @notice Mints the demo pair and opens both leg pools at their ledger values.
+    /// @notice Mints the demo pair and opens both leg pools at their ledger values. The pool
+    ///         transactions must land within `SEED_WINDOW` of the simulation.
     function seed(ExposureSeriesV1 series) external {
+        seedBy(series, block.timestamp + SEED_WINDOW);
+    }
+
+    function seedBy(ExposureSeriesV1 series, uint256 deadline) public {
         address overnight = address(series.overnight());
         address session = address(series.session());
         uint256 overnightUsdc = _usdc(series.overnightLedgerWad());
@@ -69,24 +76,34 @@ contract AfterHoursDemo is Script {
         IERC20Approve(session).approve(AERODROME_ROUTER, DEMO_PAIR);
         IERC20Approve(USDC).approve(AERODROME_ROUTER, overnightUsdc + sessionUsdc);
         IAerodromeRouter(AERODROME_ROUTER)
-            .addLiquidity(
-                overnight, USDC, false, DEMO_PAIR, overnightUsdc, DEMO_PAIR, overnightUsdc, signer, block.timestamp
-            );
+            .addLiquidity(overnight, USDC, false, DEMO_PAIR, overnightUsdc, DEMO_PAIR, overnightUsdc, signer, deadline);
         IAerodromeRouter(AERODROME_ROUTER)
-            .addLiquidity(session, USDC, false, DEMO_PAIR, sessionUsdc, DEMO_PAIR, sessionUsdc, signer, block.timestamp);
+            .addLiquidity(session, USDC, false, DEMO_PAIR, sessionUsdc, DEMO_PAIR, sessionUsdc, signer, deadline);
         vm.stopBroadcast();
         console.log("After-hours pool USDC", overnightUsdc);
         console.log("Market-hours pool USDC", sessionUsdc);
     }
 
-    /// @notice The last round of the feed's current phase updated at or before `at`.
-    function roundInForce(IAggregatorV3 feed, uint64 at) public view returns (uint80 roundId) {
-        (roundId,,,,) = feed.latestRoundData();
-        while (true) {
-            (,,, uint256 updatedAt,) = feed.getRoundData(roundId);
-            if (updatedAt != 0 && updatedAt <= at) return roundId;
-            --roundId;
+    /// @notice The round of the oracle's pinned phase in force at `at`: the last one updated at or
+    ///         before it. Rounds are numbered 1, 2, ... in time order within a phase, so this finds the
+    ///         phase's last round and then the latest round not after `at`, by binary search.
+    function roundInForce(ChainlinkPrintOracleV2 oracle, uint64 at) public view returns (uint64) {
+        uint64 high = 1;
+        while (_updatedAt(oracle, high) != 0) high *= 2;
+        // Rounds 1 .. high - 1 may exist; find the last with updatedAt in (0, at].
+        uint64 low = 0;
+        while (high - low > 1) {
+            uint64 mid = low + (high - low) / 2;
+            uint256 updatedAt = _updatedAt(oracle, mid);
+            if (updatedAt != 0 && updatedAt <= at) low = mid;
+            else high = mid;
         }
+        require(low != 0, "no round of the pinned phase is in force");
+        return low;
+    }
+
+    function _updatedAt(ChainlinkPrintOracleV2 oracle, uint64 round) internal view returns (uint256 updatedAt) {
+        (,,, updatedAt,) = oracle.feed().getRoundData(oracle.roundIdOf(round));
     }
 
     /// @dev USDC (6 decimals) for `DEMO_PAIR` raw units of a leg whose ledger is `ledgerWad` per token.
