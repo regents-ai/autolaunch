@@ -4,7 +4,7 @@ One Base stock token split, for a fixed term, into an **OVERNIGHT** token (shown
 After-hours) that carries the stock's close-to-open moves and a **SESSION** token (Market-hours) that
 carries its open-to-close moves. Design and site plan: [exposure-design.md](../../platform/docs/exposure-design.md).
 
-Status: **not deployed.** A deployment is a protected action and waits for Sean's go naming it.
+Status: **deployed on Base** (oracle and factory, 28 Oct 2026); see [deployments/base-mainnet](deployments/base-mainnet/README.md). Full specification: [after-hours-exposure-spec.md](../../platform/docs/after-hours-exposure-spec.md).
 
 ## How it works
 
@@ -50,4 +50,4 @@ stock tokens are B20 precompiles, so it needs Foundry 1.8.4 or later: start
 `script/DeployAfterHours.s.sol` deploys the AMZN oracle and the factory (owned by the Governance and
 Regent Safe) and prints the Safe's `createSeries` call for the first AMZNc series; the fork suite's
 `DeployAfterHours.fork.t.sol` rehearses both and runs that series' whole week. Broadcasting is a
-protected action and waits for Sean's go.
+protected action and needs Sean's go.
