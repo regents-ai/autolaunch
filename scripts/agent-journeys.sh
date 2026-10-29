@@ -11,7 +11,7 @@
 # The stack, all on 127.0.0.1 and all started here:
 #   - a copy of Base (Anvil, chain 31337) carrying the v2 contracts as deployed,
 #     with stand-in stock tokens, launches switched on and AMZNc covered calls
-#     and an After-hours Exposure series deployed, on the copy only (test/journeys/support/base_fork.py);
+#     and an Isolated Exposure to After-hours Stocks series deployed, on the copy only (test/journeys/support/base_fork.py);
 #   - a sign-in service (siwa-server at SIWA_SERVER_REV) with a throwaway key store
 #     and its own database;
 #   - Autolaunch in the test environment on its own database, open for launches,

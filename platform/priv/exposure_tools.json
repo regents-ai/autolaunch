@@ -1,10 +1,10 @@
 {
-  "_comment": "After-hours Exposure's browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers them (AUTOLAUNCH_EXPOSURE=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
+  "_comment": "The browser tools for Isolated Exposure to After-hours Stocks. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers them (AUTOLAUNCH_EXPOSURE=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
   "tools": [
     {
       "name": "autolaunch_after_hour_stocks_list",
-      "title": "List After-hours Exposure series",
-      "description": "List every After-hours Exposure series this site offers on Base, newest first, as each stands at the latest block. A series splits one Base stock token for a fixed term into an After-hours token (the stock's moves from each close to the next open) and a Market-hours token (its moves from each open to the close). Each comes with its stock and two tokens (address, symbol, decimals), each token's ledger value in WAD dollars per stock token and its pool quote in micro-USDC, the status (pending, active or ended), the last applied price, the deposit cap and the amount deposited in raw stock units, the schedule of prices (Unix seconds), every applied price with its Chainlink round, the next price to record, and the terms' fingerprint and address. Reads only; needs no sign-in.",
+      "title": "List Isolated Exposure to After-hours Stocks series",
+      "description": "List every Isolated Exposure to After-hours Stocks series this site offers on Base, newest first, as each stands at the latest block. A series splits one Base stock token for a fixed term into an After-hours token (the stock's moves from each close to the next open) and a Market-hours token (its moves from each open to the close). Each comes with its stock and two tokens (address, symbol, decimals), each token's ledger value in WAD dollars per stock token and its pool quote in micro-USDC, the status (pending, active or ended), the last applied price, the deposit cap and the amount deposited in raw stock units, the schedule of prices (Unix seconds), every applied price with its Chainlink round, the next price to record, and the terms' fingerprint and address. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -26,8 +26,8 @@
     },
     {
       "name": "autolaunch_after_hour_stocks_series",
-      "title": "Read an After-hours Exposure series",
-      "description": "Read one After-hours Exposure series on Base at the latest block, in the same shape as each entry of autolaunch_after_hour_stocks_list: its stock and two tokens with their ledger values (WAD dollars per stock token) and pool quotes (micro-USDC), status, last price, cap and deposits (raw stock units), schedule, every applied price and the next one to record. Reads only; needs no sign-in.",
+      "title": "Read an Isolated Exposure to After-hours Stocks series",
+      "description": "Read one Isolated Exposure to After-hours Stocks series on Base at the latest block, in the same shape as each entry of autolaunch_after_hour_stocks_list: its stock and two tokens with their ledger values (WAD dollars per stock token) and pool quotes (micro-USDC), status, last price, cap and deposits (raw stock units), schedule, every applied price and the next one to record. Reads only; needs no sign-in.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -57,8 +57,8 @@
     },
     {
       "name": "autolaunch_my_after_hour_stocks",
-      "title": "Read my After-hours Exposure holding",
-      "description": "Read my person's holding of one After-hours Exposure series on Base, for their signed-in wallet, at the latest block: their After-hours, Market-hours and stock balances and stock allowance to the series, in raw token units, and what they can return now (whole pairs before the series ends, every token after it) with the raw stock it pays. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Read my Isolated Exposure to After-hours Stocks holding",
+      "description": "Read my person's holding of one Isolated Exposure to After-hours Stocks series on Base, for their signed-in wallet, at the latest block: their After-hours, Market-hours and stock balances and stock allowance to the series, in raw token units, and what they can return now (whole pairs before the series ends, every token after it) with the raw stock it pays. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -127,8 +127,8 @@
     },
     {
       "name": "autolaunch_after_hour_stocks_prepare",
-      "title": "Prepare an After-hours Exposure step",
-      "description": "Prepare the wallet steps for one After-hours Exposure action on a Base series: mint (amount: an exact stock approval, then mint), redeem (overnight and session: return tokens for the stock), update (record the next price on the oracle when it is not recorded yet, then apply it to the series; open to anyone, from an hour after the price's time) or end (end a series whose next price can no longer be recorded in time; open to anyone). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "title": "Prepare an Isolated Exposure to After-hours Stocks step",
+      "description": "Prepare the wallet steps for one Isolated Exposure to After-hours Stocks action on a Base series: mint (amount: an exact stock approval, then mint), redeem (overnight and session: return tokens for the stock), update (record the next price on the oracle when it is not recorded yet, then apply it to the series; open to anyone, from an hour after the price's time) or end (end a series whose next price can no longer be recorded in time; open to anyone). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,

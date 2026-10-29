@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureLive do
   @moduledoc """
-  `/after-hour-stocks`: After-hours Exposure on a Base stock. One series at a time, the newest
+  `/after-hour-stocks`: Isolated Exposure to After-hours Stocks on a Base stock. One series at a time, the newest
   unless `?series=<address>` names another the site offers: its two tokens with
   what each is worth now, the prices it has applied, and panels to mint pairs,
   return tokens for the stock, and record the next price. Every figure is read
@@ -117,7 +117,7 @@ defmodule AutolaunchWeb.ExposureLive do
     <article class="exposure">
       <header class="exposure__header">
         <div class="exposure__intro">
-          <h1>After-hours Exposure</h1>
+          <h1>Isolated Exposure to After-hours Stocks</h1>
           <p>
             Split a stock token into two for a week. After-hours carries the stock's moves while
             the market is closed, from each close to the next open. Market-hours carries its moves

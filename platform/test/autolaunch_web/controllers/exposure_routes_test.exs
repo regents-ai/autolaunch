@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureRoutesTest do
   @moduledoc """
-  The After-hours Exposure HTTP routes against a stubbed Base chain: off,
+  The Isolated Exposure to After-hours Stocks HTTP routes against a stubbed Base chain: off,
   every route is an address with nothing at it and nothing advertises them; on,
   the public reads answer anyone, a series' terms are served as the exact bytes
   its fingerprint names, and a paired agent's steps are built only for a wallet
@@ -119,7 +119,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
       assert Enum.any?(@tools, &(&1 in names)) == offered?
       assert "autolaunch_after_hour_stocks_prepare" in operations == offered?
       assert Map.has_key?(paths, "/api/v1/after-hour-stocks/{series}") == offered?
-      assert guide =~ "After-hours Exposure" == offered?
+      assert guide =~ "Isolated Exposure to After-hours Stocks" == offered?
       assert home =~ ~s(/assets/js/exposure.css) == offered?
     end
   end

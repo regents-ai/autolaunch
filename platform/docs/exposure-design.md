@@ -1,4 +1,4 @@
-# After-hours Exposure — design note
+# Isolated Exposure to After-hours Stocks — design note
 
 **Status:** contracts deployed on Base; first series created 29 October 2026; site built, switched off · 29 October 2026
 **Source:** "Isolated Exposure Tokens" (The Standard Reserve, October 2026), Sean's notes and decisions of 28 October 2026
@@ -7,7 +7,7 @@
 
 ## 1. The product
 
-After-hours Exposure splits a stock token into two tokens: one that earns the stock's moves while the
+Isolated Exposure to After-hours Stocks splits a stock token into two tokens: one that earns the stock's moves while the
 market is closed, and one that earns its moves during the trading day. Hold one for a levered
 position on just that window, with no loan and no liquidation; hold both and you simply own the stock.
 

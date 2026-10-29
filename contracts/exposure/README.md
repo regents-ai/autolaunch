@@ -1,4 +1,4 @@
-# After-hours Exposure
+# Isolated Exposure to After-hours Stocks
 
 One Base stock token split, for a fixed term, into an **OVERNIGHT** token (shown to customers as
 After-hours) that carries the stock's close-to-open moves and a **SESSION** token (Market-hours) that

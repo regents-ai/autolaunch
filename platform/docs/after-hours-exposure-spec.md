@@ -1,4 +1,4 @@
-# After-hours Exposure — technical specification
+# Isolated Exposure to After-hours Stocks — technical specification
 
 **Status (29 Oct 2026):** series factory and the pinned-phase price oracle (V2) deployed on Base. The
 Safe created the first series (a capped ~$100 demonstration on AMZNc) from the earlier batch, so it
@@ -17,7 +17,7 @@ is reproduced in the appendix exactly as it is in the repository.
 
 A Base stock token (a Coinbase "B20" tokenized stock such as AMZNc) earns its return in two windows:
 from one close to the next open (nights and weekends), and from the open to the close (the trading
-day). After-hours Exposure splits one stock token, for a fixed term, into two ordinary ERC-20 tokens:
+day). Isolated Exposure to After-hours Stocks splits one stock token, for a fixed term, into two ordinary ERC-20 tokens:
 
 | Customer name | Contract name | Earns one share's dollar move over |
 | --- | --- | --- |

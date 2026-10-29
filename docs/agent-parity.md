@@ -31,7 +31,7 @@ the switch goes on, so the CLI never offers them while the site does not.
 | Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
-## After-hours Exposure
+## Isolated Exposure to After-hours Stocks
 
 Offered only while the site's switch is on (`AUTOLAUNCH_EXPOSURE=true`). Off, no route, tool,
 guide section or command offers them. Every action is one operation in `Autolaunch.Exposure`;

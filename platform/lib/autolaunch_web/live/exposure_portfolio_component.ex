@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposurePortfolioComponent do
   @moduledoc """
-  The portfolio's After-hours Exposure: for each series the site offers, what
+  The portfolio's Isolated Exposure to After-hours Stocks: for each series the site offers, what
   the signed-in wallet holds of its two tokens and what they are worth at the
   series' last price, each read now from the chain
   (`Autolaunch.Exposure.exposure_holdings/3`), with a link to the series'
@@ -60,20 +60,20 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
   def render(assigns) do
     ~H"""
     <section id={@id} class="portfolio__section" aria-labelledby={"#{@id}-title"}>
-      <h2 id={"#{@id}-title"} class="portfolio__title">After-hours Exposure</h2>
+      <h2 id={"#{@id}-title"} class="portfolio__title">Isolated Exposure to After-hours Stocks</h2>
       <p
         :if={@holdings.failed || match?({:error, _}, @holdings.result)}
         class="portfolio__hint"
         role="alert"
       >
-        Your After-hours Exposure tokens couldn't be read just now.
+        Your After-hours and Market-hours tokens couldn't be read just now.
       </p>
       <div :if={@holdings.loading} class="market-list__scroll" aria-busy="true">
         <span class="loading-block"></span>
       </div>
       <div :if={match?({:ok, [_ | _]}, @holdings.result)} class="market-list__scroll">
         <table class="market-list__table exposure__table">
-          <caption class="visually-hidden">Your After-hours Exposure tokens</caption>
+          <caption class="visually-hidden">Your After-hours and Market-hours tokens</caption>
           <thead>
             <tr>
               <th scope="col">Series</th>
@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
         <h2>No tokens yet</h2>
         <p>After-hours and Market-hours tokens you mint or buy appear here.</p>
         <.link navigate={~p"/after-hour-stocks"} class="rg-button rg-button--secondary">
-          After-hours Exposure
+          Mint tokens
         </.link>
       </div>
     </section>
