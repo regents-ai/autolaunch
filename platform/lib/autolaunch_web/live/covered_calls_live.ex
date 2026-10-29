@@ -441,7 +441,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <caption class="visually-hidden">Result at expiry per {@symbol}</caption>
         <tbody>
           <tr :for={{label, price} <- outcomes(@spot)}>
-            <th scope="row">{label} to {F.usd(price)}</th>
+            <th scope="row">{label} {F.usd(price)}</th>
             <td>
               {signed(
                 Terms.payoff(price, @trade.strike, @trade.premium - Terms.fee(@trade.premium), @spot)
@@ -530,9 +530,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   defp outcomes(spot),
     do: [
-      {"Falls 20%", round_cents(spot * 0.8)},
-      {"Unchanged", spot},
-      {"Rises 20%", round_cents(spot * 1.2)}
+      {"Falls 20% to", round_cents(spot * 0.8)},
+      {"Unchanged at", spot},
+      {"Rises 20% to", round_cents(spot * 1.2)}
     ]
 
   defp signed(micro) when micro < 0, do: "−" <> F.usd(-micro)

@@ -43,7 +43,10 @@
 .covered-calls__mini small { color: var(--color-fg-muted); }
 .covered-calls__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
 .covered-calls__more { font-size: .875rem; line-height: 1.5; }
-.covered-calls__more summary { cursor: pointer; font-weight: 600; min-block-size: 2rem; display: flex; align-items: center; }
+.covered-calls__more summary { cursor: pointer; font-weight: 600; min-block-size: 2rem; display: flex; align-items: center; list-style: none; }
+.covered-calls__more summary::-webkit-details-marker { display: none; }
+.covered-calls__more summary::after { content: "+"; margin-inline-start: auto; color: var(--color-fg-muted); font-weight: 400; }
+.covered-calls__more[open] summary::after { content: "−"; }
 .covered-calls__more > :not(summary) { margin: var(--space-1) 0 0; color: var(--color-fg-muted); }
 .covered-calls__use { min-block-size: 2rem; padding-inline: var(--space-2); font-size: .8125rem; }
 .covered-calls__contract dd { min-width: 0; overflow-wrap: anywhere; }
