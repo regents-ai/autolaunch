@@ -1,13 +1,12 @@
 defmodule AutolaunchWeb.Components.AccountControl do
   @moduledoc """
   The account control in the top bar, the template's: Sign in, or the signed-in
-  name, which opens the side panel holding Account and Sign out. auth_lazy.ts
-  drives its `data-account-target` markers; the component itself never
-  authenticates anyone.
+  picture and name, which open the account menu (`Regent.Account.menu`, drawn
+  from the top bar) under the button. The browser opens and closes the menu
+  (`popover`). auth_lazy.ts drives the `data-account-target` markers; the
+  component itself never authenticates anyone.
   """
   use Phoenix.Component
-
-  alias Phoenix.LiveView.JS
 
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
 
@@ -27,10 +26,7 @@ defmodule AutolaunchWeb.Components.AccountControl do
         id="account-chip"
         class="account-chip"
         type="button"
-        aria-controls="shell-aside"
-        aria-expanded="false"
-        data-aside-toggle
-        phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+        popovertarget="account-menu"
       >
         <.account_name account_control={@account_control} />
       </button>

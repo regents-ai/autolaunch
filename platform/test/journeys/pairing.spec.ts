@@ -2,7 +2,7 @@ import {spawnSync} from "node:child_process"
 import {readFileSync, statSync} from "node:fs"
 import {join} from "node:path"
 import {Agent} from "./support/agent"
-import {chooseAgent, codeIn, offered, openPanel, panelToggle, unpair} from "./support/pairing"
+import {chooseAgent, codeIn, offered, openPairing, unpair} from "./support/pairing"
 import {expect, fitsAndPresses, people, ready, signIn, test} from "./support/person"
 
 // Part 1 of the agent test plan: an agent helps its person pair (P1 to P10). The
@@ -11,7 +11,7 @@ import {expect, fitsAndPresses, people, ready, signIn, test} from "./support/per
 
 test.use({wallet: people.a.wallet})
 
-test("P1-P10: an agent signs in, its person pairs it from the side panel, it checks in and works, and is unpaired", async ({page, context}, info) => {
+test("P1-P10: an agent signs in, its person pairs it from their Account page, it checks in and works, and is unpaired", async ({page, context}, info) => {
   const touch = info.project.name === "phone"
   const agent = new Agent(`pair-${info.project.name}`)
   const name = `Journey ${info.project.name} ${agent.address.slice(2, 6)}`
@@ -29,43 +29,37 @@ test("P1-P10: an agent signs in, its person pairs it from the side panel, it che
   answer = agent.autolaunch(["agents", "whoami"])
   expect(answer.status, answer.stderr).toBe(0)
   expect(answer.json.data).toMatchObject({status: "not_paired", pairing: null})
-  expect(answer.json.data.next_step).toContain("Pair New Agent in the side panel")
+  expect(answer.json.data.next_step).toContain("Pair New Agent on their Account page")
   expect(agent.autolaunch(["account", "points"]).json.error.code).toBe("agent_not_paired")
 
-  // P3: the person opens Pair New Agent from the panel on every page they might be on.
+  // P3: the person opens Pair New Agent from the account menu on every page they
+  // might be on, and it takes them to the one pairing box, on their Account page.
   await signIn(page, people.a)
   for (const path of ["/", "/auctions", "/create"]) {
     await page.goto(path)
     await ready(page)
-    await openPanel(page)
-    const choices = await page.locator("#shell-pairing input[name='harness']").evaluateAll(inputs =>
+    await page.locator("#account-chip").click()
+    await page.locator("#account-menu").getByRole("link", {name: "Pair New Agent"}).click()
+    await expect(page).toHaveURL(/\/account#account-pairing$/)
+    const choices = await page.locator("#account-pairing input[name='harness']").evaluateAll(inputs =>
       inputs.map(input => (input as HTMLInputElement).value))
-    expect(choices, `the agents offered on ${path}`).toEqual(offered)
+    expect(choices, `the agents offered after opening it from ${path}`).toEqual(offered)
     await fitsAndPresses(page, touch)
-    // The top bar's button closes it again. (On a fork site the lab line above the
-    // top bar pushes the panel's own close button under the bar: operations/FEATURES.md.)
-    await panelToggle(page).click()
   }
-  await page.goto("/account")
-  await ready(page)
-  expect(await page.locator("#account-agents input[name='harness']").evaluateAll(inputs =>
-    inputs.map(input => (input as HTMLInputElement).value))).toEqual(offered)
 
   // P4: the person picks the agent and copies the message.
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.goto("/auctions")
-  await ready(page)
-  await openPanel(page)
+  await openPairing(page)
   for (const [label, line] of [["Codex", "sandbox"], ["Grok Bot", "public reply"], ["Hermes", "second one"], ["Muse", "SIWA_BROKER"]]) {
-    expect(await chooseAgent(page, "#shell-pairing", label)).toContain(line)
+    expect(await chooseAgent(page, "#account-pairing", label)).toContain(line)
   }
-  const plain = await chooseAgent(page, "#shell-pairing", "Claude Code")
+  const plain = await chooseAgent(page, "#account-pairing", "Claude Code")
   for (const line of ["sandbox", "public reply", "second one", "SIWA_BROKER"]) expect(plain).not.toContain(line)
-  const message = await chooseAgent(page, "#shell-pairing", "Codex")
+  const message = await chooseAgent(page, "#account-pairing", "Codex")
   expect(message).toContain(new URL(process.env.AUTOLAUNCH_URL!).host)
   expect(message).toContain(`${process.env.AUTOLAUNCH_URL}/llms.txt`)
   expect(message).toContain("ten minutes")
-  await page.locator("#shell-pairing [id$='-copy']").click()
+  await page.locator("#account-pairing [id$='-copy']").click()
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(message)
   const code = codeIn(message)
 
@@ -85,8 +79,8 @@ test("P1-P10: an agent signs in, its person pairs it from the side panel, it che
   expect(answer.stdout + answer.stderr).not.toContain(code)
 
   // P7: the open box gives way to the agent's name, with no reload.
-  await expect(page.locator("#shell-pairing")).toContainText(name)
-  await expect(page.locator("#shell-pairing")).not.toContainText(code)
+  await expect(page.locator("#account-pairing")).toContainText(name)
+  await expect(page.locator("#account-pairing")).not.toContainText(code)
 
   // P8: the agent checks in for Person A's account, and the account page shows it.
   answer = agent.autolaunch(["agents", "status"])

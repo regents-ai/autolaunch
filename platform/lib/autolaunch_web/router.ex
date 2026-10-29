@@ -22,7 +22,6 @@ defmodule AutolaunchWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {AutolaunchWeb.Layouts, :root}
     plug AutolaunchWeb.Plugs.Theme
-    plug AutolaunchWeb.Plugs.Panels
     plug :protect_from_forgery
 
     # Browser agents may use the tools the pages register, from this site only.

@@ -17,6 +17,8 @@ import {
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {ImageGradient} from "./hooks/image_gradient"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {MenuAgents} from "./hooks/menu_agents"
+import {PublicName} from "./hooks/public_name"
 import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
 import {installAgentTools} from "./agent_tools"
@@ -31,7 +33,7 @@ import {Toast} from "./motion/toast"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
 import {installShellMenu} from "./shell_menu"
-import {installShellPanels} from "./shell_panels"
+import {arriveAt, installShellPanels} from "./shell_panels"
 import {installTheme} from "./theme"
 import {SiteButtons, SiteLight} from "./hooks/site_buttons"
 import {TradeViews} from "./hooks/trade_views"
@@ -48,8 +50,10 @@ const hooks = {
   ...colocatedHooks,
   AutolaunchSwapDialog,
   ImageGradient,
+  MenuAgents,
   OnchainSteps,
   PriceChart,
+  PublicName,
   XConnections,
   CreatorConnections,
   SearchDialog,
@@ -87,9 +91,18 @@ document.addEventListener("autolaunch:close-dialog", event => {
   if (event.target instanceof HTMLDialogElement) event.target.close()
 })
 installRegentTokenMenu()
-// A page drawn after navigation starts with its panel toggles closed; they follow the panel.
-const shellPanels = installShellPanels()
-window.addEventListener("phx:page-loading-stop", shellPanels.sync)
+installShellPanels()
+// LiveView records a new address only once its page is drawn, so what a #fragment
+// names is reached here, after the page has started at its top; a page opened at a
+// #fragment starts at what it names.
+const arrive = () => {
+  const id = decodeURIComponent(window.location.hash.slice(1))
+  const named = id ? document.getElementById(id) : null
+  if (named) arriveAt(named)
+}
+window.addEventListener("phx:navigate", arrive)
+window.addEventListener("phx:page-loading-stop", arrive)
+arrive()
 installShellMenu()
 installCopyButtons()
 installAgentTools()

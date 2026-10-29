@@ -43,7 +43,7 @@ defmodule AutolaunchWeb.ApiError do
 
   defp hint("agent_not_paired"),
     do:
-      "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
+      "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again."
 
   defp hint("wallet_required"),
     do:

@@ -23,7 +23,8 @@ defmodule Autolaunch.AccessContext do
       kind: :signed_in,
       label: PublicIdentity.label(account),
       avatar_src: PublicIdentity.avatar_src(account),
-      wallet_address: account.wallet_address
+      wallet_address: account.wallet_address,
+      ens_name: PublicIdentity.ens_name(account)
     }
   end
 

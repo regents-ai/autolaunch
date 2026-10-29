@@ -12,7 +12,7 @@
 .autolaunch-heading h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .autolaunch-kicker, .autolaunch-micro { display: block; color: var(--rg-local-ink, var(--color-fg-muted)); font-family: var(--font-family-ui); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
 /* The lab line stays at the top of the screen above the header, at a fixed height
-   (`--shell-lab`, shell/top_bar.css) so the header, the side panel and the phone
+   (`--shell-lab`, shell/top_bar.css) so the header and the phone
    menu open just under it: one line, two on a phone, three on the narrowest
    screens or with large text. A jump to the page or a heading in it stops under both
    (windows drawn over the page scroll on their own); the page's own padding would

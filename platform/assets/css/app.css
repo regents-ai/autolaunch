@@ -42,7 +42,7 @@
 @import "./shell/phone.css";
 
 /* A narrow page: the search's magnifier, then the $REGENT crown, and Sign in (or the
-   account's picture) with the side panel button, on one row. */
+   account's picture), on one row. */
 @media (max-width: 47.99rem) { #home-top .home-top__actions { gap: var(--space-1); } }
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }

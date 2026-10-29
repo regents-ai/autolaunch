@@ -5,65 +5,21 @@
 .x-oauth-sheet { max-inline-size: 42rem; margin-block: var(--space-6); }
 .x-oauth-result a:not(.rg-button) { color: var(--color-link); }
 
-/* The signed-in name opens the side panel, as its own button beside it does. */
+/* The signed-in picture and name open the account menu, which hangs from this button
+   (design-system account.css: `anchor-name: --rg-account-menu`). */
 .account-chip { display: flex; align-items: center; gap: .55rem; min-width: 0; max-width: 14rem; min-height: 2.75rem; padding: .45rem .75rem; border: 1px solid var(--color-border); border-radius: 0; background: transparent; color: var(--color-fg); font: inherit; font-weight: 600; cursor: pointer; user-select: none; }
 .account-avatar { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; border: 1px solid var(--color-border); object-fit: cover; }
 .account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shell-tool { position: relative; display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-fg-muted); cursor: pointer; }
 .shell-icon { width: 1.3rem; height: 1.3rem; }
 @media (hover: hover) { .account-chip:hover, .shell-tool:hover { background: color-mix(in oklch, var(--color-fg) 6%, transparent); color: var(--color-fg); } }
-[data-aside-toggle][aria-expanded="true"] { background: color-mix(in oklch, var(--color-fg) 10%, transparent); color: var(--color-fg); }
+#account-chip { anchor-name: --rg-account-menu; }
+.rg-account-menu__picture img, .rg-account-identity__picture img { object-fit: cover; border: 1px solid var(--color-border); }
+#home-top:has(#account-menu:popover-open) #account-chip { background: color-mix(in oklch, var(--color-fg) 10%, transparent); color: var(--color-fg); }
 :is(.account-chip, .shell-tool):focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
-
-/* On a wide screen the side panel's width slides, and the page beside it gives
-   way smoothly to make room. */
-@property --shell-aside { syntax: "<length>"; inherits: true; initial-value: 0px; }
-.shell { --shell-aside-open: 20rem; --shell-aside: var(--shell-aside-open); transition: --shell-aside var(--duration-slow) var(--ease-out); }
-/* The rail and the page give way; the header above them keeps the whole width. */
-.shell-body { padding-inline-end: var(--shell-aside); }
-/* Closed, or signed out with no side panel at all, it keeps no room. */
-:root:not([data-aside="open"]) .shell, .shell:not(:has(#shell-aside)) { --shell-aside: 0px; }
-/* The header runs over the side panel, which opens under the header's bottom line
-   (design-system STYLE.md, "The side panel opens under the header"), at the
-   template's `--shell-top-end` (shell/top_bar.css), with its right edge at the
-   frame's inner edge, as the header's is. Wider than a phone, the panel stops above
-   the market ticker, which runs along the bottom of every page; on a phone it covers
-   the ticker as it covers the page. It is hidden only once it has slid shut. */
-#shell-aside { position: fixed; inset-block: var(--shell-top-end) 0; inset-inline-end: calc((100% - min(100% - 2 * var(--rg-page-gutter), var(--rg-frame-max))) / 2 + var(--rg-rule-width)); z-index: var(--rg-layer-panel); display: grid; align-content: start; width: var(--shell-aside); padding-inline-end: env(safe-area-inset-right, 0px); overflow: hidden auto; border-inline-start: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-fg); box-shadow: var(--rg-layer-panel-shadow); transition: visibility var(--duration-slow); }
-@media (min-width: 48rem) { body:has(.market-ticker) #shell-aside { inset-block-end: var(--market-ticker-height); } }
-/* Its parts keep their width while it slides, so nothing inside rewraps. */
-#shell-aside > * { min-inline-size: calc(var(--shell-aside-open) - 1px); }
-/* Shown at once on opening, so focus can move into it. */
-:root[data-aside="open"] #shell-aside { transition: none; }
-:root:not([data-aside="open"]) #shell-aside { visibility: hidden; }
-#shell-aside:focus { outline: none; }
-.shell-aside__head { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding-inline-start: 1rem; border-block-end: 1px solid var(--color-border); }
-.shell-aside__head h2 { margin: 0; font-family: var(--font-family-ui); font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
-#shell-aside section { display: grid; gap: .6rem; padding: 1rem; border-block-end: 1px solid var(--color-border); }
-#shell-aside h3 { margin: 0; font-size: .95rem; }
-#shell-aside p { margin: 0; }
-#shell-aside ul { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
-#shell-aside ul a { color: var(--color-link, inherit); }
-.shell-account__name { display: flex; align-items: center; gap: .6rem; min-width: 0; font-weight: 600; }
-.shell-account__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.shell-account__actions .rg-button { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
-
-/* Below a wide screen the side panel slides in over the page's edge. */
-@media (max-width: 63.99rem) {
-  .shell { --shell-aside: 0px; }
-  #shell-aside { width: min(22rem, 100%); transition: transform var(--duration-slow) var(--ease-out), visibility var(--duration-slow); }
-  #shell-aside > * { min-inline-size: 0; }
-  /* Covering the page, it opens only when opened on this page, never on arrival. */
-  :root:not([data-aside="open"]) #shell-aside, :root:not([data-aside-here]) #shell-aside { visibility: hidden; transform: translateX(100%); }
-  :root[data-aside="open"][data-aside-here] #shell-aside { transition: transform var(--duration-slow) var(--ease-out); }
-}
 
 /* Below a wide screen the name gives way to its picture, and with no picture it shortens. */
 @media (max-width: 63.99rem) {
   .account-chip { max-width: 6rem; padding-inline: .5rem; }
   .account-chip .account-avatar + .account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
-/* On phones the side panel takes the whole screen under the header, from the
-   header's bottom line (`--shell-top-end`, shell/top_bar.css). */
-@media (max-width: 47.99rem) { #shell-aside { inset: var(--shell-top-end) 0 0; width: auto; border-inline-start: 0; } }
-@media (prefers-reduced-motion: reduce) { .shell, #shell-aside, :root[data-aside="open"][data-aside-here] #shell-aside { transition: none; } }

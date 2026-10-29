@@ -209,6 +209,11 @@ defmodule AutolaunchWeb.Telemetry do
         tags: [:flow, :reason],
         description: "Wallet sends the browser reported as not made or not confirmed"
       ),
+      counter("health.agent_activity_unread.total",
+        event_name: [:autolaunch, :agents, :activity_unread],
+        tags: [:reason],
+        description: "Agents' activity reads from the sign-in service that gave no reading"
+      ),
       counter("health.page_announcements.total",
         event_name: [:autolaunch, :pages, :announced],
         tags: [:kind],

@@ -61,6 +61,8 @@ of `elixir-utils`, `design-system` or `regents`, and `mix deps.get` fetches them
 a pin, change its ref at the top of `mix.exs` and run `mix deps.update <name>`.
 `make check-required-fixes` from the repository root checks every pin against
 ash-template's list of required fixes (it needs `gh auth login`).
+`make check-siwa-latest` fails unless the site is on the newest regents-cli and its
+`@elixir_utils_ref` contains the newest change to the SIWA library (same login).
 Do not clone recursive Solidity submodules for a web-only change.
 
 Shared dependency versions follow ash-template's tested baseline. Run its

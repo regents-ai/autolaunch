@@ -1,9 +1,9 @@
 defmodule AutolaunchWeb.Components.Credits do
   @moduledoc """
-  The header's Credits button and the Buy Credits window it opens, the
-  template's. Both show only to a signed-in person on a LiveView page
-  (`AutolaunchWeb.Layouts.credits/3`). The browser alone opens and closes the
-  window (`assets/js/shell_panels.ts`), so the server never stores it.
+  The header's Credits button, the account menu's balance row and the Buy Credits
+  window they open, the template's. All show only to a signed-in person on a
+  LiveView page (`AutolaunchWeb.Layouts.credits/3`). The browser alone opens and
+  closes the window (`assets/js/shell_panels.ts`), so the server never stores it.
   """
   use Phoenix.Component
 
@@ -16,8 +16,8 @@ defmodule AutolaunchWeb.Components.Credits do
     doc: "The account and its Credits reading (`AutolaunchWeb.Layouts.credits/3`), or nil."
 
   @doc """
-  The balance, which opens Buy Credits: in the top bar, and on a phone, whose
-  top bar has no room for it, in the side panel instead.
+  The balance, which opens Buy Credits, in the top bar. Narrower than 22.5rem
+  the top bar has no room for it and the account menu shows it (`menu_balance/1`).
   """
   def button(%{credits: nil} = assigns), do: ~H""
 
@@ -33,6 +33,29 @@ defmodule AutolaunchWeb.Components.Credits do
       aria-label={label(@credits.read)}
       phx-hook="MotionCount"
       data-variant="flash"
+    >
+      <.amount read={@credits.read} />
+    </button>
+    """
+  end
+
+  attr :credits, :map, required: true, doc: "As for `button/1`."
+
+  @doc """
+  The balance as the account menu's row, in the header's words, opening the same
+  window; the menu shows it only on the narrowest phones.
+  """
+  def menu_balance(%{credits: nil} = assigns), do: ~H""
+
+  def menu_balance(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id="account-menu-credits"
+      aria-haspopup="dialog"
+      aria-controls="shell-credits"
+      aria-label={label(@credits.read)}
+      data-credits-open
     >
       <.amount read={@credits.read} />
     </button>
@@ -88,13 +111,13 @@ defmodule AutolaunchWeb.Components.Credits do
     assigns = assign(assigns, number: number, unit: unit)
 
     ~H"""
-    <span data-count>{@number}</span> {@unit}
+    <span data-count>{@number}</span> <span class="shell-credits__unit">{@unit}</span>
     """
   end
 
   defp amount(assigns) do
     ~H"""
-    <span data-count>—</span> Credits
+    <span data-count>—</span> <span class="shell-credits__unit">Credits</span>
     """
   end
 end

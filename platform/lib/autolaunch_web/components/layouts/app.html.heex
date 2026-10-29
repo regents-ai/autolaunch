@@ -1,11 +1,26 @@
 <Regent.Structure.frame class="shell">
   <a class="shell-skip" href="#shell-content">Skip to content</a>
   <%!-- As in the template's shell, the header runs the frame's whole width above
-       the rail and the page, and the side panel opens under its bottom line. --%>
+       the rail and the page, and the account menu opens under the account's button. --%>
   <.top_bar
     account_control={@account_control}
     credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
-  />
+  >
+    <:agents :if={menu_account(assigns)}>
+      <.live_component
+        :if={assigns[:socket]}
+        module={AutolaunchWeb.MenuAgents}
+        id="shell-agents"
+        session_lease={@session_lease}
+        account={menu_account(assigns)}
+      />
+      <AutolaunchWeb.MenuAgents.static
+        :if={!assigns[:socket]}
+        id="shell-agents"
+        account={menu_account(assigns)}
+      />
+    </:agents>
+  </.top_bar>
   <Regent.Structure.row class="shell-body">
     <:rail_content>
       <.rail current_path={@current_path} />
@@ -54,19 +69,6 @@
     aria-label="Close navigation"
     tabindex="-1"
   ></Regent.Primitives.button>
-  <AutolaunchWeb.Components.SidePanel.panel
-    account_control={@account_control}
-    credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
-  >
-    <:pairing :if={pairing_account(assigns[:socket], assigns[:access_context])}>
-      <.live_component
-        module={AutolaunchWeb.PairingBox}
-        id="shell-pairing-box"
-        session_lease={@session_lease}
-        account={pairing_account(@socket, @access_context)}
-      />
-    </:pairing>
-  </AutolaunchWeb.Components.SidePanel.panel>
   <AutolaunchWeb.Components.Credits.dialog
     credits={credits(assigns[:socket], assigns[:access_context], assigns[:credits_read])}
     session_lease={assigns[:session_lease]}

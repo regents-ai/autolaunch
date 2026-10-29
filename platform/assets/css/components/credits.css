@@ -279,10 +279,10 @@
   stroke-linecap: round;
 }
 
-/* The Credits balance, which opens Buy Credits: in the top bar, and on a phone
-   in the side panel. It sits here, outside the product layer, so it wins over
-   the site's plain button rules. */
-:is(#home-top, #shell-aside) .shell-credits {
+/* The Credits balance, which opens Buy Credits, in the top bar; narrower than
+   22.5rem the account menu has it instead. It sits here, outside the product
+   layer, so it wins over the site's plain button rules. */
+#home-top .shell-credits {
   display: inline-flex;
   align-items: center;
   gap: 0.25em;
@@ -303,7 +303,7 @@
 }
 
 @media (hover: hover) {
-  :is(#home-top, #shell-aside) .shell-credits:hover {
+  #home-top .shell-credits:hover {
     background: color-mix(in oklch, var(--color-fg) 6%, transparent);
   }
 }

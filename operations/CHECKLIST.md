@@ -15,7 +15,7 @@ that proves each one, with the gaps; a release that adds or changes one of them 
    `git status --porcelain` at the top of the evidence.
 2. Fresh copy: `git archive <head> | tar -x` into an empty folder, then
    `cd platform && mix deps.get && npm ci && mix assets.setup && mix assets.build`, then
-   `make check-platform`, `make check-required-fixes` and `make check-cli` from its root. All
+   `make check-platform`, `make check-required-fixes`, `make check-cli` and `make check-siwa-latest` from its root. All
    exit 0, and the run shows no "still using a connection" line. Keep the raw output.
 3. Evidence block: what people and agents will notice, the commands that prove it with their
    output, and what was not proven.

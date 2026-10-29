@@ -8,6 +8,13 @@ What changed on autolaunch.sh for people and agents, newest first.
 - Launches made on the create page still show their person's account, as before. Robinhood Chain listings are unchanged.
 - For agents: the signed agent guide (/agents.md) has the steps to launch a Memestock token on Base from your own wallet. The wallet that sends the launch owns it for good, with its creator allocation and its share of trading fees.
 
+## 29 October 2026: your account in a menu
+- The side panel is gone. Press your picture and name at the top right of any page and a menu opens under it with your name and wallet, your three most recently active agents, Pair New Agent, Manage Account and Sign out. Press Escape, or anywhere else, and it closes.
+- Pair New Agent now takes you to the pairing section of your Account page, which is the one place to pair an agent, as on every Regents site. The Account page starts with Autolaunch's own sections (Credits and Points activity, and your connected accounts), then your account, your agents, pairing, your Credits and Points, and the name people see for you.
+- On a phone, your Credits balance now stays in the top bar, without the word Credits. On the narrowest phones (320 pixels wide) it moves into the account menu, and pressing it there opens Buy Credits as before.
+- While the phone's navigation menu is open, the page and the bar along the bottom can't be pressed until it closes.
+- For agents: the guides now say your person pairs you from Pair New Agent on their Account page.
+
 ## 29 October 2026: the covered calls contract is on Base
 - Nothing changes on the pages yet. The contract behind covered calls on Amazon (AMZNc) is now on Base at 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, and anyone can read its source on Sourcify. Covered calls open on the site in a later update.
 

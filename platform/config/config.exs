@@ -57,12 +57,13 @@ config :autolaunch, Oban,
 config :regent_agents,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
+  notifications: Autolaunch.Notifications,
   account: {Autolaunch.Agents, :paired_account},
   allowed: %{
     "not_paired" => [
       "Read public auctions, tokens, treasury reports and bid estimates.",
       "Check your status here at any time.",
-      "Pair with the code your person makes with Pair New Agent in the side panel."
+      "Pair with the code your person makes with Pair New Agent on their Account page."
     ],
     "paired" => [
       "Read public auctions, tokens, treasury reports and bid estimates.",
@@ -79,6 +80,7 @@ config :regent_agents,
 config :regent_credits,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
+  notifications: Autolaunch.Notifications,
   ash_domains: [RegentCredits],
   admins: [],
   agent_grants_enabled: false,
