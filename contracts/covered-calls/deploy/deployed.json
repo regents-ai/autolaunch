@@ -33,10 +33,15 @@
   },
   "source_verification": {
     "sourcify": {
-      "status": "match",
+      "status": "match (creation and runtime)",
       "job": "https://sourcify.dev/server/verify-ui/jobs/bc52959b-53f9-43bd-83e9-b888d34dd6d1"
     },
-    "basescan": "pending: needs an Etherscan API key"
+    "basescan": {
+      "status": "verified, exact match",
+      "compiler": "v0.8.26+commit.8a97fa7a",
+      "page": "https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E#code",
+      "verified_by": "Sean, forge verify-contract, 29 October 2026"
+    }
   },
   "explorer": "https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E"
 }
