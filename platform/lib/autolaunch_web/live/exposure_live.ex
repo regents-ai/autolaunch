@@ -86,10 +86,15 @@ defmodule AutolaunchWeb.ExposureLive do
       else: {:noreply, socket}
   end
 
-  def handle_async(:series, {:ok, {_address, {:error, error}}}, socket),
-    do:
-      {:noreply,
-       assign(socket, reading: AsyncResult.failed(socket.assigns.reading, Exposure.reason(error)))}
+  def handle_async(:series, {:ok, {address, {:error, error}}}, socket) do
+    if address == socket.assigns.address,
+      do:
+        {:noreply,
+         assign(socket,
+           reading: AsyncResult.failed(socket.assigns.reading, Exposure.reason(error))
+         )},
+      else: {:noreply, socket}
+  end
 
   def handle_async(:series, {:exit, reason}, socket),
     do: {:noreply, assign(socket, reading: AsyncResult.failed(socket.assigns.reading, reason))}
