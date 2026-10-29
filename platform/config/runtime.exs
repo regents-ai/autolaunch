@@ -13,6 +13,11 @@ if admins = System.get_env("REGENT_CREDITS_ADMINS") do
     admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
 end
 
+# This site's own key for reading what paired agents have done from the sign-in
+# service (RegentAgents.Activity), for the lines under the account menu's agents.
+# Without it those lines stay empty.
+config :regent_agents, :activity_read_token, System.get_env("SIWA_ACTIVITY_READ_TOKEN")
+
 # The Privy application's public verification key, as one PEM block. The
 # session boundary and the shared identity API both verify against it; it is
 # read only from this variable, never from a URL or from a token.
@@ -185,6 +190,12 @@ config :autolaunch, :autolaunch_indexer_chains, indexer_chains
 if database_config do
   config :autolaunch, :database_startup_enabled, true
   config :autolaunch, Autolaunch.Repo, database_config
+
+  unless migrating? do
+    config :autolaunch,
+           Autolaunch.Notifications,
+           Autolaunch.DatabaseConfig.notifications_config!(config_env())
+  end
 end
 
 # Covered calls are offered only on a site switched on with

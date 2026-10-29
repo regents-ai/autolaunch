@@ -8,7 +8,9 @@ defmodule Autolaunch.Chain.Calls do
   batches itself (EIP-7702) sends it to its own address, and a smart account
   (ERC-4337) has a bundler send it to the entry point. So instead of the step's
   target and calldata, the transaction must carry every step's exact target and
-  calldata, in the review's order, on the review's chain. It is the review's
+  calldata, in the review's order, on the review's chain. Each step's calldata is
+  matched without its Base Builder Code suffix (`RegentChain.BuilderCode.call/1`),
+  which a wallet may rewrite to add its own code. It is the review's
   only when it is sent by the review's signer, or names the signer as the smart
   account that ran it. Anything else is no answer about the review
   (`{:error, :not_this_step}`).
@@ -64,7 +66,7 @@ defmodule Autolaunch.Chain.Calls do
     quantity(tx["chainId"]) == chain_id and
       (Address.equal?(tx["from"], signer) or String.contains?(input, bare(signer))) and
       Enum.all?(steps, &(&1.value == "0x0" and String.contains?(input, bare(&1.to)))) and
-      in_order?(input, Enum.map(steps, &bare(&1.data)))
+      in_order?(input, Enum.map(steps, &bare(RegentChain.BuilderCode.call(&1.data))))
   end
 
   # Each step's calldata appears after the one before it.

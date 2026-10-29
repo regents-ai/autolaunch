@@ -35,6 +35,36 @@ defmodule Autolaunch.DatabaseConfig do
 
   def runtime_config!(_environment, _getenv), do: nil
 
+  @doc """
+  The connection the site's listeners share (`Autolaunch.SharedChanges`): the
+  serving login on the database's direct address, which the site already serves
+  through, since a pooler drops `LISTEN`. Nil where the environment names no
+  database (the test environment sets its own).
+  """
+  def notifications_config!(environment, getenv \\ &System.get_env/1) do
+    case runtime_config!(environment, getenv) do
+      nil ->
+        nil
+
+      options ->
+        options
+        |> Keyword.drop([:pool_size, :max_lifetime, :idle_interval, :parameters])
+        |> connection_keys()
+        |> Keyword.merge(
+          auto_reconnect: true,
+          parameters: [application_name: "autolaunch-listen"]
+        )
+    end
+  end
+
+  # Postgrex.Notifications takes connection keys, not the repository's URL.
+  defp connection_keys(options) do
+    case Keyword.pop(options, :url) do
+      {nil, options} -> options
+      {url, options} -> Keyword.merge(Ecto.Repo.Supervisor.parse_url(url), options)
+    end
+  end
+
   def release_config!(getenv \\ &System.get_env/1) do
     require_deployment_role!(getenv)
 

@@ -30,7 +30,7 @@ defmodule Autolaunch.BidSettlementActionsTest do
     assert {:ok, %{steps: [%{step: "exit", data: data, to: to}], facts: facts}} =
              BidSettlementActions.prepare(position.id, context.wallet, context.opts)
 
-    assert data == exit_bid_data()
+    assert data == RegentChain.BuilderCode.append(exit_bid_data())
     assert to == Autolaunch.BidFixture.auction_address()
     assert facts.currency_refunded == "5"
     assert facts.graduated == false
@@ -51,8 +51,8 @@ defmodule Autolaunch.BidSettlementActionsTest do
               facts: facts
             }} = BidSettlementActions.prepare(position.id, context.wallet, context.opts)
 
-    assert exit_data == exit_bid_data()
-    assert claim_data == claim_data()
+    assert exit_data == RegentChain.BuilderCode.append(exit_bid_data())
+    assert claim_data == RegentChain.BuilderCode.append(claim_data())
     assert facts.tokens_claimed == "1200000"
   end
 
@@ -68,7 +68,7 @@ defmodule Autolaunch.BidSettlementActionsTest do
     assert {:ok, %{steps: [%{step: "claim", data: data}]}} =
              BidSettlementActions.prepare(position.id, context.wallet, context.opts)
 
-    assert data == claim_data()
+    assert data == RegentChain.BuilderCode.append(claim_data())
   end
 
   test "the auction's own refusals are the reason nothing is reviewed", context do

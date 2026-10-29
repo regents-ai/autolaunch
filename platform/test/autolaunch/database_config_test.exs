@@ -37,6 +37,32 @@ defmodule Autolaunch.DatabaseConfigTest do
            ]
   end
 
+  test "the listeners share a connection to the direct address with the serving login" do
+    serving =
+      "postgresql://autolaunch-runtime:fixture@direct.dzx6qo6xqzvojpv5.flympg.net/regents_prod"
+
+    listening =
+      DatabaseConfig.notifications_config!(:prod, fn
+        "AUTOLAUNCH_DEPLOYMENT_ROLE" -> "production"
+        "DATABASE_URL" -> serving
+        _ -> nil
+      end)
+
+    # Postgrex.Notifications reads connection keys, never a URL.
+    refute Keyword.has_key?(listening, :url)
+    assert listening[:hostname] == "direct.dzx6qo6xqzvojpv5.flympg.net"
+    assert listening[:database] == "regents_prod"
+    assert listening[:username] == "autolaunch-runtime"
+    assert listening[:password] == "fixture"
+    assert listening[:port] == 5432
+    assert listening[:ssl][:server_name_indication] == ~c"direct.dzx6qo6xqzvojpv5.flympg.net"
+    assert listening[:auto_reconnect]
+    assert listening[:parameters] == [application_name: "autolaunch-listen"]
+
+    for pooled_only <- [:pool_size, :max_lifetime, :idle_interval],
+        do: refute(Keyword.has_key?(listening, pooled_only))
+  end
+
   test "the serving boot connects with the serving login when the app also holds the release login" do
     serving =
       "postgresql://autolaunch-runtime:fixture@direct.dzx6qo6xqzvojpv5.flympg.net/regents_prod"

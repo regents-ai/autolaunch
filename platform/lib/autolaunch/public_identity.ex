@@ -19,6 +19,10 @@ defmodule Autolaunch.PublicIdentity do
 
   def label(_identity), do: "Account"
 
+  @doc "The account's ENS name, if it has one and it is loaded."
+  def ens_name(identity) when is_map(identity), do: present_label(Map.get(identity, :ens_name))
+  def ens_name(_identity), do: nil
+
   # The ENS name's picture, else one generated from the wallet address.
   def avatar_src(identity) when is_map(identity) do
     present_label(Map.get(identity, :ens_avatar_url)) ||

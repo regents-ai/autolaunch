@@ -119,17 +119,17 @@ defmodule AutolaunchWeb.SignInReadTest do
     on_exit(fn -> Application.put_env(:autolaunch, :prelaunch_read_only, previous) end)
 
     {account, conn} = signed_in(conn)
-    {:ok, panel, _html} = live(conn, @page)
+    {:ok, panel, _html} = live(conn, "/account")
     {:ok, revstake, _html} = live(conn, "/create/revstake")
     {:ok, stocks, _html} = live(conn, "/create")
     lose_reads_of(@ens)
 
     # The page keeps showing the account it holds, but makes no pairing code.
     panel
-    |> element("#shell-pairing-box")
+    |> element("#account-pairing-box")
     |> render_change(%{"harness" => "codex"})
 
-    assert has_element?(panel, "#shell-pairing", "A pairing code couldn’t be made right now.")
+    assert has_element?(panel, "#account-pairing", "A pairing code couldn’t be made right now.")
     assert has_element?(panel, "#account-control [data-account-target=profile]")
 
     assert Repo.one(

@@ -9,7 +9,6 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
 .shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
 @media (max-width: 63.99rem) { .shell-body { grid-template-rows: auto 1fr; } }
 /* The page column lays its footer out by its own width (`shell-page`), so
-   opening the side panel beside a page narrows it as a narrower screen would.
    The header above runs the frame's whole width and answers to the screen's. */
 .shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
 .shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
@@ -70,13 +69,15 @@ body:has(.market-ticker) .shell { min-height: calc(100dvh - var(--market-ticker-
    margin leaves the same space before the prism as between the icons themselves. */
 .regent-header-links .theme-control { margin-inline-start: -.25rem; }
 @media (pointer: coarse) { .regent-header-links .theme-control { margin-inline-start: .125rem; } }
-.autolaunch-account-page { display: grid; gap: var(--space-4); }
-.autolaunch-account-profile { display: grid; gap: var(--space-3); }
-.autolaunch-account-profile > * { margin: 0; }
-.autolaunch-account { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; }
-.autolaunch-account dt { color: var(--color-fg-muted); }
-.autolaunch-account dd { margin: 0; overflow-wrap: anywhere; }
-.autolaunch-account__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.autolaunch-account-page { display: grid; gap: var(--space-4); min-width: 0; }
+/* The name on the account card is an address for someone with no chosen name, which keeps to the card's width. */
+.autolaunch-account-page .rg-account-identity__name { min-width: 0; }
+.autolaunch-account-page .rg-account-identity__name h2 { font-size: 1.25rem; line-height: 1.3; overflow-wrap: anywhere; }
+/* On the narrowest phones the picture sits over the name, so an address fits beside nothing. */
+@media (max-width: 22.49rem) {
+  .autolaunch-account-page .rg-account-identity__who { flex-wrap: wrap; row-gap: var(--space-2); }
+  .autolaunch-account-page .rg-account-identity__name { flex: 1 1 100%; }
+}
 .autolaunch-account-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .autolaunch-account-balances > * { min-width: 0; }
 @media (max-width: 42rem) { .autolaunch-account-balances { grid-template-columns: minmax(0, 1fr); } }

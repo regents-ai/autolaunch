@@ -261,8 +261,10 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     assert approve["to"] == @usdc and buy["to"] == @contract
 
     assert buy["data"] ==
-             LabAbi.selector("fill(uint256,uint256)") <>
-               BaseRpcStub.hex_word(1) <> BaseRpcStub.hex_word(@token)
+             RegentChain.BuilderCode.append(
+               LabAbi.selector("fill(uint256,uint256)") <>
+                 BaseRpcStub.hex_word(1) <> BaseRpcStub.hex_word(@token)
+             )
 
     assert prepared["data"]["facts"]["premium"] == 5_000_000
 

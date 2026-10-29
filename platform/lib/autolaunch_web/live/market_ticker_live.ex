@@ -27,6 +27,8 @@ defmodule AutolaunchWeb.MarketTickerLive do
       :if={@entries != []}
       class={["market-ticker", @paused && "market-ticker--paused"]}
       aria-label="Recent bids and trades"
+      data-shell-behind-menu
+      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["inert"])}
     >
       <button
         type="button"

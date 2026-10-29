@@ -2,7 +2,8 @@
 // platform/assets/js/app.ts). The top bar's Menu button opens it; its Close
 // navigation bar, the dimmed page beside it, Escape, a link inside it and a
 // move to another page close it, and focus goes back to the Menu button. While
-// it is open, Tab stays inside it and the page behind is inert.
+// it is open, Tab stays inside it and the page behind, its footer and the market
+// ticker along the bottom (all marked `data-shell-behind-menu`) are inert.
 //
 // Its state lives on <html data-menu>, outside what LiveView draws, so a page
 // update never shuts it; the page behind carries `inert`, which LiveView keeps
@@ -98,6 +99,11 @@ export function installShellMenu() {
   window.addEventListener("phx:page-loading-start", closeQuietly)
   window.addEventListener("phx:page-loading-stop", sync)
   window.addEventListener("pageshow", closeQuietly)
+  // The market ticker draws only while there are bids or trades to show, so one
+  // appearing under an open menu is made inert as it arrives.
+  new MutationObserver(() => {
+    if (menuOpen()) sync()
+  }).observe(document.body, {childList: true, subtree: true})
   phone.addEventListener("change", closeQuietly)
   sync()
 }

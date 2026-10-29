@@ -47,12 +47,15 @@ defmodule Autolaunch.Application do
          hooks: [hook(module: Cachex.Limit.Scheduled, args: {1_000, [], []})]},
         id: Autolaunch.DexScreener.cache()
       ),
+      # Each paired agent's reading for an open account menu.
+      Supervisor.child_spec({Cachex, name: Autolaunch.Agents.ActivityReading.cache()},
+        id: Autolaunch.Agents.ActivityReading.cache()
+      ),
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       # After the repository and PubSub: a Credits balance changed, or an agent
-      # paired or unpaired, on any Regent site reaches the Account page.
-      RegentCredits.Listener,
-      RegentAgents.Listener,
+      # paired or unpaired, on any Regent site reaches the pages showing it.
+      Autolaunch.SharedChanges,
       # The figures every visitor sees alike, and their measurements. Before the
       # chain heads that keep them and the endpoint whose pages read them.
       Autolaunch.SharedReading,

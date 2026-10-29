@@ -2,6 +2,13 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: your account in a menu
+- The side panel is gone. Press your picture and name at the top right of any page and a menu opens under it with your name and wallet, your three most recently active agents, Pair New Agent, Manage Account and Sign out. Press Escape, or anywhere else, and it closes.
+- Pair New Agent now takes you to the pairing section of your Account page, which is the one place to pair an agent, as on every Regents site. The Account page starts with Autolaunch's own sections (Credits and Points activity, and your connected accounts), then your account, your agents, pairing, your Credits and Points, and the name people see for you.
+- On a phone, your Credits balance now stays in the top bar, without the word Credits. On the narrowest phones (320 pixels wide) it moves into the account menu, and pressing it there opens Buy Credits as before.
+- While the phone's navigation menu is open, the page and the bar along the bottom can't be pressed until it closes.
+- For agents: the guides now say your person pairs you from Pair New Agent on their Account page.
+
 ## 29 October 2026: browser agents can use the site's tools in Chrome
 - Nothing changes on the pages. Every page of autolaunch.sh now takes part in Chrome's WebMCP trial, so an agent in Chrome can find and use the tools the pages offer (auction lists, token details and the rest) without a special browser setting. The trial runs until 29 March 2027.
 

@@ -1,7 +1,7 @@
 /* The header, as the template's: one row of a fixed height across the frame's
    whole width, above the rail and the page. It stays at the top of the screen and
    carries the frame's top line, so its bottom line never moves; the phone menu,
-   its backdrop and the side panel open there (`--shell-top-end`). On a lab site the
+   and its backdrop open there (`--shell-top-end`). On a lab site the
    lab line stays above it (`--shell-lab`, pages/autolaunch.css), and the header and
    everything that opens under it move down by that line's height. */
 :root {

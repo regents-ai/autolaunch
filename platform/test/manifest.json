@@ -1,5 +1,5 @@
 {
-  "total": 154,
+  "total": 159,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -53,7 +53,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 8,
@@ -66,20 +66,20 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 9,
       "group": "Money and reviewed funding conditions",
       "framework": "exunit",
       "file": "test/autolaunch/bid_actions_test.exs",
-      "line": 182,
+      "line": 184,
       "test_name": "tick boundaries, clearing floor, cap and huge precision use exact integer bounds",
       "keep_because": "Price floors, caps, tick boundaries and integer overflow are enforced without floating-point arithmetic.",
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 10,
@@ -92,7 +92,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 11,
@@ -105,7 +105,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 12,
@@ -118,7 +118,7 @@
       "generated_case": null,
       "original_file": "test/autolaunch/bid_actions_test.exs",
       "original_source_sha256": "71e9d484ded36a74ebcb1fd3eefc24446530fa01c96b4f4f99565b4f9ebc7a8d",
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 25,
@@ -229,13 +229,13 @@
       "group": "Money and reviewed funding conditions",
       "framework": "exunit",
       "file": "test/autolaunch/bid_actions_test.exs",
-      "line": 220,
+      "line": 222,
       "test_name": "LONG_STORED_PRICE: a bid estimate reads the whole stored price, never zero, and states it so a bid at it reaches it",
       "keep_because": "A stored clearing price longer than 34 digits is read whole, so a bid below it is never estimated as buying now (live finding, 13 Oct 2026).",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "1d5717193e2478da28ce9f0f2971c822d575e822fe76cada3be55db3629faba1"
+      "source_sha256": "2e121ec9bb3746111537f7b8067572078f0c36043fecc4d00e2772caabe9b95c"
     },
     {
       "id": 46,
@@ -365,7 +365,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
     },
     {
       "id": 145,
@@ -378,7 +378,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
     },
     {
       "id": 56,
@@ -905,13 +905,13 @@
       "group": "Deploys",
       "framework": "exunit",
       "file": "test/autolaunch/database_config_test.exs",
-      "line": 39,
+      "line": 66,
       "test_name": "the serving boot connects with the serving login when the app also holds the release login",
       "keep_because": "The serving app holds both logins once the deploy runs the migrations, and the web boot must still connect with the serving login. It fails while the web boot refused any app holding DATABASE_DIRECT_URL.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "6a0908ce268ef9b9fd10e25e9ca9531be1c62622ea4412edce31c53b4f475405"
+      "source_sha256": "02cf89260b5a085b444c911eefc184567f95e299d838a15bc42c1166a3ab59ca"
     },
     {
       "id": 109,
@@ -1535,7 +1535,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 158,
@@ -1548,7 +1548,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 159,
@@ -1561,7 +1561,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 160,
@@ -1574,7 +1574,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 161,
@@ -1587,7 +1587,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 162,
@@ -1600,7 +1600,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 163,
@@ -1912,7 +1912,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "5fb30cbb77687ddbd8d06a95d45ff48a6d9b6894bc4f9dddf401ff56ca50c9ca"
+      "source_sha256": "0a6e271bdab8eb9e89c18b01798036a941c78aba48f63be3de588312f967f7cb"
     },
     {
       "id": 187,
@@ -1932,13 +1932,13 @@
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "test/autolaunch_web/live/account_live_test.exs",
-      "line": 83,
+      "line": 88,
       "test_name": "PAIRING_CODE_KEPT_PER_AGENT",
       "keep_because": "The pairing box made a new code on every agent choice, so choosing one agent, then another, then the first again showed a third code and the message already pasted to the first agent no longer matched the screen (27 Oct 2026). The case fails if coming back to an agent shows a different code while its code is still in time, or if \"Make a new code\" for one agent changes another agent's code.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "249346f144f9cc76586a57c65624b137fad1c9f2508aaa6739e93d7538973c35"
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
     },
     {
       "id": 190,
@@ -2004,6 +2004,71 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "8062ac3b708ef18056ba46f1ebe9ebe24556a2cbd45cec8aeba140f66af9e936"
+    },
+    {
+      "id": 195,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/account_live_test.exs",
+      "line": 125,
+      "test_name": "ACCOUNT_MENU_ON_EVERY_PAGE",
+      "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent link does not lead to #account-pairing, or if the Account page has the pairing box twice or puts this site's sections after the shared ones.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+    },
+    {
+      "id": 196,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/menu_agents_test.exs",
+      "line": 11,
+      "test_name": "the menu shows the three most recently active agents",
+      "keep_because": "Whatever the readings, the menu shows at most three agents, none left out more recently active than one shown, every active one before the rest, and the rest newest paired first.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8cbf9458281780d8218e36845d1ba537bac5e525fe3357d1a9a9c7b0d5c3be6f"
+    },
+    {
+      "id": 197,
+      "group": "Deploys",
+      "framework": "exunit",
+      "file": "test/autolaunch/database_config_test.exs",
+      "line": 40,
+      "test_name": "the listeners share a connection to the direct address with the serving login",
+      "keep_because": "The shared Credits and agent listeners need one connection with connection keys (never a URL) on the direct address with the serving login; a pooled address drops LISTEN and the account menu and pages stop hearing agent and Credits changes.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "02cf89260b5a085b444c911eefc184567f95e299d838a15bc42c1166a3ab59ca"
+    },
+    {
+      "id": 198,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_pictures_test.exs",
+      "line": 10,
+      "test_name": "every agent kind draws its picture",
+      "keep_because": "Pairings are shared across Regent sites, so an agent paired anywhere shows in every site's account menu and Account page; an agent kind without a picture in the design system raised wherever the person's agents were drawn.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e87c1f97e856ecf17ec66a4ba301bfdb3409bb3929d86dc20ad71bfb29f8935b"
+    },
+    {
+      "id": 199,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_ticker_live_test.exs",
+      "line": 9,
+      "test_name": "MARKET_TICKER_BEHIND_MENU",
+      "keep_because": "The bar along the bottom must be marked as part of what the open phone menu makes inert; it draws only with bids or trades to show, so a missing mark stays hidden until a person finds a pressable bar beside the open menu.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f3fa33768852951a22961593693d07ce3a266c5aaa6e02cdb229cba5719655e3"
     }
   ],
   "legacy_folders_to_remove": [

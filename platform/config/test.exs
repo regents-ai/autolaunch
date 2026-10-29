@@ -86,6 +86,15 @@ config :autolaunch, Autolaunch.Repo,
       else: Ecto.Adapters.SQL.Sandbox
     )
 
+# The listeners' own connection (Autolaunch.SharedChanges), on the same database.
+config :autolaunch, Autolaunch.Notifications,
+  username: System.get_env("USER"),
+  password: nil,
+  hostname: "127.0.0.1",
+  port: 5432,
+  database: "autolaunch#{System.get_env("MIX_TEST_PARTITION")}_test",
+  auto_reconnect: true
+
 config :ash, :missed_notifications, :ignore
 
 config :autolaunch,

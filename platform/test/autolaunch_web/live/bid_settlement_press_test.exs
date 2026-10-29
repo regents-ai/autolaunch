@@ -77,7 +77,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
     render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "settle"})
 
     assert_reply(view, %{send: "exit", review: %{steps: [%{step: "exit", data: data}]}})
-    assert data == exit_bid_data()
+    assert data == RegentChain.BuilderCode.append(exit_bid_data())
   end
 
   defp position!(%{auction: auction, wallet: wallet}) do
