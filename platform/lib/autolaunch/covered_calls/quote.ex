@@ -32,16 +32,24 @@ defmodule Autolaunch.CoveredCalls.Quote do
          strike_per_token: strike_per_token,
          expiry: expiry,
          volatility: @volatility,
-         suggested_premium_per_token:
-           Terms.suggested_premium(spot, strike_per_token, expiry, book.now, @volatility),
+         suggested_premium_per_token: premium(spot, strike_per_token, expiry, book.now),
          price_updated_at: book.price.updated_at
        }}
     end
   end
 
-  defp spot(%{price: %{answer: answer, updated_at: updated_at}, now: now})
-       when now - updated_at <= @stale_s,
-       do: {:ok, div(answer, @feed_to_usdc)}
+  @doc """
+  The reference price per whole token in a book reading (USDC, 6 decimals), or
+  `:price_unavailable` when the feed did not answer or is older than four days.
+  """
+  @spec spot(map()) :: {:ok, pos_integer()} | {:error, :price_unavailable}
+  def spot(%{price: %{answer: answer, updated_at: updated_at}, now: now})
+      when now - updated_at <= @stale_s,
+      do: {:ok, div(answer, @feed_to_usdc)}
 
-  defp spot(_book), do: {:error, :price_unavailable}
+  def spot(_book), do: {:error, :price_unavailable}
+
+  @doc "The suggested premium per whole token at `strike` for `expiry`, from `spot`."
+  def premium(spot, strike, expiry, now),
+    do: Terms.suggested_premium(spot, strike, expiry, now, @volatility)
 end

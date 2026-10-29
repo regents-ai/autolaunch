@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Chain, Deployment, Terms}
+  alias Autolaunch.CoveredCalls.{Chain, Deployment, Quote, Terms}
   alias AutolaunchWeb.CoveredCallComponent
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias AutolaunchWeb.NotFoundError
@@ -26,13 +26,20 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def mount(_params, _session, socket) do
     with true <- Deployment.enabled?(),
-         {:ok, %{markets: [market | _]}} <- Deployment.current() do
+         {:ok, %{chain_id: chain_id, markets: [market | _]}} <- Deployment.current() do
       if connected?(socket), do: Phoenix.PubSub.subscribe(Autolaunch.PubSub, topic(market))
 
       {:ok,
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/covered-calls"))
-       |> assign(market: market, book: AsyncResult.loading(), tab: :buy, selected: nil, done: nil)
+       |> assign(
+         market: market,
+         chain_id: chain_id,
+         book: AsyncResult.loading(),
+         tab: :buy,
+         selected: nil,
+         done: nil
+       )
        |> read_book()}
     else
       _off -> raise NotFoundError
@@ -51,7 +58,13 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     {:noreply, assign(socket, tab: tab, selected: selected)}
   end
 
-  def handle_event("refresh", _params, socket), do: {:noreply, read_book(socket)}
+  # The Refresh press asks every reader of the chain to read again, so the
+  # shared book is taken anew unless it was taken in the last ten seconds.
+  def handle_event("refresh", _params, socket) do
+    Autolaunch.ChainRefresh.request(socket.assigns.chain_id)
+    {:noreply, read_book(socket)}
+  end
+
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
   # A press landed here: every open page of this market reads it again.
@@ -177,6 +190,13 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             </tbody>
           </table>
         </div>
+        <p
+          :if={@reading && @selected && !Enum.any?(@open, &(&1.id == @selected))}
+          class="covered-calls__note"
+          role="status"
+        >
+          Listing {@selected} isn't for sale now: it has sold out, passed its expiry or stopped selling.
+        </p>
         <.buy_panel
           :for={listing <- @open}
           :if={@selected == listing.id}
@@ -278,14 +298,20 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   # Suggested premiums for the next expiry at a few strikes above the reference
   # price, and what a seller ends with at expiry for the middle one.
-  defp suggestions(%{reading: %{price: %{answer: answer}} = reading} = assigns) do
-    spot = div(answer, 100)
+  defp suggestions(%{reading: reading} = assigns) do
+    case Quote.spot(reading) do
+      {:ok, spot} -> suggested(assign(assigns, spot: spot))
+      {:error, :price_unavailable} -> no_suggestion(assigns)
+    end
+  end
+
+  defp suggested(%{reading: reading, spot: spot} = assigns) do
     expiry = hd(Terms.expiries(reading.now))
 
     rows =
       for percent <- @suggested_strikes do
         strike = round_cents(spot * (100 + percent) / 100)
-        premium = Terms.suggested_premium(spot, strike, expiry, reading.now, 0.30)
+        premium = Quote.premium(spot, strike, expiry, reading.now)
         %{percent: percent, strike: strike, premium: premium}
       end
 
@@ -295,7 +321,6 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       assign(assigns,
         rows: rows,
         expiry: expiry,
-        spot: spot,
         middle: middle,
         outcomes: [
           {"Falls 20%", round_cents(spot * 0.8)},
@@ -326,22 +351,31 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <tbody>
           <tr :for={{label, price} <- @outcomes}>
             <th scope="row">{label} to {F.usd(price)}</th>
-            <td>{signed(Terms.payoff(price, @middle.strike, @middle.premium, @spot))}</td>
+            <td>
+              {signed(
+                Terms.payoff(
+                  price,
+                  @middle.strike,
+                  @middle.premium - Terms.fee(@middle.premium),
+                  @spot
+                )
+              )}
+            </td>
           </tr>
         </tbody>
       </table>
       <p class="covered-calls__note">
-        Against today's price, premium included. Above the strike your {@symbol} is sold at the
-        strike; below it you keep your {@symbol}.
+        Against today's price, with the premium after the 1% fee. Above the strike your {@symbol} is sold at the strike; below it you keep your {@symbol}.
       </p>
     </div>
     """
   end
 
-  defp suggestions(assigns) do
+  defp no_suggestion(assigns) do
     ~H"""
     <p class="covered-calls__note">
-      No suggested premium right now: the reference price hasn't updated recently.
+      No suggested premium right now: the reference price couldn't be read or is more than
+      four days old.
     </p>
     """
   end

@@ -59,7 +59,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
          {:ok, stock} <- Chain.funds(market.stock, signer, market.contract, block, opts) do
       blocked =
         cond do
-          effective_at > block.timestamp and effective_at < expiry + Terms.exercise_window() ->
+          Terms.corporate_action?(effective_at, expiry, block.timestamp) ->
             :corporate_action
 
           stock.balance < amount ->
@@ -104,16 +104,29 @@ defmodule Autolaunch.CoveredCalls.Steps do
     with {:ok, amount} <- positive(request[:amount]),
          {:ok, listing} <- listing(market, request, block, opts),
          {:ok, unit} <- Chain.unit(market, block, opts),
+         {:ok, effective_at} <- Chain.effective_at(market, block, opts),
          {:ok, usdc} <- usdc(market, signer, block, opts) do
       premium = Terms.usdc_for(amount, listing.premium_per_token, unit)
 
       blocked =
         cond do
-          block.timestamp >= listing.expiry -> :fills_closed
-          Terms.available(listing) < amount -> :sold_out
-          usdc.balance < premium -> :not_enough_usdc
-          usdc.allowance < premium -> :approve_first
-          true -> nil
+          block.timestamp >= listing.expiry ->
+            :fills_closed
+
+          Terms.corporate_action?(effective_at, listing.expiry, block.timestamp) ->
+            :corporate_action
+
+          Terms.available(listing) < amount ->
+            :sold_out
+
+          usdc.balance < premium ->
+            :not_enough_usdc
+
+          usdc.allowance < premium ->
+            :approve_first
+
+          true ->
+            nil
         end
 
       {:ok,

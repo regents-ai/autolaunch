@@ -173,10 +173,30 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
              prepare(context, :collect_strike, %{listing_id: 1})
   end
 
-  test "a listing the contract does not hold is refused", context do
-    chain(%{listing: listing(%{seller: "0x0000000000000000000000000000000000000000"})})
-    assert {:error, error} = prepare(context, :claim, %{listing_id: 9})
-    assert CoveredCalls.reason(error) == :unknown_listing
+  test "a listing the contract does not hold is refused as unknown, not as a chain failure",
+       context do
+    chain(%{})
+
+    for kind <- [:fill, :cancel, :exercise, :claim, :collect_strike] do
+      assert {:error, error} = prepare(context, kind, %{listing_id: 2, amount: @unit})
+      assert CoveredCalls.reason(error) == :unknown_listing
+    end
+  end
+
+  test "buying is held back while a split or dividend is scheduled before the window closes",
+       context do
+    chain(%{effective_at: @now + 3_600, usdc_balance: 100_000_000, usdc_allowance: 100_000_000})
+
+    assert {:ok, %{blocked: :corporate_action}} =
+             prepare(context, :fill, %{listing_id: 1, amount: @unit})
+
+    chain(%{
+      effective_at: @expiry + 2 * 86_400,
+      usdc_balance: 100_000_000,
+      usdc_allowance: 100_000_000
+    })
+
+    assert {:ok, %{blocked: nil}} = prepare(context, :fill, %{listing_id: 1, amount: @unit})
   end
 
   test "steps are only ever for a wallet of the acting account", context do

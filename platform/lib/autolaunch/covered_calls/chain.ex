@@ -74,24 +74,23 @@ defmodule Autolaunch.CoveredCalls.Chain do
          do: {:ok, Map.put(position, :listing_id, listing.id)}
   end
 
-  @doc "One listing at `block`, or `:unknown_listing` when the contract has none by that id."
+  @doc """
+  One listing at `block`, or `:unknown_listing` when the contract has none by
+  that id (ids count from 1 to `listingCount`; the contract refuses any other).
+  """
   def listing(market, id, block, opts) do
-    case Rpc.call_words(
-           market.contract,
-           Call.encode("listings(uint256)", [id]),
-           block,
-           @listing_words,
-           opts
-         ) do
-      {:ok, words} ->
-        case listing(id, words) do
-          %{seller: "0x0000000000000000000000000000000000000000"} -> {:error, :unknown_listing}
-          listing -> {:ok, listing}
-        end
-
-      {:error, _reason} = error ->
-        error
-    end
+    with {:ok, count} <-
+           Rpc.call_uint(market.contract, Call.encode("listingCount()", []), block, opts),
+         true <- id <= count || {:error, :unknown_listing},
+         {:ok, words} <-
+           Rpc.call_words(
+             market.contract,
+             Call.encode("listings(uint256)", [id]),
+             block,
+             @listing_words,
+             opts
+           ),
+         do: {:ok, listing(id, words)}
   end
 
   @doc "What `wallet` may exercise and claim on listing `id`, at `block`."

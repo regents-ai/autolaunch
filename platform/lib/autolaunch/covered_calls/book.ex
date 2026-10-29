@@ -30,9 +30,12 @@ defmodule Autolaunch.CoveredCalls.Book do
   @spec read(String.t()) :: {:ok, map()} | {:error, atom()}
   def read(symbol), do: GenServer.call(__MODULE__, {:read, symbol}, @read_timeout)
 
-  @doc "Drops `symbol`'s reading, so the next read takes a new one."
+  @doc """
+  Drops `symbol`'s reading, so the next read takes a new one. It never waits,
+  even while a reading is being taken.
+  """
   @spec expire(String.t()) :: :ok
-  def expire(symbol), do: GenServer.call(__MODULE__, {:expire, symbol}, @read_timeout)
+  def expire(symbol), do: GenServer.cast(__MODULE__, {:expire, symbol})
 
   @impl Autolaunch.ChainRefresh
   def refresh(chain_id) do
@@ -55,9 +58,9 @@ defmodule Autolaunch.CoveredCalls.Book do
      end)}
   end
 
-  @impl GenServer
-  def handle_call({:expire, symbol}, _from, kept), do: {:reply, :ok, Map.delete(kept, symbol)}
+  def handle_cast({:expire, symbol}, kept), do: {:noreply, Map.delete(kept, symbol)}
 
+  @impl GenServer
   def handle_call({:read, symbol}, _from, kept) do
     case kept do
       %{^symbol => {reading, read_at}} ->

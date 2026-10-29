@@ -3,10 +3,14 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   The portfolio's covered calls: for each market, the calls the signed-in
   wallet sold (with Stop selling, Collect USDC and Collect stock) and the calls
   it holds (with Exercise and Collect stock), each read now from the contract
-  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Each action the
-  listing allows now is its own wallet panel under the row, so every button
-  there reviews its action. The page re-reads it with
-  `send_update(id: ..., read: true)` after a press lands, and hands it what a
+  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Every action of the
+  wallet's side of a listing is its own wallet panel under the row, so every
+  button there reviews its action, and is disabled, with the reason beside
+  it, only while the chain makes it certain to fail (before Friday's close,
+  Exercise says when it opens). A listing with nothing left to do for this
+  wallet shows no buttons. The page re-reads it with
+  `send_update(id: ..., read: true)` after a press lands, when its Refresh is
+  pressed and when a listing's expiry or window closes, and hands it what a
   confirmed action moved with `send_update(id: ..., done: done)`.
   """
   use AutolaunchWeb, :live_component
@@ -20,7 +24,9 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   @impl true
   def mount(socket),
-    do: {:ok, assign(socket, positions: AsyncResult.loading(), read_for: nil, done: nil)}
+    do:
+      {:ok,
+       assign(socket, positions: AsyncResult.loading(), read_for: nil, done: nil, next_read: nil)}
 
   @impl true
   def update(%{read: true}, socket), do: {:ok, read(socket)}
@@ -39,7 +45,11 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   @impl true
   def handle_async(:positions, {:ok, markets}, socket),
-    do: {:noreply, assign(socket, positions: AsyncResult.ok(socket.assigns.positions, markets))}
+    do:
+      {:noreply,
+       socket
+       |> assign(positions: AsyncResult.ok(socket.assigns.positions, markets))
+       |> read_at_next_change(markets)}
 
   def handle_async(:positions, {:exit, reason}, socket),
     do:
@@ -53,6 +63,34 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
       Enum.map(markets, &read_market(&1, actor))
     end)
+  end
+
+  # A listing changes what it allows at its expiry and when its window
+  # closes, with no press on the chain: the section reads again just after
+  # the next of those times among the wallet's own listings (the page passes
+  # `:read_again` back as `read: true`).
+  defp read_at_next_change(socket, markets) do
+    if socket.assigns.next_read, do: Process.cancel_timer(socket.assigns.next_read)
+
+    wait =
+      markets
+      |> Enum.flat_map(fn
+        {_symbol, {:ok, positions}} -> waits(positions)
+        {_symbol, {:error, _reason}} -> []
+      end)
+      |> Enum.min(fn -> nil end)
+
+    assign(socket, next_read: wait && Process.send_after(self(), :read_again, (wait + 5) * 1_000))
+  end
+
+  defp waits(%{book: book, holdings: holdings, sold: sold, now: now}) do
+    mine = MapSet.new(Enum.map(sold, & &1.id) ++ Enum.map(holdings, & &1.listing_id))
+
+    for %{id: id, expiry: expiry} <- book.listings,
+        MapSet.member?(mine, id),
+        at <- [expiry, expiry + Terms.exercise_window()],
+        at > now,
+        do: at - now
   end
 
   defp read_market(market, actor) do
@@ -197,23 +235,18 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   defp status(_side, :closed, _listing, _holding), do: "Closed"
 
-  defp actions(:sold, stage, listing, holding, claimable) do
-    [
-      (stage == :exercise and holding != nil and holding.held > 0) && :exercise,
-      (stage in [:open, :sold, :exercise] and Terms.available(listing) > 0 and
-         not listing.stock_returned) &&
-        :cancel,
-      Terms.strike_due(listing) > 0 && :collect_strike,
-      claimable > 0 && :claim
-    ]
-    |> Enum.filter(& &1)
-  end
+  # Every action of the wallet's side of a listing, each disabled with its
+  # reason while the chain makes it certain to fail, until the listing has
+  # nothing left for this wallet: closed, nothing to claim, no strike to
+  # collect and, for a buyer, the calls lapsed.
+  defp actions(side, :closed, listing, _holding, 0)
+       when side == :held or listing.strike_paid == listing.strike_collected,
+       do: []
 
-  defp actions(:held, stage, _listing, holding, claimable) do
-    [
-      (stage == :exercise and holding.held > 0) && :exercise,
-      claimable > 0 && :claim
-    ]
-    |> Enum.filter(& &1)
-  end
+  defp actions(:sold, _stage, _listing, holding, _claimable),
+    do:
+      if(holding && holding.held > 0, do: [:exercise], else: []) ++
+        [:cancel, :collect_strike, :claim]
+
+  defp actions(:held, _stage, _listing, _holding, _claimable), do: [:exercise, :claim]
 end

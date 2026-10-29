@@ -63,6 +63,9 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
 
   @doc "Answers with the refusal named `reason`."
   def refuse(conn, reason) do
+    # Every other reason is a chain read that went wrong (a malformed answer,
+    # the wrong chain), which the agent hears as the chain being unavailable.
+    reason = if Map.has_key?(@refusals, reason), do: reason, else: :chain_unavailable
     {status, message} = Map.fetch!(@refusals, reason)
     ApiError.send(conn, status, Atom.to_string(reason), message)
   end

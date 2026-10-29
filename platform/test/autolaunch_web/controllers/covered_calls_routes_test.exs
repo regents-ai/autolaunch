@@ -304,6 +304,14 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
            |> json_response(422)
            |> code() == "invalid_request"
 
+    assert steps.(%{"kind" => "fill", "listing_id" => 9, "amount" => 1})
+           |> json_response(404)
+           |> code() == "unknown_listing"
+
+    assert steps.(%{"kind" => "fill", "listing_id" => 1, "amount" => 2 ** 256})
+           |> json_response(422)
+           |> code() == "invalid_request"
+
     chain(%{balance: 10 * @token, allowance: 0})
 
     listed =

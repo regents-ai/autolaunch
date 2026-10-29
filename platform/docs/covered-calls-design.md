@@ -157,6 +157,9 @@ function claimable(uint256 listingId, address account) external view returns (ui
   read set).
 - An instant (unscheduled) multiplier change cannot be detected. Prices are per raw unit, so the
   terms keep their value; pages show share-equivalents at the current multiplier.
+- Reads grow with the listings ever made: a book costs one read per listing and a wallet's
+  positions three, eight at a time. Nothing is pruned, since an old listing can still owe stock.
+  Cheap for months at a weekly pace; an event ledger replaces it if listings ever run to thousands.
 - All listings draw on one balance. If the issuer blocklisted and seized from the contract
   itself, whoever claimed first would be paid. The contract is exempt from seizure unless the
   issuer lists it.
@@ -171,7 +174,7 @@ off, the routes answer not found and no tool or command is advertised.
 | `/covered-calls` | Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, expiry from the next four Fridays, premium) beside a guide: the reference price, shares per token, suggested premiums for the next Friday at +1%, +3% and +5% strikes, the result at expiry at three prices, and the terms ("Dividends during the week stay with the tokens."). |
 | `/stock-listing/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
 | `/stock-listing` and the menu | While on, the stock list's opening line links to covered calls on each stock with a market (in place of main's "Covered Call Options coming soon."), and the menu has a Covered calls row under Stocks. Both sitemaps list `/covered-calls`. |
-| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with a button for each action it allows now (Stop selling, Exercise, Collect <symbol>, Collect USDC). |
+| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with every action of its side (a seller: Stop selling, Collect USDC, Collect <symbol>; a buyer: Exercise, Collect <symbol>), each disabled with the reason while the chain makes it certain to fail, until the listing has nothing left for the wallet. It reads again after a press on any page, on Refresh, and just after a listing's expiry or window closes. |
 
 Every panel works as the token page's Stake and Claim do (`AutolaunchWeb.CoveredCallComponent`):
 its button reviews the form as it stands and opens the wallet steps over it, one wallet button at a
@@ -187,8 +190,11 @@ Ash domain `Autolaunch.CoveredCalls`:
   migration is needed. (The event ledger only runs where the deployment names start blocks, and a
   new table needs Sean's go before production; reading the contract avoids both.)
 - `Book` — each market's listings, read once and shared by every visitor for five minutes and
-  read again soon after a confirmed press (`ChainRefresh`), as `RegentFacts` does. Listings, and a
-  wallet's position on each, are read eight at a time, so weeks of listings stay quick to read.
+  read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
+  (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position
+  on each, are read eight at a time, so weeks of listings stay quick to read.
+- `Positions` — a wallet's listings and holdings, all read at one latest block, never from the
+  shared book, so a listing made by an agent a moment ago is there and every figure agrees.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
   Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,

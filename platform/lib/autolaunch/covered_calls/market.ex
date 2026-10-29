@@ -21,6 +21,11 @@ defmodule Autolaunch.CoveredCalls.Market do
 
   alias Autolaunch.CoveredCalls.{Book, Positions, Quote, Signer, Steps}
 
+  # Bounds a contract call can carry: amounts and prices far beyond any real
+  # one, and an expiry as the contract's uint64.
+  @amount [min: 1, max: 2 ** 128 - 1]
+  @expiry [min: 0, max: 2 ** 64 - 1]
+
   actions do
     action :book, :map do
       argument :symbol, :string, allow_nil?: false
@@ -29,8 +34,8 @@ defmodule Autolaunch.CoveredCalls.Market do
 
     action :quote, :map do
       argument :symbol, :string, allow_nil?: false
-      argument :strike_per_token, :integer, allow_nil?: false, constraints: [min: 1]
-      argument :expiry, :integer, allow_nil?: false
+      argument :strike_per_token, :integer, allow_nil?: false, constraints: @amount
+      argument :expiry, :integer, allow_nil?: false, constraints: @expiry
 
       run fn input, _context ->
         input.arguments.symbol
@@ -55,11 +60,11 @@ defmodule Autolaunch.CoveredCalls.Market do
       argument :symbol, :string, allow_nil?: false
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
       argument :signer, :string
-      argument :listing_id, :integer, constraints: [min: 1]
-      argument :amount, :integer, constraints: [min: 1]
-      argument :strike_per_token, :integer, constraints: [min: 1]
-      argument :premium_per_token, :integer, constraints: [min: 1]
-      argument :expiry, :integer
+      argument :listing_id, :integer, constraints: @amount
+      argument :amount, :integer, constraints: @amount
+      argument :strike_per_token, :integer, constraints: @amount
+      argument :premium_per_token, :integer, constraints: @amount
+      argument :expiry, :integer, constraints: @expiry
 
       run fn input, %{actor: actor} ->
         with {:ok, signer} <- Signer.wallet(actor, input.arguments[:signer]) do

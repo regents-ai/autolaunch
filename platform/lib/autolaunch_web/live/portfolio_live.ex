@@ -70,6 +70,7 @@ defmodule AutolaunchWeb.PortfolioLive do
      |> assign(robinhood_swap?: RobinhoodLab.swap_configured?())
      |> LabMarket.subscribe_heads()
      |> LabMarket.subscribe_wallet_bids()
+     |> subscribe_covered_calls()
      |> clear_wallet_state()
      |> assign_figure_rates()
      |> read_holdings()}
@@ -77,7 +78,10 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  def handle_event("refresh", _params, socket), do: {:noreply, request_reads(socket)}
+  def handle_event("refresh", _params, socket) do
+    read_covered_calls(socket)
+    {:noreply, request_reads(socket)}
+  end
 
   # Each dialog is named by the record its form acts on; the dialog's own
   # close names the same record.
@@ -121,13 +125,17 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, request_reads(socket)}
 
-  # A covered-call press landed, so the covered calls read again.
-  def handle_info({:covered_calls_changed, _symbol}, socket) do
-    send_update(AutolaunchWeb.CoveredCallsPortfolioComponent,
-      id: "portfolio-covered-calls",
-      read: true
-    )
+  # A covered-call press landed here: every open page of that market, this
+  # one included, reads it again.
+  def handle_info({:covered_calls_changed, symbol}, socket) do
+    Phoenix.PubSub.broadcast(Autolaunch.PubSub, "covered_calls:" <> symbol, :read_again)
+    {:noreply, socket}
+  end
 
+  # A covered-call press landed on another page, or a listing's expiry or
+  # window just closed: the covered calls read again.
+  def handle_info(:read_again, socket) do
+    read_covered_calls(socket)
     {:noreply, socket}
   end
 
@@ -1049,4 +1057,28 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp stale_books(books),
     do: Map.new(books, fn {id, entry} -> {id, %{entry | fresh?: false}} end)
+
+  # Every covered-call market's presses, from any page, while they are on.
+  defp subscribe_covered_calls(socket) do
+    with true <- connected?(socket),
+         {:ok, %{markets: markets}} <- Autolaunch.CoveredCalls.Deployment.current() do
+      Enum.each(
+        markets,
+        &Phoenix.PubSub.subscribe(Autolaunch.PubSub, "covered_calls:" <> &1.symbol)
+      )
+    end
+
+    socket
+  end
+
+  # Only while the page shows its covered calls section.
+  defp read_covered_calls(socket) do
+    if socket.assigns.account_control.kind != :sign_in and
+         Autolaunch.CoveredCalls.Deployment.enabled?(),
+       do:
+         send_update(AutolaunchWeb.CoveredCallsPortfolioComponent,
+           id: "portfolio-covered-calls",
+           read: true
+         )
+  end
 end

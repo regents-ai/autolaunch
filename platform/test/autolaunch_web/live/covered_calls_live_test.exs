@@ -172,7 +172,43 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     view |> element("#covered-call-fill-1-form") |> render_submit(%{"amount" => "lots"})
 
     assert has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
-    assert has_element?(view, "#covered-call-fill-1-notice", "Enter an amount above zero.")
+    assert has_element?(view, "#covered-call-fill-1-notice", "Enter an amount above zero")
+  end
+
+  test "a holder's portfolio shows Exercise before the window opens, disabled with when it opens",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    CoveredCallsChain.put(%{held: 2 * @unit})
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/portfolio")
+
+    render_async(view)
+
+    for panel <- ["#portfolio-covered-calls-exercise-1", "#portfolio-covered-calls-claim-1"] do
+      view
+      |> with_target(panel)
+      |> render_hook("onchain_active_wallet", %{"address" => account.wallet_address})
+    end
+
+    render_async(view)
+
+    assert has_element?(view, "#portfolio-covered-calls-exercise-1-review[disabled]")
+    assert has_element?(view, "#portfolio-covered-calls-exercise-1-why", "Exercise is open from")
+    assert has_element?(view, "#portfolio-covered-calls-claim-1-review[disabled]")
+    assert has_element?(view, "#portfolio-covered-calls-claim-1-why", "Nothing to collect yet")
+  end
+
+  test "a listing's address that isn't for sale says so", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls?listing=7")
+    render_async(view)
+    assert has_element?(view, ".covered-calls__note[role=status]", "Listing 7 isn't for sale now")
   end
 
   # A new signed-in person on a listing's Buy panel, their wallet open.

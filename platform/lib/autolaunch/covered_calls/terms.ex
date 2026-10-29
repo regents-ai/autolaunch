@@ -53,6 +53,14 @@ defmodule Autolaunch.CoveredCalls.Terms do
     end
   end
 
+  @doc """
+  Whether a multiplier change scheduled at `effective_at` falls after `now`
+  and before the exercise window of `expiry` closes, so the contract refuses
+  to list or fill.
+  """
+  def corporate_action?(effective_at, expiry, now),
+    do: effective_at > now and effective_at < expiry + @window
+
   @doc "Raw units still for sale on a listing."
   def available(listing), do: listing.amount - listing.filled
 

@@ -1,11 +1,12 @@
 defmodule Autolaunch.CoveredCalls.BookTest do
   @moduledoc """
   The shared reading of a market is kept between visits, and a covered-call
-  step that lands drops it, so the next read shows what the step changed.
+  step that lands drops it, so the next read shows what the step changed. A
+  wallet's positions never come from the kept reading.
   """
   use ExUnit.Case, async: false
 
-  alias Autolaunch.CoveredCalls.Book
+  alias Autolaunch.CoveredCalls.{Book, Positions}
   alias Autolaunch.CoveredCallsChain
 
   @unit CoveredCallsChain.unit()
@@ -36,5 +37,23 @@ defmodule Autolaunch.CoveredCalls.BookTest do
     :ok = Book.expire("AMZNc")
     assert {:ok, %{listings: [%{filled: refilled}]}} = Book.read("AMZNc")
     assert refilled == 5 * @unit
+  end
+
+  test "a wallet's positions are read at the latest block, never from the kept reading" do
+    CoveredCallsChain.install()
+    {:ok, kept} = Book.read("AMZNc")
+    assert length(kept.listings) == 1
+
+    # Someone lists again and the wallet buys into both, with no press on this site.
+    CoveredCallsChain.put(%{
+      listings: [CoveredCallsChain.listing(%{}), CoveredCallsChain.listing(%{filled: @unit})],
+      held: @unit
+    })
+
+    wallet = "0x" <> String.duplicate("ab", 20)
+    assert {:ok, positions} = Positions.read("AMZNc", wallet)
+    assert Enum.map(positions.book.listings, & &1.id) == [1, 2]
+    assert Enum.map(positions.holdings, & &1.listing_id) == [1, 2]
+    assert {:ok, %{listings: [_only]}} = Book.read("AMZNc")
   end
 end

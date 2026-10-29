@@ -26,7 +26,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.Book
+  alias Autolaunch.CoveredCalls.{Book, Terms}
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias AutolaunchWeb.Live.Session
   alias AutolaunchWeb.{OnchainSteps, StakeComponent}
@@ -182,7 +182,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
         assign(socket, notice: no_signer(socket.assigns))
 
       {_signer, {:error, reason}} ->
-        assign(socket, notice: refusal_words(reason) || "Enter an amount above zero.")
+        assign(socket,
+          notice:
+            refusal_words(reason) || "Enter an amount above zero, with a dot for decimals (1.5)."
+        )
 
       {signer, {:ok, request}} ->
         case prepare(socket.assigns, request, signer) do
@@ -211,7 +214,11 @@ defmodule AutolaunchWeb.CoveredCallComponent do
             |> assign(notice: blocked_words(prepared.blocked, socket.assigns) <> ".")
 
           {:error, reason} ->
-            assign(socket, notice: refusal_words(reason) || "Enter an amount above zero.")
+            assign(socket,
+              notice:
+                refusal_words(reason) ||
+                  "Enter an amount above zero, with a dot for decimals (1.5)."
+            )
         end
     end
   end
@@ -615,11 +622,14 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   # What the action comes to, as label and value, in the form and its review.
   defp facts(:list, facts, %{unit: unit, symbol: symbol}) do
+    premium = F.total(facts.amount, facts.premium_per_token, unit)
+
     [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
       ["Expiry", F.expiry(facts.expiry)],
-      ["Total premium", F.usd(F.total(facts.amount, facts.premium_per_token, unit))],
+      ["Total premium", F.usd(premium)],
+      ["You receive", "#{F.usd(premium - Terms.fee(premium))} if all sell, after the 1% fee"],
       ["Total at strike", F.usd(F.total(facts.amount, facts.strike_per_token, unit))]
     ]
   end

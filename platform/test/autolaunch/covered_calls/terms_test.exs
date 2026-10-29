@@ -85,6 +85,24 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
     assert F.parse_tokens("1.000000001", @unit) == nil
     assert F.parse_tokens("0", @unit) == nil
     assert F.parse_usd("ten") == nil
-    assert F.parse_usd("$1,250.50") == 1_250_500_000
+    assert F.parse_usd("$1250.50") == 1_250_500_000
+  end
+
+  test "a comma, an exponent or an amount no contract call can carry is not an amount" do
+    # "1,2" is $1.20 in much of the world and $12 in the US; neither is guessed.
+    for text <- ["1,2", "1,250.50", "1.050,00", "0,5", "1e3", "-1", "1..2", ""],
+        do: assert(F.parse_usd(text) == nil, text)
+
+    assert F.parse_tokens(Integer.to_string(2 ** 128), 1) == nil
+    assert F.parse_tokens(Integer.to_string(2 ** 128 - 1), 1) == 2 ** 128 - 1
+  end
+
+  property "a dollar figure on a page is the exact amount, never rounded either way" do
+    check all(micro <- integer(0..1_000_000_000_000_000)) do
+      shown = F.usd(micro)
+      exact = shown |> String.trim_leading("$") |> String.replace(",", "") |> Decimal.new()
+      assert Decimal.equal?(Decimal.mult(exact, 1_000_000), micro)
+      assert shown =~ ~r/\A\$\d{1,3}(,\d{3})*\.\d{2,6}\z/
+    end
   end
 end
