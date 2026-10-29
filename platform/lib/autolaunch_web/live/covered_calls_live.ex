@@ -59,7 +59,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
     # A shared link to one listing reads the market again unless it was read
     # in the last ten seconds, so it is never turned away on an old reading.
-    socket = assign(socket, tab: tab, selected: selected)
+    # The List form is built anew on the Sell tab, so the guide starts from it again.
+    socket =
+      socket
+      |> assign(tab: tab, selected: selected)
+      |> then(&if(tab == socket.assigns.tab, do: &1, else: assign(&1, sell: %{})))
 
     if selected && connected?(socket) do
       Book.refresh(socket.assigns.chain_id)
@@ -319,8 +323,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           </dd>
         </dl>
         <p class="covered-calls__note">
-          The contract has no owner and nobody can pause, change or upgrade it. It holds each
-          listing's {@market.symbol} until the buyer or the seller collects it.
+          The contract has no owner, and nobody can change or upgrade it. It holds each listing's {@market.symbol} until the buyer or the seller collects it. Coinbase controls {@market.symbol} and can pause or seize it, and buying stops while REGENT staking, which
+          takes the 1% fee, is paused.
         </p>
       </section>
     </article>
@@ -383,7 +387,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <li><strong>Buy</strong> Pay the premium in USDC now.</li>
       <li><strong>Hold</strong> You have the right to buy {@symbol} at the strike.</li>
       <li>
-        <strong>Exercise</strong> Pay the strike in the window to get the {@symbol}, or let it lapse.
+        <strong>Exercise</strong>
+        Pay the strike in the window, then collect the {@symbol}. Or let it lapse.
       </li>
     </ol>
     """
@@ -407,7 +412,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
     ~H"""
     <div :if={@trade && @spot} class="covered-calls__suggest" id="covered-calls-outcome">
-      <h3>{@trade.title}: {F.usd(@trade.strike)} strike, {F.usd(@trade.premium)} premium</h3>
+      <h3>{@trade.title}</h3>
+      <p class="covered-calls__note">
+        {F.usd(@trade.strike)} strike, {F.usd(@trade.premium)} premium per {@symbol}
+      </p>
       <table class="covered-calls__mini">
         <caption class="visually-hidden">Result at expiry per {@symbol}</caption>
         <tbody>
@@ -422,9 +430,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </tbody>
       </table>
       <p class="covered-calls__note">
-        Per {@symbol} against today's price, with the premium after the 1% fee, if the buyer
-        exercises whenever the price is above the strike. Exercising, they pay you the strike and
-        the {@symbol} is theirs to collect. If they don't, you collect your {@symbol} after the window.
+        Per {@symbol} against the reference price, with the premium after the 1% fee, if the buyer
+        exercises whenever the price is above the strike. Exercising, they pay the strike, which
+        you collect, and the {@symbol} is theirs to collect. If they don't, you collect your {@symbol} after the window.
       </p>
     </div>
 
@@ -473,7 +481,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     <details class="covered-calls__more">
       <summary>Estimate</summary>
       <p>
-        A model estimate, not a market quote: the Black-Scholes price with an assumed {round(
+        A model estimate, not a market quote: a standard option price with an assumed {round(
           Quote.volatility() * 100
         )}% yearly volatility and no interest, counted to the
         window's close (Saturday 21:00 UTC). It starts from the reference price, Chainlink's {@symbol} feed on Base, which keeps its last value while the market is closed and is not a
@@ -489,7 +497,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           they go to whoever ends up with the {@symbol}.
         </li>
         <li>
-          Buyers can exercise for 24 hours from Friday 21:00 UTC. After that, collect the {@symbol} that wasn't bought from your portfolio.
+          Buyers can exercise for 24 hours from Friday 21:00 UTC. After that, on your portfolio, collect any {@symbol} the buyer didn't exercise.
         </li>
         <li>Strike payments wait in the contract until you collect them.</li>
         <li>1% of each premium goes to REGENT stakers.</li>

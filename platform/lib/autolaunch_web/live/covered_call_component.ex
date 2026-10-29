@@ -284,6 +284,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
     socket
     |> assign(cleared(kind, socket.assigns))
+    |> tell_form()
     |> closed()
   end
 
@@ -665,8 +666,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:fill, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["You pay now", F.usd_due(facts.premium)],
-      ["To exercise", F.usd_due(facts.strike)],
+      ["Premium", F.usd_due(facts.premium)],
+      ["Exercise cost", F.usd_due(facts.strike)],
       ["Exercise window", F.window(facts.expiry)]
     ]
 

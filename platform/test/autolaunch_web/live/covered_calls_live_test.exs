@@ -114,7 +114,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     |> render_submit(%{"amount" => "2"})
 
     refute has_element?(view, "#covered-call-fill-1-review-panel[hidden]")
-    assert has_element?(view, "#covered-call-fill-1-review-panel", "You pay")
+    assert has_element?(view, "#covered-call-fill-1-review-panel", "Premium")
     assert has_element?(view, "#covered-call-fill-1-review-panel", "$6.00")
     assert has_element?(view, "#covered-call-fill-1-review-panel [data-step=usdc_approval]")
     assert has_element?(view, "#covered-call-fill-1-review-panel [data-step=fill]")
@@ -253,13 +253,16 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       "expiry" => "#{second}"
     })
 
-    assert has_element?(
-             view,
-             "#covered-calls-outcome h3",
-             "Your trade: $260.00 strike, $3.00 premium"
-           )
+    assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
+    assert has_element?(view, "#covered-calls-outcome", "$260.00 strike, $3.00 premium")
 
     assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(second))
+
+    # Away to Buy and back, the form is built anew, and the guide starts from it again.
+    view |> element(".covered-calls__tabs a", "Buy calls") |> render_click()
+    view |> element(".covered-calls__tabs a", "Sell calls") |> render_click()
+    assert has_element?(view, "#covered-calls-outcome h3", "Example")
+    assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(first))
   end
 
   test "a suggested strike and premium fill the List form when chosen", %{conn: conn} do

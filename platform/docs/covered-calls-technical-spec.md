@@ -328,7 +328,7 @@ says why under the button and opens nothing: never a silent press.
 | `Chain` | Reads listings, holdings, `claimable`, balances, allowances, multiplier, `effectiveAt` and the Chainlink price at one block. |
 | `Book` | Each market's listings, read once and shared by every visitor for five minutes, re-read ten seconds after any landed press. Never disables a button. |
 | `Positions` | One wallet's sold listings and holdings, read fresh. |
-| `Quote` | Suggested premium: Black-Scholes with a fixed 30% yearly volatility and no interest, from the Chainlink price; hidden when the price is older than four days. A guide only; never enforced. |
+| `Quote` | Suggested premium: Black-Scholes with a fixed 30% yearly volatility and no interest, from the Chainlink price, counted to the close of the exercise window; hidden when the price is older than four days. A guide only; never enforced. |
 | `Steps` | Builds the wallet steps of section 6.2. |
 | `Signer` | The wallet a read or step is for: only one of the acting account's own linked wallets. |
 | `Market` | The four operations every surface calls (`book`, `quote`, `positions`, `prepare`), with Ash policies. |
