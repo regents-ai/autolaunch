@@ -2,7 +2,7 @@ defmodule Autolaunch.Chain.CallsTest do
   use ExUnit.Case, async: true
 
   alias Autolaunch.Chain.{Abi, Calls}
-  alias RegentChain.Review
+  alias RegentChain.{BuilderCode, Review}
 
   # BATCH_IS_THE_REVIEWS_ONLY_WITH_EVERY_CALL: a transaction the wallet names
   # for a batch is the review's only when it carries every reviewed call's
@@ -44,6 +44,17 @@ defmodule Autolaunch.Chain.CallsTest do
 
     # An account that batches itself sends the calls to its own address.
     assert outcome(review, tx(@signer, batched), "0x1", [claimed(@splitter, @signer)]) ==
+             {:ok, :confirmed}
+
+    # Each call is matched without the Builder Code suffix its step ends with,
+    # so a batch that keeps that suffix, or a wallet's own, is still the review's.
+    suffixed =
+      batch([
+        {@locker, BuilderCode.append(@collect)},
+        {@splitter, BuilderCode.append(@claim)}
+      ])
+
+    assert outcome(review, tx(@signer, suffixed), "0x1", [claimed(@splitter, @signer)]) ==
              {:ok, :confirmed}
 
     assert outcome(review, tx(@signer, batched), "0x0") == {:ok, :reverted}

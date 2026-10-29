@@ -10,6 +10,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
   alias Autolaunch.{BaseRpcStub, LabAbi, TestSupport}
   alias Autolaunch.CoveredCalls.Terms
   alias RegentAgents.Person
+  alias RegentChain.BuilderCode
 
   @moduletag :capture_log
   @fixture Path.expand("../../fixtures/covered-calls-deployment.json", __DIR__)
@@ -261,8 +262,10 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     assert approve["to"] == @usdc and buy["to"] == @contract
 
     assert buy["data"] ==
-             LabAbi.selector("fill(uint256,uint256)") <>
-               BaseRpcStub.hex_word(1) <> BaseRpcStub.hex_word(@token)
+             BuilderCode.append(
+               LabAbi.selector("fill(uint256,uint256)") <>
+                 BaseRpcStub.hex_word(1) <> BaseRpcStub.hex_word(@token)
+             )
 
     assert prepared["data"]["facts"]["premium"] == 5_000_000
 

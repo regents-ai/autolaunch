@@ -12,7 +12,7 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
 
   alias Autolaunch.{CoveredCalls, CoveredCallsChain}
   alias Autolaunch.CoveredCalls.Terms
-  alias RegentChain.Call
+  alias RegentChain.{BuilderCode, Call}
 
   @seller "0x2222222222222222222222222222222222222222"
   @stock CoveredCallsChain.stock()
@@ -56,16 +56,21 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
 
     assert [approval, list] = prepared.steps
     assert approval.step == "stock_approval" and approval.to == @stock
-    assert approval.data == Call.encode("approve(address,uint256)", [@contract, 2 * @unit])
+
+    assert approval.data ==
+             BuilderCode.append(Call.encode("approve(address,uint256)", [@contract, 2 * @unit]))
+
     assert list.to == @contract
 
     assert list.data ==
-             Call.encode("list(uint256,uint256,uint256,uint64)", [
-               2 * @unit,
-               260_000_000,
-               4_000_000,
-               @expiry
-             ])
+             BuilderCode.append(
+               Call.encode("list(uint256,uint256,uint256,uint64)", [
+                 2 * @unit,
+                 260_000_000,
+                 4_000_000,
+                 @expiry
+               ])
+             )
 
     assert prepared.blocked == :approve_first and prepared.approved == false
 
@@ -121,7 +126,7 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
     assert {:ok, prepared} = prepare(context, :fill, %{listing_id: 1, amount: 150_000_000})
     assert prepared.facts.premium == 4_500_000 and prepared.facts.fee == 45_000
     assert [%{step: "usdc_approval", to: @usdc}, %{step: "fill", data: data}] = prepared.steps
-    assert data == Call.encode("fill(uint256,uint256)", [1, 150_000_000])
+    assert data == BuilderCode.append(Call.encode("fill(uint256,uint256)", [1, 150_000_000]))
     assert prepared.blocked == nil
 
     assert {:ok, %{blocked: :sold_out}} =
