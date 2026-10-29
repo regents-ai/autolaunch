@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: a full-size balance on phones
+- On a phone, the Credits balance in the top bar is a full-size press again, even when it shows a single digit.
+
 ## 29 October 2026: your account in a menu
 - The side panel is gone. Press your picture and name at the top right of any page and a menu opens under it with your name and wallet, your three most recently active agents, Pair New Agent, Manage Account and Sign out. Press Escape, or anywhere else, and it closes.
 - Pair New Agent now takes you to the pairing section of your Account page, which is the one place to pair an agent, as on every Regents site. The Account page starts with Autolaunch's own sections (Credits and Points activity, and your connected accounts), then your account, your agents, pairing, your Credits and Points, and the name people see for you.

@@ -232,6 +232,12 @@ test("wider than the narrowest phones the balance stays in the header, not the m
   const unit = page.locator("#shell-credits-button .shell-credits__unit")
   if (isMobile) await expect(unit).toBeHidden()
   else await expect(unit).toBeVisible()
+  // On a touch phone the balance is a full press, even when it shows one digit.
+  if (isMobile) {
+    const box = (await page.locator("#shell-credits-button").boundingBox())!
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
+  }
   await openMenu(page)
   await expect(page.locator("#account-menu-credits")).toBeHidden()
   await page.keyboard.press("Escape")
