@@ -11,22 +11,12 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   @largest 2 ** 128 - 1
 
   @doc """
-  USDC micro-units as dollars, exactly: two decimals, and more only when the
-  amount has them ($250.005), so a figure is never rounded either way.
+  USDC micro-units as dollars, the one Regents way (`RegentFormat.token_amount/2`):
+  two decimals from $1 up, three significant digits below, digits cut and
+  never rounded up.
   """
   def usd(nil), do: "—"
-
-  def usd(micro) when is_integer(micro) do
-    fraction =
-      micro
-      |> rem(@usdc_unit)
-      |> Integer.to_string()
-      |> String.pad_leading(6, "0")
-      |> String.trim_trailing("0")
-      |> String.pad_trailing(2, "0")
-
-    "$" <> group(div(micro, @usdc_unit)) <> "." <> fraction
-  end
+  def usd(micro) when is_integer(micro), do: "$" <> RegentFormat.token_amount(micro, 6)
 
   @doc "A raw stock amount as whole tokens, without trailing zeros."
   def tokens(raw, unit) when is_integer(raw) and is_integer(unit) do
@@ -42,10 +32,14 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   that fits. Digits with at most one dot: a comma is never read as either a
   thousands separator or a decimal point, since people write it both ways.
   """
-  def parse_tokens(text, unit), do: parse(text, unit)
+  def parse_tokens(text, unit) when is_binary(text), do: parse(String.trim(text), unit)
+  def parse_tokens(_text, _unit), do: nil
 
-  @doc "A typed dollar amount as USDC micro-units, read as `parse_tokens/2` reads, with an optional `$`."
-  def parse_usd(text), do: parse(text, @usdc_unit)
+  @doc "A typed dollar amount as USDC micro-units, read as `parse_tokens/2` reads, after one optional `$`."
+  def parse_usd(text) when is_binary(text),
+    do: text |> String.trim() |> String.replace_prefix("$", "") |> parse(@usdc_unit)
+
+  def parse_usd(_text), do: nil
 
   @doc "A raw amount at `per_token` USDC per whole token, in micro-USDC, rounded up as the contract does."
   def total(raw, per_token, unit),
@@ -59,11 +53,10 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
 
-  defp parse(text, unit) when is_binary(text) do
+  defp parse(text, unit) do
     decimals = String.length(Integer.to_string(unit)) - 1
 
-    with [_text, whole | fraction] <-
-           Regex.run(~r/\A(\d*)(?:\.(\d*))?\z/, text |> String.trim() |> String.trim_leading("$")),
+    with [_text, whole | fraction] <- Regex.run(~r/\A(\d*)(?:\.(\d*))?\z/, text),
          fraction = Enum.join(fraction),
          true <- whole <> fraction != "",
          fraction = String.trim_trailing(fraction, "0"),
@@ -76,15 +69,5 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
     else
       _not_an_amount -> nil
     end
-  end
-
-  defp parse(_text, _unit), do: nil
-
-  defp group(dollars) do
-    dollars
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
-    |> String.reverse()
   end
 end

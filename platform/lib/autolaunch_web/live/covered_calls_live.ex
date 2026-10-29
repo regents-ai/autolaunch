@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
   alias Autolaunch.CoveredCalls
-  alias Autolaunch.CoveredCalls.{Chain, Deployment, Quote, Terms}
+  alias Autolaunch.CoveredCalls.{Book, Chain, Deployment, Quote, Terms}
   alias AutolaunchWeb.CoveredCallComponent
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias AutolaunchWeb.NotFoundError
@@ -38,7 +38,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
          book: AsyncResult.loading(),
          tab: :buy,
          selected: nil,
-         done: nil
+         done: nil,
+         due: nil
        )
        |> read_book()}
     else
@@ -55,7 +56,14 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         _none -> nil
       end
 
-    {:noreply, assign(socket, tab: tab, selected: selected)}
+    # A shared link to one listing reads the market again unless it was read
+    # in the last ten seconds, so it is never turned away on an old reading.
+    if selected, do: Book.refresh(socket.assigns.chain_id)
+
+    {:noreply,
+     socket
+     |> assign(tab: tab, selected: selected)
+     |> then(&if(selected, do: read_book(&1), else: &1))}
   end
 
   # The Refresh press asks every reader of the chain to read again, so the
@@ -67,19 +75,41 @@ defmodule AutolaunchWeb.CoveredCallsLive do
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
-  # A press landed here: every open page of this market reads it again.
-  def handle_info({:covered_calls_changed, symbol}, socket) do
-    Phoenix.PubSub.broadcast(Autolaunch.PubSub, "covered_calls:" <> symbol, :read_again)
+  # A press landed here: every open page of this market hears which listing
+  # and wallet.
+  def handle_info({:covered_calls_changed, symbol, press}, socket) do
+    Phoenix.PubSub.broadcast(
+      Autolaunch.PubSub,
+      "covered_calls:" <> symbol,
+      {:covered_call_pressed, press}
+    )
+
     {:noreply, socket}
   end
 
-  def handle_info(:read_again, socket), do: {:noreply, read_book(socket)}
+  def handle_info({:covered_call_pressed, _press}, socket), do: {:noreply, read_book(socket)}
+
+  # A listing's expiry or a scheduled multiplier change came: the page and its
+  # panels read again, so a button the chain held back comes back.
+  def handle_info(:covered_calls_due, socket), do: {:noreply, read_book(socket)}
 
   # A panel's last step landed; the page says what moved.
   def handle_info({:covered_call_done, done}, socket), do: {:noreply, assign(socket, done: done)}
 
-  def handle_async(:book, {:ok, {:ok, book}}, socket),
-    do: {:noreply, assign(socket, book: AsyncResult.ok(socket.assigns.book, book))}
+  def handle_async(:book, {:ok, {:ok, book}}, socket) do
+    if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
+
+    open =
+      for listing <- book.listings, Terms.stage(listing, book.now) == :open, do: listing.expiry
+
+    wait = Terms.next_wait([book.effective_at | open], book.now)
+
+    {:noreply,
+     assign(socket,
+       book: AsyncResult.ok(socket.assigns.book, book),
+       due: wait && Process.send_after(self(), :covered_calls_due, (wait + 5) * 1_000)
+     )}
+  end
 
   def handle_async(:book, {:ok, {:error, error}}, socket),
     do:
@@ -195,7 +225,8 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           class="covered-calls__note"
           role="status"
         >
-          Listing {@selected} isn't for sale now: it has sold out, passed its expiry or stopped selling.
+          Listing {@selected} isn't for sale now: it has sold out, passed its expiry or stopped
+          selling.
         </p>
         <.buy_panel
           :for={listing <- @open}

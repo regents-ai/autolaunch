@@ -20,7 +20,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   The page passes `kind`, `symbol`, `unit` (raw units per whole token), the
   `listing` an action is on, `expiries` for a new listing, `holding` for an
   exercise, and the panel's `session_lease` and `current_human_id`. A landed
-  step tells the page with `{:covered_calls_changed, symbol}`.
+  step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
+  naming the listing (`nil` for a new one) and the wallet that sent it.
   """
   use AutolaunchWeb, :live_component
 
@@ -231,9 +232,14 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # A step landed: the page reads the market again. When every step of the
   # open review has landed once, whichever press of it landed, the review
   # closes and the page says what moved.
-  defp confirmed(socket, %{review: %{id: id}, name: name}) do
+  defp confirmed(socket, %{review: %{id: id, signer: signer}, name: name}) do
     Book.expire(socket.assigns.symbol)
-    send(self(), {:covered_calls_changed, socket.assigns.symbol})
+
+    send(
+      self(),
+      {:covered_calls_changed, socket.assigns.symbol,
+       %{listing_id: socket.assigns.listing[:id], wallet: signer}}
+    )
 
     case socket.assigns.review do
       %{id: ^id} ->

@@ -36,6 +36,9 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     nothing_to_collect: "No strike payment is waiting to be collected on this listing."
   }
 
+  @chain_unavailable {:service_unavailable,
+                      "Covered calls could not be read from the chain just now."}
+
   @refusals %{
     unknown_market: {:not_found, "There is no covered-call market for that stock."},
     unknown_listing: {:not_found, "There is no listing with that number on this market."},
@@ -53,8 +56,12 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     price_unavailable:
       {:service_unavailable,
        "The stock's reference price is not available right now, so no premium is suggested."},
-    chain_unavailable:
-      {:service_unavailable, "Covered calls could not be read from the chain just now."}
+    chain_unavailable: @chain_unavailable,
+    # The node answered something that is not Base or not a block: to an agent,
+    # the chain could not be read just now.
+    invalid_chain_response: @chain_unavailable,
+    invalid_block_header: @chain_unavailable,
+    wrong_chain: @chain_unavailable
   }
 
   @doc "Answers with `result`'s figures shaped by `shape`, or with the refusal it carries."
@@ -63,9 +70,6 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
 
   @doc "Answers with the refusal named `reason`."
   def refuse(conn, reason) do
-    # Every other reason is a chain read that went wrong (a malformed answer,
-    # the wrong chain), which the agent hears as the chain being unavailable.
-    reason = if Map.has_key?(@refusals, reason), do: reason, else: :chain_unavailable
     {status, message} = Map.fetch!(@refusals, reason)
     ApiError.send(conn, status, Atom.to_string(reason), message)
   end

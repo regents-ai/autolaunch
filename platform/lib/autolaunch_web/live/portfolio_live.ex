@@ -79,7 +79,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   def handle_event("refresh", _params, socket) do
-    read_covered_calls(socket)
+    read_covered_calls(socket, [])
     {:noreply, request_reads(socket)}
   end
 
@@ -125,17 +125,28 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, request_reads(socket)}
 
-  # A covered-call press landed here: every open page of that market, this
-  # one included, reads it again.
-  def handle_info({:covered_calls_changed, symbol}, socket) do
-    Phoenix.PubSub.broadcast(Autolaunch.PubSub, "covered_calls:" <> symbol, :read_again)
+  # A covered-call press landed here: every open page of that market hears
+  # which listing and wallet, this one included.
+  def handle_info({:covered_calls_changed, symbol, press}, socket) do
+    Phoenix.PubSub.broadcast(
+      Autolaunch.PubSub,
+      "covered_calls:" <> symbol,
+      {:covered_call_pressed, press}
+    )
+
     {:noreply, socket}
   end
 
-  # A covered-call press landed on another page, or a listing's expiry or
-  # window just closed: the covered calls read again.
-  def handle_info(:read_again, socket) do
-    read_covered_calls(socket)
+  # A press from this wallet, or on a listing it sold or holds, from any page:
+  # its covered calls read again. Other presses change nothing here.
+  def handle_info({:covered_call_pressed, press}, socket) do
+    read_covered_calls(socket, pressed: press)
+    {:noreply, socket}
+  end
+
+  # One of the wallet's listings reached its expiry or its window closed.
+  def handle_info(:covered_calls_due, socket) do
+    read_covered_calls(socket, [])
     {:noreply, socket}
   end
 
@@ -1071,14 +1082,15 @@ defmodule AutolaunchWeb.PortfolioLive do
     socket
   end
 
-  # Only while the page shows its covered calls section.
-  defp read_covered_calls(socket) do
+  # Only while the page shows its covered calls section; `pressed:` reads only
+  # when that listing is one of the wallet's own.
+  defp read_covered_calls(socket, only) do
     if socket.assigns.account_control.kind != :sign_in and
          Autolaunch.CoveredCalls.Deployment.enabled?(),
        do:
-         send_update(AutolaunchWeb.CoveredCallsPortfolioComponent,
-           id: "portfolio-covered-calls",
-           read: true
+         send_update(
+           AutolaunchWeb.CoveredCallsPortfolioComponent,
+           Keyword.merge([id: "portfolio-covered-calls", read: true], only)
          )
   end
 end

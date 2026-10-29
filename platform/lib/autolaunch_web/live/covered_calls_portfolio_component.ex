@@ -21,14 +21,26 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   alias AutolaunchWeb.CoveredCallComponent
   alias AutolaunchWeb.CoveredCallsFormat, as: F
   alias Phoenix.LiveView.AsyncResult
+  alias RegentChain.Address
 
   @impl true
   def mount(socket),
     do:
       {:ok,
-       assign(socket, positions: AsyncResult.loading(), read_for: nil, done: nil, next_read: nil)}
+       assign(socket,
+         positions: AsyncResult.loading(),
+         read_for: nil,
+         done: nil,
+         due: nil,
+         unread: []
+       )}
 
+  # A press reads again only when it came from this wallet or was on one of
+  # its listings; every other ask reads again.
   @impl true
+  def update(%{read: true, pressed: press}, socket),
+    do: {:ok, if(mine?(socket.assigns.positions.result, press), do: read(socket), else: socket)}
+
   def update(%{read: true}, socket), do: {:ok, read(socket)}
   def update(%{done: done}, socket), do: {:ok, assign(socket, done: done)}
 
@@ -43,13 +55,29 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   @impl true
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
+  # A market that can't be read just now keeps what was last read of it, with
+  # a note, so its rows and any review open on them stay where they are.
   @impl true
-  def handle_async(:positions, {:ok, markets}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(positions: AsyncResult.ok(socket.assigns.positions, markets))
-       |> read_at_next_change(markets)}
+  def handle_async(:positions, {:ok, markets}, socket) do
+    before = Map.new(socket.assigns.positions.result || [])
+
+    {kept, unread} =
+      Enum.map_reduce(markets, [], fn
+        {symbol, {:error, _reason}} = failed, unread ->
+          case before[symbol] do
+            {:ok, _positions} = last -> {{symbol, last}, [symbol | unread]}
+            _never_read -> {failed, unread}
+          end
+
+        read, unread ->
+          {read, unread}
+      end)
+
+    {:noreply,
+     socket
+     |> assign(positions: AsyncResult.ok(socket.assigns.positions, kept), unread: unread)
+     |> read_when_due(kept)}
+  end
 
   def handle_async(:positions, {:exit, reason}, socket),
     do:
@@ -65,32 +93,44 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
     end)
   end
 
+  defp mine?(nil, _press), do: true
+
+  defp mine?(markets, %{listing_id: id, wallet: wallet}) do
+    Enum.any?(markets, fn
+      {_symbol, {:ok, positions}} ->
+        Address.equal?(positions.wallet, wallet) or id in listing_ids(positions)
+
+      {_symbol, {:error, _reason}} ->
+        true
+    end)
+  end
+
+  defp listing_ids(%{sold: sold, holdings: holdings}),
+    do: Enum.map(sold, & &1.id) ++ Enum.map(holdings, & &1.listing_id)
+
   # A listing changes what it allows at its expiry and when its window
   # closes, with no press on the chain: the section reads again just after
   # the next of those times among the wallet's own listings (the page passes
-  # `:read_again` back as `read: true`).
-  defp read_at_next_change(socket, markets) do
-    if socket.assigns.next_read, do: Process.cancel_timer(socket.assigns.next_read)
+  # `:covered_calls_due` back as `read: true`).
+  defp read_when_due(socket, markets) do
+    if socket.assigns.due, do: Process.cancel_timer(socket.assigns.due)
+
+    times =
+      for {_symbol, {:ok, %{book: book, now: now} = positions}} <- markets,
+          %{id: id, expiry: expiry} <- book.listings,
+          id in listing_ids(positions),
+          at <- [expiry, expiry + Terms.exercise_window()],
+          do: {at, now}
 
     wait =
-      markets
-      |> Enum.flat_map(fn
-        {_symbol, {:ok, positions}} -> waits(positions)
-        {_symbol, {:error, _reason}} -> []
-      end)
-      |> Enum.min(fn -> nil end)
+      case times do
+        [] -> nil
+        [{_at, now} | _rest] -> Terms.next_wait(Enum.map(times, &elem(&1, 0)), now)
+      end
 
-    assign(socket, next_read: wait && Process.send_after(self(), :read_again, (wait + 5) * 1_000))
-  end
-
-  defp waits(%{book: book, holdings: holdings, sold: sold, now: now}) do
-    mine = MapSet.new(Enum.map(sold, & &1.id) ++ Enum.map(holdings, & &1.listing_id))
-
-    for %{id: id, expiry: expiry} <- book.listings,
-        MapSet.member?(mine, id),
-        at <- [expiry, expiry + Terms.exercise_window()],
-        at > now,
-        do: at - now
+    assign(socket,
+      due: wait && Process.send_after(self(), :covered_calls_due, (wait + 5) * 1_000)
+    )
   end
 
   defp read_market(market, actor) do
@@ -123,6 +163,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         id={@id}
         symbol={symbol}
         read={read}
+        unread={symbol in @unread}
         myself={@myself}
         session_lease={@session_lease}
         current_human_id={@current_human_id}
@@ -155,9 +196,18 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         row(side, listing, holdings[listing.id], positions.now)
       end)
 
-    assigns = assign(assigns, rows: rows, unit: book.unit, now: positions.now)
+    assigns =
+      assign(assigns,
+        rows: rows,
+        unit: book.unit,
+        now: positions.now,
+        read_at: Calendar.strftime(positions.read_at, "%H:%M UTC")
+      )
 
     ~H"""
+    <p :if={@unread} class="portfolio__hint" role="alert">
+      Your {@symbol} covered calls couldn't be read again just now; these are from {@read_at}.
+    </p>
     <div :if={@rows != []} class="market-list__scroll">
       <table class="market-list__table portfolio__table covered-calls__table">
         <caption class="visually-hidden">Your {@symbol} covered calls</caption>
@@ -235,18 +285,21 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
 
   defp status(_side, :closed, _listing, _holding), do: "Closed"
 
-  # Every action of the wallet's side of a listing, each disabled with its
-  # reason while the chain makes it certain to fail, until the listing has
-  # nothing left for this wallet: closed, nothing to claim, no strike to
-  # collect and, for a buyer, the calls lapsed.
-  defp actions(side, :closed, listing, _holding, 0)
-       when side == :held or listing.strike_paid == listing.strike_collected,
-       do: []
+  # Every action of the wallet's side of a listing that the chain may still
+  # allow, each disabled with its reason while it is certain to fail now:
+  # Exercise while calls are held and the window has not closed, Stop selling
+  # while some is unsold, and each Collect until the window has closed with
+  # nothing left to collect. A listing with nothing left for this wallet
+  # shows none.
+  defp actions(side, stage, listing, holding, claimable) do
+    open? = stage != :closed
 
-  defp actions(:sold, _stage, _listing, holding, _claimable),
-    do:
-      if(holding && holding.held > 0, do: [:exercise], else: []) ++
-        [:cancel, :collect_strike, :claim]
-
-  defp actions(:held, _stage, _listing, _holding, _claimable), do: [:exercise, :claim]
+    [
+      (open? and holding != nil and holding.held > 0) && :exercise,
+      (side == :sold and Terms.available(listing) > 0 and not listing.stock_returned) && :cancel,
+      (side == :sold and (open? or Terms.strike_due(listing) > 0)) && :collect_strike,
+      (open? or claimable > 0) && :claim
+    ]
+    |> Enum.filter(& &1)
+  end
 end

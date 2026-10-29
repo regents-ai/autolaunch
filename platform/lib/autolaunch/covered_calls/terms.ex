@@ -61,20 +61,20 @@ defmodule Autolaunch.CoveredCalls.Terms do
   def corporate_action?(effective_at, expiry, now),
     do: effective_at > now and effective_at < expiry + @window
 
+  @doc """
+  Seconds from `now` until the earliest of `times` still to come, at most a
+  week, or nil when none is: when a page reads again because a listing's
+  expiry or window closes, or a scheduled multiplier change takes effect.
+  """
+  def next_wait(times, now) do
+    case for(at <- times, at > now, do: at - now) do
+      [] -> nil
+      waits -> min(Enum.min(waits), @week)
+    end
+  end
+
   @doc "Raw units still for sale on a listing."
   def available(listing), do: listing.amount - listing.filled
-
-  @doc """
-  The unexercised stock a seller gets back once the window has closed, which
-  the contract books on the seller's next claim. A cancelled remainder is
-  owed too; what a page shows as claimable comes from the contract's own
-  `claimable` read.
-  """
-  def returning(listing, now) do
-    if not listing.stock_returned and now >= listing.expiry + @window,
-      do: listing.amount - listing.exercised,
-      else: 0
-  end
 
   @doc "Strike USDC paid on a listing and not yet collected by its seller."
   def strike_due(listing), do: listing.strike_paid - listing.strike_collected

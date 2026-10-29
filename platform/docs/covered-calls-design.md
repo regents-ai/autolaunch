@@ -160,6 +160,8 @@ function claimable(uint256 listingId, address account) external view returns (ui
 - Reads grow with the listings ever made: a book costs one read per listing and a wallet's
   positions three, eight at a time. Nothing is pruned, since an old listing can still owe stock.
   Cheap for months at a weekly pace; an event ledger replaces it if listings ever run to thousands.
+- The shared book is per machine; autolaunch.sh runs one machine (`--ha=false`). A second
+  machine would see another machine's presses only after its five minutes.
 - All listings draw on one balance. If the issuer blocklisted and seized from the contract
   itself, whoever claimed first would be paid. The contract is exempt from seizure unless the
   issuer lists it.
@@ -174,7 +176,7 @@ off, the routes answer not found and no tool or command is advertised.
 | `/covered-calls` | Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, expiry from the next four Fridays, premium) beside a guide: the reference price, shares per token, suggested premiums for the next Friday at +1%, +3% and +5% strikes, the result at expiry at three prices, and the terms ("Dividends during the week stay with the tokens."). |
 | `/stock-listing/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
 | `/stock-listing` and the menu | While on, the stock list's opening line links to covered calls on each stock with a market (in place of main's "Covered Call Options coming soon."), and the menu has a Covered calls row under Stocks. Both sitemaps list `/covered-calls`. |
-| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with every action of its side (a seller: Stop selling, Collect USDC, Collect <symbol>; a buyer: Exercise, Collect <symbol>), each disabled with the reason while the chain makes it certain to fail, until the listing has nothing left for the wallet. It reads again after a press on any page, on Refresh, and just after a listing's expiry or window closes. |
+| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with every action of its side the chain may still allow (Exercise while calls are held and the window is open or to come; Stop selling while some is unsold; Collect USDC and Collect <symbol> until the window has closed with nothing left), each disabled with the reason while it is certain to fail now. It reads again after a press from this wallet or on one of its listings on any page, on Refresh, and just after one of its listings' expiry or window closes; a read that fails keeps the last figures with a note. |
 
 Every panel works as the token page's Stake and Claim do (`AutolaunchWeb.CoveredCallComponent`):
 its button reviews the form as it stands and opens the wallet steps over it, one wallet button at a
@@ -195,6 +197,11 @@ Ash domain `Autolaunch.CoveredCalls`:
   on each, are read eight at a time, so weeks of listings stay quick to read.
 - `Positions` — a wallet's listings and holdings, all read at one latest block, never from the
   shared book, so a listing made by an agent a moment ago is there and every figure agrees.
+- `/covered-calls` reads again when a press lands on any page, when a `?listing=<id>` link opens
+  (unless read in the last ten seconds), and just after the next open listing's expiry or a
+  scheduled multiplier change, so a Buy the chain held back comes back by itself.
+- Dollar figures follow the one Regents rule (`RegentFormat.token_amount/2`: two decimals from $1,
+  three significant digits below, cut). Typed amounts are digits with at most one dot.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
   Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,

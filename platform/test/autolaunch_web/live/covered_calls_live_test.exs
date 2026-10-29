@@ -204,6 +204,32 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#portfolio-covered-calls-claim-1-why", "Nothing to collect yet")
   end
 
+  test "a holder's lapsed calls stay listed on the portfolio with nothing left to press",
+       %{conn: conn} do
+    CoveredCallsChain.install()
+    lapsed = hd(Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())) - 14 * 86_400
+
+    CoveredCallsChain.put(%{
+      listings: [CoveredCallsChain.listing(%{expiry: lapsed})],
+      held: 2 * @unit
+    })
+
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/portfolio")
+
+    render_async(view)
+
+    assert has_element?(view, "#portfolio-covered-calls-held-1", "Closed")
+    refute has_element?(view, "#portfolio-covered-calls-exercise-1")
+    refute has_element?(view, "#portfolio-covered-calls-claim-1")
+  end
+
   test "a listing's address that isn't for sale says so", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls?listing=7")
