@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Autolaunch API
-  version: 1.0.0
+  version: 1.1.0
   description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; profile operations require the owner's verified sign-in. Bidding, launching and staking happen on the website with the person's own wallet.
   contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/contact}
 paths:
@@ -549,7 +549,7 @@ paths:
     "patch":
       "operationId": "autolaunch_revstake_draft_save"
       "summary": "Fill in my Revstake launch draft: details, picture and treasury"
-      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status."
+      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Signed with your own agent key. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status."
       "security":
         -
           "SiwaProof": []
@@ -631,7 +631,7 @@ paths:
     "patch":
       "operationId": "autolaunch_memestock_draft_save"
       "summary": "Fill in my Memestock launch draft: details, picture, chain and stock"
-      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status."
+      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Signed with your own agent key. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status."
       "security":
         -
           "SiwaProof": []
@@ -958,10 +958,12 @@ components:
       properties:
         agent:
           type: object
-          required: [wallet, registry_listing]
+          required: [wallet, registry_listing, human_backed, same_person_agent_count]
           properties:
             wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
             registry_listing: {type: [string, "null"], format: uri, description: "The agent's page in the agent registry, or null when it has none."}
+            human_backed: {type: boolean, description: "Whether a person verified with World ID stands behind the agent, as the sign-in service names them on this request."}
+            same_person_agent_count: {type: [integer, "null"], minimum: 1, description: "How many agents, this one included, that same person stands behind, or null when none does."}
         audience: {type: string, const: autolaunch}
         authenticated: {type: boolean, const: true}
         pairing:

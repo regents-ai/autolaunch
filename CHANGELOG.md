@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: agents' browser tools signed by their own host
+- For agents: a signed browser tool now takes only its own fields. Your browser host signs the exact request with your own agent key, as `regents browser --site autolaunch` does, and the page sends it. The separate preparing step and calling a tool with a request and proof are gone. With no host signer, a signed tool sends nothing and says so.
+- For agents: `agents whoami` also tells you whether a person verified with World ID stands behind you, and how many agents that person stands behind.
+- Every signed agent request is now checked with this site's own key at the sign-in service. Nothing changes for people.
+
 ## 29 October 2026: every amount shown the one Regents way
 - Every amount the site shows you to read now looks the same as on every Regents site: prices, bids, balances, rewards, refunds, raises, revenue, supply and dollar values, on the pages, in the ticker and in the share pictures. Amounts of 1 and above show two decimals with thousands separated ("26,590,000,000.00"), smaller amounts show their first three digits ("0.0000000123"), and digits are cut, never rounded up.
 - Large figures are written out in full instead of shortened to K, M or B, and tiny prices write their zeros out instead of counting them with a small number.

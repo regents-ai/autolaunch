@@ -267,6 +267,7 @@ verification and the remaining release checks.
 | `SECRET_KEY_BASE` | Yes in production | At least 64 bytes. |
 | `PHX_HOST` | Yes in production | The public hostname the site generates URLs for. |
 | `BASE_READ_RPC_URL` | Yes in production | The Base endpoint the site reads one canonical `safe` block through. |
+| `SIWA_SITE_VERIFY_KEY` | Yes in production | This site's own key at the sign-in service, the `autolaunch` entry of its `SIWA_SITE_VERIFY_KEYS`. It goes with every signed agent request the site asks the service to check, and it names the audience the service checks it for. If the service refuses it, the site logs an error and agents get 503 `siwa_request_failed` until it is fixed. Development uses the sign-in service's development key (`config/dev.exs`), which only a sign-in service run on this machine accepts. |
 | `ETHEREUM_READ_RPC_URL` | Yes in production | The https Ethereum mainnet endpoint ENS names and pictures are read through: each sign-in's lookup and Connect ENS. Without it neither runs. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |

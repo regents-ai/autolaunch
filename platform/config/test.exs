@@ -155,6 +155,10 @@ if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and
          Autolaunch.TestAutolaunchTreasuryChainClient
 end
 
+# The key this site presents to the sign-in service (RegentAgents.Broker); the
+# tests' sign-in service answers only it.
+config :regent_agents, :siwa, verify_key: "test-site-verify-key"
+
 # Under ExUnit each case says what the shared sign-in service answers
 # (`Req.Test` stubs on RegentAgents.Broker); nothing reaches siwa.regents.sh.
 unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
@@ -162,10 +166,15 @@ unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
 end
 
 # The agent journeys' server (scripts/agent-journeys.sh) checks signed agent
-# requests with a sign-in service of its own on this machine.
+# requests with a sign-in service of its own on this machine, which answers the
+# development key it holds for this site (its `config/dev.exs`).
 if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and System.get_env("AUTOLAUNCH_SIWA_URL") do
   config :regent_agents,
-    siwa: [url: System.get_env("AUTOLAUNCH_SIWA_URL"), audience: "autolaunch"]
+    siwa: [
+      url: System.get_env("AUTOLAUNCH_SIWA_URL"),
+      audience: "autolaunch",
+      verify_key: "siwa-dev-autolaunch-site-verify-key-0001"
+    ]
 end
 
 # Every test case here reaches one node holding one anonymous bootstrap budget

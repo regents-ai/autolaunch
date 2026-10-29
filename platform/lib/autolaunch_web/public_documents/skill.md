@@ -38,9 +38,9 @@ browser sign-in, their cookies, their keys or another agent's identity. Signing 
 grant no wallet or spending authority.
 
 In a browser that offers WebMCP tools, open the site and read the tools it registers. Public
-reads take their declared inputs. For a private tool, call `prepare_agent_request` with its
-operation and input, sign the exact request it returns with your own SIWA signer, then call
-the tool with `input`, `request` and `proof`. Keep the proof private. Without browser signing,
+reads take their declared inputs. A private tool takes only its input too: your browser host
+signs the exact request with your own agent key, as `regents browser --site autolaunch` does,
+and the page sends it. With no host signer it sends nothing and answers `agent_auth_required`;
 use the CLI command instead; never invent a tool or work around a refusal. Send private CLI
 input as JSON on stdin, never in a command line.
 

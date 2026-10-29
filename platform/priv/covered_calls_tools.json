@@ -1,5 +1,5 @@
 {
-  "_comment": "Covered calls' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers covered calls (AUTOLAUNCH_COVERED_CALLS=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
+  "_comment": "Covered calls' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json only while the site offers covered calls (AUTOLAUNCH_COVERED_CALLS=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
   "tools": [
     {
       "name": "autolaunch_covered_call_listings",
@@ -84,41 +84,19 @@
     {
       "name": "autolaunch_my_covered_calls",
       "title": "Read my covered calls on a stock",
-      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold and, on every listing, the calls it may exercise (held) and the stock it may claim (claimable), in raw token units. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my person's covered calls on one Base stock token, for their signed-in wallet, at the latest block: the listings it sold and, on every listing, the calls it may exercise (held) and the stock it may claim (claimable), in raw token units. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
         "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "symbol": {
-                "type": "string",
-                "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
-              }
-            },
-            "required": [
-              "symbol"
-            ],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
+          "symbol": {
+            "type": "string",
+            "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
           }
-        }
+        },
+        "required": [
+          "symbol"
+        ],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -136,123 +114,13 @@
         "webmcp": "autolaunch_my_covered_calls",
         "http": "GET /api/agent/v1/covered-calls/{symbol}/positions"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {
-          "symbol": {
-            "type": "string",
-            "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
-          }
-        },
-        "required": [
-          "symbol"
-        ],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "autolaunch_covered_call_prepare",
       "title": "Prepare a covered-call step",
-      "description": "Prepare the wallet steps for one covered-call action on a Base stock token: list (amount, strike_per_token, premium_per_token, expiry), fill (listing_id, amount), exercise (listing_id, amount), cancel, claim or collect_strike (listing_id). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Prepare the wallet steps for one covered-call action on a Base stock token: list (amount, strike_per_token, premium_per_token, expiry), fill (listing_id, amount), exercise (listing_id, amount), cancel, claim or collect_strike (listing_id). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "symbol": {
-                "type": "string",
-                "description": "The stock token's symbol exactly as the site lists it, such as AMZNc."
-              },
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "list",
-                  "fill",
-                  "cancel",
-                  "exercise",
-                  "claim",
-                  "collect_strike"
-                ]
-              },
-              "listing_id": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991,
-                "description": "The listing's number on this market, for every kind but list."
-              },
-              "amount": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991,
-                "description": "Raw stock token units: to list, to buy (fill) or to exercise."
-              },
-              "strike_per_token": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991,
-                "description": "For list: the strike in micro-USDC per whole token."
-              },
-              "premium_per_token": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991,
-                "description": "For list: the minimum premium in micro-USDC per whole token."
-              },
-              "expiry": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991,
-                "description": "For list: a Friday at 21:00 UTC, as Unix seconds."
-              },
-              "signer": {
-                "type": "string",
-                "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
-              }
-            },
-            "required": [
-              "symbol",
-              "kind"
-            ],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": false
-      },
-      "requires": "siwa_and_pairing",
-      "state_changing": false,
-      "payment": "none",
-      "route": "POST /api/agent/v1/covered-calls/{symbol}/steps",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": true,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "autolaunch_covered_call_prepare",
-        "http": "POST /api/agent/v1/covered-calls/{symbol}/steps"
-      },
-      "operation_input_schema": {
         "type": "object",
         "properties": {
           "symbol": {
@@ -310,6 +178,22 @@
           "kind"
         ],
         "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/covered-calls/{symbol}/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_covered_call_prepare",
+        "http": "POST /api/agent/v1/covered-calls/{symbol}/steps"
       },
       "effect": "prepare"
     }

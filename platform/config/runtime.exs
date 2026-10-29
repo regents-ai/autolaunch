@@ -285,6 +285,10 @@ if config_env() == :prod do
     formatter: LoggerJSON.Formatters.Basic.new(metadata: AutolaunchWeb.VisitLog.fields())
 
   unless migrating? do
+    # This site's own key at the sign-in service, which names the audience it checks
+    # agents' signed requests for (RegentAgents.Broker).
+    config :regent_agents, :siwa, verify_key: System.fetch_env!("SIWA_SITE_VERIFY_KEY")
+
     # The serving site reads one canonical `safe` Base block through this
     # endpoint. Migration machines do not start the web or chain-read paths and
     # therefore receive no RPC credential.

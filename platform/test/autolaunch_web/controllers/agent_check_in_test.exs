@@ -17,29 +17,69 @@ defmodule AutolaunchWeb.AgentCheckInTest do
   @moduletag :capture_log
   @wallet "0x2222222222222222222222222222222222222222"
 
-  # The sign-in service verifies each signed request as this agent's key.
+  # The sign-in service verifies each signed request as this agent's key. Like the
+  # real one, it answers only this site's own verify key (config/test.exs).
   defp siwa_verifies do
     Req.Test.stub(RegentAgents.Broker, fn conn ->
-      Req.Test.json(conn, %{
-        "code" => "http_envelope_valid",
-        "data" => %{
-          "verified" => true,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => @wallet,
-            "chain_id" => 8453,
-            "audience" => "autolaunch"
-          },
-          "agentRegistration" => nil,
-          "agentBook" => nil
-        }
-      })
+      key = Plug.Conn.get_req_header(conn, "authorization")
+      send(self(), {:verify_key, key})
+
+      if key == ["Bearer test-site-verify-key"] do
+        Req.Test.json(conn, %{
+          "code" => "http_envelope_valid",
+          "data" => %{
+            "verified" => true,
+            "principal" => %{
+              "kind" => "wallet",
+              "wallet_address" => @wallet,
+              "chain_id" => 8453,
+              "audience" => "autolaunch"
+            },
+            "agentRegistration" => nil,
+            "agentBook" => nil
+          }
+        })
+      else
+        conn
+        |> Plug.Conn.put_status(401)
+        |> Req.Test.json(%{"error" => %{"code" => "site_verify_unauthorized"}})
+      end
     end)
   end
 
   # Each request stands for one the agent signed; the stub above verifies it.
   defp post_json(conn, path, body),
     do: conn |> put_req_header("content-type", "application/json") |> post(path, body)
+
+  test "SITE_VERIFY_KEY_SENT: every signed request is checked with this site's own key",
+       %{conn: conn} do
+    siwa_verifies()
+
+    assert %{"data" => %{"status" => "not_paired"}} =
+             conn |> get("/api/agents/v1/whoami") |> json_response(200)
+
+    assert_received {:verify_key, ["Bearer test-site-verify-key"]}
+  end
+
+  # A wrong verify key is this site's own fault: agents get 503 and the site logs it.
+  test "SITE_VERIFY_KEY_REFUSED: a key the sign-in service refuses tells agents to try later and logs an error",
+       %{conn: conn} do
+    siwa = Application.fetch_env!(:regent_agents, :siwa)
+    Application.put_env(:regent_agents, :siwa, Keyword.put(siwa, :verify_key, "wrong-key"))
+    on_exit(fn -> Application.put_env(:regent_agents, :siwa, siwa) end)
+    siwa_verifies()
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert %{"error" => %{"code" => "siwa_request_failed"}} =
+                 conn |> get("/api/agents/v1/whoami") |> json_response(503)
+      end)
+
+    assert_received {:verify_key, ["Bearer wrong-key"]}
+    assert log =~ "[error]"
+    assert log =~ "refused this site's verify key"
+    refute log =~ "wrong-key"
+  end
 
   test "AGENT_CHECK_IN_NAMES_THE_SHARED_ACCOUNT: a paired agent is told it is paired and checks in",
        %{conn: conn} do
