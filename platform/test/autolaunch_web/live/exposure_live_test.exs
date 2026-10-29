@@ -15,6 +15,8 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   alias AutolaunchWeb.OnchainSteps
 
   @series ExposureChain.series()
+  # The page's panels each read the stubbed chain; a busy machine needs more than 100ms.
+  @async 2_000
 
   test "switched off, the page is not found", %{conn: conn} do
     {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/after-hour-stocks") end)
@@ -23,7 +25,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   test "the page shows both tokens' values, their pools and every price applied", %{conn: conn} do
     ExposureChain.install()
     {:ok, view, _html} = live(conn, "/after-hour-stocks")
-    html = render_async(view)
+    html = render_async(view, @async)
 
     # Close 250 then open 256: After-hours 131, Market-hours 125.
     assert view |> element("#exposure-overnight") |> render() =~ "$131.00"
@@ -43,7 +45,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   test "before the first close, minting waits and no values are shown", %{conn: conn} do
     ExposureChain.install(%{status: 0, prices: [], accounted: 0, held: 0, supply: 0})
     {:ok, view, _html} = live(conn, "/after-hour-stocks")
-    html = render_async(view)
+    html = render_async(view, @async)
 
     assert html =~ "Opens after the close on Fri 30 Oct, 4:00pm"
     refute has_element?(view, "[id^=exposure-print-]")
@@ -55,7 +57,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     })
 
     {:ok, view, _html} = live(conn, "/after-hour-stocks")
-    render_async(view)
+    render_async(view, @async)
 
     assert view |> element("#exposure-overnight") |> render() =~ "No pool yet"
     assert view |> element("#exposure-session") |> render() =~ "No liquidity"
@@ -64,14 +66,14 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   test "the Return tab returns pairs before the end and each token after it", %{conn: conn} do
     ExposureChain.install()
     {:ok, view, _html} = live(conn, "/after-hour-stocks?tab=return")
-    render_async(view)
+    render_async(view, @async)
 
     assert has_element?(view, "#exposure-redeem-#{@series} input[name=pairs]")
     assert has_element?(view, "#exposure-redeem-#{@series} [data-onchain-step=redeem]")
 
     ExposureChain.put(%{status: 2, end_reason: 1})
     {:ok, view, _html} = live(conn, "/after-hour-stocks?tab=return")
-    render_async(view)
+    render_async(view, @async)
 
     assert has_element?(view, "#exposure-redeem-#{@series} input[name=overnight]")
     assert has_element?(view, "#exposure-redeem-#{@series} input[name=session]")
@@ -85,7 +87,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
 
     assert has_element?(view, "#exposure-mint-#{@series}", "Wallet: 0.5 AMZNc")
     view |> element("#exposure-mint-#{@series}-form") |> render_change(%{"amount" => "0.05"})
-    render_async(view)
+    render_async(view, @async)
 
     assert has_element?(
              view,
@@ -104,7 +106,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     {view, _panel} = signed_in_panel(conn, "#exposure-mint-#{@series}")
 
     view |> element("#exposure-mint-#{@series}-form") |> render_change(%{"amount" => "0.35"})
-    render_async(view)
+    render_async(view, @async)
 
     assert has_element?(view, "#exposure-mint-#{@series}", "Only 0.3 AMZNc left under the cap")
   end
@@ -132,7 +134,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     ExposureChain.put(%{status: 2, end_reason: 1})
 
     render_hook(panel, "change", %{})
-    render_async(view)
+    render_async(view, @async)
 
     assert has_element?(view, "#exposure-update-#{@series}", "This series has ended")
     assert has_element?(view, "#exposure-update-#{@series} [data-onchain-step=settle][disabled]")
@@ -159,7 +161,7 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     })
 
     {view, _account} = signed_in(conn, "/portfolio")
-    render_async(view)
+    render_async(view, @async)
     row = "#portfolio-exposure-#{@series}"
 
     # 0.1 After-hours at $131 and 0.05 Market-hours at $125.
@@ -178,10 +180,64 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   test "the portfolio points a wallet without tokens to the page", %{conn: conn} do
     ExposureChain.install()
     {view, _account} = signed_in(conn, "/portfolio")
-    render_async(view)
+    render_async(view, @async)
 
     assert has_element?(view, "#portfolio-exposure", "No tokens yet")
     assert has_element?(view, "#portfolio-exposure a[href='/after-hour-stocks']")
+  end
+
+  # Found by the logic review: after the end the tokens showed dollars frozen at the
+  # last price, though each is then a fixed share of the stock.
+  test "after the end each token is shown as the stock it returns", %{conn: conn} do
+    ExposureChain.install(%{
+      status: 2,
+      end_reason: 1,
+      wallet: %{stock: 0, allowance: 0, overnight: 10_000_000, session: 5_000_000}
+    })
+
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+
+    # After-hours ends at $131 of the $256 price: 131/256 of one AMZNc.
+    assert view |> element("#exposure-overnight") |> render() =~ "0.51171875 AMZNc"
+    assert view |> element("#exposure-overnight") |> render() =~ "With AMZNc"
+
+    {view, _account} = signed_in(conn, "/portfolio")
+    render_async(view, @async)
+
+    # 0.1 × 131/256 + 0.05 × 125/256 AMZNc, rounded down as the series pays it.
+    assert has_element?(
+             view,
+             "#portfolio-exposure-#{@series} td[data-label=Value]",
+             "0.07558593 AMZNc"
+           )
+  end
+
+  # Found by the logic review: "0,4" was read as 4.
+  test "an amount typed with a comma is refused and says how to write it", %{conn: conn} do
+    ExposureChain.install()
+    {view, _panel} = signed_in_panel(conn, "#exposure-mint-#{@series}")
+
+    view |> element("#exposure-mint-#{@series}-form") |> render_change(%{"amount" => "0,04"})
+    render_async(view, @async)
+
+    assert has_element?(
+             view,
+             "#exposure-mint-#{@series}",
+             "Write amounts with a point, as in 0.4."
+           )
+
+    refute has_element?(view, "#exposure-mint-#{@series}", "You deposit")
+  end
+
+  test "End series is on the page from the start, disabled until the price is overdue", %{
+    conn: conn
+  } do
+    ExposureChain.install()
+    {view, _panel} = signed_in_panel(conn, "#exposure-end-#{@series}")
+
+    assert has_element?(view, "#exposure-end-#{@series} [data-onchain-step=end][disabled]")
+    assert has_element?(view, "#exposure-end-#{@series}", "Possible after")
   end
 
   # A new signed-in person on the page, their wallet open.
@@ -190,10 +246,10 @@ defmodule AutolaunchWeb.ExposureLiveTest do
       if selector =~ "redeem", do: "/after-hour-stocks?tab=return", else: "/after-hour-stocks"
 
     {view, account} = signed_in(conn, path)
-    render_async(view)
+    render_async(view, @async)
     panel = with_target(view, selector)
     render_hook(panel, "onchain_active_wallet", %{"address" => account.wallet_address})
-    render_async(view)
+    render_async(view, @async)
     {view, panel}
   end
 

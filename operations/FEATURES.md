@@ -96,6 +96,10 @@ After-hours Exposure (`AutolaunchWeb.ExposureComponent`, steps built by `Autolau
 | --- | --- |
 | Mint (exact stock approval, then mint), return pairs, return each token after the end, record and apply a price | `test/journeys/exposure.spec.ts` (every press on a copy of Base at 390 with touch and 1280); End series on the copy: **gap** |
 | A Record panel still open when the series ends says it has ended | `autolaunch_web/live/exposure_live_test.exs` › "a series that ends while the Record panel is open says it has ended" |
+| After the end each token is shown as the stock it returns, on the page and in the portfolio | `autolaunch_web/live/exposure_live_test.exs` › "after the end each token is shown as the stock it returns" |
+| An amount typed with a comma is refused with how to write it | `autolaunch_web/live/exposure_live_test.exs` › "an amount typed with a comma is refused and says how to write it" |
+| End series is shown from the start, disabled with its reason until the price is overdue | `autolaunch_web/live/exposure_live_test.exs` › "End series is on the page from the start, disabled until the price is overdue" |
+| A press blocked by time comes back when that time passes (the panel builds its steps again then, and its one timer is never stacked) | **Gap** (no clock-driven check) |
 | The step for each action, with the reason a press is certain to fail, the round in force at a price's moment, and steps only for the account's own wallet | `autolaunch/exposure/steps_test.exs` (all thirteen cases) |
 | The series arithmetic: ledgers always add up to the price, never go below zero, the series ends exactly when one would, and no return owes more than the stock behind it | `autolaunch/exposure/ledger_test.exs` (five properties, three cases) |
 | The contracts themselves | `contracts/exposure/bin/gate.sh` and its Base fork suite (`contracts/exposure/README.md`) |

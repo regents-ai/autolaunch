@@ -46,7 +46,7 @@ the **regents-cli lane**, to be added to `cli/commands.json` when the switch goe
 | Mint a pair | `prepare_exposure`, kind `mint` | `/after-hour-stocks`, Mint: Approve, Mint | `autolaunch_after_hour_stocks_prepare` (`POST /api/agent/v1/after-hour-stocks/{series}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Return tokens for the stock | `prepare_exposure`, kind `redeem` | `/after-hour-stocks?tab=return`: Return | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Record and apply the next price | `prepare_exposure`, kind `update` | `/after-hour-stocks`, Prices: Record price, Apply price | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| End a series whose price was missed | `prepare_exposure`, kind `end` | `/after-hour-stocks`, Prices: End series (shown once the window has passed) | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| End a series whose price was missed | `prepare_exposure`, kind `end` | `/after-hour-stocks`, Prices: End series (disabled with its reason until the price is overdue) | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
 The browser cells name the pages the covered-call pages lane is building; a headless walk with
 an agent's own wallet through each one is still to be added to `operations/FEATURES.md`.

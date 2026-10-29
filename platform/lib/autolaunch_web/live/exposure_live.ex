@@ -314,7 +314,6 @@ defmodule AutolaunchWeb.ExposureLive do
               current_human_id={@human_id}
             />
             <.live_component
-              :if={@series.now > @series.next.deadline}
               module={ExposureComponent}
               id={"exposure-end-#{@series.address}"}
               kind={:end}
@@ -393,7 +392,7 @@ defmodule AutolaunchWeb.ExposureLive do
       >
         <div>
           <dt>Value</dt>
-          <dd>{if @series.settled > 0, do: F.usd(@ledger), else: "—"}</dd>
+          <dd>{value(@series, @ledger)}</dd>
         </div>
         <div>
           <dt>Share</dt>
@@ -405,7 +404,7 @@ defmodule AutolaunchWeb.ExposureLive do
         </div>
         <div>
           <dt>Moves</dt>
-          <dd>{if @series.settled > 0, do: F.times(@series.price, @ledger), else: "—"}</dd>
+          <dd>{moves(@series, @ledger)}</dd>
         </div>
         <div>
           <dt>Pool</dt>
@@ -436,6 +435,20 @@ defmodule AutolaunchWeb.ExposureLive do
       trades: length(prices)
     }
   end
+
+  # Before the first price a token has no value yet. After the end each token is
+  # a fixed share of the stock, so it is worth that much stock and moves with it.
+  defp value(%{settled: 0}, _ledger), do: "—"
+
+  defp value(%{status: :ended, stock: stock, price: price}, ledger),
+    do:
+      "#{F.tokens(div(ledger * Integer.pow(10, stock.decimals), price), stock.decimals)} #{stock.symbol}"
+
+  defp value(_series, ledger), do: F.usd(ledger)
+
+  defp moves(%{settled: 0}, _ledger), do: "—"
+  defp moves(%{status: :ended, stock: stock}, _ledger), do: "With #{stock.symbol}"
+  defp moves(series, ledger), do: F.times(series.price, ledger)
 
   defp pool_price(nil), do: "No pool yet"
   defp pool_price(%{usdc_per_token: nil}), do: "No liquidity"

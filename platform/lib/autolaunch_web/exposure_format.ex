@@ -32,9 +32,7 @@ defmodule AutolaunchWeb.ExposureFormat do
 
   @doc "A typed token amount as raw units, or nil when it is not a positive amount that fits."
   def parse_tokens(text, decimals) when is_binary(text) do
-    text = text |> String.trim() |> String.replace(",", "")
-
-    with {decimal, ""} <- Decimal.parse(text),
+    with {decimal, ""} <- Decimal.parse(String.trim(text)),
          true <- Decimal.gt?(decimal, 0),
          scaled = Decimal.mult(decimal, Integer.pow(10, decimals)),
          true <- Decimal.integer?(scaled) do

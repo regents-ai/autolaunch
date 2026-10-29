@@ -118,8 +118,12 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
     """
   end
 
-  # Before the first close no price has been applied, so the tokens have no value yet.
+  # Before the first close no price has been applied, so the tokens have no value
+  # yet. After the end they are worth the stock a return pays now.
   defp value(%{series: %{settled: 0}}), do: "—"
+
+  defp value(%{series: %{status: :ended} = series, redeemable: %{paid: paid}}),
+    do: "#{F.tokens(paid, series.stock.decimals)} #{series.stock.symbol}"
 
   defp value(%{series: series} = holding) do
     unit = Integer.pow(10, series.stock.decimals)

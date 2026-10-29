@@ -26,17 +26,27 @@ defmodule AutolaunchWeb.ExposureComponent do
   alias Regent.Primitives, as: P
   alias RegentChain.Review
 
+  @stale_ms 10 * 60_000
+
   @impl true
   def mount(socket) do
     {:ok,
      socket
      |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
-     |> assign(inputs: %{}, prepared: nil, refusal: nil, unsent: false, holdings: nil)}
+     |> assign(
+       inputs: %{},
+       prepared: nil,
+       refusal: nil,
+       unsent: false,
+       holdings: nil,
+       refresh: nil
+     )}
   end
 
   @impl true
-  def update(%{refresh_review: _id}, socket), do: {:ok, sync(socket)}
+  def update(%{refresh: ref}, %{assigns: %{refresh: ref}} = socket), do: {:ok, sync(socket)}
+  def update(%{refresh: _older}, socket), do: {:ok, socket}
 
   def update(assigns, socket) do
     socket = assign(socket, assigns)
@@ -103,7 +113,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     if inputs == socket.assigns.inputs and signer == signer(socket) do
       case result do
         {:ok, prepared} ->
-          {:noreply, socket |> put_prepared(signer, prepared) |> OnchainSteps.refresh_later()}
+          {:noreply, socket |> put_prepared(signer, prepared) |> refresh_later(prepared)}
 
         {:error, reason} ->
           {:noreply,
@@ -186,6 +196,29 @@ defmodule AutolaunchWeb.ExposureComponent do
     |> OnchainSteps.put_review(review)
   end
 
+  # A review's deadlines are fifteen minutes long, so its steps are built again
+  # once it is ten minutes old, or as soon as the moment that lets a press
+  # blocked by time succeed has passed. Only the newest timer counts, so the
+  # page's own re-reads never stack them up.
+  defp refresh_later(socket, prepared) do
+    ref = make_ref()
+    wait = refresh_in(prepared, socket.assigns.series)
+    Phoenix.LiveView.send_update_after(self(), socket.assigns.myself, %{refresh: ref}, wait)
+    assign(socket, refresh: ref)
+  end
+
+  defp refresh_in(%{blocked: :too_early, facts: %{recordable_at: at}}, _series), do: until(at)
+
+  defp refresh_in(%{blocked: :not_overdue}, %{next: %{deadline: deadline}}),
+    do: until(deadline + 1)
+
+  defp refresh_in(_prepared, _series), do: @stale_ms
+
+  defp until(unix) do
+    wait = (unix - System.os_time(:second)) * 1_000 + 2_000
+    wait |> max(1_000) |> min(@stale_ms)
+  end
+
   defp prepare(assigns, request, signer) do
     actor = %Human{human_account_id: assigns.current_human_id}
 
@@ -205,15 +238,23 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp take_account(socket, account),
     do: OnchainSteps.take_account(socket, account, &sync/1)
 
-  # The typed form, as the arguments of the action.
-  defp request(%{kind: :mint, inputs: inputs, series: series}) do
+  # The typed form, as the arguments of the action. A comma is never read as a
+  # decimal point or a thousands mark, since "0,4" means 0.4 to many people and
+  # 4 to others.
+  defp request(%{inputs: inputs} = assigns) do
+    if Enum.any?(Map.values(inputs), &String.contains?(&1, ",")),
+      do: {:error, :comma_amount},
+      else: typed(assigns)
+  end
+
+  defp typed(%{kind: :mint, inputs: inputs, series: series}) do
     case F.parse_tokens(inputs["amount"] || "", series.stock.decimals) do
       nil -> {:error, :invalid_amount}
       amount -> {:ok, %{amount: amount}}
     end
   end
 
-  defp request(%{kind: :redeem, inputs: inputs, series: %{status: :ended} = series}) do
+  defp typed(%{kind: :redeem, inputs: inputs, series: %{status: :ended} = series}) do
     decimals = series.stock.decimals
     overnight = leg_amount(inputs["overnight"], decimals)
     session = leg_amount(inputs["session"], decimals)
@@ -223,14 +264,14 @@ defmodule AutolaunchWeb.ExposureComponent do
       else: {:error, :invalid_amount}
   end
 
-  defp request(%{kind: :redeem, inputs: inputs, series: series}) do
+  defp typed(%{kind: :redeem, inputs: inputs, series: series}) do
     case F.parse_tokens(inputs["pairs"] || "", series.stock.decimals) do
       nil -> {:error, :invalid_amount}
       pairs -> {:ok, %{overnight: pairs, session: pairs}}
     end
   end
 
-  defp request(_assigns), do: {:ok, %{}}
+  defp typed(_assigns), do: {:ok, %{}}
 
   # After the end each leg may be left at zero.
   defp leg_amount(text, decimals) do
@@ -516,6 +557,7 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   defp refusal_words(nil), do: nil
   defp refusal_words(:invalid_amount), do: nil
+  defp refusal_words(:comma_amount), do: "Write amounts with a point, as in 0.4."
   defp refusal_words(:wrong_signer), do: nil
   defp refusal_words(:unknown_series), do: "This series isn't on this site."
   defp refusal_words(_unavailable), do: "Base couldn't be read just now. Try again in a moment."
