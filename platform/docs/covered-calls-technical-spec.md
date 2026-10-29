@@ -1,6 +1,6 @@
 # Autolaunch Covered Calls — technical specification
 
-**Version:** 29 October 2026. **Status:** contract built, reviewed and rehearsed; not deployed. The
+**Version:** 29 October 2026. **Status:** contract deployed on Base at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E` (29 October 2026, block 53,230,752). The
 site code is on `main` with covered calls switched off. The CLI commands in section 8 are proposed,
 not built.
 
@@ -264,7 +264,8 @@ with token pauses, blocklists, USDC blacklisting and staking failures switching 
 | Salt | `keccak256("autolaunch.covered-calls.v1.AMZNc")` = `0x52a9b8f155c1895a8412c0e70f3d431bfc366613b5e2c5d634d227071af13345` |
 | Address | **`0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`** |
 | Runtime code keccak | `0x44cf180fcad6f5e1bc1c2e68df260394526edbafc67687ffab49d820fbb5448e` |
-| Gas | 1,083,828 (rehearsal) |
+| Gas | 1,083,828 (rehearsal and live) |
+| Deployed | Block 53,230,752, transaction `0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a`, sent from `0x9b2C414614aEE294202c1219520955EF3B596031` |
 
 Sent with `script/DeployCoveredCallsAMZNc.s.sol` (appendix B) from the founder's own terminal and
 keystore. Before sending it requires chain 8453, empty code at the address and the packet's init
@@ -402,7 +403,7 @@ explicitly-confirmed send step for prepared transactions. Today's rule (never si
 
 ## 9. Open items
 
-1. Deployment waits for Sean (decision on the Foundry version for his terminal).
+1. Deployment: done on 29 October 2026 (section 5). Source verified on Sourcify; Basescan verification needs an Etherscan API key.
 2. Switching covered calls on in production is a separate release after deployment, with the
    deployed address in the markets file.
 3. Hosted MCP tools and the CLI commands above are not built.

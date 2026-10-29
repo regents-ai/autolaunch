@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: the covered calls contract is on Base
+- Nothing changes on the pages yet. The contract behind covered calls on Amazon (AMZNc) is now on Base at 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, and anyone can read its source on Sourcify. Covered calls open on the site in a later update.
+
 ## 29 October 2026: a clearer picture when autolaunch.sh is shared
 - The picture that shows when someone shares autolaunch.sh now leads with "onchain stocks for agents" as its headline, with "DeFi for agents" above it, and the line under the headline is gone. Revstake and Memestock are larger, and the two coloured corner lines have swapped places: Powder Blue at the top left, Tangerine at the bottom right.
 - The shared link's title is now "Autolaunch · Back AI agents at a fair price", so it adds to the picture instead of repeating it, and its description reads "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."

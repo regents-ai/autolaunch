@@ -4,10 +4,9 @@
 token, paid in USDC. Product spec: [yield-borrow-spec.md](../../platform/docs/yield-borrow-spec.md).
 Design and measurements: [covered-calls-design.md](../../platform/docs/covered-calls-design.md).
 
-Status: **not deployed.** A deployment is a protected action and waits for Sean's go naming it.
-The AMZNc deployment is prepared for signature in [deploy/](deploy/README.md): one transaction
-through the deterministic deployer to `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`, rehearsed on a
-copy of Base.
+Status: **deployed on Base** at [`0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`](https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E), 29 October 2026,
+transaction [`0xaa52f5ca…d6ba3a`](https://basescan.org/tx/0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a) in block 53,230,752, sent by Sean
+from his own keystore (`0x9b2C414614aEE294202c1219520955EF3B596031`). See [deploy/](deploy/README.md) for the packet, the checks and the record.
 
 ## How it works
 

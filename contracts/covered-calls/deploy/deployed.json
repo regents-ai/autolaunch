@@ -1,0 +1,42 @@
+{
+  "contract": "CoveredCallsV1",
+  "market": "AMZNc",
+  "chain_id": 8453,
+  "status": "deployed",
+  "address": "0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E",
+  "transaction": "0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a",
+  "block": 53230752,
+  "block_time": "2026-10-29T05:14:11Z",
+  "sender": "0x9b2C414614aEE294202c1219520955EF3B596031",
+  "sender_nonce": 57,
+  "sent_by": "Sean, from his own terminal and keystore (forge script script/DeployCoveredCallsAMZNc.s.sol, Foundry 1.8.6)",
+  "gas_used": 1083828,
+  "fee_paid_eth": "0.000005821907826048",
+  "packet": "deploy/packet.json",
+  "source_commit": "bc185c65033ce0c3e72c6fedc21986af4c41438a",
+  "checks_on_base": {
+    "receipt_status": "1",
+    "to_is_deterministic_deployer": true,
+    "calldata_equals_packet": true,
+    "runtime_code_keccak": "0x44cf180fcad6f5e1bc1c2e68df260394526edbafc67687ffab49d820fbb5448e",
+    "runtime_code_keccak_matches_on_two_rpcs": true,
+    "reads": {
+      "stock()": "0xb200000000000000000000d9192b6B456483C2E8",
+      "usdc()": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "staking()": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+      "unit()": "100000000",
+      "FEE_BPS()": "100",
+      "EXERCISE_WINDOW()": "86400"
+    },
+    "reads_match": true,
+    "listing_count": 0
+  },
+  "source_verification": {
+    "sourcify": {
+      "status": "match",
+      "job": "https://sourcify.dev/server/verify-ui/jobs/bc52959b-53f9-43bd-83e9-b888d34dd6d1"
+    },
+    "basescan": "pending: needs an Etherscan API key"
+  },
+  "explorer": "https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E"
+}
