@@ -72,6 +72,8 @@
 
 @media (hover: none) and (pointer: coarse) {
   .covered-calls__tabs a, .covered-call-panel input, .covered-call-panel select { min-block-size: 2.75rem; }
+  .covered-calls__use, .covered-calls__more summary { min-block-size: 2.75rem; }
+  .covered-calls__contract dd > a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 }
 
 @media (max-width: 47.99rem) {
