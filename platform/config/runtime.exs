@@ -225,6 +225,33 @@ if covered_calls_on do
     autolaunch_base_covered_calls_deployment: covered_calls_path
 end
 
+# Exposure is offered only on a site switched on with AUTOLAUNCH_EXPOSURE=true;
+# then the description of its series is required, and it extends the Base
+# description. Off, its page answers not found and no tool or route offers it
+# (`Autolaunch.Exposure.Deployment`).
+exposure_on =
+  case System.get_env("AUTOLAUNCH_EXPOSURE") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_EXPOSURE must be true or unset"
+  end
+
+if exposure_on do
+  exposure_path =
+    deployment_path.("AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT") ||
+      raise "AUTOLAUNCH_EXPOSURE=true needs AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT"
+
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_EXPOSURE=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  Autolaunch.Exposure.Deployment.load!(exposure_path)
+
+  config :autolaunch,
+    exposure: :on,
+    autolaunch_base_exposure_deployment: exposure_path
+end
+
 # The finisher sends `migrate` for every ended auction on the launchpads this
 # site describes, from its finishing wallet, which pays that gas. It runs only
 # on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs

@@ -14,7 +14,7 @@ import {ExposureSeriesV1} from "../src/ExposureSeriesV1.sol";
 /// @dev The factory (owned by the Governance and Regent Safe) was deployed on 28 Oct 2026 at `FACTORY`.
 ///      Deploying is a protected action: broadcast only on Sean's go naming it. The terms hash is
 ///      keccak256 of the approved terms file's exact bytes
-///      (platform/docs/after-hours-terms-amznc-2026-11-06.md).
+///      (platform/priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md).
 contract DeployAfterHours is Script {
     address internal constant SAFE = 0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e;
     address public constant FACTORY = 0xAECE72c94CaC843f9Ecd54aC6Ca833bF4CFED048;

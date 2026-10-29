@@ -168,7 +168,13 @@ config :spark,
   ]
 
 config :autolaunch,
-  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points, Autolaunch.CoveredCalls],
+  ash_domains: [
+    Autolaunch.Accounts,
+    Autolaunch,
+    Autolaunch.Points,
+    Autolaunch.CoveredCalls,
+    Autolaunch.Exposure
+  ],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
@@ -260,6 +266,14 @@ config :esbuild,
   covered_calls: [
     args:
       ~w(css/pages/covered_calls.css --bundle --outdir=../priv/covered_calls --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
+  ],
+  # Exposure's styles, built outside priv/static so nothing serves them while
+  # Exposure is off (AutolaunchWeb.ExposureController.stylesheet/2).
+  exposure: [
+    args:
+      ~w(css/pages/exposure.css --bundle --outdir=../priv/exposure --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]

@@ -54,6 +54,11 @@
       rel="stylesheet"
       href={~p"/assets/js/covered_calls.css"}
     />
+    <link
+      :if={Autolaunch.Exposure.Deployment.enabled?()}
+      rel="stylesheet"
+      href={~p"/assets/js/exposure.css"}
+    />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>
   </head>

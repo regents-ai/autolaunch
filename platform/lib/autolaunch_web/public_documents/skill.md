@@ -104,6 +104,7 @@ fields you set, a treasury above all, so they check them before they sign. If a 
 read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
 {{covered_calls}}
+{{exposure}}
 ## Price movement without misleading comparisons
 
 A Revstake token read also carries `revenue_history`: each payment its splitter recognized,

@@ -43,6 +43,15 @@ defmodule AutolaunchWeb.PublicDocuments do
   @external_resource @covered_calls_path
   @covered_calls File.read!(@covered_calls_path)
 
+  # Exposure's routes and their components, and its section of the agent
+  # guides, added only while the site offers it.
+  @exposure_contract_path Path.expand("../../contracts/exposure.openapiv3.yaml", __DIR__)
+  @external_resource @exposure_contract_path
+  @exposure_contract YamlElixir.read_from_file!(@exposure_contract_path)
+  @exposure_guide_path Path.join(@directory, "exposure.md")
+  @external_resource @exposure_guide_path
+  @exposure_guide File.read!(@exposure_guide_path)
+
   @needs %{
     "none" => "Nothing",
     "siwa" => "Per-request SIWA proof",
@@ -106,6 +115,9 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/covered-calls" =>
       {"Covered calls",
        "Sell covered calls on a Base stock token and keep the premium, or buy them, in USDC."},
+    "/afterhours-exposed" =>
+      {"Afterhours Exposed Tokens",
+       "Split a Base stock token into two for a week: one carries its moves while the market is closed, the other while it is open."},
     :bid =>
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
@@ -500,6 +512,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     @sources[name]
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{covered_calls}}\n", covered_calls())
+    |> String.replace("{{exposure}}\n", exposure())
     |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
@@ -521,15 +534,21 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp covered_calls,
     do: if("covered_calls" in ToolManifest.features(), do: @covered_calls, else: "")
 
-  # The contract as the site offers it now: with covered calls switched off it is
-  # api-contract.openapiv3.yaml exactly; on, their paths and components join it.
+  defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
+
+  # The contract as the site offers it now: with every feature switched off it is
+  # api-contract.openapiv3.yaml exactly; each feature that is on adds its paths
+  # and components.
   defp contract do
-    if "covered_calls" in ToolManifest.features(),
-      do:
-        @contract
-        |> Map.update!("paths", &Map.merge(&1, @covered_calls_contract["paths"]))
-        |> Map.update!("components", &join_components(&1, @covered_calls_contract["components"])),
-      else: @contract
+    on = ToolManifest.features()
+
+    [{"covered_calls", @covered_calls_contract}, {"exposure", @exposure_contract}]
+    |> Enum.filter(fn {feature, _added} -> feature in on end)
+    |> Enum.reduce(@contract, fn {_feature, added}, contract ->
+      contract
+      |> Map.update!("paths", &Map.merge(&1, added["paths"]))
+      |> Map.update!("components", &join_components(&1, added["components"]))
+    end)
   end
 
   # Each kind of component (schemas, parameters) with the added ones beside its own.

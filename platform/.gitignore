@@ -96,3 +96,4 @@ Thumbs.db
 /test/browser/.auth/
 /test-results/
 /priv/covered_calls/
+/priv/exposure/

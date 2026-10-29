@@ -1,0 +1,664 @@
+# Afterhours Exposed Tokens, added to api-contract.openapiv3.yaml only while the site offers it
+# (AUTOLAUNCH_EXPOSURE=true; AutolaunchWeb.PublicDocuments.openapi/0). Off, /openapi.json
+# is api-contract.openapiv3.yaml exactly. Every path and component here is new; none replaces one.
+paths:
+  /api/v1/afterhours-exposed:
+    get:
+      operationId: listExposureSeries
+      summary: List Afterhours Exposed Tokens series
+      description: Every Afterhours Exposed Tokens series this site offers on Base, newest first, as each stands at the
+        latest block. A series splits one stock token for a fixed term into an After-hours token (the
+        stock's moves from each close to the next open) and a Market-hours token (its moves from each
+        open to the close). Stock and token amounts are raw token units, prices and ledger values WAD
+        dollars per stock token, pool quotes micro-USDC, times Unix seconds. Needs no account; the page
+        tool autolaunch_afterhours_exposed_list calls it.
+      security: []
+      responses:
+        '200':
+          description: Every series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureSeriesListEnvelope'
+        '422':
+          description: A query parameter was sent (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/OtherError'
+  /api/v1/afterhours-exposed/{series}:
+    get:
+      operationId: getExposureSeries
+      summary: Read an Afterhours Exposed Tokens series
+      description: One Afterhours Exposed Tokens series at the latest block, in the shape of each entry of
+        listExposureSeries. Needs no account; the page tool autolaunch_afterhours_exposed_series calls it.
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      responses:
+        '200':
+          description: The series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureSeriesEnvelope'
+        '404':
+          description: No series at that address on this site (unknown_series)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '422':
+          description: A query parameter was sent (invalid_request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/OtherError'
+  /api/v1/me/afterhours-exposed/{series}:
+    get:
+      operationId: getMyExposure
+      summary: Read your Afterhours Exposed Tokens holding
+      description: What the signed-in wallet holds of one series and what it can return now, read at the
+        latest block. Only the wallet the person signed in with is read. Needs the site's sign-in in the
+        same browser.
+      security:
+      - SiteSession: []
+      parameters:
+      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      responses:
+        '200':
+          description: The signed-in wallet's holding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureHoldingsEnvelope'
+        '401':
+          description: Nobody is signed in on this site in this browser (authentication_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '404':
+          description: No series at that address on this site (unknown_series)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '409':
+          description: The account has no wallet to read (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/OtherError'
+  /api/agent/v1/afterhours-exposed/{series}/holdings:
+    get:
+      operationId: autolaunch_my_afterhours_exposed
+      summary: Read your person's Afterhours Exposed Tokens holding
+      description: What the paired person's signed-in wallet holds of one series and what it can return
+        now, read at the latest block. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      responses:
+        '200':
+          description: The person's holding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureHoldingsEnvelope'
+        '401':
+          description: Fresh request proof required
+        '403':
+          description: The agent is paired with nobody (agent_not_paired)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '404':
+          description: No series at that address on this site (unknown_series)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '409':
+          description: The person's account has no wallet to read (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '503':
+          description: The chain could not be read (chain_unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+  /api/agent/v1/afterhours-exposed/{series}/steps:
+    post:
+      operationId: autolaunch_afterhours_exposed_prepare
+      summary: Prepare an Afterhours Exposed Tokens step
+      description: The wallet steps for one Afterhours Exposed Tokens action, built from the chain at the latest block,
+        for one of the person's own wallets (`signer`, or the wallet they signed in with). The site only
+        prepares; the wallet's own key signs and sends each step. An action the chain's current state
+        makes certain to fail answers 200 with `blocked`, and its steps. Changes nothing.
+      security:
+      - SiwaProof: []
+      parameters:
+      - $ref: '#/components/parameters/ExposureSeriesAddress'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExposureStepRequest'
+      responses:
+        '200':
+          description: The steps, whether the allowance already covers them, and any reason they are certain
+            to fail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureStepsEnvelope'
+        '401':
+          description: Fresh request proof required
+        '403':
+          description: The agent is paired with nobody (agent_not_paired), or the signer is not one of
+            the person's own wallets (wrong_signer)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '404':
+          description: No series at that address on this site (unknown_series)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '409':
+          description: The person's account has no wallet to act with (wallet_required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '422':
+          description: An unknown field, kind or type, or amounts that come to nothing (invalid_request,
+            invalid_amount)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExposureError'
+        '503':
+          description: The chain could not be read, or the site is not open yet (chain_unavailable, prelaunch_read_only)
+components:
+  parameters:
+    ExposureSeriesAddress:
+      name: series
+      in: path
+      required: true
+      description: The series contract's address on Base, 0x and 40 hex digits.
+      schema:
+        type: string
+        pattern: ^0x[0-9a-fA-F]{40}$
+  schemas:
+    ExposureToken:
+      type: object
+      required:
+      - address
+      - symbol
+      - name
+      - decimals
+      properties:
+        address:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        decimals:
+          type: integer
+    ExposureLeg:
+      allOf:
+      - $ref: '#/components/schemas/ExposureToken'
+      - type: object
+        required:
+        - ledger
+        - supply
+        - pool
+        properties:
+          ledger:
+            type: integer
+            description: What one token is worth now in its share of the stock, WAD dollars per stock token.
+          supply:
+            type: integer
+            description: Raw units in existence.
+          pool:
+            description: Null without an Aerodrome pool against USDC; otherwise the pool and what one whole
+              token sells for there now (null when it holds nothing to quote).
+            oneOf:
+            - type: 'null'
+            - type: object
+              required:
+              - address
+              - usdc_per_token
+              properties:
+                address:
+                  type: string
+                usdc_per_token:
+                  type:
+                  - integer
+                  - 'null'
+    ExposureSeries:
+      type: object
+      required:
+      - address
+      - block
+      - now
+      - read_at
+      - stock
+      - after_hours
+      - market_hours
+      - oracle
+      - feed
+      - feed_phase
+      - terms_hash
+      - terms_url
+      - status
+      - end_reason
+      - price
+      - deposit_cap
+      - deposited
+      - held
+      - max_report_delay
+      - schedule
+      - prints
+      - next
+      properties:
+        address:
+          type: string
+        block:
+          type: integer
+        now:
+          type: integer
+          description: The block's time, Unix seconds.
+        read_at:
+          type: string
+          format: date-time
+        stock:
+          $ref: '#/components/schemas/ExposureToken'
+        after_hours:
+          $ref: '#/components/schemas/ExposureLeg'
+        market_hours:
+          $ref: '#/components/schemas/ExposureLeg'
+        oracle:
+          type: string
+        feed:
+          type: string
+          description: The Chainlink price feed proxy the oracle reads.
+        feed_phase:
+          type: integer
+          description: The feed phase the oracle is pinned to.
+        terms_hash:
+          type: string
+          description: keccak256 of the exact bytes at terms_url.
+        terms_url:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - active
+          - ended
+        end_reason:
+          type:
+          - string
+          - 'null'
+          enum:
+          - maturity
+          - overnight_depleted
+          - session_depleted
+          - missing_print
+          - null
+        price:
+          type: integer
+          description: The last applied price, WAD dollars per stock token; 0 before the first.
+        deposit_cap:
+          type: integer
+        deposited:
+          type: integer
+          description: Raw stock the series owes its tokens.
+        held:
+          type: integer
+          description: Raw stock the series holds; below deposited only after the issuer took some.
+        max_report_delay:
+          type: integer
+          description: Seconds after its time by which a price must be recorded.
+        schedule:
+          type: array
+          items:
+            type: object
+            required:
+            - index
+            - at
+            - kind
+            properties:
+              index:
+                type: integer
+              at:
+                type: integer
+              kind:
+                type: string
+                enum:
+                - open
+                - close
+        prints:
+          type: array
+          items:
+            type: object
+            required:
+            - index
+            - at
+            - kind
+            - price
+            - after_hours
+            - market_hours
+            - feed_round_id
+            - feed_updated_at
+            - recorded_at
+            properties:
+              index:
+                type: integer
+              at:
+                type: integer
+              kind:
+                type: string
+                enum:
+                - open
+                - close
+              price:
+                type: integer
+              after_hours:
+                type: integer
+                description: After-hours ledger after this price, WAD.
+              market_hours:
+                type: integer
+                description: Market-hours ledger after this price, WAD.
+              feed_round_id:
+                type: integer
+              feed_updated_at:
+                type: integer
+              recorded_at:
+                type: integer
+        next:
+          description: Null once ended; otherwise the price to record and apply next.
+          oneOf:
+          - type: 'null'
+          - type: object
+            required:
+            - index
+            - at
+            - kind
+            - recordable_at
+            - deadline
+            properties:
+              index:
+                type: integer
+              at:
+                type: integer
+              kind:
+                type: string
+                enum:
+                - open
+                - close
+              recordable_at:
+                type: integer
+              deadline:
+                type: integer
+    ExposureSeriesEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ExposureSeries'
+    ExposureSeriesListEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExposureSeries'
+    ExposureHoldingsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - series
+          - wallet
+          - read_at
+          - after_hours
+          - market_hours
+          - stock
+          - stock_allowance
+          - returnable
+          properties:
+            series:
+              type: string
+            wallet:
+              type: string
+            read_at:
+              type: string
+              format: date-time
+            after_hours:
+              type: integer
+            market_hours:
+              type: integer
+            stock:
+              type: integer
+            stock_allowance:
+              type: integer
+              description: Raw stock the wallet lets the series take.
+            returnable:
+              type: object
+              description: What redeem takes now (whole pairs before the end, every token after it) and
+                the raw stock it pays.
+              required:
+              - after_hours
+              - market_hours
+              - stock
+              properties:
+                after_hours:
+                  type: integer
+                market_hours:
+                  type: integer
+                stock:
+                  type: integer
+    ExposureStepRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      properties:
+        kind:
+          type: string
+          enum:
+          - mint
+          - redeem
+          - update
+          - end
+        signer:
+          type: string
+          description: One of the person's own wallets; omit it for the wallet they signed in with.
+        amount:
+          type: integer
+          minimum: 1
+          description: For mint, raw stock units.
+        overnight:
+          type: integer
+          minimum: 0
+          description: For redeem, raw After-hours units; equal to session before the series ends.
+        session:
+          type: integer
+          minimum: 0
+          description: For redeem, raw Market-hours units; equal to overnight before the series ends.
+    ExposureStepsEnvelope:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - kind
+          - signer
+          - chain
+          - steps
+          - approved
+          - blocked
+          - facts
+          properties:
+            kind:
+              type: string
+              enum:
+              - mint
+              - redeem
+              - update
+              - end
+            signer:
+              type: string
+            chain:
+              type: object
+              required:
+              - chain_id
+              - name
+              - rpc_url
+              properties:
+                chain_id:
+                  type: integer
+                name:
+                  type: string
+                rpc_url:
+                  type: string
+            steps:
+              type: array
+              items:
+                type: object
+                required:
+                - kind
+                - step
+                - to
+                - data
+                - value
+                properties:
+                  kind:
+                    type: string
+                    enum:
+                    - transaction
+                  step:
+                    type: string
+                    enum:
+                    - stock_approval
+                    - mint
+                    - redeem
+                    - record
+                    - settle
+                    - end
+                  to:
+                    type: string
+                  data:
+                    type: string
+                  value:
+                    type: string
+                    description: Hex wei; always 0x0.
+            approved:
+              type: boolean
+            blocked:
+              oneOf:
+              - type: 'null'
+              - type: object
+                required:
+                - code
+                - message
+                properties:
+                  code:
+                    type: string
+                    enum:
+                    - not_open
+                    - ended
+                    - above_cap
+                    - backing_short
+                    - not_enough_stock
+                    - approve_first
+                    - pair_required
+                    - more_than_held
+                    - too_early
+                    - price_too_old
+                    - missed_deadline
+                    - price_available
+                    - not_overdue
+                  message:
+                    type: string
+            facts:
+              type: object
+    ExposureError:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - hint
+          properties:
+            code:
+              type: string
+              enum:
+              - unknown_series
+              - unknown_terms
+              - invalid_amount
+              - invalid_request
+              - wrong_signer
+              - wallet_required
+              - authentication_required
+              - chain_unavailable
+              - agent_not_paired
+            message:
+              type: string
+            hint:
+              type: string

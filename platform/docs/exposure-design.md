@@ -3,7 +3,7 @@
 **Status:** contracts written and tested, not deployed; site not built · 28 October 2026
 **Source:** "Isolated Exposure Tokens" (The Standard Reserve, October 2026), Sean's notes and decisions of 28 October 2026
 **Contracts:** [`contracts/exposure`](../../contracts/exposure/README.md)
-**First series:** [`contracts/exposure/script/DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol) · draft terms [`after-hours-terms-amznc-2026-11-06.md`](after-hours-terms-amznc-2026-11-06.md)
+**First series:** [`contracts/exposure/script/DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol) · draft terms [`0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md`](../priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md)
 
 ## 1. The product
 
@@ -110,7 +110,7 @@ window so the prices can be recorded in two sittings.
 | --- | --- | --- |
 | Done 28 Oct | Sean (deployer password) | The factory owned by the Governance and Regent Safe (`0xAECE72c94CaC843f9Ecd54aC6Ca833bF4CFED048`). The first oracle deployed with it (V1, `0x6e80e0b6…5f98`) is superseded by V2 after the second review. |
 | Before Fri 30 Oct 16:00 New York | Sean (deployer password) | `DeployAfterHours.run`: `ChainlinkPrintOracleV2` on the AMZN feed's current phase. |
-| Before Fri 30 Oct 16:00 New York | Safe (2 of 3) | `createSeries` exactly as `firstSeriesCall` prints it, with the keccak256 of the exact bytes of the [terms](after-hours-terms-amznc-2026-11-06.md), revised after the second review and awaiting Sean's approval. |
+| Before Fri 30 Oct 16:00 New York | Safe (2 of 3) | `createSeries` exactly as `firstSeriesCall` prints it, with the keccak256 of the exact bytes of the [terms](../priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md), revised after the second review and awaiting Sean's approval. |
 | Fri 30 Oct after 17:00 New York | Sean (deployer password) | With about 0.2 AMZNc and $55 USDC in the deployer: `AfterHoursDemo.recordAndSettle` (first close), then `AfterHoursDemo.seed`: mint a 0.2 AMZNc pair and open an Aerodrome pool for each leg against USDC at its ledger value. |
 | Fri 6 Nov after 17:00 New York | Sean (deployer password) | `AfterHoursDemo.recordAndSettle`: the other ten prints; the series ends and every leg redeems. |
 

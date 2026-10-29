@@ -31,5 +31,22 @@ the switch goes on, so the CLI never offers them while the site does not.
 | Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
+## Afterhours Exposed Tokens
+
+Offered only while the site's switch is on (`AUTOLAUNCH_EXPOSURE=true`). Off, no route, tool,
+guide section or command offers them. Every action is one operation in `Autolaunch.Exposure`;
+the site prepares wallet steps and the wallet's own key signs them. CLI cells are gaps owned by
+the **regents-cli lane**, to be added to `cli/commands.json` when the switch goes on.
+
+| Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
+| --- | --- | --- | --- | --- | --- | --- |
+| List every series | `exposure_series_list` | `/afterhours-exposed` (series list) | `autolaunch_afterhours_exposed_list` (`GET /api/v1/afterhours-exposed`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read a series | `exposure_series` | `/afterhours-exposed` | `autolaunch_afterhours_exposed_series` (`GET /api/v1/afterhours-exposed/{series}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read my holding | `exposure_holdings` | `/afterhours-exposed`, Mint and Return panels | `autolaunch_my_afterhours_exposed` (`GET /api/agent/v1/afterhours-exposed/{series}/holdings`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Mint a pair | `prepare_exposure`, kind `mint` | `/afterhours-exposed`, Mint: Approve, Mint | `autolaunch_afterhours_exposed_prepare` (`POST /api/agent/v1/afterhours-exposed/{series}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Return tokens for the stock | `prepare_exposure`, kind `redeem` | `/afterhours-exposed?tab=return`: Return | `autolaunch_afterhours_exposed_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Record and apply the next price | `prepare_exposure`, kind `update` | `/afterhours-exposed`, Prices: Record price, Apply price | `autolaunch_afterhours_exposed_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| End a series whose price was missed | `prepare_exposure`, kind `end` | `/afterhours-exposed`, Prices: End series (shown once the window has passed) | `autolaunch_afterhours_exposed_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+
 The browser cells name the pages the covered-call pages lane is building; a headless walk with
 an agent's own wallet through each one is still to be added to `operations/FEATURES.md`.

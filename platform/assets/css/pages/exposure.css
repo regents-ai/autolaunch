@@ -1,0 +1,73 @@
+/* /expose-closed and the Exposure wallet panel. Built as its own stylesheet outside the public
+   files (config :esbuild, exposure), and served and linked only while Exposure is on. */
+.exposure { display: grid; gap: var(--space-5, 2rem); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
+.exposure__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.exposure__intro { display: grid; gap: var(--space-1); max-width: 40rem; }
+.exposure__intro > * { margin: 0; }
+.exposure__intro h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
+.exposure__intro p { line-height: 1.5; }
+.exposure__muted { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+.exposure__loading { min-block-size: 12rem; }
+.exposure__section { display: grid; gap: var(--space-3); min-width: 0; }
+.exposure__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
+
+.exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-3); margin: 0; }
+.exposure__facts > div, .exposure__leg-facts > div { display: grid; gap: .125rem; min-width: 0; }
+.exposure__facts dt, .exposure__leg-facts dt { color: var(--color-fg-muted); font-size: .8125rem; }
+.exposure__facts dd, .exposure__leg-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.exposure__legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.exposure__leg { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.exposure__leg-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.exposure__leg-head h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.exposure__leg-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
+.exposure__leg-facts dd { font-size: 1.0625rem; }
+.exposure__trade { justify-self: start; }
+
+.exposure__tabs { display: flex; gap: var(--space-1); }
+.exposure__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; }
+.exposure__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
+.exposure__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
+.exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.exposure__table td, .exposure__table th { font-variant-numeric: tabular-nums; }
+.exposure__next td { color: var(--color-fg-muted); }
+.exposure__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
+.exposure__hash { font-size: .8125rem; }
+.exposure__series-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.exposure__series-list li { display: flex; align-items: center; gap: var(--space-3); }
+
+.exposure-panel { display: grid; gap: var(--space-3); min-width: 0; }
+.exposure-panel__form { display: grid; gap: var(--space-3); }
+.exposure-panel__field { display: grid; gap: var(--space-1); }
+.exposure-panel__field > span:first-child { font-weight: 600; font-size: .875rem; }
+.exposure-panel__input { display: flex; align-items: center; gap: var(--space-2); }
+.exposure-panel__input > span { color: var(--color-fg-muted); white-space: nowrap; font-size: .875rem; }
+.exposure-panel input { inline-size: 100%; min-block-size: 2.625rem; font: inherit; font-variant-numeric: tabular-nums; }
+.exposure-panel__balance { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.exposure-panel__balance button { padding: 0; border: 0; color: var(--color-fg); font: inherit; font-weight: 600; text-decoration: underline; background: none; cursor: pointer; }
+.exposure-panel__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.exposure-panel__facts dt { color: var(--color-fg-muted); }
+.exposure-panel__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.exposure-panel__problem { margin: 0; color: var(--color-danger, #b42318); font-size: .875rem; }
+.exposure-panel__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.exposure-panel__steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.exposure-panel__step { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
+.exposure-panel__step .rg-button { inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
+.exposure-panel__step-words { display: grid; gap: .125rem; color: var(--color-fg-muted); font-size: .875rem; }
+.exposure-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
+
+@media (hover: none) and (pointer: coarse) {
+  .exposure__tabs a, .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }
+}
+
+@media (max-width: 47.99rem) {
+  .exposure__legs { grid-template-columns: minmax(0, 1fr); }
+  .exposure-panel__step { grid-template-columns: minmax(0, 1fr); }
+  .exposure-panel__step .rg-button { inline-size: 100%; }
+  /* On a phone each price is a block of labelled figures, never wider than the screen. */
+  .exposure__table thead { display: none; }
+  .exposure__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding-block: var(--space-2); }
+  .exposure__table tbody td { padding: 0; text-align: left; }
+  .exposure__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
+  .exposure__next td[colspan] { grid-column: 1 / -1; }
+}

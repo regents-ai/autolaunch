@@ -11,7 +11,8 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.AuctionLive => ~w(retry),
     AutolaunchWeb.TokenLive => ~w(retry),
     AutolaunchWeb.PortfolioLive => ~w(refresh),
-    AutolaunchWeb.CoveredCallsLive => ~w(refresh)
+    AutolaunchWeb.CoveredCallsLive => ~w(refresh),
+    AutolaunchWeb.ExposureLive => ~w(refresh)
   }
 
   @impl true

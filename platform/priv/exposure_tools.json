@@ -1,0 +1,263 @@
+{
+  "_comment": "Afterhours Exposed Tokens' browser tools. AutolaunchWeb.ToolManifest adds them to tool_manifest.json, and prepare_agent_request's operations, only while the site offers them (AUTOLAUNCH_EXPOSURE=true). A public tool's `request` is the HTTP request it makes: `path` with each {field} filled from its input, and `body` the input fields it posts.",
+  "tools": [
+    {
+      "name": "autolaunch_afterhours_exposed_list",
+      "title": "List Afterhours Exposed Tokens series",
+      "description": "List every Afterhours Exposed Tokens series this site offers on Base, newest first, as each stands at the latest block. A series splits one Base stock token for a fixed term into an After-hours token (the stock's moves from each close to the next open) and a Market-hours token (its moves from each open to the close). Each comes with its stock and two tokens (address, symbol, decimals), each token's ledger value in WAD dollars per stock token and its pool quote in micro-USDC, the status (pending, active or ended), the last applied price, the deposit cap and the amount deposited in raw stock units, the schedule of prices (Unix seconds), every applied price with its Chainlink round, the next price to record, and the terms' fingerprint and address. Reads only; needs no sign-in.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/afterhours-exposed",
+      "scope": "site",
+      "request": {
+        "path": "/api/v1/afterhours-exposed"
+      }
+    },
+    {
+      "name": "autolaunch_afterhours_exposed_series",
+      "title": "Read an Afterhours Exposed Tokens series",
+      "description": "Read one Afterhours Exposed Tokens series on Base at the latest block, in the same shape as each entry of autolaunch_afterhours_exposed_list: its stock and two tokens with their ledger values (WAD dollars per stock token) and pool quotes (micro-USDC), status, last price, cap and deposits (raw stock units), schedule, every applied price and the next one to record. Reads only; needs no sign-in.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "description": "The series contract's address on Base, 0x and 40 hex digits, as the site lists it."
+          }
+        },
+        "required": [
+          "series"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/afterhours-exposed/{series}",
+      "scope": "site",
+      "request": {
+        "path": "/api/v1/afterhours-exposed/{series}"
+      }
+    },
+    {
+      "name": "autolaunch_my_afterhours_exposed",
+      "title": "Read my Afterhours Exposed Tokens holding",
+      "description": "Read my person's holding of one Afterhours Exposed Tokens series on Base, for their signed-in wallet, at the latest block: their After-hours, Market-hours and stock balances and stock allowance to the series, in raw token units, and what they can return now (whole pairs before the series ends, every token after it) with the raw stock it pays. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "series": {
+                "type": "string",
+                "description": "The series contract's address on Base, 0x and 40 hex digits, as the site lists it."
+              }
+            },
+            "required": [
+              "series"
+            ],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/afterhours-exposed/{series}/holdings",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_my_afterhours_exposed",
+        "http": "GET /api/agent/v1/afterhours-exposed/{series}/holdings"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "description": "The series contract's address on Base, 0x and 40 hex digits, as the site lists it."
+          }
+        },
+        "required": [
+          "series"
+        ],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "autolaunch_afterhours_exposed_prepare",
+      "title": "Prepare an Afterhours Exposed Tokens step",
+      "description": "Prepare the wallet steps for one Afterhours Exposed Tokens action on a Base series: mint (amount: an exact stock approval, then mint), redeem (overnight and session: return tokens for the stock), update (record the next price on the oracle when it is not recorded yet, then apply it to the series; open to anyone, from an hour after the price's time) or end (end a series whose next price can no longer be recorded in time; open to anyone). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "series": {
+                "type": "string",
+                "description": "The series contract's address on Base, 0x and 40 hex digits, as the site lists it."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "mint",
+                  "redeem",
+                  "update",
+                  "end"
+                ]
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991,
+                "description": "For mint: raw stock units to deposit; the wallet receives this many of each token."
+              },
+              "overnight": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "For redeem: raw After-hours units to return. Before the series ends it must equal session."
+              },
+              "session": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "For redeem: raw Market-hours units to return. Before the series ends it must equal overnight."
+              },
+              "signer": {
+                "type": "string",
+                "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+              }
+            },
+            "required": [
+              "series",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/afterhours-exposed/{series}/steps",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_afterhours_exposed_prepare",
+        "http": "POST /api/agent/v1/afterhours-exposed/{series}/steps"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "description": "The series contract's address on Base, 0x and 40 hex digits, as the site lists it."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "mint",
+              "redeem",
+              "update",
+              "end"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "For mint: raw stock units to deposit; the wallet receives this many of each token."
+          },
+          "overnight": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "For redeem: raw After-hours units to return. Before the series ends it must equal session."
+          },
+          "session": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "For redeem: raw Market-hours units to return. Before the series ends it must equal overnight."
+          },
+          "signer": {
+            "type": "string",
+            "description": "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+          }
+        },
+        "required": [
+          "series",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "effect": "prepare"
+    }
+  ]
+}

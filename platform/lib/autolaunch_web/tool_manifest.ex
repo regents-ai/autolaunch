@@ -2,8 +2,9 @@ defmodule AutolaunchWeb.ToolManifest do
   @moduledoc """
   The WebMCP tools this site offers right now. `priv/tool_manifest.json` is the
   site's own set, the one the pages' script is built with
-  (`assets/js/public_tools.ts`). While covered calls are on, the tools in
-  `priv/covered_calls_tools.json` join it, their signed tools join
+  (`assets/js/public_tools.ts`). While covered calls or Exposure are on, the
+  tools in `priv/covered_calls_tools.json` or `priv/exposure_tools.json` join
+  it, their signed tools join
   `prepare_agent_request`'s operations, and the root layout hands the page
   those tools (`page_tools/0`), so the page registers exactly the tools
   `/capabilities`, the agent guides and the tools dialog list. Off, nothing
@@ -18,9 +19,19 @@ defmodule AutolaunchWeb.ToolManifest do
   @external_resource @covered_calls_path
   @covered_calls @covered_calls_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
 
+  @exposure_path Application.app_dir(:autolaunch, "priv/exposure_tools.json")
+  @external_resource @exposure_path
+  @exposure @exposure_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
   @doc "The features that are on, by name."
-  def features,
-    do: if(Autolaunch.CoveredCalls.Deployment.enabled?(), do: ["covered_calls"], else: [])
+  def features do
+    [
+      {"covered_calls", Autolaunch.CoveredCalls.Deployment.enabled?()},
+      {"exposure", Autolaunch.Exposure.Deployment.enabled?()}
+    ]
+    |> Enum.filter(&elem(&1, 1))
+    |> Enum.map(&elem(&1, 0))
+  end
 
   @doc "The manifest with the tools offered now: the site's own, exactly, while no feature is on."
   def current do
@@ -37,7 +48,12 @@ defmodule AutolaunchWeb.ToolManifest do
   def tools, do: current()["tools"]
 
   @doc "The tools the page is handed beside the ones its script already knows: none while every feature is off."
-  def page_tools, do: if("covered_calls" in features(), do: @covered_calls, else: [])
+  def page_tools do
+    on = features()
+
+    if("covered_calls" in on, do: @covered_calls, else: []) ++
+      if("exposure" in on, do: @exposure, else: [])
+  end
 
   defp operations(%{"name" => "prepare_agent_request"} = tool, added) do
     signed = for %{"operation_input_schema" => _, "name" => name} <- added, do: name

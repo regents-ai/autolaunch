@@ -13,7 +13,7 @@ receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
 
 [`safe-create-first-series.json`](safe-create-first-series.json) is the Safe Transaction Builder batch:
 one `createSeries` call to the factory, as `firstSeriesCall` prints it for the V2 oracle and the terms
-Sean approved on 29 Oct (`platform/docs/after-hours-terms-amznc-2026-11-06.md`, keccak256
+Sean approved on 29 Oct (`platform/priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md`, keccak256
 `0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f`). Decoded: AMZNc, the V2 oracle
 and its feed id, a seven-day recording window, a 0.4 AMZNc cap, the 11 closes and opens from Fri 30
 Oct 20:00 UTC to Fri 6 Nov 21:00 UTC, legs "AMZNc After-hours to 6 Nov 2026" (AMZNc-AH-1106) and

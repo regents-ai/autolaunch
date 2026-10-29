@@ -23,7 +23,8 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   secret_key_base: "rsjuscXIckaYbEgnoyWVDsdVcA6yZHvSJbQDJf8WMBSfHYdEP+7ySHJFc7dQeEmH",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:autolaunch, ~w(--sourcemap=inline --watch)]},
-    esbuild_covered_calls: {Esbuild, :install_and_run, [:covered_calls, ~w(--watch)]}
+    esbuild_covered_calls: {Esbuild, :install_and_run, [:covered_calls, ~w(--watch)]},
+    esbuild_exposure: {Esbuild, :install_and_run, [:exposure, ~w(--watch)]}
   ]
 
 # ## SSL Support

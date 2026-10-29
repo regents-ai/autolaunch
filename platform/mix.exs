@@ -189,7 +189,8 @@ defmodule Autolaunch.MixProject do
         "regent_agent_access.assets",
         &clear_built_scripts/1,
         "esbuild autolaunch",
-        "esbuild covered_calls"
+        "esbuild covered_calls",
+        "esbuild exposure"
       ],
       "assets.deploy": [
         "regent_ui.assets",
@@ -199,6 +200,7 @@ defmodule Autolaunch.MixProject do
         &clear_built_scripts/1,
         "esbuild autolaunch --minify",
         "esbuild covered_calls --minify",
+        "esbuild exposure --minify",
         "phx.digest"
       ],
       precommit: [
@@ -218,7 +220,7 @@ defmodule Autolaunch.MixProject do
         # six, Autolaunch twenty-nine, Points one), forty-four resource-to-check
         # edges, the one endpoint edge and those two, and it is re-based per unit
         # when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 83",
+        "xref graph --label compile-connected --fail-above 85",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"
