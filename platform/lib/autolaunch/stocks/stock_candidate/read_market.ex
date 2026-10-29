@@ -25,9 +25,9 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   pool whose token is not written as an address, or whose USD is not a plain
   figure under a trillion, is left out. The search is tried once. GeckoTerminal
   refusing or not answering (its free service refuses a burst, and is slow
-  now and then) is one warning line and writes nothing more; any chain read
-  that fails, or any answer in another shape, fails the action. Either way the
-  row is read again when its turn comes.
+  now and then), or the chain not answering (a node timing out or rate
+  limiting), is one warning line and writes nothing more; an answer in another
+  shape fails the action. Either way the row is read again when its turn comes.
   """
 
   use Ash.Resource.Change
@@ -71,6 +71,13 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
         {:error, {:gecko_terminal, reason}} ->
           Logger.warning(
             "stock candidate #{changeset.data.ticker} not read: GeckoTerminal answered #{inspect(reason)}"
+          )
+
+          changeset
+
+        {:error, :chain_unavailable} ->
+          Logger.warning(
+            "stock candidate #{changeset.data.ticker} not read: the chain did not answer"
           )
 
           changeset
