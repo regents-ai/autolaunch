@@ -9,6 +9,13 @@ receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
 | `ChainlinkPrintOracleV1` | `0x6e80e0b65F50666E230276FD5bEf61059aC65f98` | 53,219,732 | Superseded on 29 Oct before any series used it: it followed the live proxy, so a print could depend on when it was recorded relative to an aggregator switch. Not used by anything. |
 | `ChainlinkPrintOracleV2` | `0x64b8404E979EC2791E68f55d959d011EA4EEA88a` | 53,231,023 | Live (29 Oct, Sean's go). Runtime equals the build with its four constructor values masked; `feed()` is the Coinbase AMZN feed `0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295`, `phase()` 2 (the proxy's current phase), `feedId()` `0xa4e7373e87b082c0fbf44cb5781e59e77a4636c518486646da1f6c1b3a1aab3c`, `MAX_STALENESS` 84 hours. A simulated `record` of Wed 28 Oct's close accepts round 482 (the round in force) and refuses rounds 480 and 481. |
 
+## Source verification
+
+`ExposureFactoryV1` and `ChainlinkPrintOracleV2` are verified on Sourcify (creation and runtime
+match, 29 Oct 2026, `forge verify-contract --verifier sourcify`). Basescan verification needs an
+Etherscan API key and is not done yet. `ChainlinkPrintOracleV1` and the unused series `0x77b8…6cb7`
+are not verified.
+
 ## First series (Safe step)
 
 [`safe-relaunch-first-series.json`](safe-relaunch-first-series.json) is the Safe Transaction Builder batch:
