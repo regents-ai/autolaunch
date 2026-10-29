@@ -90,6 +90,7 @@ Covered calls (`AutolaunchWeb.CoveredCallComponent`, steps built by `Autolaunch.
 | Action | Check |
 | --- | --- |
 | Share picture of an auction or token | `autolaunch_web/launch_image_test.exs` (both cases); `autolaunch_web/share_card_test.exs` (both cases) keeps every word inside the part X's phone view shows. The rest of the picture's content: **gap** |
+| Share picture of the home page (`platform/priv/static/images/og-image.png`, drawn by `node scripts/share-card/render.cjs` from `scripts/share-card/home.html`) | The drawing script refuses a word past X's narrow view or under X's title; `autolaunch_web/share_card_test.exs` › "SHARE_HOME_PICTURE: the home picture leaves X's title band clear" reads the committed picture |
 | Share video, everyone's or a wallet's own | `autolaunch_web/controllers/share_video_test.exs`; `share_video_failures_test.exs` (all ten cases); `autolaunch_web/share_video_queue_test.exs` (all six); `autolaunch_web/share_video_render_test.exs` |
 | Old links (`/auctions/<id>`, `/tokens/<id>`, `/robinhood/...`) move to today's page | `old_link_controller_test.exs` (both cases) |
 

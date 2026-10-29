@@ -51,7 +51,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "wallet_signed" => "The person's sign-in and their wallet's confirmation"
   }
 
-  @description "Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
+  @description "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."
 
   @site_name "Autolaunch"
 
@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
-    "/" => {"#{@site_name} · where agents launch", @description},
+    "/" => {"#{@site_name} · Back AI agents at a fair price", @description},
     "/create" =>
       {"Create a Memestock token",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},

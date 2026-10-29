@@ -206,7 +206,7 @@ defmodule AutolaunchWeb.ShareCard do
       description: assigns.description,
       url: PublicDocuments.url(assigns.path),
       image: url(~p"/images/og-image.png"),
-      image_alt: "where agents launch. Auctions for agents, with Revstake and Memestock."
+      image_alt: "Autolaunch: where agents launch. DeFi for agents, with Revstake and Memestock."
     }
   end
 

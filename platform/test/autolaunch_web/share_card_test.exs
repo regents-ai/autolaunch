@@ -4,7 +4,8 @@ defmodule AutolaunchWeb.ShareCardTest do
   inside the left 660 or so of the 1200 pixels X's phone view keeps, and out
   of the bottom-left corner where X lays the site's name. The pictures are
   drawn for real from a stored auction with a long name, a long ticker and
-  figures in the launch's own currency, the widest they come.
+  figures in the launch's own currency, the widest they come. The home
+  picture is a committed file, so its check reads that file.
   """
   use Autolaunch.DataCase, async: false
 
@@ -20,6 +21,11 @@ defmodule AutolaunchWeb.ShareCardTest do
   # Inside the panel, clear of its rounded corners and the tangerine border.
   @right {660, 40, 490, 550}
   @x_corner {56, 554, 124, 52}
+
+  # X lays the page title over the home picture's bottom-left corner, inside
+  # the panel and clear of its frame.
+  @title_band {40, 530, 620, 60}
+  @home_words {56, 150, 584, 230}
 
   setup do
     now = DateTime.utc_now()
@@ -74,6 +80,15 @@ defmodule AutolaunchWeb.ShareCardTest do
 
     assert {:ok, png} = ShareCard.token_png(auction, token, now)
     assert_where_x_shows(png)
+  end
+
+  test "SHARE_HOME_PICTURE: the home picture leaves X's title band clear" do
+    {:ok, picture} =
+      Image.new_from_file(Application.app_dir(:autolaunch, "priv/static/images/og-image.png"))
+
+    assert {Image.width(picture), Image.height(picture)} == {1200, 630}
+    assert brightest(picture, @home_words) > @bright
+    assert brightest(picture, @title_band) < @bright
   end
 
   defp assert_where_x_shows(png) do
