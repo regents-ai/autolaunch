@@ -219,11 +219,22 @@ defmodule AutolaunchWeb.Router do
     get "/exposure.css", ExposureController, :stylesheet
   end
 
-  # A series' terms, the exact bytes its `termsHash` fingerprints.
+  # A series' terms, the exact bytes its `termsHash` fingerprints, and the
+  # picture and video a shared series link shows.
   scope "/after-hour-stocks", AutolaunchWeb do
     pipe_through :exposure
 
     get "/terms/:hash", ExposureController, :terms
+    get "/:series/share.png", ShareCardController, :exposure
+    get "/:series/share.mp4", ShareCardController, :exposure_video
+  end
+
+  # The picture and video a shared covered-calls link shows.
+  scope "/covered-calls", AutolaunchWeb do
+    pipe_through :covered_calls
+
+    get "/:symbol/share.png", ShareCardController, :covered_calls
+    get "/:symbol/share.mp4", ShareCardController, :covered_calls_video
   end
 
   scope "/api/v1", AutolaunchWeb do
@@ -272,6 +283,18 @@ defmodule AutolaunchWeb.Router do
     get "/auctions/:symbol/:tail/wallets/:wallet/share.mp4",
         ShareCardController,
         :auction_wallet_video
+  end
+
+  scope "/covered-calls", AutolaunchWeb do
+    pipe_through [:session_video, :covered_calls]
+
+    get "/:symbol/wallets/:wallet/share.mp4", ShareCardController, :covered_calls_wallet_video
+  end
+
+  scope "/after-hour-stocks", AutolaunchWeb do
+    pipe_through [:session_video, :exposure]
+
+    get "/:series/wallets/:wallet/share.mp4", ShareCardController, :exposure_wallet_video
   end
 
   scope "/", AutolaunchWeb do

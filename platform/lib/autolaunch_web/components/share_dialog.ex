@@ -32,6 +32,13 @@ defmodule AutolaunchWeb.Components.ShareDialog do
     doc:
       "for a person's own video, the launch's video for everyone, offered once the site has made all of the day's videos and they have none saved"
 
+  attr :video_mine, :string,
+    default: nil,
+    doc:
+      "a signed-in person's own video, offered behind a switch the window starts with off, so their wallet is shown only once they choose it"
+
+  attr :mine_label, :string, default: "Mine", doc: "the words beside that switch"
+
   attr :label, :string, default: "Share on X", doc: "the opening button's words"
   attr :rest, :global, doc: "for the opening button, such as `phx-click` to read an X account"
 
@@ -68,6 +75,13 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           />
           <label for={"#{@id}-message"} class="share-x__label">Your post</label>
           <textarea id={"#{@id}-message"} class="share-x__message" rows="3" data-share-message>{@message}</textarea>
+          <label :if={@video && @video_mine} class="share-x__mine">
+            <input type="checkbox" data-share-mine />
+            <span>{@mine_label}</span>
+          </label>
+          <p :if={@video && @video_mine} class="share-x__note">
+            On, your video also shows what your wallet holds here.
+          </p>
           <div class="share-x__actions">
             <a
               href={intent(@message)}
@@ -85,6 +99,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
               class="rg-button rg-button--secondary"
               data-share-video={@video}
               data-share-video-everyone={@video_everyone}
+              data-share-video-mine={@video_mine}
               data-share-video-name={@video_name}
               disabled
             >
@@ -174,6 +189,10 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           const message = dialog.querySelector("[data-share-message]")
           const post = dialog.querySelector("[data-share-post]")
           const button = () => this.el.querySelector("[data-share-video]")
+          const mine = () => this.el.querySelector("[data-share-mine]")
+          // The person's own video only once they switch it on.
+          const address = (el) =>
+            mine() && mine().checked ? el.dataset.shareVideoMine : el.dataset.shareVideo
 
           // What the window shows for its video, drawn again after every update
           // of the page, so the page never sets it back.
@@ -201,7 +220,7 @@ defmodule AutolaunchWeb.Components.ShareDialog do
             const el = button()
             if (!el) return
             if (this.video) this.video.watchers.delete(this.show)
-            this.video = want(el.dataset.shareVideo, el.dataset.shareVideoEveryone, el.dataset.shareVideoName)
+            this.video = want(address(el), el.dataset.shareVideoEveryone, el.dataset.shareVideoName)
             this.video.watchers.add(this.show)
             this.show()
           }
@@ -223,7 +242,9 @@ defmodule AutolaunchWeb.Components.ShareDialog do
           }
 
           // A video this page already has shows as it stands straight away.
-          if (button() && videos.has(button().dataset.shareVideo)) this.prepare()
+          if (button() && videos.has(address(button()))) this.prepare()
+
+          if (mine()) mine().addEventListener("change", () => this.prepare())
 
           this.el.addEventListener("click", (event) => {
             if (event.target.closest("[data-share-open]")) {

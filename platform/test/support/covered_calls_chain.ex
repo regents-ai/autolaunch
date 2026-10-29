@@ -143,7 +143,7 @@ defmodule Autolaunch.CoveredCallsChain do
   @reads Map.new(
            ~w|listingCount() listings(uint256) unit() usdc() multiplier() effectiveAt()
               held(uint256,address) claimable(uint256,address) latestRoundData()
-              balanceOf(address) allowance(address,address)|,
+              balanceOf(address) allowance(address,address) decimals()|,
            &{Call.selector(&1), &1}
          )
 
@@ -164,7 +164,9 @@ defmodule Autolaunch.CoveredCallsChain do
   defp words("effectiveAt()", _to, state, _data), do: [state.effective_at]
   defp words("held(uint256,address)", _to, state, _data), do: [state.held]
   defp words("claimable(uint256,address)", _to, state, _data), do: [state.claimable]
+  # The feed's first round, so it has no history before it.
   defp words("latestRoundData()", _to, state, _data), do: [1, state.price, @now, @now, 1]
+  defp words("decimals()", @feed, _state, _data), do: [8]
   defp words("balanceOf(address)", @usdc, state, _data), do: [state.usdc_balance]
   defp words("balanceOf(address)", _stock, state, _data), do: [state.balance]
   defp words("allowance(address,address)", @usdc, state, _data), do: [state.usdc_allowance]

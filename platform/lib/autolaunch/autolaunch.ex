@@ -31,6 +31,10 @@ defmodule Autolaunch do
         action: :own,
         args: [:human_account_id, :auction_id, :kind]
 
+      define :own_market_share_video_requests,
+        action: :own_market,
+        args: [:human_account_id, :subject, :kind]
+
       define :share_video_mp4, action: :video, args: [:id]
       define :share_video_room, action: :room, args: [:bytes]
       define :hand_over_share_video, action: :hand_over

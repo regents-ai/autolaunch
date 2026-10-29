@@ -1,0 +1,271 @@
+defmodule AutolaunchWeb.ShareVideo.MarketStory do
+  @moduledoc """
+  What the share picture and video of a stock market on Autolaunch tell, read
+  once at the latest block: covered calls on a Base stock, or one series of
+  After-hours Exposure. Both draw the stock's Chainlink price as a line
+  (`Autolaunch.PriceFeedHistory`), in dollars per token as the pages show it.
+
+  Covered calls mark each open call's strike over the last two weeks of the
+  line, and close on the price and the lowest premium a buyer can take now.
+  After-hours Exposure colours the line by window through its series, after
+  hours (close to open) and market hours (open to close), with a dot at each
+  price the series applied, and closes on what each token is worth.
+
+  With `wallet`, the closing figures are that wallet's own: the premium its
+  calls earned and the calls it holds, or the tokens of each window it holds.
+  Only the signed-in person who links the wallet is ever shown it.
+
+  Prices are floats: they only draw the line. The figures are written from the
+  chain's own whole numbers, as every amount on the site is.
+  """
+
+  alias Autolaunch.CoveredCalls
+  alias Autolaunch.Exposure
+  alias Autolaunch.PriceFeedHistory
+  alias Autolaunch.Stocks.PriceFeeds
+  alias AutolaunchWeb.{ExposureFormat, PublicDocuments, UsdValue}
+
+  @covered_calls_days 14
+  @exposure_lead 2 * 86_400
+  @exposure_days 7
+  @strikes 3
+  @usdc 1_000_000
+  @wad 1_000_000_000_000_000_000
+
+  @type t :: map()
+
+  @doc "A covered-call market's (`:covered_calls`) or an Exposure series' (`:exposure`) story."
+  @spec read(:covered_calls | :exposure, String.t(), String.t() | nil) ::
+          {:ok, t()} | {:error, atom()}
+  def read(:covered_calls, symbol, wallet), do: covered_calls(symbol, wallet)
+  def read(:exposure, address, wallet), do: exposure(address, wallet)
+
+  @doc "The line's price at `count` moments evenly through its time, oldest first."
+  @spec samples(t(), pos_integer()) :: [float()]
+  def samples(story, count) do
+    for step <- 0..(count - 1) do
+      at = story.from + (story.now - story.from) * step / (count - 1)
+      price_at(story.line, at)
+    end
+  end
+
+  @doc "The price the line holds at `at`: a feed's price holds from one round to the next."
+  @spec price_at([{number(), float()}], number()) :: float()
+  def price_at([{_at, first} | _rest] = line, at) do
+    Enum.reduce_while(line, first, fn
+      {point_at, price}, _held when point_at <= at -> {:cont, price}
+      _later, held -> {:halt, held}
+    end)
+  end
+
+  @doc "Covered calls on `symbol`'s market, with `wallet`'s own figures when one is given."
+  @spec covered_calls(String.t(), String.t() | nil) :: {:ok, t()} | {:error, atom()}
+  def covered_calls(symbol, wallet) do
+    with {:ok, config} <- CoveredCalls.Deployment.current(),
+         {:ok, market} <- CoveredCalls.Deployment.market(symbol),
+         {:ok, block, opts} <- CoveredCalls.Chain.latest(config.lab),
+         {:ok, book} <- CoveredCalls.Chain.book(market, block, opts),
+         from = block.timestamp - @covered_calls_days * 86_400,
+         {:ok, history} <- PriceFeedHistory.since(market.feed, from, block, opts),
+         {:ok, figures} <- covered_call_figures(market, book, wallet, block, opts) do
+      open = Enum.filter(book.listings, &(CoveredCalls.Terms.stage(&1, block.timestamp) == :open))
+
+      {:ok,
+       %{
+         kind: :covered_calls,
+         subject: market.symbol,
+         title: title("/covered-calls"),
+         badge: open_badge(length(open)),
+         symbol: market.symbol,
+         ticker: PriceFeeds.ticker(market.symbol),
+         from: from,
+         now: block.timestamp,
+         line: line(history, from, block.timestamp),
+         bands: [],
+         dots: [],
+         levels: strikes(open),
+         figures: figures,
+         mine?: wallet != nil
+       }}
+    end
+  end
+
+  @doc "One After-hours Exposure series, with `wallet`'s own holdings when one is given."
+  @spec exposure(String.t(), String.t() | nil) :: {:ok, t()} | {:error, atom()}
+  def exposure(address, wallet) do
+    with {:ok, config} <- Exposure.Deployment.current(),
+         {:ok, address} <- Exposure.Deployment.series(address),
+         {:ok, block, opts} <- Exposure.Chain.latest(config.lab),
+         {:ok, series} <- Exposure.Chain.series(address, config, block, opts),
+         from = exposure_from(series, block.timestamp),
+         {:ok, history} <- PriceFeedHistory.since(series.feed, from, block, opts),
+         {:ok, figures} <- exposure_figures(series, history, wallet, block, opts) do
+      {:ok,
+       %{
+         kind: :exposure,
+         subject: address,
+         title: title("/after-hour-stocks"),
+         badge: status_badge(series.status),
+         symbol: series.stock.symbol,
+         ticker: PriceFeeds.ticker(series.stock.symbol),
+         from: from,
+         now: block.timestamp,
+         line: line(history, from, block.timestamp),
+         bands: bands(series.boundaries, block.timestamp),
+         dots: Enum.map(series.prints, &{&1.at, &1.price / @wad}),
+         levels: [],
+         figures: figures,
+         mine?: wallet != nil
+       }}
+    end
+  end
+
+  defp title(path), do: Keyword.fetch!(PublicDocuments.page(path), :page_title)
+
+  # The feed's points as dollars, starting at `from` and held to `now`.
+  defp line(%{decimals: decimals, points: points}, from, now) do
+    scale = :math.pow(10, decimals)
+    points = Enum.map(points, fn {at, answer} -> {max(at, from), answer / scale} end)
+    {_at, last} = List.last(points)
+    points ++ [{now, last}]
+  end
+
+  # --- covered calls ---------------------------------------------------------------
+
+  # The strikes of the open calls, the few nearest the price, each with the
+  # day its calls expire.
+  defp strikes(open) do
+    open
+    |> Enum.group_by(& &1.strike_per_token)
+    |> Enum.map(fn {strike, listings} ->
+      %{
+        price: strike / @usdc,
+        label: "#{UsdValue.dollars(usdc(strike))} strike",
+        expiry: listings |> Enum.map(& &1.expiry) |> Enum.min()
+      }
+    end)
+    |> Enum.sort_by(& &1.price)
+    |> Enum.take(@strikes)
+  end
+
+  defp open_badge(0), do: "No calls open"
+  defp open_badge(1), do: "1 call open"
+  defp open_badge(count), do: "#{count} calls open"
+
+  defp covered_call_figures(_market, book, nil, block, _opts) do
+    open = Enum.filter(book.listings, &(CoveredCalls.Terms.stage(&1, block.timestamp) == :open))
+
+    price =
+      case CoveredCalls.Quote.spot(book) do
+        {:ok, spot} -> UsdValue.dollars(usdc(spot))
+        {:error, :price_unavailable} -> "—"
+      end
+
+    premium =
+      case Enum.map(open, & &1.premium_per_token) do
+        [] -> "None open"
+        premiums -> UsdValue.dollars(usdc(Enum.min(premiums)))
+      end
+
+    {:ok, [{"Price", price}, {"Calls from", premium}]}
+  end
+
+  defp covered_call_figures(market, book, wallet, block, opts) do
+    wallet = String.downcase(wallet)
+
+    with {:ok, holdings} <-
+           CoveredCalls.Chain.holdings(market, book.listings, wallet, block, opts) do
+      earned =
+        book.listings
+        |> Enum.filter(&(&1.seller == wallet))
+        |> Enum.map(fn listing ->
+          premium =
+            CoveredCalls.Terms.usdc_for(listing.filled, listing.premium_per_token, book.unit)
+
+          premium - CoveredCalls.Terms.fee(premium)
+        end)
+        |> Enum.sum()
+
+      held = holdings |> Enum.map(& &1.held) |> Enum.sum()
+
+      {:ok,
+       [
+         {"Earned", UsdValue.dollars(usdc(earned))},
+         {"Calls held", "#{RegentFormat.token_amount(held, digits(book.unit))} #{market.symbol}"}
+       ]}
+    end
+  end
+
+  defp usdc(micro), do: Decimal.new(1, micro, -6)
+
+  # A stock token's raw units in one whole token, as its decimals.
+  defp digits(unit), do: unit |> Integer.digits() |> length() |> Kernel.-(1)
+
+  # --- After-hours Exposure ----------------------------------------------------------
+
+  # From two days before the series' first close, or the last week while it is
+  # far off.
+  defp exposure_from(%{boundaries: [first | _]}, now),
+    do: min(first - @exposure_lead, now - @exposure_days * 86_400)
+
+  # The series' windows: from its first close, close to open is after hours and
+  # open to close is market hours. A window still to come is left out; one in
+  # progress runs to now.
+  defp bands(boundaries, now) do
+    boundaries
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.with_index()
+    |> Enum.filter(fn {[from, _to], _index} -> from < now end)
+    |> Enum.map(fn {[from, to], index} ->
+      %{from: from, to: min(to, now), window: if(rem(index, 2) == 0, do: :after, else: :market)}
+    end)
+  end
+
+  # Before its first price the series has no token values yet: the stock's
+  # price now and when the series opens.
+  defp status_badge(:pending), do: "Opens soon"
+  defp status_badge(:active), do: "Live"
+  defp status_badge(:ended), do: "Ended"
+
+  defp exposure_figures(%{settled: 0} = series, history, nil, _block, _opts) do
+    {_at, answer} = List.last(history.points)
+
+    {:ok,
+     [
+       {"Price", UsdValue.dollars(Decimal.new(1, answer, -history.decimals))},
+       {"Opens", ExposureFormat.moment(series.next.at)}
+     ]}
+  end
+
+  defp exposure_figures(series, _history, nil, _block, _opts),
+    do:
+      {:ok,
+       [
+         {"After-hours", leg_value(series, series.night)},
+         {"Market-hours", leg_value(series, series.day)}
+       ]}
+
+  defp exposure_figures(series, _history, wallet, block, opts) do
+    with {:ok, held} <- Exposure.Chain.holdings(series, String.downcase(wallet), block, opts) do
+      decimals = series.stock.decimals
+
+      {:ok,
+       [
+         {"After-hours",
+          "#{RegentFormat.token_amount(held.overnight, decimals)} #{series.overnight.symbol}"},
+         {"Market-hours",
+          "#{RegentFormat.token_amount(held.session, decimals)} #{series.session.symbol}"}
+       ]}
+    end
+  end
+
+  # What one token of a window is worth now: dollars while the series runs,
+  # the stock it pays once it has ended.
+  defp leg_value(%{status: :ended, stock: stock, price: price}, ledger),
+    do:
+      "#{RegentFormat.token_amount(div(ledger * Integer.pow(10, stock.decimals), price), stock.decimals)} #{stock.symbol}"
+
+  defp leg_value(_series, ledger), do: UsdValue.dollars(wad(ledger))
+
+  defp wad(value), do: Decimal.new(1, value, -18)
+end

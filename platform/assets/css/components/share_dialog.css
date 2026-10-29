@@ -36,6 +36,9 @@
 /* The window's buttons keep their own width and stay on one line each. */
 .share-x__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .share-x__note { color: var(--color-fg-muted); font-size: .875rem; }
+/* The switch that adds a person's own wallet to the video: a full press. */
+.share-x__mine { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; cursor: pointer; }
+.share-x__mine input { width: 20px; height: 20px; margin: 0; accent-color: var(--color-accent); }
 
 @media (max-width: 480px) {
   .share-x__box { padding: 16px; }

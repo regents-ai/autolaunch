@@ -162,7 +162,7 @@ defmodule Autolaunch.ExposureChain do
             getPrint(bytes32,uint64,bool) sourceOf(uint64,bool) getRoundData(uint80)
             symbol() name() decimals() totalSupply() balanceOf(address)
             allowance(address,address) getPool(address,address,bool)
-            getAmountOut(uint256,address)|
+            getAmountOut(uint256,address) latestRoundData()|
          |> Map.new(&{Call.selector(&1), &1})
 
   defp answer(state, to, data) do
@@ -203,6 +203,12 @@ defmodule Autolaunch.ExposureChain do
 
   defp words("sourceOf(uint64,bool)", @oracle, state, [at, _open]) do
     if print(state, at), do: [Bitwise.bsl(@phase, 64) + 1, at - 60], else: [0, 0]
+  end
+
+  defp words("latestRoundData()", @feed, state, _args) do
+    round_id = Bitwise.bsl(@phase, 64) + length(state.rounds)
+    {updated_at, answer} = List.last(state.rounds)
+    [round_id, answer, updated_at, updated_at, round_id]
   end
 
   defp words("getRoundData(uint80)", @feed, state, [round_id]) do
