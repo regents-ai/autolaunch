@@ -403,7 +403,7 @@ explicitly-confirmed send step for prepared transactions. Today's rule (never si
 
 ## 9. Open items
 
-1. Deployment: done on 29 October 2026 (section 5). Source verified on Sourcify; Basescan verification needs an Etherscan API key.
+1. Deployment: done on 29 October 2026 (section 5). Source verified on Basescan (exact match) and Sourcify.
 2. Switching covered calls on in production is a separate release after deployment, with the
    deployed address in the markets file.
 3. Hosted MCP tools and the CLI commands above are not built.

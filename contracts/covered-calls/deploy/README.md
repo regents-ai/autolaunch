@@ -3,7 +3,7 @@
 Status: **deployed on Base** at [`0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`](https://basescan.org/address/0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E), 29 October 2026,
 transaction [`0xaa52f5ca…d6ba3a`](https://basescan.org/tx/0xaa52f5ca91f01533779514b78011ba20e65fd1f0bf6477a2d936aa57a4d6ba3a) in block 53,230,752, sent by Sean
 from his own keystore (`0x9b2C414614aEE294202c1219520955EF3B596031`). Every check under "After it lands" passed against
-Base itself, and the source is verified on Sourcify; `deployed.json` is the record. Covered calls
+Base itself, and the source is verified on Basescan (exact match) and Sourcify; `deployed.json` is the record. Covered calls
 stay switched off on the site until a separate release turns them on.
 
 ## What it is
