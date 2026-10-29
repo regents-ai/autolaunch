@@ -2,6 +2,12 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: the last amounts in the one Regents way
+- A stock's liquidity and past week's trading volume, on the stock pages and when you pick a stock to launch, are written in full like every other amount ("$1,234,567.89" instead of "$1.2M").
+- A share picture or video draws every figure whole, smaller if it has to, instead of cutting it off with "…", and the video's figures now match the picture's to the cent.
+- "Still to go" before an auction reaches its minimum is rounded up at its last digit, so it never shows less than is missing.
+- A bid's budget typed in an unusual way, such as "1e6144", no longer breaks the bid page, and a dollar figure below zero reads "-$6.00".
+
 ## 29 October 2026: every amount shown the one Regents way
 - Every amount the site shows you to read now looks the same as on every Regents site: prices, bids, balances, rewards, refunds, raises, revenue, supply and dollar values, on the pages, in the ticker and in the share pictures. Amounts of 1 and above show two decimals with thousands separated ("26,590,000,000.00"), smaller amounts show their first three digits ("0.0000000123"), and digits are cut, never rounded up.
 - Large figures are written out in full instead of shortened to K, M or B, and tiny prices write their zeros out instead of counting them with a small number.

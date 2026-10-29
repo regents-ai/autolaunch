@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, PriceFeeds}
   alias AutolaunchWeb.Components.MarketCard
-  alias AutolaunchWeb.DraftMarks
+  alias AutolaunchWeb.{DraftMarks, UsdValue}
   alias Phoenix.LiveView.JS
 
   @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
@@ -170,7 +170,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
                     <span :if={index > 0}>or</span>
                     <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
-                    ({compact_usd(venue.liquidity_usd)} liquidity)
+                    ({UsdValue.dollars(venue.liquidity_usd)} liquidity)
                   </span>
                 </p>
                 <p

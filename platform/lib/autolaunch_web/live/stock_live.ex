@@ -8,10 +8,10 @@ defmodule AutolaunchWeb.StockLive do
   """
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1, compact_usd: 1]
+  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
   alias Autolaunch.Stocks.UpcomingCatalog
-  alias AutolaunchWeb.{NotFoundError, PublicDocuments}
+  alias AutolaunchWeb.{NotFoundError, PublicDocuments, UsdValue}
 
   def mount(%{"symbol" => symbol}, _session, socket) do
     case UpcomingCatalog.stock(symbol) do
@@ -149,7 +149,7 @@ defmodule AutolaunchWeb.StockLive do
   end
 
   defp liquidity(nil), do: "Unknown"
-  defp liquidity(usd), do: usd |> Decimal.new() |> Decimal.to_float() |> compact_usd()
+  defp liquidity(usd), do: usd |> Decimal.new() |> UsdValue.dollars()
 
   defp feed_note(%{"feed_address" => nil}),
     do: "No verified same-chain feed address is available."

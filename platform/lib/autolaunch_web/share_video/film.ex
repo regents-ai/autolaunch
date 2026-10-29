@@ -952,13 +952,19 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     end)
   end
 
-  # A figure steps down in size until it fits beside the name, so a long one
-  # is never cut short.
-  defp figure(value, color) do
-    Enum.find_value([50, 44, 38, 32, 28], fn size ->
-      layer = text!(value, :bold, size, color)
-      if Image.width(layer) <= @words_w, do: layer
-    end) || text!(value, :bold, 28, color)
+  # A figure steps down in size until it fits beside the name, and past its
+  # last step it is drawn at the size that fits, so a long one is never cut
+  # short and never runs into the name.
+  defp figure(value, color, sizes \\ [50, 44, 38, 32, 28])
+
+  defp figure(value, color, [size | smaller]) do
+    layer = text!(value, :bold, size, color)
+
+    cond do
+      Image.width(layer) <= @words_w -> layer
+      smaller != [] -> figure(value, color, smaller)
+      true -> figure(value, color, [div(size * @words_w, Image.width(layer))])
+    end
   end
 
   # While an auction runs, its pill counts down to the end as of the line's
@@ -992,8 +998,16 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   defp amount(value), do: TokenDisplay.short(decimal(value))
 
+  # The film's figures are floats, good to 15 significant digits; past them a
+  # float only carries its own error (0.00000029 * 100,000,000 is
+  # 28.999999999999996), which cutting would show a cent low.
   defp decimal(value) when value <= 0, do: Decimal.new(0)
-  defp decimal(value), do: Decimal.from_float(value * 1.0)
+
+  defp decimal(value),
+    do:
+      Decimal.Context.with(%Decimal.Context{precision: 15}, fn ->
+        (value * 1.0) |> Decimal.from_float() |> Decimal.add(0)
+      end)
 
   defp n(value), do: :erlang.float_to_binary(value * 1.0, decimals: 1)
 

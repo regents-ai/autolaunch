@@ -343,11 +343,13 @@ defmodule AutolaunchWeb.ShareCard do
 
   # Each figure sits on its own row, its label on the left and the figure on
   # the right; a long figure steps down in size until it fits beside its label.
+  # A figure is never cut short: past its last step it is drawn at the size
+  # that fits.
   defp stat_layers(stats) do
     Enum.reduce_while(Enum.reverse(stats), {:ok, []}, fn {label, value, color}, {:ok, done} ->
       with {:ok, label} <- layer(label, :regular, 28, @muted),
            max = @words_right - @logo_x - Image.width(label) - 24,
-           {:ok, value} <- sized(value, :bold, color, max, [40, 36, 32]) do
+           {:ok, value} <- figure(value, color, max, [40, 36, 32]) do
         {:cont, {:ok, [{label, value} | done]}}
       else
         error -> {:halt, error}
@@ -415,6 +417,16 @@ defmodule AutolaunchWeb.ShareCard do
 
   # The words step down in size until they fit, and are cut short at the
   # smallest.
+  defp figure(value, color, max, [size | smaller]) do
+    with {:ok, layer} <- layer(value, :bold, size, color) do
+      cond do
+        Image.width(layer) <= max -> {:ok, layer}
+        smaller != [] -> figure(value, color, max, smaller)
+        true -> figure(value, color, max, [div(size * max, Image.width(layer))])
+      end
+    end
+  end
+
   defp sized(words, weight, color, max, [size]), do: fit(words, weight, size, color, max)
 
   defp sized(words, weight, color, max, [size | smaller]) do

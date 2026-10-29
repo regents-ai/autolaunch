@@ -219,7 +219,7 @@ defmodule Autolaunch.Stocks.MarketData do
       |> Enum.filter(&dollar_pair?(&1, stock.address, usdg))
       |> Enum.flat_map(&pair_venue/1)
       |> Enum.group_by(& &1.name)
-      |> Enum.map(fn {_name, venues} -> Enum.max_by(venues, & &1.liquidity_usd) end)
+      |> Enum.map(fn {_name, venues} -> Enum.max_by(venues, & &1.liquidity_usd, Decimal) end)
       |> deepest_venues()
       |> then(&{:ok, &1})
     else
@@ -231,8 +231,8 @@ defmodule Autolaunch.Stocks.MarketData do
   # two deepest.
   defp deepest_venues(venues) do
     venues
-    |> Enum.filter(&(&1.liquidity_usd > @venue_floor_usd))
-    |> Enum.sort_by(& &1.liquidity_usd, :desc)
+    |> Enum.filter(&Decimal.gt?(&1.liquidity_usd, @venue_floor_usd))
+    |> Enum.sort_by(& &1.liquidity_usd, {:desc, Decimal})
     |> Enum.take(@venue_limit)
   end
 
@@ -261,7 +261,9 @@ defmodule Autolaunch.Stocks.MarketData do
   defp pair_venue(%{"dexId" => dex, "pairAddress" => id, "liquidity" => %{"usd" => usd}})
        when is_binary(dex) and dex != "" and is_binary(id) and is_number(usd) do
     if String.match?(id, ~r/\A0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\z/),
-      do: [%{name: venue_name(dex), url: pair_url(id), liquidity_usd: usd / 1}],
+      do: [
+        %{name: venue_name(dex), url: pair_url(id), liquidity_usd: Decimal.from_float(usd / 1)}
+      ],
       else: []
   end
 
@@ -290,7 +292,7 @@ defmodule Autolaunch.Stocks.MarketData do
   defp deepest_pool(pools, {dex, name}, stock) do
     pools
     |> Enum.flat_map(&pool_reserve(&1, dex))
-    |> Enum.max(fn -> nil end)
+    |> Enum.max(Decimal, fn -> nil end)
     |> List.wrap()
     |> Enum.map(&%{name: name, url: swap_url(dex, stock), liquidity_usd: &1})
   end
@@ -308,7 +310,7 @@ defmodule Autolaunch.Stocks.MarketData do
        when is_binary(pool_dex) and is_binary(text) do
     with true <- String.starts_with?(pool_dex, dex),
          {amount, ""} <- Float.parse(text) do
-      [amount]
+      [Decimal.from_float(amount)]
     else
       _other -> []
     end
