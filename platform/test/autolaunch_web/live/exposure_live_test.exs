@@ -124,6 +124,20 @@ defmodule AutolaunchWeb.ExposureLiveTest do
            )
   end
 
+  # Found by the copy-of-Base journey: the last price ended the series while a
+  # Record panel was still open, and the panel's next read of the steps crashed.
+  test "a series that ends while the Record panel is open says it has ended", %{conn: conn} do
+    ExposureChain.install()
+    {view, panel} = signed_in_panel(conn, "#exposure-update-#{@series}")
+    ExposureChain.put(%{status: 2, end_reason: 1})
+
+    render_hook(panel, "change", %{})
+    render_async(view)
+
+    assert has_element?(view, "#exposure-update-#{@series}", "This series has ended")
+    assert has_element?(view, "#exposure-update-#{@series} [data-onchain-step=settle][disabled]")
+  end
+
   # A press the panel can't build steps for says so: it never silently does nothing.
   test "a press the chain can't be read for says nothing was sent", %{conn: conn} do
     note = "#exposure-mint-#{@series} [role=status]"

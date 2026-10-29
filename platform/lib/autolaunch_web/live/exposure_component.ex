@@ -307,7 +307,7 @@ defmodule AutolaunchWeb.ExposureComponent do
         </p>
       </form>
 
-      <dl :if={@prepared} class="exposure-panel__facts">
+      <dl :if={@prepared && @prepared.facts != %{}} class="exposure-panel__facts">
         <.facts kind={@kind} facts={@prepared.facts} series={@series} />
       </dl>
 
@@ -320,13 +320,13 @@ defmodule AutolaunchWeb.ExposureComponent do
             variant={if step.approval?, do: "secondary", else: nil}
             data-onchain-step={step.name}
             disabled={!step.approval? and @blocked != nil}
-            aria-describedby={(!step.approval? and @blocked) && "#{@id}-why"}
+            aria-describedby={(!step.approval? and @blocked) && "#{@id}-#{step.name}-why"}
           >
             <span data-press-label>{step.label}</span>
           </P.button>
           <div class="exposure-panel__step-words">
             <span :if={step.words}>{step.words}</span>
-            <span :if={!step.approval? and @blocked} id={"#{@id}-why"}>{@blocked}</span>
+            <span :if={!step.approval? and @blocked} id={"#{@id}-#{step.name}-why"}>{@blocked}</span>
           </div>
           <P.button
             :if={step.stalled?}
