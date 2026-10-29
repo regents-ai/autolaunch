@@ -12,8 +12,8 @@ receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
 ## Source verification
 
 `ExposureFactoryV1` and `ChainlinkPrintOracleV2` are verified on Sourcify (creation and runtime
-match, 29 Oct 2026, `forge verify-contract --verifier sourcify`). Basescan verification needs an
-Etherscan API key and is not done yet. `ChainlinkPrintOracleV1` and the unused series `0x77b8…6cb7`
+match, 29 Oct 2026, `forge verify-contract --verifier sourcify`) and on Basescan (Source Code
+Verified, run by Sean with `forge verify-contract --verifier etherscan`, 29 Oct 2026). `ChainlinkPrintOracleV1` and the unused series `0x77b8…6cb7`
 are not verified.
 
 ## First series (Safe step)
