@@ -3,7 +3,7 @@ defmodule Autolaunch.Chain.Rpc do
 
   require Logger
 
-  alias RegentChain.Address
+  alias RegentChain.{Address, BuilderCode}
 
   @timeout 8_000
   @chain_id 8453
@@ -339,7 +339,9 @@ defmodule Autolaunch.Chain.Rpc do
          true <- String.downcase(transaction_hash) == String.downcase(hash),
          true <- actual_signer == expected_signer,
          true <- actual_target == expected_target,
-         true <- String.downcase(transaction["input"] || "") == String.downcase(data),
+         {:ok, sent} <- sent_call(transaction["input"]),
+         {:ok, reviewed} <- sent_call(data),
+         true <- sent == reviewed,
          true <- zero_quantity?(transaction["value"]) do
       :ok
     else
@@ -349,6 +351,10 @@ defmodule Autolaunch.Chain.Rpc do
 
   defp verify_transaction(_transaction, _hash, _signer, _to, _data),
     do: {:error, :transaction_missing}
+
+  # The calldata without any Builder Code suffix, which a wallet may rewrite.
+  defp sent_call("0x" <> _hex = data), do: {:ok, data |> String.downcase() |> BuilderCode.call()}
+  defp sent_call(_input), do: :error
 
   defp decode_uint("0x" <> hex), do: String.to_integer(hex, 16)
 
