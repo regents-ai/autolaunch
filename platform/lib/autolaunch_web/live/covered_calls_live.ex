@@ -398,39 +398,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   # middle suggestion until both are), the reference price and its basis, then
   # the terms.
   defp guide(%{reading: reading, sell: sell} = assigns) do
-    expiries = Terms.expiries(reading.now)
-
-    expiry =
-      case Integer.parse(sell["expiry"] || "") do
-        {chosen, ""} -> if chosen in expiries, do: chosen, else: hd(expiries)
-        _none -> hd(expiries)
-      end
-
-    spot =
-      case Quote.spot(reading) do
-        {:ok, spot} -> spot
-        {:error, :price_unavailable} -> nil
-      end
-
-    rows =
-      for percent <- @suggested_strikes, spot do
-        strike = round_cents(spot * (100 + percent) / 100)
-        # To the cent, as the form takes a premium.
-        premium = max(round_cents(Quote.premium(spot, strike, expiry, reading.now)), 10_000)
-        %{percent: percent, strike: strike, premium: premium}
-      end
-
-    trade =
-      case {F.parse_usd(sell["strike"] || ""), F.parse_usd(sell["premium"] || ""), rows} do
-        {strike, premium, _rows} when is_integer(strike) and is_integer(premium) ->
-          %{title: "Your trade", strike: strike, premium: premium}
-
-        {_strike, _premium, [_low, middle | _high]} ->
-          %{title: "Example", strike: middle.strike, premium: middle.premium}
-
-        _no_price ->
-          nil
-      end
+    expiry = chosen_expiry(sell, Terms.expiries(reading.now))
+    spot = spot(reading)
+    rows = suggestions(spot, expiry, reading.now)
+    trade = trade(sell, rows)
 
     assigns = assign(assigns, expiry: expiry, spot: spot, rows: rows, trade: trade)
 
@@ -526,6 +497,46 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       </ul>
     </details>
     """
+  end
+
+  # The window the form has chosen, or the next one before it has.
+  defp chosen_expiry(sell, [next | _later] = expiries) do
+    case Integer.parse(sell["expiry"] || "") do
+      {chosen, ""} -> if chosen in expiries, do: chosen, else: next
+      _none -> next
+    end
+  end
+
+  defp spot(reading) do
+    case Quote.spot(reading) do
+      {:ok, spot} -> spot
+      {:error, :price_unavailable} -> nil
+    end
+  end
+
+  defp suggestions(nil, _expiry, _now), do: []
+
+  defp suggestions(spot, expiry, now) do
+    for percent <- @suggested_strikes do
+      strike = round_cents(spot * (100 + percent) / 100)
+      # To the cent, as the form takes a premium.
+      premium = max(round_cents(Quote.premium(spot, strike, expiry, now)), 10_000)
+      %{percent: percent, strike: strike, premium: premium}
+    end
+  end
+
+  # The strike and premium typed, or the middle suggestion as an example.
+  defp trade(sell, rows) do
+    case {F.parse_usd(sell["strike"] || ""), F.parse_usd(sell["premium"] || ""), rows} do
+      {strike, premium, _rows} when is_integer(strike) and is_integer(premium) ->
+        %{title: "Your trade", strike: strike, premium: premium}
+
+      {_strike, _premium, [_low, middle | _high]} ->
+        %{title: "Example", strike: middle.strike, premium: middle.premium}
+
+      _no_price ->
+        nil
+    end
   end
 
   defp outcomes(spot),
