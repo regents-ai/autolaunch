@@ -3,11 +3,50 @@ defmodule Autolaunch.Agents do
   Reads the shared Regent account an agent's pairing names, without creating
   records on agent reads. A person's shared account exists on every Regent
   site from their first sign-in on any of them.
+
+  It also holds the hosted MCP server's identity tools for an app a person
+  connected to their account here (`Autolaunch.Agents.Connection`).
   """
+  use Ash.Domain, otp_app: :autolaunch, extensions: [AshAi]
+
   alias Autolaunch.{Accounts, Repo}
   alias Autolaunch.Actors.{Agent, System}
   alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ReadFailedError, ReadFailure}
 
+  # The hosted MCP server's identity tools, for an app a person connected to their
+  # account here, with the titles, words and hints every Regent site gives them.
+  @identity Map.new(RegentMCPAgents.Tools.list(), &{&1.name, &1})
+
+  tools do
+    for name <- RegentMCPAgents.Tools.names() do
+      %{title: title, description: description, annotations: hints} = @identity[name]
+      name = String.to_atom(name)
+
+      tool name, Autolaunch.Agents.Connection, name do
+        title(title)
+        description description
+
+        annotations(
+          read_only_hint: hints.readOnlyHint,
+          idempotent_hint: hints.idempotentHint,
+          destructive_hint: hints.destructiveHint,
+          open_world_hint: hints.openWorldHint
+        )
+      end
+    end
+  end
+
+  resources do
+    resource Autolaunch.Agents.Connection
+  end
+
+  @doc """
+  The actor a wallet the sign-in service vouches for acts as here, with the
+  account its pairing names: the agent acting for its person while it is
+  paired, `:not_paired` otherwise. The signed-agent routes use it
+  (`AutolaunchWeb.Plugs.AgentAccess`), and so does the hosted MCP server, for
+  the wallet of a connected app's own identity (`AutolaunchWeb.Plugs.McpAgent`).
+  """
   def resolve(wallet) do
     with {:ok, pairing} <- RegentAgents.Authority.resolve(Repo, wallet),
          {:ok, account} <- person(pairing.privy_user_id) do

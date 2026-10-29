@@ -273,6 +273,13 @@ defmodule AutolaunchWeb.Telemetry do
       counter("autolaunch.auction_page.ladder_stopped.total",
         event_name: [:autolaunch, :auction_page, :ladder_stopped]
       ),
+      # Each request to the hosted MCP server, by the way it came in (an agent's
+      # signature, a connected app's token, both or neither) and whether it was
+      # let through (`AutolaunchWeb.Plugs.McpAgent`).
+      counter("autolaunch.mcp.auth.total",
+        event_name: [:autolaunch, :mcp, :auth],
+        tags: [:mode, :outcome]
+      ),
       distribution("autolaunch.share_video.render.microseconds",
         event_name: [:autolaunch, :share_video, :rendered],
         measurement: :ms,

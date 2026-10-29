@@ -165,6 +165,27 @@ Guides and discovery for agents (`/llms.txt`, `/llms-full.txt`, `/agents.md`, `/
 release, the live prelaunch line and the short index's links: `autolaunch_web/agent_documents_test.exs`
 (all three cases).
 
+## Hosted MCP and the Claude connector
+
+`POST /mcp` runs the tools `platform/priv/capabilities.json` marks hosted, each as its Ash action
+under its policies (`AutolaunchWeb.Capabilities`, checked when it compiles; its `cli` column by
+`autolaunch_web/capabilities_test.exs`). The connector's switch, `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`,
+is off in production.
+
+| What | Check |
+| --- | --- |
+| A paired agent's signed call lists and runs `autolaunch_auction_counts`, with the API's answer; an agent no person paired is refused `agent_not_paired` | `autolaunch_web/mcp_agent_test.exs` › "a paired agent lists and reads the auction counts, with the API's answer", › "an agent no person paired is refused, as on every signed route here" |
+| A signature beside a token, a refused signature, and no credential at all are refused in the site's shape | `autolaunch_web/mcp_agent_test.exs` › "a signature and a token together are refused, and a token alone while connecting apps is off", › "a signature the sign-in service refuses is refused, even for a read", › "every request needs a signature or a token, from the first one on" |
+| A query string or another site's page is refused before any signature is checked, for any query and any host (property) | `autolaunch_web/mcp_agent_test.exs` › "a query string or a page from another site is refused before any signature is checked", › "this site's own page, or no page, may call it" |
+| One call a request; input a tool cannot take gets the API's `invalid_request`; only `POST /mcp` is served, a GET for an event stream answers 405 and a body that is not JSON 415 | `autolaunch_web/mcp_agent_test.exs` › "one call a request: a batch is refused, and the 2026-07-28 profile reads", › "input a tool cannot take is refused with the HTTP code, never a placeholder", › "only POST /mcp is served; anything else answers in the site's shape", › "a GET for an event stream is answered 405, and a body that is not JSON 415, whatever it accepts" |
+| 120 requests a minute from one address, 600 with a token | `autolaunch_web/mcp_agent_test.exs` › "one address gets 120 requests a minute here, as on the API", › "requests with a token share 600 a minute from one address, Claude's servers among them" |
+| A paired agent's answer is replaced when its pairing ended during the request, on `/mcp` and every signed route | `autolaunch_web/mcp_agent_test.exs` › "a paired agent's answer is replaced when its pairing ended during the request" |
+| Switch off: the connector's sign-in is not found, `/mcp` takes no app's token, Claude is neither offered nor shown, and an agent pairs as before | `autolaunch_web/claude_connector_test.exs` › "its sign-in is not found, /mcp takes no app's token, and Claude is neither offered nor shown", › "an agent's sign-in and pairing work as before, and a Claude pairing is refused" |
+| Switch on: Claude in the pairing box, `/agents/claude`, and its lines in `/llms.txt`, `/agents.md` and the sitemap | `autolaunch_web/claude_connector_test.exs` › "Claude is offered in the pairing box, and its page and guide lines are shown" |
+| Switch on: a connected app pairs one hosted agent with its own account's code only, checks in, keeps one identity across reconnects, and loses access when it disconnects or is unpaired | `autolaunch_web/claude_connector_test.exs` (the eleven cases under "with the connector on") |
+| Switch on, with the agent permission: a paired app reads the auction counts as its agent; never as another account's agent; the identity's wallet is read once, and once while the signer is down | `autolaunch_web/claude_connector_test.exs` (the six cases under "with the connector on and the agent permission") |
+| The consent page and its redirect back to Claude | **Gap** (not walked; the walk runs with the switch off) |
+
 ## Gaps, in one list
 
 Home tabs and filter results; list filter results on `/auctions` and `/tokens`; the auction
@@ -174,4 +195,6 @@ Credits purchase check; Robinhood bids; adding to, raising or taking back an out
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
 draft routes and the paired Points and Credits history answers; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
-agent journeys; covered calls' hosted MCP and CLI surfaces (`docs/agent-parity.md`).
+agent journeys; covered calls' hosted MCP and CLI surfaces and every other hosted MCP surface but
+the auction counts and the connector's identity tools (`docs/agent-parity.md`); the connector's
+consent page and redirect.

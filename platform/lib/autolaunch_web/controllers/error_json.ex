@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.ErrorJSON do
   every error is JSON, whatever the request asked for.
   """
 
-  alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ApiError}
+  alias AutolaunchWeb.{AccountUnavailableError, AgentNotPairedError, ApiError, PublicDocuments}
 
   # The account an agent's pairing names could not be read just now.
   def render("503.json", %{reason: %AccountUnavailableError{}}),
@@ -14,6 +14,19 @@ defmodule AutolaunchWeb.ErrorJSON do
   # The agent's pairing names no Regent account.
   def render("403.json", %{reason: %AgentNotPairedError{}}),
     do: ApiError.body("agent_not_paired", "This agent is not paired with an account.")
+
+  # A body the MCP address cannot take, such as one too large, points at its own
+  # section of the developer guide.
+  def render(template, %{conn: %Plug.Conn{path_info: ["mcp" | _]}}) do
+    %{
+      error: %{
+        code: code(template),
+        message: message(template),
+        hint:
+          "The Hosted MCP section of #{PublicDocuments.url("/docs")} says what the MCP address takes."
+      }
+    }
+  end
 
   def render(template, _assigns), do: ApiError.body(code(template), message(template))
 

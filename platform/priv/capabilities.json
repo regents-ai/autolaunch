@@ -1,0 +1,324 @@
+{
+  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call and After-hours Exposure page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED).",
+  "operations": [
+    {
+      "operation": "autolaunch_auctions",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_auction",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_auction_counts",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_tokens",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_token",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_treasury",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_bid_quote",
+      "authority": "public",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "agent_whoami",
+      "authority": "signed_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet: it is the shared agent sign-in's own request, not one of this site's actions.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "agent_status",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet: it is the shared agent sign-in's own request, not one of this site's actions.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_revstake_draft",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_revstake_draft_save",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_memestock_draft",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_memestock_draft_save",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_my_positions",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "account_balances",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "account_credits_history",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "account_points",
+      "authority": "paired_agent",
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      }
+    },
+    {
+      "operation": "autolaunch_covered_call_listings",
+      "authority": "public",
+      "switch": "covered_calls",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_covered_call_quote",
+      "authority": "public",
+      "switch": "covered_calls",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_my_covered_calls",
+      "authority": "paired_agent",
+      "switch": "covered_calls",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_covered_call_prepare",
+      "authority": "paired_agent",
+      "switch": "covered_calls",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_after_hour_stocks_list",
+      "authority": "public",
+      "switch": "exposure",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_after_hour_stocks_series",
+      "authority": "public",
+      "switch": "exposure",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_my_after_hour_stocks",
+      "authority": "paired_agent",
+      "switch": "exposure",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "autolaunch_after_hour_stocks_prepare",
+      "authority": "paired_agent",
+      "switch": "exposure",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      }
+    },
+    {
+      "operation": "register_identity",
+      "authority": "connected_app",
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents autolaunch agents commands instead."
+      }
+    },
+    {
+      "operation": "get_identity",
+      "authority": "connected_app",
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents autolaunch agents commands instead."
+      }
+    },
+    {
+      "operation": "pair_identity",
+      "authority": "connected_app",
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents autolaunch agents commands instead."
+      }
+    },
+    {
+      "operation": "check_in",
+      "authority": "connected_app",
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents autolaunch agents commands instead."
+      }
+    }
+  ]
+}

@@ -271,6 +271,8 @@ verification and the remaining release checks.
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 | `REGENT_CREDITS_ADMINS` | Optional | Privy user ids, comma separated, that may read the saved errors at `/admin/errors`. Unset means nobody can. |
 | `AUTOLAUNCH_SHOWCASE` | Optional | `public` opens the motion lab at `/animations`; `off` removes it. Unset, it is off in production and public elsewhere; any other value stops the boot. |
+| `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED` | Optional | `true` switches on the Claude connector: its sign-in under `/oauth` and `/.well-known/oauth-*`, a connected app's token at `/mcp`, Claude in the pairing box and the Claude guide at `/agents/claude`. Unset leaves all of it off, and `/mcp` serves only paired agents signing with their own wallet; any other value stops the boot. Off in production until elixir-utils' `RegentMCPAgents` and the sign-in service know the `autolaunch` audience. |
+| `SIWA_HOSTED_SIGNING_KEY` | With the connector | This site's hosted signing key from the sign-in service, 32 or more letters, digits, `-` or `_`, which holds each connected app's identity. With the connector on and no valid key, the boot stops. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using

@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   alias AutolaunchWeb.{Paths, ToolManifest}
 
   @directory Path.join(__DIR__, "public_documents")
-  @names ~w(home docs about contact privacy terms llms llms-full agents skill)
+  @names ~w(home docs about contact privacy terms llms llms-full agents skill claude)
   for name <- @names, do: @external_resource(Path.join(@directory, name <> ".md"))
   @sources Map.new(@names, &{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -26,6 +26,8 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/privacy" => "privacy",
     "/terms" => "terms"
   }
+  # Claude's page, only while its connector is on (`Autolaunch.OAuth.enabled?/0`).
+  @claude_path "/agents/claude"
 
   @contract_path Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @external_resource @contract_path
@@ -142,6 +144,9 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"Privacy",
        "What Autolaunch keeps about visitors and people who sign in, what becomes public on the chain, and how to ask for removal."},
     "/terms" => {"Terms of Use", "The terms that apply when you use Autolaunch."},
+    "/agents/claude" =>
+      {"Claude",
+       "Connect Claude to your Autolaunch account through its connector and pair it as your agent."},
     "/blog" => {"Blog", "Latest updates from Autolaunch."},
     :missing_post => {"Post not found", "There is no Autolaunch blog post at this address."}
   }
@@ -151,7 +156,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
   def document(path) do
-    case @paths do
+    case paths() do
       %{^path => name} -> %{markdown: markdown(name)}
       _other -> nil
     end
@@ -178,7 +183,11 @@ defmodule AutolaunchWeb.PublicDocuments do
   def capabilities, do: ToolManifest.current()
 
   @doc "Whether the page at `path` also answers as Markdown."
-  def markdown?(path), do: Map.has_key?(@paths, path)
+  def markdown?(path), do: Map.has_key?(paths(), path)
+
+  # The pages that answer as Markdown now: Claude's only while its connector is on.
+  defp paths,
+    do: if(Autolaunch.OAuth.enabled?(), do: Map.put(@paths, @claude_path, "claude"), else: @paths)
 
   @doc """
   The `page_title` and `page_description` assigns the root layout reads. Every
@@ -508,8 +517,13 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp iso8601(nil), do: nil
   defp iso8601(at), do: DateTime.to_iso8601(at)
 
+  # The `{{claude_connector}}` line and its blank line become the Claude
+  # connector's paragraph only while it is on; `{{hosted_mcp}}` says what the
+  # hosted MCP address serves, naming Claude's connector while it is on.
   defp markdown(name) do
     @sources[name]
+    |> String.replace("{{claude_connector}}\n\n", claude_connector(Autolaunch.OAuth.enabled?()))
+    |> String.replace("{{hosted_mcp}}", hosted_mcp(Autolaunch.OAuth.enabled?()))
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{covered_calls}}\n", covered_calls())
     |> String.replace("{{exposure}}\n", exposure())
@@ -536,13 +550,39 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
 
-  # The fixed pages the sitemaps list, with covered calls while the site offers them.
-  defp sitemap_pages,
+  # The fixed pages the sitemaps list, with covered calls while the site offers
+  # them and Claude's page while its connector is on.
+  defp sitemap_pages do
+    covered_calls =
+      if "covered_calls" in ToolManifest.features(), do: ["/covered-calls"], else: []
+
+    claude = if Autolaunch.OAuth.enabled?(), do: [@claude_path], else: []
+    @sitemap_pages ++ covered_calls ++ claude
+  end
+
+  defp claude_connector(false), do: ""
+
+  defp claude_connector(true),
     do:
-      if("covered_calls" in ToolManifest.features(),
-        do: @sitemap_pages ++ ["/covered-calls"],
-        else: @sitemap_pages
-      )
+      "Claude doesn't use these steps: it pairs through Autolaunch's connector, with no " <>
+        "command line or key of its own. [Claude]({{origin}}/agents/claude) has the setup.\n\n"
+
+  defp hosted_mcp(connector?) do
+    "Autolaunch's hosted MCP endpoint is {{origin}}/mcp. Every call there carries a paired " <>
+      "agent's signature, as for a signed request: `autolaunch_auction_counts` reads how many " <>
+      "auctions are live and graduated, with the same answer as the browser tool and the API. " <>
+      "Reading without signing in is the browser tools and the API." <> connector(connector?)
+  end
+
+  defp connector(false), do: ""
+
+  defp connector(true),
+    do:
+      " It is also Claude's connector: the person adds it in Claude's settings, then signs " <>
+        "in here when Claude asks and allows it. Claude's tools there (`get_identity`, " <>
+        "`register_identity`, `pair_identity` and `check_in`) only keep an identity for the " <>
+        "connection, pair it with the person's account and check in. " <>
+        "[Claude]({{origin}}/agents/claude) has the setup."
 
   # The contract as the site offers it now: with every feature switched off it is
   # api-contract.openapiv3.yaml exactly; each feature that is on adds its paths

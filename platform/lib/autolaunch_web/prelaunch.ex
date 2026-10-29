@@ -35,8 +35,14 @@ defmodule AutolaunchWeb.Prelaunch do
     end
   end
 
-  # Sign-in, sign-out and profile editing work before opening.
+  # Sign-in, sign-out, profile editing and connecting an app such as Claude
+  # (`AutolaunchWeb.OAuthController`) work before opening. So does the hosted MCP
+  # server: its tools read, and keep a connected app's identity and pairing
+  # (`AutolaunchWeb.Capabilities`); none saves a draft or prepares a wallet step,
+  # and anything but POST /mcp is refused there (`AutolaunchWeb.Plugs.McpAgent`).
   defp account_path?(["auth" | _]), do: true
+  defp account_path?(["oauth" | _]), do: true
+  defp account_path?(["mcp" | _]), do: true
   defp account_path?(["api", "v1", "profile" | _]), do: true
   defp account_path?(_), do: false
 

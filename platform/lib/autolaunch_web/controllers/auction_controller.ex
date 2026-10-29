@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.AuctionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
-  alias Autolaunch.{AuctionFigures, AuctionStats}
+  alias Autolaunch.AuctionFigures
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
   alias AutolaunchWeb.{ApiError, MarketPage, Paths, ReadFailure}
@@ -72,10 +72,13 @@ defmodule AutolaunchWeb.AuctionController do
   defp entry({:ok, auction}), do: {:ok, auction}
   defp entry({:error, error}), do: {:error, error}
 
-  @doc "Live and graduated auction counts for each launch type and chain (`Autolaunch.AuctionStats`)."
+  @doc """
+  Live and graduated auction counts for each launch type and chain, from the
+  action the hosted MCP tool runs too (`Autolaunch.Auction`, `:counts`).
+  """
   def counts(conn, params) do
     with true <- params == %{},
-         {:ok, counts} <- AuctionStats.by_chain() do
+         {:ok, counts} <- Autolaunch.auction_counts(actor: nil) do
       json(conn, %{data: counts})
     else
       false -> invalid_request(conn)

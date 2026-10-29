@@ -1,10 +1,34 @@
 defmodule Autolaunch do
   use Ash.Domain,
-    otp_app: :autolaunch
+    otp_app: :autolaunch,
+    extensions: [AshAi]
 
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
+
+  # The hosted MCP tools: each runs the same action as its HTTP route and is the
+  # browser tool of the same name, with that tool's title and words from
+  # priv/tool_manifest.json (`AutolaunchWeb.Capabilities` checks their inputs).
+  @manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
+  @external_resource @manifest_path
+  @browser_tools @manifest_path
+                 |> File.read!()
+                 |> Jason.decode!()
+                 |> Map.fetch!("tools")
+                 |> Map.new(&{&1["name"], &1})
+
+  tools do
+    %{"title" => title, "description" => description} =
+      @browser_tools["autolaunch_auction_counts"]
+
+    tool :autolaunch_auction_counts, Autolaunch.Auction, :counts do
+      title(title)
+      description description
+      annotations(read_only_hint: true, idempotent_hint: true, open_world_hint: false)
+    end
+  end
+
   resources do
     resource Autolaunch.BidActivity do
       define :auction_bids, action: :for_auction, args: [:auction_id]
@@ -124,6 +148,7 @@ defmodule Autolaunch do
     end
 
     resource Autolaunch.Auction do
+      define :auction_counts, action: :counts
       define :list_auctions, action: :list_public
       define :list_recent_auctions, action: :recent_public
       define :list_featured_auctions, action: :featured_public

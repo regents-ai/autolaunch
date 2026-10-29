@@ -6,10 +6,21 @@ website in a headless browser, WebMCP, hosted MCP at `/mcp`, the Claude connecto
 regents CLI. Each surface calls the same Ash action with the same inputs, answers and
 refusals. A missing surface is a gap with the lane that closes it.
 
-Hosted MCP (`/mcp`) does not exist on this site yet; every hosted MCP cell is a gap owned by
-the **Autolaunch MCP lane**. The Claude connector is served from hosted MCP, so it does not
-exist here either; every Claude connector cell is a gap owned by the same lane. The checks
-that prove each surface are in `operations/FEATURES.md`.
+Hosted MCP (`/mcp`) serves the tools `platform/priv/capabilities.json` marks hosted: the
+auction counts and the Claude connector's identity tools. Every other hosted MCP cell is a gap
+owned by the **Autolaunch MCP lane**, closed as its operation becomes one action whose answer is
+the browser tool's. The Claude connector is served from hosted MCP behind its switch
+(`AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`, off in production): a connected app calls as itself
+with its identity tools, and, once paired with the agent permission, as that agent with its
+hosted tools; its other cells are gaps owned by the same lane. The checks that prove each
+surface are in `operations/FEATURES.md`.
+
+## Hosted MCP
+
+| Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Count live and graduated auctions | `auction_counts` (`Autolaunch.Auction`, `:counts`) | `/auctions`, the counts | `autolaunch_auction_counts` (`GET /api/v1/auction-counts`) | `autolaunch_auction_counts` | `autolaunch_auction_counts`, once paired with the agent permission | `regents autolaunch auctions counts` |
+| Keep a connected app's identity, pair it and check in | `Autolaunch.Agents.Connection` (`register_identity`, `get_identity`, `pair_identity`, `check_in`) | `/account`, Pair New Agent: Claude (switch on) | None: it belongs to a connected app | The four identity tools, for a connected app | The four identity tools | `regents autolaunch agents pair` and `agents status`, for an agent with its own wallet |
 
 ## Covered calls
 

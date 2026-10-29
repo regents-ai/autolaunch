@@ -386,6 +386,14 @@ defmodule Autolaunch.Auction do
       change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
+    # Live and graduated auctions for each launch type on each chain
+    # (`Autolaunch.AuctionStats.by_chain/0`): the public HTTP route and the hosted
+    # MCP tool both run this, so both answer the same counts.
+    action :counts, :map do
+      description "Live and graduated auctions for Revstake on Base and Memestock on Base and Robinhood."
+      run fn _input, _context -> Autolaunch.AuctionStats.by_chain() end
+    end
+
     # What one of the signed-in account's wallets may spend on an auction.
     # `BidActions` proves the wallet against the account the mounted lease
     # locks before anything is read.
@@ -397,6 +405,14 @@ defmodule Autolaunch.Auction do
   end
 
   policies do
+    # Anyone reads the counts, except an app connected to a person's account
+    # calling as itself: its token is for its identity tools alone
+    # (`Autolaunch.Agents.Connection`). Paired, it calls as its agent instead.
+    policy action(:counts) do
+      forbid_if actor_attribute_equals(:role, :connected_app)
+      authorize_if always()
+    end
+
     policy action([:activity, :refresh_activity]) do
       authorize_if Autolaunch.Checks.SystemActor
     end

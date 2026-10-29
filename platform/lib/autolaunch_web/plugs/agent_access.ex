@@ -1,8 +1,18 @@
 defmodule AutolaunchWeb.Plugs.AgentAccess do
-  @moduledoc "Exact SIWA proof and current pairing, independent of browser owner credentials."
+  @moduledoc """
+  Exact SIWA proof and current pairing, independent of browser owner
+  credentials. The agent acts for the account its pairing names
+  (`Autolaunch.Agents.resolve/1`), and its pairing is checked again just before
+  the answer leaves (`recheck_before_send/2`), so an unpairing during the
+  request never sends the person's data.
+  """
   @behaviour Plug
   import Plug.Conn
-  alias AutolaunchWeb.ApiError
+  alias Autolaunch.Actors.Agent
+  alias AutolaunchWeb.{ApiError, ReadFailure}
+
+  @not_paired "Pair this named agent with your account before private work."
+  @unavailable "Account access is unavailable."
 
   @sign_again "Sign the request with your agent key as https://siwa.regents.sh/skill.md describes, then send it again."
   @refusals %{
@@ -85,24 +95,57 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
   defp resolve(conn, wallet) do
     case Autolaunch.Agents.resolve(wallet) do
       {:ok, actor, account} ->
-        conn |> assign(:actor, actor) |> assign(:agent_owner_account, account)
+        conn
+        |> assign(:actor, actor)
+        |> assign(:agent_owner_account, account)
+        |> recheck_before_send(actor)
 
       {:error, :not_paired} ->
-        refuse(
-          conn,
-          :forbidden,
-          "agent_not_paired",
-          "Pair this named agent with your account before private work."
-        )
+        refuse(conn, :forbidden, "agent_not_paired", @not_paired)
 
       _ ->
-        refuse(
-          conn,
-          :service_unavailable,
-          "account_unavailable",
-          "Account access is unavailable."
-        )
+        refuse(conn, :service_unavailable, "account_unavailable", @unavailable)
     end
+  end
+
+  @doc """
+  Checks a paired agent's pairing again just before the answer leaves, and
+  replaces the answer when it has ended or changed hands meanwhile. The hosted
+  MCP server uses it too, for a connected app calling as its paired identity
+  (`AutolaunchWeb.Plugs.McpAgent`).
+  """
+  @spec recheck_before_send(Plug.Conn.t(), Agent.t()) :: Plug.Conn.t()
+  def recheck_before_send(conn, %Agent{} = actor),
+    do: register_before_send(conn, &recheck(&1, actor))
+
+  # The request ran after the pairing was read. Before anything is sent, the
+  # wallet's current pairing must still be this one, with the same person;
+  # otherwise the answer is replaced, so an unpairing or a new pairing during
+  # the request never sends the former person's data.
+  defp recheck(conn, %Agent{} = actor) do
+    case RegentAgents.Authority.resolve(Autolaunch.Repo, actor.wallet_address) do
+      {:ok, %{id: id, privy_user_id: person}}
+      when id == actor.pairing_id and person == actor.privy_user_id ->
+        conn
+
+      {:ok, _other_pairing} ->
+        replace(conn, 403, ApiError.body("agent_not_paired", @not_paired))
+
+      {:error, :not_paired} ->
+        replace(conn, 403, ApiError.body("agent_not_paired", @not_paired))
+
+      {:error, error} when conn.status in 200..299 ->
+        ReadFailure.log("agent's pairing recheck", error)
+        replace(conn, 503, ApiError.body("account_unavailable", @unavailable))
+
+      {:error, _error} ->
+        conn
+    end
+  end
+
+  defp replace(conn, status, body) do
+    %{conn | status: status, resp_body: Jason.encode_to_iodata!(body)}
+    |> put_resp_content_type("application/json")
   end
 
   defp refuse(conn, status, code, message),
