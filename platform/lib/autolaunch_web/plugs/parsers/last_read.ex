@@ -10,6 +10,8 @@ defmodule AutolaunchWeb.Plugs.Parsers.LastRead do
   @behaviour Plug.Parsers
 
   @impl Plug.Parsers
+  # The parser name comes from the endpoint's own plug options, never a request.
+  # sobelow_skip ["DOS.ModuleConcat"]
   def init(opts) do
     {name, opts} = Keyword.pop!(opts, :parser)
     {reader, opts} = Keyword.pop(opts, :body_reader, {Plug.Conn, :read_body, []})

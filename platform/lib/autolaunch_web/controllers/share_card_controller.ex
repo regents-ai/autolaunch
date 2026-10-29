@@ -117,7 +117,6 @@ defmodule AutolaunchWeb.ShareCardController do
   # own video. Only a database that cannot be reached is the site's try-again
   # page; every other failure answers with its own plain line, which the share
   # window shows.
-  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp send_video(conn, reach, {:ok, mp4}) do
     conn
     |> put_resp_header("cache-control", "#{reach}, max-age=900")
@@ -165,7 +164,6 @@ defmodule AutolaunchWeb.ShareCardController do
   # The picture carries the time its figures were read, and its address
   # moves on when they can have changed (`ShareCard`), so sites may keep it
   # for fifteen minutes.
-  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp send_card(conn, {:ok, png}) do
     conn
     |> put_resp_header("cache-control", "public, max-age=900")

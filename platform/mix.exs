@@ -150,7 +150,7 @@ defmodule Autolaunch.MixProject do
        sparse: "credo_ash",
        only: [:dev, :test],
        runtime: false},
-      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.18", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -207,7 +207,10 @@ defmodule Autolaunch.MixProject do
         "cmd mix hex.audit",
         "format --check-formatted",
         "credo --strict",
-        "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
+        # Sobelow reads `&(&1 / 1.0e18)` as a capture of arity 1.0e18 and builds
+        # a list that long; capping each process at 1 GiB stops the scan in
+        # seconds instead of filling the Mac's memory.
+        "cmd env ELIXIR_ERL_OPTIONS='+hmax 134217728' mix sobelow --exit",
         # Three kinds of compile-connected edge are permitted: a domain naming
         # its compile-time resources, each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time, and
