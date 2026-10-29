@@ -8,6 +8,10 @@
 .covered-calls__intro h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .covered-calls__intro p { color: var(--color-fg); line-height: 1.5; }
 .covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; }
+.covered-calls__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); padding: 0; list-style: none; counter-reset: step; }
+.covered-calls__steps li { display: grid; align-content: start; gap: .25rem; padding: var(--space-2) var(--space-3); background: var(--color-surface); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; counter-increment: step; }
+.covered-calls__steps strong { color: var(--color-fg); font-size: 1rem; }
+.covered-calls__steps strong::before { content: counter(step) " "; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 .covered-calls__tabs { display: flex; gap: var(--space-1); }
 .covered-calls__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
 .covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
@@ -60,7 +64,9 @@
 }
 
 @media (max-width: 47.99rem) {
-  .covered-calls__sell { grid-template-columns: minmax(0, 1fr); }
+  .covered-calls__sell, .covered-calls__steps { grid-template-columns: minmax(0, 1fr); }
+  .covered-calls__steps { gap: var(--space-1); }
+  .covered-calls__steps li { padding: var(--space-1) var(--space-2); }
   /* On a phone each listing is a block of labelled figures, never wider than the screen. */
   .covered-calls__table thead { display: none; }
   .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }

@@ -160,10 +160,15 @@ defmodule AutolaunchWeb.CoveredCallsLive do
           <p id="covered-calls-eligibility" class="covered-calls__eligibility">
             Available to eligible people outside the US.
           </p>
-          <p>
-            Sell someone the right to buy your {@market.symbol} at a set price until Friday's close,
-            and keep the premium they pay. Or buy that right. Paid in USDC on Base.
-          </p>
+          <p>Earn USDC on your {@market.symbol}, or buy the right to own it at a set price.</p>
+          <ol class="covered-calls__steps" aria-label="Steps">
+            <li><strong>List</strong> Lock {@market.symbol}, set a strike price and a premium.</li>
+            <li><strong>Earn</strong> A buyer pays you the premium in USDC. It's yours to keep.</li>
+            <li>
+              <strong>Friday</strong>
+              For 24 hours after 21:00 UTC the buyer can buy your {@market.symbol} at the strike. The rest comes back to you.
+            </li>
+          </ol>
         </div>
         <P.last_read
           id="covered-calls-read"
