@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: each wallet's share video is its own
+- If you have more than one wallet, the share video you make for one wallet is never handed over for another: each wallet gets its own, with only that wallet's bids, trades and stake.
+
 ## 29 October 2026: covered calls that follow your trade
 - On the Sell tab the guide now follows what you type: suggested premiums for the week you pick, each with Use to fill the form, and the result at expiry for your own strike and premium.
 - Every date shows the whole exercise window, Friday 21:00 UTC to Saturday 21:00 UTC. The three steps under the title change with the tab, for buyers and for sellers, and a purchase shows the premium you pay now and what exercising would cost.
