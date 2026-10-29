@@ -39,3 +39,13 @@ so it can't be mixed up with the earlier one, carries the same `createSeries` ca
 approved terms and a 0.4 AMZNc cap. Simulated from the Safe at 17:5x UTC on 29 Oct, with Safe nonce 73:
 it succeeds, uses about 2.4M gas and creates `0xcae5aad4cc21700b32931404c366efd4fc1ddfa0`. The series at
 `0x77b8…6cb7` stays unused and the site doesn't list it.
+
+## Monday series (Sean's 2a, 29 Oct; terms awaiting approval)
+
+[`safe-create-monday-series.json`](safe-create-monday-series.json): one `createSeries` call, as
+`mondaySeriesCall` prints it for the V2 recorder and the draft terms
+(`platform/priv/exposure_terms/0x0b0a03fb91ecdb27960ecbef9331d61b58f6b5587de9e28311e1a4aca7d434fb.md`). Decoded: AMZNc, the V2 recorder and its feed id,
+a seven-day recording window, a 40 AMZNc cap, the 9 closes and opens from Mon 2 Nov 21:00 UTC to Fri
+6 Nov 21:00 UTC, legs "AMZNc After-hours 2 to 6 Nov 2026" (AMZNc-AH-1102) and "AMZNc Market-hours 2 to
+6 Nov 2026" (AMZNc-MH-1102). Simulated from the Safe on 29 Oct: it succeeds. Signed after the relaunch,
+it creates `0x1df53a86c8260c20Ab79b5f620544209Bd454266`. It must execute before Mon 2 Nov 16:00 New York.
