@@ -6,7 +6,7 @@ defmodule Autolaunch.ShareVideoRequest do
   `subject`, its symbol or address), and for a person's own video the
   signed-in account and its wallet.
   A launch's own video is named by `key`, which moves on every fifteen minutes;
-  a person's are theirs for that launch and kind.
+  a person's are theirs for that launch or market, kind and wallet.
 
   Writing a request queues its `:render` job in the same write. The
   `share_videos` queue renders one at a time, so how many requests are still
@@ -102,15 +102,17 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :asc])
     end
 
-    # A person's requests for one launch and kind in the last day, newest first.
+    # A person's requests for one launch, kind and wallet in the last day, newest
+    # first.
     read :own do
       argument :human_account_id, :integer, allow_nil?: false
       argument :auction_id, :uuid, allow_nil?: false
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: [:token, :auction]]
+      argument :wallet, :string, allow_nil?: false
 
       filter expr(
                human_account_id == ^arg(:human_account_id) and auction_id == ^arg(:auction_id) and
-                 kind == ^arg(:kind) and inserted_at > ago(1, :day)
+                 kind == ^arg(:kind) and wallet == ^arg(:wallet) and inserted_at > ago(1, :day)
              )
 
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])

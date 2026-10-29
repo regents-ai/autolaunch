@@ -14,8 +14,8 @@ defmodule AutolaunchWeb.ShareVideo do
 
   Every video is stored once made (`Autolaunch.ShareVideoRequest`). A launch's
   own video is made again every fifteen minutes it is asked for. A person's
-  video for a launch, its auction's and its token's apart, is kept and served
-  as made until three hours have passed; asking after that makes a new one.
+  video for a launch, its auction's and its token's apart and each wallet's
+  apart, is kept and served as made until three hours have passed; asking after that makes a new one.
   Every video is deleted once it is a day old. Once the saved videos come to
   5 GB, a new video is still made but not saved: it is handed over once, and
   asking again makes another.
@@ -267,19 +267,16 @@ defmodule AutolaunchWeb.ShareVideo do
   defp level(:failed), do: :error
   defp level(_kind), do: :warning
 
-  # A person's videos of a market are each wallet's own, so one wallet's
-  # holdings never stand in for another's.
-  defp own(%{auction_id: auction_id, kind: kind}, account, _wallet),
-    do: Autolaunch.own_share_video_requests(account, auction_id, kind, actor: %System{})
+  # A person's videos are each wallet's own, so one wallet's bids, trades,
+  # calls or holdings never stand in for another's.
+  defp own(%{auction_id: auction_id, kind: kind}, account, wallet),
+    do: Autolaunch.own_share_video_requests(account, auction_id, kind, wallet, actor: %System{})
 
   defp own(%{subject: subject, kind: kind}, account, wallet),
     do:
       Autolaunch.own_market_share_video_requests(account, subject, kind, wallet, actor: %System{})
 
   defp key(target, now), do: Enum.join([target.id, target.kind, bucket(now)], ":")
-
-  defp own_key(%{auction_id: _launch} = target, account, _wallet),
-    do: Enum.join([target.id, target.kind, "account", account], ":")
 
   defp own_key(target, account, wallet),
     do: Enum.join([target.id, target.kind, "account", account, wallet], ":")
