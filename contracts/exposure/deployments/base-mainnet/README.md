@@ -1,4 +1,4 @@
-# After-hours Exposure on Base
+# Afterhours Exposed Tokens on Base
 
 Deployed by `autolaunch-deployer` (`0x9b2C414614aEE294202c1219520955EF3B596031`) on Sean's go;
 receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
@@ -20,3 +20,14 @@ Oct 20:00 UTC to Fri 6 Nov 21:00 UTC, legs "AMZNc After-hours to 6 Nov 2026" (AM
 "AMZNc Market-hours to 6 Nov 2026" (AMZNc-MH-1106). Simulated from the Safe against Base on 29 Oct:
 succeeds, about 2.4M gas, creating the series at `0x77b82face369db560677a903b13e747891096cb7`. It
 must execute before Fri 30 Oct 16:00 New York time.
+
+## First series as created
+
+The Safe executed `createSeries` on 29 Oct 2026 at Base block 53,251,697 (transaction
+`0xd71bee1785f5fd7ee404cec953168e6f66df28baa884cffdd570b1930ace3708`, Safe nonce 72) from the earlier
+batch, not the file above. Read from Base: series `0x77b82face369db560677a903b13e747891096cb7` uses
+`ChainlinkPrintOracleV1` `0x6e80e0b65F50666E230276FD5bEf61059aC65f98` and `termsHash`
+`0x5fb35de4a9b0a0b9fcf37641d6777e413680c016e690df395283ca421ef23e7a` (the terms as first approved,
+commit dd83312a), cap 0.4 AMZNc, seven-day recording window, the 11 prices of 30 Oct to 6 Nov. Legs:
+After-hours `0x8112D5DEfb35474Fd3Bc7Db9b7b24d86492BbA2F` (AMZNc-AH-1106), Market-hours
+`0xA8F0bE850BE09Efa971eb04653340E3F421AbD91` (AMZNc-MH-1106). The V2 batch above was not executed.

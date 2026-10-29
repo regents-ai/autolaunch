@@ -1,9 +1,9 @@
-# After-hours Exposure — technical specification
+# Afterhours Exposed Tokens — technical specification
 
-**Status (29 Oct 2026):** series factory deployed on Base; the pinned-phase price oracle (V2) is ready
-to deploy; the first series (a capped ~$100 live demonstration on AMZNc) is prepared for the Governance
-and Regent Safe to create once the oracle is deployed and the revised terms are approved; website and
-CLI not built.
+**Status (29 Oct 2026):** series factory and the pinned-phase price oracle (V2) deployed on Base. The
+Safe created the first series (a capped ~$100 demonstration on AMZNc) from the earlier batch, so it
+runs on the superseded V1 oracle and the first approved terms; see the deployment record. Website
+built (switched off), CLI not built.
 **Code:** `contracts/exposure/` in `regents-ai/autolaunch`, branch `claude/project-thread-0cczxg`.
 **Source idea:** "Isolated Exposure Tokens", The Standard Reserve, October 2026.
 
@@ -17,7 +17,7 @@ is reproduced in the appendix exactly as it is in the repository.
 
 A Base stock token (a Coinbase "B20" tokenized stock such as AMZNc) earns its return in two windows:
 from one close to the next open (nights and weekends), and from the open to the close (the trading
-day). After-hours Exposure splits one stock token, for a fixed term, into two ordinary ERC-20 tokens:
+day). Afterhours Exposed Tokens splits one stock token, for a fixed term, into two ordinary ERC-20 tokens:
 
 | Customer name | Contract name | Earns one share's dollar move over |
 | --- | --- | --- |
@@ -277,69 +277,20 @@ open or close next to the feed value and report the per-leg divergence.
 | First series | AMZNc `0xb200000000000000000000d9192b6B456483C2E8`; Fri 30 Oct 2026 16:00 → Fri 6 Nov 2026 16:00 New York (11 prints; 20:00 UTC first close, then 14:30/21:00 UTC after the 1 Nov clock change); cap 0.4 AMZNc (~$100); recording window 7 days; legs "AMZNc After-hours to 6 Nov 2026" (AMZNc-AH-1106) and "AMZNc Market-hours to 6 Nov 2026" (AMZNc-MH-1106); termsHash = keccak256 of `platform/priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md` (revised after the second review; awaiting approval). Not yet created. |
 | Demo | After the first close: record + settle, mint a 0.2 AMZNc pair, open two Aerodrome volatile pools (each leg vs USDC at its ledger value) with a one-hour deadline. After the last close: record and settle the remaining ten prints. Scripts: `script/AfterHoursDemo.s.sol`. The pools only show the mechanics working; they are far too small to be useful trading liquidity. |
 
-## 7. Website (planned; `Autolaunch.Exposure`, behind `config :autolaunch, :exposure_enabled`)
+## 7. Website (`Autolaunch.Exposure`, behind `AUTOLAUNCH_EXPOSURE=true`)
 
-Autolaunch is Phoenix LiveView + Ash. Wallet actions are prepared on the server as unsigned steps and
-sent by the person's (or agent's) own wallet through the existing `AutolaunchWeb.OnchainSteps`
-component. The site never holds keys and never stores pending transactions; it reads chain state and
-receipts. On-chain buttons are never blocked by page state; a press is disabled only when the chain's
-current state makes it certain to fail, with the reason beside it.
+Built on 29 October 2026; the design note's section 6 lists the page, the routes and the agent
+surfaces as built. Wallet actions are prepared on the server as unsigned steps and sent by the
+person's (or agent's) own wallet through the existing `AutolaunchWeb.OnchainSteps` component. The
+site never holds keys and never stores pending transactions; it reads chain state and receipts.
+On-chain buttons are never blocked by page state; a press is disabled only when the chain's current
+state makes it certain to fail, with the reason beside it. Not built yet: a keeper job that records
+and applies prices on schedule, a portfolio section, and a link from the stock page.
 
-### 7.1 Pages
+## 8. CLI
 
-| Route | LiveView | Shows | Actions |
-| --- | --- | --- | --- |
-| `/after-hours` | `AfterHoursLive :index` | One card per live series: stock, term, next print time, minted vs cap, and for each leg its ledger value and its pool price, labelled separately. | — |
-| `/after-hours/:series` | `AfterHoursLive :series` | Price path so far (each print with its source round and age, which leg moved), current leverage (P/N, P/S), terms link. For each leg three values, never merged: ledger (its dollar allocation now), pool quote (what it sells for), and stock amount (AMZNc it redeems for: before the end only as a pair; after the end its fixed share, e.g. 104/170 AMZNc, whose dollar value moves with AMZNc). | Mint pair, Redeem pair, Buy/Sell either leg (Aerodrome), Redeem after the end, Record/Settle when due. No Roll in v1: rolling one leg means redeeming, minting a new pair and selling the unwanted leg, which is left until that trade is specified. |
-| `/stock-listing/:symbol` | existing `StockLive` | Link to the stock's live series. | — |
-| `/portfolio` | existing `PortfolioLive` | "After-hours" section: legs held with the same three values, and whether each can be redeemed now. | Same steps as the series page. |
-
-Disabled-only-when-certain-to-fail cases: series not Active (mint), cap reached, vault short after a
-seizure (mint), unequal amounts before the end (redeem), no approval on chain yet (mint shows the
-approval step first).
-
-### 7.2 HTTP API (OpenAPI-published, mirrored by WebMCP tools and CLI commands)
-
-| Method and path | Pipeline | Operation | Returns |
-| --- | --- | --- | --- |
-| `GET /api/v1/after-hours` | `:api, :public_read` | `listAfterHoursSeries` | Series with stock, term, status, next print, ledgers, cap use, leg addresses and pool prices. |
-| `GET /api/v1/after-hours/{series}` | `:api, :public_read` | `getAfterHoursSeries` | One series with every applied print and the terms text and hash. |
-| `GET /api/v1/me/after-hours` | `:session_api` | `myAfterHours` | Signed-in account's legs per series and what they redeem for. |
-| `GET /api/agent/v1/after-hours` | paired agent | `agentAfterHours` | The same for a paired agent's owner. |
-| `POST /api/agent/v1/after-hours/{series}/steps` | paired agent | `prepareAfterHoursSteps` | Unsigned steps (`chain_id`, `to`, `data`, `value`, plain description) for `mint`, `redeem`, `record`, `settle` or `end`, bound to the owner's verified wallet. |
-
-The website's own buttons call the same Ash actions as these routes. Every route answers with the
-same words and refusals across the page, WebMCP, hosted MCP and CLI.
-
-### 7.3 Ash domain and jobs
-
-- `Series` (from factory `SeriesCreated` logs), `Event` (every series and oracle log, written once by
-  the existing indexer cursor), `Holding` and `Ledger` read models rebuilt from events; balances are
-  always read from chain.
-- `Steps`: builds the unsigned calls above (approve exact amount → `mint`; `redeem`; `record` with
-  the round of the pinned phase in force, found by binary search exactly as `AfterHoursDemo.roundInForce`;
-  `settle`; `endOnMissingPrint`).
-- Oban cron job `RecordPrints`: an hour after each scheduled open/close of every live series, finds
-  the round in force, calls `record` then `settle`, using a dedicated keeper wallet with gas only.
-  It holds no customer key and chooses nothing; anyone can make the same calls.
-
-## 8. CLI (`regents autolaunch after-hours …`, added to `cli/commands.json` and regents-cli)
-
-The CLI is a thin client of the HTTP API: JSON out, SIWA-signed requests for private commands, private
-inputs on JSON stdin. It never signs or sends a wallet transaction; `steps` returns unsigned calls for
-the agent to sign with its own key. The catalogue's note "No wallet … commands" becomes "Wallet
-commands only prepare unsigned steps; no command signs or sends a transaction."
-
-| Command | Authority | Effect | Route | WebMCP |
-| --- | --- | --- | --- | --- |
-| `after-hours list` | public | read | `GET /api/v1/after-hours` (`--stock`, `--status`, `--limit`, `--after`) | `autolaunch_after_hours_series` |
-| `after-hours show <series>` | public | read | `GET /api/v1/after-hours/{series}` | `autolaunch_after_hours_series_detail` |
-| `after-hours mine` | paired_agent | read | `GET /api/agent/v1/after-hours` | `autolaunch_my_after_hours` |
-| `after-hours steps <series>` | paired_agent | prepare | `POST /api/agent/v1/after-hours/{series}/steps`, stdin `{"action": "mint" \| "redeem" \| "record" \| "settle" \| "end", "overnight": "<raw>", "session": "<raw>", "amount": "<raw>"}` | `autolaunch_after_hours_steps` |
-
-Amounts are raw integer strings (never floats). A typical agent flow: `after-hours list` → `after-hours
-show` → `after-hours steps --action mint` → sign and send each step with its own wallet → `after-hours
-mine` to confirm from chain.
+Not built. The regents CLI gains `afterhours-exposed list`, `show`, `mine` and `steps` over the
+routes above once the switch is on; until then `docs/agent-parity.md` lists each as a gap.
 
 ## 9. Questions for the reviewer
 

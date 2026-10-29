@@ -1,13 +1,13 @@
-# After-hours Exposure — design note
+# Afterhours Exposed Tokens — design note
 
-**Status:** contracts written and tested, not deployed; site not built · 28 October 2026
+**Status:** contracts deployed on Base; first series created 29 October 2026; site built, switched off · 29 October 2026
 **Source:** "Isolated Exposure Tokens" (The Standard Reserve, October 2026), Sean's notes and decisions of 28 October 2026
 **Contracts:** [`contracts/exposure`](../../contracts/exposure/README.md)
-**First series:** [`contracts/exposure/script/DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol) · draft terms [`0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md`](../priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md)
+**First series:** [`contracts/exposure/script/DeployAfterHours.s.sol`](../../contracts/exposure/script/DeployAfterHours.s.sol) · approved terms [`0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md`](../priv/exposure_terms/0x5f67343b39277939aea7613c578fa3931b8b89da7a65eb36dd7217c81a5a2e8f.md)
 
 ## 1. The product
 
-After-hours Exposure splits a stock token into two tokens: one that earns the stock's moves while the
+Afterhours Exposed Tokens splits a stock token into two tokens: one that earns the stock's moves while the
 market is closed, and one that earns its moves during the trading day. Hold one for a levered
 position on just that window, with no loan and no liquidation; hold both and you simply own the stock.
 
@@ -119,38 +119,35 @@ rehearsal (`DeployAfterHours.fork.t.sol`) runs this whole table on a Base fork: 
 call as printed, the Friday sitting with both pools opened at the right USDC amounts, and the
 closing sitting through to maturity.
 
-## 6. The site (`Autolaunch.Exposure`, not built)
+## 6. The site (`Autolaunch.Exposure`, built 29 October 2026)
 
-Behind `config :autolaunch, :exposure_enabled`, off by default. Same patterns as Covered Calls.
+Behind `AUTOLAUNCH_EXPOSURE=true` with `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT` naming the series the
+site offers (`Autolaunch.Exposure.Deployment`); off, every route below is not found and nothing
+advertises them. Same patterns as Covered Calls. Nothing is stored: every figure is read from the
+chain at the latest block.
 
 | Place | Purpose |
 | --- | --- |
-| `/after-hours` | This week's series per stock: next print, both ledgers, each leg's pool price, minted against the cap. |
-| `/after-hours/:series` | One series: prices so far with each one's feed update and age, Mint pair, Redeem pair, Buy or sell either leg, and after the end Redeem at the final split. For each leg its ledger value, pool price and stock amount shown separately, and its current leverage (price ÷ ledger), not a fixed 2×. |
-| `/stock-listing/:symbol` | A link to the stock's live series. |
-| `/portfolio` | An "After-hours Exposure" section: legs held, their value in stock and dollars, and what they redeem for. |
+| `/afterhours-exposed` | The newest series (`?series=<address>` for another listed one): stock, term, status, deposits against the cap, last price; each token's value, share of the stock, how much it moves in its window and its pool price; Mint and Return tabs; every applied price and the next, with Record price and Apply price; the terms and their fingerprint. |
+| `/afterhours-exposed/terms/{hash}` | A series' terms, the exact bytes whose keccak256 it holds (`platform/priv/exposure_terms`). |
 
-Ash domain `Autolaunch.Exposure`:
+Ash domain `Autolaunch.Exposure`, resource `Series` with four generic actions every surface calls:
+`list`, `series`, `holdings` (the acting account's own wallet) and `prepare` (steps for `mint`,
+`redeem`, `update` = record then settle, `end`). A press certain to fail from the chain's own state
+(not open yet, ended, past the cap, short after a seizure, not enough stock, approval missing,
+unequal amounts before the end, more than held, a price not yet recordable or too old, the
+recording window still open) shows the button disabled with the reason; nothing else blocks a
+press. There is no keeper job yet: anyone can record and apply a price from the page.
 
-- `Series` — one row per factory `SeriesCreated`, with the schedule and terms text it commits to.
-- `Event` — one row per contract log under the existing chain-events rules, read by the indexer
-  cursor (`Autolaunch.Indexer`); `Holding` and `Ledger` read models rebuilt from events.
-- `Steps` — server-built wallet steps for `AutolaunchWeb.OnchainSteps`: approve stock, mint, redeem,
-  roll, record print, settle, end on missing print. A press certain to fail from the chain's own
-  state (series not live, cap reached, stock short after a seizure) shows the button disabled with
-  the reason; nothing else blocks a press.
-- Oban job `SettleSeries`: an hour after each open and close, finds the feed round in force on the pinned version, calls
-  `record`, then `settle` on every series due. It holds no customer key and chooses no price; anyone
-  can make the same calls.
-
-Agent surfaces, one Ash action each, same inputs, results and refusals everywhere:
+Agent surfaces, one Ash action each, same inputs, results and refusals everywhere
+(`docs/agent-parity.md`):
 
 | Action | WebMCP | HTTP | Hosted MCP | CLI |
 | --- | --- | --- | --- | --- |
-| List series | `autolaunch_after_hours_series` | `GET /api/v1/after-hours` | via `/mcp` | `regents autolaunch after-hours list` |
-| One series with ledgers and next print | `autolaunch_after_hours_series_detail` | `GET /api/v1/after-hours/:series` | via `/mcp` | `regents autolaunch after-hours show` |
-| My legs | `autolaunch_my_after_hours` | `GET /api/v1/me/after-hours` | via `/mcp` | `regents autolaunch after-hours mine` |
-| Prepare a step (mint, redeem, roll, record, settle, end on missing print) | `autolaunch_after_hours_prepare` | `POST /api/v1/me/after-hours/steps` | via `/mcp` | `regents autolaunch after-hours prepare` |
+| List series | `autolaunch_afterhours_exposed_list` | `GET /api/v1/afterhours-exposed` | gap | gap |
+| One series | `autolaunch_afterhours_exposed_series` | `GET /api/v1/afterhours-exposed/{series}` | gap | gap |
+| My holding | `autolaunch_my_afterhours_exposed` | `GET /api/agent/v1/afterhours-exposed/{series}/holdings` (`GET /api/v1/me/afterhours-exposed/{series}` signed in) | gap | gap |
+| Prepare a step (mint, redeem, update, end) | `autolaunch_afterhours_exposed_prepare` | `POST /api/agent/v1/afterhours-exposed/{series}/steps` | gap | gap |
 
 The owner's own key signs every step; the site prepares and never signs.
 
