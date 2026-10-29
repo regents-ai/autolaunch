@@ -275,7 +275,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
     fixed =
       Enum.map(
-        @sitemap_pages,
+        sitemap_pages(),
         fn
           "/auctions" = path -> {url(path), latest(auctions)}
           "/tokens" = path -> {url(path), latest(tokens)}
@@ -322,7 +322,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   """
   def markdown_sitemap do
     pages =
-      Enum.map_join(@sitemap_pages, "\n", fn path ->
+      Enum.map_join(sitemap_pages(), "\n", fn path ->
         {title, description} = Map.fetch!(@pages, path)
         "- [#{title}](#{url(path)}) | Summary: #{description}"
       end)
@@ -535,6 +535,14 @@ defmodule AutolaunchWeb.PublicDocuments do
     do: if("covered_calls" in ToolManifest.features(), do: @covered_calls, else: "")
 
   defp exposure, do: if("exposure" in ToolManifest.features(), do: @exposure_guide, else: "")
+
+  # The fixed pages the sitemaps list, with covered calls while the site offers them.
+  defp sitemap_pages,
+    do:
+      if("covered_calls" in ToolManifest.features(),
+        do: @sitemap_pages ++ ["/covered-calls"],
+        else: @sitemap_pages
+      )
 
   # The contract as the site offers it now: with every feature switched off it is
   # api-contract.openapiv3.yaml exactly; each feature that is on adds its paths

@@ -85,6 +85,22 @@ if the address already holds the promised code, the contract is deployed and not
 Then the site's covered-calls deployment record names the address, and covered calls open when the
 switch is turned on, a separate release.
 
+## A week on Base, without sending anything
+
+`dry-run.py` runs a whole listing's life on the deployed contract on top of the latest Base block,
+with the real AMZNc, USDC and REGENT staking, and throws it away (`eth_simulateV1`; no key, no
+transaction). It lists, buys, stops selling, exercises in the window, collects the strike and both
+sides' stock, checks three refusals at the window's edges, and checks every transfer to the unit,
+the 1% fee into staking included. It is the one check that runs the real AMZNc's newer reads
+(`effectiveAt()`), which no local fork runs yet.
+
+```bash
+uv run contracts/covered-calls/deploy/dry-run.py
+```
+
+It exits 0 when everything happens as promised. First run 29 October 2026 at Base block 53,256,332:
+all 15 steps as promised; a 6 USDC premium paid 5.94 to the seller and 0.06 to staking.
+
 ## Evidence (28 October 2026)
 
 - The creation code is identical when built with Foundry 1.5.1 and 1.8.6, and is the code

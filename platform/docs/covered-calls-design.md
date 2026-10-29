@@ -170,6 +170,7 @@ off, the routes answer not found and no tool or command is advertised.
 | --- | --- |
 | `/covered-calls` | Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, expiry from the next four Fridays, premium) beside a guide: the reference price, shares per token, suggested premiums for the next Friday at +1%, +3% and +5% strikes, the result at expiry at three prices, and the terms ("Dividends during the week stay with the tokens."). |
 | `/stock-listing/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
+| `/stock-listing` and the menu | While on, the stock list's opening line links to covered calls on each stock with a market (in place of main's "Covered Call Options coming soon."), and the menu has a Covered calls row under Stocks. Both sitemaps list `/covered-calls`. |
 | `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with a button for each action it allows now (Stop selling, Exercise, Collect <symbol>, Collect USDC). |
 
 Every panel works as the token page's Stake and Claim do (`AutolaunchWeb.CoveredCallComponent`):
@@ -186,7 +187,8 @@ Ash domain `Autolaunch.CoveredCalls`:
   migration is needed. (The event ledger only runs where the deployment names start blocks, and a
   new table needs Sean's go before production; reading the contract avoids both.)
 - `Book` — each market's listings, read once and shared by every visitor for five minutes and
-  read again soon after a confirmed press (`ChainRefresh`), as `RegentFacts` does.
+  read again soon after a confirmed press (`ChainRefresh`), as `RegentFacts` does. Listings, and a
+  wallet's position on each, are read eight at a time, so weeks of listings stay quick to read.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
   Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,
@@ -278,6 +280,12 @@ owned by the regents-cli lane until it adds them.
     calls") and passes on the new.
   - The journey moved the copy's clock and so broke the Memestock auction journey run after it;
     it now restores the copy (snapshot and revert). Full journeys: 14 passed.
+- On Base itself, 29 Oct 2026: `contracts/covered-calls/deploy/dry-run.py` simulates a whole
+  listing's life on the deployed contract on top of the latest Base block (`eth_simulateV1`,
+  nothing sent), with the real AMZNc, so the newer `effectiveAt()` read no local fork runs is
+  exercised too: list, buy, stop selling, exercise, collect the strike and both sides' stock, three
+  refusals at the window's edges, every transfer checked to the unit and the 1% fee into live
+  staking. First run at block 53,256,332: all 15 steps as promised.
 
 ## 7. Open items
 
@@ -293,5 +301,4 @@ owned by the regents-cli lane until it adds them.
    (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
    cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).
 5. **Gaps.** Hosted MCP (`/mcp`) and the regents CLI for every covered-call action
-   (`docs/agent-parity.md`); the agent route's cancel, exercise, claim and collect strike have no
-   test of their own; `/covered-calls` is not in the sitemap while on.
+   (`docs/agent-parity.md`).

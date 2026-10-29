@@ -51,16 +51,29 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
   defp expiry, do: hd(Terms.expiries(@now))
 
-  # One open listing: ten tokens at a $250 strike and a $5 premium, two sold.
-  defp listing,
-    do: [word(@seller), expiry(), 0, 10 * @token, 2 * @token, 0, 250_000_000, 5_000_000, 0, 0]
+  # One open listing: ten tokens at a $250 strike and a $5 premium, two sold,
+  # one exercised for $250 of strike not yet collected (`strike_paid`).
+  defp listing(seller \\ @seller, strike_paid \\ 0),
+    do: [
+      word(seller),
+      expiry(),
+      0,
+      10 * @token,
+      2 * @token,
+      0,
+      250_000_000,
+      5_000_000,
+      strike_paid,
+      0
+    ]
 
-  defp chain(funds \\ %{}) do
+  # The chain at `now` (the latest block's time), holding `listing`.
+  defp chain(funds \\ %{}, listing \\ listing(), now \\ @now) do
     funds = Map.merge(%{balance: 0, allowance: 0, held: 0, claimable: 0}, funds)
 
     answers = %{
       LabAbi.selector("listingCount()") => [1],
-      LabAbi.selector("listings(uint256)") => listing(),
+      LabAbi.selector("listings(uint256)") => listing,
       LabAbi.selector("multiplier()") => [10 ** 18],
       LabAbi.selector("effectiveAt()") => [0],
       LabAbi.selector("unit()") => [@token],
@@ -82,7 +95,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
         "latest" => %{
           "number" => "0x40",
           "hash" => BaseRpcStub.safe_hash(),
-          "timestamp" => BaseRpcStub.uint(@now)
+          "timestamp" => BaseRpcStub.uint(now)
         }
       }
     })
@@ -151,7 +164,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
         do: assert(build_conn() |> send_json(method, path, %{}) |> json_response(404) == unknown)
   end
 
-  test "COVERED_CALLS_ADVERTISED_ONLY_WHEN_ON: tools, routes, guides and the tools handed to the page follow the switch" do
+  test "COVERED_CALLS_ADVERTISED_ONLY_WHEN_ON: tools, routes, guides, the sitemaps, the menu and the stock list follow the switch" do
     tools =
       ~w(autolaunch_covered_call_listings autolaunch_covered_call_quote autolaunch_my_covered_calls autolaunch_covered_call_prepare)
 
@@ -167,6 +180,9 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")
       guide = build_conn() |> get("/llms-full.txt") |> response(200)
       home = build_conn() |> get("/") |> html_response(200)
+      stocks = build_conn() |> get("/stock-listing") |> html_response(200)
+      sitemap = build_conn() |> get("/sitemap.xml") |> response(200)
+      sitemap_md = build_conn() |> get("/sitemap.md") |> response(200)
 
       assert Enum.all?(tools, &(&1 in names)) == offered?
       assert Enum.any?(tools, &(&1 in names)) == offered?
@@ -175,6 +191,11 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       assert guide =~ "autolaunch_covered_call_prepare" == offered?
       assert home =~ ~s(id="agent-feature-tools") == offered?
       assert home =~ "#{length(capabilities["tools"])} Agent Tools"
+      assert sitemap =~ "/covered-calls</loc>" == offered?
+      assert sitemap_md =~ "[Covered calls](" == offered?
+      assert home =~ ~s(aria-label="Stocks views") == offered?
+      assert stocks =~ ~s(href="/covered-calls") == offered?
+      assert stocks =~ "Covered Call Options coming soon." == not offered?
     end
   end
 
@@ -302,6 +323,87 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       signed.() |> get("/api/agent/v1/covered-calls/AMZNc/positions") |> json_response(200)
 
     assert %{"wallet" => ^wallet, "sold" => [], "holdings" => []} = holdings["data"]
+  end
+
+  test "a signed agent stops selling, exercises and collects through the steps route, each refused for the reason the chain gives" do
+    switch(:on)
+    open_site()
+    {wallet, signed} = paired_agent()
+
+    steps = fn body ->
+      signed.()
+      |> send_json("POST", "/api/agent/v1/covered-calls/AMZNc/steps", body)
+      |> json_response(200)
+      |> Map.fetch!("data")
+    end
+
+    one_call = fn signature ->
+      [
+        %{
+          "to" => @contract,
+          "data" => BuilderCode.append(LabAbi.selector(signature) <> BaseRpcStub.hex_word(1))
+        }
+      ]
+    end
+
+    # The agent's own listing: eight unsold, $250 of strike paid in.
+    chain(%{}, listing(wallet, 250_000_000))
+
+    stop = steps.(%{"kind" => "cancel", "listing_id" => 1})
+    assert %{"blocked" => nil, "facts" => %{"unsold" => unsold}} = stop
+    assert unsold == 8 * @token
+    assert Enum.map(stop["steps"], &Map.take(&1, ["to", "data"])) == one_call.("cancel(uint256)")
+
+    strike = steps.(%{"kind" => "collect_strike", "listing_id" => 1})
+    assert %{"blocked" => nil, "facts" => %{"amount" => 250_000_000}} = strike
+
+    assert Enum.map(strike["steps"], &Map.take(&1, ["to", "data"])) ==
+             one_call.("collectStrike(uint256)")
+
+    # Someone else's listing: only its seller may stop it or collect its strike.
+    chain(%{}, listing(@seller, 250_000_000))
+
+    for kind <- ["cancel", "collect_strike"] do
+      assert steps.(%{"kind" => kind, "listing_id" => 1})["blocked"]["code"] == "not_seller"
+    end
+
+    # Exercise waits for the 24 hours after expiry, and then takes the strike in USDC.
+    exercise = %{"kind" => "exercise", "listing_id" => 1, "amount" => @token}
+    chain(%{held: 2 * @token, balance: 250_000_000, allowance: 250_000_000})
+    assert steps.(exercise)["blocked"]["code"] == "outside_exercise_window"
+
+    chain(
+      %{held: 2 * @token, balance: 250_000_000, allowance: 250_000_000},
+      listing(),
+      expiry() + 60
+    )
+
+    exercising = steps.(exercise)
+
+    assert %{"blocked" => nil, "approved" => true, "facts" => %{"strike" => 250_000_000}} =
+             exercising
+
+    assert [%{"to" => @usdc}, %{"to" => @contract}] = exercising["steps"]
+
+    chain(%{held: @token, balance: 250_000_000}, listing(), expiry() + 60)
+    assert steps.(%{exercise | "amount" => 2 * @token})["blocked"]["code"] == "more_than_held"
+
+    chain(%{held: 2 * @token, balance: 0}, listing(), expiry() + 86_400)
+    assert steps.(exercise)["blocked"]["code"] == "outside_exercise_window"
+
+    # Collecting stock follows what the contract says the wallet may claim.
+    chain(%{claimable: 0})
+
+    assert steps.(%{"kind" => "claim", "listing_id" => 1})["blocked"]["code"] ==
+             "nothing_to_claim"
+
+    chain(%{claimable: 2 * @token})
+    collect = steps.(%{"kind" => "claim", "listing_id" => 1})
+    assert %{"blocked" => nil, "facts" => %{"amount" => amount}} = collect
+    assert amount == 2 * @token
+
+    assert Enum.map(collect["steps"], &Map.take(&1, ["to", "data"])) ==
+             one_call.("claim(uint256)")
   end
 
   test "the signed-in route needs a sign-in and reads only the signed-in wallet", %{conn: conn} do

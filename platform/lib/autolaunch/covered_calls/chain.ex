@@ -11,6 +11,10 @@ defmodule Autolaunch.CoveredCalls.Chain do
   alias RegentChain.Call
 
   @listing_words 10
+  # Listings and a wallet's positions are read a few at a time, so a market
+  # with many weeks of listings still answers in a few round trips.
+  @read_concurrency 8
+  @read_timeout 20_000
   @wad 1_000_000_000_000_000_000
 
   @type listing :: %{
@@ -61,20 +65,13 @@ defmodule Autolaunch.CoveredCalls.Chain do
 
   @doc "What `wallet` holds on each listing: calls it may exercise and stock it may claim."
   def holdings(market, listings, wallet, block, opts) do
-    listings
-    |> Enum.reduce_while({:ok, []}, &holding(market, &1, wallet, block, opts, &2))
-    |> case do
-      {:ok, kept} -> {:ok, Enum.reverse(kept)}
-      error -> error
-    end
+    with {:ok, positions} <- each(listings, &holding(market, &1, wallet, block, opts)),
+         do: {:ok, Enum.reject(positions, &match?(%{held: 0, claimable: 0}, &1))}
   end
 
-  defp holding(market, listing, wallet, block, opts, {:ok, kept}) do
-    case position(market, listing.id, wallet, block, opts) do
-      {:ok, %{held: 0, claimable: 0}} -> {:cont, {:ok, kept}}
-      {:ok, position} -> {:cont, {:ok, [Map.put(position, :listing_id, listing.id) | kept]}}
-      error -> {:halt, error}
-    end
+  defp holding(market, listing, wallet, block, opts) do
+    with {:ok, position} <- position(market, listing.id, wallet, block, opts),
+         do: {:ok, Map.put(position, :listing_id, listing.id)}
   end
 
   @doc "One listing at `block`, or `:unknown_listing` when the contract has none by that id."
@@ -135,17 +132,32 @@ defmodule Autolaunch.CoveredCalls.Chain do
   defp listings(_contract, 0, _block, _opts), do: {:ok, []}
 
   defp listings(contract, count, block, opts) do
-    Enum.reduce_while(1..count, {:ok, []}, fn id, {:ok, kept} ->
-      case Rpc.call_words(
-             contract,
-             Call.encode("listings(uint256)", [id]),
-             block,
-             @listing_words,
-             opts
-           ) do
-        {:ok, words} -> {:cont, {:ok, [listing(id, words) | kept]}}
-        error -> {:halt, error}
-      end
+    each(1..count, fn id ->
+      with {:ok, words} <-
+             Rpc.call_words(
+               contract,
+               Call.encode("listings(uint256)", [id]),
+               block,
+               @listing_words,
+               opts
+             ),
+           do: {:ok, listing(id, words)}
+    end)
+  end
+
+  # One read per item, a few at a time, in order. The first that fails fails
+  # them all: a book or a portfolio missing a listing would be wrong, not short.
+  defp each(items, read) do
+    items
+    |> Task.async_stream(read,
+      max_concurrency: @read_concurrency,
+      timeout: @read_timeout,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, {:ok, value}}, {:ok, kept} -> {:cont, {:ok, [value | kept]}}
+      {:ok, {:error, _reason} = error}, _kept -> {:halt, error}
+      {:exit, _reason}, _kept -> {:halt, {:error, :chain_unavailable}}
     end)
     |> case do
       {:ok, kept} -> {:ok, Enum.reverse(kept)}
