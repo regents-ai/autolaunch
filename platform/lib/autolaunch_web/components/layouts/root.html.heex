@@ -4,7 +4,6 @@
   lang="en"
   data-brand="autolaunch"
   data-theme={@theme}
-  data-aside={assigns[:aside]}
   data-prelaunch-read-only={to_string(Autolaunch.Prelaunch.read_only?())}
 >
   <head>
@@ -14,6 +13,14 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta name="agent-request-origin" content={AutolaunchWeb.Endpoint.url()} />
     <meta :if={assigns[:visit]} name="regent-visit" content={assigns[:visit]} />
+    <%!-- Tools offered beside the ones the page's script knows, only while a feature such as
+         covered calls is on (AutolaunchWeb.ToolManifest.page_tools/0). --%>
+    <meta
+      :if={AutolaunchWeb.ToolManifest.page_tools() != []}
+      id="agent-feature-tools"
+      name="agent-feature-tools"
+      content={Jason.encode!(AutolaunchWeb.ToolManifest.page_tools())}
+    />
     <meta name="privy-app-id" content={Autolaunch.Privy.app_id()} />
     <meta
       name="privy-bridge-src"
@@ -42,6 +49,11 @@
     />
     <meta :if={!@theme} name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0e0e" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
+    <link
+      :if={Autolaunch.CoveredCalls.Deployment.enabled?()}
+      rel="stylesheet"
+      href={~p"/assets/js/covered_calls.css"}
+    />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>
   </head>

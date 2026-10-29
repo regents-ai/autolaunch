@@ -121,6 +121,16 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, request_reads(socket)}
 
+  # A covered-call press landed, so the covered calls read again.
+  def handle_info({:covered_calls_changed, _symbol}, socket) do
+    send_update(AutolaunchWeb.CoveredCallsPortfolioComponent,
+      id: "portfolio-covered-calls",
+      read: true
+    )
+
+    {:noreply, socket}
+  end
+
   # A swap confirmed, so the wallets hold something else now.
   def handle_info(:reload_pool, socket), do: {:noreply, request_reads(socket)}
 
@@ -313,6 +323,14 @@ defmodule AutolaunchWeb.PortfolioLive do
           </div>
         </Regent.Primitives.disclosure>
       </section>
+
+      <.live_component
+        :if={@account_control.kind != :sign_in and Autolaunch.CoveredCalls.Deployment.enabled?()}
+        module={AutolaunchWeb.CoveredCallsPortfolioComponent}
+        id="portfolio-covered-calls"
+        session_lease={@session_lease}
+        current_human_id={@human_id}
+      />
 
       <section
         :if={@account_control.kind != :sign_in}

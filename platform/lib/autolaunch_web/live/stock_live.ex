@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.StockLive do
         {:ok,
          socket
          |> assign(PublicDocuments.market_page(:stock, stock["name"], stock["symbol"]))
-         |> assign(stock: stock, chain: chain)}
+         |> assign(stock: stock, chain: chain, covered_calls?: covered_calls?(stock))}
     end
   end
 
@@ -41,6 +41,10 @@ defmodule AutolaunchWeb.StockLive do
       </header>
       <p :if={@stock["status"]} class="upcoming-details__status">{@stock["status"]}</p>
       <p :if={@stock["blocker"]} class="upcoming-details__note">{@stock["blocker"]}</p>
+      <p :if={@covered_calls?} class="upcoming-details__action">
+        <.link navigate={~p"/covered-calls"} class="rg-button">Covered calls on {@stock["symbol"]}</.link>
+        <span>Sell calls on your {@stock["symbol"]} for a premium, or buy them.</span>
+      </p>
       <dl class="upcoming-details__facts">
         <.address label="Onchain token address" value={@stock["token_address"]} id="token" />
         <.address label="Chainlink feed address" value={@stock["feed_address"]} id="feed" />
@@ -71,6 +75,13 @@ defmodule AutolaunchWeb.StockLive do
     </article>
     """
   end
+
+  # Covered calls are offered for a stock only while they are switched on and
+  # its market is described.
+  defp covered_calls?(stock),
+    do:
+      Autolaunch.CoveredCalls.Deployment.enabled?() and
+        match?({:ok, _}, Autolaunch.CoveredCalls.Deployment.market(stock["symbol"]))
 
   attr :pool, :map, required: true
   attr :index, :integer, required: true

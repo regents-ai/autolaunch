@@ -13,6 +13,7 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
 
   alias Autolaunch.{BaseRpcStub, Lab, LabAbi}
   alias Autolaunch.Stocks.StakeActions
+  alias RegentChain.BuilderCode
 
   @subject "0x9999999999999999999999999999999999999999"
   @escrow "0x7777777777777777777777777777777777777777"
@@ -50,7 +51,12 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
              StakeActions.prepare(request, context.wallet, context.opts)
 
     assert [%{step: "collect_full_range", to: ^lp_locker, data: data}] = steps
-    assert data == LabAbi.selector("collect(uint256)") <> BaseRpcStub.hex_word(@lp_token_id)
+
+    assert data ==
+             BuilderCode.append(
+               LabAbi.selector("collect(uint256)") <> BaseRpcStub.hex_word(@lp_token_id)
+             )
+
     assert facts == [["Full range position", "1 LRVS · 2 REGENT"]]
   end
 

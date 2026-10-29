@@ -57,12 +57,13 @@ config :autolaunch, Oban,
 config :regent_agents,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
+  notifications: Autolaunch.Notifications,
   account: {Autolaunch.Agents, :paired_account},
   allowed: %{
     "not_paired" => [
       "Read public auctions, tokens, treasury reports and bid estimates.",
       "Check your status here at any time.",
-      "Pair with the code your person makes with Pair New Agent in the side panel."
+      "Pair with the code your person makes with Pair New Agent on their Account page."
     ],
     "paired" => [
       "Read public auctions, tokens, treasury reports and bid estimates.",
@@ -79,6 +80,7 @@ config :regent_agents,
 config :regent_credits,
   repo: Autolaunch.Repo,
   pubsub: Autolaunch.PubSub,
+  notifications: Autolaunch.Notifications,
   ash_domains: [RegentCredits],
   admins: [],
   agent_grants_enabled: false,
@@ -166,7 +168,7 @@ config :spark,
   ]
 
 config :autolaunch,
-  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points],
+  ash_domains: [Autolaunch.Accounts, Autolaunch, Autolaunch.Points, Autolaunch.CoveredCalls],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
@@ -195,7 +197,8 @@ config :autolaunch, Autolaunch.ChainRefresh,
     Autolaunch.TokenTrades,
     Autolaunch.Indexer.ReadChain,
     Autolaunch.LaunchDiscovery.DiscoverMemestock,
-    Autolaunch.RegentFacts
+    Autolaunch.RegentFacts,
+    Autolaunch.CoveredCalls.Book
   ]
 
 # How long each server keeps a chain's saved stocks before reading them again;
@@ -249,6 +252,14 @@ config :esbuild,
   autolaunch: [
     args:
       ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
+  ],
+  # Covered calls' styles, built outside priv/static so nothing serves them while
+  # covered calls are off (AutolaunchWeb.CoveredCallsController.stylesheet/2).
+  covered_calls: [
+    args:
+      ~w(css/pages/covered_calls.css --bundle --outdir=../priv/covered_calls --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]

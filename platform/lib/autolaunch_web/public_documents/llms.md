@@ -19,15 +19,15 @@ Use Autolaunch when you want to:
 2. Estimate a bid with `POST {{origin}}/api/v1/auctions/{id}/bid-quote`; it does not place one.
 3. Send the person to the auction's or token's `url` to use its bid, trade or stake controls. For a launch, a paired agent can fill in the whole draft with the draft commands in [agents.md]({{origin}}/agents.md): the token's details, its picture, and its launch settings (a Revstake token's treasury, a Memestock token's chain and stock). The person opens {{origin}}/create for a Memestock token or {{origin}}/create/revstake for a Revstake token, sees every field the agent set named there, and confirms each wallet step. These financial and launch controls are not registered as agent tools.
 
-Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface.
+Autolaunch never signs, bids or spends for anyone. Reads are public; bidding, launching, trading and staking need the person's own wallet, through the person-controlled interface. An agent can also launch a Memestock token on Base from its own wallet and own it: [agents.md]({{origin}}/agents.md) has the steps.
 
 ## Pair with a person's account
 
 Use the published release and installation caveats in [/agents.md]({{origin}}/agents.md).
 
-1. Install regents-cli and sign in: `uv tool install regents-cli=={{regents_cli}}`, then `regents auth login --site autolaunch`. It makes a new key when none is there, so ask your person first. Use only a key that is yours.
+1. Install regents-cli and sign in: `uv tool install --python 3.14 regents-cli=={{regents_cli}}`, then `regents auth login --site autolaunch`. It makes a new key when none is there, so ask your person first. Use only a key that is yours.
 2. Check: `regents autolaunch agents whoami --json`. `data.status` is `not_paired` until you pair, and `data.next_step` says what to do.
-3. Your person opens Pair New Agent in the side panel, on any page of {{origin}}, chooses you and pastes you a message with a pairing code. Their Regents Labs account is one account on every Regent site, so a pairing made on any of them works here too. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents autolaunch agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes.
+3. Your person opens Pair New Agent on their Account page ({{origin}}/account), chooses you and pastes you a message with a pairing code. Their Regents Labs account is one account on every Regent site, so a pairing made on any of them works here too. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents autolaunch agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes.
 4. Check in with `regents autolaunch agents status --json`, then work. Every answer and refusal from `regents` ends with `next_steps`: do what it says. An `agent_not_paired` refusal means no person has paired you, or your person unpaired you.
 
 Your person can unpair you at any time. You can never use their wallet.

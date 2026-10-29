@@ -51,7 +51,7 @@ defmodule Autolaunch.BidActions do
   The public estimate for one auction, from its stored snapshot.
 
   A refusal names the first thing that stopped it, checked in this order:
-  `:auction_not_found` (the id names no auction this site created),
+  `:auction_not_found` (the id names no Base auction this site lists),
   `:estimate_not_offered` (a listed Robinhood auction), `:invalid_amount`, `:invalid_max_price`,
   `:database_unavailable` when the stored auction could not be read, or
   `:price_unreadable` when its stored clearing price is not a plain decimal.

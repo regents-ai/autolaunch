@@ -3,7 +3,7 @@ defmodule Autolaunch.Chain.Rpc do
 
   require Logger
 
-  alias RegentChain.Address
+  alias RegentChain.{Address, BuilderCode}
 
   @timeout 8_000
   @chain_id 8453
@@ -131,6 +131,12 @@ defmodule Autolaunch.Chain.Rpc do
 
   @doc "One ABI string answer, such as an ERC-20 `name()` or `symbol()`."
   def call_string(to, data, block, opts \\ []), do: call(to, data, block, &decode_string/1, opts)
+
+  @doc """
+  One ABI string answer as the bytes the contract holds, which need not be
+  valid UTF-8: text someone else wrote, such as a launch's token name.
+  """
+  def call_bytes(to, data, block, opts \\ []), do: call(to, data, block, &decode_bytes/1, opts)
 
   def request(method, params, opts \\ []) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
@@ -333,7 +339,9 @@ defmodule Autolaunch.Chain.Rpc do
          true <- String.downcase(transaction_hash) == String.downcase(hash),
          true <- actual_signer == expected_signer,
          true <- actual_target == expected_target,
-         true <- String.downcase(transaction["input"] || "") == String.downcase(data),
+         {:ok, sent} <- sent_call(transaction["input"]),
+         {:ok, reviewed} <- sent_call(data),
+         true <- sent == reviewed,
          true <- zero_quantity?(transaction["value"]) do
       :ok
     else
@@ -343,6 +351,10 @@ defmodule Autolaunch.Chain.Rpc do
 
   defp verify_transaction(_transaction, _hash, _signer, _to, _data),
     do: {:error, :transaction_missing}
+
+  # The calldata without any Builder Code suffix, which a wallet may rewrite.
+  defp sent_call("0x" <> _hex = data), do: {:ok, data |> String.downcase() |> BuilderCode.call()}
+  defp sent_call(_input), do: :error
 
   defp decode_uint("0x" <> hex), do: String.to_integer(hex, 16)
 
@@ -356,10 +368,15 @@ defmodule Autolaunch.Chain.Rpc do
   end
 
   # An ABI string is its offset word, its length word and its UTF-8 bytes.
-  defp decode_string("0x" <> hex) when byte_size(hex) >= 128 do
+  defp decode_string(result) do
+    bytes = decode_bytes(result)
+    true = String.valid?(bytes)
+    bytes
+  end
+
+  defp decode_bytes("0x" <> hex) when byte_size(hex) >= 128 do
     [_offset, length] = decode_words("0x" <> binary_part(hex, 0, 128), 2)
     {:ok, bytes} = Base.decode16(binary_part(hex, 128, length * 2), case: :mixed)
-    true = String.valid?(bytes)
     bytes
   end
 

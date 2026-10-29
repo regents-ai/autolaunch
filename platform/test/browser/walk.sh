@@ -19,4 +19,6 @@ trap drop EXIT
 trap 'exit 130' INT TERM
 
 mix db.setup
+# The browser test server's pool, not the sandbox, so the pairings are kept.
+AUTOLAUNCH_BROWSER_TEST=1 mix run --no-start test/browser/support/agents.exs
 npx playwright test "$@"

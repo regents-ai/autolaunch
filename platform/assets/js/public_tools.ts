@@ -14,10 +14,48 @@ function signedTransport() { return signedTools({
   proofHeaders: manifest.proof_headers,
   requestHeaders: client,
   // Only the signed tools are operations; each is sent with its operation's own inputs.
-  operations: manifest.tools.flatMap(entry =>
+  operations: offered().flatMap(entry =>
     "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
   ) as unknown as SignedOperation[],
 }) }
+
+// Tools the page is handed beside the ones built in here, while a feature is on
+// (AutolaunchWeb.ToolManifest.page_tools/0); none otherwise.
+function pageTools(): Entry[] {
+  const json = document.querySelector?.("#agent-feature-tools")?.getAttribute("content")
+  return json ? (JSON.parse(json) as Entry[]) : []
+}
+
+// Every tool this page offers: the built-in ones, then the page's, whose signed
+// tools join prepare_agent_request's operations.
+function offered(): Entry[] {
+  const added = pageTools()
+  const signed = added.filter(entry => "operation_input_schema" in entry).map(entry => entry.name)
+  const own = (manifest.tools as unknown as Entry[]).map(entry =>
+    entry.name === "prepare_agent_request" && signed.length > 0 ? withOperations(entry, signed) : entry,
+  )
+  return [...own, ...added]
+}
+
+function withOperations(entry: Entry, names: string[]): Entry {
+  const operation = entry.input_schema.properties.operation
+  return {
+    ...entry,
+    input_schema: {
+      ...entry.input_schema,
+      properties: {...entry.input_schema.properties, operation: {...operation, enum: [...(operation.enum ?? []), ...names]}},
+    },
+  }
+}
+
+// A page tool's own request: its path with each {field} filled from the input,
+// and the input fields it posts.
+function described({path, body}: NonNullable<Entry["request"]>): (input: Input) => Request {
+  return input => ({
+    path: path.replace(/\{(\w+)\}/g, (_match, field: string) => pathValue(input[field])),
+    ...(body && {body: Object.fromEntries(body.map(field => [field, input[field]]))}),
+  })
+}
 
 // Every call names its tool and this visit, so the site's log can put the call
 // beside the rest of the visit (AutolaunchWeb.VisitLog). Neither is a credential.
@@ -64,6 +102,8 @@ type Entry = {
   annotations: Annotations
   scope: string
   authentication?: string
+  // A page tool's own HTTP request (AutolaunchWeb.ToolManifest.page_tools/0).
+  request?: {path: string; body?: string[]}
 }
 
 export type PublicTool = {
@@ -249,9 +289,9 @@ const requests: Record<string, (input: Input) => Request> = {
 
 // Public requests and explicitly signed manifest operations register here.
 function publicTools(signal: AbortSignal): PublicTool[] {
-  return (manifest.tools as unknown as Entry[])
-    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
-    .map(entry => tool(entry, requests[entry.name] ?? (() => { throw new Error("Signed request required") }), signal))
+  return offered()
+    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.request || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
+    .map(entry => tool(entry, requests[entry.name] ?? (entry.request ? described(entry.request) : () => { throw new Error("Signed request required") }), signal))
 }
 
 let installed = false

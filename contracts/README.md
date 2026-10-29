@@ -8,7 +8,7 @@ our contracts sweep the raise, open the Uniswap v4 pool at the CCA's final price
 liquidity forever in a fee-only locker, and route the pool's hook fees to a per-launch staking
 splitter. When it does not graduate, the token supply is retired and bidders refund from the CCA.
 
-Seven Foundry projects, one per directory. Each is built and verified from its own directory.
+Eight Foundry projects, one per directory. Each is built and verified from its own directory.
 
 New launches use version 2. The four existing version 1 Memestake auctions remain supported;
 keeping their bindings permits claims, withdrawals, staking and fee collection without reopening
@@ -28,6 +28,7 @@ contracts set and every one the launcher chooses.
 | [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | **Deployed** on Base on 22 September 2026 (eight contracts, verified on Basescan); launches open since 24 September 2026 | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
 | [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | **Deployed** on Base on 23 September 2026 (launchpad, bid adapter, hook, locker, splitter implementation); ten stocks admitted with `AerodromeStockRouteV2` routes and the hook executor set by the Safe; launches open since 24 September 2026 | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
 | [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | **Deployed** on 23–24 September 2026 (launchpad graph, 25 `UniswapV3StockRouteV1` routes, the Base receiver; addresses in `robinhood/deployments/robinhood-mainnet/deployed-manifest.json`); no stock admitted yet; launches paused until the admin Safe admits the stocks and calls `unpauseLaunches()` | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
+| [covered-calls/](covered-calls/README.md) | Fully collateralized, physically settled covered calls on one Base stock token, paid in USDC; 1% of each premium to REGENT staking | Base (8453) | **Deployed** (AMZNc) at `0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E`, 29 Oct 2026; switched off on the site | `cd covered-calls && bin/gate.sh` (fork suite: see its README) |
 | [revenue-mesh/](revenue-mesh/README.md) | Immutable USDC payment routes over Circle CCTP from other chains into a Base `PaymentReceiverV1` | Source chains into Base | **Experimental.** Not deployed and not on the launch path | `cd revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
 | [exposure/](exposure/README.md) | After-hours Exposure: one Base stock token split for a fixed term into OVERNIGHT and SESSION legs settled from its Chainlink feed at each open and close, with a curated series factory | Base (8453) | **Not deployed.** Design in [exposure-design.md](../platform/docs/exposure-design.md) | `cd exposure && bin/gate.sh`, with `../stocks-v2/lib` in place |
 

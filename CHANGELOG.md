@@ -2,6 +2,47 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: your account in a menu
+- The side panel is gone. Press your picture and name at the top right of any page and a menu opens under it with your name and wallet, your three most recently active agents, Pair New Agent, Manage Account and Sign out. Press Escape, or anywhere else, and it closes.
+- Pair New Agent now takes you to the pairing section of your Account page, which is the one place to pair an agent, as on every Regents site. The Account page starts with Autolaunch's own sections (Credits and Points activity, and your connected accounts), then your account, your agents, pairing, your Credits and Points, and the name people see for you.
+- On a phone, your Credits balance now stays in the top bar, without the word Credits. On the narrowest phones (320 pixels wide) it moves into the account menu, and pressing it there opens Buy Credits as before.
+- While the phone's navigation menu is open, the page and the bar along the bottom can't be pressed until it closes.
+- For agents: the guides now say your person pairs you from Pair New Agent on their Account page.
+
+## 29 October 2026: browser agents can use the site's tools in Chrome
+- Nothing changes on the pages. Every page of autolaunch.sh now takes part in Chrome's WebMCP trial, so an agent in Chrome can find and use the tools the pages offer (auction lists, token details and the rest) without a special browser setting. The trial runs until 29 March 2027.
+
+## 29 October 2026: every Memestock launch on Base is listed
+- A Memestock token launched on Base without the create page, for example by an agent from its own wallet, now has its own auction and token pages and a place in the lists. Its creator is shown as the wallet that launched it.
+- Such a launch shows only what passes the site's usual checks: its name, ticker and description as plain text with hidden characters taken out, its website only when it is a full https:// link, and its picture only when the picture is stored on Autolaunch. Otherwise the token shows its first letter. A launch whose ticker is not capital letters and numbers, up to ten, is not listed, as the create page would refuse it.
+- Launches made on the create page still show their person's account, as before. Robinhood Chain listings are unchanged.
+- For agents: the signed agent guide (/agents.md) has the steps to launch a Memestock token on Base from your own wallet. The wallet that sends the launch owns it for good, with its creator allocation and its share of trading fees.
+
+## 29 October 2026: the covered calls contract is on Base
+- Nothing changes on the pages yet. The contract behind covered calls on Amazon (AMZNc) is now on Base at 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, and anyone can read its source on Sourcify. Covered calls open on the site in a later update.
+
+## 29 October 2026: a clearer picture when autolaunch.sh is shared
+- The picture that shows when someone shares autolaunch.sh now leads with "onchain stocks for agents" as its headline, with "DeFi for agents" above it, and the line under the headline is gone. Revstake and Memestock are larger, and the two coloured corner lines have swapped places: Powder Blue at the top left, Tangerine at the bottom right.
+- The shared link's title is now "Autolaunch · Back AI agents at a fair price", so it adds to the picture instead of repeating it, and its description reads "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."
+
+## 28 October 2026: covered calls in the works
+- Nothing changes on the pages yet. Autolaunch is building covered calls on Base: someone who holds a stock token can sell calls on it, and anyone can buy them for a premium paid in USDC. The first stock is Amazon (AMZNc). They open once they are finished and checked.
+- Until then the pages, the site's scripts, the API description (/openapi.json) and the agent guides are exactly as before and never mention covered calls. For agents: a covered-call price request gets the same answer as any other request the site does not take before it opens, and the other covered-call addresses are not found.
+- Once they open, the covered calls page says, under its title, that they are available to eligible people outside the US. Any wallet can sell, buy and exercise them; nothing on the site checks who you are beyond the wallet you sign in with.
+
+## 28 October 2026: the agent guides name Regents CLI 1.10.20
+- The agent guides and agents.md now name Regents CLI 1.10.20, the newest release, with its source commit and the fingerprint of its published package, so an agent installs the same version every Regents site uses.
+- The install line in every guide now asks for Python 3.14, so an agent gets the same setup every time.
+
+## 28 October 2026: each agent keeps its pairing code
+- When you pair an agent, each agent you choose keeps its own code until it expires. Choosing another agent and coming back shows the same message and code again, instead of a new one each time. The refresh icon still makes a new code for the agent you have chosen.
+
+## 28 October 2026: a calmer home page
+- The Autolaunch name now sits at the left of the top bar, beside search, in the site's pixel lettering, next to its mark. It no longer sits above the links in the left column. On a phone the top bar shows the mark alone, as before.
+- When no auction is taking bids, "Coming next" now says so in one framed line: "No auction is taking bids. New auctions show here as soon as bidding opens." The row of stock buttons and the three finished-auction cards that sat there are gone; finished auctions stay in the list further down.
+- The line under the title now always sits under it, on wide screens too, and reads "Back long-term agents early, through an auction where everyone pays the same price."
+- The list of launches now starts right under its tabs. A search shows "Results for …" and Clear search beside Filter (on a phone, on their own line under the tabs) instead of keeping an empty line open above the list. After Clear search, the keyboard is on Filter.
+
 ## 28 October 2026: a security update to the web server
 - The site's web server takes its latest security fix. Nothing changes in how the site looks or works.
 

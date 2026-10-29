@@ -253,6 +253,9 @@ defmodule AutolaunchWeb.OnchainSteps do
     socket
   end
 
+  @doc "What to say when a press could not be prepared just now, so nothing was sent."
+  def unsent_note, do: "That did not go through. Nothing was sent. Try again in a moment."
+
   @doc """
   What to say when a press sent nothing, or may have sent something, in words
   for the person who pressed. `linked` and `active` are the account's wallets
@@ -262,7 +265,7 @@ defmodule AutolaunchWeb.OnchainSteps do
 
   def failure_note(reason, :unread, _active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),
-      do: "That did not go through. Nothing was sent. Try again in a moment."
+      do: unsent_note()
 
   def failure_note(reason, nil, _active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),

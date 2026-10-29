@@ -2,13 +2,15 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   @moduledoc """
   A Base Memestock launch is listed from the launchpad's own record and the
   transaction that created it, with no browser report: once, for the account
-  whose review sent it, never for a launch this site did not review, and not
-  until the chain can answer for it.
+  whose review sent it, and not until the chain can answer for it. A launch
+  this site did not review is listed too, under the wallet that sent it, with
+  only what passes the create page's checks.
   """
 
   use AutolaunchWeb.ConnCase, async: false
 
   require Ash.Query
+  import Ecto.Query, only: [from: 2]
 
   alias Autolaunch.{Accounts, Auction, BaseRpcStub, LabAbi, LaunchDiscovery, LaunchReviews}
   alias Autolaunch.Actors.{Human, System}
@@ -20,6 +22,8 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   @actor %System{}
   @launcher "0x1414141414141414141414141414141414141414"
   @stranger "0x9999999999999999999999999999999999999999"
+  # The launchpad the first Memestock launches used, which this site no longer runs.
+  @retired "0x7777777777777777777777777777777777777777"
   @new_token "0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
   @auction "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
   @stock "0xb200000000000000000000c2e324d24d7eecd1fb"
@@ -132,17 +136,291 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     assert [%{state: :graduated, creator_human_account_id: ^creator}] = auctions()
   end
 
-  test "a launch made outside the site is not listed", %{launchpad: launchpad} do
-    BaseRpcStub.put(%{launcher: @stranger})
+  test "a launch made outside the site is listed under the wallet that sent it, with only what passes the site's checks",
+       %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{
+        "name()" => <<0xFF, 0xFE>> <> " Stranger\u202E\n Coin\u200B\u0007 ",
+        "symbol()" => "STRG",
+        "tokenURI()" =>
+          token_uri(%{
+            "description" => "Made\u0000 elsewhere.\nSecond line.",
+            "website" => "javascript:alert(1)",
+            "image" =>
+              "https://elsewhere.example/stock-images/#{Ecto.UUID.generate()}/#{String.duplicate("a", 64)}"
+          })
+      }
+    })
+
     mined(launchpad)
+    Autolaunch.Listings.subscribe()
 
     discover()
     run_triggers()
 
-    assert [%{state: :unlisted, reason: "no_matching_review", launcher: @stranger}] =
+    assert [%{state: :listed, creator_human_account_id: nil, reason: nil, launcher: @stranger}] =
              discoveries()
 
+    assert [auction] = auctions()
+
+    assert %{
+             origin: :chain,
+             kind: :stocks,
+             state: :created,
+             auction_address: @auction,
+             token_address: @new_token,
+             creator_human_account_id: nil,
+             creator_address: @stranger,
+             title: "Stranger Coin",
+             token_symbol: "STRG",
+             summary: "Made elsewhere.\nSecond line.",
+             website: nil,
+             image: nil,
+             quote_token_symbol: "AAPLc",
+             quote_token_decimals: 8
+           } = auction
+
+    auction_id = auction.id
+    assert_received {:autolaunch_listings_changed, ^auction_id}
+
+    # The public lists carry it and its page opens, as for every listed launch.
+    assert [%{id: ^auction_id}] =
+             Auction |> Ash.Query.for_read(:listed, %{}, actor: nil) |> Ash.read!()
+
+    assert %{id: ^auction_id} =
+             Auction
+             |> Ash.Query.for_read(:public_by_id, %{id: auction_id}, actor: nil)
+             |> Ash.read_one!()
+
+    # An operator can still hide it, as any listed launch.
+    {:ok, _hidden} = Autolaunch.hide_auction(auction, actor: @actor)
+
+    assert nil ==
+             Auction
+             |> Ash.Query.for_read(:public_by_id, %{id: auction_id}, actor: nil)
+             |> Ash.read_one!()
+  end
+
+  test "a launch whose ticker breaks the site's rule is not listed", %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "Dots", "symbol()" => "..", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :unlisted, reason: "invalid_metadata"}] = discoveries()
     assert auctions() == []
+  end
+
+  test "a launch whose name is empty once its hidden characters are gone is not listed",
+       %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "\u200B\u3164 ", "symbol()" => "BLANK", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :unlisted, reason: "invalid_metadata"}] = discoveries()
+    assert auctions() == []
+  end
+
+  test "a launch whose metadata is not readable is not listed", %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{
+        "name()" => "Garbled",
+        "symbol()" => "GRBL",
+        "tokenURI()" => "data:application/json;base64,not base64"
+      }
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :unlisted, reason: "invalid_metadata"}] = discoveries()
+    assert auctions() == []
+  end
+
+  test "a description cut inside a character is listed with its whole characters",
+       %{launchpad: launchpad} do
+    admit_stock()
+    json = ~s({"description":"caf) <> <<0xC3>> <> ~s("})
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{
+        "name()" => "Cut",
+        "symbol()" => "CUT",
+        "tokenURI()" => "data:application/json;base64," <> Base.encode64(json)
+      }
+    })
+
+    mined(launchpad)
+    discover()
+    run_triggers()
+
+    assert [%{state: :listed}] = discoveries()
+    assert [%{summary: "caf"}] = auctions()
+  end
+
+  test "a launch taken again that the site cannot list yet waits, and is listed once it can",
+       %{launchpad: launchpad} do
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "Waiting", "symbol()" => "WAIT", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+
+    {1, _rows} =
+      Autolaunch.Repo.update_all("launch_discoveries",
+        set: [state: "unlisted", reason: "no_matching_review"]
+      )
+
+    # Its stock is not saved yet: the launch waits for it.
+    run_triggers()
+    assert [%{state: :pending, reason: "unsupported_stock"}] = discoveries()
+
+    admit_stock()
+    Autolaunch.Stocks.Assets.changed()
+    run_triggers()
+
+    assert [%{state: :listed}] = discoveries()
+    assert [%{token_symbol: "WAIT"}] = auctions()
+  end
+
+  test "a launch an earlier pass left unlisted is listed on the next; one on a retired launchpad stays unlisted",
+       %{launchpad: launchpad} do
+    admit_stock()
+
+    BaseRpcStub.put(%{
+      launcher: @stranger,
+      token: %{"name()" => "Earlier", "symbol()" => "EARLY", "tokenURI()" => token_uri(%{})}
+    })
+
+    mined(launchpad)
+    discover()
+    [discovery] = discoveries()
+
+    {:ok, _retired} =
+      Autolaunch.record_launch_discovery(
+        %{Map.take(discovery, record_fields()) | contract: @retired},
+        actor: @actor
+      )
+
+    # As the site left them before every Base Memestock launch was listed.
+    {2, _rows} =
+      Autolaunch.Repo.update_all("launch_discoveries",
+        set: [state: "unlisted", reason: "no_matching_review"]
+      )
+
+    run_triggers()
+
+    assert [
+             %{state: :listed, contract: ^launchpad},
+             %{state: :unlisted, reason: "launchpad_retired"}
+           ] =
+             Enum.sort_by(discoveries(), &(&1.contract != launchpad))
+
+    assert [%{token_symbol: "EARLY", origin: :chain}] = auctions()
+  end
+
+  test "the two test launches the operator hid are never listed" do
+    mainnet = "0x1d4bc582a9193061d53c4bfa429d366ed38eed0b"
+
+    for launch_id <- 1..3 do
+      {:ok, _discovery} =
+        Autolaunch.record_launch_discovery(
+          %{
+            launchpad: :base_memestock,
+            chain_id: 8453,
+            contract: mainnet,
+            launch_id: launch_id,
+            launcher: @stranger,
+            auction: "0x" <> String.duplicate(Integer.to_string(launch_id), 40),
+            transaction_hash: "0x" <> String.duplicate("0#{launch_id}", 32)
+          },
+          actor: @actor
+        )
+    end
+
+    {1, _rows} =
+      Autolaunch.Repo.update_all(from(d in "launch_discoveries", where: d.launch_id == 3),
+        set: [state: "listed"]
+      )
+
+    [{migration, _bytecode}] =
+      Code.require_file(
+        "priv/repo/migrations/20261029030000_hide_two_test_memestock_launches.exs"
+      )
+
+    Ecto.Migration.Runner.run(
+      Autolaunch.Repo,
+      Autolaunch.Repo.config(),
+      20_261_029_030_000,
+      migration,
+      :forward,
+      :up,
+      :up,
+      log: false,
+      prefix: Autolaunch.Repo.config()[:migration_default_prefix]
+    )
+
+    run_triggers()
+
+    assert [
+             %{launch_id: 1, state: :unlisted, reason: "operator_hidden"},
+             %{launch_id: 2, state: :unlisted, reason: "operator_hidden"},
+             %{launch_id: 3, state: :listed}
+           ] = Enum.sort_by(discoveries(), & &1.launch_id)
+
+    assert auctions() == []
+  end
+
+  test "a launch seen only on another chain is stored but not listed" do
+    for chain_id <- [46_630, 84_532] do
+      {:ok, _row} =
+        Autolaunch.record_launch_auction(
+          %{
+            kind: :stocks,
+            origin: :chain,
+            chain_id: chain_id,
+            auction_address: "0x" <> String.duplicate(Integer.to_string(rem(chain_id, 10)), 40),
+            creator_address: @stranger,
+            title: "Elsewhere",
+            token_symbol: "ELSE",
+            featured: false,
+            state: :active,
+            current_clearing_price: "0",
+            quote_token_address: @stock,
+            quote_token_symbol: "AAPLc",
+            quote_token_decimals: 8,
+            required_currency_raised: "1",
+            treasury_address: @stranger
+          },
+          actor: @actor
+        )
+    end
+
+    assert [] = Auction |> Ash.Query.for_read(:listed, %{}, actor: nil) |> Ash.read!()
+    assert [] = Auction |> Ash.Query.for_read(:list_public, %{}, actor: nil) |> Ash.read!()
   end
 
   test "a launch the chain cannot answer for yet stays pending with the reason",
@@ -278,9 +556,41 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
         selector == LabAbi.selector("launches(uint256)") ->
           launch_record(state.launcher)
+
+        true ->
+          token_string(selector, Map.get(state, :token, %{}))
       end
 
     "0x" <> Enum.join(words)
+  end
+
+  # The launch's token: its name, symbol and metadata, as the launch wrote them.
+  # Its bytes as the contract holds them, which need not be valid text.
+  defp token_string(selector, strings) do
+    {_signature, value} =
+      Enum.find(strings, fn {signature, _value} -> LabAbi.selector(signature) == selector end)
+
+    hex = Base.encode16(value, case: :lower)
+    padded = String.pad_trailing(hex, div(byte_size(hex) + 63, 64) * 64, "0")
+    [BaseRpcStub.hex_word(32), BaseRpcStub.hex_word(byte_size(value)), padded]
+  end
+
+  defp token_uri(metadata),
+    do: "data:application/json;base64," <> Base.encode64(Jason.encode!(metadata))
+
+  defp admit_stock do
+    Autolaunch.record_stock_admission!(
+      %{
+        chain_id: 8453,
+        address: @stock,
+        symbol: "AAPLc",
+        name: "Apple Inc.",
+        decimals: 8,
+        route: "0x" <> String.duplicate("66", 20),
+        admitted: true
+      },
+      actor: @actor
+    )
   end
 
   # launcher, newToken, stock, auction, splitter, startBlock, endBlock,

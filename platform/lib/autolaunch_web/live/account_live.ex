@@ -1,22 +1,25 @@
 defmodule AutolaunchWeb.AccountLive do
   @moduledoc """
-  `/account`: the signed-in person's Account on Autolaunch. Signed out, it shows
-  the shared signed-out section with the site's own Sign in button, and says
-  the sign-in ended when it lapsed while the page was open. Signed in, its
-  Profile section says who is signed in, with which wallet, links to their
-  Regents account and offers Sign out. The agents they paired follow, with the
-  box to pair another (`AutolaunchWeb.PairingBox`), which the side panel then
-  leaves out; unpairing is on regents.sh. Then their Credits, bought from the header's
-  Credits button and managed on regents.sh, and their Points: Autolaunch charges
-  no Credits and Points earning has not opened here. Their
-  connected accounts come last, through the Create page's connections
-  component, so an account connected here is the same one Create shows.
+  `/account`: the signed-in person's Account on Autolaunch, in the layout every Regent
+  site shares (`Regent.Account.layout`) with this site's own sections first. Signed
+  out, it shows the shared signed-out section with the site's own Sign in button, and
+  says the sign-in ended when it lapsed while the page was open. Signed in, this
+  site's own sections come first: the Credits and Points activity, then the
+  accounts they connected, through the Create page's connections component, so an
+  account connected here is the same one Create shows. Then the shared sections:
+  who is signed in with which wallet, the agents they paired, the box to pair
+  another (`AutolaunchWeb.PairingBox`, the section the account menu's Pair New
+  Agent leads to, `#account-pairing`), their Credits and Points, bought from the
+  header's Credits button and managed on regents.sh, and the name people see for
+  them. Autolaunch charges no Credits and Points earning has not opened here;
+  unpairing is on regents.sh.
 
   Each section is read on its own and shows its own loading and could-not-be-read
   states. The Credits balance is the one every page reads
   (`AutolaunchWeb.Live.Credits`); a Credits change, or an agent pairing, checking
   in or unpairing on any Regent site (`AutolaunchWeb.Live.Agents`), reads again.
   """
+
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
@@ -50,13 +53,18 @@ defmodule AutolaunchWeb.AccountLive do
 
   @doc "The agents and this page's pairing box follow an agent change (`AutolaunchWeb.Live.Agents`)."
   def agents_changed(socket) do
-    send_update(AutolaunchWeb.PairingBox, id: "account-agents-pair", agents_changed: true)
+    send_update(AutolaunchWeb.PairingBox, id: "account-pairing-box", agents_changed: true)
     read_agents(socket)
   end
 
   def handle_event("credits_history", %{"after" => cursor}, socket) do
     {:noreply, read_history(socket, cursor)}
   end
+
+  # The name was saved from the browser. The session hook reads the account again
+  # before this event (`AutolaunchWeb.Live.Session`), so the page already shows the
+  # new name everywhere it appears.
+  def handle_event("public_name_saved", _params, socket), do: {:noreply, socket}
 
   def handle_event("refresh_x_connections", _params, socket) do
     send_update(AutolaunchWeb.CreatorConnectionsComponent,
@@ -87,122 +95,132 @@ defmodule AutolaunchWeb.AccountLive do
           </Regent.Primitives.button>
         </:sign_in>
       </Regent.Account.signed_out>
-      <section
-        :if={@current_human_id}
-        class="market-profile-panel autolaunch-account-profile"
-        aria-labelledby="account-profile-title"
-      >
-        <h2 id="account-profile-title">Profile</h2>
-        <dl class="autolaunch-account">
-          <dt>Signed in as</dt>
-          <dd>{@account_control.label}</dd>
-          <dt>Wallet</dt>
-          <dd>{@account_control.wallet_address}</dd>
-        </dl>
-        <p>Manage your account and agent pairings on regents.sh</p>
-        <div class="autolaunch-account__actions">
-          <a
-            class="rg-button rg-button--primary"
-            href={@regents_account_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open regents.sh in a new tab"
+      <Regent.Account.layout :if={@current_human_id} id="account">
+        <:site>
+          <div class="autolaunch-account-balances">
+            <section>
+              <Regent.Account.history
+                id="account-credits-history"
+                title="Credits activity"
+                rows={credits_rows(@history_read)}
+                state={read_state(@history_read)}
+                empty_message="No Credits activity yet."
+              />
+              <Regent.Primitives.button
+                :if={@history_read.value && @history_read.value.more?}
+                variant="secondary"
+                phx-click="credits_history"
+                phx-value-after={@history_read.value.next}
+              >Older activity</Regent.Primitives.button>
+              <Regent.Primitives.button
+                :if={@history_read.owner && elem(@history_read.owner, 1) != ""}
+                variant="secondary"
+                phx-click="credits_history"
+                phx-value-after=""
+              >Latest activity</Regent.Primitives.button>
+            </section>
+            <section>
+              <Regent.Account.history
+                id="account-points-history"
+                title="Points activity"
+                rows={points_rows(@points_read)}
+                state={read_state(@points_read)}
+                empty_message="No confirmed Points activity yet."
+              />
+              <p :if={@points_read.value && @points_read.value.more?}>
+                Showing the latest 50 entries.
+              </p>
+              <p>Earning hasn’t opened on Autolaunch yet.</p>
+              <.link navigate="/account/points" class="standalone-link">
+                Your bonus and what earns points
+              </.link>
+            </section>
+          </div>
+        </:site>
+        <:site>
+          <.live_component
+            module={AutolaunchWeb.CreatorConnectionsComponent}
+            id="account-connections"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+          />
+        </:site>
+        <:identity>
+          <Regent.Account.identity
+            id="account-identity"
+            name={@account_control.label}
+            wallet={@account_control.wallet_address}
+            ens_name={@account_control.ens_name}
           >
-            Open regents.sh
-          </a>
-          <Regent.Primitives.button
-            type="button"
-            variant="secondary"
-            data-account-target="sign-out"
-          >
-            Sign out
-          </Regent.Primitives.button>
-        </div>
-      </section>
-      <Regent.Account.agents
-        :if={@current_human_id}
-        id="account-agents"
-        agents={agent_rows(@agents_read)}
-      >
-        <:about>
-          A paired agent can read your positions, balances and Points, and fill in your launch
-          drafts for you to check. It can never use your wallet, bid or start a launch.
-        </:about>
-        <:footer>
+            <:picture>
+              <img
+                :if={@account_control.avatar_src}
+                src={@account_control.avatar_src}
+                referrerpolicy="no-referrer"
+                width="64"
+                height="64"
+                alt=""
+              />
+            </:picture>
+          </Regent.Account.identity>
+        </:identity>
+        <:agents>
+          <Regent.Account.agents id="account-agents" agents={agent_rows(@agents_read)}>
+            <:about>
+              A paired agent can read your positions, balances and Points, and fill in your launch
+              drafts for you to check. It can never use your wallet, bid or start a launch.
+            </:about>
+            <:footer>
+              <a href="https://regents.sh/account#account-agents" class="standalone-link">
+                Manage Agents on regents.sh
+              </a>
+            </:footer>
+          </Regent.Account.agents>
+        </:agents>
+        <:pairing>
           <.live_component
             module={AutolaunchWeb.PairingBox}
-            id="account-agents-pair"
+            id="account-pairing-box"
             session_lease={@session_lease}
             account={signed_in_account(@access_context)}
           />
-          <a href="https://regents.sh/account#account-agents" class="standalone-link">Manage Agents on regents.sh</a>
-        </:footer>
-      </Regent.Account.agents>
-      <div :if={@current_human_id} class="autolaunch-account-balances">
-        <Regent.Account.credits_summary
-          id="account-credits"
-          available={
-            @credits_read.value && RegentCredits.Amount.format(@credits_read.value.available)
-          }
-          held={@credits_read.value && RegentCredits.Amount.format(@credits_read.value.held)}
-          state={read_state(@credits_read)}
-        >
-          <a href="https://regents.sh/account" class="standalone-link">Manage Credits on regents.sh</a>
-        </Regent.Account.credits_summary>
-        <Regent.Account.points_summary
-          id="account-points"
-          confirmed={
-            @points_read.value && RegentPoints.Amount.format(@points_read.value.balance_micro)
-          }
-          today={
-            @points_read.value && RegentPoints.Amount.format(@points_read.value.earned_today_micro)
-          }
-          pending={@points_read.value && to_string(@points_read.value.pending)}
-          state={read_state(@points_read)}
-        />
-        <section>
-          <Regent.Account.history
-            id="account-credits-history"
-            title="Credits activity"
-            rows={credits_rows(@history_read)}
-            state={read_state(@history_read)}
-            empty_message="No Credits activity yet."
-          />
-          <Regent.Primitives.button
-            :if={@history_read.value && @history_read.value.more?}
-            variant="secondary"
-            phx-click="credits_history"
-            phx-value-after={@history_read.value.next}
-          >Older activity</Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@history_read.owner && elem(@history_read.owner, 1) != ""}
-            variant="secondary"
-            phx-click="credits_history"
-            phx-value-after=""
-          >Latest activity</Regent.Primitives.button>
-        </section>
-        <section>
-          <Regent.Account.history
-            id="account-points-history"
-            title="Points activity"
-            rows={points_rows(@points_read)}
+        </:pairing>
+        <:credits>
+          <Regent.Account.credits_summary
+            id="account-credits"
+            available={
+              @credits_read.value && RegentCredits.Amount.format(@credits_read.value.available)
+            }
+            held={@credits_read.value && RegentCredits.Amount.format(@credits_read.value.held)}
+            state={read_state(@credits_read)}
+          >
+            <a href="https://regents.sh/account" class="standalone-link">
+              Manage Credits on regents.sh
+            </a>
+          </Regent.Account.credits_summary>
+          <Regent.Account.points_summary
+            id="account-points"
+            confirmed={
+              @points_read.value && RegentPoints.Amount.format(@points_read.value.balance_micro)
+            }
+            today={
+              @points_read.value &&
+                RegentPoints.Amount.format(@points_read.value.earned_today_micro)
+            }
+            pending={@points_read.value && to_string(@points_read.value.pending)}
             state={read_state(@points_read)}
-            empty_message="No confirmed Points activity yet."
           />
-          <p :if={@points_read.value && @points_read.value.more?}>Showing the latest 50 entries.</p>
-          <p>Earning hasn’t opened on Autolaunch yet.</p>
-          <.link navigate="/account/points" class="standalone-link">
-            Your bonus and what earns points
-          </.link>
-        </section>
-      </div>
-      <.live_component
-        :if={@current_human_id}
-        module={AutolaunchWeb.CreatorConnectionsComponent}
-        id="account-connections"
-        current_human_id={@current_human_id}
-        session_lease={@session_lease}
-      />
+        </:credits>
+        <:profile>
+          <%!-- The name is saved from the browser with the sign-in's own proof. --%>
+          <div id="account-profile" phx-hook="PublicName" phx-update="ignore">
+            <Regent.Profile.panel
+              id="account-public-name"
+              display_name={signed_in_account(@access_context).display_name}
+            />
+          </div>
+        </:profile>
+      </Regent.Account.layout>
     </article>
     """
   end

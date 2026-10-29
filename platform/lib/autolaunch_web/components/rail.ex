@@ -29,9 +29,6 @@ defmodule AutolaunchWeb.Components.Rail do
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
-      <div class="shell-rail__bar">
-        <a class="shell-wordmark" href="/">Autolaunch</a>
-      </div>
       <ul class="shell-rail__list">
         <li :for={item <- @items} class="shell-rail__item">
           <.link

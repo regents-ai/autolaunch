@@ -1,11 +1,12 @@
 defmodule AutolaunchWeb.Live.Agents do
   @moduledoc """
-  The pairing box on screen (`AutolaunchWeb.PairingBox`) hears when an agent
+  The account menu's agents (`AutolaunchWeb.MenuAgents`) hear when an agent
   pairs, checks in or is unpaired on any Regent site (`RegentAgents.topic/1`,
-  which `RegentAgents.Listener` feeds), as the template's shell does, so a code
-  on screen gives way to the agent that used it. It is the side panel's box
-  (`shell-pairing-box`) on every LiveView page but Account, which has its own
-  and reads its agents again (`AutolaunchWeb.AccountLive.agents_changed/1`).
+  which `RegentAgents.Listener` feeds), as the template's shell does, on every
+  LiveView page. The Account page, which also holds the pairing box
+  (`AutolaunchWeb.PairingBox`), reads its agents again too
+  (`AutolaunchWeb.AccountLive.agents_changed/1`), so a code on screen gives way
+  to the agent that used it.
 
   It runs after the session hook, so it listens for the account the mount
   proved, and the session hook re-reads the sign-in before each change lands
@@ -14,7 +15,7 @@ defmodule AutolaunchWeb.Live.Agents do
 
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, send_update: 2]
 
-  alias AutolaunchWeb.{AccountLive, PairingBox}
+  alias AutolaunchWeb.{AccountLive, MenuAgents}
 
   def on_mount(:agents, _params, _session, socket) do
     {:cont,
@@ -35,10 +36,8 @@ defmodule AutolaunchWeb.Live.Agents do
     socket
   end
 
-  defp changed(%{view: AccountLive} = socket), do: AccountLive.agents_changed(socket)
-
   defp changed(socket) do
-    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
-    socket
+    send_update(MenuAgents, id: "shell-agents", agents_changed: true)
+    if socket.view == AccountLive, do: AccountLive.agents_changed(socket), else: socket
   end
 end

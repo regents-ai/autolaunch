@@ -86,6 +86,15 @@ config :autolaunch, Autolaunch.Repo,
       else: Ecto.Adapters.SQL.Sandbox
     )
 
+# The listeners' own connection (Autolaunch.SharedChanges), on the same database.
+config :autolaunch, Autolaunch.Notifications,
+  username: System.get_env("USER"),
+  password: nil,
+  hostname: "127.0.0.1",
+  port: 5432,
+  database: "autolaunch#{System.get_env("MIX_TEST_PARTITION")}_test",
+  auto_reconnect: true
+
 config :ash, :missed_notifications, :ignore
 
 config :autolaunch,
@@ -193,3 +202,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Covered calls keep no shared reading between tests, so each reads its own chain.
+config :autolaunch, :covered_calls_book_kept_ms, 0

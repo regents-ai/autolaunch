@@ -1,0 +1,73 @@
+/* /covered-calls, the covered-call panel and the portfolio's covered-calls rows. Built as its
+   own stylesheet outside the public files (config :esbuild, covered_calls), and served and
+   linked only while covered calls are on. */
+.covered-calls { display: grid; gap: var(--space-4); width: min(100%, 58rem); min-width: 0; margin-inline: auto; }
+.covered-calls__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.covered-calls__intro { display: grid; gap: var(--space-1); max-width: 40rem; }
+.covered-calls__intro > * { margin: 0; }
+.covered-calls__intro h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
+.covered-calls__intro p { color: var(--color-fg); line-height: 1.5; }
+.covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; }
+.covered-calls__tabs { display: flex; gap: var(--space-1); }
+.covered-calls__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
+.covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
+.covered-calls__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
+.covered-calls__section { display: grid; gap: var(--space-2); min-width: 0; }
+.covered-calls__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
+.covered-calls__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+.covered-calls__table small { color: var(--color-fg-muted); }
+.covered-calls__row-action { text-align: right; }
+.covered-calls__panel { display: grid; gap: var(--space-2); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.covered-calls__panel h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.covered-calls__sell { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5, 2rem); }
+.covered-calls__form, .covered-calls__guide { display: grid; gap: var(--space-3); min-width: 0; }
+.covered-calls__guide { padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.covered-calls__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.covered-calls__facts dt { color: var(--color-fg-muted); }
+.covered-calls__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.covered-calls__suggest { display: grid; gap: var(--space-2); }
+.covered-calls__suggest h3 { margin: 0; font-size: .9375rem; font-weight: 600; }
+.covered-calls__mini { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.covered-calls__mini th, .covered-calls__mini td { padding: var(--space-1) 0; text-align: left; font-weight: 400; vertical-align: top; }
+.covered-calls__mini td + td, .covered-calls__mini th + td { text-align: right; }
+.covered-calls__mini small { color: var(--color-fg-muted); }
+.covered-calls__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
+
+.covered-call-panel { display: grid; gap: var(--space-3); min-width: 0; }
+.covered-call-panel__form { display: grid; gap: var(--space-3); }
+.covered-call-panel__field { display: grid; gap: var(--space-1); }
+.covered-call-panel__field > span:first-child { font-weight: 600; font-size: .875rem; }
+.covered-call-panel__input { display: flex; align-items: center; gap: var(--space-2); }
+.covered-call-panel__input > span { color: var(--color-fg-muted); white-space: nowrap; font-size: .875rem; }
+.covered-call-panel input, .covered-call-panel select { inline-size: 100%; min-block-size: 2.625rem; font: inherit; font-variant-numeric: tabular-nums; }
+.covered-call-panel__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.covered-call-panel__facts dt { color: var(--color-fg-muted); }
+.covered-call-panel__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.covered-call-panel__problem { margin: 0; color: var(--color-danger, #b42318); font-size: .875rem; }
+.covered-call-panel__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.covered-call-panel__steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.covered-call-panel__step { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
+.covered-call-panel__step .rg-button { inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
+.covered-call-panel__step-words { display: grid; gap: .125rem; color: var(--color-fg-muted); font-size: .875rem; }
+.covered-call-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
+
+@media (hover: none) and (pointer: coarse) {
+  .covered-calls__tabs a, .covered-call-panel input, .covered-call-panel select, .covered-call-panel__step .rg-button { min-block-size: 2.75rem; }
+}
+
+@media (max-width: 47.99rem) {
+  .covered-calls__sell { grid-template-columns: minmax(0, 1fr); }
+  .covered-call-panel__step { grid-template-columns: minmax(0, 1fr); }
+  .covered-call-panel__step .rg-button { inline-size: 100%; }
+  /* On a phone each listing is a block of labelled figures, never wider than the screen. */
+  .covered-calls__table thead { display: none; }
+  .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding-block: var(--space-2); }
+  .covered-calls__table tbody td { padding: 0; text-align: left; }
+  .covered-calls__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
+  .covered-calls__table .covered-calls__row-action, .covered-calls__table .portfolio__actions > td { grid-column: 1 / -1; }
+  .covered-calls__table .covered-calls__row-action .rg-button { inline-size: 100%; justify-content: center; }
+}
+
+/* The action on /stock-listing/<symbol>. */
+.upcoming-details__action { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; }
+.upcoming-details__action > span { color: var(--color-fg-muted); font-size: .875rem; }

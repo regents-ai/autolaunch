@@ -24,7 +24,7 @@ defmodule Autolaunch.Token do
   actions do
     read :read do
       primary? true
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
     end
 
     # Every graduated token the public lists carry, on both chains.
@@ -46,7 +46,7 @@ defmodule Autolaunch.Token do
     end
 
     read :list_public do
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
 
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
@@ -123,7 +123,7 @@ defmodule Autolaunch.Token do
 
     read :top_public do
       filter expr(not is_nil(top_rank))
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
 
       prepare build(
                 sort: [top_rank: :asc, id: :asc],
@@ -133,7 +133,7 @@ defmodule Autolaunch.Token do
     end
 
     read :recently_graduated_public do
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
 
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
@@ -173,7 +173,7 @@ defmodule Autolaunch.Token do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
       prepare Autolaunch.Token.Preparations.ShownAuction
       prepare build(load: [:treasury_security_report, :auction])
     end
@@ -191,7 +191,7 @@ defmodule Autolaunch.Token do
       get? true
       argument :auction_id, :uuid, allow_nil?: false
       filter expr(auction_id == ^arg(:auction_id))
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
     end
 
     read :latest_price_for_subject do
@@ -202,7 +202,7 @@ defmodule Autolaunch.Token do
         constraints: SubjectIdentity.constraints()
 
       filter expr(subject_id == ^arg(:subject_id) and not is_nil(price_quote))
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.BaseAuctionOnly
       prepare build(sort: [price_updated_at: :desc, id: :desc], limit: 1)
     end
 

@@ -1,5 +1,5 @@
 {
-  "total": 147,
+  "total": 159,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -365,7 +365,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "75ec03a5ec9250987445787b9b72e0fbe98d3f46f1b586ad9c35344cbd7aff95"
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
     },
     {
       "id": 145,
@@ -378,7 +378,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "75ec03a5ec9250987445787b9b72e0fbe98d3f46f1b586ad9c35344cbd7aff95"
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
     },
     {
       "id": 56,
@@ -853,26 +853,39 @@
       "group": "Share pictures",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_card_test.exs",
-      "line": 49,
+      "line": 55,
       "test_name": "SHARE_PICTURE_LEFT: an auction's words and price line stay where X shows them",
       "keep_because": "X's phone view keeps only the left 660 or so of a share picture's 1200 pixels and lays the site's name over its bottom-left corner, so the auction picture's figures, hung from the right, and its autolaunch.sh band were hidden there (Design and Animation's ask, 20 Oct 2026). The picture is drawn for real from a stored auction with a long name, a 16-letter ticker, figures in REGENT and a price line, and nothing bright may sit right of x 660 or in that corner. It fails with the figures put back on the right, the price line pushed into the corner, or the site's name put back in the corner: all three mutations failed it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "58e15aed39604ce24bef594ec20639ec86820d66a7165d7f8b1354ca16962e7f"
+      "source_sha256": "267fdb7485fc3a8d65e685f68517f3abde8d3af51b956d91373feb5e4057de6d"
     },
     {
       "id": 93,
       "group": "Share pictures",
       "framework": "exunit",
       "file": "test/autolaunch_web/share_card_test.exs",
-      "line": 71,
+      "line": 77,
       "test_name": "SHARE_PICTURE_LEFT: a token's words stay where X shows them",
       "keep_because": "The token picture shares the auction picture's layout without the price line, so its strip sits lower; the same check that nothing bright sits right of x 660 or in X's bottom-left corner holds it there. It fails with the figures put back on the right or the site's name put back in the corner.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "58e15aed39604ce24bef594ec20639ec86820d66a7165d7f8b1354ca16962e7f"
+      "source_sha256": "267fdb7485fc3a8d65e685f68517f3abde8d3af51b956d91373feb5e4057de6d"
+    },
+    {
+      "id": 189,
+      "group": "Share pictures",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/share_card_test.exs",
+      "line": 85,
+      "test_name": "SHARE_HOME_PICTURE: the home picture leaves X's title band clear",
+      "keep_because": "X lays the page title over the bottom-left of the autolaunch.sh share picture, so a word drawn there is covered in every post (Sean's share card review, 28 Oct 2026). The check reads the committed picture: its words must be bright in the left column and nothing bright may sit in the band X covers. Drawing the site's name into that band failed it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "267fdb7485fc3a8d65e685f68517f3abde8d3af51b956d91373feb5e4057de6d"
     },
     {
       "id": 107,
@@ -892,13 +905,13 @@
       "group": "Deploys",
       "framework": "exunit",
       "file": "test/autolaunch/database_config_test.exs",
-      "line": 39,
+      "line": 66,
       "test_name": "the serving boot connects with the serving login when the app also holds the release login",
       "keep_because": "The serving app holds both logins once the deploy runs the migrations, and the web boot must still connect with the serving login. It fails while the web boot refused any app holding DATABASE_DIRECT_URL.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "6a0908ce268ef9b9fd10e25e9ca9531be1c62622ea4412edce31c53b4f475405"
+      "source_sha256": "02cf89260b5a085b444c911eefc184567f95e299d838a15bc42c1166a3ab59ca"
     },
     {
       "id": 109,
@@ -1522,7 +1535,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 158,
@@ -1535,7 +1548,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 159,
@@ -1548,7 +1561,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 160,
@@ -1561,7 +1574,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 161,
@@ -1574,7 +1587,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 162,
@@ -1587,7 +1600,7 @@
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "d24187b3ff537f5ec2915b775399362ce9c5c7316daeede099f9d8ea654c7038"
+      "source_sha256": "b312c94d7d2e825886833bf68d4c54c05179d8ef775f59087e151dfb22ad967c"
     },
     {
       "id": 163,
@@ -1913,6 +1926,149 @@
       "original_file": null,
       "original_source_sha256": null,
       "source_sha256": "da390165bdceb8c2edde543716ddd9164af5c48c8ff259512c8e0212a24f19ae"
+    },
+    {
+      "id": 188,
+      "group": "Account and session isolation",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/account_live_test.exs",
+      "line": 88,
+      "test_name": "PAIRING_CODE_KEPT_PER_AGENT",
+      "keep_because": "The pairing box made a new code on every agent choice, so choosing one agent, then another, then the first again showed a third code and the message already pasted to the first agent no longer matched the screen (27 Oct 2026). The case fails if coming back to an agent shows a different code while its code is still in time, or if \"Make a new code\" for one agent changes another agent's code.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+    },
+    {
+      "id": 190,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/stocks/chain_launch_test.exs",
+      "line": 64,
+      "test_name": "CHAIN_LAUNCH_SHOWS_ONLY_WHAT_PASSES: text, website and picture are kept only as a page may show them",
+      "keep_because": "Every Memestock launch on Base is listed, including ones made outside the site, whose text, website and picture no create page checked. For any bytes a launch can carry, the site keeps only text with nothing hidden in it, a full https:// website with no space in it and a picture it stores.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "6e11f71420592732dc87bab2277e53c2b52de4ca26500290746ff2086fc5bb66"
+    },
+    {
+      "id": 191,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 139,
+      "test_name": "a launch made outside the site is listed under the wallet that sent it, with only what passes the site's checks",
+      "keep_because": "Sean's choice (28 Oct 2026, list everything): a launch sent straight to the launchpad, as an agent sends one from its own wallet, is listed under that wallet with no account, on the public lists and its own page, with invalid bytes, hidden characters, an unsafe link and an outside picture removed, and an operator can still hide it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+    },
+    {
+      "id": 192,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 282,
+      "test_name": "a launch taken again that the site cannot list yet waits, and is listed once it can",
+      "keep_because": "Found by the second review: a launch an earlier pass left unlisted that the chain or the stock list could not answer for yet stayed unlisted and was never taken again. It now waits as pending and is listed once it can be.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+    },
+    {
+      "id": 193,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch/memestock_discovery_test.exs",
+      "line": 345,
+      "test_name": "the two test launches the operator hid are never listed",
+      "keep_because": "Sean, 29 Oct 2026, \"Hide both\": the release's data change marks Base Memestock launches 1 and 2 (V2 AUTOLAUNCH TEST) hidden, and no resolve pass lists them afterwards, while launch 3 is untouched.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+    },
+    {
+      "id": 194,
+      "group": "Agents",
+      "framework": "playwright",
+      "file": "test/journeys/memestock_own_wallet.spec.ts",
+      "line": 48,
+      "test_name": "L9: an agent launches from its own wallet, owns the launch, is paid its creator share, and the site lists it under that wallet",
+      "keep_because": "End to end on the Base copy: the launchpad records the agent's wallet as creator, the creator allocation and the creator's fee share pay that wallet, and the site's own discovery lists the launch under it.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8062ac3b708ef18056ba46f1ebe9ebe24556a2cbd45cec8aeba140f66af9e936"
+    },
+    {
+      "id": 195,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/account_live_test.exs",
+      "line": 125,
+      "test_name": "ACCOUNT_MENU_ON_EVERY_PAGE",
+      "keep_because": "The account menu is the only way to Pair New Agent from any page. The case fails if a LiveView page or a page served without LiveView lacks the menu, if the menu lists the oldest of four agents or more than three, if its Pair New Agent link does not lead to #account-pairing, or if the Account page has the pairing box twice or puts this site's sections after the shared ones.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "a6fb1308561f990c9afd1d8e9028e7a8fc1e8cc0c6336c5749f46f2282c23b6d"
+    },
+    {
+      "id": 196,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/menu_agents_test.exs",
+      "line": 11,
+      "test_name": "the menu shows the three most recently active agents",
+      "keep_because": "Whatever the readings, the menu shows at most three agents, none left out more recently active than one shown, every active one before the rest, and the rest newest paired first.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "8cbf9458281780d8218e36845d1ba537bac5e525fe3357d1a9a9c7b0d5c3be6f"
+    },
+    {
+      "id": 197,
+      "group": "Deploys",
+      "framework": "exunit",
+      "file": "test/autolaunch/database_config_test.exs",
+      "line": 40,
+      "test_name": "the listeners share a connection to the direct address with the serving login",
+      "keep_because": "The shared Credits and agent listeners need one connection with connection keys (never a URL) on the direct address with the serving login; a pooled address drops LISTEN and the account menu and pages stop hearing agent and Credits changes.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "02cf89260b5a085b444c911eefc184567f95e299d838a15bc42c1166a3ab59ca"
+    },
+    {
+      "id": 198,
+      "group": "Agents",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/agent_pictures_test.exs",
+      "line": 10,
+      "test_name": "every agent kind draws its picture",
+      "keep_because": "Pairings are shared across Regent sites, so an agent paired anywhere shows in every site's account menu and Account page; an agent kind without a picture in the design system raised wherever the person's agents were drawn.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "e87c1f97e856ecf17ec66a4ba301bfdb3409bb3929d86dc20ad71bfb29f8935b"
+    },
+    {
+      "id": 199,
+      "group": "Public pages",
+      "framework": "exunit",
+      "file": "test/autolaunch_web/live/market_ticker_live_test.exs",
+      "line": 9,
+      "test_name": "MARKET_TICKER_BEHIND_MENU",
+      "keep_because": "The bar along the bottom must be marked as part of what the open phone menu makes inert; it draws only with bids or trades to show, so a missing mark stays hidden until a person finds a pressable bar beside the open menu.",
+      "generated_case": null,
+      "original_file": null,
+      "original_source_sha256": null,
+      "source_sha256": "f3fa33768852951a22961593693d07ce3a266c5aaa6e02cdb229cba5719655e3"
     }
   ],
   "legacy_folders_to_remove": [

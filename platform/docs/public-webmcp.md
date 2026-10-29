@@ -6,4 +6,6 @@ The deployed `/agents.md` is the signed-access guide. `priv/tool_manifest.json` 
 
 Person-controlled profile and wallet UI remains available, but its cookie and LiveView actions are not registered as agent tools. No native tool can launch, trade, stake, settle, claim, approve budgets or move funds.
 
+Every page, Markdown document, refusal and API answer sends `Permissions-Policy: tools=(self)` and the WebMCP `Origin-Trial` token issued to https://autolaunch.sh (valid to 29 Mar 2027, set in `AutolaunchWeb.Endpoint`), so Chrome exposes `document.modelContext` on the live site without a flag. The token does nothing on localhost or another host; locally, turn on `chrome://flags/#enable-webmcp-testing`. Before the expiry, register a new token at Chrome's origin trials page and replace it there. After each release, `node scripts/webmcp-live.cjs` (from the repository root) confirms on the live site that Chrome turns WebMCP on, registers every site tool and runs a public read.
+
 Native host acceptance is a separate verification step. Registered descriptors and local HTTP tests do not establish that Hermes, Grok or Muse can sign and execute successfully.

@@ -1,0 +1,131 @@
+defmodule Autolaunch.Stocks.ChainLaunchTest do
+  @moduledoc """
+  A launch made outside the site carries text, a website and a picture no
+  create page checked. Whatever it carries, the site keeps only what a page
+  can show safely: text with nothing hidden in it, a full https:// website,
+  and a picture this site stores.
+  """
+
+  use Autolaunch.DataCase, async: true
+  use ExUnitProperties
+
+  alias Autolaunch.LaunchLinks
+  alias Autolaunch.Stocks.ChainLaunch
+
+  # Control characters other than a line break, every invisible format
+  # character, line and paragraph separators, and the Hangul fillers.
+  @hidden ~r/(?!\n)[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}\x{2800}]/u
+
+  # Any bytes at all, and text built from the characters that hide or reorder it.
+  defp carried do
+    one_of([
+      binary(max_length: 80),
+      string(:printable, max_length: 80),
+      map(
+        list_of(
+          one_of([
+            string(:alphanumeric, max_length: 6),
+            member_of([
+              "\u202E",
+              "\u2066",
+              "\u200F",
+              "\u200B",
+              "\u200D",
+              "\u2060",
+              "\uFEFF",
+              "\u00AD",
+              "\u{E0041}",
+              "\u2028",
+              "\u2029",
+              "\u3164",
+              "\u034F",
+              "\uFE0F",
+              "\u{E0100}",
+              "\u17B4",
+              "\u180B",
+              "\u2800",
+              "\u00A0",
+              "\r",
+              "\u0000",
+              "\u0007",
+              "\n",
+              " ",
+              "\u009B"
+            ])
+          ]),
+          max_length: 12
+        ),
+        &Enum.join/1
+      )
+    ])
+  end
+
+  # CHAIN_LAUNCH_SHOWS_ONLY_WHAT_PASSES: for every value a launch can carry.
+  property "CHAIN_LAUNCH_SHOWS_ONLY_WHAT_PASSES: text, website and picture are kept only as a page may show them" do
+    check all(value <- carried(), max_runs: 300) do
+      case ChainLaunch.text(value) do
+        nil ->
+          :ok
+
+        text ->
+          assert String.valid?(text)
+          refute text =~ @hidden
+          assert text == String.trim(text)
+          assert text != ""
+      end
+
+      case ChainLaunch.website(value) do
+        nil -> :ok
+        link -> assert LaunchLinks.web_link?(link)
+      end
+
+      assert ChainLaunch.image(value) == nil
+    end
+  end
+
+  test "a ticker with an invisible character inside reads as the letters it shows" do
+    assert ChainLaunch.text("AM\u200BZN") == "AMZN"
+    assert ChainLaunch.text("\uFEFFAMZN\u2060") == "AMZN"
+    assert ChainLaunch.text("\u{E0041}\u00AD") == nil
+    assert ChainLaunch.line("AMZN\u3164") == "AMZN"
+    assert ChainLaunch.line("Two\u2028lines") == "Two lines"
+    assert ChainLaunch.line("Ap\u034Fple\uFE0F\u2800") == "Apple"
+    assert ChainLaunch.website("https://example.com/a\u00A0b") == nil
+    assert ChainLaunch.website("https://example.com/ab") == "https://example.com/ab"
+  end
+
+  test "a picture is kept only when this site stores it, at this site's address" do
+    account =
+      Autolaunch.Accounts.register_verified!(
+        "did:privy:chain-launch-#{System.unique_integer([:positive])}",
+        "0x1414141414141414141414141414141414141414",
+        ["0x1414141414141414141414141414141414141414"],
+        actor: %Autolaunch.Actors.System{}
+      )
+
+    actor = %Autolaunch.Actors.Human{human_account_id: account.id}
+    draft = Autolaunch.create_stocks_launch_draft!(%{}, actor: actor)
+    png = File.read!("test/support/fixtures/launch-draft.png")
+
+    {:ok, %{draft: %{image: stored}}} =
+      Autolaunch.Stocks.LaunchDraftImageStorage.store_and_attach(
+        draft,
+        png,
+        "image/png",
+        "launch.png",
+        actor
+      )
+
+    assert ChainLaunch.image(stored) == stored
+
+    %URI{path: path} = URI.parse(stored)
+    assert ChainLaunch.image("https://elsewhere.example" <> path) == nil
+
+    assert ChainLaunch.image(
+             AutolaunchWeb.Endpoint.url() <>
+               "/stock-images/#{Ecto.UUID.generate()}/#{String.duplicate("a", 64)}"
+           ) == nil
+
+    assert ChainLaunch.image("https://elsewhere.example/picture.png") == nil
+  end
+end

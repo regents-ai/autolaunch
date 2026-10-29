@@ -10,11 +10,16 @@ defmodule AutolaunchWeb.Components.TopBar do
   attr :account_control, Autolaunch.AccessContext.AccountControl, required: true
   attr :credits, :map, required: true, doc: "As for `AutolaunchWeb.Components.Credits.button/1`."
 
+  slot :agents,
+    doc:
+      "The person's agents in the account menu; left out signed out and on the unreadable page."
+
   def top_bar(assigns) do
     ~H"""
     <header class="shell-top home-top" id="home-top">
-      <%!-- On a phone, as in the template's shell, the bar starts with the mark
-           and Menu, which opens the rail folded into a drawer. --%>
+      <%!-- As in the template's shell, the bar starts with the mark and the site's
+           name in the pixel face, beside search. On a phone it keeps only the mark,
+           then Menu, which opens the rail folded into a drawer. --%>
       <a id="shell-brand" class="shell-brand" href="/" aria-label="Autolaunch home">
         <svg viewBox="0 0 512 512" aria-hidden="true">
           <rect width="512" height="512" fill="#000000" />
@@ -22,6 +27,7 @@ defmodule AutolaunchWeb.Components.TopBar do
             <rect :for={{x, y} <- mark_blocks()} x={x} y={y} width="64" height="64" />
           </g>
         </svg>
+        <span class="shell-brand__name">Autolaunch</span>
       </a>
       <Regent.Primitives.button
         variant="quiet"
@@ -63,8 +69,35 @@ defmodule AutolaunchWeb.Components.TopBar do
         <.apps_menu />
         <AutolaunchWeb.Components.Credits.button id="shell-credits-button" credits={@credits} />
         <.account_control account_control={@account_control} />
-        <AutolaunchWeb.Components.SidePanel.button account_control={@account_control} />
       </div>
+      <%!-- Signed in, the account's picture and name open this menu: the person's
+           name and wallet, their three most recently active agents, Pair New Agent,
+           Manage Account and Sign out. Narrower than 22.5rem it holds the Credits
+           balance the bar has no room for. The browser opens and closes it. --%>
+      <Regent.Account.menu
+        :if={@account_control.kind == :signed_in}
+        id="account-menu"
+        name={@account_control.label}
+        wallet={@account_control.wallet_address}
+        ens_name={@account_control.ens_name}
+        manage_href="/account"
+        pair_href="/account#account-pairing"
+      >
+        <:picture>
+          <img
+            :if={@account_control.avatar_src}
+            src={@account_control.avatar_src}
+            referrerpolicy="no-referrer"
+            width="40"
+            height="40"
+            alt=""
+          />
+        </:picture>
+        <:balance :if={@credits}>
+          <AutolaunchWeb.Components.Credits.menu_balance credits={@credits} />
+        </:balance>
+        <:agents>{render_slot(@agents)}</:agents>
+      </Regent.Account.menu>
     </header>
     """
   end

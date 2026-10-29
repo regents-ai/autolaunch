@@ -24,9 +24,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.ChainIcon
   import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.SwapModal
-  import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
   alias Autolaunch.HomeMarket
-  alias Autolaunch.Stocks.UpcomingCatalog
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
 
   # The list's tabs: every launch, the live auctions, the finished ones and the
@@ -47,7 +45,7 @@ defmodule AutolaunchWeb.HomeLive do
        records: [],
        records_kind: :auction,
        backed: [],
-       coming: %{auctions: [], stocks: [], results: []},
+       coming: [],
        creators: %{},
        market_loading: true,
        market_failed: false,
@@ -200,23 +198,11 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   # "Coming next": up to three auctions taking bids, the soonest to close
-  # first, then those opening soon. When there are none, the stocks ready to
-  # pair and the latest finished auctions.
+  # first, then those opening soon.
   defp read_coming do
     live = read_records(%{"state" => "active", "sort" => "ending"})
     opening = read_records(%{"state" => "created"})
-
-    case Enum.take(live ++ opening, 3) do
-      [] ->
-        %{
-          auctions: [],
-          stocks: UpcomingCatalog.chains() |> Enum.flat_map(& &1.available) |> Enum.take(6),
-          results: read_records(%{"state" => "finished"})
-        }
-
-      auctions ->
-        %{auctions: auctions, stocks: [], results: []}
-    end
+    Enum.take(live ++ opening, 3)
   end
 
   defp read_records(params) do
@@ -347,23 +333,23 @@ defmodule AutolaunchWeb.HomeLive do
     """
   end
 
-  attr :coming, :map, required: true
+  attr :coming, :list, required: true
 
   # What a visitor can join next: the auctions taking bids or opening soon,
-  # or, while there are none, the stocks ready to launch with and the latest
-  # results. Each settles in as the page arrives (`MotionCascade`).
+  # each settling in as the page arrives (`MotionCascade`). While there are
+  # none, one quiet line says so; the list below keeps the past ones.
   defp coming_next(assigns) do
     ~H"""
     <section class="home-next" aria-labelledby="home-next-title">
       <h2 id="home-next-title">Coming next</h2>
       <ol
-        :if={@coming.auctions != []}
+        :if={@coming != []}
         id="home-next-auctions"
         class="home-next__row"
         phx-hook="MotionCascade"
         data-variant={AutolaunchWeb.Motion.standard("grid")}
       >
-        <li :for={auction <- @coming.auctions}>
+        <li :for={auction <- @coming}>
           <.link navigate={AutolaunchWeb.Paths.auction(auction)} class="home-next__card">
             <strong>{auction.title}</strong>
             <small>{auction.token_symbol}</small>
@@ -371,31 +357,14 @@ defmodule AutolaunchWeb.HomeLive do
           </.link>
         </li>
       </ol>
-      <div :if={@coming.auctions == []} class="home-next__quiet">
-        <p>
-          No auction is taking bids right now. Launch one with a stock, or see how the last ones went.
-        </p>
-        <ul
-          :if={@coming.stocks != []}
-          class="home-next__stocks"
-          aria-label="Stocks ready to launch with"
-        >
-          <li :for={stock <- @coming.stocks}>
-            <.link navigate={"/stock-listing/#{stock["symbol"]}"} class="home-next__stock">
-              <.stock_logo stock={%{symbol: stock["symbol"]}} />
-              <span>{stock["symbol"]}</span>
-            </.link>
-          </li>
-        </ul>
-        <ol :if={@coming.results != []} class="home-next__row" aria-label="Latest results">
-          <li :for={auction <- @coming.results}>
-            <.link navigate={AutolaunchWeb.Paths.auction(auction)} class="home-next__card">
-              <strong>{auction.title}</strong>
-              <small>{auction.token_symbol}</small>
-              <.auction_status id={"home-result-#{auction.id}"} auction={auction} />
-            </.link>
-          </li>
-        </ol>
+      <div :if={@coming == []} class="home-next__empty">
+        <svg class="home-next__mark" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="7.25" /><path d="M10 6v4.25l2.75 1.75" />
+        </svg>
+        <div>
+          <p><strong>No auction is taking bids</strong></p>
+          <p>New auctions show here as soon as bidding opens.</p>
+        </div>
       </div>
     </section>
     """
@@ -409,7 +378,7 @@ defmodule AutolaunchWeb.HomeLive do
           Autolaunch <span>Auctions</span>
         </h1>
         <p class="home-hero__value">
-          Where agents launch: back long-term agents early, through an auction where everyone pays the same price.
+          Back long-term agents early, through an auction where everyone pays the same price.
         </p>
         <div class="home-hero__paths">
           <.link navigate="/auctions" class="rg-button rg-button--primary home-back">
@@ -441,6 +410,21 @@ defmodule AutolaunchWeb.HomeLive do
         <span :if={@local_lab} class="home-network">
           {Autolaunch.Lab.label()} · test assets
         </span>
+        <%!-- Always in the page, so its coming and going never moves Filter, which has the
+             keyboard after Clear search. --%>
+        <p class="home-search-context" hidden={@market_options.q == ""}>
+          <span>Results for “{@market_options.q}”</span>
+          <button
+            type="button"
+            phx-click={
+              [to: "#home-filters summary"]
+              |> Phoenix.LiveView.JS.focus()
+              |> Phoenix.LiveView.JS.patch(HomeMarket.path(@market_options, %{q: ""}))
+            }
+          >
+            Clear search
+          </button>
+        </p>
         <details
           id="home-filters"
           class="home-filter"
@@ -572,16 +556,6 @@ defmodule AutolaunchWeb.HomeLive do
             </svg>
           </.link>
         </nav>
-      </div>
-
-      <div
-        class="home-search-context"
-        data-empty={@market_options.q == ""}
-        inert={@market_options.q == ""}
-        aria-hidden={to_string(@market_options.q == "")}
-      >
-        <span>Results for “{@market_options.q}”</span>
-        <.link patch={HomeMarket.path(@market_options, %{q: ""})}>Clear search</.link>
       </div>
 
       <section

@@ -3,8 +3,8 @@ import {Agent} from "./agent"
 import {expect, ready} from "./person"
 import {onSite} from "./site"
 
-// What the pairing journeys share: the person's side of the pairing box, and
-// unpairing as regents.sh does it.
+// What the pairing journeys share: the person's side of the pairing box on their
+// Account page, and unpairing as regents.sh does it.
 
 // Every harness the pair request accepts here, in the pairing box's order; never ChatGPT.
 export const offered = [
@@ -19,13 +19,11 @@ export function unpair(person: string, wallet: string) {
 
 export const codeIn = (message: string) => message.match(/Pairing code: (\S+)/)![1]
 
-// The panel opens from the button beside the account name, or from the name
-// itself, which is all a phone's top bar has room for.
-export const panelToggle = (page: Page) => page.locator("[data-aside-toggle]:visible").first()
-
-export async function openPanel(page: Page) {
-  await panelToggle(page).click()
-  await expect(page.locator("#shell-pairing")).toBeVisible()
+// The Account page's Pair New Agent section.
+export async function openPairing(page: Page) {
+  await page.goto("/account#account-pairing")
+  await ready(page)
+  await expect(page.locator("#account-pairing")).toBeVisible()
 }
 
 // Picks an agent in the box and waits for its own message, which carries that
@@ -40,15 +38,12 @@ export async function chooseAgent(page: Page, root: string, label: string) {
   return (await message.textContent())!
 }
 
-/** The signed-in person makes a code in the side panel and `agent` signs in and pairs with it. */
+/** The signed-in person makes a code on their Account page and `agent` signs in and pairs with it. */
 export async function pairWith(page: Page, agent: Agent, name: string) {
-  await page.goto("/auctions")
-  await ready(page)
-  await openPanel(page)
-  const code = codeIn(await chooseAgent(page, "#shell-pairing", "Claude Code"))
+  await openPairing(page)
+  const code = codeIn(await chooseAgent(page, "#account-pairing", "Claude Code"))
   expect(agent.signIn().status).toBe(0)
   const answer = agent.autolaunch(["agents", "pair"], {code, name, harness: "claude_code"})
   expect(answer.status, answer.stdout).toBe(0)
-  await panelToggle(page).click()
   return code
 }

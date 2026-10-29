@@ -61,6 +61,8 @@ of `elixir-utils`, `design-system` or `regents`, and `mix deps.get` fetches them
 a pin, change its ref at the top of `mix.exs` and run `mix deps.update <name>`.
 `make check-required-fixes` from the repository root checks every pin against
 ash-template's list of required fixes (it needs `gh auth login`).
+`make check-siwa-latest` fails unless the site is on the newest regents-cli and its
+`@elixir_utils_ref` contains the newest change to the SIWA library (same login).
 Do not clone recursive Solidity submodules for a web-only change.
 
 Shared dependency versions follow ash-template's tested baseline. Run its
@@ -150,6 +152,13 @@ description variables, in every environment (it is refused without `AUTOLAUNCH_B
 and must name the same Base description). This turns on `/create/stocks`, USDC
 bids on Stocks auctions, reading Stocks auctions and the test-funds panel. Details are in
 [docs/stocks.md](docs/stocks.md).
+
+Covered calls (`/covered-calls`, the portfolio's Covered calls section and their agent routes and
+tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
+`AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT=/abs/path/covered-calls.json` is required, naming one
+`CoveredCallsV1` contract per stock on the Base description's chain (`chain_id` and `markets` of
+`symbol`, `stock`, `contract`, `feed`). The agent journeys' copy of Base deploys one for AMZNc
+(`scripts/agent-journeys.sh`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
 
 ## Protected paths
 

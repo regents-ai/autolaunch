@@ -1,0 +1,35 @@
+# Agent parity
+
+An action only a person can do is a bug (founder rule, 28 October 2026). Every action an
+account's owner can take on Autolaunch has a row here naming its five agent surfaces: the
+website in a headless browser, WebMCP, hosted MCP at `/mcp`, the Claude connector, and the
+regents CLI. Each surface calls the same Ash action with the same inputs, answers and
+refusals. A missing surface is a gap with the lane that closes it.
+
+Hosted MCP (`/mcp`) does not exist on this site yet; every hosted MCP cell is a gap owned by
+the **Autolaunch MCP lane**. The Claude connector is served from hosted MCP, so it does not
+exist here either; every Claude connector cell is a gap owned by the same lane. The checks
+that prove each surface are in `operations/FEATURES.md`.
+
+## Covered calls
+
+Offered only while the site's covered-call switch is on (`AUTOLAUNCH_COVERED_CALLS=true`).
+Off, no route, tool, guide section or command offers them. Every action is one operation in
+`Autolaunch.CoveredCalls`; the site prepares wallet steps and the wallet's own key signs them.
+CLI cells are gaps owned by the **regents-cli lane**, to be added to `cli/commands.json` when
+the switch goes on, so the CLI never offers them while the site does not.
+
+| Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Read a stock's listings | `covered_call_book` | `/covered-calls`, Buy | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Suggested premium | `covered_call_quote` | `/covered-calls`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read my listings and holdings | `covered_call_positions` | `/portfolio`, Covered calls | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| List calls (sell) | `prepare_covered_call`, kind `list` | `/covered-calls`, Sell: Approve, List | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/covered-calls`, Buy: Approve, Buy | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Cancel the unsold remainder | `prepare_covered_call`, kind `cancel` | `/portfolio`, Covered calls: Cancel | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Exercise | `prepare_covered_call`, kind `exercise` | `/portfolio`, Covered calls: Exercise | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+
+The browser cells name the pages the covered-call pages lane is building; a headless walk with
+an agent's own wallet through each one is still to be added to `operations/FEATURES.md`.

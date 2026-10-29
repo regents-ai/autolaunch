@@ -13,6 +13,11 @@ if admins = System.get_env("REGENT_CREDITS_ADMINS") do
     admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
 end
 
+# This site's own key for reading what paired agents have done from the sign-in
+# service (RegentAgents.Activity), for the lines under the account menu's agents.
+# Without it those lines stay empty.
+config :regent_agents, :activity_read_token, System.get_env("SIWA_ACTIVITY_READ_TOKEN")
+
 # The Privy application's public verification key, as one PEM block. The
 # session boundary and the shared identity API both verify against it; it is
 # read only from this variable, never from a URL or from a token.
@@ -185,6 +190,39 @@ config :autolaunch, :autolaunch_indexer_chains, indexer_chains
 if database_config do
   config :autolaunch, :database_startup_enabled, true
   config :autolaunch, Autolaunch.Repo, database_config
+
+  unless migrating? do
+    config :autolaunch,
+           Autolaunch.Notifications,
+           Autolaunch.DatabaseConfig.notifications_config!(config_env())
+  end
+end
+
+# Covered calls are offered only on a site switched on with
+# AUTOLAUNCH_COVERED_CALLS=true; then the description of their contracts is
+# required, and it extends the Base description. Off, their pages answer not
+# found and no tool or route offers them (`Autolaunch.CoveredCalls.Deployment`).
+covered_calls_on =
+  case System.get_env("AUTOLAUNCH_COVERED_CALLS") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_COVERED_CALLS must be true or unset"
+  end
+
+if covered_calls_on do
+  covered_calls_path =
+    deployment_path.("AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT") ||
+      raise "AUTOLAUNCH_COVERED_CALLS=true needs AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT"
+
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_COVERED_CALLS=true needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  Autolaunch.CoveredCalls.Deployment.load!(covered_calls_path)
+
+  config :autolaunch,
+    covered_calls: :on,
+    autolaunch_base_covered_calls_deployment: covered_calls_path
 end
 
 # The finisher sends `migrate` for every ended auction on the launchpads this

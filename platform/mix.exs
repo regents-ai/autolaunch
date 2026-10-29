@@ -4,9 +4,9 @@ defmodule Autolaunch.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "e796a9d527b839121145d2515da9f4d5689fe80b"
+  @elixir_utils_ref "9da44bdc3c3fb6d62493f8cd8eabf066529fe5df"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "d53b8f1283d12b1539ff710caae83342015b6279"
+  @design_system_ref "3134bab0a23452fb82d3248072327e1d0199cc9a"
 
   def project do
     [
@@ -187,14 +187,18 @@ defmodule Autolaunch.MixProject do
         "regent_blog.assets",
         "regent_identity.assets",
         "regent_agent_access.assets",
-        "esbuild autolaunch"
+        &clear_built_scripts/1,
+        "esbuild autolaunch",
+        "esbuild covered_calls"
       ],
       "assets.deploy": [
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
         "regent_agent_access.assets",
+        &clear_built_scripts/1,
         "esbuild autolaunch --minify",
+        "esbuild covered_calls --minify",
         "phx.digest"
       ],
       precommit: [
@@ -221,4 +225,9 @@ defmodule Autolaunch.MixProject do
       ]
     ]
   end
+
+  # Only `esbuild autolaunch` writes priv/static/assets/js, so each build starts
+  # it empty and the site ships exactly what that build made, never a file an
+  # earlier build left there.
+  defp clear_built_scripts(_args), do: File.rm_rf!("priv/static/assets/js")
 end

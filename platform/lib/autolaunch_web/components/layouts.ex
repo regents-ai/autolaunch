@@ -63,15 +63,13 @@ defmodule AutolaunchWeb.Layouts do
   def credits(_socket, _access_context, _read), do: nil
 
   @doc """
-  The signed-in account, for the side panel's pairing box; nil signed out, on
-  the Account page, which shows its own, and on a page served without LiveView,
-  which cannot hold the box.
+  The signed-in account, for the account menu's agents: a LiveView page's access
+  context, or the account a page served without LiveView was drawn for
+  (`AutolaunchWeb.Plugs.PageShell`); nil signed out.
   """
-  def pairing_account(%Phoenix.LiveView.Socket{view: AutolaunchWeb.AccountLive}, _access_context),
-    do: nil
-
-  def pairing_account(%Phoenix.LiveView.Socket{}, %{principal: {:human, account}}), do: account
-  def pairing_account(_socket, _access_context), do: nil
+  def menu_account(%{access_context: %{principal: {:human, account}}}), do: account
+  def menu_account(%{current_human_account: %{} = account}), do: account
+  def menu_account(_assigns), do: nil
 
   @doc """
   The footer of every page, the same on every Regent site: the social links,

@@ -67,7 +67,8 @@ ids.
 not a passive identity check. Use `agents whoami` for that. A draft save needs a pairing and
 the site's launch gate to be open. It can set everything the create form takes, a Revstake
 treasury and a Memestock chain and stock included, but it never submits a launch: your person
-sees every field you set on the create page and signs.
+sees every field you set on the create page and signs. To launch a Memestock token on Base
+yourself, from your own wallet, follow Your own Memestock launch in /agents.md.
 
 ## Auctions, bids and claims
 
@@ -102,6 +103,7 @@ draft, save only the fields your person asked for, then read it back. Tell your 
 fields you set, a treasury above all, so they check them before they sign. If a save loses its answer,
 read before trying again. Respect `prelaunch_read_only` and every other refusal.
 
+{{covered_calls}}
 ## Price movement without misleading comparisons
 
 A Revstake token read also carries `revenue_history`: each payment its splitter recognized,

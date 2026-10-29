@@ -124,7 +124,10 @@ defmodule Autolaunch.LaunchActions do
          do: LaunchOperations.update(operation, :cancel, %{reason: @withdrawn})
   end
 
-  @doc "A saved review as the page uses it: its id, signer, chain, step and facts."
+  @doc """
+  A saved review as the page uses it: its id, signer, chain, step and facts. The
+  step is the saved one exactly, so the wallet is asked for what was reviewed.
+  """
   @spec reviewed(Ash.Resource.record()) :: map()
   def reviewed(%{action_id: action_id, review: review}) do
     %{"chain" => chain, "signer" => signer, "step" => step, "facts" => facts} = review
@@ -133,7 +136,15 @@ defmodule Autolaunch.LaunchActions do
       action_id: action_id,
       signer: signer,
       chain: %{chain_id: chain["chain_id"], name: chain["name"], rpc_url: chain["rpc_url"]},
-      steps: [Review.step(step["step"], step["to"], step["data"])],
+      steps: [
+        %{
+          kind: step["kind"],
+          step: step["step"],
+          to: step["to"],
+          data: step["data"],
+          value: step["value"]
+        }
+      ],
       facts: facts
     }
   end

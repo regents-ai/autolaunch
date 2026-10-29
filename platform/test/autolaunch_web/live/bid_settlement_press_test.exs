@@ -11,6 +11,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.{LabAbi, TestAutolaunchBidSettlementChainClient}
+  alias RegentChain.BuilderCode
 
   @bid_id 7
   @q96 79_228_162_514_264_337_593_543_950_336
@@ -77,7 +78,7 @@ defmodule AutolaunchWeb.BidSettlementPressTest do
     render_hook(card, "prepare_and_send", %{"form" => %{}, "step" => "settle"})
 
     assert_reply(view, %{send: "exit", review: %{steps: [%{step: "exit", data: data}]}})
-    assert data == exit_bid_data()
+    assert data == BuilderCode.append(exit_bid_data())
   end
 
   defp position!(%{auction: auction, wallet: wallet}) do

@@ -1,7 +1,7 @@
 /* The header, as the template's: one row of a fixed height across the frame's
    whole width, above the rail and the page. It stays at the top of the screen and
    carries the frame's top line, so its bottom line never moves; the phone menu,
-   its backdrop and the side panel open there (`--shell-top-end`). On a lab site the
+   and its backdrop open there (`--shell-top-end`). On a lab site the
    lab line stays above it (`--shell-lab`, pages/autolaunch.css), and the header and
    everything that opens under it move down by that line's height. */
 :root {
@@ -13,6 +13,11 @@
 .rg-frame:has(#home-top) { border-block-start: 0; }
 .shell-top { position: sticky; inset-block-start: var(--shell-lab); z-index: var(--rg-layer-header); display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-3); box-sizing: border-box; min-height: var(--shell-header-end); padding: env(safe-area-inset-top, 0px) var(--rg-panel-padding) 0; border-block: var(--rg-rule-width) solid var(--rg-page-rule); border-block-end-width: 1px; background: var(--color-surface); }
 .theme-control { display: flex; }
+/* The site's mark and name, first in the bar, as the template's shell has them; the name in the pixel face. */
+#home-top .shell-brand { display: inline-flex; align-items: center; gap: .625rem; flex: none; min-height: 2.75rem; color: var(--color-fg); text-decoration: none; }
+#home-top .shell-brand svg { width: 1.5rem; height: 1.5rem; flex: none; }
+.shell-brand__name, .shell-wordmark { font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; font-size: 1.375rem; line-height: 1; letter-spacing: -.01em; white-space: nowrap; }
+.shell-wordmark { color: inherit; text-decoration: none; }
 /* How many tools agents see, under the top bar (`AgentTools`). */
 /* The template's Regents Products menu: a nine-dot button whose panel hangs straight
    under it, its right edge lined up with the button's. The browser places it

@@ -1,0 +1,2 @@
+forge-std/=../stocks-v2/lib/forge-std/src/
+solady/=../stocks-v2/lib/solady/src/

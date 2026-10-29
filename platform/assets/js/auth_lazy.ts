@@ -1,5 +1,4 @@
 import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
-import {installSharedProfile} from "./shared_profile"
 import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisconnected,
   walletDisconnected, walletDisconnectedStorageKey} from "./wallet_actions/connected_wallet"
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
@@ -716,6 +715,15 @@ export function createLazyAuthLoader(
   }
 }
 
+// The Account page's name form saves through the page's own sign-in loader.
+const profileOpeners = new WeakMap<Document, () => ProfileAction>()
+
+export function openProfile(documentRoot: Document = document): ProfileAction {
+  const open = profileOpeners.get(documentRoot)
+  if (!open) throw new Error("The account loader is not installed")
+  return open()
+}
+
 export function installAccountAuthLazyLoader(
   documentRoot: Document = document,
   importer?: PrivyBridgeImporter,
@@ -738,7 +746,7 @@ export function installAccountAuthLazyLoader(
     importer ?? createBrowserPrivyBridgeImporter({bridgeSource: bridgeSource ?? null}),
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
-  const stopProfile = installSharedProfile(documentRoot, loader)
+  profileOpeners.set(documentRoot, () => (...args) => loader.profile(...args))
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -872,7 +880,7 @@ export function installAccountAuthLazyLoader(
   }
   return () => {
     installed = false
-    stopProfile()
+    profileOpeners.delete(documentRoot)
     walletEvents.removeEventListener("storage", onWalletStorage)
     walletEvents.removeEventListener("focus", onWalletFocus)
     documentRoot.removeEventListener("visibilitychange", onWalletFocus)

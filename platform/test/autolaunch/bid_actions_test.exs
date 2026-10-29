@@ -166,10 +166,12 @@ defmodule Autolaunch.BidActionsTest do
                :lt
 
       assert Enum.find(steps, &(&1.step == "bid")).data ==
-               Autolaunch.LabAbi.encode(
-                 Autolaunch.Lab.abi!(Autolaunch.Lab.current!(), :auction),
-                 "submitBid(uint256,uint128,address,uint256,bytes)",
-                 [expected, Integer.pow(10, 18), ctx.wallet, spacing, "0x"]
+               RegentChain.BuilderCode.append(
+                 Autolaunch.LabAbi.encode(
+                   Autolaunch.Lab.abi!(Autolaunch.Lab.current!(), :auction),
+                   "submitBid(uint256,uint128,address,uint256,bytes)",
+                   [expected, Integer.pow(10, 18), ctx.wallet, spacing, "0x"]
+                 )
                )
     end
 

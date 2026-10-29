@@ -10,10 +10,9 @@
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */
 #home-explore { display: block; min-width: 0; }
-/* The front door: the title in the pixel face, with the one way in to launching beside it. */
-/* The title is sized by the page column, not the window, and keeps its words whole: when the
-   title and the Launch button no longer fit side by side, the button goes under it. */
-#home-explore .home-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; margin: 8px 0 40px; }
+/* The front door, in one column at every width: the title in the pixel face, sized by the page
+   column and keeping its words whole, the value line under it, then the two ways in. */
+#home-explore .home-hero { display: grid; justify-items: start; gap: 16px; margin: 8px 0 40px; }
 #home-explore .home-hero__title { max-width: 30ch; margin: 0; font-size: clamp(1.625rem, 1.1rem + 2cqi, 2.5rem); line-height: 1.15; text-wrap: balance; overflow-wrap: break-word; }
 #home-explore .home-hero__title span { color: var(--orange-ink); }
 #home-explore .home-launch { flex: none; }
@@ -73,11 +72,13 @@
   #home-explore .home-filter__option:hover { background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
   #home-explore .home-display a:not([aria-current]):hover, #home-explore .home-filter summary:hover { color: var(--color-fg); }
 }
-/* The search line keeps its one-line space with or without a search, so the list below never moves. */
-#home-explore .home-search-context { display: flex; gap: 16px; height: 1.5em; margin: -8px 0 24px; font-size: .875rem; line-height: 1.5; white-space: nowrap; }
-#home-explore .home-search-context[data-empty] { visibility: hidden; }
-#home-explore .home-search-context span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-#home-explore .home-search-context a { flex: none; }
+/* A search names itself in the toolbar's free room, beside Filter, so it takes no line of its own;
+   a long one is cut short rather than pushing Filter and the switch onto another line. */
+#home-explore .home-search-context { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex: 1 1 0; min-width: 8rem; margin: 0; font-size: .8125rem; white-space: nowrap; }
+#home-explore .home-search-context[hidden] { display: none; }
+#home-explore .home-search-context span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--color-fg-muted); }
+/* Clear search hands the keyboard to Filter, since it goes away once pressed. */
+#home-explore .home-search-context button { flex: none; display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0; border: 0; background: none; color: var(--color-fg); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 #home-explore .home-coin-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: start; gap: 32px 18px; }
 #home-explore .home-coin-grid > * { display: block; grid-row: auto; min-width: 0; }
 :is(#home-explore, #create-preview) .home-coin__main { display: block; color: inherit; text-decoration: none; border-radius: var(--radius); }
@@ -186,14 +187,15 @@
   #home-top .home-search__prompt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   #home-top .home-search__shortcut { display: none; }
 }
-/* Phones: the sentence takes the width with the button under it, the tabs take a row of their own, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
+/* Phones: the hero sits a little closer to what follows, the tabs and a search take a row each, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
 @media (max-width: 42rem) {
   #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
-  #home-explore .home-hero { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 28px; }
+  #home-explore .home-hero { margin-bottom: 28px; }
   #home-explore .home-backed { margin-bottom: 28px; }
   #home-explore .home-backed__row { grid-auto-columns: 40%; gap: 12px; }
   #home-explore .home-tabs { flex: 1 0 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
   #home-explore .home-filter { margin-left: auto; }
+  #home-explore .home-search-context { flex: 1 0 100%; justify-content: flex-start; }
 }
 @media (max-width: 22rem) { #home-explore .home-coin-grid { grid-template-columns: minmax(0, 1fr); } }
 
@@ -227,11 +229,10 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 }
 
 /* The value line and the two ways in: back a launch, or launch your own. */
-#home-explore .home-hero__value { flex-basis: 100%; max-width: 46rem; margin: 0; color: var(--color-fg-muted); font-size: clamp(1rem, .9rem + .4cqi, 1.25rem); line-height: 1.5; text-wrap: pretty; }
-#home-explore .home-hero__paths { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+#home-explore .home-hero__value { max-width: 46rem; margin: 0; color: var(--color-fg-muted); font-size: clamp(1rem, .9rem + .4cqi, 1.25rem); line-height: 1.5; text-wrap: pretty; }
+#home-explore .home-hero__paths { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: 8px; }
 
-/* Coming next: the auctions to join now, or, while none is open, stocks to
-   launch with and the latest results. */
+/* Coming next: the auctions to join now, or one quiet line while none is open. */
 #home-explore .home-next { margin-bottom: 40px; }
 #home-explore .home-next h2 { margin: 0 0 14px; font-size: 1.125rem; }
 #home-explore .home-next__row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
@@ -240,7 +241,9 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 #home-explore .home-next__card:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 #home-explore .home-next__card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 #home-explore .home-next__card small { color: var(--color-fg-muted); font-size: .8125rem; }
-#home-explore .home-next__quiet { display: grid; gap: var(--space-2); }
-#home-explore .home-next__quiet > p { margin: 0; color: var(--color-fg-muted); }
-#home-explore .home-next__stocks { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-#home-explore .home-next__stock { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius); color: inherit; text-decoration: none; }
+/* A dashed outline, with no fill, so the empty line never reads as a card to press. */
+#home-explore .home-next__empty { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px dashed var(--hairline-strong); border-radius: var(--radius); }
+#home-explore .home-next__mark { flex: none; width: 20px; height: 20px; fill: none; stroke: var(--color-fg-muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#home-explore .home-next__empty > div { display: grid; gap: 2px; min-width: 0; }
+#home-explore .home-next__empty p { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; }
+#home-explore .home-next__empty strong { color: var(--color-fg); font-size: .9375rem; font-weight: 600; }

@@ -4,12 +4,10 @@
    right; the rail folds into a drawer that comes in from the left under the bar
    (`Rail.drawer/1`, `assets/js/shell_menu.ts`). A wider screen keeps the rail and
    the full top bar, and has none of these. */
-#home-top .shell-brand,
 .rg-button.mobile-menu-button,
 #shell-drawer,
 .rg-button.shell-menu-scrim,
-.regent-footer__phone,
-#shell-aside .shell-credits {
+.regent-footer__phone {
   display: none;
 }
 
@@ -19,10 +17,8 @@
 }
 
 @media (max-width: 47.99rem) {
-  /* The page behind the open menu, or behind the side panel, which covers the
-     whole screen here, stays where it is. */
-  :root[data-menu="open"],
-  :root[data-aside="open"][data-aside-here]:has(#shell-aside) {
+  /* The page behind the open menu stays where it is. */
+  :root[data-menu="open"] {
     overflow: hidden;
   }
 
@@ -63,6 +59,10 @@
   #home-top .shell-brand svg {
     width: 1.75rem;
     height: 1.75rem;
+  }
+
+  #home-top .shell-brand__name {
+    display: none;
   }
 
   .rg-button.mobile-menu-button {
@@ -109,11 +109,21 @@
     color: var(--color-fg);
   }
 
-  /* The $REGENT menu, GitHub and the theme switch, the balance and the side
-     panel button are on a wider screen only: the theme switch starts the
-     footer, the balance is in the side panel, and the account's picture opens
-     that panel itself. */
-  #home-top :is(.regent-header-links, .shell-credits, #shell-aside-button) {
+  /* The $REGENT menu, GitHub and the theme switch are on a wider screen only:
+     the theme switch starts the footer. The balance keeps its full width, without
+     the word Credits; narrower than 22.5rem it moves into the account menu. */
+  #home-top .regent-header-links {
+    display: none;
+  }
+
+  #home-top .shell-credits {
+    flex: 0 0 auto;
+    margin-inline-end: 0;
+    padding-inline: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  #home-top .shell-credits .shell-credits__unit {
     display: none;
   }
 
@@ -125,7 +135,7 @@
     font-size: 0.875rem;
   }
 
-  /* Signed in, the account is its picture, which opens the side panel. */
+  /* Signed in, the account is its picture, which opens the account menu. */
   #home-top .account-chip {
     justify-content: center;
     min-width: 2.75rem;
@@ -299,11 +309,13 @@
     gap: var(--space-2);
   }
 
-  /* The side panel shows the balance the top bar has no room for. */
-  #shell-aside .shell-credits {
-    display: inline-flex;
-    justify-self: start;
-    margin: 0;
+}
+
+/* Narrower than 22.5rem the header has no room for the balance: the account menu
+   shows it instead, as its balance row, which opens the same window. */
+@media (max-width: 22.49rem) {
+  #home-top .shell-credits {
+    display: none;
   }
 }
 

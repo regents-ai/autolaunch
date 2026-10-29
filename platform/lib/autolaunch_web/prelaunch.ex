@@ -10,7 +10,8 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.TokensLive => ~w(retry),
     AutolaunchWeb.AuctionLive => ~w(retry),
     AutolaunchWeb.TokenLive => ~w(retry),
-    AutolaunchWeb.PortfolioLive => ~w(refresh)
+    AutolaunchWeb.PortfolioLive => ~w(refresh),
+    AutolaunchWeb.CoveredCallsLive => ~w(refresh)
   }
 
   @impl true
@@ -43,7 +44,8 @@ defmodule AutolaunchWeb.Prelaunch do
   defp visit_report?(_, _), do: false
 
   # Pairing is account access; history is a private read despite its JSON body.
-  # Metadata and all launch/wallet writes retain the prelaunch refusal.
+  # Metadata and all launch/wallet writes retain the prelaunch refusal, and so
+  # does preparing covered-call steps, as preparing any wallet step on a page does.
   defp signed_account_request?("POST", ["api", "agents", "v1", "pair"]), do: true
 
   defp signed_account_request?("POST", ["api", "agent", "v1", "account", "credits", "history"]),
@@ -51,8 +53,14 @@ defmodule AutolaunchWeb.Prelaunch do
 
   defp signed_account_request?(_, _), do: false
 
-  # This existing POST only calculates a quote from stored public data.
+  # These POSTs only calculate a quote: a bid's from stored public data, and,
+  # while covered calls are on, a covered call's suggested premium from the
+  # chain's reference price. Off, that address is refused like any other POST.
   defp public_quote?("POST", ["api", "v1", "auctions", _id, "bid-quote"]), do: true
+
+  defp public_quote?("POST", ["api", "v1", "covered-calls", _symbol, "quote"]),
+    do: Autolaunch.CoveredCalls.Deployment.enabled?()
+
   defp public_quote?(_, _), do: false
 
   # The response type and body are fixed here (a JSON error or the rendered

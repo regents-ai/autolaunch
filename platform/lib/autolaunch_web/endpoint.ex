@@ -53,6 +53,11 @@ defmodule AutolaunchWeb.Endpoint do
   plug AutolaunchWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # Every page, Markdown document, refusal and API answer, including those given
+  # before the router, lets browser agents use the tools this site's pages register and carries the
+  # origin-trial token, so Chrome knows it before reading `tools`.
+  plug :allow_page_tools
+
   # One budget per client address, shared by the health check, the browser's visit
   # reports, every /api address and the share pictures, answered or not. Every
   # answer says what is left of it; past it the answer is 429 with Retry-After.
@@ -101,6 +106,10 @@ defmodule AutolaunchWeb.Endpoint do
                      key: &AutolaunchWeb.ClientAddress.key/1
                    )
 
+  # Chrome's WebMCP origin trial, issued to https://autolaunch.sh and valid
+  # until 29 Mar 2027. The token is public; Chrome ignores it on any other host.
+  @webmcp_origin_trial "AhDW0wB3iujcltck0ZP4D5GCnsNun6Tt7ZAT1ea2/irda+5c5TmsovLb373X+GV4/lYDfRE5rRbc/20Dps1J6AAAAABNeyJvcmlnaW4iOiJodHRwczovL2F1dG9sYXVuY2guc2g6NDQzIiwiZmVhdHVyZSI6IldlYk1DUCIsImV4cGlyeSI6MTgwNjM2NDgwMH0="
+
   # Addresses refused outright. 43.160.222.210 read the auction list every
   # 2.3 seconds around the clock (founder decision, 9 October 2026).
   @blocked [{43, 160, 222, 210}]
@@ -118,6 +127,12 @@ defmodule AutolaunchWeb.Endpoint do
     else
       conn
     end
+  end
+
+  defp allow_page_tools(conn, _opts) do
+    conn
+    |> put_resp_header("permissions-policy", "tools=(self)")
+    |> put_resp_header("origin-trial", @webmcp_origin_trial)
   end
 
   defp limit_rate(%Plug.Conn{method: "GET", path_info: ["api", "v1", "auctions"]} = conn, _opts) do

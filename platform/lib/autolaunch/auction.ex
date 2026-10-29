@@ -74,7 +74,7 @@ defmodule Autolaunch.Auction do
 
     read :read do
       primary? true
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.BaseOnly
     end
 
     # Every auction the public lists carry, on both chains.
@@ -91,7 +91,7 @@ defmodule Autolaunch.Auction do
     end
 
     read :list_public do
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.BaseOnly
 
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
@@ -202,7 +202,7 @@ defmodule Autolaunch.Auction do
 
     read :recent_public do
       filter expr(state in [:created, :active, :ended, :failed])
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.BaseOnly
 
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
@@ -213,7 +213,7 @@ defmodule Autolaunch.Auction do
 
     read :featured_public do
       filter expr(featured == true)
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.BaseOnly
 
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
@@ -226,7 +226,7 @@ defmodule Autolaunch.Auction do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.BaseOnly
       prepare Autolaunch.Auction.Preparations.Shown
       prepare build(load: [:treasury_security_report, :path_tail])
     end
@@ -572,7 +572,8 @@ defmodule Autolaunch.Auction do
     # Where the launch came from: `:site` when this site prepared it (on Base,
     # a review this site's account carried out; on Robinhood, a review stored
     # when the site prepared it), `:chain` when it was only seen on chain.
-    # Only site launches are listed.
+    # Site launches and every Base Memestock launch are listed
+    # (`Autolaunch.Auction.Preparations.Listed`).
     attribute :origin, :atom do
       allow_nil? false
       public? true
@@ -697,10 +698,12 @@ defmodule Autolaunch.Auction do
   end
 
   relationships do
-    # The account whose signed-in wallet launched the auction. Every Base
-    # auction the site lists has one; a Robinhood launch is listed from the
-    # launchpad's own records and names one only when exactly one account's
-    # signed-in wallet is its launcher (`Autolaunch.Robinhood.Discovery`).
+    # The account whose signed-in wallet launched the auction. Every launch
+    # made through this site's review has one; a Base Memestock launch sent
+    # straight to the launchpad names only its wallet
+    # (`Autolaunch.Stocks.ChainLaunch`), and a Robinhood launch names one only
+    # when exactly one account's signed-in wallet is its launcher
+    # (`Autolaunch.Robinhood.Discovery`).
     belongs_to :creator_human_account, Autolaunch.Accounts.HumanAccount do
       allow_nil? true
       attribute_public? true

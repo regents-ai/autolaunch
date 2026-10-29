@@ -7,7 +7,7 @@ Private reads and draft edits require your own SIWA signer and a current pairing
 ## Install the unified CLI
 
 ```sh
-uv tool install regents-cli=={{regents_cli}}
+uv tool install --python 3.14 regents-cli=={{regents_cli}}
 regents --version
 ```
 
@@ -29,7 +29,7 @@ On Hermes, unset `PYTHONPATH` first if it points at Hermes's own Python.
 ## Pair with the owner
 
 1. Prepare and sign `GET /api/agents/v1/whoami` for audience `autolaunch`. It answers your `status` here (`not_paired` or `paired`), what you may do in it (`allowed`) and your `next_step`, and awards no Points.
-2. If unpaired, your person opens Pair New Agent in the side panel, on any page of this site, chooses you and pastes you a message with a pairing code. Redeem the short-lived code with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name`, and your real `harness`, what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. Keep these inputs and proofs out of shell arguments and logs.
+2. If unpaired, your person opens Pair New Agent on their Account page (/account), chooses you and pastes you a message with a pairing code. Redeem the short-lived code with signed `POST /api/agents/v1/pair`, sending exactly `code`, your chosen `name`, and your real `harness`, what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. Keep these inputs and proofs out of shell arguments and logs.
 3. Check in with signed `GET /api/agents/v1/me`. It answers with your pairing and the account you act for, and records the check-in time, which your person sees. A revoked or replaced pairing refuses private access. Ask the owner for a fresh pairing instead of retrying old proof.
 
 Check-in updates the agent's contact time; it is not a passive read. `data.account` is your person's Regent account, the same one on every Regent site: `display_name` and `ens_name`, each null when unset, and nullable `wallet_address` and `wallet_addresses` (an empty list when absent). These are stored facts from verified sign-in evidence, not a fresh provider check or permission to use a wallet.
@@ -46,7 +46,7 @@ Signed `GET /api/agent/v1/drafts/revstake` and `/drafts/memestock` read the pair
 - Revstake: `treasury` (an address) and `treasury_path` (`safe`, `contract` or `eoa`). A treasury owned by a private key (`eoa`) also needs your person's own acknowledgement on the create page; no agent can give it, and changing the treasury takes back any acknowledgement given before. A Safe (`safe`) or smart contract account (`contract`) you choose also needs your person to tick, on the create page, that it will receive all treasury funds; until then the launch review is refused.
 - Memestock: `chain` (`base` or `robinhood`) and `stock_address`, a stock that chain lists.
 
-Your person then opens the create page, sees every field you set named above the wallet steps, and signs the launch. You never launch, sign or spend. Any other field, or a field of the wrong kind, refuses the whole save with 422 `invalid_draft`; a picture that is not a PNG, JPEG or WebP is 422 `invalid_image`, and one too large is 422 `image_too_large`. A save attributes the edit to the current pairing. If a save loses its response, read the draft before retrying with fresh proof. Concurrent saves use last-write-wins behavior.
+Your person then opens the create page, sees every field you set named above the wallet steps, and signs the launch. Through this interface you never launch, sign or spend for your person; to launch a Memestock token yourself, see Your own Memestock launch below. Any other field, or a field of the wrong kind, refuses the whole save with 422 `invalid_draft`; a picture that is not a PNG, JPEG or WebP is 422 `invalid_image`, and one too large is 422 `image_too_large`. A save attributes the edit to the current pairing. If a save loses its response, read the draft before retrying with fresh proof. Concurrent saves use last-write-wins behavior.
 
 Signed `GET /api/agent/v1/positions` reads the owner’s verified primary wallet positions and holdings using the existing portfolio reader. It refuses when chain data is unavailable, and answers 409 `wallet_required` when your person's account has no verified wallet; it cannot trade or settle anything.
 
@@ -59,6 +59,18 @@ Credits history returns `entries` and `pagination`; pass `pagination.next_cursor
 Points returns `points`, `earned_today`, `pending`, `daily_allowances`, `entries` and `more`. Points amounts are decimal strings truncated to at most two decimal places; `pending` counts events. A `note` explains when earning Points or approving agent spending is off.
 
 Wallet signing, launch submission, bidding, settlement, trading, staking, claims, treasury verification and owner profile changes remain person-controlled. The signed interface does not expose these operations. Existing `/api/v1/me/positions` and profile routes use the person's session and are not agent authority.
+
+{{covered_calls}}
+
+## Your own Memestock launch
+
+On Base you can launch a Memestock token yourself, from your own wallet, and own it. Autolaunch never holds or uses your key: you sign and send the launch.
+
+1. Store the token's picture here first: save it in your person's Memestock draft with `regents autolaunch drafts memestock save` and use the `image` link the answer gives. That save changes your person's draft, so tell them first. A picture stored anywhere else is not shown; the token shows its first letter instead.
+2. Choose the stock: the same save takes `stock_address` and refuses a stock Base's launchpad does not accept.
+3. Sign and send `launch((string name, string symbol, string description, string website, string image, address stock))` to the Memestock launchpad, {{memestock_launchpad}}, on Base. Every field is required: the name up to 64 bytes on one line, the ticker in capital letters A to Z and numbers, up to 10 (a launch with any other ticker is not listed here), the description up to 512 bytes, and the website and picture link up to 256 bytes each. A website must be a full `https://` link to be shown; use {{origin}} when there is none. There is no launch fee.
+4. The wallet that sends the launch owns it for good. Its 0.5% creator allocation, released block by block once the auction succeeds, and the creator's 0.3% share of the fee on every trade are paid only to that wallet; anyone may release them, and nobody can send them anywhere else. Keep the key safe: if it is lost, so are those payments.
+5. Autolaunch lists the launch within about five minutes, with its own auction and token pages, naming your wallet as its creator.
 
 ## Browser and CLI
 

@@ -9,7 +9,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   """
 
   alias AutolaunchWeb.Components.AutolaunchHelpers
-  alias AutolaunchWeb.Paths
+  alias AutolaunchWeb.{Paths, ToolManifest}
 
   @directory Path.join(__DIR__, "public_documents")
   @names ~w(home docs about contact privacy terms llms llms-full agents skill)
@@ -30,13 +30,19 @@ defmodule AutolaunchWeb.PublicDocuments do
   @contract_path Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @external_resource @contract_path
   @contract YamlElixir.read_from_file!(@contract_path)
+  # Covered calls' routes and their components, added only while the site offers them.
+  @covered_calls_contract_path Path.expand(
+                                 "../../contracts/covered-calls.openapiv3.yaml",
+                                 __DIR__
+                               )
+  @external_resource @covered_calls_contract_path
+  @covered_calls_contract YamlElixir.read_from_file!(@covered_calls_contract_path)
 
-  # Every browser tool the pages register, described once; the browser code
-  # imports the same file.
-  @tool_manifest_path Application.app_dir(:autolaunch, "priv/tool_manifest.json")
-  @external_resource @tool_manifest_path
-  @manifest @tool_manifest_path |> File.read!() |> Jason.decode!()
-  @tools Map.fetch!(@manifest, "tools")
+  # Covered calls, in the agent guides only while the site offers them.
+  @covered_calls_path Path.join(@directory, "covered_calls.md")
+  @external_resource @covered_calls_path
+  @covered_calls File.read!(@covered_calls_path)
+
   @needs %{
     "none" => "Nothing",
     "siwa" => "Per-request SIWA proof",
@@ -44,22 +50,17 @@ defmodule AutolaunchWeb.PublicDocuments do
     "session" => "The person's sign-in",
     "wallet_signed" => "The person's sign-in and their wallet's confirmation"
   }
-  @tool_table """
-  | Tool | Where | Needs | What it does |
-  | --- | --- | --- | --- |
-  #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{if &1["scope"] == "site", do: "Every page", else: &1["scope"]} | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
-  """
 
-  @description "Where agents launch. Autolaunch is for backing long-term agents. Raise early funds through an auction. No early snipers here. If you are in the auction, you are early."
+  @description "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."
 
   @site_name "Autolaunch"
 
   # The regents-cli release every public document names: the one these guides
   # were checked against, its source commit and its published wheel.
   @regents_cli %{
-    version: "1.10.19",
-    commit: "02f89615c4d8ceaf4c6f597f07112e41f001adc6",
-    wheel_sha256: "935c21569a740d90ea7d6951584ab6de3757af8fa07e2302f5c01ef69e959080"
+    version: "1.10.20",
+    commit: "0e3768f5b92fe8210fb00fea0053bcb5e9c2afaf",
+    wheel_sha256: "55b242b41a86e4bd1952e1edb93e31e5cd718186e735867d4b276243f96179ad"
   }
 
   # Where security reports go, as the contact page publishes it.
@@ -72,7 +73,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
-    "/" => {"#{@site_name} · where agents launch", @description},
+    "/" => {"#{@site_name} · Back AI agents at a fair price", @description},
     "/create" =>
       {"Create a Memestock token",
        "Pair a new memecoin with a real stock and open its auction on Autolaunch."},
@@ -102,6 +103,9 @@ defmodule AutolaunchWeb.PublicDocuments do
        "One stock on Base or Robinhood Chain: its onchain token, price feed and trading pools, from dated research."},
     "/animations" => {"Motion lab", "Every motion Autolaunch uses, side by side."},
     "/portfolio" => {"Portfolio", "Your Autolaunch bids, tokens and stakes in one place."},
+    "/covered-calls" =>
+      {"Covered calls",
+       "Sell covered calls on a Base stock token and keep the premium, or buy them, in USDC."},
     :bid =>
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
@@ -159,7 +163,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   def skill_guide, do: markdown("skill")
 
   @doc "The browser tool manifest served at `/capabilities`: every tool the pages register."
-  def capabilities, do: @manifest
+  def capabilities, do: ToolManifest.current()
 
   @doc "Whether the page at `path` also answers as Markdown."
   def markdown?(path), do: Map.has_key?(@paths, path)
@@ -232,7 +236,7 @@ defmodule AutolaunchWeb.PublicDocuments do
 
   @doc "The public API description, with this site's address as its server."
   def openapi do
-    @contract
+    contract()
     |> Map.put("servers", [%{"url" => url("")}])
     |> Map.put("externalDocs", %{
       "url" => url("/docs"),
@@ -495,13 +499,46 @@ defmodule AutolaunchWeb.PublicDocuments do
   defp markdown(name) do
     @sources[name]
     |> String.replace("{{key_facts}}", @key_facts)
-    |> String.replace("{{tools}}", @tool_table)
+    |> String.replace("{{covered_calls}}\n", covered_calls())
+    |> String.replace("{{tools}}", tool_table())
     |> String.replace("{{origin}}", url(""))
     |> String.replace("{{regents_cli}}", @regents_cli.version)
     |> String.replace("{{regents_cli_commit}}", @regents_cli.commit)
     |> String.replace("{{regents_cli_wheel_sha256}}", @regents_cli.wheel_sha256)
     |> String.replace("{{read_only}}", read_only_now())
+    |> String.replace("{{memestock_launchpad}}", memestock_launchpad())
   end
+
+  # Every tool the pages register now (`AutolaunchWeb.ToolManifest`).
+  defp tool_table do
+    """
+    | Tool | Where | Needs | What it does |
+    | --- | --- | --- | --- |
+    #{Enum.map_join(ToolManifest.tools(), "\n", &"| `#{&1["name"]}` | #{if &1["scope"] == "site", do: "Every page", else: &1["scope"]} | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
+    """
+  end
+
+  defp covered_calls,
+    do: if("covered_calls" in ToolManifest.features(), do: @covered_calls, else: "")
+
+  # The contract as the site offers it now: with covered calls switched off it is
+  # api-contract.openapiv3.yaml exactly; on, their paths and components join it.
+  defp contract do
+    if "covered_calls" in ToolManifest.features(),
+      do:
+        @contract
+        |> Map.update!("paths", &Map.merge(&1, @covered_calls_contract["paths"]))
+        |> Map.update!("components", &join_components(&1, @covered_calls_contract["components"])),
+      else: @contract
+  end
+
+  # Each kind of component (schemas, parameters) with the added ones beside its own.
+  defp join_components(ours, added),
+    do: Map.merge(ours, added, fn _kind, own, more -> Map.merge(own, more) end)
+
+  # The Base Memestock launchpad an agent sends its own launch to.
+  defp memestock_launchpad,
+    do: "`#{Autolaunch.Stocks.Lab.address!(Autolaunch.Stocks.Lab.current!(), :launchpad)}`"
 
   # The prelaunch gate as it stands on this deployment right now.
   defp read_only_now do
