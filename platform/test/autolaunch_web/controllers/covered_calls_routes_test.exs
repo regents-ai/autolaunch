@@ -174,9 +174,6 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       switch(state)
       capabilities = build_conn() |> get("/capabilities") |> json_response(200)
       names = Enum.map(capabilities["tools"], & &1["name"])
-
-      [prepare] = Enum.filter(capabilities["tools"], &(&1["name"] == "prepare_agent_request"))
-      operations = prepare["input_schema"]["properties"]["operation"]["enum"]
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")
       guide = build_conn() |> get("/llms-full.txt") |> response(200)
       home = build_conn() |> get("/") |> html_response(200)
@@ -186,7 +183,6 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
 
       assert Enum.all?(tools, &(&1 in names)) == offered?
       assert Enum.any?(tools, &(&1 in names)) == offered?
-      assert "autolaunch_covered_call_prepare" in operations == offered?
       assert Map.has_key?(paths, "/api/v1/covered-calls/{symbol}") == offered?
       assert guide =~ "autolaunch_covered_call_prepare" == offered?
       assert home =~ ~s(id="agent-feature-tools") == offered?

@@ -75,7 +75,7 @@ On Base you can launch a Memestock token yourself, from your own wallet, and own
 
 ## Browser and CLI
 
-On a WebMCP-capable host, call `prepare_agent_request`, sign its exact URL, method and bytes with your existing signer, then call the named manifest tool with `input`, `request` and `proof`. Proof is never persisted by the site. Missing signer support is a blocker; do not fall back to cookies. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
+On a WebMCP-capable host, a signed tool takes only its input: your browser host signs the exact request with your own agent key, and the page sends it. `regents browser --site autolaunch` is such a host. In a browser with no agent signer, a signed tool sends nothing and answers `agent_auth_required`; do not fall back to cookies. Proof is never persisted by the site. A signed request counts as done only when the site's answer says it succeeded; a tool being listed is not proof that it works.
 
 The unified Regents CLI supports signed requests and private JSON on stdin. Release {{regents_cli}} includes the named commands below, including `regents autolaunch token <id>`, and reads Credits history by `pagination.next_cursor`. The older Autolaunch-specific CLI does not provide this signed access. Use the HTTP contract if the installed CLI lacks the command. Never put private draft text, pairing codes or proof headers in shell history.
 

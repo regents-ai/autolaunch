@@ -1,10 +1,13 @@
 // WebMCP Draft Community Group Report, 4 September 2026: document.modelContext.
 // HTTP responses remain authoritative; these tools never use wallet hooks. Every
 // tool the page registers is described once, in priv/tool_manifest.json; this
-// file only adds each HTTP request. All requests omit browser credentials.
+// file only adds each HTTP request. All requests omit browser credentials. A
+// signed tool takes only its input; the agent's browser host signs the exact
+// request (window.regentsSign), so no key, signature or receipt passes through
+// the page.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 
-import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools.ts"
+import {Refused, signedTools, type SignedOperation} from "../vendor/regent_agent_access/signed_tools.ts"
 import {report, visitId} from "./visit_log"
 
 function signedTransport() { return signedTools({
@@ -13,10 +16,8 @@ function signedTransport() { return signedTools({
   audience: manifest.audience,
   proofHeaders: manifest.proof_headers,
   requestHeaders: client,
-  // Only the signed tools are operations; each is sent with its operation's own inputs.
-  operations: offered().flatMap(entry =>
-    "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
-  ) as unknown as SignedOperation[],
+  // Only the signed tools are operations.
+  operations: offered().filter(entry => entry.authentication === "siwa_per_request") as unknown as SignedOperation[],
 }) }
 
 // Tools the page is handed beside the ones built in here, while a feature is on
@@ -26,26 +27,9 @@ function pageTools(): Entry[] {
   return json ? (JSON.parse(json) as Entry[]) : []
 }
 
-// Every tool this page offers: the built-in ones, then the page's, whose signed
-// tools join prepare_agent_request's operations.
+// Every tool this page offers: the built-in ones, then the page's.
 function offered(): Entry[] {
-  const added = pageTools()
-  const signed = added.filter(entry => "operation_input_schema" in entry).map(entry => entry.name)
-  const own = (manifest.tools as unknown as Entry[]).map(entry =>
-    entry.name === "prepare_agent_request" && signed.length > 0 ? withOperations(entry, signed) : entry,
-  )
-  return [...own, ...added]
-}
-
-function withOperations(entry: Entry, names: string[]): Entry {
-  const operation = entry.input_schema.properties.operation
-  return {
-    ...entry,
-    input_schema: {
-      ...entry.input_schema,
-      properties: {...entry.input_schema.properties, operation: {...operation, enum: [...(operation.enum ?? []), ...names]}},
-    },
-  }
+  return [...(manifest.tools as unknown as Entry[]), ...pageTools()]
 }
 
 // A page tool's own request: its path with each {field} filled from the input,
@@ -195,20 +179,19 @@ function tool(entry: Entry, request: (input: Input) => Request, lifetime: AbortS
     async execute(input, client) {
       const {signal, release} = executionSignal(lifetime, client)
       try {
-        if (entry.name === "prepare_agent_request") {
-          const args = input as {operation: string; input: Record<string, unknown>}
-          return {ok: true, request: signedTransport().prepare(args.operation, args.input)}
-        }
         if (entry.authentication === "siwa_per_request") {
-          const response = await signedTransport().execute(entry.name, input as SignedInput, signal)
+          const response = await signedTransport().execute(entry.name, input as Record<string, unknown>, signal)
           return {ok: response.ok, status: response.status, body: await response.json()}
         }
         return await read(entry, {properties, required, request}, input, signal)
       } catch (error) {
+        // Nothing was sent: no agent signer in this browser, or it said no. The
+        // refusal carries the words for the agent.
+        if (error instanceof Refused) return {ok: false, error: error.refusal}
         // fetch fails with a TypeError when the network fails; the transport's own
         // refusals, made before anything is sent, are plain Errors.
         if (error instanceof TypeError && !signal.aborted) unsent(entry)
-        return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "Read back a draft after an unanswered save before retrying with fresh proof."}}
+        return {ok: false, error: {code: "signed_request_failed", message: String(error), hint: "Read back a draft after an unanswered save before calling the tool again."}}
       } finally {
         release()
       }
@@ -290,7 +273,7 @@ const requests: Record<string, (input: Input) => Request> = {
 // Public requests and explicitly signed manifest operations register here.
 function publicTools(signal: AbortSignal): PublicTool[] {
   return offered()
-    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.request || entry.authentication === "siwa_per_request" || entry.name === "prepare_agent_request"))
+    .filter(entry => entry.scope === "site" && (Object.hasOwn(requests, entry.name) || entry.request || entry.authentication === "siwa_per_request"))
     .map(entry => tool(entry, requests[entry.name] ?? (entry.request ? described(entry.request) : () => { throw new Error("Signed request required") }), signal))
 }
 

@@ -352,7 +352,7 @@ Units in every route: stock amounts in raw units (1e8 per token), USDC in 6-deci
 ### 6.5 Agent tools (WebMCP, in the browser)
 
 `autolaunch_covered_call_listings`, `autolaunch_covered_call_quote`, `autolaunch_my_covered_calls`,
-`autolaunch_covered_call_prepare` (signed through the site's `prepare_agent_request`). The page is
+`autolaunch_covered_call_prepare` (signed by the agent's browser host). The page is
 handed these only while covered calls are on (appendix E). Hosted MCP: not yet.
 
 ### 6.6 Before the site opens (prelaunch)

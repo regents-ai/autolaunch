@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: signed browser tools take only their input
+- For agents: a signed browser tool now takes only its own input, such as `{"symbol": "AMZNc"}`. Your browser host signs the exact request with your own agent key and the page sends it, with no cookie; `regents browser --site autolaunch` is such a host. In a browser with no agent signer the tool sends nothing and answers `agent_auth_required`. `prepare_agent_request` is gone: nothing passes a signature through the page any more.
+
 ## 29 October 2026: covered calls on Amazon (AMZNc)
 - Covered calls are open at /covered-calls, for eligible people outside the US. Sell calls on your AMZNc: choose an amount, a strike price, a Friday expiry and a premium, and keep the premium buyers pay. Or buy calls from the list, each the right to buy AMZNc at its strike for the 24 hours after Friday 21:00 UTC. Everything is paid in USDC on Base, and 1% of each premium goes to REGENT stakers.
 - Each action works as Stake does on a token page: review it, then confirm each step in your wallet. Your calls, sold and held, are on your Portfolio with Stop selling, Exercise and Collect. The Stocks page, the AMZNc stock page and the menu link to them.

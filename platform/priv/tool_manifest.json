@@ -80,7 +80,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1\u201350. Defaults to 50."
+            "description": "Safe integer; the API clamps it to 1–50. Defaults to 50."
           }
         },
         "required": [],
@@ -194,7 +194,7 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Safe integer; the API clamps it to 1\u2013100. Defaults to 100."
+            "description": "Safe integer; the API clamps it to 1–100. Defaults to 100."
           }
         },
         "required": [],
@@ -308,34 +308,12 @@
     {
       "name": "agent_whoami",
       "title": "Check my identity and pairing",
-      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Run this first. Check my identity and pairing: your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -353,45 +331,17 @@
         "webmcp": "agent_whoami",
         "http": "GET /api/agents/v1/whoami"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "agent_status",
       "title": "Check in",
-      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "untrustedContentHint": true,
@@ -409,45 +359,17 @@
         "webmcp": "agent_status",
         "http": "GET /api/agents/v1/me"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "autolaunch_revstake_draft",
       "title": "Read my Revstake token draft",
-      "description": "Read my Revstake token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Revstake token draft. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -465,127 +387,13 @@
         "webmcp": "autolaunch_revstake_draft",
         "http": "GET /api/agent/v1/drafts/revstake"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "autolaunch_revstake_draft_save",
       "title": "Fill in my Revstake launch draft: details, picture and treasury",
-      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
+      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "input_schema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "symbol": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "website": {
-                "type": "string"
-              },
-              "telegram": {
-                "type": "string"
-              },
-              "discord": {
-                "type": "string"
-              },
-              "other_link_1": {
-                "type": "string"
-              },
-              "other_link_2": {
-                "type": "string"
-              },
-              "other_link_3": {
-                "type": "string"
-              },
-              "treasury": {
-                "type": "string",
-                "description": "The treasury address, 0x and 40 hex digits."
-              },
-              "treasury_path": {
-                "type": "string",
-                "enum": [
-                  "safe",
-                  "contract",
-                  "eoa"
-                ],
-                "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page, and a Safe or smart contract account an agent chose needs the person's own confirmation there."
-              },
-              "image": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "content_type",
-                  "data"
-                ],
-                "description": "The token's picture: a PNG, JPEG or WebP file up to 2 MB and 4096 by 4096 pixels.",
-                "properties": {
-                  "content_type": {
-                    "type": "string",
-                    "enum": [
-                      "image/png",
-                      "image/jpeg",
-                      "image/webp"
-                    ]
-                  },
-                  "data": {
-                    "type": "string",
-                    "description": "The file's bytes, base64."
-                  }
-                }
-              }
-            },
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "untrustedContentHint": true
-      },
-      "requires": "siwa_and_pairing",
-      "state_changing": true,
-      "payment": "none",
-      "route": "PATCH /api/agent/v1/drafts/revstake",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": true,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "autolaunch_revstake_draft_save",
-        "http": "PATCH /api/agent/v1/drafts/revstake"
-      },
-      "operation_input_schema": {
         "type": "object",
         "properties": {
           "name": {
@@ -655,39 +463,33 @@
         "required": [],
         "additionalProperties": false
       },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "PATCH /api/agent/v1/drafts/revstake",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_revstake_draft_save",
+        "http": "PATCH /api/agent/v1/drafts/revstake"
+      },
       "effect": "write"
     },
     {
       "name": "autolaunch_memestock_draft",
       "title": "Read my Memestock token draft",
-      "description": "Read my Memestock token draft. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my Memestock token draft. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -705,125 +507,13 @@
         "webmcp": "autolaunch_memestock_draft",
         "http": "GET /api/agent/v1/drafts/memestock"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "autolaunch_memestock_draft_save",
       "title": "Fill in my Memestock launch draft: details, picture, chain and stock",
-      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
+      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status.",
       "input_schema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "symbol": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "website": {
-                "type": "string"
-              },
-              "telegram": {
-                "type": "string"
-              },
-              "discord": {
-                "type": "string"
-              },
-              "other_link_1": {
-                "type": "string"
-              },
-              "other_link_2": {
-                "type": "string"
-              },
-              "other_link_3": {
-                "type": "string"
-              },
-              "chain": {
-                "type": "string",
-                "enum": [
-                  "base",
-                  "robinhood"
-                ]
-              },
-              "stock_address": {
-                "type": "string",
-                "description": "The paired stock token's address, one the chain lists (GET /stock-listing names them)."
-              },
-              "image": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "content_type",
-                  "data"
-                ],
-                "description": "The token's picture: a PNG, JPEG or WebP file up to 2 MB and 4096 by 4096 pixels.",
-                "properties": {
-                  "content_type": {
-                    "type": "string",
-                    "enum": [
-                      "image/png",
-                      "image/jpeg",
-                      "image/webp"
-                    ]
-                  },
-                  "data": {
-                    "type": "string",
-                    "description": "The file's bytes, base64."
-                  }
-                }
-              }
-            },
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": false,
-        "untrustedContentHint": true
-      },
-      "requires": "siwa_and_pairing",
-      "state_changing": true,
-      "payment": "none",
-      "route": "PATCH /api/agent/v1/drafts/memestock",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": true,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "autolaunch_memestock_draft_save",
-        "http": "PATCH /api/agent/v1/drafts/memestock"
-      },
-      "operation_input_schema": {
         "type": "object",
         "properties": {
           "name": {
@@ -891,39 +581,33 @@
         "required": [],
         "additionalProperties": false
       },
+      "annotations": {
+        "readOnlyHint": false,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "PATCH /api/agent/v1/drafts/memestock",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "autolaunch_memestock_draft_save",
+        "http": "PATCH /api/agent/v1/drafts/memestock"
+      },
       "effect": "write"
     },
     {
       "name": "autolaunch_my_positions",
       "title": "Read my bids and holdings, when the chain can be read",
-      "description": "Read my bids and holdings, when the chain can be read. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my bids and holdings, when the chain can be read. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -941,45 +625,17 @@
         "webmcp": "autolaunch_my_positions",
         "http": "GET /api/agent/v1/positions"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "account_balances",
       "title": "Read Credits",
-      "description": "Read Credits. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read Credits. Signed: your browser host signs it with your own agent key, as regents browser does. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -997,50 +653,22 @@
         "webmcp": "account_balances",
         "http": "GET /api/agent/v1/account/balances"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "account_credits_history",
       "title": "Read Credits history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
         "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "after": {
-                "type": "string",
-                "maxLength": 2048
-              }
-            },
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
+          "after": {
+            "type": "string",
+            "maxLength": 2048
           }
-        }
+        },
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -1058,50 +686,17 @@
         "webmcp": "account_credits_history",
         "http": "POST /api/agent/v1/account/credits/history"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {
-          "after": {
-            "type": "string",
-            "maxLength": 2048
-          }
-        },
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
     },
     {
       "name": "account_points",
       "title": "Read Points",
-      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "input_schema": {
         "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "input",
-          "request",
-          "proof"
-        ],
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": false
-          },
-          "request": {
-            "type": "object",
-            "description": "Exact request returned by prepare_agent_request."
-          },
-          "proof": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "HTTP proof headers from the existing SIWA signer."
-          }
-        }
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
       },
       "annotations": {
         "readOnlyHint": true,
@@ -1119,61 +714,7 @@
         "webmcp": "account_points",
         "http": "GET /api/agent/v1/account/points"
       },
-      "operation_input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
       "effect": "read"
-    },
-    {
-      "name": "prepare_agent_request",
-      "title": "Prepare a signed request",
-      "description": "Prepare exact bytes for a manifest-listed operation. No private read or product mutation. Sign with your existing SIWA signer, then call the named tool with input, request and proof. Never substitute browser credentials.",
-      "input_schema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "operation",
-          "input"
-        ],
-        "properties": {
-          "operation": {
-            "type": "string",
-            "enum": [
-              "agent_whoami",
-              "agent_status",
-              "autolaunch_revstake_draft",
-              "autolaunch_revstake_draft_save",
-              "autolaunch_memestock_draft",
-              "autolaunch_memestock_draft_save",
-              "autolaunch_my_positions",
-              "account_balances",
-              "account_credits_history",
-              "account_points"
-            ]
-          },
-          "input": {
-            "type": "object"
-          }
-        }
-      },
-      "annotations": {
-        "readOnlyHint": true
-      },
-      "requires": "none",
-      "authentication": "public",
-      "pairing_required": false,
-      "availability": "available",
-      "state_changing": false,
-      "payment": "none",
-      "route": "local preparation",
-      "scope": "site",
-      "interfaces": {
-        "webmcp": "prepare_agent_request"
-      },
-      "effect": "prepare"
     }
   ]
 }

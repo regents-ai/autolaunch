@@ -343,7 +343,7 @@
     },
     {
       "command": "agents status",
-      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does. The account is your person's Regent account, the same on every Regent site; its stored verified wallet facts grant no wallet authority.",
       "operation_id": "agent_status",
       "method": "GET",
       "path": "/api/agents/v1/me",
@@ -589,7 +589,7 @@
     },
     {
       "command": "account credits-history",
-      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's pagination.next_cursor, a string of at most 2048 characters) for older ones. Omit after for the first page or when the cursor is null. Invalid cursors return 422 invalid_cursor. Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "operation_id": "account_credits_history",
       "method": "POST",
       "path": "/api/agent/v1/account/credits/history",
@@ -606,7 +606,7 @@
     },
     {
       "command": "account points",
-      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: prepare it with prepare_agent_request, sign it with your SIWA signer, then pass input, request and proof.",
+      "description": "Read your person's Points, today's total and recent entries. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "operation_id": "account_points",
       "method": "GET",
       "path": "/api/agent/v1/account/points",

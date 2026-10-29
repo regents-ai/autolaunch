@@ -109,15 +109,12 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
 
       capabilities = build_conn() |> get("/capabilities") |> json_response(200)
       names = Enum.map(capabilities["tools"], & &1["name"])
-      [prepare] = Enum.filter(capabilities["tools"], &(&1["name"] == "prepare_agent_request"))
-      operations = prepare["input_schema"]["properties"]["operation"]["enum"]
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")
       guide = build_conn() |> get("/llms-full.txt") |> response(200)
       home = build_conn() |> get("/") |> html_response(200)
 
       assert Enum.all?(@tools, &(&1 in names)) == offered?
       assert Enum.any?(@tools, &(&1 in names)) == offered?
-      assert "autolaunch_after_hour_stocks_prepare" in operations == offered?
       assert Map.has_key?(paths, "/api/v1/after-hour-stocks/{series}") == offered?
       assert guide =~ "After-hours Exposure" == offered?
       assert home =~ ~s(/assets/js/exposure.css) == offered?
