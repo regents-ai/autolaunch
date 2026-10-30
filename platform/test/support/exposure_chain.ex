@@ -253,11 +253,13 @@ defmodule Autolaunch.ExposureChain do
   defp words("allowance(address,address)", leg, state, _args) when leg in [@overnight, @session],
     do: [state.wallet.leg_allowance]
 
-  # A pool with a quote holds both sides; one without holds nothing.
+  # A pool with a quote holds one whole leg token and that much USDC, in
+  # Aerodrome's address order; one without holds nothing.
   defp words("getReserves()", pool, state, _args) do
     case Enum.find(state.pools, fn {_leg, {address, _quote}} -> address == pool end) do
       {_leg, {_pool, nil}} -> [0, 0, 0]
-      {_leg, {_pool, _quote}} -> [10_000_000, 10_000_000, 0]
+      {leg, {_pool, quote}} when leg < @usdc -> [@unit, quote, 0]
+      {_leg, {_pool, quote}} -> [quote, @unit, 0]
     end
   end
 

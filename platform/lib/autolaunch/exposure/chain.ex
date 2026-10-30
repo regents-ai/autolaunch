@@ -191,15 +191,16 @@ defmodule Autolaunch.Exposure.Chain do
   end
 
   @doc """
-  Each leg's pool against USDC on the Aerodrome factory, and what one whole leg
-  token sells for there now (USDC micro-units), or nil where there is no pool
-  or it holds nothing to quote.
+  Each leg's pool against USDC on the Aerodrome factory, and its price for one
+  whole leg token (USDC micro-units): the USDC it holds for each token it holds,
+  before any trade moves it. Nil where there is no pool or a side is empty.
   """
   def pools(terms, config, block, opts) do
     [overnight: terms.overnight, session: terms.session]
     |> read_concurrently(fn {leg, token} ->
-      with {:ok, pool} <- pool(token.address, config, block, opts) do
-        {:ok, {leg, pool && quote(pool, token, block, opts)}}
+      with {:ok, pool} <- pool(token.address, config, block, opts),
+           {:ok, price} <- price(pool, token, config.usdc, block, opts) do
+        {:ok, {leg, pool && %{address: pool, usdc_per_token: price}}}
       end
     end)
     |> case do
@@ -226,21 +227,25 @@ defmodule Autolaunch.Exposure.Chain do
     end
   end
 
-  # A pool with nothing in it refuses to quote: that leg shows no price, and the
-  # rest of the page stands.
-  defp quote(pool, token, block, opts) do
-    data =
-      Call.encode("getAmountOut(uint256,address)", [
-        Integer.pow(10, token.decimals),
-        token.address
-      ])
+  defp price(nil, _token, _usdc, _block, _opts), do: {:ok, nil}
 
-    case Rpc.call_uint(pool, data, block, opts) do
-      {:ok, 0} -> %{address: pool, usdc_per_token: nil}
-      {:ok, usdc} -> %{address: pool, usdc_per_token: usdc}
-      {:error, _no_quote} -> %{address: pool, usdc_per_token: nil}
+  defp price(pool, token, usdc, block, opts) do
+    with {:ok, [reserve0, reserve1, _last]} <-
+           Rpc.call_words(pool, Call.encode("getReserves()", []), block, 3, opts) do
+      # Aerodrome orders a pool's two tokens by address.
+      {held, dollars} =
+        if String.downcase(token.address) < String.downcase(usdc),
+          do: {reserve0, reserve1},
+          else: {reserve1, reserve0}
+
+      {:ok, per_token(held, dollars, token.decimals)}
     end
   end
+
+  defp per_token(held, dollars, decimals) when held > 0 and dollars > 0,
+    do: div(dollars * Integer.pow(10, decimals), held)
+
+  defp per_token(_held, _dollars, _decimals), do: nil
 
   @doc """
   What `wallet` holds of the series' stock and legs, what it lets the series

@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: After-hours pool prices
+- An After-hours or Market-hours token's pool price is now the pool's own price: the USDC it holds for each token it holds. It used to show what selling one whole token would pay, which in a small pool came out far lower. The home page's Isolated prices and market caps use the same figure.
+
 ## 30 October 2026: a new front page
 - The home page opens on four products: Call Option Onchain (covered calls), Isolated After-hours Exposure, Memestock Pair and Revenue Share Token. Each card opens on hover, keyboard focus or a tap to show a few details and the link to its page.
 - Under the cards, one list with three choices: Auctions, Tokens and Options. Tokens has its own choice of All, Memestock, Revstake or Isolated; Isolated lists the After-hours and Market-hours tokens of each series with their price and market cap, and All puts the running series' tokens above the launched ones. Options lists the covered calls for sale, each with Buy.
