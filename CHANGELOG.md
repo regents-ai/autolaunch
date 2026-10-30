@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: After-hours lights
+- The After-hours and Market-hours token cards now have a thin orange border and a small light in the top right corner. The light is green while that token's window is running (After-hours from the US close to the next open, Market-hours from the open to the close) and red the rest of the time, and it changes on its own at each open and close.
+
 ## 30 October 2026: After-hours pool prices
 - An After-hours or Market-hours token's pool price is now the pool's own price: the USDC it holds for each token it holds. It used to show what selling one whole token would pay, which in a small pool came out far lower. The home page's Isolated prices and market caps use the same figure.
 

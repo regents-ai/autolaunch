@@ -160,11 +160,12 @@ defmodule AutolaunchWeb.ExposureLive do
 
   defp read_catalog(socket), do: socket
 
-  # The page reads the series again when its next price becomes recordable and
-  # when its deadline passes, so the summary never goes stale while it is open.
-  # Only the newest timer counts.
-  defp read_when_due(socket, %{next: %{recordable_at: recordable, deadline: deadline}, now: now}) do
-    case Enum.find([recordable, deadline + 1], &(&1 > now)) do
+  # The page reads the series again when its next price becomes recordable,
+  # when that price's deadline passes, and at each open and close, so the
+  # summary and each token's light never go stale while it is open. Only the
+  # newest timer counts.
+  defp read_when_due(socket, %{now: now} = series) do
+    case series |> due() |> Enum.filter(&(&1 > now)) |> Enum.min(fn -> nil end) do
       nil ->
         socket
 
@@ -176,7 +177,10 @@ defmodule AutolaunchWeb.ExposureLive do
     end
   end
 
-  defp read_when_due(socket, _series), do: socket
+  defp due(%{status: :ended}), do: []
+
+  defp due(%{next: %{recordable_at: recordable, deadline: deadline}, boundaries: boundaries}),
+    do: [recordable, deadline + 1 | boundaries]
 
   defp topic(address), do: "exposure:" <> address
 
@@ -310,6 +314,7 @@ defmodule AutolaunchWeb.ExposureLive do
               token={@series.overnight}
               ledger={@series.night}
               leg={:overnight}
+              running={running(@series) == :overnight}
               series={@series}
               pool={@series.pools.overnight}
             />
@@ -320,6 +325,7 @@ defmodule AutolaunchWeb.ExposureLive do
               token={@series.session}
               ledger={@series.day}
               leg={:session}
+              running={running(@series) == :session}
               series={@series}
               pool={@series.pools.session}
             />
@@ -590,6 +596,7 @@ defmodule AutolaunchWeb.ExposureLive do
   attr :series, :map, required: true
   attr :pool, :map, default: nil
   attr :leg, :atom, required: true, values: [:overnight, :session]
+  attr :running, :boolean, required: true
 
   defp leg(assigns) do
     ~H"""
@@ -597,6 +604,17 @@ defmodule AutolaunchWeb.ExposureLive do
       <header class="exposure__leg-head">
         <h3 id={"#{@id}-title"}>{@title}</h3>
         <span class="exposure__muted">{@window}</span>
+        <span
+          id={"#{@id}-light"}
+          class="exposure__light"
+          data-running={to_string(@running)}
+          role="img"
+          aria-label={if @running, do: "Running", else: "Paused"}
+          title={if @running, do: "Running", else: "Paused"}
+        >
+          <span class="exposure__lamp exposure__lamp--stop"></span>
+          <span class="exposure__lamp exposure__lamp--go"></span>
+        </span>
       </header>
       <p class="exposure__muted">{@token.symbol}</p>
       <dl
@@ -636,6 +654,20 @@ defmodule AutolaunchWeb.ExposureLive do
       </p>
     </section>
     """
+  end
+
+  # Which token carries the stock's moves at the series' last read: After-hours
+  # from a close to the next open, Market-hours from an open to the next close.
+  # Neither before the first close, after the last one, or once the series ended.
+  defp running(%{status: :ended}), do: nil
+
+  defp running(%{boundaries: boundaries, now: now}) do
+    case Enum.count(boundaries, &(&1 <= now)) do
+      0 -> nil
+      passed when passed == length(boundaries) -> nil
+      passed when rem(passed, 2) == 1 -> :overnight
+      _even -> :session
+    end
   end
 
   # The stock's applied prices as a line for the price chart, in dollars.

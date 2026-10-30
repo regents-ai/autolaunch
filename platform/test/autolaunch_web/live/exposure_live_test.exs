@@ -47,6 +47,24 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "a[href='/after-hour-stocks/terms/#{ExposureChain.terms_hash()}']")
   end
 
+  # The light follows the series' own opens and closes, which the page's tests
+  # cannot see change in a browser at the right moment.
+  test "each token's light is green only in its own window", %{conn: conn} do
+    # Monday 11:00 New York, after the open: Market-hours runs.
+    ExposureChain.install()
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-session-light[data-running='true']")
+    assert has_element?(view, "#exposure-overnight-light[data-running='false']")
+
+    # Saturday, between Friday's close and Monday's open: After-hours runs.
+    ExposureChain.install(%{now: ExposureChain.now() - 2 * 86_400})
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-overnight-light[data-running='true']")
+    assert has_element?(view, "#exposure-session-light[data-running='false']")
+  end
+
   test "the page offers Share, and a link to it previews the series", %{conn: conn} do
     ExposureChain.install()
     html = conn |> get("/after-hour-stocks") |> html_response(200)

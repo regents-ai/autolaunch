@@ -36,8 +36,13 @@
 .exposure__facts dd, .exposure__leg-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
 .exposure__legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.exposure__leg { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
-.exposure__leg-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.exposure__leg { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4); border: 1px solid var(--color-accent); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
+.exposure__leg-head { display: flex; align-items: baseline; gap: var(--space-2); }
+/* Each token's light: green while its window runs, red otherwise. */
+.exposure__light { display: inline-flex; gap: 4px; align-self: center; margin-inline-start: auto; padding: 3px 5px; border: 1px solid var(--hairline); border-radius: 999px; background: color-mix(in srgb, var(--color-fg) 10%, var(--color-surface)); }
+.exposure__lamp { inline-size: 10px; block-size: 10px; border-radius: 50%; background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
+.exposure__light[data-running="false"] .exposure__lamp--stop { background: var(--color-error); }
+.exposure__light[data-running="true"] .exposure__lamp--go { background: var(--color-success); }
 .exposure__leg-head h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 .exposure__leg-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
 .exposure__leg-facts dd { font-size: 1.0625rem; }
