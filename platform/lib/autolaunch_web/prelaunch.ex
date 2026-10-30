@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.Prelaunch do
     AutolaunchWeb.TokenLive => ~w(retry),
     AutolaunchWeb.PortfolioLive => ~w(refresh),
     AutolaunchWeb.CoveredCallsLive => ~w(refresh use_suggestion),
-    AutolaunchWeb.ExposureLive => ~w(refresh tab)
+    AutolaunchWeb.ExposureLive => ~w(refresh tab dismiss_done)
   }
 
   @impl true

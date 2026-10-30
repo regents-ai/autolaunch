@@ -287,6 +287,23 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "#exposure-end-#{@series}", "Possible after")
   end
 
+  test "a split that lands leaves a note with what was received and View Portfolio", %{
+    conn: conn
+  } do
+    ExposureChain.install()
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+
+    send(view.pid, {:exposure_done, %{kind: "mint", lines: ["You received 0.05 of each."]}})
+
+    assert has_element?(view, "#exposure-done", "Split done")
+    assert has_element?(view, "#exposure-done", "You received 0.05 of each.")
+    assert has_element?(view, "#exposure-done a[href='/portfolio']", "View Portfolio")
+
+    view |> element("#exposure-done button[aria-label=Dismiss]") |> render_click()
+    refute has_element?(view, "#exposure-done")
+  end
+
   # A new signed-in person on the page, their wallet open.
   defp signed_in_panel(conn, selector) do
     path =
