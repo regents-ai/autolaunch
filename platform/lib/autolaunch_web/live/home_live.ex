@@ -72,7 +72,7 @@ defmodule AutolaunchWeb.HomeLive do
        local_lab: Autolaunch.Lab.test_chain?(),
        listed: nil,
        calls: AsyncResult.loading(),
-       isolated: AsyncResult.loading(),
+       isolated: offered.isolated? && Exposure.Listing.fetch(),
        options?: offered.options?,
        isolated?: offered.isolated?,
        lists: lists(offered),
@@ -82,6 +82,7 @@ defmodule AutolaunchWeb.HomeLive do
        no_connection: @no_connection
      )
      |> LiveListings.subscribe()
+     |> hear_isolated()
      |> LiveSettle.watch()
      |> LabMarket.assign_robinhood_stale()
      |> assign_figure_rates()}
@@ -111,8 +112,7 @@ defmodule AutolaunchWeb.HomeLive do
     {:noreply,
      case {list, socket.assigns.token_kind} do
        {:options, _kind} -> read_calls(socket)
-       {:tokens, "isolated"} -> read_isolated(socket)
-       {:tokens, "all"} -> socket |> show_market() |> read_isolated()
+       {:tokens, "isolated"} -> socket
        _market -> show_market(socket)
      end}
   end
@@ -142,23 +142,38 @@ defmodule AutolaunchWeb.HomeLive do
        else: load_market(socket, false)
   end
 
-  # The covered calls for sale, from the market's shared reading.
+  # The covered calls for sale, from the market's shared reading: in the page
+  # as it is sent, for readers that run no scripts, and beside the page once
+  # it is live.
   defp read_calls(socket) do
-    socket
-    |> assign(:calls, AsyncResult.loading(socket.assigns.calls))
-    |> start_async(:home_calls, fn ->
-      with {:ok, %{markets: [market | _]}} <- CoveredCalls.Deployment.current() do
-        CoveredCalls.covered_call_book(market.symbol)
-      end
-    end)
+    if connected?(socket),
+      do:
+        socket
+        |> assign(:calls, AsyncResult.loading(socket.assigns.calls))
+        |> start_async(:home_calls, &read_book/0),
+      else: put_calls(socket, read_book())
   end
 
-  # The After-hours series, from their shared reading.
-  defp read_isolated(socket) do
-    socket
-    |> assign(:isolated, AsyncResult.loading(socket.assigns.isolated))
-    |> start_async(:home_isolated, &Exposure.Listing.read/0)
+  defp read_book do
+    with {:ok, %{markets: [market | _]}} <- CoveredCalls.Deployment.current(),
+         do: CoveredCalls.covered_call_book(market.symbol)
   end
+
+  defp put_calls(socket, {:ok, book}),
+    do: assign(socket, :calls, AsyncResult.ok(socket.assigns.calls, book))
+
+  defp put_calls(socket, {:error, error}),
+    do:
+      assign(socket, :calls, AsyncResult.failed(socket.assigns.calls, CoveredCalls.reason(error)))
+
+  # The After-hours tokens are read once for every page (`Exposure.Listing`);
+  # an open page hears each new reading.
+  defp hear_isolated(%{assigns: %{isolated?: true}} = socket) do
+    if connected?(socket), do: Autolaunch.SharedReading.subscribe(Exposure.Listing.key())
+    socket
+  end
+
+  defp hear_isolated(socket), do: socket
 
   def handle_event(
         "load-more",
@@ -195,42 +210,15 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("retry_calls", _params, socket), do: {:noreply, read_calls(socket)}
 
-  def handle_event("retry_isolated", _params, socket), do: {:noreply, read_isolated(socket)}
-
   def handle_async(:home_market, {:ok, {:ok, page}}, socket),
     do: {:noreply, put_market(socket, page)}
 
   def handle_async(:home_market, _failure, socket), do: {:noreply, market_failed(socket)}
 
-  def handle_async(:home_calls, {:ok, {:ok, book}}, socket),
-    do: {:noreply, assign(socket, :calls, AsyncResult.ok(socket.assigns.calls, book))}
-
-  def handle_async(:home_calls, {:ok, {:error, error}}, socket),
-    do:
-      {:noreply,
-       assign(
-         socket,
-         :calls,
-         AsyncResult.failed(socket.assigns.calls, CoveredCalls.reason(error))
-       )}
+  def handle_async(:home_calls, {:ok, result}, socket), do: {:noreply, put_calls(socket, result)}
 
   def handle_async(:home_calls, {:exit, reason}, socket),
     do: {:noreply, assign(socket, :calls, AsyncResult.failed(socket.assigns.calls, reason))}
-
-  def handle_async(:home_isolated, {:ok, {:ok, series}}, socket),
-    do:
-      {:noreply,
-       assign(
-         socket,
-         :isolated,
-         AsyncResult.ok(socket.assigns.isolated, Exposure.Listing.tokens(series))
-       )}
-
-  def handle_async(:home_isolated, {:ok, {:error, reason}}, socket),
-    do: {:noreply, assign(socket, :isolated, AsyncResult.failed(socket.assigns.isolated, reason))}
-
-  def handle_async(:home_isolated, {:exit, reason}, socket),
-    do: {:noreply, assign(socket, :isolated, AsyncResult.failed(socket.assigns.isolated, reason))}
 
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
@@ -258,6 +246,9 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
   # The Robinhood notice follows whether the site could read Robinhood.
+  def handle_info({:shared_reading, {:exposure_tokens, _id}}, socket),
+    do: {:noreply, assign(socket, :isolated, Exposure.Listing.fetch())}
+
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
@@ -444,7 +435,7 @@ defmodule AutolaunchWeb.HomeLive do
   # token, while the filters and search leave room for them: they are on Base,
   # with no creator.
   defp isolated_lead(
-         %{list: :tokens, token_kind: "all", isolated: %{ok?: true, result: tokens}} = assigns
+         %{list: :tokens, token_kind: "all", isolated: %{tokens: [_ | _] = tokens}} = assigns
        ) do
     options = assigns.market_options
 
@@ -760,17 +751,16 @@ defmodule AutolaunchWeb.HomeLive do
         id="home-isolated"
         class="home-market"
         aria-label="Isolated tokens"
-        aria-busy={to_string(@isolated.loading != nil)}
+        aria-busy={to_string(!@isolated)}
       >
-        <.isolated_list :if={@isolated.ok? && !@isolated.loading} tokens={@isolated.result} />
-        <.list_loading :if={@isolated.loading} label="Loading tokens" />
+        <.isolated_list :if={@isolated && @isolated.tokens} tokens={@isolated.tokens} />
+        <.list_loading :if={!@isolated} label="Loading tokens" />
         <Regent.Primitives.notice
-          :if={@isolated.failed && !@isolated.loading}
+          :if={@isolated && !@isolated.tokens}
           tone="error"
           class="home-market__error"
         >
-          <p>Isolated tokens can't be shown right now.</p>
-          <Regent.Primitives.button phx-click="retry_isolated" variant="secondary">Try again</Regent.Primitives.button>
+          <p>Isolated tokens can't be shown right now. They are read again every few minutes.</p>
         </Regent.Primitives.notice>
       </section>
 

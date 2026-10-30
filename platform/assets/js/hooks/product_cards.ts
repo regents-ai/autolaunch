@@ -181,21 +181,30 @@ export const ProductCards = {
 
       // Focus that arrives from the keyboard opens its card at once; focus that
       // leaves for somewhere else closes it, unless the mouse is still over it.
+      // Escape hands focus back to the title of the card it closed, which keeps
+      // it closed.
+      let returning: HTMLElement | null = null
       root.addEventListener("focusin", event => {
         const card = cardOf(event.target)
-        if (card && !lastInputByPointer()) open(card, false)
+        if (card && card !== returning && !lastInputByPointer()) open(card, false)
       }, options)
       root.addEventListener("focusout", event => {
         const card = cardOf(event.target)
         if (card && cardOf(event.relatedTarget) !== card && !card.matches(":hover")) close(card, false)
       }, options)
 
-      root.addEventListener("keydown", event => {
+      // Escape closes the open card wherever focus is; from inside the card,
+      // focus goes back to its title.
+      document.addEventListener("keydown", event => {
         if (event.key !== "Escape") return
-        const card = cardOf(event.target)
-        if (!card || !isOpen(card)) return
-        close(card, false)
-        head(card).focus()
+        for (const card of cards()) {
+          if (!isOpen(card)) continue
+          close(card, false)
+          if (!card.contains(document.activeElement)) continue
+          returning = card
+          head(card).focus()
+          returning = null
+        }
       }, options)
 
       // A tap anywhere outside the open card closes it.
