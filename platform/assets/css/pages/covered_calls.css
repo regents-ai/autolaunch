@@ -10,22 +10,25 @@
 .covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; }
 .covered-calls__header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 /* The market's figures and a panel's terms: micro-labels over tabular figures, hairlines between. */
-.covered-calls__strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 1px; margin: 0; background: color-mix(in srgb, var(--color-fg) 14%, transparent); border-block: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); }
-.covered-calls__strip > div { display: grid; align-content: start; gap: .25rem; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--color-surface); }
+/* Each figure draws its own hairline and overlaps its neighbour's by one pixel, so any wrap leaves no empty block. */
+.covered-calls__strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 1px 0 0 1px; }
+.covered-calls__strip > div { display: grid; align-content: start; gap: .25rem; min-width: 0; margin: -1px 0 0 -1px; padding: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); background: var(--color-surface); }
 .covered-calls__strip dt { display: flex; align-items: center; gap: .25rem; color: var(--color-fg-muted); font-size: .6875rem; font-weight: 500; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
 .covered-calls__strip dd { margin: 0; font-size: 1rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .covered-calls__strip dd small { color: var(--color-fg-muted); font-size: .8125rem; }
-.covered-calls__strip--panel { border-block: 0; }
+.covered-calls__strip--panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .covered-calls__strip--panel > div { background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 /* What a covered call is, for the tab's side: three numbered lines, ruled, no cards. */
 .covered-calls__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: step; }
 .covered-calls__steps li { display: grid; align-content: start; gap: .25rem; padding-block-start: var(--space-2); border-block-start: 2px solid var(--color-fg); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; counter-increment: step; }
 .covered-calls__steps strong { color: var(--color-fg); font-size: 1rem; }
+/* Two lines kept for every step's words, so switching tab never moves the tabs below. */
+.covered-calls__steps span { min-block-size: calc(2 * 1.45em); }
 .covered-calls__steps strong::before { content: "0" counter(step) "  "; color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .08em); font-variant-numeric: tabular-nums; }
 .covered-calls__panel-head { display: flex; align-items: center; gap: var(--space-1); }
 .covered-calls__panel-head > :is(h2, h3) { margin: 0; }
 .covered-calls__tabs { display: flex; gap: var(--space-1); }
-.covered-calls__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
+.covered-calls__tabs a { white-space: nowrap; display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
 .covered-calls__tabs { border-bottom: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); }
 .covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 9%, var(--color-surface)); box-shadow: inset 0 -3px 0 var(--color-fg); }
 .covered-calls__tabs .covered-calls__mine { margin-inline-start: auto; font-weight: 500; text-decoration: underline; text-underline-offset: .2em; }
@@ -34,7 +37,7 @@
 .covered-calls__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
 .covered-calls__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .covered-calls__table small { color: var(--color-fg-muted); }
-.covered-calls__table thead th, .covered-calls__mini thead th { color: var(--color-fg-muted); font-size: .6875rem; font-weight: 500; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
+.covered-calls .covered-calls__table thead th, .covered-calls__mini thead th { color: var(--color-fg-muted); font-size: .6875rem; font-weight: 500; letter-spacing: var(--tracking-microlabel, .08em); text-transform: uppercase; }
 .covered-calls__table tbody td { font-variant-numeric: tabular-nums; }
 .covered-calls__table tr.covered-calls__chosen > td { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: inset 3px 0 0 var(--color-fg); }
@@ -97,7 +100,10 @@
 @media (max-width: 47.99rem) {
   .covered-calls__sell, .covered-calls__steps { grid-template-columns: minmax(0, 1fr); }
   .covered-calls__steps { gap: var(--space-2); }
-  .covered-calls__strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .covered-calls__strip, .covered-calls__strip--panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .covered-calls__tabs a { padding-inline: var(--space-2); }
+  .covered-calls__table tr.covered-calls__chosen { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--color-fg); }
+  .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: none; }
   /* On a phone each listing is a block of labelled figures, never wider than the screen. */
   .covered-calls__table thead { display: none; }
   .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }

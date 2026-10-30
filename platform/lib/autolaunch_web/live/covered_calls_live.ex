@@ -209,7 +209,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </div>
       </header>
 
-      <.summary :if={@reading} reading={@reading} open={@open} symbol={@market.symbol} />
+      <.summary reading={@reading} open={@open} symbol={@market.symbol} />
       <.steps tab={@tab} symbol={@market.symbol} />
 
       <nav class="covered-calls__tabs" aria-label="Covered calls">
@@ -303,8 +303,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <div class="covered-calls__form">
           <h2 id="covered-calls-sell-title" class="covered-calls__title">List calls</h2>
           <p class="covered-calls__note">
-            Keep the premium either way. You keep any fall in {@market.symbol} and give up any rise
-            above the strike.
+            Keep the premium either way. You carry any fall in {@market.symbol} and give up any rise above the strike.
           </p>
           <.live_component
             :if={@reading}
@@ -317,6 +316,9 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             session_lease={@session_lease}
             current_human_id={@human_id}
           />
+        </div>
+        <div :if={!@reading && !@book.failed} class="market-list__scroll" aria-busy="true">
+          <span class="loading-block"></span>
         </div>
         <aside :if={@reading} class="covered-calls__guide" aria-labelledby="covered-calls-guide-title">
           <h2 id="covered-calls-guide-title" class="covered-calls__title">Guide</h2>
@@ -367,13 +369,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp buy_panel(assigns) do
     ~H"""
     <section class="covered-calls__panel" aria-labelledby={"covered-call-buy-#{@listing.id}-title"}>
-      <div class="covered-calls__panel-head">
-        <h3 id={"covered-call-buy-#{@listing.id}-title"}>Buy calls</h3>
-        <P.tip id={"covered-call-buy-#{@listing.id}-tip"} label="About buying calls">
-          You pay the premium now. Each call is then the right to buy one {@market.symbol} at the
-          strike during the window. If you don't exercise, it lapses and the premium isn't returned.
-        </P.tip>
-      </div>
+      <h3 id={"covered-call-buy-#{@listing.id}-title"}>Buy calls</h3>
       <dl class="covered-calls__strip covered-calls__strip--panel">
         <div>
           <dt>Strike</dt>
@@ -385,9 +381,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         </div>
         <div>
           <dt>Exercise window</dt>
-          <dd>{F.window_days(@listing.expiry)} <small>21:00 UTC</small></dd>
+          <dd>{F.window(@listing.expiry)}</dd>
         </div>
       </dl>
+      <p class="covered-calls__note">
+        Calls not exercised in the window lapse, and their premium isn't returned.
+      </p>
       <.live_component
         module={CoveredCallComponent}
         id={"covered-call-fill-#{@listing.id}"}
@@ -412,7 +411,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <li><strong>List</strong> <span>Lock {@symbol} at your strike and premium.</span></li>
       <li><strong>Earn</strong> <span>Buyers pay you the premium in USDC.</span></li>
       <li>
-        <strong>Settle</strong> <span>Fri–Sat window: the buyer may exercise. Collect yours.</span>
+        <strong>Settle</strong> <span>The buyer may exercise Fri–Sat. Then collect yours.</span>
       </li>
     </ol>
     """
@@ -424,37 +423,36 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <li><strong>Buy</strong> <span>Pay the premium in USDC.</span></li>
       <li><strong>Hold</strong> <span>The right to buy {@symbol} at the strike.</span></li>
       <li>
-        <strong>Exercise</strong> <span>Fri–Sat window: pay the strike, collect {@symbol}.</span>
+        <strong>Exercise</strong> <span>Pay the strike in the Fri–Sat window, or it lapses.</span>
       </li>
     </ol>
     """
   end
 
-  attr :reading, :map, required: true
+  attr :reading, :map, default: nil
   attr :open, :list, required: true
   attr :symbol, :string, required: true
 
   # The market's figures, one line each: the price, the next window, what is for sale, the fee.
+  # Drawn from the first render, with dashes until the market is read, so nothing below moves.
   defp summary(%{reading: reading, open: open} = assigns) do
     assigns =
       assign(assigns,
-        spot: spot(reading),
-        next: hd(Terms.expiries(reading.now)),
-        calls: length(open),
-        tokens: open |> Enum.map(&Terms.available/1) |> Enum.sum() |> F.tokens(reading.unit)
+        spot: reading && spot(reading),
+        age: reading && reading.price && age(reading.now - reading.price.updated_at),
+        next: hd(Terms.expiries((reading && reading.now) || System.os_time(:second))),
+        calls: reading && length(open),
+        tokens:
+          reading && open |> Enum.map(&Terms.available/1) |> Enum.sum() |> F.tokens(reading.unit)
       )
 
     ~H"""
     <dl class="covered-calls__strip" id="covered-calls-summary">
       <div>
-        <dt>
-          {@symbol} price
-          <P.tip id="covered-calls-price-tip" label="About the price">
-            Chainlink's AMZN feed on Base, {reference(@reading)}. A reference, not a price you can
-            trade at.
-          </P.tip>
-        </dt>
-        <dd>{if @spot, do: F.usd(@spot), else: "—"}</dd>
+        <dt>Price</dt>
+        <dd>
+          {if @spot, do: F.usd(@spot), else: "—"} <small :if={@spot && @age != ""}>{@age}</small>
+        </dd>
       </div>
       <div>
         <dt>Next window</dt>
@@ -462,10 +460,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       </div>
       <div>
         <dt>For sale</dt>
-        <dd>
+        <dd :if={@calls}>
           {@tokens} {@symbol}
           <small>{@calls} {if @calls == 1, do: "listing", else: "listings"}</small>
         </dd>
+        <dd :if={!@calls}>—</dd>
       </div>
       <div>
         <dt>Fee</dt>
@@ -495,7 +494,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
     <div :if={@trade && @spot} class="covered-calls__suggest" id="covered-calls-outcome">
       <div class="covered-calls__panel-head">
         <h3>{@trade.title}</h3>
-        <P.tip id="covered-calls-outcome-tip" label="About the result">
+        <P.tip id="covered-calls-outcome-tip" label="Result">
           Per {@symbol} against the reference price, with the premium after the 1% fee, if the
           buyer exercises whenever the price is above the strike. Exercising, they pay the strike,
           which you collect, and the {@symbol} is theirs to collect. If they don't, you collect your {@symbol} after the window.
@@ -532,7 +531,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <tbody>
           <tr :for={row <- @rows}>
             <td>{F.usd(row.strike)} <small>+{row.percent}%</small></td>
-            <td>{F.usd(row.premium)}</td>
+            <td>{F.usd(row.premium)} <small>per {@symbol}</small></td>
             <td>
               <button
                 type="button"
@@ -634,15 +633,20 @@ defmodule AutolaunchWeb.CoveredCallsLive do
   defp signed(micro) when micro < 0, do: "−" <> F.usd(-micro)
   defp signed(micro), do: "+" <> F.usd(micro)
 
-  defp reference(%{price: %{answer: answer, updated_at: at}, now: now}),
-    do:
-      "#{F.usd(div(answer, 100))} · #{at |> DateTime.from_unix!() |> Calendar.strftime("%-d %b, %H:%M UTC")}#{age(now - at)}"
+  defp reference(%{price: %{answer: answer, updated_at: at}, now: now}) do
+    when_read = at |> DateTime.from_unix!() |> Calendar.strftime("%-d %b, %H:%M UTC")
 
-  defp reference(_reading), do: "Not available"
+    case age(now - at) do
+      "" -> "#{F.usd(div(answer, 100))} at #{when_read}"
+      old -> "#{F.usd(div(answer, 100))} at #{when_read}, #{old}"
+    end
+  end
+
+  defp reference(_reading), do: "not available right now"
 
   # How old the reference price is, once it is old enough to matter.
-  defp age(seconds) when seconds >= 2 * 86_400, do: ", #{div(seconds, 86_400)} days ago"
-  defp age(seconds) when seconds >= 2 * 3_600, do: ", #{div(seconds, 3_600)} hours ago"
+  defp age(seconds) when seconds >= 2 * 86_400, do: "#{div(seconds, 86_400)} days ago"
+  defp age(seconds) when seconds >= 2 * 3_600, do: "#{div(seconds, 3_600)} hours ago"
   defp age(_seconds), do: ""
 
   defp multiplier(wad) do

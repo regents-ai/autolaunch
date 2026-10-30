@@ -310,6 +310,17 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
            )
   end
 
+  test "the market's figures are drawn from the first render, dashes until the market is read",
+       %{conn: conn} do
+    CoveredCallsChain.install(%{listings: []})
+    {:ok, view, html} = live(conn, "/covered-calls")
+    assert html =~ ~s(id="covered-calls-summary")
+    render_async(view, @async_ms)
+
+    assert has_element?(view, "#covered-calls-summary", "0 AMZNc")
+    assert has_element?(view, "#covered-calls-summary", "0 listings")
+  end
+
   test "the steps follow the tab: a buyer's on Buy, a seller's on Sell", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
