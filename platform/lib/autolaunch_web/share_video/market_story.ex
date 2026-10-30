@@ -2,12 +2,12 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   @moduledoc """
   What the share picture and video of a stock market on Autolaunch tell, read
   once at the latest block: covered calls on a Base stock, or one series of
-  After-hours Exposure. Both draw the stock's Chainlink price as a line
+  Isolated Exposure to After-hours Stocks. Both draw the stock's Chainlink price as a line
   (`Autolaunch.PriceFeedHistory`), in dollars per token as the pages show it.
 
   Covered calls mark each open call's strike over the last two weeks of the
   line, and close on the price and the lowest premium a buyer can take now.
-  After-hours Exposure colours the line by window through its series, after
+  Isolated Exposure to After-hours Stocks colours the line by window through its series, after
   hours (close to open) and market hours (open to close), with a dot at each
   price the series applied, and closes on what each token is worth.
 
@@ -88,7 +88,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
     end
   end
 
-  @doc "One After-hours Exposure series, with `wallet`'s own holdings when one is given."
+  @doc "One Isolated Exposure to After-hours Stocks series, with `wallet`'s own holdings when one is given."
   @spec exposure(String.t(), String.t() | nil) :: {:ok, t()} | {:error, atom()}
   def exposure(address, wallet) do
     with {:ok, config} <- Exposure.Deployment.current(),
@@ -202,7 +202,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketStory do
   # A stock token's raw units in one whole token, as its decimals.
   defp digits(unit), do: unit |> Integer.digits() |> length() |> Kernel.-(1)
 
-  # --- After-hours Exposure ----------------------------------------------------------
+  # --- Isolated Exposure to After-hours Stocks ----------------------------------------------------------
 
   # From two days before the series' first close, or the last week while it is
   # far off.

@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.ShareVideo.Canvas do
   seconds, encoded as H.264 in yuv420p with its index at the front, so it
   plays as soon as it starts loading. A film (`AutolaunchWeb.ShareVideo.Film`
   for a launch, `AutolaunchWeb.ShareVideo.MarketFilm` for covered calls and
-  After-hours Exposure) hands `render/1` one function that draws frame `index`;
+  Isolated Exposure to After-hours Stocks) hands `render/1` one function that draws frame `index`;
   the frames go to ffmpeg, which runs at low priority so pages keep their share
   of the machine.
   """

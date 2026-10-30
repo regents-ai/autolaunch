@@ -164,7 +164,8 @@ defmodule Autolaunch.CoveredCalls.Steps do
 
       blocked =
         cond do
-          Terms.stage(listing, block.timestamp) != :exercise -> :outside_exercise_window
+          block.timestamp < listing.expiry -> :exercise_not_open
+          Terms.stage(listing, block.timestamp) == :closed -> :exercise_closed
           position.held < amount -> :more_than_held
           usdc.balance < strike -> :not_enough_usdc
           usdc.allowance < strike -> :approve_first
@@ -184,7 +185,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
              ],
          blocked: blocked,
          approved: usdc.allowance >= strike,
-         facts: %{listing_id: listing.id, amount: amount, strike: strike}
+         facts: %{listing_id: listing.id, amount: amount, strike: strike, expiry: listing.expiry}
        }}
     end
   end

@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ShareCard.MarketPictures do
   @moduledoc """
-  Draws the pictures of covered-call markets and After-hours Exposure series
+  Draws the pictures of covered-call markets and Isolated Exposure to After-hours Stocks series
   (`AutolaunchWeb.ShareCard.market_png/3`) one at a time. Each is drawn from
   the chain, so link previews asking at once, as they do when a picture's
   address moves on, wait for the one drawing in hand and are then answered

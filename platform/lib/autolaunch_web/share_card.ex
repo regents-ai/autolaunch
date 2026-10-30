@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ShareCard do
   @moduledoc """
   The picture and page details a shared auction, token, covered-calls or
-  After-hours Exposure link shows on X and other sites.
+  Isolated Exposure to After-hours Stocks link shows on X and other sites.
 
   The picture is a dark panel inside a tangerine border, with the Autolaunch
   mark and autolaunch.sh along its top and one strip on its left: the token's
@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.ShareCard do
   where X lays the site's name. A figure the site does not know yet is left
   out, never shown as zero.
 
-  A covered-call market's or an After-hours Exposure series' picture takes the
+  A covered-call market's or an Isolated Exposure to After-hours Stocks series' picture takes the
   same strip with the stock's mark, the product's name, where it stands, its
   two figures and the stock's price as a line, read from the chain
   (`AutolaunchWeb.ShareVideo.MarketStory`).
@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.ShareCard do
 
   @doc """
   The page details for the covered calls page (`:covered_calls`, by the
-  market's symbol) or an After-hours Exposure series (`:exposure`, by its
+  market's symbol) or an Isolated Exposure to After-hours Stocks series (`:exposure`, by its
   address): the page's own title and words, its address and the market's
   picture.
   """
@@ -313,14 +313,14 @@ defmodule AutolaunchWeb.ShareCard do
 
   @doc """
   Where a covered-call market's (`:covered_calls`, by symbol) or an
-  After-hours Exposure series' (`:exposure`, by address) picture is served;
+  Isolated Exposure to After-hours Stocks series' (`:exposure`, by address) picture is served;
   its price keeps moving, so its address does too.
   """
   @spec market_image_url(:covered_calls | :exposure, String.t(), DateTime.t()) :: String.t()
   def market_image_url(kind, subject, now), do: Paths.market_image_url(kind, subject, bucket(now))
 
   @doc """
-  A covered-call market's or an After-hours Exposure series' picture as PNG
+  A covered-call market's or an Isolated Exposure to After-hours Stocks series' picture as PNG
   bytes, from its story (`AutolaunchWeb.ShareVideo.MarketStory`): the stock's
   mark, the product's name, where it stands, its two figures and the stock's
   price as a line under them.

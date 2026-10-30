@@ -118,7 +118,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"Covered calls",
        "Sell covered calls on a Base stock token and keep the premium, or buy them, in USDC."},
     "/after-hour-stocks" =>
-      {"After-hours Exposure",
+      {"Isolated Exposure to After-hours Stocks",
        "Split a Base stock token into two for a week: one carries its moves while the market is closed, the other while it is open."},
     :bid =>
       {"Your bid",

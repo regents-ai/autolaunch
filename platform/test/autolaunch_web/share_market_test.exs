@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ShareMarketTest do
   @moduledoc """
-  The share picture and video of covered calls and of an After-hours Exposure
+  The share picture and video of covered calls and of an Isolated Exposure to After-hours Stocks
   series: everyone's at the market's own address, a signed-in person's own only
   at their wallet's address and only once they switch it on in the share window,
   each a real picture and a real video drawn from the chain doubles
@@ -183,7 +183,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
     assert build_conn() |> get("/after-hour-stocks/#{series}/share.mp4") |> response(404)
   end
 
-  describe "After-hours Exposure" do
+  describe "Isolated Exposure to After-hours Stocks" do
     setup do
       ExposureChain.install()
       :ok

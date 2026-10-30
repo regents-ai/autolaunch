@@ -25,9 +25,10 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
   pool whose token is not written as an address, or whose USD is not a plain
   figure under a trillion, is left out. The search is tried once. GeckoTerminal
   refusing or not answering (its free service refuses a burst, and is slow
-  now and then) is one warning line and writes nothing more; any chain read
-  that fails, or any answer in another shape, fails the action. Either way the
-  row is read again when its turn comes.
+  now and then), or a chain read failing (a node timing out, rate limiting or
+  refusing the call), is one warning line and writes nothing more; the chain
+  reads are counted as "stock candidates" in the chain-failure figures, so a
+  failure that lasts shows there. An answer in another shape fails the action. Either way the row is read again when its turn comes.
   """
 
   use Ash.Resource.Change
@@ -75,18 +76,26 @@ defmodule Autolaunch.Stocks.StockCandidate.ReadMarket do
 
           changeset
 
+        {:error, :chain_unavailable} ->
+          Logger.warning("stock candidate #{changeset.data.ticker} not read: a chain read failed")
+
+          changeset
+
         {:error, reason} ->
           Ash.Changeset.add_error(changeset, "stock candidate read failed: #{inspect(reason)}")
       end
     end)
   end
 
+  # The chain reads are counted under their own name, so a fault that lasts shows
+  # in the chain-failure figures for this reader (AutolaunchWeb.Telemetry).
   defp reading(candidate) do
     with {:ok, pad} <- pad(candidate.chain_id),
+         opts = Keyword.put(pad.opts, :log_scope, "stock candidates"),
          {:ok, pools} <- dollar_pools(candidate),
-         {:ok, head} <- Rpc.latest_block(pad.opts),
-         {:ok, true} <- feed_answers?(candidate.feed, head, pad.opts),
-         {:ok, pool} <- issuers_pool(pools, candidate, head, pad.opts) do
+         {:ok, head} <- Rpc.latest_block(opts),
+         {:ok, true} <- feed_answers?(candidate.feed, head, opts),
+         {:ok, pool} <- issuers_pool(pools, candidate, head, opts) do
       {:ok, found(pool)}
     else
       {:ok, false} -> {:ok, Map.put(@unfound, :status, :feed_silent)}

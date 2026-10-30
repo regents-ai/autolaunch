@@ -122,13 +122,13 @@ defmodule AutolaunchWeb.ShareCardController do
     market_wallet_video(conn, :covered_calls, symbol, wallet)
   end
 
-  @doc "An After-hours Exposure series' picture, for any series the site offers."
+  @doc "An Isolated Exposure to After-hours Stocks series' picture, for any series the site offers."
   def exposure(conn, %{"series" => series}) do
     series = exposure_series!(series)
     market_card(conn, ShareCard.market_png(:exposure, series, DateTime.utc_now()))
   end
 
-  @doc "An After-hours Exposure series' share video for everyone."
+  @doc "An Isolated Exposure to After-hours Stocks series' share video for everyone."
   def exposure_video(conn, %{"series" => series}) do
     series = exposure_series!(series)
 
@@ -139,7 +139,7 @@ defmodule AutolaunchWeb.ShareCardController do
     )
   end
 
-  @doc "One wallet's share video of an After-hours Exposure series, on the same terms as `wallet_video/2`."
+  @doc "One wallet's share video of an Isolated Exposure to After-hours Stocks series, on the same terms as `wallet_video/2`."
   def exposure_wallet_video(conn, %{"series" => series, "wallet" => wallet}) do
     series = exposure_series!(series)
     market_wallet_video(conn, :exposure, series, wallet)

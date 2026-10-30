@@ -5,7 +5,7 @@ the agent journeys (scripts/agent-journeys.sh).
   python3 base_fork.py prepare RUN CONTRACTS   stand-in stocks, then the switch-on steps from the Safe
   python3 base_fork.py configs RUN CONTRACTS   the site's two Base settings files, from the deployed manifests
   python3 base_fork.py covered-calls RUN CONTRACTS   AMZNc covered calls: the contract and its settings file
-  python3 base_fork.py exposure RUN CONTRACTS   AMZNc After-hours Exposure: a series and its settings file
+  python3 base_fork.py exposure RUN CONTRACTS   AMZNc Isolated Exposure to After-hours Stocks: a series and its settings file
   python3 base_fork.py stop    RUN CONTRACTS   stop the copy by its recorded pid
 
 RUN holds the copy's pid, port and settings files; CONTRACTS is a contracts/ folder whose stocks-v2
@@ -20,7 +20,7 @@ On the copy only:
   stand-in, keeping its balances, because covered calls read the B20 multiplier and its scheduled
   change; then the CoveredCallsV1 deployed for AMZNc on Base (against Base's USDC and live REGENT
   staking) is placed at its own address with its code as Base holds it.
-- For After-hours Exposure, ExposureFactoryV1 and ChainlinkPrintOracleV2 (pinned to the AMZN
+- For Isolated Exposure to After-hours Stocks, ExposureFactoryV1 and ChainlinkPrintOracleV2 (pinned to the AMZN
   feed's phase) are deployed and one AMZNc series created whose three prices (a close, an open and
   a close) fall in the copy's next few hours, so a journey can record and apply each one.
 - Whatever of the switch-on Base does not already have is done from the impersonated Safe: each stock
@@ -45,7 +45,7 @@ SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 EXECUTOR = "0xa0ee7a142d267c1f36714e4a8f75612f20a79720"
 V1_FACTORY = "0x635615ccef2ef24d0655fc2ebc47a14e005fef6e"
 V1_LAUNCHPAD = "0x1d36a95112835f81b1b499a808e556020c64cac2"
-# Anvil's first development account, unlocked on the copy, deploys the After-hours Exposure contracts.
+# Anvil's first development account, unlocked on the copy, deploys the Isolated Exposure to After-hours Stocks contracts.
 DEPLOYER = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 AMZNC = "0xb200000000000000000000d9192b6b456483c2e8"
 AMZN_FEED = "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
@@ -224,7 +224,7 @@ class Fork:
         print(f"AMZNc covered calls at {contract}; {self.run / 'covered-calls.json'} written")
 
     def exposure(self):
-        """One AMZNc After-hours Exposure series, its factory and oracle, and the site's
+        """One AMZNc Isolated Exposure to After-hours Stocks series, its factory and oracle, and the site's
         settings file. Its prices are a close ten minutes after the copy's time, an open two
         hours later and a close two hours after that."""
         package = self.contracts / "exposure"

@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.ShareVideo.MarketFilm do
 
   The stock's price draws itself from left to right, its tip carrying a
   pulsing dot and the price it stands at. For covered calls each open strike
-  rises in as a dashed line with its expiry; for After-hours Exposure the line
+  rises in as a dashed line with its expiry; for Isolated Exposure to After-hours Stocks the line
   takes the colour of the window it is in, blue after hours and tangerine in
   market hours, and every price the series applied drops in as a gold dot.
   The video then holds on today's figures.

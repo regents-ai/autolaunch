@@ -1,5 +1,5 @@
 {
-  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call and After-hours Exposure page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out, and hosted_tool names the hosted MCP tool of a row whose hosted_mcp is true; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED).",
+  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call and Isolated Exposure to After-hours Stocks page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out, and hosted_tool names the hosted MCP tool of a row whose hosted_mcp is true; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED).",
   "operations": [
     {
       "operation": "autolaunch_auctions",

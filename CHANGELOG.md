@@ -2,6 +2,26 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: a second AMZNc series for next week
+- Isolated Exposure to After-hours Stocks now offers a second AMZNc series, from Monday 2 November's close to Friday 6 November's close, with deposits capped at 40 AMZNc. It opens after Monday's close and is the one the page shows first; the first series stays under Series at the foot of the page.
+
+## 30 October 2026: covered calls, a cleaner page
+- Selling comes first: /covered-calls opens on Sell calls, and Buy calls shows how many are for sale.
+- Under the title, the price, the next window, what is for sale and the fee sit in one strip; the steps are shorter, and details such as how the estimate works sit behind a tap.
+- On your portfolio each listing's actions are compact outlined buttons with a short reason when they can't be pressed yet, and its status is a word or two.
+- "eligible people" links to Coinbase's page on who may hold its stock tokens.
+- For agents: an exercise held back now says why, exercise_not_open or exercise_closed, in place of outside_exercise_window.
+
+## 30 October 2026: X pictures show again
+- On the create pages, the pictures of your connected Profile X and Company X accounts show again instead of a broken image.
+
+## 30 October 2026: Isolated Exposure to After-hours Stocks
+- A new page, Isolated Exposure to After-hours Stocks (/after-hour-stocks), splits a stock token on Base into two tokens for a week. After-hours carries the stock's moves while the market is closed, from each close to the next open; Market-hours carries its moves while the market is open. One of each always returns one stock token, and at the end each returns its own share.
+- The first series is AMZNc, from Friday 30 October's close to Friday 6 November's close, with deposits capped at 0.4 AMZNc. Its full terms are on the page, and the series holds their fingerprint on Base.
+- Mint a pair, return tokens for AMZNc, and record or apply each price from the page; anyone can record a price an hour after its time. Your tokens and what they are worth show in your portfolio, with Return beside them.
+- Available to eligible people outside the US. Prices come from the Coinbase AMZN Chainlink feed on Base, not from the exchange's official open and close.
+- For agents: four new tools and routes list series, read one, read your person's holding, and prepare the wallet steps for mint, return, record and end. Your person's own wallet signs every step.
+
 ## 29 October 2026: hosted MCP, and the Claude connector behind its switch
 - For agents: `https://autolaunch.sh/mcp` is a hosted MCP server. A paired agent signs each call with its own wallet, as for any signed request (`regents mcp` does it), and reads the auction counts there (`autolaunch_auction_counts`), with the same answer as the browser tool and `GET /api/v1/auction-counts`. A call with no signature, two credentials, a query string, a batch or a page from another site is refused in the site's usual error shape; an agent no person paired is refused `agent_not_paired`, as everywhere here. The developer guide's Hosted MCP section has the rules.
 - For agents: while covered calls are open, the hosted MCP server also has `covered_call_book`, `covered_call_quote`, `covered_call_positions` and `prepare_covered_call` (list, fill, cancel, exercise, claim and collect_strike). They take the same inputs as the covered-call routes and browser tools and answer with the same figures and refusals; your covered calls and steps are for your person's own wallets only.

@@ -140,7 +140,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
 
   // Person A lists three AMZNc as calls at a 300 USDC strike and a 3 USDC premium.
   await signIn(page, people.a)
-  await page.goto("/covered-calls?tab=sell")
+  await page.goto("/covered-calls")
   await ready(page)
   await page.locator("summary", {hasText: "Terms"}).click()
   await expect(page.getByText(/Dividends during the week stay with the tokens/)).toBeVisible()

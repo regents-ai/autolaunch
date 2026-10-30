@@ -4,13 +4,13 @@ import {balanceOf, call, mintStock, rpc} from "./support/chain"
 import {expect, fitsAndPresses, people, ready, signIn, test, type Sent} from "./support/person"
 import type {Page} from "@playwright/test"
 
-// After-hours Exposure on AMZNc, end to end on the copy of Base with one series whose
+// Isolated Exposure to After-hours Stocks on AMZNc, end to end on the copy of Base with one series whose
 // three prices (a close, an open and a close) fall in the copy's next few hours
 // (base_fork.py exposure). Person A records and applies the first close, which opens minting;
 // mints a pair; returns part of it as pairs; records and applies the open and the last close,
 // which ends the series; then returns each token on its own for its share of the stock.
 // Every press goes through the page's own wallet buttons. Feature map:
-// operations/FEATURES.md, After-hours Exposure.
+// operations/FEATURES.md, Isolated Exposure to After-hours Stocks.
 //
 // The journey moves the copy's clock, so it puts the copy back the way it found it when it ends.
 test.use({wallet: people.a.wallet})

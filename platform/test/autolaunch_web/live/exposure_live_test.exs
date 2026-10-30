@@ -42,6 +42,18 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "a[href='/after-hour-stocks/terms/#{ExposureChain.terms_hash()}']")
   end
 
+  test "the page offers Share, and a link to it previews the series", %{conn: conn} do
+    ExposureChain.install()
+    html = conn |> get("/after-hour-stocks") |> html_response(200)
+
+    assert html =~ ~s(content="Isolated Exposure to After-hours Stocks on Autolaunch")
+    assert html =~ "/after-hour-stocks?series=#{@series}"
+
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-share")
+  end
+
   test "before the first close, minting waits and no values are shown", %{conn: conn} do
     ExposureChain.install(%{status: 0, prices: [], accounted: 0, held: 0, supply: 0})
     {:ok, view, _html} = live(conn, "/after-hour-stocks")

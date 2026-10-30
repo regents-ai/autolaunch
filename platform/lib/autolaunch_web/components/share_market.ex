@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.Components.ShareMarket do
   @moduledoc """
   The "Share" button of the covered calls page (`:covered_calls`, by the
-  market's symbol) and of the After-hours Exposure page (`:exposure`, by the
+  market's symbol) and of the Isolated Exposure to After-hours Stocks page (`:exposure`, by the
   series' address): the share window (`AutolaunchWeb.Components.ShareDialog`)
   with the market's picture, a post naming it, and its share video.
 

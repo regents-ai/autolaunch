@@ -374,7 +374,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     # Exercise waits for the 24 hours after expiry, and then takes the strike in USDC.
     exercise = %{"kind" => "exercise", "listing_id" => 1, "amount" => @token}
     chain(%{held: 2 * @token, balance: 250_000_000, allowance: 250_000_000})
-    assert steps.(exercise)["blocked"]["code"] == "outside_exercise_window"
+    assert steps.(exercise)["blocked"]["code"] == "exercise_not_open"
 
     chain(
       %{held: 2 * @token, balance: 250_000_000, allowance: 250_000_000},
@@ -392,8 +392,18 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     chain(%{held: @token, balance: 250_000_000}, listing(), expiry() + 60)
     assert steps.(%{exercise | "amount" => 2 * @token})["blocked"]["code"] == "more_than_held"
 
+    # The window's edges, as the contract keeps them: open at expiry, closed a day later.
+    for {at, code} <- [
+          {expiry() - 1, "exercise_not_open"},
+          {expiry(), nil},
+          {expiry() + 86_399, nil}
+        ] do
+      chain(%{held: 2 * @token, balance: 250_000_000, allowance: 250_000_000}, listing(), at)
+      assert get_in(steps.(exercise), ["blocked", "code"]) == code
+    end
+
     chain(%{held: 2 * @token, balance: 0}, listing(), expiry() + 86_400)
-    assert steps.(exercise)["blocked"]["code"] == "outside_exercise_window"
+    assert steps.(exercise)["blocked"]["code"] == "exercise_closed"
 
     # Collecting stock follows what the contract says the wallet may claim.
     chain(%{claimable: 0})

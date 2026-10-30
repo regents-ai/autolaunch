@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureLive do
   @moduledoc """
-  `/after-hour-stocks`: After-hours Exposure on a Base stock. One series at a time, the newest
+  `/after-hour-stocks`: Isolated Exposure to After-hours Stocks on a Base stock. One series at a time, the newest
   unless `?series=<address>` names another the site offers: its two tokens with
   what each is worth now, the prices it has applied, and panels to mint pairs,
   return tokens for the stock, and record the next price. Every figure is read
@@ -19,15 +19,22 @@ defmodule AutolaunchWeb.ExposureLive do
   alias AutolaunchWeb.ExposureComponent
   alias AutolaunchWeb.ExposureFormat, as: F
   alias AutolaunchWeb.NotFoundError
+  alias AutolaunchWeb.ShareCard
   alias Phoenix.LiveView.AsyncResult
   alias Regent.Primitives, as: P
 
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     with true <- Deployment.enabled?(),
          {:ok, config} <- Deployment.current() do
+      share =
+        if connected?(socket),
+          do: nil,
+          else: ShareCard.market_meta(:exposure, shown(params, config.series))
+
       {:ok,
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
+       |> assign(share: share)
        |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)}
     else
       _off -> raise NotFoundError
@@ -35,11 +42,7 @@ defmodule AutolaunchWeb.ExposureLive do
   end
 
   def handle_params(params, _uri, socket) do
-    address =
-      case Deployment.series(params["series"]) do
-        {:ok, address} -> address
-        {:error, _unknown} -> List.last(socket.assigns.all)
-      end
+    address = shown(params, socket.assigns.all)
 
     tab = if params["tab"] == "return", do: :return, else: :mint
     socket = assign(socket, tab: tab)
@@ -47,6 +50,14 @@ defmodule AutolaunchWeb.ExposureLive do
     if address == socket.assigns.address,
       do: {:noreply, socket},
       else: {:noreply, follow(socket, address)}
+  end
+
+  # The series `?series=` names when the site offers it, else the newest.
+  defp shown(params, all) do
+    case Deployment.series(params["series"]) do
+      {:ok, address} -> address
+      {:error, _unknown} -> List.last(all)
+    end
   end
 
   # Another series: the page hears its changes instead of the last one's, and reads it.
@@ -117,7 +128,7 @@ defmodule AutolaunchWeb.ExposureLive do
     <article class="exposure">
       <header class="exposure__header">
         <div class="exposure__intro">
-          <h1>After-hours Exposure</h1>
+          <h1>Isolated Exposure to After-hours Stocks</h1>
           <p>
             Split a stock token into two for a week. After-hours carries the stock's moves while
             the market is closed, from each close to the next open. Market-hours carries its moves
@@ -127,6 +138,13 @@ defmodule AutolaunchWeb.ExposureLive do
             Available to eligible people outside the US.
           </p>
         </div>
+        <AutolaunchWeb.Components.ShareMarket.share_market
+          :if={@address}
+          id="exposure-share"
+          kind={:exposure}
+          subject={@address}
+          account_control={@account_control}
+        />
         <P.last_read
           id="exposure-read"
           at={@series && @series.read_at}
