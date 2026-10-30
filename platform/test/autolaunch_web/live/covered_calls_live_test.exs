@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       ]
     })
 
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
     html = render_async(view, @async_ms)
 
     assert has_element?(view, "#covered-call-1")
@@ -53,11 +53,18 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
        %{conn: conn} do
     CoveredCallsChain.install()
     line = "Available to eligible people outside the US."
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
     html = render_async(view, @async_ms)
+    said = view |> element("h1 + #covered-calls-eligibility") |> render() |> words()
 
-    assert view |> element("h1 + #covered-calls-eligibility") |> render() =~ line
-    assert html |> String.split(line) |> length() == 2
+    assert said == line
+
+    assert has_element?(
+             view,
+             "#covered-calls-eligibility a[href='https://www.coinbase.com/tokenize']"
+           )
+
+    assert html |> words() |> String.split(line) |> length() == 2
 
     for path <- ["/", "/stock-listing/AMZNc", "/docs", "/llms-full.txt"],
         do: refute(conn |> get(path) |> response(200) =~ line)
@@ -74,13 +81,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "with nothing for sale the Buy tab says so", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
     assert render_async(view, @async_ms) =~ "No calls for sale right now"
   end
 
   test "the Sell tab offers the next four Fridays and states the terms", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=sell")
+    {:ok, view, _html} = live(conn, "/covered-calls")
     html = render_async(view, @async_ms)
 
     expiries = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
@@ -95,7 +102,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a stale reference price hides the suggestion and keeps the form", %{conn: conn} do
     CoveredCallsChain.install(%{price: 0})
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=sell")
+    {:ok, view, _html} = live(conn, "/covered-calls")
     html = render_async(view, @async_ms)
 
     refute html =~ "Suggested premiums"
@@ -237,7 +244,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     conn: conn
   } do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=sell")
+    {:ok, view, _html} = live(conn, "/covered-calls")
     render_async(view, @async_ms)
     [first, second | _later] = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
 
@@ -254,7 +261,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     })
 
     assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
-    assert has_element?(view, "#covered-calls-outcome", "$260.00 strike, $3.00 premium")
+    assert has_element?(view, "#covered-calls-outcome", "$260.00 strike · $3.00 premium")
 
     assert has_element?(view, "#covered-calls-suggestions h3", F.window_days(second))
 
@@ -267,7 +274,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a suggested strike and premium fill the List form when chosen", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=sell")
+    {:ok, view, _html} = live(conn, "/covered-calls")
     render_async(view, @async_ms)
 
     button = element(view, "#covered-calls-suggestions tbody tr:first-child button")
@@ -282,9 +289,30 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-calls-outcome h3", "Your trade")
   end
 
-  test "the steps follow the tab: a buyer's on Buy, a seller's on Sell", %{conn: conn} do
+  test "selling comes first and opens by default; Buy says how many calls are for sale",
+       %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls")
+    render_async(view, @async_ms)
+
+    assert has_element?(
+             view,
+             ".covered-calls__tabs a:first-child[aria-current=page]",
+             "Sell calls"
+           )
+
+    assert has_element?(view, "#covered-call-list-form")
+
+    assert has_element?(
+             view,
+             ".covered-calls__tabs a[href='/covered-calls?tab=buy']",
+             "Buy calls (1)"
+           )
+  end
+
+  test "the steps follow the tab: a buyer's on Buy, a seller's on Sell", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
     render_async(view, @async_ms)
     assert has_element?(view, ".covered-calls__steps", "Exercise")
     refute has_element?(view, ".covered-calls__steps", "Settle")
@@ -296,7 +324,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "the contract is named at the foot of the page with its verified code on Basescan",
        %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
     contract = CoveredCallsChain.contract()
 
     assert has_element?(
@@ -337,4 +365,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     [value] = html |> LazyHTML.from_fragment() |> LazyHTML.attribute(name)
     value
   end
+
+  # A page's visible words, tags dropped and spaces made single.
+  defp words(html),
+    do:
+      html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.text()
+      |> String.split()
+      |> Enum.join(" ")
 end
