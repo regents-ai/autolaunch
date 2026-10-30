@@ -10,11 +10,55 @@
 
 /* Homepage discovery is opt-in: collection grids and the rail keep their styles. */
 #home-explore { display: block; min-width: 0; }
-/* The front door, in one column at every width: the title in the pixel face, sized by the page
-   column and keeping its words whole, the value line under it, then the two ways in. */
-#home-explore .home-hero { display: grid; justify-items: start; gap: 16px; margin: 8px 0 40px; }
-#home-explore .home-hero__title { max-width: 30ch; margin: 0; font-size: clamp(1.625rem, 1.1rem + 2cqi, 2.5rem); line-height: 1.15; text-wrap: balance; overflow-wrap: break-word; }
-#home-explore .home-hero__title span { color: var(--orange-ink); }
+/* The front door: four products, each a card that opens to show its details
+   and its link (`HomeProducts`). An open card's details hang under it over the
+   page, so opening one never moves anything below; on a phone they take the
+   row's whole width. */
+#home-explore .home-products { margin: 8px 0 32px; }
+#home-explore .home-products__row { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+#home-explore .home-product { --home-product-ground: var(--color-surface); position: relative; display: grid; min-width: 0; border: 1px solid var(--hairline); background: var(--color-surface); color: var(--color-fg); }
+#home-explore .home-products[data-ready] .home-product[data-open],
+#home-explore .home-products:not([data-ready]) .home-product:is(:hover, :focus-within) { z-index: var(--rg-layer-panel); border-color: var(--hairline-strong); }
+#home-explore .home-product__face { position: relative; display: grid; align-content: start; gap: 4px; min-width: 0; padding: 12px 12px 16px; }
+#home-explore .home-product__art { position: relative; aspect-ratio: 320 / 168; margin: 0 0 8px; color: color-mix(in srgb, var(--color-fg) 72%, var(--color-surface)); }
+#home-explore .home-product__drawing { display: block; width: 100%; height: 100%; }
+#home-explore .home-product__kicker { margin: 0; color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .16em); line-height: 1.4; text-transform: uppercase; }
+#home-explore .home-product__title { margin: 0; font-family: var(--font-family-title); font-size: 1.1875rem; font-weight: 400; line-height: 1.2; text-wrap: balance; }
+/* The title is the card's one control; its press area is the whole card above
+   the details. */
+#home-explore .home-product__title button { margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+#home-explore .home-product__title button::after { content: ""; position: absolute; inset: 0; }
+#home-explore .home-product__title button:focus-visible { outline: none; }
+#home-explore .home-product:has(.home-product__title button:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+#home-explore .home-product__summary { margin: 2px 0 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; text-wrap: pretty; }
+#home-explore .home-product__more { position: absolute; inset: 100% -1px auto; isolation: isolate; display: grid; gap: 14px; padding: 4px 13px 16px; visibility: hidden; }
+#home-explore .home-products[data-ready] .home-product[data-open] .home-product__more,
+#home-explore .home-products:not([data-ready]) .home-product:is(:hover, :focus-within) .home-product__more { visibility: visible; }
+#home-explore .home-product__fill { position: absolute; inset: 0; z-index: -1; border: 1px solid var(--hairline-strong); border-top: 0; background: var(--color-surface); transform-origin: 50% 0; }
+#home-explore .home-products[data-ready] .home-product[data-open],
+#home-explore .home-products:not([data-ready]) .home-product:is(:hover, :focus-within) { border-bottom-color: var(--color-surface); }
+#home-explore .home-product__details { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.45; }
+#home-explore .home-product__details li { padding-left: 14px; text-indent: -14px; }
+#home-explore .home-product__details li::before { content: "–"; display: inline-block; width: 14px; text-indent: 0; }
+#home-explore .home-product__action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+#home-explore .home-product__closed { display: inline-flex; align-items: center; gap: 10px; }
+#home-explore .home-product__closed small { color: var(--color-fg-muted); font-size: .8125rem; }
+@media (max-width: 64rem) { #home-explore .home-products__row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Phones: two compact cards a row, without the line under the title; an open
+   card's details hang under its row, as wide as the row. */
+@media (max-width: 42rem) {
+  #home-explore .home-products { margin-bottom: 24px; }
+  #home-explore .home-products__row { gap: 10px; }
+  #home-explore .home-product { position: static; display: block; }
+  #home-explore .home-product__face { padding: 8px 8px 12px; }
+  #home-explore .home-product__art { margin-bottom: 6px; }
+  #home-explore .home-product__title { font-size: 1rem; }
+  #home-explore .home-product__summary { display: none; }
+  #home-explore .home-product__more { inset: auto 0; margin-top: 9px; padding: 14px 14px 16px; }
+  #home-explore .home-product__fill { border-top: 1px solid var(--hairline-strong); }
+  #home-explore .home-products[data-ready] .home-product[data-open],
+  #home-explore .home-products:not([data-ready]) .home-product:is(:hover, :focus-within) { border-bottom-color: var(--hairline-strong); }
+}
 #home-explore .home-launch { flex: none; }
 #home-explore span.home-launch { display: inline-flex; align-items: center; gap: 10px; }
 #home-explore span.home-launch small { color: var(--color-fg-muted); font-size: .8125rem; }
@@ -44,11 +88,23 @@
 }
 /* Tabs on the left with an orange line under the one showing; Filter and the list or grid switch on the right. */
 #home-explore .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
-#home-explore .home-tabs { display: flex; gap: 24px; margin-right: auto; border-bottom: 1px solid var(--hairline); }
-#home-explore .home-tabs a { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--color-fg-muted); font-size: .9375rem; text-decoration: none; white-space: nowrap; }
-#home-explore .home-tabs a[aria-current] { color: var(--color-fg); font-weight: 600; }
-#home-explore .home-tabs a[aria-current]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--product-autolaunch); }
-@media (hover: hover) and (pointer: fine) { #home-explore .home-tabs a:not([aria-current]):hover { color: var(--color-fg); } }
+/* The list's choices, Auctions, Tokens and Options, and the token types under
+   Tokens: one segmented control each, its dark block gliding to the choice
+   (`MotionTabs`). Until the script places the block, the choice carries it. */
+#home-explore .home-switch { position: relative; display: inline-flex; margin-right: auto; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+#home-explore .home-switch a { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-width: 5.5rem; min-height: 2.75rem; padding: 0 var(--space-2); color: var(--color-fg-muted); font-size: .9375rem; text-decoration: none; white-space: nowrap; transition: color var(--duration-fast) var(--ease-out); }
+#home-explore .home-switch a[aria-current] { color: var(--color-bg); }
+#home-explore .home-switch a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+#home-explore .home-switch__ink { position: absolute; top: 3px; bottom: 3px; left: 0; width: 100px; background: var(--color-fg); transform-origin: 0 50%; pointer-events: none; }
+#home-explore .home-switch__ink:not([style]) { visibility: hidden; }
+#home-explore .home-switch:not(:has(> .home-switch__ink[style])) a[aria-current] { background: var(--color-fg); }
+@media (hover: hover) and (pointer: fine) { #home-explore .home-switch a:not([aria-current]):hover { color: var(--color-fg); } }
+#home-explore .home-switch--kinds { display: flex; width: max-content; max-width: 100%; margin: -8px 0 20px; }
+#home-explore .home-switch--kinds a { min-width: 4.5rem; padding: 0 12px; font-size: .8125rem; }
+@media (max-width: 42rem) {
+  #home-explore .home-switch--kinds { width: auto; }
+  #home-explore .home-switch--kinds a { flex: 1; min-width: 0; padding: 0 6px; }
+}
 #home-explore .home-network { color: var(--color-fg-muted); font-size: .75rem; }
 #home-explore .home-display { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline); border-radius: var(--radius); }
 #home-explore .home-display a { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; padding: 0 9px; border-radius: var(--radius); color: var(--color-fg-muted); }
@@ -190,10 +246,10 @@
 /* Phones: the hero sits a little closer to what follows, the tabs and a search take a row each, and the backed row shows two and a half pictures so it reads as a row that scrolls. */
 @media (max-width: 42rem) {
   #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
-  #home-explore .home-hero { margin-bottom: 28px; }
   #home-explore .home-backed { margin-bottom: 28px; }
   #home-explore .home-backed__row { grid-auto-columns: 40%; gap: 12px; }
-  #home-explore .home-tabs { flex: 1 0 100%; gap: 18px; overflow-x: auto; scrollbar-width: none; }
+  #home-explore .home-toolbar > .home-switch { flex: 1 0 100%; }
+  #home-explore .home-switch a { flex: 1; min-width: 0; }
   #home-explore .home-filter { margin-left: auto; }
   #home-explore .home-search-context { flex: 1 0 100%; justify-content: flex-start; }
 }
@@ -233,7 +289,7 @@ body:has(.market-ticker) { padding-bottom: var(--market-ticker-height); }
 #home-explore .home-hero__paths { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: 8px; }
 
 /* Coming next: the auctions to join now, or one quiet line while none is open. */
-#home-explore .home-next { margin-bottom: 40px; }
+#home-explore .home-next { margin: 48px 0 40px; }
 #home-explore .home-next h2 { margin: 0 0 14px; font-size: 1.125rem; }
 #home-explore .home-next__row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 #home-explore .home-next__card { display: grid; gap: 4px; min-width: 0; height: 100%; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--color-surface); color: inherit; text-decoration: none; }

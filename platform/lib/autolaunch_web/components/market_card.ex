@@ -694,6 +694,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "the event a row's Buy button sends with the token's id; no Buy column without it"
 
+  slot :lead_rows, doc: "rows of the same columns shown above the tokens"
+
   @doc """
   The tokens list: the token with its creator and when it launched, then its
   price and market cap, and a Buy button when the page trades. On a phone the
@@ -713,6 +715,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           </tr>
         </thead>
         <tbody>
+          {render_slot(@lead_rows)}
           <.token_list_row
             :for={token <- @records}
             token={token}
