@@ -1,34 +1,46 @@
 defmodule Autolaunch.Exposure.Listing do
   @moduledoc """
-  Every series the site offers, as their contracts hold them at the latest
-  block (`Autolaunch.Exposure.exposure_series_list/0`), shared by every
-  visitor of the home page's token list.
+  The tokens of every series the site offers, as their contracts hold them at
+  the latest block, read once for every open page and held in
+  `Autolaunch.SharedReading` under `key/0`: the home page's Isolated list and
+  the After-hours tokens at the top of its token list. A key marked degraded
+  says the last read failed; the tokens read before it stay.
 
-  One reading is kept for five minutes (`:exposure_listing_kept_ms`; 0 keeps
-  nothing, as the tests run); a landed press on the chain
-  (`Autolaunch.ChainRefresh`) shortens that to ten seconds from when it was
-  taken, so the next visit after a person acts reads again. It is taken inside
-  this process, so visitors who ask while it is being taken wait for that one
-  reading instead of each starting their own, as
-  `Autolaunch.CoveredCalls.Book` does. The series page and the routes read the
-  chain themselves; only the home page's list is shared.
+  This is a supervised reader of an outside clock, the shape `Autolaunch.ChainHead`
+  has and the `elixir-stack` skill allows: it holds no queue and no copy of
+  database rows, never writes the database, and stores only through
+  `SharedReading`. It reads as it starts, then five minutes after each read
+  finishes, and within ten seconds of a person's on-chain press landing on Base
+  (`refresh/1`, from `Autolaunch.ChainRefresh`). A read that fails is not tried
+  again: the next one replaces it. One runs on each machine that serves pages
+  while Exposure is on. The series page and the routes read the chain
+  themselves; only this list is shared.
   """
 
   use GenServer
 
   @behaviour Autolaunch.ChainRefresh
 
-  alias Autolaunch.Exposure
+  alias Autolaunch.{ChainRefresh, Exposure, SharedReading}
   alias Autolaunch.Exposure.Deployment
 
-  @read_timeout 30_000
+  @every_ms 300_000
+  @topic "exposure_listing"
 
-  def start_link(options \\ []),
-    do: GenServer.start_link(__MODULE__, nil, name: Keyword.get(options, :name, __MODULE__))
+  @doc "Where the tokens are held."
+  def key, do: {:exposure_tokens, "base"}
 
-  @doc "The shared reading of every series, newest first, at most five minutes old."
-  @spec read() :: {:ok, [map()]} | {:error, atom()}
-  def read, do: GenServer.call(__MODULE__, :read, @read_timeout)
+  @doc """
+  The tokens, newest series first, and whether the last read failed; nil
+  while they have never been read.
+  """
+  @spec fetch() :: %{tokens: [map()] | nil, degraded?: boolean()} | nil
+  def fetch do
+    case SharedReading.fetch(key()) do
+      {:ok, %{reading: tokens, degraded?: degraded?}} -> %{tokens: tokens, degraded?: degraded?}
+      :error -> nil
+    end
+  end
 
   @doc """
   The two tokens of each series in `series`, newest series first: the
@@ -45,7 +57,6 @@ defmodule Autolaunch.Exposure.Listing do
 
       %{
         id: token.address,
-        address: token.address,
         name: token.name,
         symbol: token.symbol,
         leg: title,
@@ -61,46 +72,61 @@ defmodule Autolaunch.Exposure.Listing do
     end
   end
 
-  @impl Autolaunch.ChainRefresh
+  @doc "The reader, on a machine that serves pages while Exposure is on."
+  def children do
+    if Deployment.enabled?() and Phoenix.Endpoint.server?(:autolaunch, AutolaunchWeb.Endpoint),
+      do: [__MODULE__],
+      else: []
+  end
+
+  @doc "Reads the series again soon, on every machine, when a press landed on their chain."
+  @impl ChainRefresh
   def refresh(chain_id) do
     case Deployment.current() do
-      {:ok, %{chain_id: ^chain_id}} -> GenServer.cast(__MODULE__, :refresh)
-      _other_chain_or_off -> :ok
+      {:ok, %{chain_id: ^chain_id}} ->
+        Phoenix.PubSub.broadcast(Autolaunch.PubSub, @topic, :chain_refresh)
+
+      _other_chain_or_off ->
+        :ok
     end
   end
 
-  @impl GenServer
-  def init(nil), do: {:ok, nil}
+  def start_link(_options), do: GenServer.start_link(__MODULE__, nil)
 
-  @impl GenServer
-  # However many refreshes arrive, a reading stays good for ten seconds from
-  # when it was taken, so a crowd asking at once costs one read.
-  def handle_cast(:refresh, nil), do: {:noreply, nil}
-
-  def handle_cast(:refresh, {reading, taken_at, good_until}) do
-    gap = Autolaunch.ChainRefresh.gap_s() * 1_000
-    {:noreply, {reading, taken_at, min(good_until, taken_at + gap)}}
+  @impl true
+  def init(nil) do
+    :ok = Phoenix.PubSub.subscribe(Autolaunch.PubSub, @topic)
+    {:ok, read(%{read_at: nil, timer: nil})}
   end
 
-  @impl GenServer
-  def handle_call(:read, _from, {reading, _taken_at, good_until} = kept) do
-    if good_until > now(), do: {:reply, {:ok, reading}, kept}, else: reread(kept)
+  @impl true
+  def handle_info(:read, listing), do: {:noreply, read(listing)}
+
+  # A press landed: read again once ten seconds have passed since the last
+  # read began, unless the next read is due sooner.
+  def handle_info(:chain_refresh, listing) do
+    wait = max(listing.read_at + ChainRefresh.gap_s() * 1_000 - now(), 0)
+
+    case Process.read_timer(listing.timer) do
+      left when is_integer(left) and left > wait ->
+        Process.cancel_timer(listing.timer)
+        {:noreply, %{listing | timer: Process.send_after(self(), :read, wait)}}
+
+      _sooner ->
+        {:noreply, listing}
+    end
   end
 
-  def handle_call(:read, _from, nil), do: reread(nil)
+  defp read(listing) do
+    read_at = now()
 
-  defp reread(kept) do
     case Exposure.exposure_series_list() do
-      {:ok, series} ->
-        taken_at = now()
-        {:reply, {:ok, series}, {series, taken_at, taken_at + kept_ms()}}
-
-      {:error, error} ->
-        {:reply, {:error, Exposure.reason(error)}, kept}
+      {:ok, series} -> SharedReading.put(key(), tokens(series))
+      {:error, _reason} -> SharedReading.degraded(key())
     end
+
+    %{listing | read_at: read_at, timer: Process.send_after(self(), :read, @every_ms)}
   end
 
   defp now, do: System.monotonic_time(:millisecond)
-
-  defp kept_ms, do: Application.get_env(:autolaunch, :exposure_listing_kept_ms, 300_000)
 end

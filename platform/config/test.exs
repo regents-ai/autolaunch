@@ -205,6 +205,3 @@ config :phoenix,
 
 # Covered calls keep no shared reading between tests, so each reads its own chain.
 config :autolaunch, :covered_calls_book_kept_ms, 0
-
-# Nor does the home page's list of After-hours series.
-config :autolaunch, :exposure_listing_kept_ms, 0
