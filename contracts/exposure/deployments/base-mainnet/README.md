@@ -70,3 +70,10 @@ a seven-day recording window, a 40 AMZNc cap, the 9 closes and opens from Mon 2 
 6 Nov 21:00 UTC, legs "AMZNc After-hours 2 to 6 Nov 2026" (AMZNc-AH-1102) and "AMZNc Market-hours 2 to
 6 Nov 2026" (AMZNc-MH-1102). Simulated from the Safe on 29 Oct: it succeeds. The draft terms were retitled twice on 29 Oct on Sean's word, last to Isolated Exposure to After-hours Stocks (nothing else in them changed), so their fingerprint and this batch were rebuilt with `mondaySeriesCall`; the rebuilt call simulates from the Safe at Base block 53258971 (about 2.47M gas). Signed after the relaunch,
 it creates `0x1df53a86c8260c20Ab79b5f620544209Bd454266`. It must execute before Mon 2 Nov 16:00 New York.
+
+Created by the Safe on 30 Oct 2026 at Base block 53,293,530 (transaction
+`0x0484c78e73ba8ca16416f23ecd697ab29987ff15e2742a3e7212f9cf593233f3`). Read from Base: series
+`0x1df53a86c8260c20Ab79b5f620544209Bd454266`, `ChainlinkPrintOracleV2`, `termsHash` `0xa1cf3a36…db23`,
+cap 40 AMZNc, seven-day recording window, 9 prices from Mon 2 Nov 21:00 UTC. Legs: After-hours
+`0xb1303E0Eb033e6DfCDdA568a54C73A6BAFbb7E42`, Market-hours
+`0x0fD3995511a1D35f77d0855fD5c112Eb61084AAA`. Listed in [`site-series.json`](site-series.json).

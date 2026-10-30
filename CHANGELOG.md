@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: a second AMZNc series for next week
+- Isolated Exposure to After-hours Stocks now offers a second AMZNc series, from Monday 2 November's close to Friday 6 November's close, with deposits capped at 40 AMZNc. It opens after Monday's close and is the one the page shows first; the first series stays under Series at the foot of the page.
+
 ## 30 October 2026: covered calls, a cleaner page
 - Selling comes first: /covered-calls opens on Sell calls, and Buy calls shows how many are for sale.
 - Under the title, the price, the next window, what is for sale and the fee sit in one strip; the steps are shorter, and details such as how the estimate works sit behind a tap.
