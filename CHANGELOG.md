@@ -3,7 +3,8 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 30 October 2026: After-hours trading first
-- On the After-hours page, Buy, Sell, Split and Redeem now sit right under the series names, ahead of the series facts and the tokens.
+- The After-hours page now opens on Buy, Sell, Split and Redeem, then the two token cards, then the series names and the series facts.
+- A token's leverage no longer carries the note "in its own window".
 - The four choices are equal in width and each word fits, down to the smallest phones.
 - Example's arrow sits beside the word.
 

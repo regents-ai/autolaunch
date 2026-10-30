@@ -226,23 +226,6 @@ defmodule AutolaunchWeb.ExposureLive do
         />
       </header>
 
-      <nav
-        :if={match?([_, _ | _], @all)}
-        id="exposure-series"
-        class="exposure__picker"
-        aria-label="Series"
-      >
-        <.link
-          :for={address <- Enum.reverse(@all)}
-          id={"exposure-series-#{address}"}
-          patch={~p"/after-hour-stocks?#{[series: address]}"}
-          class="exposure__pick"
-          aria-current={address == @address && "page"}
-        >
-          {@catalog[address] || short_address(address)}
-        </.link>
-      </nav>
-
       <p :if={@reading.failed} class="exposure__muted" role="alert">
         The series couldn't be read just now. Try again in a moment.
       </p>
@@ -359,40 +342,6 @@ defmodule AutolaunchWeb.ExposureLive do
           </div>
         </section>
 
-        <section class="exposure__summary" aria-label="Series">
-          <dl class="exposure__facts">
-            <div>
-              <dt>Stock</dt>
-              <dd>{@series.stock.symbol}</dd>
-            </div>
-            <div>
-              <dt>Term</dt>
-              <dd>{term(@series)}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{status(@series)}</dd>
-            </div>
-            <div>
-              <dt>Deposited</dt>
-              <dd>
-                {F.tokens(@series.accounted, @series.stock.decimals)} of {F.tokens(
-                  @series.deposit_cap,
-                  @series.stock.decimals
-                )} {@series.stock.symbol}
-              </dd>
-            </div>
-            <div>
-              <dt>{@series.stock.symbol} price</dt>
-              <dd>{if @series.settled > 0, do: F.usd(@series.price), else: "Not set yet"}</dd>
-            </div>
-            <div :if={@series.next}>
-              <dt>Next price</dt>
-              <dd id="exposure-next">{next_price(@series)}</dd>
-            </div>
-          </dl>
-        </section>
-
         <section class="exposure__section" aria-labelledby="exposure-tokens-title">
           <h2 id="exposure-tokens-title" class="exposure__title">Tokens</h2>
           <p
@@ -456,6 +405,59 @@ defmodule AutolaunchWeb.ExposureLive do
               </p>
             </div>
           </P.disclosure>
+        </section>
+      <% end %>
+
+      <nav
+        :if={match?([_, _ | _], @all)}
+        id="exposure-series"
+        class="exposure__picker"
+        aria-label="Series"
+      >
+        <.link
+          :for={address <- Enum.reverse(@all)}
+          id={"exposure-series-#{address}"}
+          patch={~p"/after-hour-stocks?#{[series: address]}"}
+          class="exposure__pick"
+          aria-current={address == @address && "page"}
+        >
+          {@catalog[address] || short_address(address)}
+        </.link>
+      </nav>
+
+      <%= if @series do %>
+        <section class="exposure__summary" aria-label="Series">
+          <dl class="exposure__facts">
+            <div>
+              <dt>Stock</dt>
+              <dd>{@series.stock.symbol}</dd>
+            </div>
+            <div>
+              <dt>Term</dt>
+              <dd>{term(@series)}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{status(@series)}</dd>
+            </div>
+            <div>
+              <dt>Deposited</dt>
+              <dd>
+                {F.tokens(@series.accounted, @series.stock.decimals)} of {F.tokens(
+                  @series.deposit_cap,
+                  @series.stock.decimals
+                )} {@series.stock.symbol}
+              </dd>
+            </div>
+            <div>
+              <dt>{@series.stock.symbol} price</dt>
+              <dd>{if @series.settled > 0, do: F.usd(@series.price), else: "Not set yet"}</dd>
+            </div>
+            <div :if={@series.next}>
+              <dt>Next price</dt>
+              <dd id="exposure-next">{next_price(@series)}</dd>
+            </div>
+          </dl>
         </section>
 
         <section class="exposure__section" aria-labelledby="exposure-prices-title">
@@ -636,7 +638,6 @@ defmodule AutolaunchWeb.ExposureLive do
           <dt>Leverage</dt>
           <dd>
             {leverage(@series, @ledger)}
-            <small :if={@series.status != :ended}>in its own window</small>
           </dd>
         </div>
       </dl>
