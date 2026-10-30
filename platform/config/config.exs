@@ -204,7 +204,8 @@ config :autolaunch, Autolaunch.ChainRefresh,
     Autolaunch.Indexer.ReadChain,
     Autolaunch.LaunchDiscovery.DiscoverMemestock,
     Autolaunch.RegentFacts,
-    Autolaunch.CoveredCalls.Book
+    Autolaunch.CoveredCalls.Book,
+    Autolaunch.Exposure.Listing
   ]
 
 # How long each server keeps a chain's saved stocks before reading them again;

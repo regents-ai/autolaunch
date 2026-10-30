@@ -22,20 +22,37 @@ defmodule AutolaunchWeb.HomeLive do
     ]
 
   import AutolaunchWeb.Components.ChainIcon
+  import AutolaunchWeb.Components.HomeProducts, only: [product_cards: 1]
   import AutolaunchWeb.Components.LinkIcon
+  import AutolaunchWeb.Components.StockLists
   import AutolaunchWeb.Components.SwapModal
-  alias Autolaunch.HomeMarket
+  alias Autolaunch.{CoveredCalls, Exposure, HomeMarket}
   alias AutolaunchWeb.{LabMarket, LiveListings, LiveSettle}
+  alias Phoenix.LiveView.AsyncResult
 
-  # The list's tabs: every launch, the live auctions, the finished ones and the
-  # launched tokens. Each is a set of list options.
-  @tabs [new: "New", live: "Live", finished: "Finished", tokens: "Tokens"]
+  # What the list shows: auctions, launched tokens, or the covered calls for
+  # sale. Tokens choose a type below it, Isolated being the After-hours tokens.
+  @lists [auctions: "Auctions", tokens: "Tokens", options: "Options"]
+  @token_kinds [
+    {"all", "All"},
+    {"memestock", "Memestock"},
+    {"revstake", "Revstake"},
+    {"isolated", "Isolated"}
+  ]
+
+  # An auction's status in the filter menu. Each is a set of list options.
+  @statuses [new: "All", live: "Live", finished: "Finished"]
 
   @unfiltered %{q: "", chain: "all", kind: "all", x: false, ens: false, github: false}
 
   @no_connection %{x: false, ens: false, github: false}
 
   def mount(_params, _session, socket) do
+    offered = %{
+      options?: CoveredCalls.Deployment.enabled?(),
+      isolated?: Exposure.Deployment.enabled?()
+    }
+
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/"))
@@ -53,7 +70,14 @@ defmodule AutolaunchWeb.HomeLive do
        next_cursor: nil,
        has_more: false,
        local_lab: Autolaunch.Lab.test_chain?(),
-       tabs: @tabs,
+       listed: nil,
+       calls: AsyncResult.loading(),
+       isolated: AsyncResult.loading(),
+       options?: offered.options?,
+       isolated?: offered.isolated?,
+       lists: lists(offered),
+       token_kinds: token_kinds(offered),
+       statuses: @statuses,
        unfiltered: @unfiltered,
        no_connection: @no_connection
      )
@@ -65,23 +89,75 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_params(params, _uri, socket) do
     options = HomeMarket.options(params)
-    previous = socket.assigns.market_options
+    list = list(params, socket.assigns)
+    first? = is_nil(socket.assigns.market_options)
 
     socket =
       assign(socket,
         market_options: options,
+        list: list,
+        token_kind: token_kind(params, options, socket.assigns),
         kind: kind(options),
         tab: tab(options),
         filtered?: filtered?(options),
+        filter_active?: filter_active?(options),
         connections: Map.take(options, [:x, :ens, :github]),
         trade: nil
       )
 
-    cond do
-      is_nil(previous) -> {:noreply, first_market(socket)}
-      Map.drop(previous, [:display]) == Map.drop(options, [:display]) -> {:noreply, socket}
-      true -> {:noreply, load_market(socket, false)}
-    end
+    socket =
+      if first?, do: assign(socket, backed: read_backed(), coming: read_coming()), else: socket
+
+    {:noreply,
+     case {list, socket.assigns.token_kind} do
+       {:options, _kind} -> read_calls(socket)
+       {:tokens, "isolated"} -> read_isolated(socket)
+       {:tokens, "all"} -> socket |> show_market() |> read_isolated()
+       _market -> show_market(socket)
+     end}
+  end
+
+  # The list the address names, among those this site offers.
+  defp list(%{"view" => "options"}, %{options?: true}), do: :options
+  defp list(%{"view" => "tokens"}, _assigns), do: :tokens
+  defp list(_params, _assigns), do: :auctions
+
+  defp token_kind(%{"kind" => "isolated"}, _options, %{isolated?: true}), do: "isolated"
+  defp token_kind(_params, options, _assigns), do: options.kind
+
+  defp lists(%{options?: true}), do: @lists
+  defp lists(_assigns), do: Keyword.delete(@lists, :options)
+
+  defp token_kinds(%{isolated?: true}), do: @token_kinds
+  defp token_kinds(_assigns), do: List.keydelete(@token_kinds, "isolated", 0)
+
+  # The auctions or tokens the options name, read unless they are the ones
+  # already shown.
+  defp show_market(%{assigns: %{listed: nil}} = socket), do: first_market(socket)
+
+  defp show_market(socket) do
+    if Map.drop(socket.assigns.listed, [:display]) ==
+         Map.drop(socket.assigns.market_options, [:display]),
+       do: socket,
+       else: load_market(socket, false)
+  end
+
+  # The covered calls for sale, from the market's shared reading.
+  defp read_calls(socket) do
+    socket
+    |> assign(:calls, AsyncResult.loading(socket.assigns.calls))
+    |> start_async(:home_calls, fn ->
+      with {:ok, %{markets: [market | _]}} <- CoveredCalls.Deployment.current() do
+        CoveredCalls.covered_call_book(market.symbol)
+      end
+    end)
+  end
+
+  # The After-hours series, from their shared reading.
+  defp read_isolated(socket) do
+    socket
+    |> assign(:isolated, AsyncResult.loading(socket.assigns.isolated))
+    |> start_async(:home_isolated, &Exposure.Listing.read/0)
   end
 
   def handle_event(
@@ -117,17 +193,51 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_event("retry", _params, socket),
     do: {:noreply, load_market(socket, socket.assigns.market_append)}
 
+  def handle_event("retry_calls", _params, socket), do: {:noreply, read_calls(socket)}
+
+  def handle_event("retry_isolated", _params, socket), do: {:noreply, read_isolated(socket)}
+
   def handle_async(:home_market, {:ok, {:ok, page}}, socket),
     do: {:noreply, put_market(socket, page)}
 
   def handle_async(:home_market, _failure, socket), do: {:noreply, market_failed(socket)}
+
+  def handle_async(:home_calls, {:ok, {:ok, book}}, socket),
+    do: {:noreply, assign(socket, :calls, AsyncResult.ok(socket.assigns.calls, book))}
+
+  def handle_async(:home_calls, {:ok, {:error, error}}, socket),
+    do:
+      {:noreply,
+       assign(
+         socket,
+         :calls,
+         AsyncResult.failed(socket.assigns.calls, CoveredCalls.reason(error))
+       )}
+
+  def handle_async(:home_calls, {:exit, reason}, socket),
+    do: {:noreply, assign(socket, :calls, AsyncResult.failed(socket.assigns.calls, reason))}
+
+  def handle_async(:home_isolated, {:ok, {:ok, series}}, socket),
+    do:
+      {:noreply,
+       assign(
+         socket,
+         :isolated,
+         AsyncResult.ok(socket.assigns.isolated, Exposure.Listing.tokens(series))
+       )}
+
+  def handle_async(:home_isolated, {:ok, {:error, reason}}, socket),
+    do: {:noreply, assign(socket, :isolated, AsyncResult.failed(socket.assigns.isolated, reason))}
+
+  def handle_async(:home_isolated, {:exit, reason}, socket),
+    do: {:noreply, assign(socket, :isolated, AsyncResult.failed(socket.assigns.isolated, reason))}
 
   # A reread answers only for the listing it was asked about, at the length it
   # had then; a filter, search or "Load more" since brings its own records.
   def handle_async(:home_reread, {:ok, {options, count, {backed, coming}, {:ok, page}}}, socket) do
     socket = assign(socket, backed: backed, coming: coming)
 
-    if options == socket.assigns.market_options and count == length(socket.assigns.records) and
+    if options == socket.assigns.listed and count == length(socket.assigns.records) and
          not socket.assigns.market_loading do
       {:noreply,
        assign(socket,
@@ -168,6 +278,7 @@ defmodule AutolaunchWeb.HomeLive do
 
     socket
     |> assign(
+      listed: options,
       market_loading: true,
       market_failed: false,
       market_append: append?,
@@ -180,7 +291,7 @@ defmodule AutolaunchWeb.HomeLive do
   # the page as it arrives, for readers that run no scripts too. Later
   # listings load beside the ones already shown.
   defp first_market(socket) do
-    socket = assign(socket, market_append: false, backed: read_backed(), coming: read_coming())
+    socket = assign(socket, market_append: false, listed: socket.assigns.market_options)
 
     case read_market(socket.assigns.market_options, nil) do
       {:ok, page} -> put_market(socket, page)
@@ -234,7 +345,7 @@ defmodule AutolaunchWeb.HomeLive do
 
     assign(socket,
       records: records,
-      records_kind: kind(socket.assigns.market_options),
+      records_kind: kind(socket.assigns.listed),
       creators: creators,
       next_cursor: page.next_cursor,
       has_more: page.has_more,
@@ -261,8 +372,10 @@ defmodule AutolaunchWeb.HomeLive do
 
   # The records loaded so far, read again in place: the filters, the pages
   # loaded with "Load more" and an open bid form all stay.
+  defp reread_market(%{assigns: %{listed: nil}} = socket), do: socket
+
   defp reread_market(socket) do
-    options = socket.assigns.market_options
+    options = socket.assigns.listed
     count = length(socket.assigns.records)
 
     start_async(socket, :home_reread, fn ->
@@ -316,6 +429,40 @@ defmodule AutolaunchWeb.HomeLive do
     do:
       options.q != "" or options.chain != "all" or options.kind != "all" or options.x or
         options.ens or options.github
+
+  # Whether the filter menu narrows the list: tokens choose their type beside
+  # it, not in it.
+  defp filter_active?(%{view: "tokens"} = options),
+    do: options.chain != "all" or options.x or options.ens or options.github
+
+  defp filter_active?(options),
+    do:
+      options.chain != "all" or options.kind != "all" or options.state != "all" or options.x or
+        options.ens or options.github
+
+  # The After-hours tokens of the series still running, at the top of every
+  # token, while the filters and search leave room for them: they are on Base,
+  # with no creator.
+  defp isolated_lead(
+         %{list: :tokens, token_kind: "all", isolated: %{ok?: true, result: tokens}} = assigns
+       ) do
+    options = assigns.market_options
+
+    if options.chain in ["all", "base"] and !(options.x or options.ens or options.github),
+      do: Enum.filter(tokens, &(&1.status != :ended and matches?(&1, options.q))),
+      else: []
+  end
+
+  defp isolated_lead(_assigns), do: []
+
+  defp matches?(_token, ""), do: true
+
+  defp matches?(token, q),
+    do:
+      Enum.any?(
+        [token.name, token.symbol],
+        &String.contains?(String.downcase(&1), String.downcase(q))
+      )
 
   # The way in to launching, beside the way in to backing one. Before
   # launches open it stays in place, switched off, with the reason beside it.
@@ -371,40 +518,34 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   def render(assigns) do
+    assigns = assign(assigns, :isolated_lead, isolated_lead(assigns))
+
     ~H"""
     <div class="home-page home-explore-page" id="home-explore">
-      <header class="home-hero">
-        <h1 class="home-hero__title">
-          Autolaunch <span>Auctions</span>
-        </h1>
-        <p class="home-hero__value">
-          Back long-term agents early, through an auction where everyone pays the same price.
-        </p>
-        <div class="home-hero__paths">
-          <.link navigate="/auctions" class="rg-button rg-button--primary home-back">
-            <span class="rg-button__label">Back a launch</span>
-          </.link>
-          <.launch_button />
-        </div>
-      </header>
-
-      <.coming_next coming={@coming} />
-
-      <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
-        <h2 id="home-backed-title">Bid volume</h2>
-        <ol class="home-backed__row">
-          <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
-            <.backed_card auction={auction} rank={rank} rate={figure_rate(@rates, auction)} />
-          </li>
-        </ol>
-      </section>
+      <h1 class="visually-hidden">Autolaunch</h1>
+      <.product_cards launches_open={!Autolaunch.Prelaunch.read_only?()} />
 
       <div class="home-toolbar">
-        <nav class="home-tabs" aria-label="Launches">
+        <nav
+          id="home-lists"
+          class="home-switch"
+          aria-label="List"
+          phx-hook="MotionTabs"
+          data-active={@list}
+          data-variant={AutolaunchWeb.Motion.standard("tabs")}
+        >
+          <span
+            id="home-lists-ink"
+            class="home-switch__ink"
+            data-ink
+            aria-hidden="true"
+            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
+          ></span>
           <.link
-            :for={{tab, label} <- @tabs}
-            patch={HomeMarket.path(@market_options, tab_options(tab))}
-            aria-current={if @tab == tab, do: "page"}
+            :for={{list, label} <- @lists}
+            patch={list_path(@market_options, list)}
+            data-tab={list}
+            aria-current={if @list == list, do: "page"}
           >{label}</.link>
         </nav>
         <span :if={@local_lab} class="home-network">
@@ -412,7 +553,7 @@ defmodule AutolaunchWeb.HomeLive do
         </span>
         <%!-- Always in the page, so its coming and going never moves Filter, which has the
              keyboard after Clear search. --%>
-        <p class="home-search-context" hidden={@market_options.q == ""}>
+        <p class="home-search-context" hidden={@market_options.q == "" or !market_list?(assigns)}>
           <span>Results for “{@market_options.q}”</span>
           <button
             type="button"
@@ -430,10 +571,11 @@ defmodule AutolaunchWeb.HomeLive do
           class="home-filter"
           phx-hook=".FilterMenu"
           phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+          hidden={!market_list?(assigns)}
         >
           <summary>
             Filter<span
-              :if={@filtered? and @market_options.q == ""}
+              :if={@filter_active? and @market_options.q == ""}
               class="home-filter__active"
               aria-label="Filter active"
             ></span>
@@ -457,7 +599,19 @@ defmodule AutolaunchWeb.HomeLive do
                 </.filter_option>
               </div>
             </div>
-            <div class="home-filter__group" role="group" aria-label="Type">
+            <div :if={@kind == :auction} class="home-filter__group" role="group" aria-label="Status">
+              <span class="home-filter__label" aria-hidden="true">Status</span>
+              <div class="home-filter__row">
+                <.filter_option
+                  :for={{status, label} <- @statuses}
+                  patch={HomeMarket.path(@market_options, tab_options(status))}
+                  selected={@tab == status}
+                >
+                  {label}
+                </.filter_option>
+              </div>
+            </div>
+            <div :if={@kind == :auction} class="home-filter__group" role="group" aria-label="Type">
               <span class="home-filter__label" aria-hidden="true">Type</span>
               <div class="home-filter__row">
                 <.filter_option
@@ -516,7 +670,7 @@ defmodule AutolaunchWeb.HomeLive do
             }
           }
         </script>
-        <nav class="home-display" aria-label="Display">
+        <nav class="home-display" aria-label="Display" hidden={!market_list?(assigns)}>
           <.link
             patch={HomeMarket.path(@market_options, %{display: "list"})}
             aria-current={if @market_options.display == "list", do: "page"}
@@ -558,7 +712,70 @@ defmodule AutolaunchWeb.HomeLive do
         </nav>
       </div>
 
+      <nav
+        :if={@list == :tokens}
+        id="home-kinds"
+        class="home-switch home-switch--kinds"
+        aria-label="Token type"
+        phx-hook="MotionTabs"
+        data-active={@token_kind}
+        data-variant={AutolaunchWeb.Motion.standard("tabs")}
+      >
+        <span
+          id="home-kinds-ink"
+          class="home-switch__ink"
+          data-ink
+          aria-hidden="true"
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
+        ></span>
+        <.link
+          :for={{kind, label} <- @token_kinds}
+          patch={kind_path(@market_options, kind)}
+          data-tab={kind}
+          aria-current={if @token_kind == kind, do: "page"}
+        >{label}</.link>
+      </nav>
+
       <section
+        :if={@list == :options}
+        id="home-calls"
+        class="home-market"
+        aria-label="Calls for sale"
+        aria-busy={to_string(@calls.loading != nil)}
+      >
+        <.call_list :if={@calls.ok? && !@calls.loading} book={@calls.result} />
+        <.list_loading :if={@calls.loading} label="Loading calls" />
+        <Regent.Primitives.notice
+          :if={@calls.failed && !@calls.loading}
+          tone="error"
+          class="home-market__error"
+        >
+          <p>Calls can't be shown right now.</p>
+          <Regent.Primitives.button phx-click="retry_calls" variant="secondary">Try again</Regent.Primitives.button>
+        </Regent.Primitives.notice>
+      </section>
+
+      <section
+        :if={@list == :tokens && @token_kind == "isolated"}
+        id="home-isolated"
+        class="home-market"
+        aria-label="Isolated tokens"
+        aria-busy={to_string(@isolated.loading != nil)}
+      >
+        <.isolated_list :if={@isolated.ok? && !@isolated.loading} tokens={@isolated.result} />
+        <.list_loading :if={@isolated.loading} label="Loading tokens" />
+        <Regent.Primitives.notice
+          :if={@isolated.failed && !@isolated.loading}
+          tone="error"
+          class="home-market__error"
+        >
+          <p>Isolated tokens can't be shown right now.</p>
+          <Regent.Primitives.button phx-click="retry_isolated" variant="secondary">Try again</Regent.Primitives.button>
+        </Regent.Primitives.notice>
+      </section>
+
+      <section
+        :if={market_list?(assigns)}
         id="home-market"
         class="home-market"
         aria-label="Launches"
@@ -588,12 +805,13 @@ defmodule AutolaunchWeb.HomeLive do
           </p>
         </Regent.Primitives.notice>
         <div
-          :if={@records != [] && @market_options.display == "grid"}
+          :if={(@records != [] || @isolated_lead != []) && @market_options.display == "grid"}
           id="home-coin-grid"
           class="home-coin-grid"
           phx-hook="MotionCascade"
           data-variant={AutolaunchWeb.Motion.standard("grid")}
         >
+          <.isolated_card :for={token <- @isolated_lead} token={token} />
           <.explore_card
             :for={{record, index} <- Enum.with_index(@records)}
             kind={@records_kind}
@@ -622,14 +840,18 @@ defmodule AutolaunchWeb.HomeLive do
         <.token_list
           :if={
             @market_options.display == "list" && @kind == :token &&
-              (@records != [] || @market_loading)
+              (@records != [] || @isolated_lead != [] || @market_loading)
           }
           creators={@creators}
           records={if @records_kind == :token, do: @records, else: []}
           rates={@rates}
           loading={@market_loading}
           trade_event="open_trade"
-        />
+        >
+          <:lead_rows>
+            <.isolated_rows tokens={@isolated_lead} action />
+          </:lead_rows>
+        </.token_list>
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">
           <p>
@@ -640,7 +862,7 @@ defmodule AutolaunchWeb.HomeLive do
           <Regent.Primitives.button phx-click="retry" variant="secondary">Try again</Regent.Primitives.button>
         </Regent.Primitives.notice>
         <div
-          :if={!@market_loading && !@market_failed && @records == []}
+          :if={!@market_loading && !@market_failed && @records == [] && @isolated_lead == []}
           class="home-empty"
           role="status"
         >
@@ -676,13 +898,24 @@ defmodule AutolaunchWeb.HomeLive do
           >{if @market_loading, do: "Loading…", else: "Load more"}</Regent.Primitives.button>
         </div>
         <p
-          :if={!@market_loading && !@market_failed && @records != []}
+          :if={!@market_loading && !@market_failed && (@records != [] || @isolated_lead != [])}
           class="home-result-count"
           role="status"
         >
-          Showing {count_label(length(@records), @records_kind)}{if !@has_more,
+          Showing {count_label(length(@records) + length(@isolated_lead), @records_kind)}{if !@has_more,
             do: " · All results loaded"}
         </p>
+      </section>
+
+      <.coming_next coming={@coming} />
+
+      <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
+        <h2 id="home-backed-title">Bid volume</h2>
+        <ol class="home-backed__row">
+          <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
+            <.backed_card auction={auction} rank={rank} rate={figure_rate(@rates, auction)} />
+          </li>
+        </ol>
       </section>
       <.swap_modal
         :if={match?(%{record: %Autolaunch.Token{}}, @trade)}
@@ -717,6 +950,32 @@ defmodule AutolaunchWeb.HomeLive do
         session_lease={@session_lease}
       />
     </div>
+    """
+  end
+
+  # The auctions or launched tokens the site keeps, rather than a list read
+  # from Base.
+  defp market_list?(%{list: :auctions}), do: true
+  defp market_list?(%{list: :tokens, token_kind: kind}), do: kind != "isolated"
+  defp market_list?(_assigns), do: false
+
+  # A list keeps the filters that apply to it; its type starts again at All.
+  defp list_path(_options, :options), do: "/?view=options"
+
+  defp list_path(options, list),
+    do: HomeMarket.path(options, %{view: to_string(list), kind: "all"})
+
+  defp kind_path(_options, "isolated"), do: "/?kind=isolated&view=tokens"
+  defp kind_path(options, kind), do: HomeMarket.path(options, %{view: "tokens", kind: kind})
+
+  attr :label, :string, required: true
+
+  defp list_loading(assigns) do
+    ~H"""
+    <div class="market-list__scroll" aria-hidden="true">
+      <span class="loading-block"></span>
+    </div>
+    <p class="visually-hidden" role="status">{@label}</p>
     """
   end
 

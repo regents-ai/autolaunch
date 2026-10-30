@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: a new front page
+- The home page opens on four products: Call Option Onchain (covered calls), Isolated After-hours Exposure, Memestock Pair and Revenue Share Token. Each card opens on hover, keyboard focus or a tap to show a few details and the link to its page.
+- Under the cards, one list with three choices: Auctions, Tokens and Options. Tokens has its own choice of All, Memestock, Revstake or Isolated; Isolated lists the After-hours and Market-hours tokens of each series with their price and market cap, and All puts the running series' tokens above the launched ones. Options lists the covered calls for sale, each with Buy.
+- An auction's status (All, Live, Finished) is now chosen in Filter. Coming next and Bid volume sit under the list.
+
 ## 30 October 2026: buy one After-hours token
 - Buy After-hours or Market-hours with USDC, or sell it back for USDC, right on the page: pick the token, enter the amount, approve and press Buy or Sell. The price comes from the token's own pool, and a trade takes at least its quote less 2%.
 - Buy leads the page once a token's pool has liquidity; until then the page says trading opens when liquidity is added, and Split and Redeem work as before.
