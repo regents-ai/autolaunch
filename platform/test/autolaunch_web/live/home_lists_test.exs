@@ -41,8 +41,8 @@ defmodule AutolaunchWeb.HomeListsTest do
     {:ok, view, _html} = live(conn, "/")
 
     for {id, title, path} <- [
-          {"calls", "Call Option Onchain", "/covered-calls"},
-          {"after-hours", "Isolated After-hours Exposure", "/after-hour-stocks"},
+          {"calls", "Call Option Onchain", "/stock/covered-call"},
+          {"after-hours", "Isolated After-hours Exposure", "/stock/isolated-afters"},
           {"memestock", "Memestock Pair", "/create"},
           {"revstake", "Revenue Share Token", "/create/revstake"}
         ] do
@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     html = render_async(view, @async_ms)
 
     assert has_element?(view, "#home-lists a[data-tab=options][aria-current=page]")
-    assert has_element?(view, "#home-call-1 a[href='/covered-calls?listing=1']", "Buy")
+    assert has_element?(view, "#home-call-1 a[href='/stock/covered-call?listing=1']", "Buy")
     refute has_element?(view, "#home-call-2")
     refute has_element?(view, "#home-call-3")
     assert html =~ "Strike $260.00"
@@ -113,7 +113,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     render_async(view, @async_ms)
 
     assert has_element?(view, "#home-calls h2", "No listings")
-    assert has_element?(view, "#home-calls a[href='/covered-calls']", "Sell calls")
+    assert has_element?(view, "#home-calls a[href='/stock/covered-call']", "Sell calls")
   end
 
   test "Options that cannot be read say so and read again on Try again", %{conn: conn} do
@@ -132,7 +132,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     exposure_listing()
     {:ok, view, _html} = live(conn, "/?kind=isolated&view=tokens")
 
-    series = "/after-hour-stocks?series=#{ExposureChain.series()}"
+    series = "/stock/isolated-afters?series=#{ExposureChain.series()}"
     overnight = view |> element("#home-isolated-#{ExposureChain.overnight()}") |> render()
     session = view |> element("#home-isolated-#{ExposureChain.session()}") |> render()
 

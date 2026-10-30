@@ -1,0 +1,61 @@
+/* The product cards (`HomeProducts`). On the home page, four products, each a
+   card that opens to show its details and its link. An open card's details
+   hang under it over the page, so opening one never moves anything below; on
+   a phone they take the row's whole width. */
+#home-products { margin: 8px 0 32px; }
+#home-products .home-products__row { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+#home-products .home-product { --home-product-ground: var(--color-surface); position: relative; display: grid; min-width: 0; border: 1px solid var(--hairline); background: var(--color-surface); color: var(--color-fg); }
+#home-products[data-ready] .home-product[data-open],
+#home-products:not([data-ready], .home-products--open) .home-product:is(:hover, :focus-within) { z-index: var(--rg-layer-panel); border-color: var(--hairline-strong); }
+#home-products .home-product__face { position: relative; display: grid; align-content: start; gap: 4px; min-width: 0; padding: 12px 12px 16px; }
+#home-products .home-product__art { position: relative; aspect-ratio: 320 / 168; margin: 0 0 8px; color: color-mix(in srgb, var(--color-fg) 72%, var(--color-surface)); }
+#home-products .home-product__drawing { display: block; width: 100%; height: 100%; }
+#home-products .home-product__kicker { margin: 0; color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .16em); line-height: 1.4; text-transform: uppercase; }
+#home-products .home-product__title { margin: 0; font-family: var(--font-family-title); font-size: 1.1875rem; font-weight: 400; line-height: 1.2; text-wrap: balance; }
+/* The title is the card's one control; its press area is the whole card above
+   the details. */
+#home-products .home-product__title button { margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+#home-products .home-product__title button::after { content: ""; position: absolute; inset: 0; }
+#home-products .home-product__title button:focus-visible { outline: none; }
+#home-products .home-product:has(.home-product__title button:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+#home-products .home-product__summary { margin: 2px 0 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; text-wrap: pretty; }
+#home-products .home-product__more { position: absolute; inset: 100% -1px auto; isolation: isolate; display: grid; gap: 14px; padding: 4px 13px 16px; visibility: hidden; }
+#home-products[data-ready] .home-product[data-open] .home-product__more,
+#home-products:not([data-ready], .home-products--open) .home-product:is(:hover, :focus-within) .home-product__more { visibility: visible; }
+#home-products .home-product__fill { position: absolute; inset: 0; z-index: -1; border: 1px solid var(--hairline-strong); border-top: 0; background: var(--color-surface); transform-origin: 50% 0; }
+#home-products[data-ready] .home-product[data-open],
+#home-products:not([data-ready], .home-products--open) .home-product:is(:hover, :focus-within) { border-bottom-color: var(--color-surface); }
+#home-products .home-product__details { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.45; }
+#home-products .home-product__details li { padding-left: 14px; text-indent: -14px; }
+#home-products .home-product__details li::before { content: "–"; display: inline-block; width: 14px; text-indent: 0; }
+#home-products .home-product__action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+#home-products .home-product__closed { display: inline-flex; align-items: center; gap: 10px; }
+#home-products .home-product__closed small { color: var(--color-fg-muted); font-size: .8125rem; }
+@media (max-width: 64rem) { #home-products .home-products__row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Phones: two compact cards a row, without the line under the title; an open
+   card's details hang under its row, as wide as the row. */
+@media (max-width: 42rem) {
+  #home-products { margin-bottom: 24px; }
+  #home-products .home-products__row { gap: 10px; }
+  #home-products .home-product { position: static; display: block; }
+  #home-products .home-product__face { padding: 8px 8px 12px; }
+  #home-products .home-product__art { margin-bottom: 6px; }
+  #home-products .home-product__title { font-size: 1rem; }
+  #home-products .home-product__summary { display: none; }
+  #home-products .home-product__more { inset: auto 0; margin-top: 9px; padding: 14px 14px 16px; }
+  #home-products .home-product__fill { border-top: 1px solid var(--hairline-strong); }
+  #home-products[data-ready] .home-product[data-open],
+  #home-products:not([data-ready], .home-products--open) .home-product:is(:hover, :focus-within) { border-bottom-color: var(--hairline-strong); }
+}
+/* Always open, on /stocks: each card shows its details and its link under its
+   summary, in one column on a phone. */
+#home-products.home-products--open .home-products__row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#home-products.home-products--open .home-product { grid-template-rows: auto 1fr; }
+#home-products.home-products--open .home-product__more { position: static; padding: 0 12px 16px; align-content: space-between; visibility: visible; }
+#home-products.home-products--open .home-product__fill { display: none; }
+@media (max-width: 48rem) {
+  #home-products.home-products--open .home-products__row { grid-template-columns: minmax(0, 1fr); }
+  #home-products.home-products--open .home-product { display: grid; }
+  #home-products.home-products--open .home-product__summary { display: block; }
+  #home-products.home-products--open .home-product__more { margin-top: 0; padding: 0 8px 12px; }
+}
