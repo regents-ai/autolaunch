@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.Components.Rail do
       path: "/",
       covers: ["/auctions", "/tokens", "/robinhood"]
     },
-    %{label: "Stocks", path: "/stock-listing", covers: []},
+    %{label: "Stocks", path: "/stocks", covers: []},
     %{label: "Portfolio", path: "/portfolio", covers: []},
     %{
       label: "Docs",
@@ -137,7 +137,7 @@ defmodule AutolaunchWeb.Components.Rail do
     ]
   end
 
-  defp views(%{path: "/stock-listing"}) do
+  defp views(%{path: "/stocks"}) do
     [
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
         %{label: "Covered calls", path: ~p"/stock/covered-call", covers: []},

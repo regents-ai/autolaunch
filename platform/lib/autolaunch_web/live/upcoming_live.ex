@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.UpcomingLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(AutolaunchWeb.PublicDocuments.page("/stock-listing"))
+     |> assign(AutolaunchWeb.PublicDocuments.page("/stocks"))
      |> assign(
        chains: UpcomingCatalog.chains(),
        covered_calls: covered_call_symbols()
@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.UpcomingLive do
       <ul :if={@stocks != []} class="upcoming-column__stocks">
         <li :for={stock <- @stocks}>
           <.link
-            navigate={~p"/stock-listing/#{stock["symbol"]}"}
+            navigate={~p"/stocks/#{stock["symbol"]}"}
             class="upcoming-stock"
             aria-label={"#{stock["symbol"]} on #{@chain.name}: stock details"}
           >

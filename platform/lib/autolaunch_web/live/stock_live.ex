@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.StockLive do
   @moduledoc """
-  One stock from the stock listing at `/stock-listing/<symbol>`: where it
+  One stock from the stock listing at `/stocks/<symbol>`: where it
   stands for launches, its onchain token and Chainlink feed, its company and
   market links, and its dated pool research, each pool with its venue,
   address and observed liquidity. A symbol the catalog does not hold is the
@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.StockLive do
     ~H"""
     <article class="fact-page upcoming-details">
       <header class="autolaunch-heading">
-        <.link navigate={~p"/stock-listing"} class="market-back">← Onchain Stocks</.link>
+        <.link navigate={~p"/stocks"} class="market-back">← Onchain Stocks</.link>
         <div class="upcoming-details__heading">
           <.stock_logo stock={%{symbol: @stock["symbol"]}} />
           <div>

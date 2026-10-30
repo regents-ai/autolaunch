@@ -765,7 +765,7 @@
               },
               "stock_address": {
                 "type": "string",
-                "description": "The paired stock token's address, one the chain lists (GET /stock-listing names them)."
+                "description": "The paired stock token's address, one the chain lists (GET /stocks names them)."
               },
               "image": {
                 "type": "object",
@@ -862,7 +862,7 @@
           },
           "stock_address": {
             "type": "string",
-            "description": "The paired stock token's address, one the chain lists (GET /stock-listing names them)."
+            "description": "The paired stock token's address, one the chain lists (GET /stocks names them)."
           },
           "image": {
             "type": "object",

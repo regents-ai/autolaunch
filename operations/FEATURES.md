@@ -30,8 +30,8 @@ launches.
 | `/tokens/<TICKER>/<tail>` | One token: price, Swap, Stake and Unstake tabs, Make a payment (Revstake) | First screen order (figures, then chart, then the widget): `autolaunch_web/live/token_page_first_screen_test.exs` › "the price, market cap, change and creator come before the chart and the trade widget". Its API record link and structured data: as the auction page. `market_page_test.exs` › "a token page whose token cannot be read is the plain error page, not a 404 or a 503"; `autolaunch_web/token_details_test.exs` › "LONG_POOL_PRICES_ARE_CUT_NOT_PARSED"; `autolaunch/token_trades_test.exs`; `autolaunch/pool_price_test.exs` (all four cases); `autolaunch_web/components/token_display_test.exs` (all three cases, and the properties "a short amount keeps four digits and never rounds a refund up", "counted zeros write back to the same figure"). The tabs: **gap** |
 | `/create` | Memestock launch form: draft autosave, paired stock, Base or Robinhood | `autolaunch_web/live/stocks_create_live_test.exs` › "autosaves each section and states the fixed minimum for the chosen stock", › "STOCK_LIST_UNREAD_SAYS_SO: a stock list that can't be read says so, with Try again"; `autolaunch/stocks/launch_draft_test.exs` › "another account can neither read nor update a Stocks draft". With an agent's whole draft, reviewed and signed on a copy of Base at 390 and 1280: `scripts/agent-journeys.sh`, `test/journeys/memestock_launch.spec.ts` |
 | `/create/revstake` | Revstake launch form on Base | `autolaunch/launch_draft_test.exs` (both cases). The page itself: **gap** |
-| `/stock-listing` | Stocks available to pair, each linking to its own page | `autolaunch_web/live/stock_listing_test.exs` (both cases) |
-| `/stock-listing/<symbol>` | One stock: addresses, company links, dated pool research | As above |
+| `/stocks` | Stocks available to pair, each linking to its own page | `autolaunch_web/live/stock_listing_test.exs` (both cases) |
+| `/stocks/<symbol>` | One stock: addresses, company links, dated pool research | As above |
 | `/how-it-works` | Fixed contract rules, explained | **Gap** |
 | `/portfolio` | The signed-in wallet's bids and tokens | `autolaunch_web/live/robinhood_pages_live_test.exs` › "/portfolio outlives a Robinhood feed's new block" |
 | `/portfolio/bids/<id>` | One bid on its own page | **Gap** (its steps: see Wallet actions) |
@@ -168,7 +168,7 @@ release, the live prelaunch line and the short index's links: `autolaunch_web/ag
 ## Gaps, in one list
 
 Home tabs and filter results; list filter results on `/auctions` and `/tokens`; the auction
-and token page tabs; `/create/revstake`, `/stock-listing`, `/how-it-works`, `/account/points`,
+and token page tabs; `/create/revstake`, `/stocks`, `/how-it-works`, `/account/points`,
 `/regent`, `/convert`, `/blog` and the search window as pages; the bid page; connecting X; the
 Credits purchase check; Robinhood bids; adding to, raising or taking back an outbid bid; swap;
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake

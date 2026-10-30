@@ -180,7 +180,7 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       paths = build_conn() |> get("/openapi.json") |> json_response(200) |> Map.fetch!("paths")
       guide = build_conn() |> get("/llms-full.txt") |> response(200)
       home = build_conn() |> get("/") |> html_response(200)
-      stocks = build_conn() |> get("/stock-listing") |> html_response(200)
+      stocks = build_conn() |> get("/stocks") |> html_response(200)
       sitemap = build_conn() |> get("/sitemap.xml") |> response(200)
       sitemap_md = build_conn() |> get("/sitemap.md") |> response(200)
 

@@ -347,8 +347,8 @@ defmodule AutolaunchWeb.Router do
       live "/auctions/:symbol/:tail", MarketPageLive, :auction
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
-      live "/stock-listing", UpcomingLive, :show
-      live "/stock-listing/:symbol", StockLive, :show
+      live "/stocks", UpcomingLive, :show
+      live "/stocks/:symbol", StockLive, :show
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid

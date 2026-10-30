@@ -60,7 +60,7 @@ flow. Written once Sean's covered-call spec and the flow exist.]
 ## Robinhood stock tokens on Robinhood Chain
 
 Plain tickers such as SPCX and SNDK. 25 Robinhood stocks can be used on Autolaunch today;
-the full list is on [Onchain Stocks](https://autolaunch.sh/stock-listing).
+the full list is on [Onchain Stocks](https://autolaunch.sh/stocks).
 
 ### 1. Bid in a Memestock auction with your stock
 
@@ -87,9 +87,9 @@ tokens, with its direct link. Written once the flow exists.]
 
 ## Which stocks
 
-[Onchain Stocks](https://autolaunch.sh/stock-listing) shows the stocks you can use now
+[Onchain Stocks](https://autolaunch.sh/stocks) shows the stocks you can use now
 (Available to Pair) and those coming next. Each stock's own page, for example
-[AAPLc](https://autolaunch.sh/stock-listing/AAPLc), shows its addresses, company links and
+[AAPLc](https://autolaunch.sh/stocks/AAPLc), shows its addresses, company links and
 where to buy it.
 
 ## Notes for whoever publishes this

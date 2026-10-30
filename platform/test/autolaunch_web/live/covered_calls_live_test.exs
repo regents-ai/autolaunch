@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "switched off, the page is not found and the stock page offers no covered calls",
        %{conn: conn} do
     {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/stock/covered-call") end)
-    refute conn |> get("/stock-listing/AMZNc") |> html_response(200) =~ "Covered calls on"
+    refute conn |> get("/stocks/AMZNc") |> html_response(200) =~ "Covered calls on"
   end
 
   test "the Buy tab lists only calls still for sale, with the amount left", %{conn: conn} do
@@ -46,12 +46,12 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert html =~ "$260.00"
     assert html =~ "6 AMZNc"
 
-    assert conn |> get("/stock-listing/AMZNc") |> html_response(200) =~ "Covered calls on AMZNc"
+    assert conn |> get("/stocks/AMZNc") |> html_response(200) =~ "Covered calls on AMZNc"
   end
 
   test "the stock page's link loads the page fresh at its own address", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/stock-listing/AMZNc")
+    {:ok, view, _html} = live(conn, "/stocks/AMZNc")
     assert has_element?(view, "a[href='/stock/covered-call']", "Covered calls on AMZNc")
 
     # A page in another live session is loaded fresh, not swapped in over the socket.
@@ -76,7 +76,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     assert html |> words() |> String.split(line) |> length() == 2
 
-    for path <- ["/", "/stock-listing/AMZNc", "/docs", "/llms-full.txt"],
+    for path <- ["/", "/stocks/AMZNc", "/docs", "/llms-full.txt"],
         do: refute(conn |> get(path) |> response(200) =~ line)
   end
 

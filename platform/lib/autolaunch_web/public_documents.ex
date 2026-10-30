@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     "/how-it-works" =>
       {"How Autolaunch works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
-    "/stock-listing" =>
+    "/stocks" =>
       {"Onchain Stocks",
        "Stocks next in line to pair with a Memestock token on Base and Robinhood Chain, and every stock you can pair with today."},
     :stock =>
@@ -147,7 +147,7 @@ defmodule AutolaunchWeb.PublicDocuments do
   }
 
   # The fixed pages both sitemaps list.
-  @sitemap_pages ~w(/ /auctions /tokens /stock-listing /how-it-works /regent /docs /about /contact /privacy /terms /blog)
+  @sitemap_pages ~w(/ /auctions /tokens /stocks /how-it-works /regent /docs /about /contact /privacy /terms /blog)
 
   @doc "The public document at `path` as `%{markdown: text}`, or nil for every other address."
   def document(path) do
@@ -286,7 +286,7 @@ defmodule AutolaunchWeb.PublicDocuments do
     stocks =
       Enum.map(
         Autolaunch.Stocks.UpcomingCatalog.stocks(),
-        &{url("/stock-listing/" <> URI.encode(&1["symbol"])), @released_at}
+        &{url("/stocks/" <> URI.encode(&1["symbol"])), @released_at}
       )
 
     entries =
