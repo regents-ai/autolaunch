@@ -28,8 +28,8 @@ test("a card opens to its details and closes again, at every width", async ({pag
     else await page.mouse.move(2, 840)
     await expect(page.locator(title)).toHaveAttribute("aria-expanded", "false")
     await expect(page.locator(details)).toBeHidden()
-    // A finished close leaves nothing written on the card's parts.
-    expect(await page.locator(`${details}, ${details} [data-product-row], ${details} [data-product-fill]`)
+    // Once every move has finished, nothing is left written on the card's parts.
+    await expect.poll(() => page.locator(`${details}, ${details} [data-product-row], ${details} [data-product-fill]`)
       .evaluateAll(els => els.filter(el => el.getAttribute("style")).length)).toBe(0)
   }
 })

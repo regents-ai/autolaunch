@@ -9,10 +9,26 @@ defmodule AutolaunchWeb.HomeListsTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.{CoveredCallsChain, ExposureChain, TestSupport}
+  alias Autolaunch.{CoveredCallsChain, ExposureChain, SharedReading, TestSupport}
+  alias Autolaunch.Exposure.Listing
 
   # Reads run as async tasks; a loaded machine can take longer than LiveViewTest's 100 ms.
   @async_ms 2_000
+
+  # Exposure on, and its reader for the home page started, as on a machine
+  # serving pages. Its reading is the one every page shares, so it goes with
+  # the test.
+  defp exposure_listing(overrides \\ %{}) do
+    ExposureChain.install(overrides)
+    on_exit(fn -> SharedReading.delete(Listing.key()) end)
+    start_supervised!(Listing)
+  end
+
+  # The reader reads again now, as it does every few minutes.
+  defp reread(listing) do
+    send(listing, :read)
+    :sys.get_state(listing)
+  end
 
   test "with every product on, the four cards each link to their page", %{conn: conn} do
     CoveredCallsChain.install()
@@ -83,6 +99,9 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert html =~ "6 AMZNc"
     refute has_element?(view, "#home-market")
     assert view |> element("#home-filters") |> render() =~ "hidden"
+
+    # A reader that runs no scripts gets the calls in the page as it is sent.
+    assert conn |> get("/?view=options") |> html_response(200) =~ "Strike $260.00"
   end
 
   test "Options with nothing for sale says so and offers selling", %{conn: conn} do
@@ -90,7 +109,7 @@ defmodule AutolaunchWeb.HomeListsTest do
     {:ok, view, _html} = live(conn, "/?view=options")
     render_async(view, @async_ms)
 
-    assert has_element?(view, "#home-calls h2", "No calls for sale")
+    assert has_element?(view, "#home-calls h2", "No listings")
     assert has_element?(view, "#home-calls a[href='/covered-calls']", "Sell calls")
   end
 
@@ -107,9 +126,8 @@ defmodule AutolaunchWeb.HomeListsTest do
   end
 
   test "Isolated lists both tokens of each series, each opening its series", %{conn: conn} do
-    ExposureChain.install()
+    exposure_listing()
     {:ok, view, _html} = live(conn, "/?kind=isolated&view=tokens")
-    render_async(view, @async_ms)
 
     series = "/after-hour-stocks?series=#{ExposureChain.series()}"
     overnight = view |> element("#home-isolated-#{ExposureChain.overnight()}") |> render()
@@ -123,10 +141,40 @@ defmodule AutolaunchWeb.HomeListsTest do
     assert overnight =~ "$0.26"
     assert session =~ "$2.51"
     refute has_element?(view, "#home-market")
+    assert conn |> get("/?kind=isolated&view=tokens") |> html_response(200) =~ "AMZNc-AH-1106"
+  end
+
+  test "Isolated follows each new reading, and says so when none could be made",
+       %{conn: conn} do
+    listing = exposure_listing()
+    {:ok, view, _html} = live(conn, "/?kind=isolated&view=tokens")
+    assert has_element?(view, "#home-isolated-#{ExposureChain.overnight()}", "$2.64")
+
+    ExposureChain.put(%{
+      pools: %{
+        ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", 3_100_000},
+        ExposureChain.session() => {"0x4444444444444444444444444444444444444444", 0}
+      }
+    })
+
+    reread(listing)
+    assert has_element?(view, "#home-isolated-#{ExposureChain.overnight()}", "$3.10")
+    # A pool that quotes nothing shows no price.
+    assert has_element?(view, "#home-isolated-#{ExposureChain.session()}", "No price yet")
+
+    # A failed read keeps what was read before.
+    ExposureChain.put(%{unreadable: true})
+    reread(listing)
+    assert has_element?(view, "#home-isolated-#{ExposureChain.overnight()}", "$3.10")
+
+    SharedReading.delete(Listing.key())
+    SharedReading.degraded(Listing.key())
+    {:ok, view, _html} = live(conn, "/?kind=isolated&view=tokens")
+    assert has_element?(view, "#home-isolated", "Isolated tokens can't be shown right now.")
   end
 
   test "All tokens puts the running series' tokens above the launched ones", %{conn: conn} do
-    ExposureChain.install()
+    listing = exposure_listing()
 
     auction =
       TestSupport.project_auction(
@@ -158,6 +206,7 @@ defmodule AutolaunchWeb.HomeListsTest do
 
     # An ended series stays under Isolated only.
     ExposureChain.put(%{status: 2, end_reason: 1})
+    reread(listing)
     {:ok, view, _html} = live(conn, "/?view=tokens")
     render_async(view, @async_ms)
     refute has_element?(view, "#home-isolated-#{ExposureChain.overnight()}")

@@ -71,8 +71,8 @@ defmodule AutolaunchWeb.Components.StockLists do
       </table>
     </div>
     <div :if={@open == []} class="home-empty" role="status">
-      <h2>No calls for sale</h2>
-      <p>New listings show here as soon as a seller lists them.</p>
+      <h2>No listings</h2>
+      <p>Calls for sale show here as soon as a seller lists them.</p>
       <.link navigate="/covered-calls" class="rg-button rg-button--secondary">Sell calls</.link>
     </div>
     """
@@ -127,7 +127,7 @@ defmodule AutolaunchWeb.Components.StockLists do
       </table>
     </div>
     <div :if={@tokens == []} class="home-empty" role="status">
-      <h2>No series yet</h2>
+      <h2>No series</h2>
       <p>Each week's series shows here once it opens.</p>
       <.link navigate="/after-hour-stocks" class="rg-button rg-button--secondary">
         After-hours stocks
@@ -169,11 +169,12 @@ defmodule AutolaunchWeb.Components.StockLists do
 
   defp series_path(token), do: "/after-hour-stocks?series=#{token.series}"
 
-  defp price(%{usdc_per_token: nil}), do: "No price yet"
+  # A pool that holds nothing quotes no price, as one that is missing.
+  defp price(%{usdc_per_token: quote}) when quote in [nil, 0], do: "No price yet"
   defp price(%{usdc_per_token: micro}), do: ExposureFormat.usdc(micro)
 
   # Every token in circulation at its pool's price, in USDC micro-units.
-  defp market_cap(%{usdc_per_token: nil}), do: "No price yet"
+  defp market_cap(%{usdc_per_token: quote}) when quote in [nil, 0], do: "No price yet"
 
   defp market_cap(token),
     do:

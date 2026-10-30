@@ -26,6 +26,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
       aria-label="Products"
       phx-hook="ProductCards"
       phx-update="ignore"
+      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-ready"])}
     >
       <ul class="home-products__row">
         <li
