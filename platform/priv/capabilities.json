@@ -1,5 +1,5 @@
 {
-  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call and After-hours Exposure page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED).",
+  "_comment": "Every agent operation and the surfaces it is on (AutolaunchWeb.Capabilities): one row per browser tool, the site's own and the covered-call and After-hours Exposure page tools, and one per tool only the hosted MCP server has. Each surface is true or the reason it is left out, and hosted_tool names the hosted MCP tool of a row whose hosted_mcp is true; a surface moves to true as its action is built. switch names the setting the operation follows: covered_calls (AUTOLAUNCH_COVERED_CALLS), exposure (AUTOLAUNCH_EXPOSURE) or connected_apps (AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED).",
   "operations": [
     {
       "operation": "autolaunch_auctions",
@@ -27,6 +27,7 @@
       "operation": "autolaunch_auction_counts",
       "authority": "public",
       "switch": null,
+      "hosted_tool": "autolaunch_auction_counts",
       "surfaces": {
         "webmcp": true,
         "hosted_mcp": true,
@@ -192,9 +193,10 @@
       "operation": "autolaunch_covered_call_listings",
       "authority": "public",
       "switch": "covered_calls",
+      "hosted_tool": "covered_call_book",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
@@ -203,9 +205,10 @@
       "operation": "autolaunch_covered_call_quote",
       "authority": "public",
       "switch": "covered_calls",
+      "hosted_tool": "covered_call_quote",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
@@ -214,9 +217,10 @@
       "operation": "autolaunch_my_covered_calls",
       "authority": "paired_agent",
       "switch": "covered_calls",
+      "hosted_tool": "covered_call_positions",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
@@ -225,9 +229,10 @@
       "operation": "autolaunch_covered_call_prepare",
       "authority": "paired_agent",
       "switch": "covered_calls",
+      "hosted_tool": "prepare_covered_call",
       "surfaces": {
         "webmcp": true,
-        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "hosted_mcp": true,
         "http": true,
         "cli": "No regents-cli command yet."
       }
@@ -280,6 +285,7 @@
       "operation": "register_identity",
       "authority": "connected_app",
       "switch": "connected_apps",
+      "hosted_tool": "register_identity",
       "surfaces": {
         "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
         "hosted_mcp": true,
@@ -291,6 +297,7 @@
       "operation": "get_identity",
       "authority": "connected_app",
       "switch": "connected_apps",
+      "hosted_tool": "get_identity",
       "surfaces": {
         "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
         "hosted_mcp": true,
@@ -302,6 +309,7 @@
       "operation": "pair_identity",
       "authority": "connected_app",
       "switch": "connected_apps",
+      "hosted_tool": "pair_identity",
       "surfaces": {
         "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
         "hosted_mcp": true,
@@ -313,6 +321,7 @@
       "operation": "check_in",
       "authority": "connected_app",
       "switch": "connected_apps",
+      "hosted_tool": "check_in",
       "surfaces": {
         "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
         "hosted_mcp": true,

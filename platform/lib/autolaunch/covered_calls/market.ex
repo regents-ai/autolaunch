@@ -1,13 +1,20 @@
 defmodule Autolaunch.CoveredCalls.Market do
   @moduledoc """
-  The four covered-call operations every surface calls — the page, the HTTP
-  routes and the browser tools — so each answers with the same figures and the
-  same refusals:
+  The four covered-call operations, so every surface answers with the same
+  figures and the same refusals:
 
     * `:book` — a market's listings, as its contract holds them (public)
     * `:quote` — the suggested premium for a strike and expiry (public)
     * `:positions` — what a wallet of the acting account sold and holds
     * `:prepare` — the wallet steps for one action, for a wallet of the acting account
+
+  The page reads `:book`, `:positions` and `:prepare` as they are. Every agent
+  surface (the HTTP routes, which the browser tools call, and the hosted MCP
+  tools) runs `:book_answer`, `:quote`, `:positions_answer` and
+  `:prepare_answer`: the same operation, its answer shaped once
+  (`Autolaunch.CoveredCalls.Answer`), and only while the site offers covered
+  calls (`Autolaunch.CoveredCalls.Checks.Offered`). A refusal is an
+  `Autolaunch.CoveredCalls.Refused` naming its reason.
 
   Nothing is stored: the contract is the record. The acting account comes from
   the actor the caller authenticated; a wallet named in the request is only
@@ -19,7 +26,8 @@ defmodule Autolaunch.CoveredCalls.Market do
     domain: Autolaunch.CoveredCalls,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Autolaunch.CoveredCalls.{Book, Positions, Quote, Signer, Steps}
+  alias Autolaunch.CoveredCalls
+  alias Autolaunch.CoveredCalls.{Answer, Book, Positions, Quote, Refused, Signer, Steps}
 
   # Bounds a contract call can carry: amounts and prices far beyond any real
   # one, and an expiry as the contract's uint64.
@@ -79,23 +87,77 @@ defmodule Autolaunch.CoveredCalls.Market do
         |> __MODULE__.refused()
       end
     end
+
+    action :book_answer, :map do
+      description "A market's listings, as its contract holds them at the latest block."
+      argument :symbol, :string, allow_nil?: false
+
+      run fn input, context ->
+        input.arguments.symbol
+        |> CoveredCalls.read_covered_call_book(Ash.Context.to_opts(context))
+        |> Answer.book()
+      end
+    end
+
+    action :positions_answer, :map do
+      description "What the acting account's wallet sold and holds on a market."
+      argument :symbol, :string, allow_nil?: false
+
+      run fn input, context ->
+        input.arguments.symbol
+        |> CoveredCalls.read_covered_call_positions(Ash.Context.to_opts(context))
+        |> Answer.positions()
+      end
+    end
+
+    action :prepare_answer, :map do
+      description "The wallet steps for one covered-call action, for a wallet of the acting account."
+      argument :symbol, :string, allow_nil?: false
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
+      argument :signer, :string
+      argument :listing_id, :integer, constraints: @amount
+      argument :amount, :integer, constraints: @amount
+      argument :strike_per_token, :integer, constraints: @amount
+      argument :premium_per_token, :integer, constraints: @amount
+      argument :expiry, :integer, constraints: @expiry
+
+      run fn %{arguments: %{symbol: symbol, kind: kind} = arguments}, context ->
+        symbol
+        |> CoveredCalls.prepare_covered_call_steps(
+          kind,
+          Map.drop(arguments, [:symbol, :kind]),
+          Ash.Context.to_opts(context)
+        )
+        |> Answer.prepare()
+      end
+    end
   end
 
   # Ash turns a bare `{:error, atom}` into text, so a refusal is handed over as
-  # an error that keeps its atom for `Autolaunch.CoveredCalls.reason/1`.
+  # an error that keeps its atom (`Autolaunch.CoveredCalls.reason/1`).
   @doc false
   def refused({:error, reason}) when is_atom(reason),
-    do: {:error, Ash.Error.Unknown.UnknownError.exception(error: reason)}
+    do: {:error, Refused.exception(reason: reason)}
 
   def refused(result), do: result
 
   policies do
-    policy action([:book, :quote]) do
+    policy action([:book, :quote, :book_answer]) do
       authorize_if always()
     end
 
-    policy action([:positions, :prepare]) do
+    policy action([:positions, :prepare, :positions_answer, :prepare_answer]) do
       authorize_if actor_present()
+    end
+
+    # What every agent surface runs, only while the site offers covered calls,
+    # and never by an app connected to a person's account calling as itself: its
+    # token is for its identity tools alone (`Autolaunch.Agents.Connection`).
+    # Paired, it calls as its agent instead.
+    policy action([:book_answer, :quote, :positions_answer, :prepare_answer]) do
+      forbid_unless Autolaunch.CoveredCalls.Checks.Offered
+      forbid_if actor_attribute_equals(:role, :connected_app)
+      authorize_if always()
     end
   end
 end

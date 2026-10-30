@@ -167,7 +167,7 @@ release, the live prelaunch line and the short index's links: `autolaunch_web/ag
 
 ## Hosted MCP and the Claude connector
 
-`POST /mcp` runs the tools `platform/priv/capabilities.json` marks hosted, each as its Ash action
+`POST /mcp` runs the tools `platform/priv/capabilities.json` marks hosted (its `hosted_tool`), each as its Ash action
 under its policies (`AutolaunchWeb.Capabilities`, checked when it compiles; its `cli` column by
 `autolaunch_web/capabilities_test.exs`). The connector's switch, `AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`,
 is off in production.
@@ -184,6 +184,8 @@ is off in production.
 | Switch on: Claude in the pairing box, `/agents/claude`, and its lines in `/llms.txt`, `/agents.md` and the sitemap | `autolaunch_web/claude_connector_test.exs` › "Claude is offered in the pairing box, and its page and guide lines are shown" |
 | Switch on: a connected app pairs one hosted agent with its own account's code only, checks in, keeps one identity across reconnects, and loses access when it disconnects or is unpaired | `autolaunch_web/claude_connector_test.exs` (the eleven cases under "with the connector on") |
 | Switch on, with the agent permission: a paired app reads the auction counts as its agent, and doing so never counts as a check-in; never as another account's agent; the identity's wallet is read once, and once while the signer is down | `autolaunch_web/claude_connector_test.exs` (the eight cases under "with the connector on and the agent permission") |
+| While covered calls are on, `covered_call_book`, `covered_call_quote`, `covered_call_positions` and `prepare_covered_call` run the same operations as the covered-call routes and answer with their `data`, refusals in the same code and words; off, none is listed or run | `autolaunch_web/covered_calls_mcp_test.exs` › "the public reads answer as their routes do, refusals included", › "a suggested premium answers through the hosted tool as through the route, whatever the strike and expiry" (property), › "an agent's own covered calls answer as the signed route does", › "every kind of step answers as the signed route does" (one call per kind), › "with covered calls on a paired agent lists the four tools; off, none is listed or run" |
+| Covered-call positions and steps are only for the paired agent's own person and wallets: another wallet is `wrong_signer`, an agent no person paired is `agent_not_paired`; a value of another JSON type than an input takes is refused, as on the routes | `autolaunch_web/covered_calls_mcp_test.exs` › "a wallet that isn't the person's own is refused, as on the signed route", › "an agent no person paired is refused its covered calls and steps", › "the public reads answer as their routes do, refusals included" |
 | The consent page and its redirect back to Claude | **Gap** (not walked; the walk runs with the switch off) |
 
 ## Gaps, in one list
@@ -195,6 +197,6 @@ Credits purchase check; Robinhood bids; adding to, raising or taking back an out
 stake and unstake; Make a payment; selling fee shares; share picture content; the Revstake
 draft routes and the paired Points and Credits history answers; an agent's
 positions for an account with no wallet; the shared profile routes; the Robinhood second pass of the
-agent journeys; covered calls' hosted MCP and CLI surfaces and every other hosted MCP surface but
-the auction counts and the connector's identity tools (`docs/agent-parity.md`); the connector's
-consent page and redirect.
+agent journeys; covered calls' CLI surfaces and every hosted MCP surface but the auction
+counts, the covered-call operations and the connector's identity tools (`docs/agent-parity.md`);
+the connector's consent page and redirect.

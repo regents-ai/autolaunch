@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   The portfolio's covered calls: for each market, the calls the signed-in
   wallet sold (with Stop selling, Collect USDC and Collect stock) and the calls
   it holds (with Exercise and Collect stock), each read now from the contract
-  (`Autolaunch.CoveredCalls.covered_call_positions/2`). Every action of the
+  (`Autolaunch.CoveredCalls.read_covered_call_positions/2`). Every action of the
   wallet's side of a listing is its own wallet panel under the row, so every
   button there reviews its action, and is disabled, with the reason beside
   it, only while the chain makes it certain to fail (before Friday's close,
@@ -149,7 +149,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   end
 
   defp read_market(market, actor) do
-    case CoveredCalls.covered_call_positions(market.symbol, actor: actor) do
+    case CoveredCalls.read_covered_call_positions(market.symbol, actor: actor) do
       {:ok, positions} -> {market.symbol, {:ok, positions}}
       {:error, error} -> {market.symbol, {:error, CoveredCalls.reason(error)}}
     end

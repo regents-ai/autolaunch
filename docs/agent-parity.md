@@ -7,7 +7,8 @@ regents CLI. Each surface calls the same Ash action with the same inputs, answer
 refusals. A missing surface is a gap with the lane that closes it.
 
 Hosted MCP (`/mcp`) serves the tools `platform/priv/capabilities.json` marks hosted: the
-auction counts and the Claude connector's identity tools. Every other hosted MCP cell is a gap
+auction counts, the four covered-call operations while covered calls are on, and the Claude
+connector's identity tools. Every other hosted MCP cell is a gap
 owned by the **Autolaunch MCP lane**, closed as its operation becomes one action whose answer is
 the browser tool's. The Claude connector is served from hosted MCP behind its switch
 (`AUTOLAUNCH_CLAUDE_CONNECTOR_ENABLED`, off in production): a connected app calls as itself
@@ -26,21 +27,22 @@ surface are in `operations/FEATURES.md`.
 
 Offered only while the site's covered-call switch is on (`AUTOLAUNCH_COVERED_CALLS=true`).
 Off, no route, tool, guide section or command offers them. Every action is one operation in
-`Autolaunch.CoveredCalls`; the site prepares wallet steps and the wallet's own key signs them.
+`Autolaunch.CoveredCalls`, which the HTTP routes (and so the browser tools) and the hosted MCP
+tools run alike; the site prepares wallet steps and the wallet's own key signs them.
 CLI cells are gaps owned by the **regents-cli lane**, to be added to `cli/commands.json` when
 the switch goes on, so the CLI never offers them while the site does not.
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| Read a stock's listings | `covered_call_book` | `/covered-calls`, Buy | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Suggested premium | `covered_call_quote` | `/covered-calls`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Read my listings and holdings | `covered_call_positions` | `/portfolio`, Covered calls | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| List calls (sell) | `prepare_covered_call`, kind `list` | `/covered-calls`, Sell: List calls, then Approve, Confirm listing | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/covered-calls`, Buy: Buy calls, then Approve, Confirm purchase | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Cancel the unsold remainder | `prepare_covered_call`, kind `cancel` | `/portfolio`, Covered calls: Stop selling, then Confirm stop | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Exercise | `prepare_covered_call`, kind `exercise` | `/portfolio`, Covered calls: Exercise, then Approve, Confirm exercise | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect AMZNc, then Confirm collection | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect USDC, then Confirm collection | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read a stock's listings | `covered_call_book` | `/covered-calls`, Buy | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | `covered_call_book` | `covered_call_book`, once paired with the agent permission | Gap: regents-cli lane |
+| Suggested premium | `covered_call_quote` | `/covered-calls`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | `covered_call_quote` | `covered_call_quote`, once paired with the agent permission | Gap: regents-cli lane |
+| Read my listings and holdings | `covered_call_positions` | `/portfolio`, Covered calls | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | `covered_call_positions` | `covered_call_positions`, once paired with the agent permission | Gap: regents-cli lane |
+| List calls (sell) | `prepare_covered_call`, kind `list` | `/covered-calls`, Sell: List calls, then Approve, Confirm listing | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
+| Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/covered-calls`, Buy: Buy calls, then Approve, Confirm purchase | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
+| Cancel the unsold remainder | `prepare_covered_call`, kind `cancel` | `/portfolio`, Covered calls: Stop selling, then Confirm stop | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
+| Exercise | `prepare_covered_call`, kind `exercise` | `/portfolio`, Covered calls: Exercise, then Approve, Confirm exercise | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
+| Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect AMZNc, then Confirm collection | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
+| Collect the strike | `prepare_covered_call`, kind `collect_strike` | `/portfolio`, Covered calls: Collect USDC, then Confirm collection | `autolaunch_covered_call_prepare` | `prepare_covered_call` | `prepare_covered_call`, once paired with the agent permission | Gap: regents-cli lane |
 
 ## After-hours Exposure
 

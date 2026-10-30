@@ -5,15 +5,17 @@ defmodule AutolaunchWeb.Capabilities do
   After-hours Exposure page tools), and one per tool only the hosted MCP server
   has, such as a connected app's identity tools. Each row names its four
   surfaces, `webmcp`, `hosted_mcp`, `http` and `cli`, each `true` or the reason
-  it is left out, who may run it and the switch it follows.
+  it is left out, who may run it, the switch it follows and, when it is on the
+  hosted MCP server, that tool's name (`hosted_tool`).
 
   These are checked against each other when this module compiles: every browser
   tool has one row, in the manifest's order; `webmcp` and `http` are true exactly
   for a browser tool, whose `requires` gives the row's authority and whose file
-  gives its switch; `hosted_mcp` is true exactly for the AshAi tools the site's
-  domains declare, each named after its browser tool and taking that tool's
-  input, or, for a tool only the hosted server has, named after its row, run by
-  a connected app and on no other surface. The hosted server serves those tools
+  gives its switch; `hosted_mcp` is true exactly for the rows whose
+  `hosted_tool` is one of the AshAi tools the site's domains declare, every one
+  of them named once and taking its browser tool's input, or, for a tool only
+  the hosted server has, named after its row, run by a connected app and on no
+  other surface. The hosted server serves those tools
   (`hosted_tools/0`); AshAi lists each to a caller only as its action's policies
   allow. That each `cli` matches regents-cli's commands is checked by the tests,
   which read `cli/commands.json`.
@@ -89,10 +91,11 @@ defmodule AutolaunchWeb.Capabilities do
         row["switch"] != tool["switch"] ->
           "a switch that differs from its browser tool's file"
 
-        surfaces["hosted_mcp"] == true != Map.has_key?(hosted, name) ->
-          "hosted_mcp that differs from the AshAi tools"
+        surfaces["hosted_mcp"] == true != Map.has_key?(hosted, row["hosted_tool"]) ->
+          "hosted_mcp that differs from its hosted_tool being an AshAi tool"
 
-        Map.has_key?(hosted, name) and shape.(hosted[name]) != shape.(tool["input_schema"]) ->
+        Map.has_key?(hosted, row["hosted_tool"]) and
+            shape.(hosted[row["hosted_tool"]]) != shape.(tool["input_schema"]) ->
           "hosted input that differs from the browser tool's input"
 
         true ->
@@ -105,7 +108,8 @@ defmodule AutolaunchWeb.Capabilities do
   for row <- hosted_only_rows do
     surfaces = row["surfaces"]
 
-    unless Map.has_key?(hosted, row["operation"]) and surfaces["hosted_mcp"] == true and
+    unless row["hosted_tool"] == row["operation"] and Map.has_key?(hosted, row["operation"]) and
+             surfaces["hosted_mcp"] == true and
              row["authority"] == "connected_app" and row["switch"] == "connected_apps" and
              Map.keys(surfaces) |> Enum.sort() == surface_names and
              Enum.all?(~w(webmcp http cli), &(is_binary(surfaces[&1]) and surfaces[&1] != "")),
@@ -116,11 +120,11 @@ defmodule AutolaunchWeb.Capabilities do
              )
   end
 
-  @hosted for %{"surfaces" => %{"hosted_mcp" => true}, "operation" => name} <- rows,
+  @hosted for %{"surfaces" => %{"hosted_mcp" => true}, "hosted_tool" => name} <- rows,
               do: String.to_atom(name)
 
-  unless MapSet.new(@hosted, &Atom.to_string/1) == MapSet.new(Map.keys(hosted)),
-    do: raise("priv/capabilities.json must mark hosted_mcp on exactly the AshAi tools")
+  unless Enum.sort(Enum.map(@hosted, &Atom.to_string/1)) == Enum.sort(Map.keys(hosted)),
+    do: raise("priv/capabilities.json must name every AshAi tool once as a hosted_tool")
 
   @operations rows
 

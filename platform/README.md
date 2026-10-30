@@ -311,8 +311,11 @@ Fly Sentinel reads them from Prometheus under its site health set.
 `POST /mcp` is the site's one hosted MCP server: `AshAi.Mcp.Router` behind
 `AutolaunchWeb.Plugs.McpAgent`, serving the tools `priv/capabilities.json` marks hosted
 (`AutolaunchWeb.Capabilities.hosted_tools/0`), each as its Ash action under its policies.
-Today that is `autolaunch_auction_counts` for a paired agent signing each call with its own
-wallet, and the connector's four identity tools for a connected app. McpAgent refuses a query
+Today that is `autolaunch_auction_counts` and, while covered calls are on, `covered_call_book`,
+`covered_call_quote`, `covered_call_positions` and `prepare_covered_call` (the operations the
+covered-call routes run, their answers shaped once in `Autolaunch.CoveredCalls.Answer`) for a
+paired agent signing each call with its own wallet, and the connector's four identity tools for a
+connected app. McpAgent refuses a query
 string, another method or address, another site's page, a body that is not JSON and a batch
 before any credential is read; then exactly one credential is taken, and an agent no person
 paired is refused `agent_not_paired` as on every signed route. Every other browser tool keeps a
