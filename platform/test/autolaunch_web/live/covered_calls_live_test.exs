@@ -209,7 +209,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     render_async(view, @async_ms)
 
     assert has_element?(view, "#portfolio-covered-calls-exercise-1-review[disabled]")
-    assert has_element?(view, "#portfolio-covered-calls-exercise-1-why", "Exercise is open from")
+    assert has_element?(view, "#portfolio-covered-calls-exercise-1-why", "Opens Fri")
     assert has_element?(view, "#portfolio-covered-calls-claim-1-review[disabled]")
     assert has_element?(view, "#portfolio-covered-calls-claim-1-why", "Nothing to collect yet")
   end

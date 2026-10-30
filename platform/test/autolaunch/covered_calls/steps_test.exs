@@ -141,7 +141,7 @@ defmodule Autolaunch.CoveredCalls.StepsTest do
   test "exercise is blocked outside the 24 hours after expiry and above what is held", context do
     chain(%{held: @unit, usdc_allowance: 10_000_000_000})
 
-    assert {:ok, %{blocked: :outside_exercise_window}} =
+    assert {:ok, %{blocked: :exercise_not_open}} =
              prepare(context, :exercise, %{listing_id: 1, amount: @unit})
 
     chain(%{

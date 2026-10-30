@@ -3914,7 +3914,8 @@ components:
                     - fills_closed
                     - sold_out
                     - not_enough_usdc
-                    - outside_exercise_window
+                    - exercise_not_open
+                    - exercise_closed
                     - more_than_held
                     - not_seller
                     - nothing_to_cancel

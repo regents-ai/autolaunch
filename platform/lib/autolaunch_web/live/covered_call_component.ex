@@ -677,6 +677,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       ["To collect", "#{F.tokens(facts.amount, unit)} #{symbol}"]
     ]
 
+  # Nothing to collect or stop is said once, as the button's reason, not as a zero.
+  defp facts(kind, %{amount: 0}, _assigns) when kind in [:claim, :collect_strike], do: []
+  defp facts(:cancel, %{unsold: 0}, _assigns), do: []
+
   defp facts(:claim, facts, %{unit: unit, symbol: symbol}),
     do: [["You receive", "#{F.tokens(facts.amount, unit)} #{symbol}"]]
 
@@ -797,8 +801,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp blocked_words(:fills_closed, _assigns), do: "Sales closed at expiry"
   defp blocked_words(:sold_out, _assigns), do: "Not that many left"
 
-  defp blocked_words(:outside_exercise_window, %{listing: listing}),
-    do: "Exercise is open from #{F.expiry(listing.expiry)} to #{F.window_closes(listing.expiry)}"
+  defp blocked_words(:exercise_not_open, %{listing: listing}),
+    do: "Opens #{F.expiry(listing.expiry)}"
+
+  defp blocked_words(:exercise_closed, _assigns), do: "Window closed"
 
   defp blocked_words(:more_than_held, _assigns), do: "More than you hold"
   defp blocked_words(:not_seller, _assigns), do: "Only the seller's wallet can do this"

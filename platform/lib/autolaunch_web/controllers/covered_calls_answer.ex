@@ -27,8 +27,10 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
     fills_closed: "This listing has reached its expiry, so it can no longer be bought.",
     sold_out: "Less is left on this listing than the amount asked for.",
     not_enough_usdc: "This wallet holds less USDC than this step pays.",
-    outside_exercise_window:
-      "Calls can be exercised only in the 24 hours after their Friday expiry.",
+    exercise_not_open:
+      "Calls can be exercised only in the 24 hours after their Friday expiry, which hasn't come yet.",
+    exercise_closed:
+      "The 24 hours after this listing's expiry have passed; its calls have lapsed.",
     more_than_held: "This wallet holds fewer calls on this listing than the amount asked for.",
     not_seller: "Only the wallet that made this listing can do this.",
     nothing_to_cancel: "Nothing on this listing is left unsold to cancel.",
