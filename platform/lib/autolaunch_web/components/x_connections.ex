@@ -51,7 +51,15 @@ defmodule AutolaunchWeb.Components.XConnections do
     ~H"""
     <li class="connection" {@rest}>
       <span class="connection__mark">
-        <img :if={@avatar} src={@avatar} alt="" width="40" height="40" />
+        <%!-- X's picture host refuses requests that name another site as the referrer. --%>
+        <img
+          :if={@avatar}
+          src={@avatar}
+          alt=""
+          width="40"
+          height="40"
+          referrerpolicy="no-referrer"
+        />
         <.link_icon :if={!@avatar} kind={@icon} />
       </span>
       <span class="connection__text">
