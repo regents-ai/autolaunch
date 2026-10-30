@@ -9,7 +9,7 @@ defmodule Autolaunch.Exposure.Listing do
   This is a supervised reader of an outside clock, the shape `Autolaunch.ChainHead`
   has and the `elixir-stack` skill allows: it holds no queue and no copy of
   database rows, never writes the database, and stores only through
-  `SharedReading`. It reads as it starts, then five minutes after each read
+  `SharedReading`. It reads once it has started, then five minutes after each read
   finishes, and within ten seconds of a person's on-chain press landing on Base
   (`refresh/1`, from `Autolaunch.ChainRefresh`). A read that fails is not tried
   again: the next one replaces it. One runs on each machine that serves pages
@@ -96,8 +96,13 @@ defmodule Autolaunch.Exposure.Listing do
   @impl true
   def init(nil) do
     :ok = Phoenix.PubSub.subscribe(Autolaunch.PubSub, @topic)
-    {:ok, read(%{read_at: nil, timer: nil})}
+    {:ok, %{read_at: nil, timer: nil}, {:continue, :read}}
   end
+
+  # The first read takes several calls a series, so it runs once the site has
+  # started rather than holding up its start.
+  @impl true
+  def handle_continue(:read, listing), do: {:noreply, read(listing)}
 
   @impl true
   def handle_info(:read, listing), do: {:noreply, read(listing)}
@@ -120,8 +125,11 @@ defmodule Autolaunch.Exposure.Listing do
   defp read(listing) do
     read_at = now()
 
-    case Exposure.exposure_series_list() do
-      {:ok, series} -> SharedReading.put(key(), tokens(series))
+    # A reading refused as too large is marked as not read, as a failed one is.
+    with {:ok, series} <- Exposure.exposure_series_list(),
+         :ok <- SharedReading.put(key(), tokens(series)) do
+      :ok
+    else
       {:error, _reason} -> SharedReading.degraded(key())
     end
 
