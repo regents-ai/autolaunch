@@ -167,6 +167,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
         done={@done}
         dismiss="dismiss_done"
         target={@myself}
+        portfolio={false}
       />
       <p :if={@positions.failed} class="portfolio__hint" role="alert">
         Your covered calls are unavailable right now.

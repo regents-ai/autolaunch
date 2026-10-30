@@ -437,7 +437,10 @@ defmodule AutolaunchWeb.Components.SwapForm do
             unit={@swapped["buy_symbol"]}
           />
         </p>
-        <.link :if={@stake_href} navigate={@stake_href} class="rg-button rg-button--secondary">Stake your tokens</.link>
+        <div class="toast-actions">
+          <.link :if={@stake_href} navigate={@stake_href} class="rg-button rg-button--secondary">Stake your tokens</.link>
+          <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
+        </div>
       </div>
       <Regent.Primitives.button
         type="button"

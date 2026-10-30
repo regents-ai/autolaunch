@@ -267,6 +267,10 @@
 .token-swap__toast > div > p { margin: .25rem 0 0; color: var(--color-fg-muted); font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .token-swap__toast > .rg-button { min-width: 44px; min-height: 44px; margin: -.5rem; padding: .5rem; }
 .token-swap__toast .share-x { margin-top: .75rem; }
+/* A success toast's buttons, View Portfolio among them, in one row under its words. */
+.token-swap__toast .toast-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: .75rem; }
+.token-swap__toast .toast-actions .share-x { margin-top: 0; }
+.token-swap__toast > div > .toast-portfolio { margin-top: .75rem; }
 
 .token-swap-modal {
   width: min(38rem, calc(100% - 2rem));

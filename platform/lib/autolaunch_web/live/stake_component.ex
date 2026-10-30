@@ -1045,15 +1045,18 @@ defmodule AutolaunchWeb.StakeComponent do
       <div>
         <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- done_lines(@done)}>{line}</p>
-        <ShareDialog.share_dialog
-          :if={@done.kind == :stake && @share}
-          id={"#{@id}-share"}
-          message={@share.message}
-          image={@share.image}
-          video={@share.video}
-          video_everyone={@share.video_everyone}
-          video_name={@share.video_name}
-        />
+        <div class="toast-actions">
+          <ShareDialog.share_dialog
+            :if={@done.kind == :stake && @share}
+            id={"#{@id}-share"}
+            message={@share.message}
+            image={@share.image}
+            video={@share.video}
+            video_everyone={@share.video_everyone}
+            video_name={@share.video_name}
+          />
+          <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
+        </div>
       </div>
       <Regent.Primitives.button
         type="button"
