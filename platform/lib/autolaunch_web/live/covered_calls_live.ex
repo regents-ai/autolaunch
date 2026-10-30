@@ -215,7 +215,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <nav class="covered-calls__tabs" aria-label="Covered calls">
         <.link patch={~p"/covered-calls"} aria-current={@tab == :sell && "page"}>Sell calls</.link>
         <.link patch={~p"/covered-calls?tab=buy"} aria-current={@tab == :buy && "page"}>
-          Buy calls <span :if={@reading} class="covered-calls__count">({length(@open)})</span>
+          Buy calls <span :if={@reading} class="covered-calls__count">{" (#{length(@open)})"}</span>
         </.link>
         <.link :if={@human_id} navigate={~p"/portfolio"} class="covered-calls__mine">My calls</.link>
       </nav>
@@ -540,7 +540,7 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         <tbody>
           <tr :for={row <- @rows}>
             <td>{F.usd(row.strike)} <small>+{row.percent}%</small></td>
-            <td>{F.usd(row.premium)} <small>per {@symbol}</small></td>
+            <td>{F.usd(row.premium)} <small class="covered-calls__each">per {@symbol}</small></td>
             <td>
               <button
                 type="button"

@@ -104,6 +104,7 @@
   .covered-calls__steps { gap: var(--space-2); }
   .covered-calls__strip, .covered-calls__strip--panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .covered-calls__strip--panel > div:last-child { grid-column: 1 / -1; }
+  .covered-calls__each { display: none; }
   .covered-calls__tabs a { padding-inline: var(--space-2); }
   .covered-calls__table tr.covered-calls__chosen { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--color-fg); }
   .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: none; }
