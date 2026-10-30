@@ -15,7 +15,10 @@ defmodule AutolaunchWeb.UpcomingLive do
     {:ok,
      socket
      |> assign(AutolaunchWeb.PublicDocuments.page("/stock-listing"))
-     |> assign(chains: UpcomingCatalog.chains())}
+     |> assign(
+       chains: UpcomingCatalog.chains(),
+       covered_calls: covered_call_symbols()
+     )}
   end
 
   def render(assigns) do
@@ -23,8 +26,13 @@ defmodule AutolaunchWeb.UpcomingLive do
     <div class="fact-page upcoming">
       <header class="autolaunch-heading">
         <h1>Onchain Stocks</h1>
-        <p>
+        <p :if={@covered_calls == []}>
           Launch a pair with a meme ticker and earn from trading fees. Covered Call Options coming soon.
+        </p>
+        <p :if={@covered_calls != []}>
+          Launch a pair with a meme ticker and earn from trading fees, or sell
+          <.link navigate={~p"/covered-calls"}>covered calls</.link>
+          on {Enum.join(@covered_calls, ", ")} and keep the premium.
         </p>
         <p class="upcoming__hint">
           Open a stock for its addresses, company links and pool details.
@@ -109,5 +117,13 @@ defmodule AutolaunchWeb.UpcomingLive do
       <p :if={@stocks == []} class="upcoming-column__none">None right now.</p>
     </section>
     """
+  end
+
+  # The stocks with a covered-call market, while the site offers them.
+  defp covered_call_symbols do
+    case Autolaunch.CoveredCalls.Deployment.current() do
+      {:ok, config} -> Enum.map(config.markets, & &1.symbol)
+      {:error, _off_or_undescribed} -> []
+    end
   end
 end

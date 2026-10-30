@@ -145,6 +145,30 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
     end
   end
 
+  test "SHARE_VIDEO_PER_WALLET: a person's video of one wallet is never served for another",
+       %{now: now} do
+    auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
+    person = 1_000_000_000 + :rand.uniform(1_000_000_000)
+    first = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+    second = "0x" <> Base.encode16(:crypto.strong_rand_bytes(20), case: :lower)
+
+    ask = fn wallet ->
+      unboxed(fn -> ShareVideo.fetch(auction, :token, wallet, person, now) end)
+    end
+
+    try do
+      saved(auction, person, first, "first wallet's video", now)
+
+      assert ask.(first) == {:ok, "first wallet's video"}
+      assert {:waiting, _ahead} = ask.(second)
+
+      assert auction |> requests() |> Enum.map(&{&1.wallet, &1.state}) |> Enum.sort() ==
+               Enum.sort([{first, :ready}, {second, :queued}])
+    after
+      forget(auction)
+    end
+  end
+
   test "SAVED_VIDEO_GOES_AFTER_A_DAY_REQUEST_STAYS: a day-old video is deleted and its request kept",
        %{now: now} do
     auction = %Autolaunch.Auction{id: Ash.UUID.generate()}
@@ -267,7 +291,7 @@ defmodule AutolaunchWeb.ShareVideoQueueTest do
           auction,
           Map.merge(
             %{
-              key: "#{auction.id}:token:account:#{person}",
+              key: "#{auction.id}:token:account:#{person}:#{wallet}",
               kind: "token",
               human_account_id: person,
               wallet: wallet,

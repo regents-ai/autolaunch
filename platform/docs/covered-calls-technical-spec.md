@@ -297,23 +297,28 @@ hold this (`CoveredCallsOffTest`, browser walk `switched_off.spec.ts`).
 
 ### 6.2 How a press works (wallet steps)
 
-The server builds every wallet step from the chain at the latest block; the browser only sends what
-the server built, from the person's own wallet (Privy). Approvals are always their own step and
-exact. Every press reaches the wallet. The only buttons shown disabled are presses certain to fail
-from the chain's own state, with the reason beside them:
+Each panel works as the token page's Stake and Claim do. Its button (List calls, Buy calls,
+Exercise, Stop selling, Collect AMZNc, Collect USDC) reviews the form as it stands: the server
+builds every wallet step from the chain at the latest block, and the review opens over the form
+with the steps, one wallet button at a time ("Approve USDC", then "Confirm purchase"), showing
+"Confirm in wallet" while the wallet has the press. The browser only sends what the server built,
+from the person's own wallet (Privy). Approvals are always their own step and exact; one the chain
+already holds shows as done. Every press of the wallet button reaches the wallet, and a sent step
+moves the button on at once. When the chain confirms the last step the review closes and the page
+says what moved. The panel's button is disabled only when the action is certain to fail from the
+chain's own state, with the reason beside it:
 
 | Action | Steps | Disabled when (from the chain) |
 | --- | --- | --- |
-| List | approve exact stock → `list` | a corporate action is scheduled; not enough stock; approval not yet on chain |
-| Buy | approve exact USDC → `fill` | fills closed; sold out; not enough USDC; approval not yet on chain |
-| Exercise | approve exact USDC → `exercise` | outside the window; more than held; not enough USDC; approval not yet on chain |
+| List | approve exact stock → `list` | a corporate action is scheduled; not enough stock |
+| Buy | approve exact USDC → `fill` | fills closed; sold out; not enough USDC |
+| Exercise | approve exact USDC → `exercise` | outside the window; more than held; not enough USDC |
 | Stop selling | `cancel` | not the seller; nothing left to cancel |
 | Collect AMZNc | `claim` | nothing to claim |
 | Collect USDC | `collectStrike` | not the seller; nothing to collect |
 
-A press the panel cannot build steps for (the chain unreadable just then, or an amount that does
-not read) says "That did not go through. Nothing was sent. Try again in a moment." — never a silent
-press.
+A review the panel cannot build (the chain unreadable just then, or an amount that does not read)
+says why under the button and opens nothing: never a silent press.
 
 ### 6.3 Server modules (Ash domain `Autolaunch.CoveredCalls`)
 
@@ -323,7 +328,7 @@ press.
 | `Chain` | Reads listings, holdings, `claimable`, balances, allowances, multiplier, `effectiveAt` and the Chainlink price at one block. |
 | `Book` | Each market's listings, read once and shared by every visitor for five minutes, re-read ten seconds after any landed press. Never disables a button. |
 | `Positions` | One wallet's sold listings and holdings, read fresh. |
-| `Quote` | Suggested premium: Black-Scholes with a fixed 30% yearly volatility and no interest, from the Chainlink price; hidden when the price is older than four days. A guide only; never enforced. |
+| `Quote` | Suggested premium: Black-Scholes with a fixed 30% yearly volatility and no interest, from the Chainlink price, counted to the close of the exercise window; hidden when the price is older than four days. A guide only; never enforced. |
 | `Steps` | Builds the wallet steps of section 6.2. |
 | `Signer` | The wallet a read or step is for: only one of the acting account's own linked wallets. |
 | `Market` | The four operations every surface calls (`book`, `quote`, `positions`, `prepare`), with Ash policies. |

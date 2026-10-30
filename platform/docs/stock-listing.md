@@ -9,7 +9,7 @@ The catalog in `priv/stocks/upcoming-2026-10-14.json` was imported from Sean's
 checksum, 127 chain/ticker records, exact addresses, company and stock-quote
 links, pool observations and unresolved identities. The research snapshot has
 35 previously available records, 14 upcoming records and 78 feed-required records.
-Liquidity uses the existing stock picker’s compact dollar format (K, M and B).
+Liquidity is written as every Regents amount is: dollars and cents with thousands separated, cut, never rounded up.
 Observations have their own dates; historical or missing figures are
 never presented as current liquidity or zero.
 
@@ -52,4 +52,3 @@ price feed.
 | --- | --- | --- |
 | Stock cards showed a ticker and short note. | Clicking a card opens full addresses, links and dated pool observations. | Visitors can inspect a stock without leaving the catalog. |
 | An empty local admission cache moved established stocks into Soon Available. | The 35 established pairing stocks retain their catalog membership. | Research previews must not shrink or expand the available list. |
-| Liquidity displayed every dollar and cent. | The existing K/M/B dollar format displays compact amounts. | Large figures are easier to scan. |

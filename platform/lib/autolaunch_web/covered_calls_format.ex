@@ -6,15 +6,23 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   """
 
   @usdc_unit 1_000_000
+  # The largest amount a page takes: far beyond any real one, and well inside
+  # what a contract call can carry.
+  @largest 2 ** 128 - 1
 
-  @doc "USDC micro-units as dollars and cents, rounded up to the cent when a fraction remains."
+  @doc """
+  USDC micro-units as dollars, the one Regents way (`RegentFormat.token_amount/2`):
+  two decimals from $1 up, three significant digits below, digits cut and
+  never rounded up.
+  """
   def usd(nil), do: "—"
+  def usd(micro) when is_integer(micro), do: "$" <> RegentFormat.token_amount(micro, 6)
 
-  def usd(micro) when is_integer(micro) do
-    cents = div(micro + 9_999, 10_000)
-    dollars = div(cents, 100)
-    "$" <> group(dollars) <> "." <> String.pad_leading(Integer.to_string(rem(cents, 100)), 2, "0")
-  end
+  @doc """
+  USDC a person pays, rounded up to the cent before it is shown, so a review
+  never shows less than the wallet will be asked for.
+  """
+  def usd_due(micro) when is_integer(micro), do: usd(div(micro + 9_999, 10_000) * 10_000)
 
   @doc "A raw stock amount as whole tokens, without trailing zeros."
   def tokens(raw, unit) when is_integer(raw) and is_integer(unit) do
@@ -25,11 +33,31 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
     |> Decimal.to_string(:normal)
   end
 
-  @doc "A typed token amount as raw units, or nil when it is not a positive amount that fits."
-  def parse_tokens(text, unit), do: parse(text, unit)
+  @doc """
+  A typed token amount as raw units, or nil when it is not a positive amount
+  that fits. Digits with at most one dot: a comma is never read as either a
+  thousands separator or a decimal point, since people write it both ways.
+  """
+  def parse_tokens(text, unit) when is_binary(text), do: parse(String.trim(text), unit)
+  def parse_tokens(_text, _unit), do: nil
 
-  @doc "A typed dollar amount as USDC micro-units, or nil when it is not a positive amount that fits."
-  def parse_usd(text), do: parse(text, @usdc_unit)
+  @doc """
+  A typed dollar price as USDC micro-units, read as `parse_tokens/2` reads,
+  after one optional `$`, to the cent: a price is shown to the cent, so a
+  typed one never carries more than the page can show.
+  """
+  def parse_usd(text) when is_binary(text) do
+    with cents when is_integer(cents) <-
+           text |> String.trim() |> String.replace_prefix("$", "") |> parse(100),
+         micro = cents * div(@usdc_unit, 100),
+         true <- micro <= @largest do
+      micro
+    else
+      _not_a_price -> nil
+    end
+  end
+
+  def parse_usd(_text), do: nil
 
   @doc "A raw amount at `per_token` USDC per whole token, in micro-USDC, rounded up as the contract does."
   def total(raw, per_token, unit),
@@ -43,26 +71,36 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
 
-  defp parse(text, unit) when is_binary(text) do
-    text = text |> String.trim() |> String.replace([",", "$"], "")
+  @doc "The exercise window that opens at `expiry`, in full: when it opens and when it closes."
+  def window(expiry) when is_integer(expiry), do: "#{expiry(expiry)} to #{window_closes(expiry)}"
 
-    with {decimal, ""} <- Decimal.parse(text),
-         true <- Decimal.gt?(decimal, 0),
-         scaled = Decimal.mult(decimal, unit),
-         true <- Decimal.integer?(scaled) do
-      Decimal.to_integer(scaled)
+  @doc "The exercise window that opens at `expiry` as its two days, for a list or a choice."
+  def window_days(expiry) when is_integer(expiry),
+    do: "#{day(expiry)} – #{day(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}"
+
+  @doc "USDC micro-units as a dollar price a form takes back: digits and a dot, to the cent."
+  def plain_usd(micro) when is_integer(micro) do
+    cents = div(micro + 5_000, 10_000)
+    "#{div(cents, 100)}.#{cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
+  end
+
+  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
+
+  defp parse(text, unit) do
+    decimals = String.length(Integer.to_string(unit)) - 1
+
+    with [_text, whole | fraction] <- Regex.run(~r/\A(\d*)(?:\.(\d*))?\z/, text),
+         fraction = Enum.join(fraction),
+         true <- whole <> fraction != "",
+         fraction = String.trim_trailing(fraction, "0"),
+         true <- String.length(fraction) <= decimals,
+         raw =
+           String.to_integer("0" <> whole) * unit +
+             String.to_integer("0" <> String.pad_trailing(fraction, decimals, "0")),
+         true <- raw > 0 and raw <= @largest do
+      raw
     else
       _not_an_amount -> nil
     end
-  end
-
-  defp parse(_text, _unit), do: nil
-
-  defp group(dollars) do
-    dollars
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
-    |> String.reverse()
   end
 end

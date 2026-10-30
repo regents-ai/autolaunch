@@ -15,6 +15,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
   use Phoenix.Component
 
   alias Autolaunch.Stocks.{Companies, PriceFeeds}
+  alias AutolaunchWeb.UsdValue
   alias Phoenix.LiveView.JS
   alias RegentChain.Address
 
@@ -261,14 +262,17 @@ defmodule AutolaunchWeb.Components.StockSelect do
          weekly_volume_through: through
        }) do
     if Date.diff(Date.utc_today(), through) <= 2,
-      do: %{usd: Decimal.to_float(usd), complete?: complete?, through: through}
+      do: %{usd: usd, complete?: complete?, through: through}
   end
 
   defp weekly_volume(_stock), do: nil
 
   defp ordered(stocks, "volume"),
     do:
-      Enum.sort_by(stocks, &{is_nil(&1.volume), -((&1.volume && &1.volume.usd) || 0), &1.symbol})
+      Enum.sort_by(
+        stocks,
+        &{is_nil(&1.volume), -((&1.volume && Decimal.to_float(&1.volume.usd)) || 0), &1.symbol}
+      )
 
   # By the day each was first offered: stocks recorded the same day were added
   # together, so they keep alphabetical order among themselves.
@@ -295,7 +299,7 @@ defmodule AutolaunchWeb.Components.StockSelect do
         do: "past week",
         else: "week to #{Calendar.strftime(through, "%-d %b")}"
 
-    "#{compact_usd(usd)}#{floor} #{week}"
+    "#{UsdValue.dollars(usd)}#{floor} #{week}"
   end
 
   attr :stock, :map, required: true
@@ -337,16 +341,4 @@ defmodule AutolaunchWeb.Components.StockSelect do
     JS.set_attribute({"hidden", "hidden"}, to: "##{id}-list")
     |> JS.set_attribute({"aria-expanded", "false"}, to: "##{id}-button")
   end
-
-  @doc "A dollar amount rounded for a sentence: `$1.7M`, `$580K`, `$593`."
-  def compact_usd(amount) when is_number(amount) do
-    cond do
-      amount >= 1.0e9 -> "$#{one_decimal(amount / 1.0e9)}B"
-      amount >= 1.0e6 -> "$#{one_decimal(amount / 1.0e6)}M"
-      amount >= 1.0e3 -> "$#{round(amount / 1.0e3)}K"
-      true -> "$#{round(amount)}"
-    end
-  end
-
-  defp one_decimal(number), do: :erlang.float_to_binary(number / 1, decimals: 1)
 end

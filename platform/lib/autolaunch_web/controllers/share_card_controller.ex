@@ -99,6 +99,88 @@ defmodule AutolaunchWeb.ShareCardController do
     end
   end
 
+  @doc "A covered-call market's picture, for any market the site offers."
+  def covered_calls(conn, %{"symbol" => symbol}) do
+    symbol = covered_calls_market!(symbol)
+    market_card(conn, ShareCard.market_png(:covered_calls, symbol, DateTime.utc_now()))
+  end
+
+  @doc "A covered-call market's share video for everyone."
+  def covered_calls_video(conn, %{"symbol" => symbol}) do
+    symbol = covered_calls_market!(symbol)
+
+    send_video(
+      conn,
+      "public",
+      ShareVideo.fetch_market(:covered_calls, symbol, nil, nil, DateTime.utc_now())
+    )
+  end
+
+  @doc "One wallet's share video of a covered-call market, on the same terms as `wallet_video/2`."
+  def covered_calls_wallet_video(conn, %{"symbol" => symbol, "wallet" => wallet}) do
+    symbol = covered_calls_market!(symbol)
+    market_wallet_video(conn, :covered_calls, symbol, wallet)
+  end
+
+  @doc "An Isolated Exposure to After-hours Stocks series' picture, for any series the site offers."
+  def exposure(conn, %{"series" => series}) do
+    series = exposure_series!(series)
+    market_card(conn, ShareCard.market_png(:exposure, series, DateTime.utc_now()))
+  end
+
+  @doc "An Isolated Exposure to After-hours Stocks series' share video for everyone."
+  def exposure_video(conn, %{"series" => series}) do
+    series = exposure_series!(series)
+
+    send_video(
+      conn,
+      "public",
+      ShareVideo.fetch_market(:exposure, series, nil, nil, DateTime.utc_now())
+    )
+  end
+
+  @doc "One wallet's share video of an Isolated Exposure to After-hours Stocks series, on the same terms as `wallet_video/2`."
+  def exposure_wallet_video(conn, %{"series" => series, "wallet" => wallet}) do
+    series = exposure_series!(series)
+    market_wallet_video(conn, :exposure, series, wallet)
+  end
+
+  # A market's picture is drawn from the chain; one the chain cannot answer
+  # for is the site's try-again page.
+  defp market_card(conn, {:ok, _png} = drawn), do: send_card(conn, drawn)
+  defp market_card(_conn, {:error, _reason}), do: raise(UnavailableError)
+
+  defp market_wallet_video(conn, kind, subject, wallet) do
+    account = conn.assigns[:current_human_account]
+
+    with {:ok, wallet} <- Address.normalize(wallet),
+         true <- linked?(account, wallet) do
+      send_video(
+        conn,
+        "private",
+        ShareVideo.fetch_market(kind, subject, wallet, account.id, DateTime.utc_now())
+      )
+    else
+      _not_theirs -> raise NotFoundError
+    end
+  end
+
+  # The market as the site's description writes its symbol; any other is not there.
+  defp covered_calls_market!(symbol) do
+    case Autolaunch.CoveredCalls.Deployment.market(symbol) do
+      {:ok, market} -> market.symbol
+      {:error, _unknown} -> raise NotFoundError
+    end
+  end
+
+  # The series' address as the site's description lists it, in any case.
+  defp exposure_series!(series) do
+    case Autolaunch.Exposure.Deployment.series(series) do
+      {:ok, address} -> address
+      {:error, _unknown} -> raise NotFoundError
+    end
+  end
+
   defp moved(conn, address) do
     conn
     |> put_status(:moved_permanently)

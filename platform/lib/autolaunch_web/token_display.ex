@@ -155,7 +155,8 @@ defmodule AutolaunchWeb.TokenDisplay do
   end
 
   defp figure(assigns) do
-    assigns = assign(assigns, :label, Enum.join([assigns.exact, assigns.unit] -- [nil], " "))
+    assigns =
+      assign(assigns, :label, Enum.join([plain(assigns.exact), assigns.unit] -- [nil], " "))
 
     ~H"""
     <span class="figure" aria-hidden="true" title={@label}><span class="figure__value" data-count>{@shown}</span><.unit unit={
@@ -163,6 +164,10 @@ defmodule AutolaunchWeb.TokenDisplay do
     } /></span><span class="visually-hidden">{@label}</span>
     """
   end
+
+  # A Decimal's own text can be scientific (1.234E+4); the exact form is plain.
+  defp plain(%Decimal{} = amount), do: Decimal.to_string(amount, :normal)
+  defp plain(text), do: text
 
   defp unit(%{unit: nil} = assigns), do: ~H""
 

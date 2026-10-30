@@ -61,7 +61,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
     ~H"""
     <p id={@id} class="auction-book__back">
       Your money can come back once the auction reaches its minimum
-      (<TokenDisplay.price amount={@missing} unit={@unit} />
+      (<TokenDisplay.written value={shortfall(@missing)} unit={@unit} />
       <UsdValue.usd
         amount={@missing}
         rate={@usd_rate}
@@ -87,6 +87,18 @@ defmodule AutolaunchWeb.Components.AuctionBook do
       />.
     </p>
     """
+  end
+
+  # What is still needed, written as every figure is but rounded up at its last
+  # shown place, so the line never shows less than is missing.
+  defp shortfall(missing) do
+    exact = Decimal.new(missing, max_digits: :infinity)
+    shown = TokenDisplay.short(missing)
+    cut = shown |> String.replace(",", "") |> Decimal.new()
+
+    if Decimal.eq?(cut, exact),
+      do: shown,
+      else: cut |> Decimal.add(Decimal.new(1, 1, cut.exp)) |> RegentFormat.amount()
   end
 
   attr :id, :string, required: true

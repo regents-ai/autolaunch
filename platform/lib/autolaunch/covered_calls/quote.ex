@@ -5,8 +5,10 @@ defmodule Autolaunch.CoveredCalls.Quote do
   enforced: the seller sets the minimum premium, and a buyer pays exactly what
   the listing asks.
 
-  The suggestion is the Black-Scholes price of the call with a fixed yearly
-  volatility of 30% and no interest (`Autolaunch.CoveredCalls.Terms`). It is not
+  The suggestion is the Black-Scholes price of the call with an assumed yearly
+  volatility of 30% (a fixed figure, not a market quote) and no interest
+  (`Autolaunch.CoveredCalls.Terms`), counted to the close of the exercise
+  window, the last moment the buyer may exercise. It is not
   offered while the reference price is older than four days, which covers a
   weekend and a holiday; feeds stop updating outside market hours and during a
   corporate action.
@@ -32,16 +34,30 @@ defmodule Autolaunch.CoveredCalls.Quote do
          strike_per_token: strike_per_token,
          expiry: expiry,
          volatility: @volatility,
-         suggested_premium_per_token:
-           Terms.suggested_premium(spot, strike_per_token, expiry, book.now, @volatility),
+         suggested_premium_per_token: premium(spot, strike_per_token, expiry, book.now),
          price_updated_at: book.price.updated_at
        }}
     end
   end
 
-  defp spot(%{price: %{answer: answer, updated_at: updated_at}, now: now})
-       when now - updated_at <= @stale_s,
-       do: {:ok, div(answer, @feed_to_usdc)}
+  @doc """
+  The reference price per whole token in a book reading (USDC, 6 decimals), or
+  `:price_unavailable` when the feed did not answer or is older than four days.
+  """
+  @spec spot(map()) :: {:ok, pos_integer()} | {:error, :price_unavailable}
+  def spot(%{price: %{answer: answer, updated_at: updated_at}, now: now})
+      when now - updated_at <= @stale_s,
+      do: {:ok, div(answer, @feed_to_usdc)}
 
-  defp spot(_book), do: {:error, :price_unavailable}
+  def spot(_book), do: {:error, :price_unavailable}
+
+  @doc """
+  The suggested premium per whole token at `strike` for the series that
+  expires at `expiry`, from `spot`, counted to the window's close.
+  """
+  def premium(spot, strike, expiry, now),
+    do: Terms.suggested_premium(spot, strike, expiry + Terms.exercise_window(), now, @volatility)
+
+  @doc "The yearly volatility the suggestion assumes."
+  def volatility, do: @volatility
 end

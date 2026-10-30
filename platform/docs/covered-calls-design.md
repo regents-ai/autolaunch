@@ -157,20 +157,33 @@ function claimable(uint256 listingId, address account) external view returns (ui
   read set).
 - An instant (unscheduled) multiplier change cannot be detected. Prices are per raw unit, so the
   terms keep their value; pages show share-equivalents at the current multiplier.
+- Reads grow with the listings ever made: a book costs one read per listing and a wallet's
+  positions three, eight at a time. Nothing is pruned, since an old listing can still owe stock.
+  Cheap for months at a weekly pace; an event ledger replaces it if listings ever run to thousands.
+- The shared book is per machine; autolaunch.sh runs one machine (`--ha=false`). A second
+  machine would see another machine's presses only after its five minutes.
 - All listings draw on one balance. If the issuer blocklisted and seized from the contract
   itself, whoever claimed first would be paid. The contract is exempt from seizure unless the
   issuer lists it.
 
 ## 5. The site (`Autolaunch.CoveredCalls`)
 
-Behind `AUTOLAUNCH_COVERED_CALLS=true` (`config :autolaunch, :covered_calls, :on`), off by default and in production. With it
+Behind `AUTOLAUNCH_COVERED_CALLS=true` (`config :autolaunch, :covered_calls, :on`), off by default, on in production since the 29 October 2026 switch-on (`platform/fly.toml`). With it
 off, the routes answer not found and no tool or command is advertised.
 
 | Place | Purpose |
 | --- | --- |
-| `/covered-calls` | Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, expiry from the next four Fridays, premium) beside a guide: the reference price, shares per token, suggested premiums for the next Friday at +1%, +3% and +5% strikes, the result at expiry at three prices, and the terms ("Dividends during the week stay with the tokens."). |
+| `/covered-calls` | Under the title, one line and three steps for the tab's side (Buy, Hold, Exercise; List, Earn, Settle). Every date is shown as the exercise window, Friday 21:00 UTC to Saturday 21:00 UTC. The Sell guide follows the form: suggested premiums for the window chosen (each with Use, which fills the form), the result at expiry of the strike and premium typed (an example until both are), the reference price with its age, and the estimate's basis and the terms folded away. A Contract section at the foot names the contract, the stock and the price feed, links the verified code on Basescan, and says what lies outside the contract (Coinbase can pause or seize the stock; buying stops while REGENT staking is paused). Two tabs, each its own address. **Buy**: the calls for sale with strike, premium, expiry and amount left (share-equivalents shown whenever the multiplier is not 1.0); Buy opens that listing's wallet panel under its row at `?listing=<id>`. **Sell**: one form (amount, strike, exercise window from the next four Fridays, premium) beside the guide above, its suggestions at +1%, +3% and +5% strikes and its result at three prices. |
 | `/stock-listing/:symbol` | For a stock with a market, while on, a "Covered calls on <symbol>" action. |
-| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with the wallet steps it allows now shown directly (Stop selling, Exercise, Collect <symbol>, Collect USDC), so every button there sends. |
+| `/stock-listing` and the menu | While on, the stock list's opening line links to covered calls on each stock with a market (in place of main's "Covered Call Options coming soon."), and the menu has a Covered calls row under Stocks. Both sitemaps list `/covered-calls`. |
+| `/portfolio` | A "Covered calls" section: each listing the wallet sold or holds, with every action of its side the chain may still allow (Exercise while calls are held and the window is open or to come; Stop selling while some is unsold; Collect USDC and Collect <symbol> until the window has closed with nothing left), each disabled with the reason while it is certain to fail now. It reads again after a press from this wallet or on one of its listings on any page, on Refresh, and just after one of its listings' expiry or window closes; a read that fails keeps the last figures with a note. |
+
+Every panel works as the token page's Stake and Claim do (`AutolaunchWeb.CoveredCallComponent`):
+its button reviews the form as it stands and opens the wallet steps over it, one wallet button at a
+time with "Confirm in wallet" while the wallet has the press, an approval the chain already holds
+shown as done; when the chain confirms the last step the review closes and the page says what
+moved. The panel's button is disabled only when the chain makes the action certain to fail, with
+the reason beside it.
 
 Ash domain `Autolaunch.CoveredCalls`:
 
@@ -179,7 +192,16 @@ Ash domain `Autolaunch.CoveredCalls`:
   migration is needed. (The event ledger only runs where the deployment names start blocks, and a
   new table needs Sean's go before production; reading the contract avoids both.)
 - `Book` — each market's listings, read once and shared by every visitor for five minutes and
-  read again soon after a confirmed press (`ChainRefresh`), as `RegentFacts` does.
+  read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
+  (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position
+  on each, are read eight at a time, so weeks of listings stay quick to read.
+- `Positions` — a wallet's listings and holdings, all read at one latest block, never from the
+  shared book, so a listing made by an agent a moment ago is there and every figure agrees.
+- `/covered-calls` reads again when a press lands on any page, when a `?listing=<id>` link opens
+  (unless read in the last ten seconds), and just after the next open listing's expiry or a
+  scheduled multiplier change, so a Buy the chain held back comes back by itself.
+- Dollar figures follow the one Regents rule (`RegentFormat.token_amount/2`: two decimals from $1,
+  three significant digits below, cut). Typed amounts are digits with at most one dot, and typed prices go to the cent. An amount a person pays is shown rounded up to the cent, never below what the wallet is asked for.
 - `Market` — the four operations every surface calls: `book`, `quote`, `positions`, `prepare`.
   Positions and steps are only ever for a wallet of the authenticated actor's own account.
 - `Steps` — builds each wallet step (approve stock, list, approve USDC, fill, cancel, exercise,
@@ -187,7 +209,8 @@ Ash domain `Autolaunch.CoveredCalls`:
   from the chain's own state at the latest block (sold out, past expiry, no approval yet) shows
   the button disabled with the reason; nothing else blocks a press.
 - `Quote` — the suggested premium: a reference price from the Chainlink feed (hidden when older
-  than its bound) and a simple volatility figure, shown as a guide, never enforced.
+  than its bound) and an assumed 30% yearly volatility, counted to the close of the exercise
+  window, shown as a guide, never enforced.
 
 Agent surfaces, one Ash action each, same inputs and refusals everywhere:
 
@@ -261,8 +284,9 @@ owned by the regents-cli lane until it adds them.
     `autolaunch/covered_calls/steps_test.exs`, `autolaunch_web/live/covered_calls_live_test.exs`,
     `autolaunch_web/controllers/covered_calls_routes_test.exs`; `public_tools_features.test.ts`.
   - The journey found one design flaw, fixed: the portfolio row's own "Stop selling" button opened
-    a panel holding a second "Stop selling", so the first press sent nothing. Rows now show their
-    wallet steps directly.
+    a panel holding a second "Stop selling", so the first press sent nothing. (Since the switch-on
+    on 29 October, each row's button opens the review over it, as Claim rewards does, and the
+    wallet button there is named for its step: "Confirm stop", "Confirm collection".)
   - Screenshots at 390 then found the Buy panel inside a sideways-scrolling table, its buttons off
     the screen (the journey's clicks scroll, so it had passed). The panel now sits below the list
     and, on a phone, each listing is a block of labelled figures. The journey now checks every
@@ -270,6 +294,12 @@ owned by the regents-cli lane until it adds them.
     calls") and passes on the new.
   - The journey moved the copy's clock and so broke the Memestock auction journey run after it;
     it now restores the copy (snapshot and revert). Full journeys: 14 passed.
+- On Base itself, 29 Oct 2026: `contracts/covered-calls/deploy/dry-run.py` simulates a whole
+  listing's life on the deployed contract on top of the latest Base block (`eth_simulateV1`,
+  nothing sent), with the real AMZNc, so the newer `effectiveAt()` read no local fork runs is
+  exercised too: list, buy, stop selling, exercise, collect the strike and both sides' stock, three
+  refusals at the window's edges, every transfer checked to the unit and the 1% fee into live
+  staking. First run at block 53,256,332: all 15 steps as promised.
 
 ## 7. Open items
 
@@ -285,5 +315,4 @@ owned by the regents-cli lane until it adds them.
    (`SIWA_SERVER_REV` in `scripts/agent-journeys.sh`) is no longer on GitHub, so a fresh checkout
    cannot start the journeys; the admitted Memestake AMZNc route uses the thin pool (section 1).
 5. **Gaps.** Hosted MCP (`/mcp`) and the regents CLI for every covered-call action
-   (`docs/agent-parity.md`); the agent route's cancel, exercise, claim and collect strike have no
-   test of their own; `/covered-calls` is not in the sitemap while on.
+   (`docs/agent-parity.md`).

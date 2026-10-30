@@ -14,6 +14,11 @@ defmodule AutolaunchWeb.UsdValue do
   alias Autolaunch.Stocks.{MarketData, PriceFeeds}
   alias Phoenix.LiveView.AsyncResult
 
+  # Digits with an optional fraction, or a fraction alone, and an optional
+  # leading minus: an amount as people type it and the chain's figures are
+  # written. No exponent.
+  @plain_decimal ~r/\A-?(?:\d+(?:\.\d+)?|\.\d+)\z/
+
   @doc """
   Reads a chain's dollar prices into `key` in the background, as `assign_async/3`
   does. Each call is for a new record, so the previous record's price comes
@@ -101,16 +106,20 @@ defmodule AutolaunchWeb.UsdValue do
   defp decimal(%Decimal{} = amount), do: amount
 
   # Exact auction prices run past a hundred decimal places; anything far longer
-  # is not an amount anyone typed or the chain returned.
+  # is not an amount anyone typed or the chain returned. Only a plain decimal is
+  # an amount: an exponent such as 1e6144 would make the dollar figure endless.
   defp decimal(amount) when is_binary(amount) and byte_size(amount) <= 256 do
-    case Decimal.parse(String.trim(amount), max_digits: :infinity) do
-      {decimal, ""} -> if Decimal.inf?(decimal) or Decimal.nan?(decimal), do: nil, else: decimal
-      _unparsed -> nil
-    end
+    amount = String.trim(amount)
+
+    if Regex.match?(@plain_decimal, amount),
+      do: Decimal.new(amount, max_digits: :infinity)
   end
 
   defp decimal(_amount), do: nil
 
   @doc "A dollar figure, such as `$1,234.50` or `$0.0123`, as every Regent page writes one."
+  def dollars(%Decimal{sign: -1, coef: coef} = value) when coef != 0,
+    do: "-" <> dollars(%{value | sign: 1})
+
   def dollars(value), do: "$" <> RegentFormat.amount(value)
 end

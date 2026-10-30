@@ -70,6 +70,7 @@ defmodule AutolaunchWeb.PortfolioLive do
      |> assign(robinhood_swap?: RobinhoodLab.swap_configured?())
      |> LabMarket.subscribe_heads()
      |> LabMarket.subscribe_wallet_bids()
+     |> subscribe_covered_calls()
      |> clear_wallet_state()
      |> assign_figure_rates()
      |> read_holdings()}
@@ -77,7 +78,10 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  def handle_event("refresh", _params, socket), do: {:noreply, request_reads(socket)}
+  def handle_event("refresh", _params, socket) do
+    read_covered_calls(socket, [])
+    {:noreply, request_reads(socket)}
+  end
 
   # Each dialog is named by the record its form acts on; the dialog's own
   # close names the same record.
@@ -121,11 +125,36 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, request_reads(socket)}
 
-  # A covered-call press landed, so the covered calls read again.
-  def handle_info({:covered_calls_changed, _symbol}, socket) do
+  # A covered-call press landed here: every open page of that market hears
+  # which listing and wallet, this one included.
+  def handle_info({:covered_calls_changed, symbol, press}, socket) do
+    Phoenix.PubSub.broadcast(
+      Autolaunch.PubSub,
+      "covered_calls:" <> symbol,
+      {:covered_call_pressed, press}
+    )
+
+    {:noreply, socket}
+  end
+
+  # A press from this wallet, or on a listing it sold or holds, from any page:
+  # its covered calls read again. Other presses change nothing here.
+  def handle_info({:covered_call_pressed, press}, socket) do
+    read_covered_calls(socket, pressed: press)
+    {:noreply, socket}
+  end
+
+  # One of the wallet's listings reached its expiry or its window closed.
+  def handle_info(:covered_calls_due, socket) do
+    read_covered_calls(socket, [])
+    {:noreply, socket}
+  end
+
+  # A covered-call panel's last step landed; its section says what moved.
+  def handle_info({:covered_call_done, done}, socket) do
     send_update(AutolaunchWeb.CoveredCallsPortfolioComponent,
       id: "portfolio-covered-calls",
-      read: true
+      done: done
     )
 
     {:noreply, socket}
@@ -1039,4 +1068,29 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp stale_books(books),
     do: Map.new(books, fn {id, entry} -> {id, %{entry | fresh?: false}} end)
+
+  # Every covered-call market's presses, from any page, while they are on.
+  defp subscribe_covered_calls(socket) do
+    with true <- connected?(socket),
+         {:ok, %{markets: markets}} <- Autolaunch.CoveredCalls.Deployment.current() do
+      Enum.each(
+        markets,
+        &Phoenix.PubSub.subscribe(Autolaunch.PubSub, "covered_calls:" <> &1.symbol)
+      )
+    end
+
+    socket
+  end
+
+  # Only while the page shows its covered calls section; `pressed:` reads only
+  # when that listing is one of the wallet's own.
+  defp read_covered_calls(socket, only) do
+    if socket.assigns.account_control.kind != :sign_in and
+         Autolaunch.CoveredCalls.Deployment.enabled?(),
+       do:
+         send_update(
+           AutolaunchWeb.CoveredCallsPortfolioComponent,
+           Keyword.merge([id: "portfolio-covered-calls", read: true], only)
+         )
+  end
 end

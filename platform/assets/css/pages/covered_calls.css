@@ -8,15 +8,25 @@
 .covered-calls__intro h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 .covered-calls__intro p { color: var(--color-fg); line-height: 1.5; }
 .covered-calls__intro .covered-calls__eligibility { color: var(--color-fg-muted); font-size: .875rem; }
+.covered-calls__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); padding: 0; list-style: none; counter-reset: step; }
+.covered-calls__steps li { display: grid; align-content: start; gap: .25rem; padding: var(--space-2) var(--space-3); background: var(--color-surface); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; counter-increment: step; }
+.covered-calls__steps strong { color: var(--color-fg); font-size: 1rem; }
+.covered-calls__steps strong::before { content: counter(step) " "; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 .covered-calls__tabs { display: flex; gap: var(--space-1); }
 .covered-calls__tabs a { display: inline-flex; align-items: center; min-block-size: 2.625rem; padding-inline: var(--space-3); color: var(--color-fg-muted); font-weight: 600; text-decoration: none; background: transparent; }
-.covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 6%, var(--color-surface)); }
+.covered-calls__tabs { border-bottom: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent); }
+.covered-calls__tabs a[aria-current="page"] { color: var(--color-fg); background: color-mix(in srgb, var(--color-fg) 9%, var(--color-surface)); box-shadow: inset 0 -3px 0 var(--color-fg); }
+.covered-calls__tabs .covered-calls__mine { margin-inline-start: auto; font-weight: 500; text-decoration: underline; text-underline-offset: .2em; }
 .covered-calls__tabs a:focus-visible { outline: 2px solid var(--color-focus, currentColor); outline-offset: 2px; }
 .covered-calls__section { display: grid; gap: var(--space-2); min-width: 0; }
 .covered-calls__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
 .covered-calls__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
 .covered-calls__table small { color: var(--color-fg-muted); }
 .covered-calls__row-action { text-align: right; }
+.covered-calls__table.market-list__table tbody td:first-child { text-align: left; }
+/* A portfolio row's actions sit side by side, each no wider than the token page's trade panel. */
+.covered-calls__table .portfolio__actions > td > div { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.covered-calls__table .portfolio__actions .covered-call-panel { flex: 1 1 18rem; max-width: 30rem; }
 .covered-calls__panel { display: grid; gap: var(--space-2); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .covered-calls__panel h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 .covered-calls__sell { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5, 2rem); }
@@ -32,37 +42,48 @@
 .covered-calls__mini td + td, .covered-calls__mini th + td { text-align: right; }
 .covered-calls__mini small { color: var(--color-fg-muted); }
 .covered-calls__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
+.covered-calls__more { font-size: .875rem; line-height: 1.5; }
+.covered-calls__more summary { cursor: pointer; font-weight: 600; min-block-size: 2rem; display: flex; align-items: center; list-style: none; }
+.covered-calls__more summary::-webkit-details-marker { display: none; }
+.covered-calls__more summary::after { content: "+" / ""; margin-inline-start: auto; color: var(--color-fg-muted); font-weight: 400; }
+.covered-calls__more[open] summary::after { content: "−" / ""; }
+.covered-calls__more > :not(summary) { margin: var(--space-1) 0 0; color: var(--color-fg-muted); }
+.covered-calls__use { min-block-size: 2rem; padding-inline: var(--space-2); font-size: .8125rem; }
+.covered-calls__contract dd { min-width: 0; overflow-wrap: anywhere; }
+.covered-call-panel__hint { color: var(--color-fg-muted); font-size: .8125rem; }
 
+/* The panel works as the token page's Stake and Claim do: the form, and the review that opens
+   over it (`.token-swap__stack`, `.token-swap__review`), share one cell. */
 .covered-call-panel { display: grid; gap: var(--space-3); min-width: 0; }
-.covered-call-panel__form { display: grid; gap: var(--space-3); }
-.covered-call-panel__field { display: grid; gap: var(--space-1); }
-.covered-call-panel__field > span:first-child { font-weight: 600; font-size: .875rem; }
+.covered-call-panel__body, .covered-call-panel__form { display: grid; gap: var(--space-3); min-width: 0; align-content: start; }
+.covered-call-panel__body[inert] { opacity: .45; }
 .covered-call-panel__input { display: flex; align-items: center; gap: var(--space-2); }
+.covered-call-panel__input > :is(input, select) { flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
 .covered-call-panel__input > span { color: var(--color-fg-muted); white-space: nowrap; font-size: .875rem; }
-.covered-call-panel input, .covered-call-panel select { inline-size: 100%; min-block-size: 2.625rem; font: inherit; font-variant-numeric: tabular-nums; }
-.covered-call-panel__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.covered-call-panel__facts { display: grid; gap: var(--space-1); margin: 0; font-size: .875rem; }
+.covered-call-panel__facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
 .covered-call-panel__facts dt { color: var(--color-fg-muted); }
 .covered-call-panel__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
-.covered-call-panel__problem { margin: 0; color: var(--color-danger, #b42318); font-size: .875rem; }
-.covered-call-panel__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
-.covered-call-panel__steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.covered-call-panel__step { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
-.covered-call-panel__step .rg-button { inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
-.covered-call-panel__step-words { display: grid; gap: .125rem; color: var(--color-fg-muted); font-size: .875rem; }
-.covered-call-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
+.covered-call-panel__problem { margin: 0; color: var(--color-error); font-size: .875rem; }
+.covered-call-panel__reason { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.covered-call-panel .token-swap__submit { margin-top: 0; }
+/* The review covers the whole form, its wallet button where the form's button was. */
+.covered-call-panel .token-swap__review { align-self: stretch; align-content: end; }
 
 @media (hover: none) and (pointer: coarse) {
-  .covered-calls__tabs a, .covered-call-panel input, .covered-call-panel select, .covered-call-panel__step .rg-button { min-block-size: 2.75rem; }
+  .covered-calls__tabs a, .covered-call-panel input, .covered-call-panel select { min-block-size: 2.75rem; }
+  .covered-calls__use, .covered-calls__more summary { min-block-size: 2.75rem; }
+  .covered-calls__contract dd > a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 }
 
 @media (max-width: 47.99rem) {
-  .covered-calls__sell { grid-template-columns: minmax(0, 1fr); }
-  .covered-call-panel__step { grid-template-columns: minmax(0, 1fr); }
-  .covered-call-panel__step .rg-button { inline-size: 100%; }
+  .covered-calls__sell, .covered-calls__steps { grid-template-columns: minmax(0, 1fr); }
+  .covered-calls__steps { gap: var(--space-1); }
+  .covered-calls__steps li { padding: var(--space-1) var(--space-2); }
   /* On a phone each listing is a block of labelled figures, never wider than the screen. */
   .covered-calls__table thead { display: none; }
-  .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding-block: var(--space-2); }
-  .covered-calls__table tbody td { padding: 0; text-align: left; }
+  .covered-calls__table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
+  .covered-calls__table.market-list__table tbody td { padding: 0; text-align: left; }
   .covered-calls__table tbody td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .75rem; }
   .covered-calls__table .covered-calls__row-action, .covered-calls__table .portfolio__actions > td { grid-column: 1 / -1; }
   .covered-calls__table .covered-calls__row-action .rg-button { inline-size: 100%; justify-content: center; }

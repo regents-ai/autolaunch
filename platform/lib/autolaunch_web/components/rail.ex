@@ -5,7 +5,8 @@ defmodule AutolaunchWeb.Components.Rail do
 
   # Explore has two smaller links, to the auctions list and the tokens list. It
   # also covers their search and detail pages; Docs covers the persistent
-  # information-page navigation. Launch is the last, orange destination.
+  # information-page navigation. Stocks has one, to covered calls, while the
+  # site offers them. Launch is the last, orange destination.
   @items [
     %{
       label: "Explore",
@@ -25,7 +26,7 @@ defmodule AutolaunchWeb.Components.Rail do
   attr :current_path, :string, required: true
 
   def rail(assigns) do
-    assigns = assign(assigns, items: @items, explore_views: explore_views())
+    assigns = assign(assigns, items: @items)
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
@@ -41,8 +42,12 @@ defmodule AutolaunchWeb.Components.Rail do
           >
             {item.label}
           </.link>
-          <ul :if={item.path == "/"} class="shell-rail__sublist" aria-label="Explore views">
-            <li :for={view <- @explore_views}>
+          <ul
+            :if={views(item) != []}
+            class="shell-rail__sublist"
+            aria-label={"#{item.label} views"}
+          >
+            <li :for={view <- views(item)}>
               <.link
                 navigate={view.path}
                 class="rg-button rg-button--primary shell-rail__link shell-rail__sublink"
@@ -71,8 +76,7 @@ defmodule AutolaunchWeb.Components.Rail do
   def drawer(assigns) do
     assigns =
       assign(assigns,
-        rows: Enum.reject(@items, &(&1.path == "/create")),
-        explore_views: explore_views()
+        rows: Enum.reject(@items, &(&1.path == "/create"))
       )
 
     ~H"""
@@ -95,8 +99,8 @@ defmodule AutolaunchWeb.Components.Rail do
             >
               {item.label}
             </.link>
-            <ul :if={item.path == "/"} aria-label="Explore views">
-              <li :for={view <- @explore_views}>
+            <ul :if={views(item) != []} aria-label={"#{item.label} views"}>
+              <li :for={view <- views(item)}>
                 <.link
                   navigate={view.path}
                   class="shell-drawer__row shell-drawer__row--sub"
@@ -125,12 +129,20 @@ defmodule AutolaunchWeb.Components.Rail do
   defp row_current?(path, %{path: "/"}), do: path == "/"
   defp row_current?(path, item), do: current?(path, item)
 
-  defp explore_views do
+  defp views(%{path: "/"}) do
     [
       %{label: "Auctions", path: ~p"/auctions", covers: ["/robinhood"]},
       %{label: "Tokens", path: ~p"/tokens", covers: []}
     ]
   end
+
+  defp views(%{path: "/stock-listing"}) do
+    if Autolaunch.CoveredCalls.Deployment.enabled?(),
+      do: [%{label: "Covered calls", path: ~p"/covered-calls", covers: []}],
+      else: []
+  end
+
+  defp views(_item), do: []
 
   defp current?(path, %{label: "Docs"}),
     do: Enum.any?(AutolaunchWeb.Components.LearnNavigation.paths(), &under?(path, &1))

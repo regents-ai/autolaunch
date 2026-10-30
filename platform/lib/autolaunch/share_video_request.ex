@@ -1,10 +1,12 @@
 defmodule Autolaunch.ShareVideoRequest do
   @moduledoc """
   One share video asked for (`AutolaunchWeb.ShareVideo`) and, once made, the
-  video itself: the launch, whether it is the token's video or the running
-  auction's, and for a person's own video the signed-in account and its wallet.
+  video itself: what it is of (a launch's token or running auction, by
+  `auction_id`; a covered-call market or an Isolated Exposure to After-hours Stocks series, by
+  `subject`, its symbol or address), and for a person's own video the
+  signed-in account and its wallet.
   A launch's own video is named by `key`, which moves on every fifteen minutes;
-  a person's are theirs for that launch and kind.
+  a person's are theirs for that launch or market, kind and wallet.
 
   Writing a request queues its `:render` job in the same write. The
   `share_videos` queue renders one at a time, so how many requests are still
@@ -64,6 +66,7 @@ defmodule Autolaunch.ShareVideoRequest do
       index [:state, :inserted_at]
       index [:human_account_id, :inserted_at]
       index [:human_account_id, :auction_id, :kind, :inserted_at]
+      index [:human_account_id, :subject, :kind, :inserted_at]
     end
 
     identity_wheres_to_sql queued_key: "state = 'queued'"
@@ -74,10 +77,12 @@ defmodule Autolaunch.ShareVideoRequest do
 
     # A video already queued answers with its queued row and changes nothing.
     create :request do
-      accept [:key, :kind, :auction_id, :human_account_id, :wallet]
+      accept [:key, :kind, :auction_id, :subject, :human_account_id, :wallet]
       upsert? true
       upsert_identity :queued_key
       upsert_fields []
+      validate present(:auction_id), where: [attribute_in(:kind, [:token, :auction])]
+      validate present(:subject), where: [attribute_in(:kind, [:covered_calls, :exposure])]
       change set_attribute(:state, :queued)
       change Autolaunch.ShareVideoRequest.Changes.DailyLimit
       change run_oban_trigger(:render)
@@ -97,15 +102,36 @@ defmodule Autolaunch.ShareVideoRequest do
       prepare build(sort: [inserted_at: :asc])
     end
 
-    # A person's requests for one launch and kind in the last day, newest first.
+    # A person's requests for one launch, kind and wallet in the last day, newest
+    # first.
     read :own do
       argument :human_account_id, :integer, allow_nil?: false
       argument :auction_id, :uuid, allow_nil?: false
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: [:token, :auction]]
+      argument :wallet, :string, allow_nil?: false
 
       filter expr(
                human_account_id == ^arg(:human_account_id) and auction_id == ^arg(:auction_id) and
-                 kind == ^arg(:kind) and inserted_at > ago(1, :day)
+                 kind == ^arg(:kind) and wallet == ^arg(:wallet) and inserted_at > ago(1, :day)
+             )
+
+      prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])
+    end
+
+    # A person's requests for one market or series, kind and wallet in the
+    # last day, newest first.
+    read :own_market do
+      argument :human_account_id, :integer, allow_nil?: false
+      argument :subject, :string, allow_nil?: false
+      argument :wallet, :string, allow_nil?: false
+
+      argument :kind, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:covered_calls, :exposure]]
+
+      filter expr(
+               human_account_id == ^arg(:human_account_id) and subject == ^arg(:subject) and
+                 kind == ^arg(:kind) and wallet == ^arg(:wallet) and inserted_at > ago(1, :day)
              )
 
       prepare build(sort: [inserted_at: :desc], limit: 5, load: [:stored?])
@@ -167,8 +193,16 @@ defmodule Autolaunch.ShareVideoRequest do
     uuid_primary_key :id
 
     attribute :key, :string, allow_nil?: false
-    attribute :kind, :atom, allow_nil?: false, constraints: [one_of: [:token, :auction]]
-    attribute :auction_id, :uuid, allow_nil?: false
+
+    attribute :kind, :atom,
+      allow_nil?: false,
+      constraints: [one_of: [:token, :auction, :covered_calls, :exposure]]
+
+    # The launch, for a token's or an auction's video.
+    attribute :auction_id, :uuid
+    # The market's symbol or the series' address, for a covered-call or an
+    # Isolated Exposure to After-hours Stocks video.
+    attribute :subject, :string
     # The signed-in account a person's own video is for; nil for a launch's own.
     attribute :human_account_id, :integer
     attribute :wallet, :string

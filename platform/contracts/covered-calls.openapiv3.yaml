@@ -624,7 +624,8 @@ components:
             facts:
               type: object
               description: 'The action''s figures: listing_id, amount, and the premium, fee, strike or
-                unsold amount it involves.'
+                unsold amount it involves. A purchase also gives the strike its calls would cost to
+                exercise and the expiry their window opens at.'
     CoveredCallError:
       type: object
       additionalProperties: false

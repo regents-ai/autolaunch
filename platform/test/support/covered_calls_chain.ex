@@ -126,20 +126,34 @@ defmodule Autolaunch.CoveredCallsChain do
   # `unreadable: true` makes every contract read fail, as a chain that can't be reached just now.
   defp call(%{unreadable: true}, _call), do: {:ok, %{status: 503, body: ""}}
 
-  defp call(_state, %{params: [%{to: to, data: data}, _block]}),
-    do: {:ok, %{status: 200, body: %{"result" => answer(String.downcase(to), data)}}}
+  defp call(_state, %{params: [%{to: to, data: data}, _block]}) do
+    case answer(String.downcase(to), data) do
+      :reverted ->
+        {:ok,
+         %{
+           status: 200,
+           body: %{"error" => %{"code" => 3, "message" => "execution reverted"}}
+         }}
+
+      result ->
+        {:ok, %{status: 200, body: %{"result" => result}}}
+    end
+  end
 
   @reads Map.new(
            ~w|listingCount() listings(uint256) unit() usdc() multiplier() effectiveAt()
               held(uint256,address) claimable(uint256,address) latestRoundData()
-              balanceOf(address) allowance(address,address)|,
+              balanceOf(address) allowance(address,address) decimals()|,
            &{Call.selector(&1), &1}
          )
 
   defp answer(to, data) do
     state = Application.fetch_env!(:autolaunch, :covered_calls_chain)
-    words = words(Map.fetch!(@reads, String.slice(data, 0, 10)), to, state, data)
-    "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)
+
+    case words(Map.fetch!(@reads, String.slice(data, 0, 10)), to, state, data) do
+      :reverted -> :reverted
+      words -> "0x" <> Enum.map_join(words, &BaseRpcStub.hex_word/1)
+    end
   end
 
   defp words("listingCount()", _to, state, _data), do: [length(state.listings)]
@@ -150,19 +164,21 @@ defmodule Autolaunch.CoveredCallsChain do
   defp words("effectiveAt()", _to, state, _data), do: [state.effective_at]
   defp words("held(uint256,address)", _to, state, _data), do: [state.held]
   defp words("claimable(uint256,address)", _to, state, _data), do: [state.claimable]
+  # The feed's first round, so it has no history before it.
   defp words("latestRoundData()", _to, state, _data), do: [1, state.price, @now, @now, 1]
+  defp words("decimals()", @feed, _state, _data), do: [8]
   defp words("balanceOf(address)", @usdc, state, _data), do: [state.usdc_balance]
   defp words("balanceOf(address)", _stock, state, _data), do: [state.balance]
   defp words("allowance(address,address)", @usdc, state, _data), do: [state.usdc_allowance]
   defp words("allowance(address,address)", _stock, state, _data), do: [state.allowance]
 
-  # Listing ids count from 1; an id past the last one is the contract's empty listing.
+  # Listing ids count from 1; the contract refuses any other (`UnknownListing`).
   defp listing_words(state, data) do
     id = data |> String.slice(10, 64) |> String.to_integer(16)
 
     case id >= 1 && Enum.at(state.listings, id - 1) do
       falsy when falsy in [nil, false] ->
-        List.duplicate(0, 10)
+        :reverted
 
       l ->
         [word(l.seller), l.expiry, l.returned, l.amount, l.filled, l.exercised] ++

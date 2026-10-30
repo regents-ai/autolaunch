@@ -85,6 +85,46 @@ defmodule Autolaunch.CoveredCalls.TermsTest do
     assert F.parse_tokens("1.000000001", @unit) == nil
     assert F.parse_tokens("0", @unit) == nil
     assert F.parse_usd("ten") == nil
-    assert F.parse_usd("$1,250.50") == 1_250_500_000
+    assert F.parse_usd("$1250.50") == 1_250_500_000
+  end
+
+  test "a page reads again at the next expiry, window close or multiplier change, at most a week out" do
+    assert Terms.next_wait([], 100) == nil
+    assert Terms.next_wait([50, 100], 100) == nil
+    assert Terms.next_wait([0, 400, 160], 100) == 60
+    assert Terms.next_wait([100 + 30 * 86_400], 100) == @week
+  end
+
+  test "a comma, an exponent or an amount no contract call can carry is not an amount" do
+    # "1,2" is $1.20 in much of the world and $12 in the US; neither is guessed.
+    for text <- ["1,2", "1,250.50", "1.050,00", "0,5", "1e3", "-1", "1..2", ""],
+        do: assert(F.parse_usd(text) == nil, text)
+
+    assert F.parse_tokens("$5", @unit) == nil
+    assert F.parse_usd(" $5 ") == 5_000_000
+    assert F.parse_usd("250.01") == 250_010_000
+    assert F.parse_usd("250.005") == nil
+    assert F.parse_tokens(Integer.to_string(2 ** 128), 1) == nil
+    assert F.parse_tokens(Integer.to_string(2 ** 128 - 1), 1) == 2 ** 128 - 1
+  end
+
+  property "a dollar amount a person pays is shown rounded up to the cent, never below it" do
+    check all(micro <- integer(1..1_000_000_000_000_000)) do
+      shown =
+        F.usd_due(micro) |> String.trim_leading("$") |> String.replace(",", "") |> Decimal.new()
+
+      exact = Decimal.div(Decimal.new(micro), 1_000_000)
+      assert Decimal.compare(shown, exact) != :lt
+      assert Decimal.compare(Decimal.sub(shown, exact), Decimal.new("0.01")) == :lt
+    end
+  end
+
+  property "a dollar figure on a page is cut, never rounded up, and never more than 1% short" do
+    check all(micro <- integer(1..1_000_000_000_000_000)) do
+      shown = F.usd(micro) |> String.trim_leading("$") |> String.replace(",", "") |> Decimal.new()
+      exact = Decimal.div(Decimal.new(micro), 1_000_000)
+      assert Decimal.compare(shown, exact) != :gt
+      assert Decimal.compare(Decimal.mult(shown, 100), Decimal.mult(exact, 99)) != :lt
+    end
   end
 end

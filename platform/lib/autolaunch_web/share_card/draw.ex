@@ -116,6 +116,45 @@ defmodule AutolaunchWeb.ShareCard.Draw do
   end
 
   @doc """
+  A stock's mark as the site shows it (`priv/static/images/stocks`), on a light
+  disc, as a square PNG `size` wide, or nil when the site has no mark for
+  `ticker`.
+  """
+  # The ticker names a file the site ships, never a request's input.
+  # sobelow_skip ["Traversal.FileModule"]
+  def stock_logo(ticker, size) do
+    folder = Application.app_dir(:autolaunch, "priv/static/images/stocks")
+
+    found =
+      Enum.find_value([{".svg", "image/svg+xml"}, {".png", "image/png"}], fn {extension, type} ->
+        case File.read(Path.join(folder, ticker <> extension)) do
+          {:ok, bytes} -> {type, bytes}
+          {:error, _none} -> nil
+        end
+      end)
+
+    case found do
+      nil -> {:ok, nil}
+      {type, bytes} -> disc(type, bytes, size)
+    end
+  end
+
+  defp disc(type, bytes, size) do
+    inner = round(size * 0.62)
+    edge = div(size - inner, 2)
+
+    svg = """
+    <svg xmlns="http://www.w3.org/2000/svg" width="#{size}" height="#{size}">
+      <circle cx="#{size / 2}" cy="#{size / 2}" r="#{size / 2}" fill="#{@platinum}"/>
+      <image x="#{edge}" y="#{edge}" width="#{inner}" height="#{inner}" href="data:#{type};base64,#{Base.encode64(bytes)}"/>
+    </svg>
+    """
+
+    with {:ok, {image, _flags}} <- Operation.svgload_buffer(svg),
+         do: Image.write_to_buffer(image, ".png")
+  end
+
+  @doc """
   A creator's words without control characters or the pictographs the fonts
   cannot draw, on one line.
   """

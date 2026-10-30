@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.ShareCard do
   @moduledoc """
-  The picture and page details a shared auction or token link shows on X and
-  other sites.
+  The picture and page details a shared auction, token, covered-calls or
+  Isolated Exposure to After-hours Stocks link shows on X and other sites.
 
   The picture is a dark panel inside a tangerine border, with the Autolaunch
   mark and autolaunch.sh along its top and one strip on its left: the token's
@@ -15,8 +15,13 @@ defmodule AutolaunchWeb.ShareCard do
   where X lays the site's name. A figure the site does not know yet is left
   out, never shown as zero.
 
+  A covered-call market's or an Isolated Exposure to After-hours Stocks series' picture takes the
+  same strip with the stock's mark, the product's name, where it stands, its
+  two figures and the stock's price as a line, read from the chain
+  (`AutolaunchWeb.ShareVideo.MarketStory`).
+
   Crawlers read the page without signing in or running scripts, so both the
-  picture and the page details come from the stored records. Names and
+  picture and the page details come from the stored records or the chain. Names and
   tickers are the creator's own words, so they are drawn as plain text,
   without the symbols the picture's fonts cannot draw, and cut short to fit.
   """
@@ -28,7 +33,8 @@ defmodule AutolaunchWeb.ShareCard do
 
   alias AutolaunchWeb.Components.{AutolaunchHelpers, CreatorLabel}
   alias AutolaunchWeb.{Paths, PublicDocuments}
-  alias AutolaunchWeb.ShareCard.Cache
+  alias AutolaunchWeb.ShareCard.{Cache, MarketPictures}
+  alias AutolaunchWeb.ShareVideo.MarketStory
   alias Vix.Vips.{Image, Operation}
 
   @width 1200
@@ -103,6 +109,31 @@ defmodule AutolaunchWeb.ShareCard do
     }
     |> then(&Map.put(&1, :structured_data, PublicDocuments.auction_data(auction, &1)))
   end
+
+  @doc """
+  The page details for the covered calls page (`:covered_calls`, by the
+  market's symbol) or an Isolated Exposure to After-hours Stocks series (`:exposure`, by its
+  address): the page's own title and words, its address and the market's
+  picture.
+  """
+  @spec market_meta(:covered_calls | :exposure, String.t()) :: map()
+  def market_meta(kind, subject) do
+    [page_title: title, page_description: description] = PublicDocuments.page(page_path(kind))
+
+    %{
+      title: "#{title} on Autolaunch",
+      description: description,
+      url: page_url(kind, subject),
+      image: market_image_url(kind, subject, DateTime.utc_now()),
+      image_alt: "#{title} on Autolaunch: the stock's price and where the market stands"
+    }
+  end
+
+  defp page_path(:covered_calls), do: "/covered-calls"
+  defp page_path(:exposure), do: "/after-hour-stocks"
+
+  defp page_url(:covered_calls, _symbol), do: url(~p"/covered-calls")
+  defp page_url(:exposure, series), do: url(~p"/after-hour-stocks?#{[series: series]}")
 
   @doc "The page details for How Autolaunch works."
   @spec how_it_works_meta() :: map()
@@ -226,8 +257,9 @@ defmodule AutolaunchWeb.ShareCard do
   defp draw_auction(auction, now) do
     rate = rate(auction)
 
-    with {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil) do
-      draw(auction, %{
+    with {:ok, points} <- Autolaunch.auction_price_points(auction.id, actor: nil),
+         {:ok, face} <- launch(auction) do
+      draw(face, %{
         badge: {countdown(auction, now), @blue},
         stats: [
           {"Clearing price", money(auction.fdv, rate, auction), @platinum},
@@ -266,16 +298,61 @@ defmodule AutolaunchWeb.ShareCard do
     rate = rate(auction)
     price = token.price_quote && Decimal.new(token.price_quote, max_digits: :infinity)
 
-    draw(auction, %{
-      badge: {"Graduated", @powder},
-      stats: [
-        {"FDV", money(token.market_cap, rate, auction), @platinum},
-        {"Price", money(price, rate, auction), @platinum}
-      ],
-      creator: creator(auction),
-      line: nil
-    })
+    with {:ok, face} <- launch(auction) do
+      draw(face, %{
+        badge: {"Graduated", @powder},
+        stats: [
+          {"FDV", money(token.market_cap, rate, auction), @platinum},
+          {"Price", money(price, rate, auction), @platinum}
+        ],
+        creator: creator(auction),
+        line: nil
+      })
+    end
   end
+
+  @doc """
+  Where a covered-call market's (`:covered_calls`, by symbol) or an
+  Isolated Exposure to After-hours Stocks series' (`:exposure`, by address) picture is served;
+  its price keeps moving, so its address does too.
+  """
+  @spec market_image_url(:covered_calls | :exposure, String.t(), DateTime.t()) :: String.t()
+  def market_image_url(kind, subject, now), do: Paths.market_image_url(kind, subject, bucket(now))
+
+  @doc """
+  A covered-call market's or an Isolated Exposure to After-hours Stocks series' picture as PNG
+  bytes, from its story (`AutolaunchWeb.ShareVideo.MarketStory`): the stock's
+  mark, the product's name, where it stands, its two figures and the stock's
+  price as a line under them.
+  """
+  @spec market_png(:covered_calls | :exposure, String.t(), DateTime.t()) ::
+          {:ok, binary()} | {:error, term()}
+  def market_png(kind, subject, now),
+    do:
+      MarketPictures.fetch({kind, subject}, bucket(now), fn ->
+        with {:ok, story} <- MarketStory.read(kind, subject, nil),
+             {:ok, logo} <- stock_logo(story.ticker, @logo) do
+          draw(
+            %{
+              chain: :base,
+              color: @tangerine,
+              logo: logo,
+              # A product's name is the site's own, so it steps down further
+              # before it is cut.
+              name: story.title,
+              name_sizes: [52, 46, 40, 34, 30],
+              ticker: "$" <> story.symbol,
+              symbol: story.ticker
+            },
+            %{
+              badge: {story.badge, @blue},
+              stats: Enum.map(story.figures, fn {label, value} -> {label, value, @platinum} end),
+              creator: nil,
+              line: MarketStory.samples(story, 80)
+            }
+          )
+        end
+      end)
 
   # Who launched it, as every list and page names them (`CreatorLabel`).
   defp creator(auction) do
@@ -304,12 +381,28 @@ defmodule AutolaunchWeb.ShareCard do
 
   defp price(price), do: price |> Decimal.new(max_digits: :infinity) |> Decimal.to_float()
 
-  defp draw(auction, card) do
-    chain = chain(auction)
-    color = color(auction.image_color)
+  # What a launch's picture shows of it: its chain, colour, logo, name and the
+  # sizes it steps down through, ticker line and the symbol its initial comes
+  # from.
+  defp launch(auction) do
+    with {:ok, logo} <- logo(auction, @logo),
+         do:
+           {:ok,
+            %{
+              chain: chain(auction),
+              color: color(auction.image_color),
+              logo: logo,
+              name: plain(auction.title),
+              name_sizes: [52, 46, 40],
+              ticker: ticker(auction),
+              symbol: auction.token_symbol
+            }}
+  end
 
-    with {:ok, words} <- words(auction, card),
-         {:ok, logo} <- logo(auction, @logo),
+  defp draw(face, card) do
+    %{chain: chain, color: color, logo: logo} = face
+
+    with {:ok, words} <- words(face, card),
          layout = layout(words, card.line, chain),
          {:ok, {canvas, _flags}} <-
            Operation.svgload_buffer(svg(chain, color, logo, card, layout)),
@@ -320,22 +413,23 @@ defmodule AutolaunchWeb.ShareCard do
 
   # Every line of words drawn once, so the strip can be laid out around their
   # widths.
-  defp words(auction, card) do
+  defp words(face, card) do
     stats = Enum.reject(card.stats, fn {_label, value, _color} -> is_nil(value) end)
     {badge, badge_color} = card.badge
 
     with {:ok, site} <- layer("autolaunch.sh", :pixel, 30, @muted),
          {:ok, badge} <- layer(badge, :bold, 24, badge_color),
-         {:ok, initial} <- initial(auction.token_symbol),
+         {:ok, initial} <- initial(face.symbol),
          {:ok, stats} <- stat_layers(stats) do
       {:ok,
        %{
          site: site,
-         ticker: ticker(auction),
+         ticker: face.ticker,
          badge: {badge, badge_color},
          initial: initial,
          stats: stats,
-         name: plain(auction.title),
+         name: face.name,
+         name_sizes: face.name_sizes,
          creator: card.creator
        }}
     end
@@ -343,11 +437,13 @@ defmodule AutolaunchWeb.ShareCard do
 
   # Each figure sits on its own row, its label on the left and the figure on
   # the right; a long figure steps down in size until it fits beside its label.
+  # A figure is never cut short: past its last step it is drawn at the size
+  # that fits.
   defp stat_layers(stats) do
     Enum.reduce_while(Enum.reverse(stats), {:ok, []}, fn {label, value, color}, {:ok, done} ->
       with {:ok, label} <- layer(label, :regular, 28, @muted),
            max = @words_right - @logo_x - Image.width(label) - 24,
-           {:ok, value} <- sized(value, :bold, color, max, [40, 36, 32]) do
+           {:ok, value} <- figure(value, color, max, [40, 36, 32]) do
         {:cont, {:ok, [{label, value} | done]}}
       else
         error -> {:halt, error}
@@ -376,7 +472,7 @@ defmodule AutolaunchWeb.ShareCard do
   defp place(canvas, words, layout, logo) do
     top = layout.top
 
-    with {:ok, name} <- name(words.name, @words_right - @words_x),
+    with {:ok, name} <- name(words.name, words.name_sizes, @words_right - @words_x),
          {:ok, ticker} <-
            sized(words.ticker, :regular, @muted, @words_right - @words_x, [34, 30, 28]),
          {:ok, creator} <- creator_words(words.creator, layout) do
@@ -410,11 +506,21 @@ defmodule AutolaunchWeb.ShareCard do
 
   # A name with nothing the fonts can draw is left out; the ticker still names
   # the token.
-  defp name("", _max), do: {:ok, nil}
-  defp name(words, max), do: sized(words, :bold, @platinum, max, [52, 46, 40])
+  defp name("", _sizes, _max), do: {:ok, nil}
+  defp name(words, sizes, max), do: sized(words, :bold, @platinum, max, sizes)
 
   # The words step down in size until they fit, and are cut short at the
   # smallest.
+  defp figure(value, color, max, [size | smaller]) do
+    with {:ok, layer} <- layer(value, :bold, size, color) do
+      cond do
+        Image.width(layer) <= max -> {:ok, layer}
+        smaller != [] -> figure(value, color, max, smaller)
+        true -> figure(value, color, max, [div(size * max, Image.width(layer))])
+      end
+    end
+  end
+
   defp sized(words, weight, color, max, [size]), do: fit(words, weight, size, color, max)
 
   defp sized(words, weight, color, max, [size | smaller]) do

@@ -2,6 +2,25 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 29 October 2026: each wallet's share video is its own
+- If you have more than one wallet, the share video you make for one wallet is never handed over for another: each wallet gets its own, with only that wallet's bids, trades and stake.
+
+## 29 October 2026: covered calls that follow your trade
+- On the Sell tab the guide now follows what you type: suggested premiums for the week you pick, each with Use to fill the form, and the result at expiry for your own strike and premium.
+- Every date shows the whole exercise window, Friday 21:00 UTC to Saturday 21:00 UTC. The three steps under the title change with the tab, for buyers and for sellers, and a purchase shows the premium you pay now and what exercising would cost.
+- How the suggested premium is worked out, and where the price comes from, is one tap away. A Contract section at the foot links the verified code on Basescan.
+
+## 29 October 2026: covered calls on Amazon (AMZNc)
+- Covered calls are open at /covered-calls, for eligible people outside the US. Sell calls on your AMZNc: choose an amount, a strike price, a Friday expiry and a premium, and keep the premium buyers pay. Or buy calls from the list, each the right to buy AMZNc at its strike for the 24 hours after Friday 21:00 UTC. Everything is paid in USDC on Base, and 1% of each premium goes to REGENT stakers.
+- Each action works as Stake does on a token page: review it, then confirm each step in your wallet. Your calls, sold and held, are on your Portfolio with Stop selling, Exercise and Collect. The Stocks page, the AMZNc stock page and the menu link to them.
+- For agents: the covered-call tools and routes are in the agent guide and /openapi.json, with the same steps a person confirms.
+
+## 29 October 2026: the last amounts in the one Regents way
+- A stock's liquidity and past week's trading volume, on the stock pages and when you pick a stock to launch, are written in full like every other amount ("$1,234,567.89" instead of "$1.2M").
+- A share picture or video draws every figure whole, smaller if it has to, instead of cutting it off with "…", and the video's figures now match the picture's to the cent.
+- "Still to go" before an auction reaches its minimum is rounded up at its last digit, so it never shows less than is missing.
+- A bid's budget typed in an unusual way, such as "1e6144", no longer breaks the bid page, and a dollar figure below zero reads "-$6.00".
+
 ## 29 October 2026: every amount shown the one Regents way
 - Every amount the site shows you to read now looks the same as on every Regents site: prices, bids, balances, rewards, refunds, raises, revenue, supply and dollar values, on the pages, in the ticker and in the share pictures. Amounts of 1 and above show two decimals with thousands separated ("26,590,000,000.00"), smaller amounts show their first three digits ("0.0000000123"), and digits are cut, never rounded up.
 - Large figures are written out in full instead of shortened to K, M or B, and tiny prices write their zeros out instead of counting them with a small number.

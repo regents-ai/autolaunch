@@ -15,14 +15,14 @@ defmodule AutolaunchWeb.ShareVideo.Render do
 
   alias Autolaunch.Actors.System
   alias AutolaunchWeb.Paths
-  alias AutolaunchWeb.ShareVideo.{Film, Story}
+  alias AutolaunchWeb.ShareVideo.{Film, MarketFilm, MarketStory, Story}
 
   @impl true
   def change(changeset, _opts, _context), do: Ash.Changeset.before_action(changeset, &render/1)
 
   defp render(%{data: request} = changeset) do
     with {:ok, story} <- story(request),
-         {:ok, mp4, measured} <- Film.render(story) do
+         {:ok, mp4, measured} <- film(request).render(story) do
       :telemetry.execute(
         [:autolaunch, :share_video, :rendered],
         Map.take(measured, [:ms, :bytes, :peak_bytes]),
@@ -45,6 +45,12 @@ defmodule AutolaunchWeb.ShareVideo.Render do
       actor: %System{}
     )
   end
+
+  defp film(%{kind: kind}) when kind in [:covered_calls, :exposure], do: MarketFilm
+  defp film(_launch), do: Film
+
+  defp story(%{kind: kind} = request) when kind in [:covered_calls, :exposure],
+    do: MarketStory.read(kind, request.subject, request.wallet)
 
   defp story(%{kind: :token} = request) do
     with {:ok, auction} <- auction(request),
@@ -73,4 +79,7 @@ defmodule AutolaunchWeb.ShareVideo.Render do
   defp kind(%{kind: :token}), do: :wallet
   defp kind(%{kind: :auction, wallet: nil}), do: :auction
   defp kind(%{kind: :auction}), do: :auction_wallet
+  defp kind(%{kind: kind, wallet: nil}), do: kind
+  defp kind(%{kind: :covered_calls}), do: :covered_calls_wallet
+  defp kind(%{kind: :exposure}), do: :exposure_wallet
 end
