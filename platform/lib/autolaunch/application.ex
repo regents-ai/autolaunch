@@ -61,8 +61,13 @@ defmodule Autolaunch.Application do
       # its own, only while the connector is on.
       if(RegentOAuth.enabled?(), do: RegentOAuth.Repo),
       {Phoenix.PubSub, name: Autolaunch.PubSub},
-      # The wallet of each connected app's own identity, asked for once.
-      Autolaunch.Agents.HostedAddress,
+      # The wallet of each connected app's own identity, kept once given.
+      Supervisor.child_spec(
+        {Cachex,
+         name: Autolaunch.Agents.HostedAddress.cache(),
+         hooks: [hook(module: Cachex.Limit.Scheduled, args: {100_000, [], []})]},
+        id: Autolaunch.Agents.HostedAddress.cache()
+      ),
       # After the repository and PubSub: a Credits balance changed, or an agent
       # paired or unpaired, on any Regent site reaches the pages showing it.
       Autolaunch.SharedChanges,

@@ -2,8 +2,8 @@ defmodule AutolaunchWeb.Capabilities do
   @moduledoc """
   The surfaces each agent operation is on, from `priv/capabilities.json`: one row
   per browser tool (`priv/tool_manifest.json`, and the covered-call and
-  Isolated Exposure to After-hours Stocks page tools), and one per tool only the hosted MCP server
-  has, such as a connected app's identity tools. Each row names its four
+  Isolated Exposure to After-hours Stocks page tools), and one per tool only
+  the hosted MCP server has, such as a connected app's identity tools. Each row names its four
   surfaces, `webmcp`, `hosted_mcp`, `http` and `cli`, each `true` or the reason
   it is left out, who may run it, the switch it follows and, when it is on the
   hosted MCP server, that tool's name (`hosted_tool`).

@@ -98,27 +98,6 @@ defmodule AutolaunchWeb.Endpoint do
                 key: &AutolaunchWeb.ClientAddress.key/1
               )
 
-  # An agent's own request to /mcp counts against its address as on the API.
-  @mcp_rate_limit RegentAgentAccess.RateLimit.init(
-                    policy: "mcp_address",
-                    limit: 120,
-                    window: 60,
-                    admit: &Autolaunch.Accounts.RequestRateLimiter.admit/3,
-                    key: &AutolaunchWeb.ClientAddress.key/1
-                  )
-
-  # Claude's connector calls /mcp from Anthropic's servers, so one address carries
-  # many people's connected apps: this is a ceiling against a flood, and each
-  # connected account's own budget (`AutolaunchWeb.Plugs.McpAgent`) is the
-  # working limit.
-  @mcp_connected_rate_limit RegentAgentAccess.RateLimit.init(
-                              policy: "mcp_connected_address",
-                              limit: 600,
-                              window: 60,
-                              admit: &Autolaunch.Accounts.RequestRateLimiter.admit/3,
-                              key: &AutolaunchWeb.ClientAddress.key/1
-                            )
-
   # The auction list is answered from a five-second keep, so reading it more
   # often than every five seconds returns the same list.
   @list_rate_limit RegentAgentAccess.RateLimit.init(
@@ -174,12 +153,8 @@ defmodule AutolaunchWeb.Endpoint do
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, @rate_limit)
 
-  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts) do
-    case Plug.Conn.get_req_header(conn, "authorization") do
-      ["Bearer " <> _token] -> RegentAgentAccess.RateLimit.call(conn, @mcp_connected_rate_limit)
-      _no_token -> RegentAgentAccess.RateLimit.call(conn, @mcp_rate_limit)
-    end
-  end
+  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts),
+    do: AutolaunchWeb.Plugs.McpAgent.limit_address(conn)
 
   # A share picture is drawn on the first request for each version of it, so
   # the pictures share the API's budget.

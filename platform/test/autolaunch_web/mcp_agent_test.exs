@@ -13,8 +13,8 @@ defmodule AutolaunchWeb.McpAgentTest do
     and any other method or address are refused in the site's shape, before any
     signature is checked;
   - input a tool cannot take gets the code HTTP gives it;
-  - one address gets the API's 120 requests a minute, and requests with a token
-    600;
+  - one address gets the API's 120 requests a minute, and a token that isn't
+    checked spends the same 120;
   - a paired agent's answer is replaced when its pairing ended during the
     request.
 
@@ -280,14 +280,15 @@ defmodule AutolaunchWeb.McpAgentTest do
     assert List.last(statuses) == 429
   end
 
-  test "requests with a token share 600 a minute from one address, Claude's servers among them",
+  test "a token that isn't checked spends the same 120 from its address, each request once",
        %{from: from} do
     statuses =
-      for _ <- 1..601, do: mcp(rpc("tools/list"), from: from, token: "not-a-token").status
+      for n <- 1..121,
+          do:
+            mcp(rpc("tools/list"), from: from, token: if(rem(n, 2) == 0, do: "not-a-token")).status
 
-    assert Enum.take(statuses, 600) |> Enum.uniq() == [401]
+    assert Enum.take(statuses, 120) |> Enum.uniq() == [401]
     assert List.last(statuses) == 429
-    assert mcp(rpc("tools/list"), from: from).status == 401
   end
 
   test "a signed route's answer is replaced when the pairing ends while the request runs", %{
