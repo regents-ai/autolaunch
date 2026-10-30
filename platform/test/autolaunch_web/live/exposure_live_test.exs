@@ -62,10 +62,12 @@ defmodule AutolaunchWeb.ExposureLiveTest do
   test "before the first close, the page says when allocations are set and splitting opens", %{
     conn: conn
   } do
-    ExposureChain.install(%{status: 0, prices: [], accounted: 0, held: 0, supply: 0})
+    ExposureChain.install(%{status: 0, prices: [], accounted: 0, held: 0, supply: 0, pools: %{}})
     {:ok, view, _html} = live(conn, "/after-hour-stocks")
     html = render_async(view, @async)
 
+    # No pool has liquidity yet, so the page leads with Split.
+    assert has_element?(view, "#exposure-act-tab-mint[aria-selected=true]")
     assert html =~ "Opens after the close on Fri 30 Oct, 4:00pm"
 
     assert has_element?(
@@ -304,10 +306,88 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     refute has_element?(view, "#exposure-done")
   end
 
+  test "with liquid pools the page leads with Buy, and picks which token to buy", %{conn: conn} do
+    ExposureChain.install()
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+
+    assert has_element?(view, "#exposure-act-tab-buy[aria-selected=true]")
+    assert has_element?(view, "#exposure-leg-after-hours[aria-pressed=true]")
+    assert has_element?(view, "#exposure-buy-overnight-#{@series} [data-onchain-step=buy]", "Buy")
+    refute has_element?(view, "#exposure-no-liquidity")
+
+    view |> element("#exposure-leg-market-hours") |> render_click()
+    assert_patch(view, "/after-hour-stocks?leg=market-hours&tab=buy")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-buy-session-#{@series} [data-onchain-step=buy]")
+  end
+
+  test "a signed-in wallet without USDC sees Buy disabled with the reason", %{conn: conn} do
+    ExposureChain.install()
+    {view, _panel} = signed_in_panel(conn, "#exposure-buy-overnight-#{@series}")
+
+    assert has_element?(view, "#exposure-buy-overnight-#{@series}", "Wallet: 0 USDC")
+
+    view
+    |> element("#exposure-buy-overnight-#{@series}-form")
+    |> render_change(%{"amount" => "25"})
+
+    render_async(view, @async)
+
+    assert has_element?(
+             view,
+             "#exposure-buy-overnight-#{@series} [data-onchain-step=buy][disabled]"
+           )
+
+    assert has_element?(
+             view,
+             "#exposure-buy-overnight-#{@series}",
+             "Not enough USDC in this wallet"
+           )
+
+    assert has_element?(view, "#exposure-buy-overnight-#{@series}", "at least 0.025872")
+  end
+
+  # Found by the Buy and Sell review: an empty pool quotes zero, which counted as liquid.
+  test "an empty pool is not liquid; with only Market-hours liquid, Buy opens on it", %{
+    conn: conn
+  } do
+    ExposureChain.install(%{
+      pools: %{
+        ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", nil},
+        ExposureChain.session() => {"0x4444444444444444444444444444444444444444", nil}
+      }
+    })
+
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-act-tab-mint[aria-selected=true]")
+
+    assert view |> element("#exposure-overnight") |> render() =~
+             "Trading opens when liquidity is added."
+
+    ExposureChain.put(%{
+      pools: %{
+        ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", nil},
+        ExposureChain.session() => {"0x4444444444444444444444444444444444444444", 2_510_000}
+      }
+    })
+
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-act-tab-buy[aria-selected=true]")
+    assert has_element?(view, "#exposure-leg-market-hours[aria-pressed=true]")
+  end
+
   # A new signed-in person on the page, their wallet open.
   defp signed_in_panel(conn, selector) do
     path =
-      if selector =~ "redeem", do: "/after-hour-stocks?tab=redeem", else: "/after-hour-stocks"
+      cond do
+        selector =~ "redeem" -> "/after-hour-stocks?tab=redeem"
+        selector =~ "mint" -> "/after-hour-stocks?tab=split"
+        selector =~ "buy" -> "/after-hour-stocks?tab=buy"
+        true -> "/after-hour-stocks"
+      end
 
     {view, account} = signed_in(conn, path)
     render_async(view, @async)

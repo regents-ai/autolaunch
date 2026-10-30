@@ -207,6 +207,23 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
       |> get("/api/agent/v1/after-hour-stocks/#{@series}/holdings")
       |> json_response(200)
 
-    assert %{"wallet" => ^wallet, "stock" => 50_000_000} = holdings["data"]
+    assert %{"wallet" => ^wallet, "stock" => 50_000_000, "usdc" => 0} = holdings["data"]
+
+    # Buying a token: the agent names it and the USDC to spend; a token it can't name is refused.
+    buy =
+      steps.(%{"kind" => "buy", "leg" => "overnight", "amount" => 10_000_000})
+      |> json_response(200)
+
+    assert Enum.map(buy["data"]["steps"], & &1["step"]) == ["usdc_approval", "buy"]
+    assert buy["data"]["blocked"]["code"] == "not_enough_usdc"
+    assert buy["data"]["facts"]["minimum"] == 2_587_200
+
+    assert steps.(%{"kind" => "buy", "amount" => 1}) |> json_response(422) |> code() ==
+             "leg_required"
+
+    assert steps.(%{"kind" => "buy", "leg" => "afternoon", "amount" => 1})
+           |> json_response(422)
+           |> code() ==
+             "invalid_request"
   end
 end

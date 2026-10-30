@@ -19,6 +19,10 @@ defmodule AutolaunchWeb.ExposureAnswer do
   @integer_fields ~w(amount overnight session)
 
   @blocked %{
+    too_small: "This amount is too small for the pool to pay anything back.",
+    no_liquidity:
+      "This token's pool has no liquidity yet, so it can't be bought or sold until liquidity is added.",
+    not_enough_usdc: "This wallet holds less USDC than the amount to spend.",
     not_open: "Minting opens once the series has applied its first close.",
     ended: "This series has ended.",
     above_cap: "This amount would take the series past its deposit cap.",
@@ -28,7 +32,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
     approve_first:
       "Approve the amount first; the next step can be sent once the approval is on the chain.",
     pair_required: "Until the series ends, only equal amounts of each token can be returned.",
-    more_than_held: "This wallet holds less of a token than the amount to return.",
+    more_than_held: "This wallet holds less of a token than the amount to return or sell.",
     too_early: "The next price can be recorded only from an hour after its time.",
     price_too_old:
       "The feed had no price in the 84 hours before this moment, so it can never be recorded; the series can be ended once its recording window has passed.",
@@ -45,6 +49,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
     unknown_terms:
       {:not_found,
        "There are no Isolated Exposure to After-hours Stocks terms with that fingerprint on this site."},
+    leg_required: {:unprocessable_entity, "Name the token to buy or sell: overnight or session."},
     invalid_amount:
       {:unprocessable_entity,
        "Send each amount as a whole number of raw units, above zero in total."},
@@ -87,6 +92,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
 
   defp prepare_field?({"kind", value}), do: is_binary(value)
   defp prepare_field?({"signer", value}), do: is_binary(value)
+  defp prepare_field?({"leg", value}), do: value in ["overnight", "session"]
   defp prepare_field?({key, value}) when key in @integer_fields, do: is_integer(value)
   defp prepare_field?(_field), do: false
 
@@ -148,6 +154,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
       market_hours: holdings.session,
       stock: holdings.stock,
       stock_allowance: holdings.allowance,
+      usdc: holdings.usdc,
       returnable: %{
         after_hours: holdings.redeemable.overnight,
         market_hours: holdings.redeemable.session,

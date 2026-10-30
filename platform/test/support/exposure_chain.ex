@@ -26,6 +26,7 @@ defmodule Autolaunch.ExposureChain do
   @feed "0x06a8e4b3abb3b7543d8396fb2b763d22820cb295"
   @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
   @factory "0x420dd381b31aef6683db6b902084cb0ffece40da"
+  @router "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43"
   @overnight_pool "0x3333333333333333333333333333333333333333"
   @session_pool "0x4444444444444444444444444444444444444444"
   @feed_id "0xa4e7373e87b082c0fbf44cb5781e59e77a4636c518486646da1f6c1b3a1aab3c"
@@ -62,6 +63,7 @@ defmodule Autolaunch.ExposureChain do
         chain_id: Lab.chain_id(),
         usdc: @usdc,
         pool_factory: @factory,
+        router: @router,
         series: [@series]
       })
     )
@@ -102,7 +104,15 @@ defmodule Autolaunch.ExposureChain do
           held: 10_000_000,
           supply: 10_000_000,
           max_report_delay: 7 * 86_400,
-          wallet: %{stock: 50_000_000, allowance: 0, overnight: 0, session: 0},
+          wallet: %{
+            stock: 50_000_000,
+            allowance: 0,
+            overnight: 0,
+            session: 0,
+            usdc: 0,
+            usdc_allowance: 0,
+            leg_allowance: 0
+          },
           # Feed rounds of the pinned phase, oldest first: {updated_at, answer}.
           rounds: [
             {@now - 3 * 86_400, 25_000_000_000},
@@ -115,8 +125,11 @@ defmodule Autolaunch.ExposureChain do
             @session => {@session_pool, 2_510_000}
           }
         },
-        overrides
+        Map.delete(overrides, :wallet)
       )
+
+    # A wallet override names only the balances it changes.
+    state = %{state | wallet: Map.merge(state.wallet, Map.get(overrides, :wallet, %{}))}
 
     Application.put_env(:autolaunch, :exposure_chain, state)
   end
@@ -162,7 +175,7 @@ defmodule Autolaunch.ExposureChain do
             getPrint(bytes32,uint64,bool) sourceOf(uint64,bool) getRoundData(uint80)
             symbol() name() decimals() totalSupply() balanceOf(address)
             allowance(address,address) getPool(address,address,bool)
-            getAmountOut(uint256,address) latestRoundData()|
+            getAmountOut(uint256,address) getReserves() latestRoundData()|
          |> Map.new(&{Call.selector(&1), &1})
 
   defp answer(state, to, data) do
@@ -232,6 +245,21 @@ defmodule Autolaunch.ExposureChain do
   defp words("balanceOf(address)", @overnight, state, _args), do: [state.wallet.overnight]
   defp words("balanceOf(address)", @session, state, _args), do: [state.wallet.session]
   defp words("allowance(address,address)", @stock, state, _args), do: [state.wallet.allowance]
+  defp words("balanceOf(address)", @usdc, state, _args), do: [state.wallet.usdc]
+
+  defp words("allowance(address,address)", @usdc, state, _args),
+    do: [state.wallet.usdc_allowance]
+
+  defp words("allowance(address,address)", leg, state, _args) when leg in [@overnight, @session],
+    do: [state.wallet.leg_allowance]
+
+  # A pool with a quote holds both sides; one without holds nothing.
+  defp words("getReserves()", pool, state, _args) do
+    case Enum.find(state.pools, fn {_leg, {address, _quote}} -> address == pool end) do
+      {_leg, {_pool, nil}} -> [0, 0, 0]
+      {_leg, {_pool, _quote}} -> [10_000_000, 10_000_000, 0]
+    end
+  end
 
   defp words("getPool(address,address,bool)", @factory, state, [token, _usdc, _stable]) do
     case Enum.find(state.pools, fn {leg, _pool} -> word(leg) == token end) do
@@ -242,7 +270,8 @@ defmodule Autolaunch.ExposureChain do
 
   defp words("getAmountOut(uint256,address)", pool, state, _args) do
     case Enum.find(state.pools, fn {_leg, {address, _quote}} -> address == pool end) do
-      {_leg, {_pool, nil}} -> :revert
+      # An empty Aerodrome pool quotes zero rather than reverting.
+      {_leg, {_pool, nil}} -> [0]
       {_leg, {_pool, quote}} -> [quote]
     end
   end

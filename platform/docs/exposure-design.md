@@ -114,6 +114,11 @@ window so the prices can be recorded in two sittings.
 | Fri 30 Oct after 17:00 New York | Sean (deployer password) | With about 0.2 AMZNc and $55 USDC in the deployer: `AfterHoursDemo.recordAndSettle` (first close), then `AfterHoursDemo.seed`: mint a 0.2 AMZNc pair and open an Aerodrome pool for each leg against USDC at its ledger value. |
 | Fri 6 Nov after 17:00 New York | Sean (deployer password) | `AfterHoursDemo.recordAndSettle`: the other ten prints; the series ends and every leg redeems. |
 
+Every broadcast that calls `settle()` needs `--gas-estimate-multiplier 300`: forge's own gas estimate
+leaves `settle` too little to forward to the price recorder, and it reverts `OracleGasTooLow`
+(rehearsed on a Base copy on 30 Oct, at the relaunched series `0xcae5…dfa0`). Wallets that estimate
+with `eth_estimateGas`, as the page's do, are not affected.
+
 The agent prepares and starts each step; the wallet password and the funds are Sean's. The fork
 rehearsal (`DeployAfterHours.fork.t.sol`) runs this whole table on a Base fork: deploy, the Safe's
 call as printed, the Friday sitting with both pools opened at the right USDC amounts, and the
@@ -147,7 +152,7 @@ Agent surfaces, one Ash action each, same inputs, results and refusals everywher
 | List series | `autolaunch_after_hour_stocks_list` | `GET /api/v1/after-hour-stocks` | gap | gap |
 | One series | `autolaunch_after_hour_stocks_series` | `GET /api/v1/after-hour-stocks/{series}` | gap | gap |
 | My holding | `autolaunch_my_after_hour_stocks` | `GET /api/agent/v1/after-hour-stocks/{series}/holdings` (`GET /api/v1/me/after-hour-stocks/{series}` signed in) | gap | gap |
-| Prepare a step (mint, redeem, update, end) | `autolaunch_after_hour_stocks_prepare` | `POST /api/agent/v1/after-hour-stocks/{series}/steps` | gap | gap |
+| Prepare a step (buy, sell, mint, redeem, update, end) | `autolaunch_after_hour_stocks_prepare` | `POST /api/agent/v1/after-hour-stocks/{series}/steps` | gap | gap |
 
 The owner's own key signs every step; the site prepares and never signs.
 

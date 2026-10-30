@@ -26,6 +26,7 @@ defmodule AutolaunchWeb.ExposureLive do
   alias Regent.Primitives, as: P
 
   @long_wait 10 * 60_000
+  @tabs %{"buy" => :buy, "sell" => :sell, "split" => :mint, "redeem" => :redeem}
 
   def mount(params, _session, socket) do
     with true <- Deployment.enabled?(),
@@ -39,7 +40,8 @@ defmodule AutolaunchWeb.ExposureLive do
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
        |> assign(share: share, catalog: %{}, next_read: nil, done: nil)
-       |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)}
+       |> assign(all: config.series, address: nil, reading: AsyncResult.loading())
+       |> assign(tab: nil, leg: nil)}
     else
       _off -> raise NotFoundError
     end
@@ -48,8 +50,11 @@ defmodule AutolaunchWeb.ExposureLive do
   def handle_params(params, _uri, socket) do
     address = shown(params, socket.assigns.all)
 
-    tab = if params["tab"] == "redeem", do: :redeem, else: :mint
-    socket = assign(socket, tab: tab)
+    socket =
+      assign(socket,
+        tab: Map.get(@tabs, params["tab"]),
+        leg: Map.get(%{"after-hours" => :overnight, "market-hours" => :session}, params["leg"])
+      )
 
     if address == socket.assigns.address,
       do: {:noreply, socket},
@@ -82,11 +87,16 @@ defmodule AutolaunchWeb.ExposureLive do
 
   def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
 
-  def handle_event("tab", %{"tab" => tab}, socket) when tab in ["mint", "redeem"] do
-    tab = String.to_existing_atom(tab)
+  def handle_event("tab", %{"tab" => tab}, socket) when is_map_key(@tabs, tab) do
+    %{reading: reading, leg: leg, all: all} = socket.assigns
+    {:noreply, push_patch(socket, to: tab_path(reading.result, Map.fetch!(@tabs, tab), leg, all))}
+  end
 
-    {:noreply,
-     push_patch(socket, to: tab_path(socket.assigns.reading.result, tab, socket.assigns.all))}
+  def handle_event("leg", %{"leg" => leg}, socket) when leg in ["after-hours", "market-hours"] do
+    %{reading: reading, tab: tab, all: all} = socket.assigns
+    leg = if leg == "market-hours", do: :session, else: :overnight
+    tab = tab || default_tab(reading.result)
+    {:noreply, push_patch(socket, to: tab_path(reading.result, tab, leg, all))}
   end
 
   # A press landed here: every open page of this series reads it again.
@@ -171,10 +181,14 @@ defmodule AutolaunchWeb.ExposureLive do
   defp topic(address), do: "exposure:" <> address
 
   def render(assigns) do
+    series = assigns.reading.result
+
     assigns =
       assign(assigns,
-        series: assigns.reading.result,
-        human_id: current_human_id(assigns.access_context)
+        series: series,
+        human_id: current_human_id(assigns.access_context),
+        active: assigns.tab || default_tab(series),
+        leg: assigns.leg || default_leg(series)
       )
 
     ~H"""
@@ -333,12 +347,12 @@ defmodule AutolaunchWeb.ExposureLive do
         <section
           id="exposure-act"
           class="exposure__section"
-          aria-label="Split or redeem"
+          aria-label="Trade"
           phx-hook="MotionTabs"
-          data-active={@tab}
+          data-active={@active}
           data-variant={AutolaunchWeb.Motion.standard("tabs")}
         >
-          <div class="token-trade__tabs" role="tablist" aria-label="Split or redeem">
+          <div class="token-trade__tabs" role="tablist" aria-label="Trade">
             <span
               id="exposure-act-ink"
               class="token-trade__ink"
@@ -347,21 +361,65 @@ defmodule AutolaunchWeb.ExposureLive do
               phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
             ></span>
             <button
-              :for={{tab, label} <- [mint: "Split", redeem: "Redeem"]}
+              :for={
+                {tab, value, label} <- [
+                  {:buy, "buy", "Buy"},
+                  {:sell, "sell", "Sell"},
+                  {:mint, "split", "Split"},
+                  {:redeem, "redeem", "Redeem"}
+                ]
+              }
               type="button"
               role="tab"
               id={"exposure-act-tab-#{tab}"}
               data-tab={tab}
-              aria-selected={to_string(tab == @tab)}
+              aria-selected={to_string(tab == @active)}
               aria-controls="exposure-act-panel"
               phx-click="tab"
-              phx-value-tab={tab}
+              phx-value-tab={value}
             >
               {label}
             </button>
           </div>
-          <div id="exposure-act-panel" role="tabpanel" aria-labelledby={"exposure-act-tab-#{@tab}"}>
-            <div :if={@tab == :mint} class="exposure__panel">
+          <div
+            id="exposure-act-panel"
+            role="tabpanel"
+            aria-labelledby={"exposure-act-tab-#{@active}"}
+          >
+            <div :if={@active in [:buy, :sell]} class="exposure__panel">
+              <div class="exposure__legs-pick" role="group" aria-label="Token">
+                <button
+                  :for={
+                    {leg, value, label} <- [
+                      {:overnight, "after-hours", "After-hours"},
+                      {:session, "market-hours", "Market-hours"}
+                    ]
+                  }
+                  type="button"
+                  id={"exposure-leg-#{value}"}
+                  class="exposure__pick"
+                  aria-pressed={to_string(leg == @leg)}
+                  phx-click="leg"
+                  phx-value-leg={value}
+                >
+                  {label}
+                </button>
+              </div>
+              <p class="exposure__muted">{trade_note(@active, @leg, @series)}</p>
+              <p :if={!liquid?(@series, @leg)} id="exposure-no-liquidity" class="exposure__opens">
+                Trading opens when liquidity is added.
+              </p>
+              <.live_component
+                module={ExposureComponent}
+                id={"exposure-#{@active}-#{@leg}-#{@series.address}"}
+                kind={@active}
+                leg={@leg}
+                series={@series}
+                session_lease={@session_lease}
+                current_human_id={@human_id}
+              />
+            </div>
+            <div :if={@active == :mint} class="exposure__panel">
               <p class="exposure__muted">
                 Deposit {@series.stock.symbol} and receive the same amount of each token. Keep both
                 for the stock's whole move, or sell the one you don't want once it trades.
@@ -380,7 +438,7 @@ defmodule AutolaunchWeb.ExposureLive do
                 current_human_id={@human_id}
               />
             </div>
-            <div :if={@tab == :redeem} class="exposure__panel">
+            <div :if={@active == :redeem} class="exposure__panel">
               <p class="exposure__muted">{redeem_note(@series)}</p>
               <.live_component
                 module={ExposureComponent}
@@ -690,15 +748,49 @@ defmodule AutolaunchWeb.ExposureLive do
     do:
       "Redeem one of each token for one #{stock.symbol}, at any time. After the end, each token redeems on its own for its final share of #{stock.symbol}."
 
-  defp tab_path(series, tab, all) do
+  # Buy leads once a token can be bought; until then, Split.
+  defp default_tab(series) do
+    if series && (liquid?(series, :overnight) or liquid?(series, :session)),
+      do: :buy,
+      else: :mint
+  end
+
+  # After-hours, unless only Market-hours can be bought now.
+  defp default_leg(nil), do: :overnight
+
+  defp default_leg(series) do
+    if not liquid?(series, :overnight) and liquid?(series, :session),
+      do: :session,
+      else: :overnight
+  end
+
+  defp liquid?(%{pools: pools}, leg),
+    do: match?(%{usdc_per_token: usdc} when is_integer(usdc), pools[leg])
+
+  defp trade_note(:buy, :overnight, series),
+    do:
+      "Pay USDC for After-hours, to hold only #{series.stock.symbol}'s moves while the market is closed."
+
+  defp trade_note(:buy, :session, series),
+    do:
+      "Pay USDC for Market-hours, to hold only #{series.stock.symbol}'s moves while the market is open."
+
+  defp trade_note(:sell, _leg, _series),
+    do:
+      "Sell the token for USDC at its pool's price. After the end you can also redeem it for its share of the stock."
+
+  defp tab_path(series, tab, leg, all) do
+    value = Enum.find_value(@tabs, fn {value, atom} -> atom == tab && value end)
+
     query =
       [
         series: if(series.address != List.last(all), do: series.address),
-        tab: if(tab == :redeem, do: "redeem")
+        tab: value,
+        leg: if(tab in [:buy, :sell] and leg == :session, do: "market-hours")
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
-    if query == [], do: ~p"/after-hour-stocks", else: ~p"/after-hour-stocks?#{query}"
+    ~p"/after-hour-stocks?#{query}"
   end
 
   defp ticker(series), do: String.replace_suffix(series.stock.symbol, "c", "")
