@@ -260,6 +260,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
                   module={CoveredCallComponent}
                   id={"#{@id}-#{kind}-#{row.listing.id}"}
                   kind={kind}
+                  variant="secondary"
                   symbol={@symbol}
                   unit={@unit}
                   listing={row.listing}

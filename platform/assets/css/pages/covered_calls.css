@@ -45,7 +45,7 @@
 .covered-calls__table .portfolio__actions > td > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); align-items: start; }
 .covered-calls__table .portfolio__actions .covered-call-panel { gap: var(--space-1); }
 .covered-calls__table .portfolio__actions .covered-call-panel__body, .covered-calls__table .portfolio__actions .covered-call-panel__form { gap: var(--space-1); }
-.covered-calls__table .portfolio__actions .token-swap__submit { min-block-size: 2.5rem; font-size: .9375rem; }
+.covered-calls__table .portfolio__actions .token-swap__submit { min-block-size: 2.5rem; font-size: .9375rem; inline-size: 100%; justify-content: center; }
 .covered-calls__table .portfolio__actions .covered-call-panel__reason { font-size: .8125rem; }
 .covered-calls__panel { display: grid; gap: var(--space-2); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .covered-calls__panel h3 { margin: 0; font-size: 1rem; font-weight: 600; }

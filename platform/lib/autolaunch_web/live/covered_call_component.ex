@@ -19,7 +19,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   The page passes `kind`, `symbol`, `unit` (raw units per whole token), the
   `listing` an action is on, `expiries` for a new listing, `holding` for an
-  exercise, and the panel's `session_lease` and `current_human_id`. A landed
+  exercise, the panel's `session_lease` and `current_human_id`, and, for a row
+  of actions such as the portfolio's, `variant="secondary"` for its button. A landed
   step tells the page with `{:covered_calls_changed, symbol, press}`, `press`
   naming the listing and its seller (both `nil` for a new one) and the wallet
   that sent it.
@@ -53,7 +54,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
        notice: nil,
        listing: nil,
        holding: nil,
-       expiries: []
+       expiries: [],
+       variant: "primary"
      )}
   end
 
@@ -453,6 +455,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp action_assigns(assigns) do
     Map.take(assigns, [
       :id,
+      :variant,
       :kind,
       :symbol,
       :unit,
@@ -479,6 +482,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   attr :review, :map, default: nil
   attr :linked, :any, required: true
   attr :mismatch, :any, default: nil
+  attr :variant, :string, default: "primary"
   attr :myself, :any, required: true
 
   # What the action comes to, and the button that reviews it: a submit inside
@@ -497,6 +501,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       :if={@linked != nil}
       id={"#{@id}-review"}
       type={@type}
+      variant={@variant}
       class="token-swap__submit"
       phx-click={@type == "button" && "review"}
       phx-target={@type == "button" && @myself}
