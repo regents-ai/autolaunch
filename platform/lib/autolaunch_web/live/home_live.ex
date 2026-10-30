@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.HomeLive do
 
     {:noreply,
      case {list, socket.assigns.token_kind} do
-       {:options, _kind} -> read_calls(socket)
+       {:options, _kind} -> read_calls(socket, first?)
        {:tokens, "isolated"} -> socket
        _market -> show_market(socket)
      end}
@@ -142,16 +142,15 @@ defmodule AutolaunchWeb.HomeLive do
        else: load_market(socket, false)
   end
 
-  # The covered calls for sale, from the market's shared reading: in the page
-  # as it is sent, for readers that run no scripts, and beside the page once
-  # it is live.
-  defp read_calls(socket) do
-    if connected?(socket),
-      do:
-        socket
-        |> assign(:calls, AsyncResult.loading(socket.assigns.calls))
-        |> start_async(:home_calls, &read_book/0),
-      else: put_calls(socket, read_book())
+  # The covered calls for sale, from the market's shared reading. A page that
+  # opens on them has them as it arrives, for readers that run no scripts too;
+  # a later switch to them, or Try again, reads beside the page.
+  defp read_calls(socket, true = _first?), do: put_calls(socket, read_book())
+
+  defp read_calls(socket, false = _first?) do
+    socket
+    |> assign(:calls, AsyncResult.loading(socket.assigns.calls))
+    |> start_async(:home_calls, &read_book/0)
   end
 
   defp read_book do
@@ -208,7 +207,7 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_event("retry", _params, socket),
     do: {:noreply, load_market(socket, socket.assigns.market_append)}
 
-  def handle_event("retry_calls", _params, socket), do: {:noreply, read_calls(socket)}
+  def handle_event("retry_calls", _params, socket), do: {:noreply, read_calls(socket, false)}
 
   def handle_async(:home_market, {:ok, {:ok, page}}, socket),
     do: {:noreply, put_market(socket, page)}
@@ -245,10 +244,11 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
-  # The Robinhood notice follows whether the site could read Robinhood.
+  # A new reading of the After-hours tokens.
   def handle_info({:shared_reading, {:exposure_tokens, _id}}, socket),
     do: {:noreply, assign(socket, :isolated, Exposure.Listing.fetch())}
 
+  # The Robinhood notice follows whether the site could read Robinhood.
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
 
