@@ -2,6 +2,13 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: Isolated Exposure to After-hours Stocks
+- A new page, Isolated Exposure to After-hours Stocks (/after-hour-stocks), splits a stock token on Base into two tokens for a week. After-hours carries the stock's moves while the market is closed, from each close to the next open; Market-hours carries its moves while the market is open. One of each always returns one stock token, and at the end each returns its own share.
+- The first series is AMZNc, from Friday 30 October's close to Friday 6 November's close, with deposits capped at 0.4 AMZNc. Its full terms are on the page, and the series holds their fingerprint on Base.
+- Mint a pair, return tokens for AMZNc, and record or apply each price from the page; anyone can record a price an hour after its time. Your tokens and what they are worth show in your portfolio, with Return beside them.
+- Available to eligible people outside the US. Prices come from the Coinbase AMZN Chainlink feed on Base, not from the exchange's official open and close.
+- For agents: four new tools and routes list series, read one, read your person's holding, and prepare the wallet steps for mint, return, record and end. Your person's own wallet signs every step.
+
 ## 29 October 2026: each wallet's share video is its own
 - If you have more than one wallet, the share video you make for one wallet is never handed over for another: each wallet gets its own, with only that wallet's bids, trades and stake.
 

@@ -160,6 +160,15 @@ tools) are off unless `AUTOLAUNCH_COVERED_CALLS=true`; then
 `symbol`, `stock`, `contract`, `feed`). The agent journeys' copy of Base deploys one for AMZNc
 (`scripts/agent-journeys.sh`). Design and evidence: [docs/covered-calls-design.md](docs/covered-calls-design.md).
 
+Isolated Exposure to After-hours Stocks (`/after-hour-stocks`, the portfolio's section and their
+agent routes and tools) is off unless `AUTOLAUNCH_EXPOSURE=true`; then
+`AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT=/abs/path/exposure.json` is required, naming the
+`ExposureSeriesV1` series the site offers, oldest first, on the Base description's chain (`chain_id`,
+`usdc`, `pool_factory`, `series`). On autolaunch.sh it is
+`contracts/exposure/deployments/base-mainnet/site-series.json`, copied to
+`platform/deployment/exposure.json` before deploying. Design and evidence:
+[docs/exposure-design.md](docs/exposure-design.md).
+
 ## Protected paths
 
 These paths carry the boundary between the site and money. A change to any of them is a

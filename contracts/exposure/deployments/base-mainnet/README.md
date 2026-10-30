@@ -47,7 +47,18 @@ approved terms and a 0.4 AMZNc cap. Simulated from the Safe at 17:5x UTC on 29 O
 it succeeds, uses about 2.4M gas and creates `0xcae5aad4cc21700b32931404c366efd4fc1ddfa0`. The series at
 `0x77b8…6cb7` stays unused and the site doesn't list it.
 
-## Monday series (Sean's 2a, 29 Oct; terms awaiting approval)
+## First series as relaunched (live)
+
+The Safe executed the relaunch batch on 30 Oct 2026 at Base block 53,292,267 (transaction
+`0x5dddb8490ffe7575063292707695bdadfbb337a81c6dff7fd8342be92e4704dd`, Safe nonce 73). Read from Base:
+series `0xcae5aad4cc21700b32931404c366efd4fc1ddfa0` uses `ChainlinkPrintOracleV2`
+`0x64b8404E979EC2791E68f55d959d011EA4EEA88a`, `termsHash` `0x5f67343b…2e8f` (the approved terms),
+cap 0.4 AMZNc, seven-day recording window, 11 prices. Legs: After-hours
+`0x07e4aAbF673b556892Ac3f9a254941b222993603`, Market-hours
+`0x668a22Ab136Ad30e88cB76859c151CBBb20eFffd`. [`site-series.json`](site-series.json) lists it for the
+site.
+
+## Monday series (Sean's 2a, 29 Oct; terms under the title Sean set, 29 Oct 20:53Z)
 
 [`safe-create-monday-series.json`](safe-create-monday-series.json): one `createSeries` call, as
 `mondaySeriesCall` prints it for the V2 recorder and the draft terms
