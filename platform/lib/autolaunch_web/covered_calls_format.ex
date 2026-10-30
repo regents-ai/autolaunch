@@ -71,6 +71,21 @@ defmodule AutolaunchWeb.CoveredCallsFormat do
   def window_closes(unix) when is_integer(unix),
     do: expiry(unix + Autolaunch.CoveredCalls.Terms.exercise_window())
 
+  @doc "The exercise window that opens at `expiry`, in full: when it opens and when it closes."
+  def window(expiry) when is_integer(expiry), do: "#{expiry(expiry)} to #{window_closes(expiry)}"
+
+  @doc "The exercise window that opens at `expiry` as its two days, for a list or a choice."
+  def window_days(expiry) when is_integer(expiry),
+    do: "#{day(expiry)} – #{day(expiry + Autolaunch.CoveredCalls.Terms.exercise_window())}"
+
+  @doc "USDC micro-units as a dollar price a form takes back: digits and a dot, to the cent."
+  def plain_usd(micro) when is_integer(micro) do
+    cents = div(micro + 5_000, 10_000)
+    "#{div(cents, 100)}.#{cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}"
+  end
+
+  defp day(unix), do: unix |> DateTime.from_unix!() |> Calendar.strftime("%a %-d %b")
+
   defp parse(text, unit) do
     decimals = String.length(Integer.to_string(unit)) - 1
 

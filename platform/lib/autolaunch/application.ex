@@ -32,6 +32,7 @@ defmodule Autolaunch.Application do
       AutolaunchWeb.Telemetry,
       Autolaunch.Accounts.RequestRateLimiter,
       AutolaunchWeb.ShareCard.Cache,
+      AutolaunchWeb.ShareCard.MarketPictures,
       # The launch images made at the sizes pages show them
       # (Autolaunch.StoredImage), the oldest written leaving first past the limit.
       Supervisor.child_spec(

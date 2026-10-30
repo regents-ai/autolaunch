@@ -6,10 +6,16 @@ defmodule AutolaunchWeb.ShareVideo do
   `AutolaunchWeb.ShareVideo.Film`). A launch still in its auction has its
   video at the auction's address; a graduated one at its token's.
 
+  A covered-call market and an After-hours Exposure series have theirs too
+  (`AutolaunchWeb.ShareVideo.MarketStory`, drawn by
+  `AutolaunchWeb.ShareVideo.MarketFilm`): one for everyone, and one with a
+  signed-in person's own calls or holdings, made only when they ask for it.
+  Both are kept, made again and limited as a launch's are.
+
   Every video is stored once made (`Autolaunch.ShareVideoRequest`). A launch's
   own video is made again every fifteen minutes it is asked for. A person's
-  video for a launch, its auction's and its token's apart, is kept and served
-  as made until three hours have passed; asking after that makes a new one.
+  video for a launch, its auction's and its token's apart and each wallet's
+  apart, is kept and served as made until three hours have passed; asking after that makes a new one.
   Every video is deleted once it is a day old. Once the saved videos come to
   5 GB, a new video is still made but not saved: it is handed over once, and
   asking again makes another.
@@ -72,8 +78,46 @@ defmodule AutolaunchWeb.ShareVideo do
           | {:waiting, non_neg_integer()}
           | {:error,
              :daily_limit | :render_failed | :invalid_request | :connection_lost | :failed}
-  def fetch(auction, phase, wallet, account, now) do
-    answer(auction, phase, wallet, account, now)
+  def fetch(auction, phase, wallet, account, now),
+    do:
+      guarded(fn ->
+        answer(%{kind: phase, id: auction.id, auction_id: auction.id}, wallet, account, now)
+      end)
+
+  @doc """
+  Where a covered-call market's (`:covered_calls`, by its symbol) or an
+  After-hours Exposure series' (`:exposure`, by its address) video is served
+  as it stands at `now`: everyone's, or `wallet`'s own when one is given.
+  """
+  @spec market_url(:covered_calls | :exposure, String.t(), String.t() | nil, DateTime.t()) ::
+          String.t()
+  def market_url(kind, subject, wallet, now),
+    do: Paths.market_video_url(kind, subject, wallet && String.downcase(wallet), bucket(now))
+
+  @doc """
+  A covered-call market's or an After-hours Exposure series' video as it
+  stands, answered as `fetch/5` answers a launch's.
+  """
+  @spec fetch_market(
+          :covered_calls | :exposure,
+          String.t(),
+          String.t() | nil,
+          integer() | nil,
+          DateTime.t()
+        ) ::
+          {:ok, binary()}
+          | {:waiting, non_neg_integer()}
+          | {:error,
+             :daily_limit | :render_failed | :invalid_request | :connection_lost | :failed}
+  def fetch_market(kind, subject, wallet, account, now)
+      when kind in [:covered_calls, :exposure],
+      do:
+        guarded(fn ->
+          answer(%{kind: kind, id: subject, subject: subject}, wallet, account, now)
+        end)
+
+  defp guarded(answer) do
+    answer.()
   rescue
     # Ash returns most failed reads and writes, but raises some: a connection
     # lost inside a write's transaction (`Ash.Error.Unknown`) and any failure
@@ -82,9 +126,11 @@ defmodule AutolaunchWeb.ShareVideo do
       {:error, failure(error)}
   end
 
-  defp answer(auction, phase, nil, nil, now) do
-    key = key(auction, phase, now)
-    make = fn -> made(auction, phase, nil, nil, key, nil) end
+  # What a video is of: its kind, the id its keys name it by, and the launch
+  # (`auction_id`) or market (`subject`) its request records.
+  defp answer(target, nil, nil, now) do
+    key = key(target, now)
+    make = fn -> made(target, nil, nil, key, nil) end
 
     case Autolaunch.latest_share_video_request(key, actor: %System{}) do
       {:ok, nil} -> make.()
@@ -93,12 +139,14 @@ defmodule AutolaunchWeb.ShareVideo do
     end
   end
 
-  defp answer(auction, phase, wallet, account, now) when is_integer(account) do
-    case Autolaunch.own_share_video_requests(account, auction.id, phase, actor: %System{}) do
+  defp answer(target, wallet, account, now) when is_integer(account) do
+    wallet = String.downcase(wallet)
+
+    case own(target, account, wallet) do
       {:ok, own} ->
         saved = Enum.find(own, &(&1.state == :ready and &1.stored?))
-        key = own_key(auction, phase, account)
-        remake = fn -> made(auction, phase, String.downcase(wallet), account, key, saved) end
+        key = own_key(target, account, wallet)
+        remake = fn -> made(target, wallet, account, key, saved) end
         own_standing(own, saved, now, remake)
 
       {:error, error} ->
@@ -139,12 +187,13 @@ defmodule AutolaunchWeb.ShareVideo do
 
   # A new video, queued once however many ask. Past the site's videos for the
   # day (`DailyLimit`) a person keeps their last one, or is told so.
-  defp made(auction, phase, wallet, account, key, saved) do
+  defp made(target, wallet, account, key, saved) do
     case Autolaunch.request_share_video(
            %{
              key: key,
-             kind: phase,
-             auction_id: auction.id,
+             kind: target.kind,
+             auction_id: target[:auction_id],
+             subject: target[:subject],
              human_account_id: account,
              wallet: wallet
            },
@@ -218,10 +267,19 @@ defmodule AutolaunchWeb.ShareVideo do
   defp level(:failed), do: :error
   defp level(_kind), do: :warning
 
-  defp key(auction, phase, now), do: Enum.join([auction.id, phase, bucket(now)], ":")
+  # A person's videos are each wallet's own, so one wallet's bids, trades,
+  # calls or holdings never stand in for another's.
+  defp own(%{auction_id: auction_id, kind: kind}, account, wallet),
+    do: Autolaunch.own_share_video_requests(account, auction_id, kind, wallet, actor: %System{})
 
-  defp own_key(auction, phase, account),
-    do: Enum.join([auction.id, phase, "account", account], ":")
+  defp own(%{subject: subject, kind: kind}, account, wallet),
+    do:
+      Autolaunch.own_market_share_video_requests(account, subject, kind, wallet, actor: %System{})
+
+  defp key(target, now), do: Enum.join([target.id, target.kind, bucket(now)], ":")
+
+  defp own_key(target, account, wallet),
+    do: Enum.join([target.id, target.kind, "account", account, wallet], ":")
 
   defp bucket(now), do: now |> DateTime.to_unix() |> div(900) |> Integer.to_string()
 end

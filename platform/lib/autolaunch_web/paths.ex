@@ -74,6 +74,33 @@ defmodule AutolaunchWeb.Paths do
       )
 
   @doc """
+  A covered-call market's (`:covered_calls`, by symbol) or an After-hours
+  Exposure series' (`:exposure`, by address) share picture; `version` moves on
+  as its figures do.
+  """
+  def market_image_url(:covered_calls, symbol, version),
+    do: url(~p"/covered-calls/#{symbol}/share.png?#{[v: version]}")
+
+  def market_image_url(:exposure, series, version),
+    do: url(~p"/after-hour-stocks/#{series}/share.png?#{[v: version]}")
+
+  @doc """
+  A covered-call market's or an After-hours Exposure series' share video for
+  everyone, or `wallet`'s own for its signed-in owner.
+  """
+  def market_video_url(:covered_calls, symbol, nil, version),
+    do: url(~p"/covered-calls/#{symbol}/share.mp4?#{[v: version]}")
+
+  def market_video_url(:covered_calls, symbol, wallet, version),
+    do: url(~p"/covered-calls/#{symbol}/wallets/#{wallet}/share.mp4?#{[v: version]}")
+
+  def market_video_url(:exposure, series, nil, version),
+    do: url(~p"/after-hour-stocks/#{series}/share.mp4?#{[v: version]}")
+
+  def market_video_url(:exposure, series, wallet, version),
+    do: url(~p"/after-hour-stocks/#{series}/wallets/#{wallet}/share.mp4?#{[v: version]}")
+
+  @doc """
   The one listed auction a page address names, or `:error` when none does or
   the tail is too short to name only one. An address that cannot name an
   auction is `:error` too. A read that fails never passes for a missing page:

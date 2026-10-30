@@ -57,7 +57,16 @@ defmodule AutolaunchWeb.CoveredCallComponent do
      )}
   end
 
+  # A suggestion the page's guide offers, put into the form as if typed.
   @impl true
+  def update(%{fill: fill}, socket),
+    do:
+      {:ok,
+       socket
+       |> assign(inputs: Map.merge(socket.assigns.inputs, fill), typed: true, notice: nil)
+       |> tell_form()
+       |> sync()}
+
   def update(assigns, socket) do
     socket = assign(socket, assigns)
 
@@ -84,12 +93,10 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   # allows the action.
   def handle_event("refresh_funds", _params, socket), do: {:noreply, sync(socket)}
 
-  def handle_event("change", params, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(inputs: inputs(socket.assigns.kind, params), typed: true, notice: nil)
-       |> sync()}
+  def handle_event("change", params, socket) do
+    socket = assign(socket, inputs: inputs(socket.assigns.kind, params), typed: true, notice: nil)
+    {:noreply, socket |> tell_form() |> sync()}
+  end
 
   # The form sends its fields with the press, so a figure typed a moment ago
   # is the one reviewed.
@@ -224,6 +231,14 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp unreadable(_kind), do: "Enter an amount above zero, with a dot for decimals (1.5)."
 
+  # The List form tells the page what it holds, so the page's guide follows it.
+  defp tell_form(%{assigns: %{kind: :list, inputs: inputs}} = socket) do
+    send(self(), {:covered_call_form, inputs})
+    socket
+  end
+
+  defp tell_form(socket), do: socket
+
   defp no_signer(%{linked: nil}), do: "Sign in to use your wallet here."
 
   defp no_signer(%{linked: linked, active: active}),
@@ -269,6 +284,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
     socket
     |> assign(cleared(kind, socket.assigns))
+    |> tell_form()
     |> closed()
   end
 
@@ -563,18 +579,21 @@ defmodule AutolaunchWeb.CoveredCallComponent do
       unit={"USDC per #{@symbol}"}
     />
     <div class="rg-field">
-      <label for={"#{@id}-expiry"}>Expiry</label>
+      <label for={"#{@id}-expiry"}>Exercise window</label>
       <span class="covered-call-panel__input">
-        <select id={"#{@id}-expiry"} name="expiry">
+        <select id={"#{@id}-expiry"} name="expiry" aria-describedby={"#{@id}-expiry-hint"}>
           <option
             :for={expiry <- @expiries}
             value={expiry}
             selected={Integer.to_string(expiry) == @inputs["expiry"]}
           >
-            {F.expiry(expiry)}
+            {F.window_days(expiry)}
           </option>
         </select>
       </span>
+      <small id={"#{@id}-expiry-hint"} class="covered-call-panel__hint">
+        Opens Friday 21:00 UTC, closes Saturday 21:00 UTC.
+      </small>
     </div>
     <.field
       id={"#{@id}-premium"}
@@ -637,7 +656,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
     [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
       ["Strike", "#{F.usd(facts.strike_per_token)} per #{symbol}"],
-      ["Expiry", F.expiry(facts.expiry)],
+      ["Exercise window", F.window(facts.expiry)],
       ["Total premium", F.usd(premium)],
       ["You receive", "#{F.usd(premium - Terms.fee(premium))} if all sell, after the 1% fee"],
       ["Total at strike", F.usd(F.total(facts.amount, facts.strike_per_token, unit))]
@@ -647,7 +666,9 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:fill, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["Calls", "#{F.tokens(facts.amount, unit)} #{symbol}"],
-      ["You pay", F.usd_due(facts.premium)]
+      ["Premium", F.usd_due(facts.premium)],
+      ["Exercise cost", F.usd_due(facts.strike)],
+      ["Exercise window", F.window(facts.expiry)]
     ]
 
   defp facts(:exercise, facts, %{unit: unit, symbol: symbol}),
@@ -666,7 +687,7 @@ defmodule AutolaunchWeb.CoveredCallComponent do
 
   defp done_lines(:list, facts, %{unit: unit, symbol: symbol}),
     do: [
-      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.expiry(facts.expiry)}"
+      "#{F.tokens(facts.amount, unit)} #{symbol} at #{F.usd(facts.strike_per_token)}, #{F.window_days(facts.expiry)}"
     ]
 
   defp done_lines(:fill, facts, %{unit: unit, symbol: symbol}),

@@ -1,9 +1,10 @@
 defmodule AutolaunchWeb.ShareCard.Cache do
   @moduledoc """
-  The finished share pictures, one per auction and one per token, each kept
-  with the version of its figures it was drawn for (`AutolaunchWeb.ShareCard`).
-  A request at a newer version draws the picture again and replaces the kept
-  one, so the table never holds more than one picture per auction or token.
+  The finished share pictures, one per auction, token, covered-call market and
+  After-hours Exposure series, each kept with the version of its figures it was
+  drawn for (`AutolaunchWeb.ShareCard`). A request at a newer version draws the
+  picture again and replaces the kept one, so the table never holds more than
+  one picture for each.
   The version is the server's own, never the `v` a request's address carries.
   """
 

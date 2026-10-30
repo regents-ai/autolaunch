@@ -146,7 +146,9 @@ defmodule Autolaunch.CoveredCalls.Steps do
            listing_id: listing.id,
            amount: amount,
            premium: premium,
-           fee: Terms.fee(premium)
+           fee: Terms.fee(premium),
+           strike: Terms.usdc_for(amount, listing.strike_per_token, unit),
+           expiry: listing.expiry
          }
        }}
     end

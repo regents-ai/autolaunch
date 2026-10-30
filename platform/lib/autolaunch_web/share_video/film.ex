@@ -1,9 +1,7 @@
 defmodule AutolaunchWeb.ShareVideo.Film do
   @moduledoc """
-  Draws a share video from its story (`AutolaunchWeb.ShareVideo.Story`) and
-  encodes it as an MP4: 1080 by 1350, 30 frames a second, ten seconds, H.264
-  in yuv420p with its index at the front, so it plays as soon as it starts
-  loading.
+  Draws a launch's share video from its story (`AutolaunchWeb.ShareVideo.Story`),
+  encoded as every share video is (`AutolaunchWeb.ShareVideo.Canvas`).
 
   The frame sits inside a tangerine border that widens into a band reading
   autolaunch.sh at the foot: a phase word over a chart, and a strip with the
@@ -17,18 +15,31 @@ defmodule AutolaunchWeb.ShareVideo.Film do
 
   What never changes is drawn once: the border, the field, the grid, the
   strip with its logo and words, and the band. Each frame draws only the chart's moving parts
-  and the figures, lays them over the still layers and hands the pixels to
-  ffmpeg, which runs at low priority so pages keep their share of the
-  machine.
+  and the figures and lays them over the still layers.
   """
 
-  alias AutolaunchWeb.ShareCard.Draw
-  alias AutolaunchWeb.TokenDisplay
-  alias Vix.Vips.{Image, Operation}
+  import AutolaunchWeb.ShareVideo.Canvas,
+    only: [
+      text!: 4,
+      fit!: 5,
+      faded: 2,
+      flat: 2,
+      svg!: 1,
+      n: 1,
+      progress: 3,
+      ease: 1,
+      figure: 3,
+      tip_svg: 5
+    ]
 
+  alias AutolaunchWeb.ShareCard.Draw
+  alias AutolaunchWeb.ShareVideo.Canvas
+  alias AutolaunchWeb.TokenDisplay
+  alias Vix.Vips.Image
+
+  # The frame `AutolaunchWeb.ShareVideo.Canvas` encodes.
   @width 1080
   @height 1350
-  @fps 30
   @frames 300
 
   @field "#111110"
@@ -83,30 +94,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
   @note_fade 10
 
   @doc """
-  The video's MP4 bytes, with what drawing and encoding it took: the time
-  in milliseconds and the most memory the BEAM held while it ran.
+  The video's MP4 bytes, with what drawing and encoding it took
+  (`AutolaunchWeb.ShareVideo.Canvas.render/1`).
   """
   @spec render(map()) :: {:ok, binary(), map()} | {:error, term()}
-  # The path is the site's own temporary file, never named by a request.
-  # sobelow_skip ["Traversal.FileModule"]
   def render(story) do
-    started = System.monotonic_time(:millisecond)
     film = prepare(story)
-    path = Path.join(System.tmp_dir!(), "share-video-#{System.unique_integer([:positive])}.mp4")
-
-    try do
-      with {:ok, peak} <- encode(film, path),
-           {:ok, mp4} <- File.read(path) do
-        {:ok, mp4,
-         %{
-           ms: System.monotonic_time(:millisecond) - started,
-           peak_bytes: peak,
-           bytes: byte_size(mp4)
-         }}
-      end
-    after
-      File.rm(path)
-    end
+    Canvas.render(&frame(film, &1))
   end
 
   # --- what the frames share --------------------------------------------------
@@ -322,8 +316,10 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         ],
         into: %{} do
       {badge, pill} = still_pill(pill_words, pill_color)
-      {:ok, {canvas, _flags}} = Operation.svgload_buffer(still_svg(chain, color, logo, pill))
-      {:ok, still} = Image.copy_memory(flat(canvas, words ++ badge))
+
+      {:ok, still} =
+        Image.copy_memory(flat(svg!(still_svg(chain, color, logo, pill)), words ++ badge))
+
       {kind, still}
     end
   end
@@ -446,13 +442,13 @@ defmodule AutolaunchWeb.ShareVideo.Film do
       #{stake_svg(film, tip, index, staked?)}
       #{marks_svg(film, index)}
       #{notes_svg(film, index)}
-      #{tip_svg(tip_x, tip_y, tag_color, index)}
+      #{tip_svg(tip_x, tip_y, tag_color, @field, index)}
       #{pill_svg(tag_box, tag_color)}
       #{if earned_box, do: pill_svg(earned_box, @gold), else: ""}
     </svg>
     """
 
-    {:ok, {chart, _flags}} = Operation.svgload_buffer(svg)
+    chart = svg!(svg)
 
     still = still(film, graduated?)
 
@@ -515,10 +511,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
           ease(progress(index, from, @trading_to)) * (film.story.now - film.graduated_at)
     end
   end
-
-  defp progress(index, from, to), do: min(max((index - from) / (to - from), 0.0), 1.0)
-
-  defp ease(p), do: -(:math.cos(:math.pi() * p) - 1) / 2
 
   defp pop(p) do
     p = min(max(p, 0.0), 1.0)
@@ -841,15 +833,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     %{x: x(film, film.graduated_at) - w / 2, y: @top + 9 - 19, w: w, h: 38}
   end
 
-  defp tip_svg(x, y, color, index) do
-    phase = rem(index, @fps) / @fps
-
-    """
-    <circle cx="#{n(x)}" cy="#{n(y)}" r="#{n(9 + 16 * phase)}" fill="#{color}" opacity="#{n(0.45 * (1 - phase))}"/>
-    <circle cx="#{n(x)}" cy="#{n(y)}" r="9" fill="#{color}" stroke="#{@field}" stroke-width="3"/>
-    """
-  end
-
   # The tip's tag: above and right of the dot if it fits there, otherwise
   # at the first other corner clear of the notes showing.
   defp tag_box(x, y, tag, notes) do
@@ -942,7 +925,7 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     rows
     |> Enum.with_index()
     |> Enum.flat_map(fn {{label, value, color}, row} ->
-      value = figure(value, color)
+      value = figure(value, color, @words_w)
       top = @strip_y + 40 + row * 124
 
       [
@@ -950,21 +933,6 @@ defmodule AutolaunchWeb.ShareVideo.Film do
         {value, @right - Image.width(value), top + 32}
       ]
     end)
-  end
-
-  # A figure steps down in size until it fits beside the name, and past its
-  # last step it is drawn at the size that fits, so a long one is never cut
-  # short and never runs into the name.
-  defp figure(value, color, sizes \\ [50, 44, 38, 32, 28])
-
-  defp figure(value, color, [size | smaller]) do
-    layer = text!(value, :bold, size, color)
-
-    cond do
-      Image.width(layer) <= @words_w -> layer
-      smaller != [] -> figure(value, color, smaller)
-      true -> figure(value, color, [div(size * @words_w, Image.width(layer))])
-    end
   end
 
   # While an auction runs, its pill counts down to the end as of the line's
@@ -983,8 +951,8 @@ defmodule AutolaunchWeb.ShareVideo.Film do
     width = Image.width(badge) + 36
     x = badge_x() - 18 + film.mark_w + 24
 
-    {:ok, {pill, _flags}} =
-      Operation.svgload_buffer(
+    pill =
+      svg!(
         ~s|<svg xmlns="http://www.w3.org/2000/svg" width="#{width}" height="#{@pill_h}"><rect x="1" y="1" width="#{width - 2}" height="#{@pill_h - 2}" rx="#{div(@pill_h, 2) - 1}" fill="none" stroke="#{@blue}" stroke-width="2"/></svg>|
       )
 
@@ -1008,120 +976,4 @@ defmodule AutolaunchWeb.ShareVideo.Film do
       Decimal.Context.with(%Decimal.Context{precision: 15}, fn ->
         (value * 1.0) |> Decimal.from_float() |> Decimal.add(0)
       end)
-
-  defp n(value), do: :erlang.float_to_binary(value * 1.0, decimals: 1)
-
-  # --- drawing and encoding -------------------------------------------------------
-
-  defp text!(words, weight, size, color) do
-    {:ok, layer} = Draw.layer(words, weight, size, color)
-    layer
-  end
-
-  defp fit!(words, weight, size, color, max) do
-    {:ok, layer} = Draw.fit(words, weight, size, color, max)
-    layer
-  end
-
-  defp faded({layer, x, y}, opacity) when opacity >= 1.0, do: {layer, x, y}
-
-  defp faded({layer, x, y}, opacity) do
-    {:ok, alpha} = Operation.linear(layer, [1.0, 1.0, 1.0, opacity], [0.0, 0.0, 0.0, 0.0])
-    {:ok, alpha} = Operation.cast(alpha, :VIPS_FORMAT_UCHAR)
-    {alpha, x, y}
-  end
-
-  # Every layer over the base in one pass.
-  defp flat(base, layers) do
-    {:ok, image} =
-      Operation.composite(
-        [base | Enum.map(layers, &elem(&1, 0))],
-        List.duplicate(:VIPS_BLEND_MODE_OVER, length(layers)),
-        x: Enum.map(layers, &elem(&1, 1)),
-        y: Enum.map(layers, &elem(&1, 2))
-      )
-
-    image
-  end
-
-  defp pixels(image) do
-    {:ok, rgb} = Operation.extract_band(image, 0, n: 3)
-    {:ok, rgb} = Operation.cast(rgb, :VIPS_FORMAT_UCHAR)
-    {:ok, bytes} = Image.write_to_binary(rgb)
-    bytes
-  end
-
-  # Frames go to ffmpeg as raw RGB on its input, at low priority. A port
-  # cannot close its input on its own, so `head` passes on exactly the
-  # frames' bytes and then closes ffmpeg's input, and ffmpeg writes the file
-  # and exits. The highest memory the BEAM reached is kept for the
-  # measurement.
-  defp encode(film, path) do
-    port =
-      Port.open({:spawn_executable, System.find_executable("sh")}, [
-        :binary,
-        :exit_status,
-        :stderr_to_stdout,
-        args:
-          ["-c", ~s|head -c "$0" \| nice -n 10 "$@"|, "#{@frames * @width * @height * 3}"] ++
-            ffmpeg(path)
-      ])
-
-    peak =
-      Enum.reduce(0..(@frames - 1), 0, fn index, peak ->
-        true = Port.command(port, film |> frame(index) |> pixels())
-        max(peak, :erlang.memory(:total))
-      end)
-
-    finished(port, peak, [])
-  end
-
-  defp finished(port, peak, said) do
-    receive do
-      {^port, {:data, words}} ->
-        finished(port, peak, [words | said])
-
-      {^port, {:exit_status, 0}} ->
-        {:ok, peak}
-
-      {^port, {:exit_status, status}} ->
-        {:error, {:ffmpeg, status, said |> Enum.reverse() |> IO.iodata_to_binary()}}
-    after
-      120_000 ->
-        Port.close(port)
-        {:error, :ffmpeg_timeout}
-    end
-  end
-
-  defp ffmpeg(path),
-    do: [
-      System.find_executable("ffmpeg"),
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-f",
-      "rawvideo",
-      "-pix_fmt",
-      "rgb24",
-      "-s",
-      "#{@width}x#{@height}",
-      "-r",
-      "#{@fps}",
-      "-i",
-      "pipe:0",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "21",
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart",
-      "-threads",
-      "1",
-      "-y",
-      path
-    ]
 end

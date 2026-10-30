@@ -238,7 +238,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
           <tr>
             <th scope="col">Calls</th>
             <th scope="col">Strike</th>
-            <th scope="col">Expiry</th>
+            <th scope="col">Exercise window</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
@@ -246,7 +246,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
           <tr>
             <td data-label="Calls">{describe(row.what, @unit, @symbol)}</td>
             <td data-label="Strike">{F.usd(row.listing.strike_per_token)}</td>
-            <td data-label="Expiry">{F.expiry(row.listing.expiry)}</td>
+            <td data-label="Exercise window">{F.window_days(row.listing.expiry)}</td>
             <td data-label="Status">{row.status}</td>
           </tr>
           <tr :if={row.actions != []} class="portfolio__actions">

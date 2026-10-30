@@ -142,7 +142,8 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   await signIn(page, people.a)
   await page.goto("/covered-calls?tab=sell")
   await ready(page)
-  await expect(page.getByText("Dividends during the week stay with the tokens.")).toBeVisible()
+  await page.locator("summary", {hasText: "Terms"}).click()
+  await expect(page.getByText(/Dividends during the week stay with the tokens/)).toBeVisible()
   // While on, the page's own styles are served (off, that address is not found: switched_off.spec.ts).
   const styles = await page.request.get("/assets/js/covered_calls.css")
   expect(styles.status()).toBe(200)
@@ -152,7 +153,7 @@ test("covered calls: list, buy, stop selling, exercise through a pause, collect 
   expect(unchanged.status(), "the browser's copy is kept while the file is the same").toBe(304)
   await page.getByLabel("Amount").fill("3")
   await page.getByLabel("Strike price").fill("300")
-  await page.getByLabel("Premium").fill("3")
+  await page.getByLabel("Premium", {exact: true}).fill("3")
   await fitsAndPresses(page, touch)
   await review(page, "List calls")
   await fitsAndPresses(page, touch)
