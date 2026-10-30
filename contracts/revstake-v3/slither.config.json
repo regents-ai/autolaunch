@@ -1,0 +1,9 @@
+{
+  "exclude_dependencies": true,
+  "exclude_informational": false,
+  "exclude_optimization": false,
+  "exclude_low": false,
+  "exclude_medium": false,
+  "exclude_high": false,
+  "compile_force_framework": "foundry"
+}

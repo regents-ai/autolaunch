@@ -1,0 +1,60 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+# Revstake v3 builds against the exact dependency snapshot the Base Memestake v3 package exported
+# (contracts/stocks-v3/lib, pinned by contracts/stocks-v3/dependencies.json to the revisions
+# contracts/v1 builds against). It exports nothing of its own and never fetches.
+libs = ["../stocks-v3/lib"]
+allow_paths = ["../stocks-v3"]
+
+# Same build identity as contracts/v1 and contracts/stocks-v3: Solidity 0.8.26, Cancun, optimizer 200,
+# via-IR, bytecode metadata disabled, offline.
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+offline = true
+ffi = false
+fs_permissions = []
+# Each test runs as one transaction, as under the frozen Forge. Newer Forge isolates every top-level
+# call by default, which spends a deployer nonce per call and breaks the fixtures' address predictions.
+isolate = false
+
+# `test/sepolia/` runs only under the `sepolia` profile against the public Base Sepolia endpoint.
+no_match_path = "test/sepolia/**"
+
+# The fuzz and invariant portfolio contracts/v1 runs, unchanged.
+[profile.default.fuzz]
+runs = 512
+seed = "0x5245474e54"
+max_test_rejects = 65536
+fail_on_revert = true
+
+[profile.default.invariant]
+runs = 256
+depth = 128
+fail_on_revert = true
+max_assume_rejects = 65536
+shrink_run_limit = 5000
+
+# A version 3 launch on Base Sepolia, which already runs 0.2 s blocks, through the real pinned CCA
+# factory. Read-only: the fork is local to Forge and nothing is sent to the chain.
+[profile.sepolia]
+match_path = "test/sepolia/**"
+no_match_path = "none/**"
+offline = false
+
+# The Base endpoint stays an unresolved environment reference in every committed file; the
+# required offline gate never reads it. Base Sepolia is the public endpoint.
+[rpc_endpoints]
+base = "${REGENT_BASE_RPC_URL}"
+base_sepolia = "https://sepolia.base.org"
+
+[lint]
+ignore = ["test/**/*.sol", "script/**/*.sol"]
+exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]
