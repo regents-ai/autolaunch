@@ -2,6 +2,7 @@
   "chain_id": 8453,
   "usdc": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
   "pool_factory": "0x420dd381b31aef6683db6b902084cb0ffece40da",
+  "router": "0xcf77a3ba9a5ca399b7c97c74d54e5b1beb874e43",
   "series": [
     "0xcae5aad4cc21700b32931404c366efd4fc1ddfa0",
     "0x1df53a86c8260c20ab79b5f620544209bd454266"

@@ -58,7 +58,7 @@
     {
       "name": "autolaunch_my_after_hour_stocks",
       "title": "Read my Isolated Exposure to After-hours Stocks holding",
-      "description": "Read my person's holding of one Isolated Exposure to After-hours Stocks series on Base, for their signed-in wallet, at the latest block: their After-hours, Market-hours and stock balances and stock allowance to the series, in raw token units, and what they can return now (whole pairs before the series ends, every token after it) with the raw stock it pays. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Read my person's holding of one Isolated Exposure to After-hours Stocks series on Base, for their signed-in wallet, at the latest block: their After-hours, Market-hours, stock and USDC balances and stock allowance to the series, in raw token units, and what they can return now (whole pairs before the series ends, every token after it) with the raw stock it pays. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -128,7 +128,7 @@
     {
       "name": "autolaunch_after_hour_stocks_prepare",
       "title": "Prepare an Isolated Exposure to After-hours Stocks step",
-      "description": "Prepare the wallet steps for one Isolated Exposure to After-hours Stocks action on a Base series: mint (amount: an exact stock approval, then mint), redeem (overnight and session: return tokens for the stock), update (record the next price on the oracle when it is not recorded yet, then apply it to the series; open to anyone, from an hour after the price's time) or end (end a series whose next price can no longer be recorded in time; open to anyone). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
+      "description": "Prepare the wallet steps for one Isolated Exposure to After-hours Stocks action on a Base series: buy (leg and amount in USDC micro-units: an exact USDC approval to the Aerodrome router, then a swap for that token through its pool, taking at least the pool's quote less 2%), sell (leg and amount in raw token units: an exact approval of the token, then a swap for USDC), mint (amount: an exact stock approval, then mint), redeem (overnight and session: return tokens for the stock), update (record the next price on the oracle when it is not recorded yet, then apply it to the series; open to anyone, from an hour after the price's time) or end (end a series whose next price can no longer be recorded in time; open to anyone). The steps are for one of my person's own wallets: signer when given, otherwise the wallet they signed in with; any other wallet is refused. The site only prepares: the wallet's own key signs and sends each step in turn (to, data, value on chain), and money moves only then. approved says whether the allowance already covers the action; blocked names, in code and words, a reason the chain's current state makes the action certain to fail, and the steps are still returned. Changes nothing. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -148,17 +148,27 @@
               "kind": {
                 "type": "string",
                 "enum": [
+                  "buy",
+                  "sell",
                   "mint",
                   "redeem",
                   "update",
                   "end"
                 ]
               },
+              "leg": {
+                "type": "string",
+                "enum": [
+                  "overnight",
+                  "session"
+                ],
+                "description": "For buy and sell: overnight for the After-hours token, session for the Market-hours token."
+              },
               "amount": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 9007199254740991,
-                "description": "For mint: raw stock units to deposit; the wallet receives this many of each token."
+                "description": "For buy: USDC micro-units to spend. For sell: raw token units to sell. For mint: raw stock units to deposit; the wallet receives this many of each token."
               },
               "overnight": {
                 "type": "integer",
@@ -222,17 +232,27 @@
           "kind": {
             "type": "string",
             "enum": [
+              "buy",
+              "sell",
               "mint",
               "redeem",
               "update",
               "end"
             ]
           },
+          "leg": {
+            "type": "string",
+            "enum": [
+              "overnight",
+              "session"
+            ],
+            "description": "For buy and sell: overnight for the After-hours token, session for the Market-hours token."
+          },
           "amount": {
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991,
-            "description": "For mint: raw stock units to deposit; the wallet receives this many of each token."
+            "description": "For buy: USDC micro-units to spend. For sell: raw token units to sell. For mint: raw stock units to deposit; the wallet receives this many of each token."
           },
           "overnight": {
             "type": "integer",

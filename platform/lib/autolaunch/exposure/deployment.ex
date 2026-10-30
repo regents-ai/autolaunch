@@ -2,13 +2,14 @@ defmodule Autolaunch.Exposure.Deployment do
   @moduledoc """
   Whether Exposure is on, and the description of its contracts:
   `AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT` names a JSON file listing every
-  `ExposureSeriesV1` the site offers, oldest first, with the USDC and the
-  Aerodrome pool factory its legs trade against.
+  `ExposureSeriesV1` the site offers, oldest first, with the USDC its legs trade
+  against and the Aerodrome pool factory and router they trade through.
 
       {"chain_id": 8453,
        "usdc": "0x8335…",
        "pool_factory": "0x420D…",
-       "series": ["0x77b8…"]}
+       "router": "0xcF77…",
+       "series": ["0xcae5…"]}
 
   Exposure is on only when `AUTOLAUNCH_EXPOSURE=true`, and then the
   description is required (`config/runtime.exs`). It extends the Base
@@ -21,7 +22,7 @@ defmodule Autolaunch.Exposure.Deployment do
   alias Autolaunch.Lab
   alias RegentChain.Address
 
-  @keys ~w(chain_id pool_factory series usdc)
+  @keys ~w(chain_id pool_factory router series usdc)
 
   @doc "Whether this site offers Exposure."
   def enabled?, do: Application.get_env(:autolaunch, :exposure, :off) == :on
@@ -33,6 +34,7 @@ defmodule Autolaunch.Exposure.Deployment do
              chain_id: pos_integer(),
              usdc: String.t(),
              pool_factory: String.t(),
+             router: String.t(),
              series: [String.t()],
              lab: map()
            }}
@@ -79,9 +81,17 @@ defmodule Autolaunch.Exposure.Deployment do
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, usdc} <- address(decoded["usdc"]),
          {:ok, pool_factory} <- address(decoded["pool_factory"]),
+         {:ok, router} <- address(decoded["router"]),
          {:ok, series} <- series_list(decoded["series"]) do
       {:ok,
-       %{path: path, chain_id: chain_id, usdc: usdc, pool_factory: pool_factory, series: series}}
+       %{
+         path: path,
+         chain_id: chain_id,
+         usdc: usdc,
+         pool_factory: pool_factory,
+         router: router,
+         series: series
+       }}
     else
       false -> {:error, :absolute_path_required}
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}

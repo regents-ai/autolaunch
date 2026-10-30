@@ -147,7 +147,7 @@ Agent surfaces, one Ash action each, same inputs, results and refusals everywher
 | List series | `autolaunch_after_hour_stocks_list` | `GET /api/v1/after-hour-stocks` | gap | gap |
 | One series | `autolaunch_after_hour_stocks_series` | `GET /api/v1/after-hour-stocks/{series}` | gap | gap |
 | My holding | `autolaunch_my_after_hour_stocks` | `GET /api/agent/v1/after-hour-stocks/{series}/holdings` (`GET /api/v1/me/after-hour-stocks/{series}` signed in) | gap | gap |
-| Prepare a step (mint, redeem, update, end) | `autolaunch_after_hour_stocks_prepare` | `POST /api/agent/v1/after-hour-stocks/{series}/steps` | gap | gap |
+| Prepare a step (buy, sell, mint, redeem, update, end) | `autolaunch_after_hour_stocks_prepare` | `POST /api/agent/v1/after-hour-stocks/{series}/steps` | gap | gap |
 
 The owner's own key signs every step; the site prepares and never signs.
 

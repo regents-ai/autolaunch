@@ -95,6 +95,7 @@ Isolated Exposure to After-hours Stocks (`AutolaunchWeb.ExposureComponent`, step
 
 | Action | Check |
 | --- | --- |
+| Buy a token with USDC and sell it back (exact approval to the Aerodrome router, then a swap through the token's pool taking at least its quote less 2%), once a pool has liquidity | `test/journeys/exposure.spec.ts` (pools opened on the copy of Base after the first close; Buy and Sell at 390 touch and 1280); `autolaunch/exposure/steps_test.exs` (buy and sell cases); `autolaunch_web/live/exposure_live_test.exs` › "with liquid pools the page leads with Buy, and picks which token to buy", "a signed-in wallet without USDC sees Buy disabled with the reason" |
 | Split (exact stock approval, then split), redeem pairs, redeem each token after the end, record and apply a price (from Series details) | `test/journeys/exposure.spec.ts` (every press on a copy of Base at 390 with touch and 1280); End series on the copy: **gap** |
 | A Record panel still open when the series ends says it has ended | `autolaunch_web/live/exposure_live_test.exs` › "a series that ends while the Record panel is open says it has ended" |
 | After the end each token is shown as the stock it returns, on the page and in the portfolio | `autolaunch_web/live/exposure_live_test.exs` › "after the end each token is shown as the stock it returns" |
