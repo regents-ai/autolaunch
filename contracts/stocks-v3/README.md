@@ -93,8 +93,8 @@ in place of the version 2 launchpad. Added tests:
 | `test/V2Schedule.sol` | Version 2's schedule, kept only as the reference, and the schedule arithmetic the tests use. |
 | `test/sepolia/StocksSepoliaLaunch.t.sol` | On a fork of Base Sepolia (0.2 s blocks since 21 October 2026): the chain runs five blocks a second, and a launch through the real pinned CCA factory (code hash checked) and Permit2 opens 10 minutes after creation, releases version 3's amount at 12 hours, ends after a day, claims after 128 s, migrates at 256 s and not one block earlier, and vests the creator half at 15 days and all at 30. |
 
-`test/fork/` is version 2's local Base-fork lab suite, carried over unchanged and not yet run
-against version 3. Version 2's deployment kit (`script/`, `deployments/`, `bin/`, `requirements/`,
+`test/fork/AerodromeStockRouteFork.t.sol` runs the stock routes, unchanged from version 2, against
+the local Base-fork lab. Version 2's deployment kit (`script/`, `deployments/`, `bin/`, `requirements/`,
 `reports/frozen/`, `abi/`, `SECURITY.md`) and the lab controller are not carried: a version 3 deployment kit is a separate step.
 
 ## Checks

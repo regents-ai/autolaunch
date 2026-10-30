@@ -20,6 +20,15 @@ the old launchpads. The legacy packages and deployment records below are histori
 | [stocks-v2/](stocks-v2/README.md) | Base (8453) | [Memestake v2 receipts](stocks-v2/deployments/base-mainnet/README.md) | `cd stocks-v2 && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` |
 | [robinhood-v2/](robinhood-v2/README.md) | Robinhood Chain (4663), receiver on Base | [Robinhood v2 receipts](robinhood-v2/deployments/robinhood-mainnet/README.md) | `cd robinhood-v2 && bin/gate.sh`, with `../stocks-v2/lib` in place |
 
+Base moves to 0.2 second blocks on 5 November 2026 at 18:00 UTC. Version 3 keeps version 2's
+clock times on the faster blocks; it is built and tested, not deployed, and opens only after Base
+mainnet runs 0.2 second blocks.
+
+| Next project | Chain | Deployment record | Verify |
+| --- | --- | --- | --- |
+| [revstake-v3/](revstake-v3/README.md) | Base (8453) | Not deployed | `cd revstake-v3 && forge test`, then `FOUNDRY_PROFILE=sepolia forge test` |
+| [stocks-v3/](stocks-v3/README.md) | Base (8453) | Not deployed | `cd stocks-v3 && forge test`, then `FOUNDRY_PROFILE=sepolia forge test` |
+
 For Uniswap CCA engineers, [CCA-INTEGRATION.md](CCA-INTEGRATION.md) lists every CCA parameter our
 contracts set and every one the launcher chooses.
 
