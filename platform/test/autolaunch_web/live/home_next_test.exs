@@ -1,8 +1,7 @@
 defmodule AutolaunchWeb.HomeNextTest do
   @moduledoc """
-  The home page says what Autolaunch is and offers two ways in, then what a
-  visitor can join next: the auctions taking bids or opening soon, and only
-  those. The tools agents see open from the footer and the developer guide,
+  Under the home page's list, what a visitor can join next: the auctions
+  taking bids or opening soon, and only those. The tools agents see open from the footer and the developer guide,
   not from the top of every page.
   """
   use AutolaunchWeb.ConnCase, async: false
@@ -15,11 +14,9 @@ defmodule AutolaunchWeb.HomeNextTest do
     TestSupport.project_auction(chain_id: 8453, title: "Done Before", state: :graduated)
     TestSupport.project_auction(chain_id: 8453, title: "Taking Bids", state: :active)
 
-    {:ok, view, html} = live(conn, "/")
+    {:ok, view, _html} = live(conn, "/")
     coming = view |> element("section.home-next") |> render()
 
-    assert html =~ "Back a launch"
-    assert html =~ "Launch yours"
     assert coming =~ "Taking Bids"
     refute coming =~ "Done Before"
   end

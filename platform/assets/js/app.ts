@@ -21,6 +21,7 @@ import {MenuAgents} from "./hooks/menu_agents"
 import {PublicName} from "./hooks/public_name"
 import {SearchDialog} from "./hooks/search_dialog"
 import {PriceChart} from "./hooks/price_chart"
+import {ProductCards, ProductFoil} from "./hooks/product_cards"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {CreatorConnections} from "./hooks/creator_connections"
@@ -53,6 +54,8 @@ const hooks = {
   MenuAgents,
   OnchainSteps,
   PriceChart,
+  ProductCards,
+  ProductFoil,
   PublicName,
   XConnections,
   CreatorConnections,

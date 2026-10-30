@@ -67,6 +67,7 @@ defmodule Autolaunch.Application do
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       Autolaunch.CoveredCalls.Book,
+      Autolaunch.Exposure.Listing,
       Autolaunch.MarketTicker,
       Supervisor.child_spec({Cachex, name: Autolaunch.Stocks.Assets.cache()},
         id: Autolaunch.Stocks.Assets.cache()
