@@ -21,7 +21,10 @@ defmodule AutolaunchWeb.HomeListsTest do
   defp exposure_listing(overrides \\ %{}) do
     ExposureChain.install(overrides)
     on_exit(fn -> SharedReading.delete(Listing.key()) end)
-    start_supervised!(Listing)
+    listing = start_supervised!(Listing)
+    # Its first read runs once it has started.
+    :sys.get_state(listing)
+    listing
   end
 
   # The reader reads again now, as it does every few minutes.
