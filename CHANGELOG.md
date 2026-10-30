@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: a new front page
+- The home page opens on four products: Call Option Onchain (covered calls), Isolated After-hours Exposure, Memestock Pair and Revenue Share Token. Each card opens on hover, keyboard focus or a tap to show a few details and the link to its page.
+- Under the cards, one list with three choices: Auctions, Tokens and Options. Tokens has its own choice of All, Memestock, Revstake or Isolated; Isolated lists the After-hours and Market-hours tokens of each series with their price and market cap, and All puts the running series' tokens above the launched ones. Options lists the covered calls for sale, each with Buy.
+- An auction's status (All, Live, Finished) is now chosen in Filter. Coming next and Bid volume sit under the list.
+
 ## 30 October 2026: a second AMZNc series for next week
 - Isolated Exposure to After-hours Stocks now offers a second AMZNc series, from Monday 2 November's close to Friday 6 November's close, with deposits capped at 40 AMZNc. It opens after Monday's close and is the one the page shows first; the first series stays under Series at the foot of the page.
 
