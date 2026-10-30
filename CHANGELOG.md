@@ -2,6 +2,13 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: a clearer After-hours page
+- Pick a series by name at the top of the page, as in "AMZNc · Nov 2–6 · Upcoming". After-hours also sits under Stocks in the sidebar.
+- Before a series' first close, the page says that allocations are set when the first closing price is applied, and beside the form when splitting opens.
+- Each token now shows its ledger value, the stock it stands for per token (provisional until the end, final after it) and its leverage against the stock's move. Until a token's pool has liquidity, it says trading opens when liquidity is added.
+- Mint is now Split, and Return is now Redeem. Recording and applying prices, and ending a series after a missing price, sit under Series details with the series' addresses.
+- An Example shows how a move in the stock changes each token, and the full terms open in the browser.
+
 ## 30 October 2026: a new front page
 - The home page opens on four products: Call Option Onchain (covered calls), Isolated After-hours Exposure, Memestock Pair and Revenue Share Token. Each card opens on hover, keyboard focus or a tap to show a few details and the link to its page.
 - Under the cards, one list with three choices: Auctions, Tokens and Options. Tokens has its own choice of All, Memestock, Revstake or Isolated; Isolated lists the After-hours and Market-hours tokens of each series with their price and market cap, and All puts the running series' tokens above the launched ones. Options lists the covered calls for sale, each with Buy.

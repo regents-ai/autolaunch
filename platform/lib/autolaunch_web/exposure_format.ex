@@ -69,6 +69,25 @@ defmodule AutolaunchWeb.ExposureFormat do
     Calendar.strftime(at, "%a %-d %b, %-I:%M") <> String.downcase(Calendar.strftime(at, "%p"))
   end
 
+  @doc "A moment as its New York time of day, as in \"5:00pm\"."
+  def time(unix) when is_integer(unix) do
+    at = unix |> DateTime.from_unix!() |> DateTime.shift_zone!(@zone)
+    Calendar.strftime(at, "%-I:%M") <> String.downcase(Calendar.strftime(at, "%p"))
+  end
+
+  @doc """
+  The New York days from `first` to `last`, as in \"Nov 2–6\", or \"Oct 30–Nov 6\"
+  across two months.
+  """
+  def days(first, last) when is_integer(first) and is_integer(last) do
+    [from, to] =
+      Enum.map([first, last], &(&1 |> DateTime.from_unix!() |> DateTime.shift_zone!(@zone)))
+
+    if from.month == to.month,
+      do: "#{Calendar.strftime(from, "%b %-d")}–#{to.day}",
+      else: "#{Calendar.strftime(from, "%b %-d")}–#{Calendar.strftime(to, "%b %-d")}"
+  end
+
   defp cents(cents) do
     "$" <>
       group(div(cents, 100)) <>

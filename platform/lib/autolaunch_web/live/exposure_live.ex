@@ -1,11 +1,13 @@
 defmodule AutolaunchWeb.ExposureLive do
   @moduledoc """
-  `/after-hour-stocks`: Isolated Exposure to After-hours Stocks on a Base stock. One series at a time, the newest
-  unless `?series=<address>` names another the site offers: its two tokens with
-  what each is worth now, the prices it has applied, and panels to mint pairs,
-  return tokens for the stock, and record the next price. Every figure is read
-  from the chain (`Autolaunch.Exposure`); every press goes to the wallet through
-  `AutolaunchWeb.ExposureComponent`.
+  `/after-hour-stocks`: Isolated Exposure to After-hours Stocks on a Base stock.
+  One series at a time, the newest unless `?series=<address>` names another the
+  site offers, picked by name at the top: its two tokens with their recorded
+  ledger, stock claim and leverage, panels to split the stock and redeem tokens,
+  the prices it has applied, and, under Series details, its addresses and the
+  panels anyone may use to record and apply prices or end it after a missing
+  one. Every figure is read from the chain (`Autolaunch.Exposure`); every press
+  goes to the wallet through `AutolaunchWeb.ExposureComponent`.
 
   With Exposure switched off the address is the site's 404.
   """
@@ -34,8 +36,9 @@ defmodule AutolaunchWeb.ExposureLive do
       {:ok,
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
-       |> assign(share: share)
-       |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)}
+       |> assign(share: share, catalog: %{})
+       |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)
+       |> read_catalog()}
     else
       _off -> raise NotFoundError
     end
@@ -44,7 +47,7 @@ defmodule AutolaunchWeb.ExposureLive do
   def handle_params(params, _uri, socket) do
     address = shown(params, socket.assigns.all)
 
-    tab = if params["tab"] == "return", do: :return, else: :mint
+    tab = if params["tab"] == "redeem", do: :redeem, else: :mint
     socket = assign(socket, tab: tab)
 
     if address == socket.assigns.address,
@@ -76,7 +79,7 @@ defmodule AutolaunchWeb.ExposureLive do
 
   def handle_event("refresh", _params, socket), do: {:noreply, read_series(socket)}
 
-  def handle_event("tab", %{"tab" => tab}, socket) when tab in ["mint", "return"] do
+  def handle_event("tab", %{"tab" => tab}, socket) when tab in ["mint", "redeem"] do
     tab = String.to_existing_atom(tab)
 
     {:noreply,
@@ -110,9 +113,21 @@ defmodule AutolaunchWeb.ExposureLive do
   def handle_async(:series, {:exit, reason}, socket),
     do: {:noreply, assign(socket, reading: AsyncResult.failed(socket.assigns.reading, reason))}
 
+  # Every series by name for the picker; until it is read, the picker is left out.
+  def handle_async(:catalog, {:ok, {:ok, all}}, socket),
+    do: {:noreply, assign(socket, catalog: Map.new(all, &{&1.address, name(&1)}))}
+
+  def handle_async(:catalog, _unread, socket), do: {:noreply, socket}
+
   defp read_series(socket) do
     address = socket.assigns.address
     start_async(socket, :series, fn -> {address, Exposure.exposure_series(address)} end)
+  end
+
+  defp read_catalog(socket) do
+    if connected?(socket) and length(socket.assigns.all) > 1,
+      do: start_async(socket, :catalog, fn -> Exposure.exposure_series_list() end),
+      else: socket
   end
 
   defp topic(address), do: "exposure:" <> address
@@ -130,9 +145,10 @@ defmodule AutolaunchWeb.ExposureLive do
         <div class="exposure__intro">
           <h1>Isolated Exposure to After-hours Stocks</h1>
           <p>
-            Split a stock token into two for a week. After-hours carries the stock's moves while
-            the market is closed, from each close to the next open. Market-hours carries its moves
-            while the market is open. One of each always returns one stock token.
+            Split a stock token into two for a fixed term. After-hours carries the stock's moves
+            while the market is closed, from each close to the next open. Market-hours carries its
+            moves while the market is open. While the series runs, one of each redeems for one
+            stock token, within the issuer's controls described in the terms.
           </p>
           <p id="exposure-eligibility" class="exposure__muted">
             Available to eligible people outside the US.
@@ -153,6 +169,24 @@ defmodule AutolaunchWeb.ExposureLive do
         />
       </header>
 
+      <nav
+        :if={map_size(@catalog) > 1}
+        id="exposure-series"
+        class="exposure__picker"
+        aria-label="Series"
+      >
+        <.link
+          :for={address <- Enum.reverse(@all)}
+          :if={@catalog[address]}
+          id={"exposure-series-#{address}"}
+          patch={~p"/after-hour-stocks?#{[series: address]}"}
+          class="exposure__pick"
+          aria-current={address == @address && "page"}
+        >
+          {@catalog[address]}
+        </.link>
+      </nav>
+
       <p :if={@reading.failed} class="exposure__muted" role="alert">
         The series couldn't be read just now. Try again in a moment.
       </p>
@@ -165,10 +199,7 @@ defmodule AutolaunchWeb.ExposureLive do
           <dl class="exposure__facts">
             <div>
               <dt>Stock</dt>
-              <dd>
-                {@series.stock.symbol}
-                <P.address id="exposure-stock" address={@series.stock.address} />
-              </dd>
+              <dd>{@series.stock.symbol}</dd>
             </div>
             <div>
               <dt>Term</dt>
@@ -189,13 +220,20 @@ defmodule AutolaunchWeb.ExposureLive do
             </div>
             <div>
               <dt>{@series.stock.symbol} price</dt>
-              <dd>{if @series.settled > 0, do: F.usd(@series.price), else: "—"}</dd>
+              <dd>{if @series.settled > 0, do: F.usd(@series.price), else: "Not set yet"}</dd>
+            </div>
+            <div :if={@series.next}>
+              <dt>Next price</dt>
+              <dd id="exposure-next">{next_price(@series)}</dd>
             </div>
           </dl>
         </section>
 
         <section class="exposure__section" aria-labelledby="exposure-tokens-title">
           <h2 id="exposure-tokens-title" class="exposure__title">Tokens</h2>
+          <p :if={@series.settled == 0} id="exposure-pending" class="exposure__pending">
+            Allocations are set when the first closing price is applied.
+          </p>
           <div
             id="exposure-legs"
             class="exposure__legs"
@@ -221,17 +259,35 @@ defmodule AutolaunchWeb.ExposureLive do
               pool={@series.pools.session}
             />
           </div>
+          <P.disclosure
+            id="exposure-example"
+            class="exposure__disclosure"
+            summary="Example"
+            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+          >
+            <div class="exposure__example">
+              <p>
+                Illustrative only. If the stock closes at $100, each token's ledger starts at $50.
+                If the next open is $110, After-hours becomes $60 and Market-hours stays $50: a 20%
+                gain for After-hours from a 10% move in the stock.
+              </p>
+              <p>
+                That multiple changes as prices move, and a price that takes either ledger to zero
+                ends the series early, with the other token receiving all the stock.
+              </p>
+            </div>
+          </P.disclosure>
         </section>
 
         <section
           id="exposure-act"
           class="exposure__section"
-          aria-label="Mint or return"
+          aria-label="Split or redeem"
           phx-hook="MotionTabs"
           data-active={@tab}
           data-variant={AutolaunchWeb.Motion.standard("tabs")}
         >
-          <div class="token-trade__tabs" role="tablist" aria-label="Mint or return">
+          <div class="token-trade__tabs" role="tablist" aria-label="Split or redeem">
             <span
               id="exposure-act-ink"
               class="token-trade__ink"
@@ -240,7 +296,7 @@ defmodule AutolaunchWeb.ExposureLive do
               phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
             ></span>
             <button
-              :for={{tab, label} <- [mint: "Mint", return: "Return"]}
+              :for={{tab, label} <- [mint: "Split", redeem: "Redeem"]}
               type="button"
               role="tab"
               id={"exposure-act-tab-#{tab}"}
@@ -256,7 +312,13 @@ defmodule AutolaunchWeb.ExposureLive do
           <div id="exposure-act-panel" role="tabpanel" aria-labelledby={"exposure-act-tab-#{@tab}"}>
             <div :if={@tab == :mint} class="exposure__panel">
               <p class="exposure__muted">
-                Deposit {@series.stock.symbol} and receive the same amount of each token.
+                Deposit {@series.stock.symbol} and receive the same amount of each token. Keep both
+                for the stock's whole move, or sell the one you don't want once it trades.
+              </p>
+              <p :if={@series.status == :pending} id="exposure-opens" class="exposure__opens">
+                Splitting opens after the first price is recorded and applied, no earlier than {F.moment(
+                  @series.next.recordable_at
+                )} New York.
               </p>
               <.live_component
                 module={ExposureComponent}
@@ -267,8 +329,8 @@ defmodule AutolaunchWeb.ExposureLive do
                 current_human_id={@human_id}
               />
             </div>
-            <div :if={@tab == :return} class="exposure__panel">
-              <p class="exposure__muted">{return_note(@series)}</p>
+            <div :if={@tab == :redeem} class="exposure__panel">
+              <p class="exposure__muted">{redeem_note(@series)}</p>
               <.live_component
                 module={ExposureComponent}
                 id={"exposure-redeem-#{@series.address}"}
@@ -319,27 +381,6 @@ defmodule AutolaunchWeb.ExposureLive do
               </tbody>
             </table>
           </div>
-          <div :if={@series.next} class="exposure__panel">
-            <p class="exposure__muted">
-              Anyone can record a price an hour after its time, then apply it to the series.
-            </p>
-            <.live_component
-              module={ExposureComponent}
-              id={"exposure-update-#{@series.address}"}
-              kind={:update}
-              series={@series}
-              session_lease={@session_lease}
-              current_human_id={@human_id}
-            />
-            <.live_component
-              module={ExposureComponent}
-              id={"exposure-end-#{@series.address}"}
-              kind={:end}
-              series={@series}
-              session_lease={@session_lease}
-              current_human_id={@human_id}
-            />
-          </div>
         </section>
 
         <section class="exposure__section" aria-labelledby="exposure-terms-title">
@@ -354,10 +395,13 @@ defmodule AutolaunchWeb.ExposureLive do
               token receives all the {@series.stock.symbol}.
             </li>
             <li>
-              Before the end, one of each returns one {@series.stock.symbol}. At the end, each token
-              returns its own share.
+              Before the end, one of each redeems for one {@series.stock.symbol}. At the end, each
+              token redeems for its own final share.
             </li>
-            <li>Coinbase controls {@series.stock.symbol} and can pause or block it.</li>
+            <li>
+              Coinbase controls {@series.stock.symbol}. It can pause it, block an account, or take {@series.stock.symbol} from the series, which reduces every redemption by the same
+              share.
+            </li>
           </ul>
           <p class="exposure__muted">
             <.link href={~p"/after-hour-stocks/terms/#{@series.terms_hash}"}>Full terms</.link>
@@ -365,20 +409,64 @@ defmodule AutolaunchWeb.ExposureLive do
           </p>
         </section>
 
-        <nav :if={length(@all) > 1} class="exposure__section" aria-label="Every series">
-          <h2 class="exposure__title">Series</h2>
-          <ul class="exposure__series-list">
-            <li :for={address <- Enum.reverse(@all)}>
-              <P.address id={"exposure-series-#{address}"} address={address} />
-              <.link
-                patch={~p"/after-hour-stocks?series=#{address}"}
-                aria-current={address == @series.address && "page"}
-              >
-                {if address == @series.address, do: "Showing", else: "Show"}
-              </.link>
-            </li>
-          </ul>
-        </nav>
+        <P.disclosure
+          id="exposure-details"
+          class="exposure__disclosure"
+          summary="Series details"
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+        >
+          <div class="exposure__details">
+            <dl class="exposure__addresses">
+              <div>
+                <dt>Series</dt>
+                <dd><P.address id="exposure-address-series" address={@series.address} /></dd>
+              </div>
+              <div>
+                <dt>{@series.stock.symbol}</dt>
+                <dd><P.address id="exposure-address-stock" address={@series.stock.address} /></dd>
+              </div>
+              <div>
+                <dt>{@series.overnight.symbol}</dt>
+                <dd>
+                  <P.address id="exposure-address-overnight" address={@series.overnight.address} />
+                </dd>
+              </div>
+              <div>
+                <dt>{@series.session.symbol}</dt>
+                <dd>
+                  <P.address id="exposure-address-session" address={@series.session.address} />
+                </dd>
+              </div>
+              <div>
+                <dt>Price recorder</dt>
+                <dd><P.address id="exposure-address-oracle" address={@series.oracle} /></dd>
+              </div>
+            </dl>
+            <div :if={@series.next} class="exposure__panel">
+              <p class="exposure__muted">
+                Each price is recorded from the feed an hour after its time, then applied to the
+                series. Anyone can do either, and the first press counts. If a price can't be
+                recorded within seven days, anyone can end the series at the last recorded values.
+              </p>
+              <.live_component
+                module={ExposureComponent}
+                id={"exposure-update-#{@series.address}"}
+                kind={:update}
+                series={@series}
+                session_lease={@session_lease}
+                current_human_id={@human_id}
+              />
+              <.live_component
+                module={ExposureComponent}
+                id={"exposure-end-#{@series.address}"}
+                kind={:end}
+                series={@series}
+                session_lease={@session_lease}
+                current_human_id={@human_id}
+              />
+            </div>
+          </div>
+        </P.disclosure>
       <% end %>
     </article>
     """
@@ -399,45 +487,42 @@ defmodule AutolaunchWeb.ExposureLive do
         <h3 id={"#{@id}-title"}>{@title}</h3>
         <span class="exposure__muted">{@window}</span>
       </header>
-      <p class="exposure__muted">
-        {@token.symbol} <P.address id={"#{@id}-address"} address={@token.address} />
-      </p>
+      <p class="exposure__muted">{@token.symbol}</p>
       <dl
+        :if={@series.settled > 0}
         id={"#{@id}-facts"}
         class="exposure__leg-facts"
         phx-hook="MotionCount"
         data-variant={AutolaunchWeb.Motion.standard("count")}
       >
         <div>
-          <dt>Value</dt>
-          <dd>{value(@series, @ledger)}</dd>
+          <dt>Ledger value</dt>
+          <dd>{F.usd(@ledger)} <small>{ledger_note(@series)}</small></dd>
         </div>
         <div>
-          <dt>Share</dt>
+          <dt>Stock claim</dt>
+          <dd>{claim(@series, @ledger)} <small>{claim_note(@series)}</small></dd>
+        </div>
+        <div>
+          <dt>Leverage</dt>
           <dd>
-            {if @series.settled > 0,
-              do: "#{F.percent(@ledger, @series.price)} of #{@series.stock.symbol}",
-              else: "—"}
+            {leverage(@series, @ledger)}
+            <small :if={@series.status != :ended}>in its own window</small>
           </dd>
         </div>
-        <div>
-          <dt>Moves</dt>
-          <dd>{moves(@series, @ledger)}</dd>
-        </div>
-        <div>
-          <dt>Pool</dt>
-          <dd>{pool_price(@pool)}</dd>
-        </div>
       </dl>
-      <.link
-        :if={@pool}
-        href={"https://aerodrome.finance/swap?from=eth&to=#{@token.address}"}
-        class="rg-button rg-button--secondary exposure__trade"
-        target="_blank"
-        rel="noopener"
-      >
-        Trade
-      </.link>
+      <p class="exposure__trade-line">
+        <span>{pool_line(@pool)}</span>
+        <.link
+          :if={@pool && @pool.usdc_per_token}
+          href={"https://aerodrome.finance/swap?from=eth&to=#{@token.address}"}
+          class="rg-button rg-button--secondary exposure__trade"
+          target="_blank"
+          rel="noopener"
+        >
+          Trade
+        </.link>
+      </p>
     </section>
     """
   end
@@ -454,23 +539,45 @@ defmodule AutolaunchWeb.ExposureLive do
     }
   end
 
-  # Before the first price a token has no value yet. After the end each token is
-  # a fixed share of the stock, so it is worth that much stock and moves with it.
-  defp value(%{settled: 0}, _ledger), do: "—"
+  # The ledger is the dollar figure the series has recorded for one token at its
+  # last price. The stock claim is the stock that ledger stands for: provisional
+  # while prices still move it, final once the series has ended, when each token
+  # redeems for it and its dollar value moves with the stock.
+  defp ledger_note(%{status: :ended}), do: "per token, at the final price"
+  defp ledger_note(_series), do: "per token, at the last price"
 
-  defp value(%{status: :ended, stock: stock, price: price}, ledger),
+  defp claim(%{stock: stock, price: price}, ledger),
     do:
       "#{F.tokens(div(ledger * Integer.pow(10, stock.decimals), price), stock.decimals)} #{stock.symbol}"
 
-  defp value(_series, ledger), do: F.usd(ledger)
+  defp claim_note(%{status: :ended}), do: "per token, final"
+  defp claim_note(_series), do: "per token, provisional"
 
-  defp moves(%{settled: 0}, _ledger), do: "—"
-  defp moves(%{status: :ended, stock: stock}, _ledger), do: "With #{stock.symbol}"
-  defp moves(series, ledger), do: F.times(series.price, ledger)
+  defp leverage(%{status: :ended, stock: stock}, _ledger), do: "Moves with #{stock.symbol}"
 
-  defp pool_price(nil), do: "No pool yet"
-  defp pool_price(%{usdc_per_token: nil}), do: "No liquidity"
-  defp pool_price(%{usdc_per_token: usdc}), do: F.usdc(usdc)
+  defp leverage(series, ledger),
+    do: "#{F.times(series.price, ledger)} #{series.stock.symbol}'s move"
+
+  defp pool_line(%{usdc_per_token: usdc}) when is_integer(usdc), do: "Pool price #{F.usdc(usdc)}"
+  defp pool_line(_no_liquidity), do: "Trading opens when liquidity is added."
+
+  # The next price, and whether the series is waiting for someone to record it.
+  defp next_price(%{next: next, now: now}) do
+    kind = if next.open?, do: "Open", else: "Close"
+
+    if now >= next.recordable_at,
+      do: "#{kind}, #{F.moment(next.at)}: waiting to be recorded",
+      else: "#{kind}, #{F.moment(next.at)}: recordable from #{F.time(next.recordable_at)}"
+  end
+
+  # A series by its stock, its days and where it stands, as in "AMZNc · Nov 2–6 · Upcoming".
+  defp name(%{stock: stock, boundaries: boundaries, status: status}),
+    do:
+      "#{stock.symbol} · #{F.days(List.first(boundaries), List.last(boundaries))} · #{stage(status)}"
+
+  defp stage(:pending), do: "Upcoming"
+  defp stage(:active), do: "Live"
+  defp stage(:ended), do: "Ended"
 
   defp term(%{boundaries: [first | _] = boundaries}),
     do: "#{F.moment(first)} to #{F.moment(List.last(boundaries))}"
@@ -488,17 +595,19 @@ defmodule AutolaunchWeb.ExposureLive do
   defp ended(:session_depleted), do: "Market-hours reached zero"
   defp ended(:missing_print), do: "a price was not recorded in time"
 
-  defp return_note(%{status: :ended, stock: stock}),
-    do: "The series has ended. Each token returns its own share of #{stock.symbol}."
+  defp redeem_note(%{status: :ended, stock: stock}),
+    do:
+      "The series has ended. Each token redeems for its final share of #{stock.symbol}, and what that is worth in dollars moves with #{stock.symbol}."
 
-  defp return_note(%{stock: stock}),
-    do: "Return one of each token for one #{stock.symbol}, at any time."
+  defp redeem_note(%{stock: stock}),
+    do:
+      "Redeem one of each token for one #{stock.symbol}, at any time. After the end, each token redeems on its own for its final share of #{stock.symbol}."
 
   defp tab_path(series, tab, all) do
     query =
       [
         series: if(series.address != List.last(all), do: series.address),
-        tab: if(tab == :return, do: "return")
+        tab: if(tab == :redeem, do: "redeem")
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 

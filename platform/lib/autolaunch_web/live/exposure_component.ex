@@ -515,14 +515,19 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp step_names(:update, _prepared), do: ~w(record settle)
 
   defp label("stock_approval", %{series: series}), do: "Approve #{series.stock.symbol}"
-  defp label("mint", _assigns), do: "Mint"
-  defp label("redeem", _assigns), do: "Return"
+  defp label("mint", %{series: series}), do: "Split #{series.stock.symbol}"
+  defp label("redeem", _assigns), do: "Redeem"
   defp label("record", _assigns), do: "Record price"
   defp label("settle", _assigns), do: "Apply price"
-  defp label("end", _assigns), do: "End series"
+  defp label("end", _assigns), do: "End after missing price"
 
   defp blocked_words(nil, _assigns), do: nil
   defp blocked_words(:approve_first, _assigns), do: "Approve first"
+
+  defp blocked_words(:not_open, %{series: %{next: %{recordable_at: at}}}),
+    do:
+      "Opens once the first close is recorded and applied, no earlier than #{F.moment(at)} New York"
+
   defp blocked_words(:not_open, _assigns), do: "Opens once the first close is applied"
   defp blocked_words(:ended, _assigns), do: "This series has ended"
 
@@ -537,7 +542,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     do: "Not enough #{series.stock.symbol} in this wallet"
 
   defp blocked_words(:pair_required, _assigns),
-    do: "Until the series ends, return equal amounts of each"
+    do: "Until the series ends, redeem equal amounts of each"
 
   defp blocked_words(:more_than_held, _assigns), do: "More than this wallet holds"
 

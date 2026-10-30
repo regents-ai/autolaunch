@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
   the signed-in wallet holds of its two tokens and what they are worth at the
   series' last price, each read now from the chain
   (`Autolaunch.Exposure.exposure_holdings/3`), with a link to the series'
-  Return tab. Series the wallet holds nothing of are left out.
+  Redeem tab. Series the wallet holds nothing of are left out.
   """
   use AutolaunchWeb, :live_component
 
@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
               <th scope="col">After-hours</th>
               <th scope="col">Market-hours</th>
               <th scope="col">Value</th>
-              <th scope="col"><span class="visually-hidden">Return</span></th>
+              <th scope="col"><span class="visually-hidden">Redeem</span></th>
             </tr>
           </thead>
           <tbody>
@@ -97,10 +97,10 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
               <td data-label="Value">{value(holding)}</td>
               <td class="exposure__row-action">
                 <.link
-                  navigate={~p"/after-hour-stocks?#{[series: holding.series.address, tab: "return"]}"}
+                  navigate={~p"/after-hour-stocks?#{[series: holding.series.address, tab: "redeem"]}"}
                   class="rg-button rg-button--secondary"
                 >
-                  Return
+                  Redeem
                 </.link>
               </td>
             </tr>
