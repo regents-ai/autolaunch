@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: After-hours trading first
+- On the After-hours page, Buy, Sell, Split and Redeem now sit right under the series names, ahead of the series facts and the tokens.
+- The four choices are equal in width and each word fits, down to the smallest phones.
+- Example's arrow sits beside the word.
+
 ## 30 October 2026: After-hours lights
 - The After-hours and Market-hours token cards now have a thin orange border and a small light in the top right corner. The light is green while that token's window is running (After-hours from the US close to the next open, Market-hours from the open to the close) and red the rest of the time, and it changes on its own at each open and close.
 

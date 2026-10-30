@@ -19,7 +19,8 @@
 .exposure__pick[aria-pressed="true"],
 .exposure__pick[aria-current="page"] { border-color: var(--color-fg); font-weight: 600; }
 .exposure__pending, .exposure__opens { margin: 0; padding: var(--space-2) var(--space-3); border-inline-start: 3px solid var(--orange-ink, currentColor); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); font-size: .9375rem; line-height: 1.5; }
-.exposure__disclosure .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
+/* The arrow sits right after the word. */
+.exposure__disclosure .rg-disclosure-title { flex: 0 1 auto; font-family: var(--font-family-ui, inherit); font-weight: 600; }
 .exposure__example { display: grid; gap: var(--space-2); padding-block: var(--space-2); }
 .exposure__example > p { margin: 0; line-height: 1.5; }
 .exposure__details { display: grid; gap: var(--space-4); padding-block: var(--space-2); }
@@ -49,9 +50,10 @@
 .exposure__trade { justify-self: start; }
 
 #exposure-act-panel { display: grid; }
-/* Four tabs share the row and shrink to fit a phone, never wider than the page. */
-#exposure-act .token-trade__tabs { display: flex; max-inline-size: 100%; }
-#exposure-act .token-trade__tabs [role="tab"] { flex: 1 1 0; min-width: 0; }
+/* Four equal tabs, each wide enough for its word, narrowing only to fit a phone. */
+#exposure-act .token-trade__tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); inline-size: min(100%, 24rem); }
+#exposure-act .token-trade__tabs [role="tab"] { min-width: 0; padding-inline: var(--space-1); }
+@media (max-width: 23.99rem) { #exposure-act .token-trade__tabs [role="tab"] { padding-inline: 0; font-size: .875rem; } }
 .exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .exposure__table.market-list__table :is(td, th) { font-variant-numeric: tabular-nums; text-align: left; }
 .exposure__next td { color: var(--color-fg-muted); }

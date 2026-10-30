@@ -251,105 +251,6 @@ defmodule AutolaunchWeb.ExposureLive do
       </div>
 
       <%= if @series do %>
-        <section class="exposure__summary" aria-label="Series">
-          <dl class="exposure__facts">
-            <div>
-              <dt>Stock</dt>
-              <dd>{@series.stock.symbol}</dd>
-            </div>
-            <div>
-              <dt>Term</dt>
-              <dd>{term(@series)}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{status(@series)}</dd>
-            </div>
-            <div>
-              <dt>Deposited</dt>
-              <dd>
-                {F.tokens(@series.accounted, @series.stock.decimals)} of {F.tokens(
-                  @series.deposit_cap,
-                  @series.stock.decimals
-                )} {@series.stock.symbol}
-              </dd>
-            </div>
-            <div>
-              <dt>{@series.stock.symbol} price</dt>
-              <dd>{if @series.settled > 0, do: F.usd(@series.price), else: "Not set yet"}</dd>
-            </div>
-            <div :if={@series.next}>
-              <dt>Next price</dt>
-              <dd id="exposure-next">{next_price(@series)}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="exposure__section" aria-labelledby="exposure-tokens-title">
-          <h2 id="exposure-tokens-title" class="exposure__title">Tokens</h2>
-          <p
-            :if={@series.settled == 0 and @series.status != :ended}
-            id="exposure-pending"
-            class="exposure__pending"
-          >
-            Allocations are set when the first closing price is applied.
-          </p>
-          <p
-            :if={@series.settled == 0 and @series.status == :ended}
-            id="exposure-pending"
-            class="exposure__pending"
-          >
-            This series ended before its first price, so no tokens were made.
-          </p>
-          <div
-            id="exposure-legs"
-            class="exposure__legs"
-            phx-hook="MotionCascade"
-            data-variant={AutolaunchWeb.Motion.standard("grid")}
-          >
-            <.leg
-              id="exposure-overnight"
-              title="After-hours"
-              window="close to open"
-              token={@series.overnight}
-              ledger={@series.night}
-              leg={:overnight}
-              running={running(@series) == :overnight}
-              series={@series}
-              pool={@series.pools.overnight}
-            />
-            <.leg
-              id="exposure-session"
-              title="Market-hours"
-              window="open to close"
-              token={@series.session}
-              ledger={@series.day}
-              leg={:session}
-              running={running(@series) == :session}
-              series={@series}
-              pool={@series.pools.session}
-            />
-          </div>
-          <P.disclosure
-            id="exposure-example"
-            class="exposure__disclosure"
-            summary="Example"
-            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
-          >
-            <div class="exposure__example">
-              <p>
-                Illustrative only. If the stock closes at $100, each token's ledger starts at $50.
-                If the next open is $110, After-hours becomes $60 and Market-hours stays $50: a 20%
-                gain for After-hours from a 10% move in the stock.
-              </p>
-              <p>
-                That multiple changes as prices move, and a price that takes either ledger to zero
-                ends the series early, with the other token receiving all the stock.
-              </p>
-            </div>
-          </P.disclosure>
-        </section>
-
         <section
           id="exposure-act"
           class="exposure__section"
@@ -456,6 +357,105 @@ defmodule AutolaunchWeb.ExposureLive do
               />
             </div>
           </div>
+        </section>
+
+        <section class="exposure__summary" aria-label="Series">
+          <dl class="exposure__facts">
+            <div>
+              <dt>Stock</dt>
+              <dd>{@series.stock.symbol}</dd>
+            </div>
+            <div>
+              <dt>Term</dt>
+              <dd>{term(@series)}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{status(@series)}</dd>
+            </div>
+            <div>
+              <dt>Deposited</dt>
+              <dd>
+                {F.tokens(@series.accounted, @series.stock.decimals)} of {F.tokens(
+                  @series.deposit_cap,
+                  @series.stock.decimals
+                )} {@series.stock.symbol}
+              </dd>
+            </div>
+            <div>
+              <dt>{@series.stock.symbol} price</dt>
+              <dd>{if @series.settled > 0, do: F.usd(@series.price), else: "Not set yet"}</dd>
+            </div>
+            <div :if={@series.next}>
+              <dt>Next price</dt>
+              <dd id="exposure-next">{next_price(@series)}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="exposure__section" aria-labelledby="exposure-tokens-title">
+          <h2 id="exposure-tokens-title" class="exposure__title">Tokens</h2>
+          <p
+            :if={@series.settled == 0 and @series.status != :ended}
+            id="exposure-pending"
+            class="exposure__pending"
+          >
+            Allocations are set when the first closing price is applied.
+          </p>
+          <p
+            :if={@series.settled == 0 and @series.status == :ended}
+            id="exposure-pending"
+            class="exposure__pending"
+          >
+            This series ended before its first price, so no tokens were made.
+          </p>
+          <div
+            id="exposure-legs"
+            class="exposure__legs"
+            phx-hook="MotionCascade"
+            data-variant={AutolaunchWeb.Motion.standard("grid")}
+          >
+            <.leg
+              id="exposure-overnight"
+              title="After-hours"
+              window="close to open"
+              token={@series.overnight}
+              ledger={@series.night}
+              leg={:overnight}
+              running={running(@series) == :overnight}
+              series={@series}
+              pool={@series.pools.overnight}
+            />
+            <.leg
+              id="exposure-session"
+              title="Market-hours"
+              window="open to close"
+              token={@series.session}
+              ledger={@series.day}
+              leg={:session}
+              running={running(@series) == :session}
+              series={@series}
+              pool={@series.pools.session}
+            />
+          </div>
+          <P.disclosure
+            id="exposure-example"
+            class="exposure__disclosure"
+            summary="Example"
+            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+          >
+            <div class="exposure__example">
+              <p>
+                Illustrative only. If the stock closes at $100, each token's ledger starts at $50.
+                If the next open is $110, After-hours becomes $60 and Market-hours stays $50: a 20%
+                gain for After-hours from a 10% move in the stock.
+              </p>
+              <p>
+                That multiple changes as prices move, and a price that takes either ledger to zero
+                ends the series early, with the other token receiving all the stock.
+              </p>
+            </div>
+          </P.disclosure>
         </section>
 
         <section class="exposure__section" aria-labelledby="exposure-prices-title">
