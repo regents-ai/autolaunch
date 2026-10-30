@@ -15,7 +15,9 @@ receipts in `../../broadcast/DeployAfterHours.s.sol/8453/`.
 match, 29 Oct 2026, `forge verify-contract --verifier sourcify`) and on Basescan (Source Code
 Verified, run by Sean with `forge verify-contract --verifier etherscan`, 29 Oct 2026). `ChainlinkPrintOracleV1` and the unused series `0x77b8…6cb7`
 are not verified. The first series as relaunched (`0xcae5…dfa0`) and its two tokens are verified on
-Sourcify (match, 30 Oct 2026); their constructor values for Basescan are in [`verify/`](verify/).
+Sourcify (match, 30 Oct 2026) and on Basescan (Sean, 30 Oct: the series and After-hours token exact
+match; the Market-hours token matched to it, the same code); their constructor values are in
+[`verify/`](verify/).
 
 ## First series (Safe step)
 
