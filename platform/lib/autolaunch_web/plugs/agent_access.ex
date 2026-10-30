@@ -2,9 +2,12 @@ defmodule AutolaunchWeb.Plugs.AgentAccess do
   @moduledoc """
   Exact SIWA proof and current pairing, independent of browser owner
   credentials. The agent acts for the account its pairing names
-  (`Autolaunch.Agents.resolve/1`), and its pairing is checked again just before
-  the answer leaves (`recheck_before_send/2`), so an unpairing during the
-  request never sends the person's data.
+  (`Autolaunch.Agents.resolve/1`). On every signed route, as on the hosted MCP
+  server, its pairing is checked again just before the answer leaves
+  (`recheck_before_send/2`): when the pairing ended or changed hands while the
+  request ran, the answer, a read or a save whose reply would carry the former
+  person's data, is replaced with `agent_not_paired`, as the template's
+  signed-agent plug does.
   """
   @behaviour Plug
   import Plug.Conn

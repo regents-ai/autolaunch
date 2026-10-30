@@ -19,9 +19,10 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
   Then every request carries exactly one credential:
 
   - An agent's own signature (`Siwa.AgentAuthPlug.signed_request?/1`) is checked
-    as on the agent routes (`AutolaunchWeb.Plugs.AgentAccess`, unchanged): the
-    agent acts for the account its pairing names, and an agent no person paired
-    is refused `agent_not_paired`, as everywhere on this site.
+    by the agent routes' own plug (`AutolaunchWeb.Plugs.AgentAccess`): the agent
+    acts for the account its pairing names, an agent no person paired is
+    refused `agent_not_paired`, as everywhere on this site, and its pairing is
+    checked again before the answer leaves.
   - A connected app's token (`Authorization: Bearer`) must be one this site gave
     for its `/mcp` address with the identity permission, as `RegentOAuth`
     checks it, and spends its account's budget. While the app's own identity

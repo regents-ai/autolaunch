@@ -28,9 +28,7 @@ defmodule AutolaunchWeb.McpAgentTest do
 
   import Plug.Test, only: [conn: 3]
 
-  alias Autolaunch.Actors.Agent
   alias Autolaunch.TestSupport
-  alias AutolaunchWeb.Plugs.AgentAccess
 
   @moduletag :capture_log
 
@@ -201,7 +199,7 @@ defmodule AutolaunchWeb.McpAgentTest do
   } do
     agent = paired_wallet()
 
-    for input <- [%{chain: "base"}, "base", [1]] do
+    for input <- [%{chain: "base"}, "base", [1], false, nil] do
       assert %{"isError" => true, "content" => [%{"text" => text}]} =
                result(mcp(call("autolaunch_auction_counts", input), from: from, proof: agent))
 
@@ -292,38 +290,61 @@ defmodule AutolaunchWeb.McpAgentTest do
     assert mcp(rpc("tools/list"), from: from).status == 401
   end
 
-  test "a paired agent's answer is replaced when its pairing ended during the request" do
+  test "a signed route's answer is replaced when the pairing ends while the request runs", %{
+    from: from
+  } do
     agent = paired_wallet()
-    {:ok, actor, _account} = Autolaunch.Agents.resolve(agent)
-
-    [paired] =
-      RegentAgents.list_my_agents!(
-        actor: %RegentAgents.Person{privy_user_id: actor.privy_user_id}
-      )
-
-    :ok =
-      RegentAgents.unpair_agent!(paired,
-        actor: %RegentAgents.Person{privy_user_id: actor.privy_user_id}
-      )
+    unpair_during([:ash, :autolaunch, :read, :start], :agent_read, agent)
 
     answered =
-      conn(:get, "/", nil)
-      |> AgentAccess.recheck_before_send(actor)
-      |> send_resp(200, ~s({"data": "the person's"}))
+      conn(:get, "/api/agent/v1/drafts/revstake", nil)
+      |> Map.put(:remote_ip, from)
+      |> put_req_header("x-siwa-signature", "fixture-proof")
+      |> put_req_header("x-agent-wallet-address", agent)
+      |> @endpoint.call([])
 
+    assert_received :unpaired
     assert answered.status == 403
     assert %{"code" => "agent_not_paired"} = error(answered)
+  end
 
-    # Still paired with the same person: the answer leaves as it is.
-    still = paired_wallet()
-    {:ok, %Agent{} = current, _account} = Autolaunch.Agents.resolve(still)
+  test "an agent's signed MCP call is answered agent_not_paired when the pairing ends while it runs",
+       %{from: from} do
+    agent = paired_wallet()
+    unpair_during([:ash, :autolaunch, :action, :start], :counts, agent)
 
-    kept =
-      conn(:get, "/", nil)
-      |> AgentAccess.recheck_before_send(current)
-      |> send_resp(200, ~s({"data": "the person's"}))
+    answered = mcp(call("autolaunch_auction_counts"), from: from, proof: agent)
+    assert_received :unpaired
+    assert answered.status == 403
+    assert %{"code" => "agent_not_paired"} = error(answered)
+  end
 
-    assert kept.status == 200
+  # Once the plug has read `agent`'s pairing and the request's action `action`
+  # starts, the person unpairs the agent, once.
+  defp unpair_during(event, action, agent) do
+    {:ok, actor, _account} = Autolaunch.Agents.resolve(agent)
+    person = %RegentAgents.Person{privy_user_id: actor.privy_user_id}
+    id = {__MODULE__, make_ref()}
+    test = self()
+
+    :ok =
+      :telemetry.attach(
+        id,
+        event,
+        fn
+          _event, _measurements, %{action: ^action}, _config ->
+            :telemetry.detach(id)
+            [paired] = RegentAgents.list_my_agents!(actor: person)
+            :ok = RegentAgents.unpair_agent!(paired, actor: person)
+            send(test, :unpaired)
+
+          _event, _measurements, _metadata, _config ->
+            :ok
+        end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(id) end)
   end
 
   defp mcp(body, opts) do

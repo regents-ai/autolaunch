@@ -14,7 +14,8 @@ defmodule AutolaunchWeb.ToolErrors do
   `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
   `identity_request_refused`. As AshAi reads it, a call without `input` sends
-  none, which is how a tool listed with no inputs is called.
+  none, which is how a tool listed with no inputs is called; an `input` that is
+  not an object, `null` and `false` included, is refused like any other.
   """
 
   alias AutolaunchWeb.ApiError
@@ -25,14 +26,17 @@ defmodule AutolaunchWeb.ToolErrors do
   """
   @spec check_input(AshAi.Tool.t(), term(), map()) :: {:ok, term()} | {:error, String.t()}
   def check_input(%AshAi.Tool{resource: resource, action: %{name: action}}, arguments, _context) do
-    with %{} <- arguments,
-         %{} = input <- arguments["input"] || %{},
+    with {:ok, input} <- input(arguments),
          %{valid?: true} <- Ash.ActionInput.for_action(resource, action, input) do
       {:ok, arguments}
     else
       _not_taken -> {:error, refused(action)}
     end
   end
+
+  defp input(%{"input" => %{} = input}), do: {:ok, input}
+  defp input(%{} = arguments) when not is_map_key(arguments, "input"), do: {:ok, %{}}
+  defp input(_not_an_object), do: :error
 
   defp refused(:counts),
     do: Jason.encode!(ApiError.body("invalid_request", "The query parameters are invalid."))

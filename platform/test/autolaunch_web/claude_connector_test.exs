@@ -389,6 +389,40 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       refute "autolaunch_auction_counts" in tool_names(token)
     end
 
+    test "a paired app's call is answered agent_not_paired when the pairing ends while it runs" do
+      subject = subject!()
+      %{access: token} = connect!(subject, @agent_scopes)
+      assert %{"isError" => false} = tool(token, "pair_identity", pair_args(code!(subject)))
+      test = self()
+      id = {__MODULE__, make_ref()}
+
+      # Once McpAgent has read the pairing and the counts start, the person
+      # unpairs the agent, once.
+      :ok =
+        :telemetry.attach(
+          id,
+          [:ash, :autolaunch, :action, :start],
+          fn
+            _event, _measurements, %{action: :counts}, _config ->
+              :telemetry.detach(id)
+              [agent] = agents(subject)
+              :ok = RegentAgents.unpair_agent!(agent, actor: person(subject))
+              send(test, :unpaired)
+
+            _event, _measurements, _metadata, _config ->
+              :ok
+          end,
+          nil
+        )
+
+      on_exit(fn -> :telemetry.detach(id) end)
+
+      answered = post_mcp(counts_call(), token)
+      assert_received :unpaired
+      assert answered.status == 403
+      assert json(answered)["error"]["code"] == "agent_not_paired"
+    end
+
     test "working as its agent never moves when the agent was last in touch" do
       subject = subject!()
       %{access: token} = connect!(subject, @agent_scopes)

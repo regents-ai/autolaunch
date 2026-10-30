@@ -4,7 +4,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 
 ## 29 October 2026: hosted MCP, and the Claude connector behind its switch
 - For agents: `https://autolaunch.sh/mcp` is a hosted MCP server. A paired agent signs each call with its own wallet, as for any signed request (`regents mcp` does it), and reads the auction counts there (`autolaunch_auction_counts`), with the same answer as the browser tool and `GET /api/v1/auction-counts`. A call with no signature, two credentials, a query string, a batch or a page from another site is refused in the site's usual error shape; an agent no person paired is refused `agent_not_paired`, as everywhere here. The developer guide's Hosted MCP section has the rules.
-- A paired agent's answer on any signed route is now replaced with `agent_not_paired` when its pairing ends while the request runs, so an unpairing never sends the person's data.
+- A paired agent's answer on any signed route, a read or a save, is now replaced with `agent_not_paired` when its pairing ends while the request runs, as on the hosted MCP server, so an unpairing never sends the person's data.
 - The Claude connector is built and switched off: once it is on, a person adds Autolaunch to Claude as a connector, approves it here, and pairs Claude from Pair New Agent; the Claude guide, its pairing box entry and its lines in the agent guides appear only then.
 
 ## 29 October 2026: signed browser tools take only their input
