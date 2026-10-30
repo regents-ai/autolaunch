@@ -24,7 +24,8 @@ defmodule AutolaunchWeb.ContentSecurityPolicy do
 
   @baseline [
     {"default-src", ["'none'"]},
-    {"script-src", ["'self'"]},
+    # Cloudflare, in front of the site, adds its Web Analytics script to every page.
+    {"script-src", ["'self'", "https://static.cloudflareinsights.com"]},
     {"style-src", ["'self'"]},
     # Style attributes only, never style elements: the shared ratio card sizes
     # its fill with one, and an element moving under `JS.ignore_attributes(["style"])`
@@ -32,7 +33,7 @@ defmodule AutolaunchWeb.ContentSecurityPolicy do
     {"style-src-attr", ["'unsafe-inline'"]},
     {"img-src", ["'self'", "data:", "https://metadata.ens.domains"]},
     {"font-src", ["'self'"]},
-    {"connect-src", ["'self'"]},
+    {"connect-src", ["'self'", "https://cloudflareinsights.com"]},
     {"frame-src", @own_frames},
     {"base-uri", ["'none'"]},
     {"form-action", ["'self'"]},
