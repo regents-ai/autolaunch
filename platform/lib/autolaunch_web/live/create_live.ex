@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.CreateLive do
     AgentDrafts,
     ImageColor,
     Lab,
+    LaunchActions,
     LaunchDraft,
     LaunchDraftImageStorage,
     Listings,
@@ -54,6 +55,7 @@ defmodule AutolaunchWeb.CreateLive do
       |> UsdValue.assign_rate(:regent_rate, :base, fn ->
         {:ok, %{regent_rate: UsdValue.rate(%{kind: :agent})}}
       end)
+      |> read_launches_paused()
 
     case actor do
       nil ->
@@ -226,6 +228,11 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_async(:treasury_check, result, socket),
     do: {:noreply, assign(socket, treasury_check: checked(socket.assigns.treasury_check, result))}
+
+  def handle_async(:launches_paused, {:ok, {:ok, paused}}, socket),
+    do: {:noreply, assign(socket, launches_paused?: paused)}
+
+  def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
 
   defp render_revshare(assigns) do
     assigns = assign(assigns, launch_image_upload: assigns[:uploads][:launch_image])
@@ -426,6 +433,14 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
+  # Base's own answer, read once the page connects: while the factory has new
+  # launches paused, the launch button stays greyed with the reason beside it.
+  defp read_launches_paused(socket) do
+    if connected?(socket),
+      do: start_async(socket, :launches_paused, &LaunchActions.launches_paused/0),
+      else: socket
+  end
+
   defp assign_defaults(socket, actor) do
     assign(socket,
       launch_drafts: [],
@@ -443,6 +458,7 @@ defmodule AutolaunchWeb.CreateLive do
       listings: 0,
       ticker_taken?: false,
       treasury_check: nil,
+      launches_paused?: false,
       current_human_id: actor && actor.human_account_id,
       status: :loading
     )

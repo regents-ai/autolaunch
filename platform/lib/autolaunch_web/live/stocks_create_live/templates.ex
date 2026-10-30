@@ -306,12 +306,20 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
+            <p
+              :if={@launch_chain == :base && @launches_paused?}
+              class="create-page__notice"
+              role="status"
+            >
+              New launches are paused until the new version opens.
+            </p>
             <.live_component
               :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
               module={AutolaunchWeb.StocksLaunchWalletComponent}
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
               authenticated
+              launches_paused?={@launches_paused?}
               listings={@listings}
               current_human_id={@current_human_id}
               session_lease={@session_lease}

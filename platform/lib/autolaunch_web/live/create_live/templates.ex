@@ -298,6 +298,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           <p class="create-page__hint">
             You will see every value and the one transaction before anything is sent.
           </p>
+          <p :if={@launches_paused?} class="create-page__notice" role="status">
+            New launches are paused until the new version opens.
+          </p>
           <AutolaunchWeb.Components.AgentSetFields.agent_set_fields
             :if={@active_draft}
             draft={@active_draft}
@@ -321,6 +324,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             id={"autolaunch-launch-wallet-#{@active_draft.id}"}
             draft={@active_draft}
             authenticated
+            launches_paused?={@launches_paused?}
             listings={@listings}
             current_human_id={@current_human_id}
             session_lease={@session_lease}

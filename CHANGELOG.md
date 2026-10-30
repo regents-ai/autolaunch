@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: Launches paused
+- Base gets faster blocks on 5 November 2026. Until the new version opens, the Memestock launchpad and the Revstake launcher on Base take no new launches.
+- While Base says launches are paused, /create and /create/revstake say "New launches are paused until the new version opens." beside the launch button, and the button is greyed out. Existing auctions, claims, refunds and staking work as before.
+
 ## 30 October 2026: After-hours trading first
 - The After-hours page now opens on Buy, Sell, Split and Redeem, then the two token cards, then the series names and the series facts.
 - A token's leverage no longer carries the note "in its own window".

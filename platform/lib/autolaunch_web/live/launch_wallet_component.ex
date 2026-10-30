@@ -27,7 +27,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     launch_preparation_unavailable: "Launching from your wallet is not open yet.",
     launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
-    launches_paused: "New launches are paused right now.",
+    launches_paused: "New launches are paused until the new version opens.",
     launch_treasury_refused:
       "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     strategy_not_bound:
@@ -149,6 +149,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           type="button"
           phx-click="review_launch"
           phx-target={@myself}
+          disabled={@launches_paused?}
         >
           Review launch
         </Regent.Primitives.button>

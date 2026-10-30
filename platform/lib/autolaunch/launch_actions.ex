@@ -111,6 +111,15 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
+  @doc "Whether the Base factory has new launches paused, as Base reads now."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused do
+    case LaunchChainClient.module().snapshot(%{signer: nil}) do
+      {:ok, %{paused: paused}} -> {:ok, paused}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @doc "Withdraws one saved review the page is done with."
   @spec cancel(String.t(), keyword()) :: {:ok, Ash.Resource.record()} | {:error, term()}
   def cancel(action_id, opts) do

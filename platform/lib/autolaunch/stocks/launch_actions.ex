@@ -181,6 +181,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
         Integer.to_string(admission.decimals) == facts["stock_decimals"] and
         admission.route == facts["route"]
 
+  @doc "Whether the Base launchpad has new launches paused, as Base reads now."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused, do: LabLaunchChainClient.launches_paused()
+
   @doc "Withdraws one saved review the page is done with."
   def cancel(action_id, opts) do
     with {:ok, _actor} <- human(opts),
