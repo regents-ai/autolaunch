@@ -10,21 +10,30 @@ defmodule AutolaunchWeb.Components.HomeProducts do
   no card links to a page that answers not found. Before launches open, the two
   launch cards keep their place with their button switched off and the reason
   beside it, as the rest of the site does.
+
+  `/stocks` shows the stock products with `open`: the same cards, their details
+  and link always shown, with nothing to open.
   """
 
   use Phoenix.Component
 
   attr :launches_open, :boolean, required: true
 
+  attr :only, :list,
+    default: ~w(calls after-hours memestock revstake),
+    doc: "product ids, in order"
+
+  attr :open, :boolean, default: false
+
   def product_cards(assigns) do
-    assigns = assign(assigns, :products, products())
+    assigns = assign(assigns, :products, products(assigns.only))
 
     ~H"""
     <section
       id="home-products"
-      class="home-products"
+      class={["home-products", @open && "home-products--open"]}
       aria-label="Products"
-      phx-hook="ProductCards"
+      phx-hook={!@open && "ProductCards"}
       phx-update="ignore"
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-ready"])}
     >
@@ -45,7 +54,10 @@ defmodule AutolaunchWeb.Components.HomeProducts do
               <.drawing id={"home-product-drawing-#{product.id}"} product={product.id} />
             </div>
             <p class="home-product__kicker">{product.kicker}</p>
-            <h2 class="home-product__title">
+            <h2 :if={@open} id={"home-product-#{product.id}-title"} class="home-product__title">
+              {product.title}
+            </h2>
+            <h2 :if={!@open} class="home-product__title">
               <button
                 type="button"
                 id={"home-product-#{product.id}-title"}
@@ -90,7 +102,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
     """
   end
 
-  defp products do
+  defp products(only) do
     [
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
         %{
@@ -104,7 +116,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
             "Exercise in the 24 hours after each Friday expiry, on Base."
           ],
           action: "Trade calls",
-          path: "/covered-calls",
+          path: "/stock/covered-call",
           launch: false
         },
       Autolaunch.Exposure.Deployment.enabled?() &&
@@ -119,7 +131,7 @@ defmodule AutolaunchWeb.Components.HomeProducts do
             "One of each always returns one stock token."
           ],
           action: "Split stock",
-          path: "/after-hour-stocks",
+          path: "/stock/isolated-afters",
           launch: false
         },
       %{
@@ -151,7 +163,8 @@ defmodule AutolaunchWeb.Components.HomeProducts do
         launch: true
       }
     ]
-    |> Enum.filter(& &1)
+    |> Enum.filter(&(&1 && &1.id in only))
+    |> Enum.sort_by(&Enum.find_index(only, fn id -> id == &1.id end))
   end
 
   attr :id, :string, required: true

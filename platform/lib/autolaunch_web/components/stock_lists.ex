@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.Components.StockLists do
         <tbody>
           <tr :for={listing <- @open} id={"home-call-#{listing.id}"} class="market-list__row">
             <th scope="row">
-              <.link navigate={"/covered-calls?listing=#{listing.id}"} class="market-list__token">
+              <.link navigate={"/stock/covered-call?listing=#{listing.id}"} class="market-list__token">
                 <span class="market-list__label">
                   <span class="market-list__name">
                     <strong>{@symbol} call</strong>
@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.Components.StockLists do
             </td>
             <td class="market-list__action">
               <.link
-                navigate={"/covered-calls?listing=#{listing.id}"}
+                navigate={"/stock/covered-call?listing=#{listing.id}"}
                 class="rg-button rg-button--secondary"
                 aria-label={"Buy #{@symbol} calls at #{CoveredCallsFormat.usd(listing.strike_per_token)}"}
               >
@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.Components.StockLists do
     <div :if={@open == []} class="home-empty" role="status">
       <h2>No listings</h2>
       <p>Calls for sale show here as soon as a seller lists them.</p>
-      <.link navigate="/covered-calls" class="rg-button rg-button--secondary">Sell calls</.link>
+      <.link navigate="/stock/covered-call" class="rg-button rg-button--secondary">Sell calls</.link>
     </div>
     """
   end
@@ -129,7 +129,7 @@ defmodule AutolaunchWeb.Components.StockLists do
     <div :if={@tokens == []} class="home-empty" role="status">
       <h2>No series</h2>
       <p>Each week's series shows here once it opens.</p>
-      <.link navigate="/after-hour-stocks" class="rg-button rg-button--secondary">
+      <.link navigate="/stock/isolated-afters" class="rg-button rg-button--secondary">
         After-hours stocks
       </.link>
     </div>
@@ -167,7 +167,7 @@ defmodule AutolaunchWeb.Components.StockLists do
     """
   end
 
-  defp series_path(token), do: "/after-hour-stocks?series=#{token.series}"
+  defp series_path(token), do: "/stock/isolated-afters?series=#{token.series}"
 
   # A pool that holds nothing quotes no price, as one that is missing.
   defp price(%{usdc_per_token: quote}) when quote in [nil, 0], do: "No price yet"

@@ -4,9 +4,13 @@ defmodule AutolaunchWeb.UpcomingLive do
   page (`AutolaunchWeb.StockLive`) with its addresses, links and dated pool
   research. The established Available to Pair list is preserved; new research
   remains in its preview sections and never changes launchpad admission.
+
+  Above the lists, the stock products as the home page's cards, always open:
+  Memestock, covered calls and Isolated Exposure to After-hours Stocks.
   """
   use AutolaunchWeb, :live_view
 
+  import AutolaunchWeb.Components.HomeProducts, only: [product_cards: 1]
   import AutolaunchWeb.Components.StockSelect, only: [stock_logo: 1]
 
   alias Autolaunch.Stocks.UpcomingCatalog
@@ -39,6 +43,12 @@ defmodule AutolaunchWeb.UpcomingLive do
           Research snapshot: 14 October 2026. Liquidity figures are dated observations, not live quotes.
         </p>
       </header>
+
+      <.product_cards
+        launches_open={!Autolaunch.Prelaunch.read_only?()}
+        only={~w(memestock calls after-hours)}
+        open
+      />
 
       <section class="fact-page__section" aria-labelledby="upcoming-eligible">
         <h2 id="upcoming-eligible">Soon Available</h2>
