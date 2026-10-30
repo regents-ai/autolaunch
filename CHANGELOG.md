@@ -3,7 +3,7 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 30 October 2026: a clearer After-hours page
-- Pick a series by name at the top of the page, as in "AMZNc · Nov 2–6 · Upcoming". After-hours also sits under Stocks in the sidebar.
+- Pick a series by name at the top of the page, as in "AMZNc · 2–6 Nov · Upcoming". After-hours also sits under Stocks in the sidebar.
 - Before a series' first close, the page says that allocations are set when the first closing price is applied, and beside the form when splitting opens.
 - Each token now shows its ledger value, the stock it stands for per token (provisional until the end, final after it) and its leverage against the stock's move. Until a token's pool has liquidity, it says trading opens when liquidity is added.
 - Mint is now Split, and Return is now Redeem. Recording and applying prices, and ending a series after a missing price, sit under Series details with the series' addresses.

@@ -76,16 +76,16 @@ defmodule AutolaunchWeb.ExposureFormat do
   end
 
   @doc """
-  The New York days from `first` to `last`, as in \"Nov 2–6\", or \"Oct 30–Nov 6\"
-  across two months.
+  The New York days from `first` to `last`, as in \"2–6 Nov\", or \"30 Oct–6 Nov\"
+  across two months, written the way `moment/1` writes days.
   """
   def days(first, last) when is_integer(first) and is_integer(last) do
     [from, to] =
       Enum.map([first, last], &(&1 |> DateTime.from_unix!() |> DateTime.shift_zone!(@zone)))
 
     if from.month == to.month,
-      do: "#{Calendar.strftime(from, "%b %-d")}–#{to.day}",
-      else: "#{Calendar.strftime(from, "%b %-d")}–#{Calendar.strftime(to, "%b %-d")}"
+      do: "#{from.day}–#{Calendar.strftime(to, "%-d %b")}",
+      else: "#{Calendar.strftime(from, "%-d %b")}–#{Calendar.strftime(to, "%-d %b")}"
   end
 
   defp cents(cents) do

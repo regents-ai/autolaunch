@@ -17,13 +17,15 @@ defmodule AutolaunchWeb.ExposureLive do
   import AutolaunchWeb.Components.PriceChart, only: [price_chart: 1]
 
   alias Autolaunch.Exposure
-  alias Autolaunch.Exposure.Deployment
+  alias Autolaunch.Exposure.{Chain, Deployment}
   alias AutolaunchWeb.ExposureComponent
   alias AutolaunchWeb.ExposureFormat, as: F
   alias AutolaunchWeb.NotFoundError
   alias AutolaunchWeb.ShareCard
   alias Phoenix.LiveView.AsyncResult
   alias Regent.Primitives, as: P
+
+  @long_wait 10 * 60_000
 
   def mount(params, _session, socket) do
     with true <- Deployment.enabled?(),
@@ -36,9 +38,8 @@ defmodule AutolaunchWeb.ExposureLive do
       {:ok,
        socket
        |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
-       |> assign(share: share, catalog: %{})
-       |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)
-       |> read_catalog()}
+       |> assign(share: share, catalog: %{}, next_read: nil, done: nil)
+       |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)}
     else
       _off -> raise NotFoundError
     end
@@ -79,6 +80,8 @@ defmodule AutolaunchWeb.ExposureLive do
 
   def handle_event("refresh", _params, socket), do: {:noreply, read_series(socket)}
 
+  def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
+
   def handle_event("tab", %{"tab" => tab}, socket) when tab in ["mint", "redeem"] do
     tab = String.to_existing_atom(tab)
 
@@ -94,9 +97,20 @@ defmodule AutolaunchWeb.ExposureLive do
 
   def handle_info(:read_again, socket), do: {:noreply, read_series(socket)}
 
+  def handle_info({:exposure_done, done}, socket), do: {:noreply, assign(socket, done: done)}
+
+  def handle_info({:read_when_due, ref}, %{assigns: %{next_read: ref}} = socket),
+    do: {:noreply, read_series(socket)}
+
+  def handle_info({:read_when_due, _older}, socket), do: {:noreply, socket}
+
   def handle_async(:series, {:ok, {address, {:ok, series}}}, socket) do
     if address == socket.assigns.address,
-      do: {:noreply, assign(socket, reading: AsyncResult.ok(socket.assigns.reading, series))},
+      do:
+        {:noreply,
+         socket
+         |> assign(reading: AsyncResult.ok(socket.assigns.reading, series))
+         |> read_when_due(series)},
       else: {:noreply, socket}
   end
 
@@ -113,7 +127,8 @@ defmodule AutolaunchWeb.ExposureLive do
   def handle_async(:series, {:exit, reason}, socket),
     do: {:noreply, assign(socket, reading: AsyncResult.failed(socket.assigns.reading, reason))}
 
-  # Every series by name for the picker; until it is read, the picker is left out.
+  # Every series by name for the picker, read again with the shown series; one
+  # not read yet keeps its short address, so no series is ever out of reach.
   def handle_async(:catalog, {:ok, {:ok, all}}, socket),
     do: {:noreply, assign(socket, catalog: Map.new(all, &{&1.address, name(&1)}))}
 
@@ -121,14 +136,37 @@ defmodule AutolaunchWeb.ExposureLive do
 
   defp read_series(socket) do
     address = socket.assigns.address
-    start_async(socket, :series, fn -> {address, Exposure.exposure_series(address)} end)
+
+    socket
+    |> start_async(:series, fn -> {address, Exposure.exposure_series(address)} end)
+    |> read_catalog()
   end
 
-  defp read_catalog(socket) do
-    if connected?(socket) and length(socket.assigns.all) > 1,
+  defp read_catalog(%{assigns: %{all: [_, _ | _]}} = socket) do
+    if connected?(socket),
       do: start_async(socket, :catalog, fn -> Exposure.exposure_series_list() end),
       else: socket
   end
+
+  defp read_catalog(socket), do: socket
+
+  # The page reads the series again when its next price becomes recordable and
+  # when its deadline passes, so the summary never goes stale while it is open.
+  # Only the newest timer counts.
+  defp read_when_due(socket, %{next: %{recordable_at: recordable, deadline: deadline}, now: now}) do
+    case Enum.find([recordable, deadline + 1], &(&1 > now)) do
+      nil ->
+        socket
+
+      at ->
+        ref = make_ref()
+        wait = min((at - now) * 1_000 + 2_000, @long_wait)
+        Process.send_after(self(), {:read_when_due, ref}, wait)
+        assign(socket, next_read: ref)
+    end
+  end
+
+  defp read_when_due(socket, _series), do: socket
 
   defp topic(address), do: "exposure:" <> address
 
@@ -141,6 +179,7 @@ defmodule AutolaunchWeb.ExposureLive do
 
     ~H"""
     <article class="exposure">
+      <ExposureComponent.toast :if={@done} id="exposure-done" done={@done} dismiss="dismiss_done" />
       <header class="exposure__header">
         <div class="exposure__intro">
           <h1>Isolated Exposure to After-hours Stocks</h1>
@@ -170,20 +209,19 @@ defmodule AutolaunchWeb.ExposureLive do
       </header>
 
       <nav
-        :if={map_size(@catalog) > 1}
+        :if={match?([_, _ | _], @all)}
         id="exposure-series"
         class="exposure__picker"
         aria-label="Series"
       >
         <.link
           :for={address <- Enum.reverse(@all)}
-          :if={@catalog[address]}
           id={"exposure-series-#{address}"}
           patch={~p"/after-hour-stocks?#{[series: address]}"}
           class="exposure__pick"
           aria-current={address == @address && "page"}
         >
-          {@catalog[address]}
+          {@catalog[address] || short_address(address)}
         </.link>
       </nav>
 
@@ -231,8 +269,19 @@ defmodule AutolaunchWeb.ExposureLive do
 
         <section class="exposure__section" aria-labelledby="exposure-tokens-title">
           <h2 id="exposure-tokens-title" class="exposure__title">Tokens</h2>
-          <p :if={@series.settled == 0} id="exposure-pending" class="exposure__pending">
+          <p
+            :if={@series.settled == 0 and @series.status != :ended}
+            id="exposure-pending"
+            class="exposure__pending"
+          >
             Allocations are set when the first closing price is applied.
+          </p>
+          <p
+            :if={@series.settled == 0 and @series.status == :ended}
+            id="exposure-pending"
+            class="exposure__pending"
+          >
+            This series ended before its first price, so no tokens were made.
           </p>
           <div
             id="exposure-legs"
@@ -246,6 +295,7 @@ defmodule AutolaunchWeb.ExposureLive do
               window="close to open"
               token={@series.overnight}
               ledger={@series.night}
+              leg={:overnight}
               series={@series}
               pool={@series.pools.overnight}
             />
@@ -255,6 +305,7 @@ defmodule AutolaunchWeb.ExposureLive do
               window="open to close"
               token={@series.session}
               ledger={@series.day}
+              leg={:session}
               series={@series}
               pool={@series.pools.session}
             />
@@ -446,7 +497,8 @@ defmodule AutolaunchWeb.ExposureLive do
               <p class="exposure__muted">
                 Each price is recorded from the feed an hour after its time, then applied to the
                 series. Anyone can do either, and the first press counts. If a price can't be
-                recorded within seven days, anyone can end the series at the last recorded values.
+                recorded within {days(@series.max_report_delay)}, anyone can end the series at the
+                last recorded values.
               </p>
               <.live_component
                 module={ExposureComponent}
@@ -479,6 +531,7 @@ defmodule AutolaunchWeb.ExposureLive do
   attr :ledger, :integer, required: true
   attr :series, :map, required: true
   attr :pool, :map, default: nil
+  attr :leg, :atom, required: true, values: [:overnight, :session]
 
   defp leg(assigns) do
     ~H"""
@@ -501,7 +554,7 @@ defmodule AutolaunchWeb.ExposureLive do
         </div>
         <div>
           <dt>Stock claim</dt>
-          <dd>{claim(@series, @ledger)} <small>{claim_note(@series)}</small></dd>
+          <dd>{claim(@series, @leg)} <small>{claim_note(@series)}</small></dd>
         </div>
         <div>
           <dt>Leverage</dt>
@@ -546,13 +599,29 @@ defmodule AutolaunchWeb.ExposureLive do
   defp ledger_note(%{status: :ended}), do: "per token, at the final price"
   defp ledger_note(_series), do: "per token, at the last price"
 
-  defp claim(%{stock: stock, price: price}, ledger),
-    do:
-      "#{F.tokens(div(ledger * Integer.pow(10, stock.decimals), price), stock.decimals)} #{stock.symbol}"
+  # After the end the claim is what redeeming one whole token pays, as the
+  # contract works it out, cut for any stock the issuer took from the series.
+  defp claim(%{status: :ended, stock: stock} = series, leg) do
+    unit = Integer.pow(10, stock.decimals)
+
+    paid =
+      if leg == :overnight, do: Chain.paid(series, unit, 0), else: Chain.paid(series, 0, unit)
+
+    "#{F.tokens(paid, stock.decimals)} #{stock.symbol}"
+  end
+
+  defp claim(%{stock: stock, price: price} = series, leg) do
+    unit = Integer.pow(10, stock.decimals)
+    "#{F.tokens(div(ledger(series, leg) * unit, price), stock.decimals)} #{stock.symbol}"
+  end
 
   defp claim_note(%{status: :ended}), do: "per token, final"
   defp claim_note(_series), do: "per token, provisional"
 
+  defp ledger(series, :overnight), do: series.night
+  defp ledger(series, :session), do: series.day
+
+  defp leverage(%{status: :ended}, 0), do: "Nothing left"
   defp leverage(%{status: :ended, stock: stock}, _ledger), do: "Moves with #{stock.symbol}"
 
   defp leverage(series, ledger),
@@ -561,16 +630,34 @@ defmodule AutolaunchWeb.ExposureLive do
   defp pool_line(%{usdc_per_token: usdc}) when is_integer(usdc), do: "Pool price #{F.usdc(usdc)}"
   defp pool_line(_no_liquidity), do: "Trading opens when liquidity is added."
 
-  # The next price, and whether the series is waiting for someone to record it.
+  # The next price and where it stands: not yet recordable, due to be recorded
+  # and applied (under Series details), or missed, when the series can be ended.
   defp next_price(%{next: next, now: now}) do
-    kind = if next.open?, do: "Open", else: "Close"
+    price = "#{if next.open?, do: "Open", else: "Close"}, #{F.moment(next.at)}"
 
-    if now >= next.recordable_at,
-      do: "#{kind}, #{F.moment(next.at)}: waiting to be recorded",
-      else: "#{kind}, #{F.moment(next.at)}: recordable from #{F.time(next.recordable_at)}"
+    cond do
+      now < next.recordable_at ->
+        "#{price}, recordable from #{F.time(next.recordable_at)} New York"
+
+      now <= next.deadline ->
+        "#{price}, due to be recorded and applied"
+
+      true ->
+        "#{price}, missed: the series can be ended"
+    end
   end
 
-  # A series by its stock, its days and where it stands, as in "AMZNc · Nov 2–6 · Upcoming".
+  defp days(seconds) do
+    case div(seconds, 86_400) do
+      1 -> "a day"
+      count -> "#{count} days"
+    end
+  end
+
+  defp short_address("0x" <> hex),
+    do: "0x" <> String.slice(hex, 0, 4) <> "…" <> String.slice(hex, -4, 4)
+
+  # A series by its stock, its days and where it stands, as in "AMZNc · 2–6 Nov · Upcoming".
   defp name(%{stock: stock, boundaries: boundaries, status: status}),
     do:
       "#{stock.symbol} · #{F.days(List.first(boundaries), List.last(boundaries))} · #{stage(status)}"

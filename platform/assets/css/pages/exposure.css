@@ -46,8 +46,6 @@
 .exposure__next td { color: var(--color-fg-muted); }
 .exposure__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
 .exposure__hash { font-size: .8125rem; }
-.exposure__series-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.exposure__series-list li { display: flex; align-items: center; gap: var(--space-3); }
 
 .exposure-panel { display: grid; gap: var(--space-3); min-width: 0; }
 .exposure-panel__form { display: grid; gap: var(--space-3); }
