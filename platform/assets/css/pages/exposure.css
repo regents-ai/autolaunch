@@ -14,6 +14,9 @@
 
 .exposure__picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .exposure__pick { display: inline-flex; align-items: center; min-block-size: 2.25rem; padding: 0 var(--space-3); border: 1px solid var(--hairline); color: var(--color-fg); font-size: .875rem; text-decoration: none; background: var(--color-surface); }
+.exposure__legs-pick { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.exposure__pick { font: inherit; cursor: pointer; }
+.exposure__pick[aria-pressed="true"],
 .exposure__pick[aria-current="page"] { border-color: var(--color-fg); font-weight: 600; }
 .exposure__pending, .exposure__opens { margin: 0; padding: var(--space-2) var(--space-3); border-inline-start: 3px solid var(--orange-ink, currentColor); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); font-size: .9375rem; line-height: 1.5; }
 .exposure__disclosure .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
@@ -41,6 +44,9 @@
 .exposure__trade { justify-self: start; }
 
 #exposure-act-panel { display: grid; }
+/* Four tabs share the row and shrink to fit a phone, never wider than the page. */
+#exposure-act .token-trade__tabs { display: flex; max-inline-size: 100%; }
+#exposure-act .token-trade__tabs [role="tab"] { flex: 1 1 0; min-width: 0; }
 .exposure__panel { display: grid; gap: var(--space-3); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .exposure__table.market-list__table :is(td, th) { font-variant-numeric: tabular-nums; text-align: left; }
 .exposure__next td { color: var(--color-fg-muted); }

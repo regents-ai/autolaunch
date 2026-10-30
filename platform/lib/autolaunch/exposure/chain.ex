@@ -236,6 +236,7 @@ defmodule Autolaunch.Exposure.Chain do
       ])
 
     case Rpc.call_uint(pool, data, block, opts) do
+      {:ok, 0} -> %{address: pool, usdc_per_token: nil}
       {:ok, usdc} -> %{address: pool, usdc_per_token: usdc}
       {:error, _no_quote} -> %{address: pool, usdc_per_token: nil}
     end
@@ -370,6 +371,55 @@ defmodule Autolaunch.Exposure.Chain do
          {:ok, decimals} <- Rpc.call_uint(address, Call.encode("decimals()", []), block, opts),
          do: {:ok, %{symbol: symbol, name: name, decimals: decimals}}
   end
+
+  @doc """
+  What trading one leg against USDC through the Aerodrome router takes from
+  `wallet` now: its USDC and leg balances and what each lets the router take,
+  and the leg's pool, or nil where it has none.
+  """
+  def trade_position(series, config, leg, wallet, block, opts) do
+    token = Map.fetch!(series, leg).address
+
+    with {:ok, pool} <- pool(token, config, block, opts),
+         {:ok, usdc} <- balance(config.usdc, wallet, block, opts),
+         {:ok, usdc_allowance} <- allowance(config.usdc, wallet, config.router, block, opts),
+         {:ok, held} <- balance(token, wallet, block, opts),
+         {:ok, leg_allowance} <- allowance(token, wallet, config.router, block, opts) do
+      {:ok,
+       %{
+         pool: pool,
+         usdc: usdc,
+         usdc_allowance: usdc_allowance,
+         leg: held,
+         leg_allowance: leg_allowance
+       }}
+    end
+  end
+
+  @doc """
+  What `pool` pays out now for `amount` of `token_in`, as Aerodrome's own pool
+  works it out, or nil while either side of the pool is empty.
+  """
+  def amount_out(pool, amount, token_in, block, opts) do
+    with {:ok, [reserve0, reserve1, _last]} <-
+           Rpc.call_words(pool, Call.encode("getReserves()", []), block, 3, opts) do
+      if reserve0 == 0 or reserve1 == 0,
+        do: {:ok, nil},
+        else:
+          Rpc.call_uint(
+            pool,
+            Call.encode("getAmountOut(uint256,address)", [amount, token_in]),
+            block,
+            opts
+          )
+    end
+  end
+
+  @doc "What `holder` holds of `token` at `block`, in its raw units."
+  def token_balance(token, holder, block, opts), do: balance(token, holder, block, opts)
+
+  defp allowance(token, owner, spender, block, opts),
+    do: Rpc.call_uint(token, Abi.encode_erc20("allowance", [owner, spender]), block, opts)
 
   defp balance(token, holder, block, opts),
     do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [holder]), block, opts)

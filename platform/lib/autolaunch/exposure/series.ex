@@ -51,6 +51,7 @@ defmodule Autolaunch.Exposure.Series do
       argument :series, :string, allow_nil?: false
       argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
       argument :signer, :string
+      argument :leg, :atom, constraints: [one_of: [:overnight, :session]]
       argument :amount, :integer, constraints: [min: 1]
       argument :overnight, :integer, constraints: [min: 0]
       argument :session, :integer, constraints: [min: 0]
@@ -94,8 +95,9 @@ defmodule Autolaunch.Exposure.Series do
          {:ok, address} <- Deployment.series(address),
          {:ok, block, opts} <- Chain.latest(config.lab),
          {:ok, series} <- Chain.series(address, config, block, opts),
-         {:ok, holdings} <- Chain.holdings(series, wallet, block, opts) do
-      {:ok, holdings |> Map.put(:series, read_at(series)) |> read_at()}
+         {:ok, holdings} <- Chain.holdings(series, wallet, block, opts),
+         {:ok, usdc} <- Chain.token_balance(config.usdc, wallet, block, opts) do
+      {:ok, holdings |> Map.merge(%{usdc: usdc, series: read_at(series)}) |> read_at()}
     end
   end
 

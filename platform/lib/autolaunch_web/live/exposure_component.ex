@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.ExposureComponent do
   @moduledoc """
-  The wallet panel for one Exposure action: mint a pair, return legs for the
-  stock, record and apply the next price, or end a series whose price can no
-  longer be recorded. The server builds every step
+  The wallet panel for one Exposure action: buy one token (`leg`) with USDC or
+  sell it for USDC through its Aerodrome pool, split the stock into a pair,
+  redeem tokens for the stock, record and apply the next price, or end a
+  series whose price can no longer be recorded. The server builds every step
   (`Autolaunch.Exposure.prepare_exposure/4`, the same action agents call) for
   the wallet that may act (`AutolaunchWeb.OnchainSteps`), and every press goes
   straight to the wallet.
@@ -27,6 +28,8 @@ defmodule AutolaunchWeb.ExposureComponent do
   alias RegentChain.Review
 
   @stale_ms 10 * 60_000
+  @approvals ~w(stock_approval usdc_approval token_approval)
+  @usdc_decimals 6
 
   @impl true
   def mount(socket) do
@@ -40,7 +43,8 @@ defmodule AutolaunchWeb.ExposureComponent do
        refusal: nil,
        unsent: false,
        holdings: nil,
-       refresh: nil
+       refresh: nil,
+       leg: nil
      )}
   end
 
@@ -80,7 +84,7 @@ defmodule AutolaunchWeb.ExposureComponent do
          {:ok, prepared} <- prepare(socket.assigns, request, signer) do
       socket = put_prepared(socket, signer, prepared)
 
-      if name != "stock_approval" and prepared.blocked,
+      if name not in @approvals and prepared.blocked,
         do: {:reply, %{}, socket},
         else: {:reply, %{review: socket.assigns.review, send: name}, socket}
     else
@@ -146,7 +150,7 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   # A split or a redemption that landed tells the page what it moved, for its toast.
   defp done(%{assigns: %{prepared: %{facts: facts}, series: series}}, step)
-       when step in ["mint", "redeem"],
+       when step in ["buy", "sell", "mint", "redeem"],
        do: send(self(), {:exposure_done, %{kind: step, lines: done_lines(step, facts, series)}})
 
   defp done(_socket, _step), do: :ok
@@ -160,6 +164,16 @@ defmodule AutolaunchWeb.ExposureComponent do
     do: ["You received #{F.tokens(paid, series.stock.decimals)} #{series.stock.symbol}."]
 
   defp done_lines("redeem", _facts, _series), do: []
+
+  defp done_lines("buy", %{amount: amount, leg: leg}, series),
+    do: [
+      "You paid #{F.usdc(amount)} for #{Map.fetch!(series, leg).symbol}. What you received is in your wallet and portfolio."
+    ]
+
+  defp done_lines("sell", %{amount: amount, leg: leg}, series),
+    do: [
+      "You sold #{F.tokens(amount, series.stock.decimals)} #{Map.fetch!(series, leg).symbol} for USDC."
+    ]
 
   @doc "The note a landed split or redemption leaves on the page, with View Portfolio."
   attr :id, :string, required: true
@@ -176,7 +190,7 @@ defmodule AutolaunchWeb.ExposureComponent do
       data-variant={AutolaunchWeb.Motion.standard("toast")}
     >
       <div>
-        <strong>{if @done.kind == "mint", do: "Split done", else: "Redeemed"}</strong>
+        <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- @done.lines}>{line}</p>
         <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
       </div>
@@ -199,6 +213,11 @@ defmodule AutolaunchWeb.ExposureComponent do
     </aside>
     """
   end
+
+  defp done_title("buy"), do: "Bought"
+  defp done_title("sell"), do: "Sold"
+  defp done_title("mint"), do: "Split done"
+  defp done_title("redeem"), do: "Redeemed"
 
   # The steps follow the wallet that may act and the form as it stands.
   defp sync(socket) do
@@ -224,7 +243,8 @@ defmodule AutolaunchWeb.ExposureComponent do
   end
 
   # A panel with an amount shows what the wallet holds, read for the wallet that may act.
-  defp read_holdings(%{assigns: %{kind: kind}} = socket) when kind in [:mint, :redeem] do
+  defp read_holdings(%{assigns: %{kind: kind}} = socket)
+       when kind in [:buy, :sell, :mint, :redeem] do
     case signer(socket) do
       nil ->
         assign(socket, holdings: nil)
@@ -304,6 +324,20 @@ defmodule AutolaunchWeb.ExposureComponent do
       else: typed(assigns)
   end
 
+  defp typed(%{kind: :buy, inputs: inputs, leg: leg}) do
+    case F.parse_tokens(inputs["amount"] || "", @usdc_decimals) do
+      nil -> {:error, :invalid_amount}
+      amount -> {:ok, %{amount: amount, leg: leg}}
+    end
+  end
+
+  defp typed(%{kind: :sell, inputs: inputs, leg: leg, series: series}) do
+    case F.parse_tokens(inputs["amount"] || "", series.stock.decimals) do
+      nil -> {:error, :invalid_amount}
+      amount -> {:ok, %{amount: amount, leg: leg}}
+    end
+  end
+
   defp typed(%{kind: :mint, inputs: inputs, series: series}) do
     case F.parse_tokens(inputs["amount"] || "", series.stock.decimals) do
       nil -> {:error, :invalid_amount}
@@ -335,9 +369,15 @@ defmodule AutolaunchWeb.ExposureComponent do
     if String.trim(text || "") in ["", "0"], do: 0, else: F.parse_tokens(text, decimals)
   end
 
-  defp inputs(:mint, form), do: Map.take(form, ~w(amount))
+  defp inputs(kind, form) when kind in [:buy, :sell, :mint], do: Map.take(form, ~w(amount))
   defp inputs(:redeem, form), do: Map.take(form, ~w(pairs overnight session))
   defp inputs(_kind, _form), do: %{}
+
+  defp filled(%{kind: :buy}, holdings),
+    do: %{"amount" => F.tokens(holdings.usdc, @usdc_decimals)}
+
+  defp filled(%{kind: :sell, leg: leg, series: series}, holdings),
+    do: %{"amount" => F.tokens(Map.fetch!(holdings, leg), series.stock.decimals)}
 
   defp filled(%{kind: :mint, series: series}, holdings),
     do: %{"amount" => F.tokens(min(holdings.stock, room(series)), series.stock.decimals)}
@@ -364,13 +404,27 @@ defmodule AutolaunchWeb.ExposureComponent do
     ~H"""
     <section id={@id} class="exposure-panel" phx-hook="OnchainSteps" data-onchain-prepare>
       <form
-        :if={@kind in [:mint, :redeem]}
+        :if={@kind in [:buy, :sell, :mint, :redeem]}
         id={"#{@id}-form"}
         class="exposure-panel__form"
         phx-change="change"
         phx-submit="change"
         phx-target={@myself}
       >
+        <.amount
+          :if={@kind == :buy}
+          name="amount"
+          label="Spend"
+          value={@inputs["amount"]}
+          unit="USDC"
+        />
+        <.amount
+          :if={@kind == :sell}
+          name="amount"
+          label="Sell"
+          value={@inputs["amount"]}
+          unit={Map.fetch!(@series, @leg).symbol}
+        />
         <.amount
           :if={@kind == :mint}
           name="amount"
@@ -400,7 +454,7 @@ defmodule AutolaunchWeb.ExposureComponent do
           unit={@series.session.symbol}
         />
         <p :if={@holdings} class="exposure-panel__balance">
-          <span>{balance(@kind, @holdings, @series)}</span>
+          <span>{balance(@kind, @holdings, @series, @leg)}</span>
           <button type="button" phx-click="max" phx-target={@myself}>Max</button>
         </p>
       </form>
@@ -471,16 +525,51 @@ defmodule AutolaunchWeb.ExposureComponent do
     """
   end
 
-  defp balance(:mint, holdings, series),
+  defp balance(:buy, holdings, _series, _leg),
+    do: "Wallet: #{F.tokens(holdings.usdc, @usdc_decimals)} USDC"
+
+  defp balance(:sell, holdings, series, leg),
+    do:
+      "Wallet: #{F.tokens(Map.fetch!(holdings, leg), series.stock.decimals)} #{Map.fetch!(series, leg).symbol}"
+
+  defp balance(:mint, holdings, series, _leg),
     do: "Wallet: #{F.tokens(holdings.stock, series.stock.decimals)} #{series.stock.symbol}"
 
-  defp balance(:redeem, holdings, series),
+  defp balance(:redeem, holdings, series, _leg),
     do:
       "Wallet: #{F.tokens(holdings.overnight, series.stock.decimals)} After-hours, #{F.tokens(holdings.session, series.stock.decimals)} Market-hours"
 
   attr :kind, :atom, required: true
   attr :facts, :map, required: true
   attr :series, :map, required: true
+
+  defp facts(%{kind: :buy} = assigns) do
+    ~H"""
+    <dt>You pay</dt>
+    <dd>{F.tokens(@facts.amount, @facts.usdc_decimals)} USDC</dd>
+    <dt>You receive</dt>
+    <dd>
+      about {expected(@facts.expected, @series.stock.decimals)} {Map.fetch!(@series, @facts.leg).symbol},
+      at least {expected(@facts.minimum, @series.stock.decimals)}
+    </dd>
+    """
+  end
+
+  defp facts(%{kind: :sell} = assigns) do
+    ~H"""
+    <dt>You sell</dt>
+    <dd>
+      {F.tokens(@facts.amount, @series.stock.decimals)} {Map.fetch!(@series, @facts.leg).symbol}
+    </dd>
+    <dt>You receive</dt>
+    <dd>
+      about {expected(@facts.expected, @facts.usdc_decimals)} USDC, at least {expected(
+        @facts.minimum,
+        @facts.usdc_decimals
+      )}
+    </dd>
+    """
+  end
 
   defp facts(%{kind: :mint} = assigns) do
     ~H"""
@@ -530,6 +619,9 @@ defmodule AutolaunchWeb.ExposureComponent do
     """
   end
 
+  defp expected(nil, _decimals), do: "—"
+  defp expected(amount, decimals), do: F.tokens(amount, decimals)
+
   defp kind_word(:open), do: "Open,"
   defp kind_word(:close), do: "Close,"
 
@@ -541,7 +633,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     |> Enum.map(fn name ->
       entry = review && OnchainSteps.entry(presses, review, name)
       described = entry && OnchainSteps.describe(entry, "Base")
-      approval? = name == "stock_approval"
+      approval? = name in @approvals
 
       %{
         name: name,
@@ -565,12 +657,21 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp step_state(_unsent, true, %{approved: true}), do: :done
   defp step_state(_unsent, _approval?, _prepared), do: :ready
 
+  defp step_names(:buy, _prepared), do: ~w(usdc_approval buy)
+  defp step_names(:sell, _prepared), do: ~w(token_approval sell)
   defp step_names(:mint, _prepared), do: ~w(stock_approval mint)
   defp step_names(:redeem, _prepared), do: ~w(redeem)
   defp step_names(:end, _prepared), do: ~w(end)
   defp step_names(:update, %{steps: steps}) when steps != [], do: Enum.map(steps, & &1.step)
   defp step_names(:update, _prepared), do: ~w(record settle)
 
+  defp label("usdc_approval", _assigns), do: "Approve USDC"
+
+  defp label("token_approval", %{series: series, leg: leg}),
+    do: "Approve #{Map.fetch!(series, leg).symbol}"
+
+  defp label("buy", _assigns), do: "Buy"
+  defp label("sell", _assigns), do: "Sell"
   defp label("stock_approval", %{series: series}), do: "Approve #{series.stock.symbol}"
   defp label("mint", %{series: series}), do: "Split #{series.stock.symbol}"
   defp label("redeem", _assigns), do: "Redeem"
@@ -580,6 +681,9 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   defp blocked_words(nil, _assigns), do: nil
   defp blocked_words(:approve_first, _assigns), do: "Approve first"
+  defp blocked_words(:no_liquidity, _assigns), do: "Trading opens when liquidity is added"
+  defp blocked_words(:too_small, _assigns), do: "Too small for the pool to pay anything back"
+  defp blocked_words(:not_enough_usdc, _assigns), do: "Not enough USDC in this wallet"
 
   defp blocked_words(:not_open, %{series: %{next: %{recordable_at: at}}}),
     do: "Opens #{F.moment(at)} New York at the earliest"

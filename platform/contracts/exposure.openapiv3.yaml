@@ -474,6 +474,7 @@ components:
           - market_hours
           - stock
           - stock_allowance
+          - usdc
           - returnable
           properties:
             series:
@@ -489,6 +490,9 @@ components:
               type: integer
             stock:
               type: integer
+            usdc:
+              type: integer
+              description: The wallet's USDC, in micro-units, for buying a token.
             stock_allowance:
               type: integer
               description: Raw stock the wallet lets the series take.
@@ -516,17 +520,25 @@ components:
         kind:
           type: string
           enum:
+          - buy
+          - sell
           - mint
           - redeem
           - update
           - end
+        leg:
+          type: string
+          enum:
+          - overnight
+          - session
+          description: For buy and sell, overnight for the After-hours token or session for the Market-hours token.
         signer:
           type: string
           description: One of the person's own wallets; omit it for the wallet they signed in with.
         amount:
           type: integer
           minimum: 1
-          description: For mint, raw stock units.
+          description: For buy, USDC micro-units to spend; for sell, raw token units; for mint, raw stock units.
         overnight:
           type: integer
           minimum: 0
@@ -554,6 +566,8 @@ components:
             kind:
               type: string
               enum:
+              - buy
+              - sell
               - mint
               - redeem
               - update
@@ -591,6 +605,10 @@ components:
                   step:
                     type: string
                     enum:
+                    - usdc_approval
+                    - token_approval
+                    - buy
+                    - sell
                     - stock_approval
                     - mint
                     - redeem
@@ -617,6 +635,9 @@ components:
                   code:
                     type: string
                     enum:
+                    - no_liquidity
+                    - too_small
+                    - not_enough_usdc
                     - not_open
                     - ended
                     - above_cap
@@ -652,6 +673,7 @@ components:
               - unknown_series
               - unknown_terms
               - invalid_amount
+              - leg_required
               - invalid_request
               - wrong_signer
               - wallet_required
