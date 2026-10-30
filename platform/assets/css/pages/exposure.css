@@ -12,6 +12,21 @@
 .exposure__section { display: grid; gap: var(--space-3); min-width: 0; }
 .exposure__title { margin: 0; font-size: 1.125rem; font-weight: 600; letter-spacing: -.01em; }
 
+.exposure__picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.exposure__pick { display: inline-flex; align-items: center; min-block-size: 2.25rem; padding: 0 var(--space-3); border: 1px solid var(--hairline); color: var(--color-fg); font-size: .875rem; text-decoration: none; background: var(--color-surface); }
+.exposure__pick[aria-current="page"] { border-color: var(--color-fg); font-weight: 600; }
+.exposure__pending, .exposure__opens { margin: 0; padding: var(--space-2) var(--space-3); border-inline-start: 3px solid var(--orange-ink, currentColor); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); font-size: .9375rem; line-height: 1.5; }
+.exposure__disclosure .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
+.exposure__example { display: grid; gap: var(--space-2); padding-block: var(--space-2); }
+.exposure__example > p { margin: 0; line-height: 1.5; }
+.exposure__details { display: grid; gap: var(--space-4); padding-block: var(--space-2); }
+.exposure__addresses { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
+.exposure__addresses > div { display: grid; gap: .125rem; min-width: 0; }
+.exposure__addresses dt { color: var(--color-fg-muted); font-size: .8125rem; }
+.exposure__addresses dd { margin: 0; }
+.exposure__leg-facts dd small { display: block; color: var(--color-fg-muted); font-size: .75rem; }
+.exposure__trade-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+
 .exposure__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: var(--space-3); margin: 0; }
 .exposure__facts > div, .exposure__leg-facts > div { display: grid; gap: .125rem; min-width: 0; }
 .exposure__facts dt, .exposure__leg-facts dt { color: var(--color-fg-muted); font-size: .8125rem; }
@@ -31,8 +46,6 @@
 .exposure__next td { color: var(--color-fg-muted); }
 .exposure__terms { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.1em; line-height: 1.5; }
 .exposure__hash { font-size: .8125rem; }
-.exposure__series-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.exposure__series-list li { display: flex; align-items: center; gap: var(--space-3); }
 
 .exposure-panel { display: grid; gap: var(--space-3); min-width: 0; }
 .exposure-panel__form { display: grid; gap: var(--space-3); }
@@ -49,14 +62,15 @@
 .exposure-panel__problem { margin: 0; color: var(--color-danger, #b42318); font-size: .875rem; }
 .exposure-panel__note { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .exposure-panel__steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.exposure-panel__step { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
-.exposure-panel__step .rg-button { inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
+.exposure-panel__step { display: grid; grid-template-columns: minmax(12.5rem, max-content) minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3); }
+.exposure-panel__step .rg-button { inline-size: 100%; min-inline-size: 12.5rem; min-block-size: 2.625rem; justify-content: center; white-space: nowrap; }
 .exposure-panel__step-words { display: grid; gap: .125rem; color: var(--color-fg-muted); font-size: .875rem; }
 .exposure-panel__step[data-state="done"] .rg-button--secondary { border-color: var(--color-success, #12805c); color: var(--color-fg-muted); }
 
 @media (hover: none) and (pointer: coarse) {
   .exposure-panel input, .exposure-panel__step .rg-button { min-block-size: 2.75rem; }
   .exposure-panel__balance button { min-block-size: 2.75rem; min-inline-size: 2.75rem; }
+  .exposure__pick { min-block-size: 2.75rem; }
 }
 
 @media (max-width: 47.99rem) {

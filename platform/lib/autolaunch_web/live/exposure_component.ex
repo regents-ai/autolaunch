@@ -137,10 +137,67 @@ defmodule AutolaunchWeb.ExposureComponent do
 
   def handle_async({:onchain_step, hash}, result, socket) do
     {:noreply,
-     OnchainSteps.checked(socket, hash, result, fn socket, _entry ->
+     OnchainSteps.checked(socket, hash, result, fn socket, entry ->
        send(self(), {:exposure_changed, socket.assigns.series.address})
+       done(socket, entry.step.step)
        socket |> read_holdings() |> sync()
      end)}
+  end
+
+  # A split or a redemption that landed tells the page what it moved, for its toast.
+  defp done(%{assigns: %{prepared: %{facts: facts}, series: series}}, step)
+       when step in ["mint", "redeem"],
+       do: send(self(), {:exposure_done, %{kind: step, lines: done_lines(step, facts, series)}})
+
+  defp done(_socket, _step), do: :ok
+
+  defp done_lines("mint", %{amount: amount}, series) do
+    tokens = F.tokens(amount, series.stock.decimals)
+    ["You received #{tokens} #{series.overnight.symbol} and #{tokens} #{series.session.symbol}."]
+  end
+
+  defp done_lines("redeem", %{paid: paid}, series) when is_integer(paid),
+    do: ["You received #{F.tokens(paid, series.stock.decimals)} #{series.stock.symbol}."]
+
+  defp done_lines("redeem", _facts, _series), do: []
+
+  @doc "The note a landed split or redemption leaves on the page, with View Portfolio."
+  attr :id, :string, required: true
+  attr :done, :map, required: true
+  attr :dismiss, :string, required: true
+
+  def toast(assigns) do
+    ~H"""
+    <aside
+      id={@id}
+      class="token-swap__toast"
+      role="status"
+      phx-hook="Toast"
+      data-variant={AutolaunchWeb.Motion.standard("toast")}
+    >
+      <div>
+        <strong>{if @done.kind == "mint", do: "Split done", else: "Redeemed"}</strong>
+        <p :for={line <- @done.lines}>{line}</p>
+        <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
+      </div>
+      <P.button
+        type="button"
+        variant="quiet"
+        phx-click={@dismiss}
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+          <path
+            d="M6 6l12 12M18 6 6 18"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </P.button>
+    </aside>
+    """
   end
 
   # The steps follow the wallet that may act and the form as it stands.
@@ -515,14 +572,18 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp step_names(:update, _prepared), do: ~w(record settle)
 
   defp label("stock_approval", %{series: series}), do: "Approve #{series.stock.symbol}"
-  defp label("mint", _assigns), do: "Mint"
-  defp label("redeem", _assigns), do: "Return"
+  defp label("mint", %{series: series}), do: "Split #{series.stock.symbol}"
+  defp label("redeem", _assigns), do: "Redeem"
   defp label("record", _assigns), do: "Record price"
   defp label("settle", _assigns), do: "Apply price"
-  defp label("end", _assigns), do: "End series"
+  defp label("end", _assigns), do: "End after missing price"
 
   defp blocked_words(nil, _assigns), do: nil
   defp blocked_words(:approve_first, _assigns), do: "Approve first"
+
+  defp blocked_words(:not_open, %{series: %{next: %{recordable_at: at}}}),
+    do: "Opens #{F.moment(at)} New York at the earliest"
+
   defp blocked_words(:not_open, _assigns), do: "Opens once the first close is applied"
   defp blocked_words(:ended, _assigns), do: "This series has ended"
 
@@ -537,7 +598,7 @@ defmodule AutolaunchWeb.ExposureComponent do
     do: "Not enough #{series.stock.symbol} in this wallet"
 
   defp blocked_words(:pair_required, _assigns),
-    do: "Until the series ends, return equal amounts of each"
+    do: "Until the series ends, redeem equal amounts of each"
 
   defp blocked_words(:more_than_held, _assigns), do: "More than this wallet holds"
 

@@ -2,6 +2,14 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: a clearer After-hours page
+- Pick a series by name at the top of the page, as in "AMZNc · 2–6 Nov · Upcoming". After-hours also sits under Stocks in the sidebar.
+- Before a series' first close, the page says that allocations are set when the first closing price is applied, and beside the form when splitting opens.
+- Each token now shows its ledger value, the stock it stands for per token (provisional until the end, final after it) and its leverage against the stock's move. Until a token's pool has liquidity, it says trading opens when liquidity is added.
+- Mint is now Split, and Return is now Redeem. Recording and applying prices, and ending a series after a missing price, sit under Series details with the series' addresses.
+- An Example shows how a move in the stock changes each token, and the full terms open in the browser.
+- A split or redemption that lands leaves a note saying what you received, with View Portfolio.
+
 ## 30 October 2026: View Portfolio after every success
 - The note that appears when a wallet action lands (a swap, staking or claiming, any covered-call action) now has a View Portfolio button, as a placed bid already did. On the portfolio itself it is left out.
 

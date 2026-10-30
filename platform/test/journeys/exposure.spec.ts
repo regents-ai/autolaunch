@@ -92,17 +92,18 @@ async function open(page: Page, path = "/after-hour-stocks") {
   await expect(page.locator("#exposure-overnight")).toBeVisible({timeout: 30_000})
 }
 
-/** Records and applies the next price from the Prices panel, an hour after its time. */
+/** Records and applies the next price from Series details, an hour after its time. */
 async function recordAndApply(page: Page, sent: Sent[], index: number) {
   await warpTo((await boundary(index)) + 3_660)
   await open(page)
+  await page.locator("#exposure-details > summary").click()
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Record price")).status).toBe("0x1")
   expect((await press(page, sent, "Apply price")).status).toBe("0x1")
   expect(await read("settled")).toBe(BigInt(index + 1))
 }
 
-test("after-hours exposure: record the first close, mint, return pairs, run to the end and return each token", async ({page, sent}, info) => {
+test("after-hours exposure: record the first close, split, redeem pairs, run to the end and redeem each token", async ({page, sent}, info) => {
   const touch = info.project.name === "phone"
   await mintStock(AMZNC, people.a.wallet, UNIT)
   const start = await balanceOf(AMZNC, people.a.wallet)
@@ -123,32 +124,32 @@ test("after-hours exposure: record the first close, mint, return pairs, run to t
   await recordAndApply(page, sent, 0)
   await expect(page.getByText("Live, 1 of 3 prices applied")).toBeVisible()
 
-  // Mint 0.05 AMZNc: an exact approval, then the mint.
+  // Split 0.05 AMZNc: an exact approval, then the split.
   await page.getByRole("textbox", {name: "Amount"}).fill("0.05")
   await fitsAndPresses(page, touch)
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Approve AMZNc")).status).toBe("0x1")
-  expect((await press(page, sent, "Mint")).status).toBe("0x1")
+  expect((await press(page, sent, "Split AMZNc")).status).toBe("0x1")
   const overnight = (await read("overnight")) as string
   const session = (await read("session")) as string
   expect(await balanceOf(overnight, people.a.wallet)).toBe(5_000_000n)
   expect(await balanceOf(session, people.a.wallet)).toBe(5_000_000n)
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 5_000_000n)
 
-  // Return 0.02 pairs for 0.02 AMZNc.
-  await open(page, "/after-hour-stocks?tab=return")
+  // Redeem 0.02 pairs for 0.02 AMZNc.
+  await open(page, "/after-hour-stocks?tab=redeem")
   await page.getByRole("textbox", {name: "Pairs"}).fill("0.02")
   await buttonsOnScreen(page)
-  expect((await press(page, sent, "Return")).status).toBe("0x1")
+  expect((await press(page, sent, "Redeem")).status).toBe("0x1")
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 3_000_000n)
 
-  // The portfolio lists the 0.03 of each still held, and its Return leads back to the Return tab.
+  // The portfolio lists the 0.03 of each still held, and its Redeem leads back to the Redeem tab.
   await page.goto("/portfolio")
   const held = page.locator("#portfolio-exposure tbody tr")
   await expect(held).toHaveCount(1, {timeout: 30_000})
   await expect(held.locator("td[data-label=After-hours]")).toHaveText("0.03")
   await expect(held.locator("td[data-label=Market-hours]")).toHaveText("0.03")
-  await held.getByRole("link", {name: "Return"}).click()
+  await held.getByRole("link", {name: "Redeem"}).click()
   await expect(page.getByRole("textbox", {name: "Pairs"})).toBeVisible({timeout: 30_000})
 
   // The open and the last close end the series.
@@ -159,12 +160,12 @@ test("after-hours exposure: record the first close, mint, return pairs, run to t
 
   // After the end each token returns its own share; the copy's feed did not move, so
   // the two halves come back as the 0.03 AMZNc behind them.
-  await open(page, "/after-hour-stocks?tab=return")
+  await open(page, "/after-hour-stocks?tab=redeem")
   await page.getByRole("button", {name: "Max", exact: true}).click()
   await expect(page.getByRole("textbox", {name: "After-hours"})).toHaveValue("0.03")
   await expect(page.getByRole("textbox", {name: "Market-hours"})).toHaveValue("0.03")
   await buttonsOnScreen(page)
-  expect((await press(page, sent, "Return")).status).toBe("0x1")
+  expect((await press(page, sent, "Redeem")).status).toBe("0x1")
   expect(await balanceOf(overnight, people.a.wallet)).toBe(0n)
   expect(await balanceOf(session, people.a.wallet)).toBe(0n)
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start)
