@@ -3,7 +3,7 @@
 What changed on autolaunch.sh for people and agents, newest first.
 
 ## 30 October 2026: View Portfolio after every success
-- The note that appears when a wallet action lands (a swap, staking or claiming, REGENT's share converted, any covered-call action) now has a View Portfolio button, as a placed bid already did.
+- The note that appears when a wallet action lands (a swap, staking or claiming, any covered-call action) now has a View Portfolio button, as a placed bid already did. On the portfolio itself it is left out.
 
 ## 30 October 2026: a second AMZNc series for next week
 - Isolated Exposure to After-hours Stocks now offers a second AMZNc series, from Monday 2 November's close to Friday 6 November's close, with deposits capped at 40 AMZNc. It opens after Monday's close and is the one the page shows first; the first series stays under Series at the foot of the page.

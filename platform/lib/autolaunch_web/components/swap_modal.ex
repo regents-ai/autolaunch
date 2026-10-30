@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
+  attr :portfolio, :boolean, default: true, doc: "false on the portfolio itself"
 
   def swap_modal(assigns) do
     assigns =
@@ -53,6 +54,7 @@ defmodule AutolaunchWeb.Components.SwapModal do
           authenticated={@authenticated}
           current_human_id={@current_human_id}
           session_lease={@session_lease}
+          portfolio={@portfolio}
         />
       </div>
     </dialog>

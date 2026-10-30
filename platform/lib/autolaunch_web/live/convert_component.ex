@@ -451,7 +451,6 @@ defmodule AutolaunchWeb.ConvertComponent do
             tickers={[@done["currency_symbol"], @done["dollar_symbol"], "REGENT"]}
           />
         </p>
-        <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
       </div>
       <Regent.Primitives.button
         type="button"

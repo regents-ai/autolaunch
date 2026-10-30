@@ -61,7 +61,14 @@ defmodule AutolaunchWeb.SwapComponent do
      socket
      |> Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
-     |> assign(scope: nil, wallet: nil, signer: nil, mismatch: nil, revision: 0)}
+     |> assign(
+       scope: nil,
+       wallet: nil,
+       signer: nil,
+       mismatch: nil,
+       revision: 0,
+       portfolio: true
+     )}
   end
 
   # A review's deadline and allowance window are fifteen minutes long, so it
@@ -163,6 +170,7 @@ defmodule AutolaunchWeb.SwapComponent do
         id={"#{@id}-swapped"}
         swapped={@swapped}
         stake_href={@swapped["stake_href"]}
+        portfolio={@portfolio}
         dismiss_event="dismiss_swapped"
         target={@myself}
       />

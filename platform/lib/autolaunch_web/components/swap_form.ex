@@ -413,6 +413,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :id, :string, required: true
   attr :swapped, :map, required: true
   attr :stake_href, :string, default: nil
+  attr :portfolio, :boolean, default: true, doc: "false on the portfolio itself"
   attr :dismiss_event, :string, required: true
   attr :target, :any, default: nil
 
@@ -439,7 +440,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
         </p>
         <div class="toast-actions">
           <.link :if={@stake_href} navigate={@stake_href} class="rg-button rg-button--secondary">Stake your tokens</.link>
-          <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
+          <AutolaunchWeb.Components.PortfolioLink.portfolio_link :if={@portfolio} />
         </div>
       </div>
       <Regent.Primitives.button

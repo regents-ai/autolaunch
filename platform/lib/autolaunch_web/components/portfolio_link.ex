@@ -1,8 +1,9 @@
 defmodule AutolaunchWeb.Components.PortfolioLink do
   @moduledoc """
-  The "View Portfolio" button every success toast after a wallet action
-  carries (swap, stake and claim, REGENT's share converted, covered calls), as
-  the bid-placed card does, so a person goes straight to what changed.
+  The "View Portfolio" button the success toast of a wallet action that
+  changes the person's own holdings carries (swap, stake and claim, covered
+  calls), as the bid-placed card does, so they go straight to what changed.
+  A toast shown on the portfolio itself leaves it out.
   """
   use Phoenix.Component
   use AutolaunchWeb, :verified_routes

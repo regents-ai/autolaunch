@@ -821,6 +821,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       authenticated={@signed_in?}
       current_human_id={@human_id}
       session_lease={@session_lease}
+      portfolio={false}
     />
     """
   end

@@ -1055,7 +1055,7 @@ defmodule AutolaunchWeb.StakeComponent do
             video_everyone={@share.video_everyone}
             video_name={@share.video_name}
           />
-          <AutolaunchWeb.Components.PortfolioLink.portfolio_link />
+          <AutolaunchWeb.Components.PortfolioLink.portfolio_link :if={@done.kind != :nothing_claimed} />
         </div>
       </div>
       <Regent.Primitives.button

@@ -334,6 +334,26 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert has_element?(view, "#covered-call-done a[href='/portfolio']", "View Portfolio")
   end
 
+  test "the portfolio's own success toast leaves View Portfolio out", %{conn: conn} do
+    CoveredCallsChain.install()
+    account = TestSupport.register_creator!()
+    session = signed_in_session(account.id)
+
+    {:ok, view, _html} =
+      conn
+      |> Phoenix.ConnTest.init_test_session(session)
+      |> connects_with(session)
+      |> live("/portfolio")
+
+    render_async(view, @async_ms)
+    send(view.pid, {:covered_call_done, %{kind: :claim, lines: ["1 AMZNc"]}})
+    # The page hands the toast to its section (send_update): one more render shows it.
+    render(view)
+
+    assert has_element?(view, "#portfolio-covered-calls-done")
+    refute has_element?(view, "#portfolio-covered-calls-done a[href='/portfolio']")
+  end
+
   test "the steps follow the tab: a buyer's on Buy, a seller's on Sell", %{conn: conn} do
     CoveredCallsChain.install()
     {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
