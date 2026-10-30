@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: X pictures show again
+- On the create pages, the pictures of your connected Profile X and Company X accounts show again instead of a broken image.
+
 ## 30 October 2026: Isolated Exposure to After-hours Stocks
 - A new page, Isolated Exposure to After-hours Stocks (/after-hour-stocks), splits a stock token on Base into two tokens for a week. After-hours carries the stock's moves while the market is closed, from each close to the next open; Market-hours carries its moves while the market is open. One of each always returns one stock token, and at the end each returns its own share.
 - The first series is AMZNc, from Friday 30 October's close to Friday 6 November's close, with deposits capped at 0.4 AMZNc. Its full terms are on the page, and the series holds their fingerprint on Base.
