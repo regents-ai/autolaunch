@@ -76,4 +76,6 @@ Created by the Safe on 30 Oct 2026 at Base block 53,293,530 (transaction
 `0x1df53a86c8260c20Ab79b5f620544209Bd454266`, `ChainlinkPrintOracleV2`, `termsHash` `0xa1cf3a36…db23`,
 cap 40 AMZNc, seven-day recording window, 9 prices from Mon 2 Nov 21:00 UTC. Legs: After-hours
 `0xb1303E0Eb033e6DfCDdA568a54C73A6BAFbb7E42`, Market-hours
-`0x0fD3995511a1D35f77d0855fD5c112Eb61084AAA`. Listed in [`site-series.json`](site-series.json).
+`0x0fD3995511a1D35f77d0855fD5c112Eb61084AAA`. Listed in [`site-series.json`](site-series.json). The
+series and both tokens are verified on Sourcify (match) and on Basescan (matched to the first series'
+verified code); constructor values in [`verify/`](verify/).
