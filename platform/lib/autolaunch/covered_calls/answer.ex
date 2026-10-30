@@ -85,11 +85,7 @@ defmodule Autolaunch.CoveredCalls.Answer do
 
   def prepare({:error, error}), do: refused(error)
 
-  # Input the operation itself refuses (a kind it does not know, an amount below
-  # one) is the caller's to fix; a refusal the operation names keeps its reason.
-  defp refused(%Ash.Error.Invalid{}),
-    do: {:error, Refused.exception(reason: :invalid_request)}
-
+  # A refusal the reading names keeps its reason.
   defp refused(error), do: {:error, Refused.exception(reason: CoveredCalls.reason(error))}
 
   defp blocked(nil), do: nil

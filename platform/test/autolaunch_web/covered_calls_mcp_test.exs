@@ -191,6 +191,39 @@ defmodule AutolaunchWeb.CoveredCallsMcpTest do
     end
   end
 
+  test "in prelaunch read-only mode the steps are neither listed nor run, as the route refuses them",
+       %{from: from} do
+    CoveredCallsChain.install()
+    {agent, _wallet} = paired_agent()
+    Application.put_env(:autolaunch, :prelaunch_read_only, true)
+    input = %{kind: "claim", listing_id: 1}
+
+    route = http(from, :post, "/api/agent/v1/covered-calls/AMZNc/steps", input, agent)
+    assert route.status == 503
+    assert route.body["error"]["code"] == "prelaunch_read_only"
+
+    listed = tool_names(from, agent)
+    refute "prepare_covered_call" in listed
+    assert Enum.all?(@tools -- ["prepare_covered_call"], &(&1 in listed))
+
+    assert %{"error" => _} =
+             json(
+               mcp(from, agent, call("prepare_covered_call", Map.put(input, :symbol, "AMZNc")))
+             )
+  end
+
+  test "the guides name the hosted covered-call tools only while covered calls are open" do
+    for path <- ["/llms.txt", "/llms-full.txt", "/docs"] do
+      refute build_conn() |> get(path) |> response(200) =~ "covered_call_book"
+    end
+
+    CoveredCallsChain.install()
+
+    for path <- ["/llms.txt", "/llms-full.txt", "/docs"] do
+      assert build_conn() |> get(path) |> response(200) =~ "prepare_covered_call", path
+    end
+  end
+
   # A paired agent's signing wallet, and the one wallet of the person it acts for.
   defp paired_agent do
     account = TestSupport.register_creator!()

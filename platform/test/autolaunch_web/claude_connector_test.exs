@@ -225,6 +225,22 @@ defmodule AutolaunchWeb.ClaudeConnectorTest do
       assert signer_asks() == []
     end
 
+    test "a connected app calling as itself neither lists nor runs the covered-call tools" do
+      Autolaunch.CoveredCallsChain.install()
+      subject = subject!()
+      %{access: token} = connect!(subject)
+
+      assert Enum.sort(tool_names(token)) == Enum.sort(RegentMCPAgents.Tools.names())
+
+      for name <-
+            ~w(covered_call_book covered_call_quote covered_call_positions prepare_covered_call) do
+        call =
+          rpc("tools/call", %{"name" => name, "arguments" => %{"input" => %{"symbol" => "AMZNc"}}})
+
+        assert %{"error" => _} = json(post_mcp(call, token))
+      end
+    end
+
     test "the hosted signer signs only the identity requests, as the account's one identity, and the connection's token stays here" do
       subject = subject!()
       %{access: token} = connect!(subject)

@@ -64,11 +64,7 @@ defmodule AutolaunchWeb.CoveredCallsAnswer do
   """
   def prepare_input(%{"kind" => kind} = body) when is_binary(kind) do
     if Enum.all?(body, &prepare_field?/1),
-      do:
-        {:ok,
-         body
-         |> Map.delete("kind")
-         |> Map.new(fn {key, value} -> {String.to_existing_atom(key), value} end)},
+      do: {:ok, Map.delete(body, "kind")},
       else: :error
   end
 

@@ -131,9 +131,11 @@ defmodule AutolaunchWeb.Plugs.McpAgent do
     end
   end
 
-  # The agent moves from the request's `actor` assign, which Ash no longer reads,
-  # to the actor Ash holds; the visit log names it there
-  # (`AutolaunchWeb.VisitLog.Events`).
+  # The agent moves from the request's `actor` assign to the actor Ash holds:
+  # `Ash.PlugHelpers.get_actor/1`, which AshAi calls, still reads the assign first
+  # and logs a deprecation warning when it finds one, so leaving it there would
+  # log that warning on every MCP call. The visit log names the agent from where
+  # Ash holds it (`AutolaunchWeb.VisitLog.Events`).
   defp agent(conn) do
     conn = AgentAccess.call(conn, [])
 

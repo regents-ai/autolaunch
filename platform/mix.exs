@@ -228,11 +228,11 @@ defmodule Autolaunch.MixProject do
         # the hosted MCP server's input check (AshAi takes it only as a
         # function). Nothing else is permitted. The ceiling is thirty-eight
         # domain-to-resource edges (Accounts six, Autolaunch twenty-eight, Agents,
-        # CoveredCalls, Exposure and Points one each), forty-five
+        # CoveredCalls, Exposure and Points one each), forty-six
         # resource-to-check edges, the one endpoint edge, those three actions and
         # those two router edges, and it is re-based per unit when a domain,
         # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 89",
+        "xref graph --label compile-connected --fail-above 90",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check"

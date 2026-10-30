@@ -13,7 +13,9 @@ defmodule Autolaunch.CoveredCalls.Market do
   tools) runs `:book_answer`, `:quote`, `:positions_answer` and
   `:prepare_answer`: the same operation, its answer shaped once
   (`Autolaunch.CoveredCalls.Answer`), and only while the site offers covered
-  calls (`Autolaunch.CoveredCalls.Checks.Offered`). A refusal is an
+  calls (`Autolaunch.CoveredCalls.Checks.Offered`), the steps only once the
+  site has left prelaunch read-only mode
+  (`Autolaunch.CoveredCalls.Checks.LaunchesOpen`). A refusal is an
   `Autolaunch.CoveredCalls.Refused` naming its reason.
 
   Nothing is stored: the contract is the record. The acting account comes from
@@ -34,6 +36,10 @@ defmodule Autolaunch.CoveredCalls.Market do
   @amount [min: 1, max: 2 ** 128 - 1]
   @expiry [min: 0, max: 2 ** 64 - 1]
 
+  # What each input of the hosted tools is, in the browser tools' words
+  # (priv/covered_calls_tools.json).
+  @symbol "The stock token's symbol exactly as the site lists it, such as AMZNc."
+
   actions do
     action :book, :map do
       argument :symbol, :string, allow_nil?: false
@@ -41,9 +47,17 @@ defmodule Autolaunch.CoveredCalls.Market do
     end
 
     action :quote, :map do
-      argument :symbol, :string, allow_nil?: false
-      argument :strike_per_token, :integer, allow_nil?: false, constraints: @amount
-      argument :expiry, :integer, allow_nil?: false, constraints: @expiry
+      argument :symbol, :string, allow_nil?: false, description: @symbol
+
+      argument :strike_per_token, :integer,
+        allow_nil?: false,
+        constraints: @amount,
+        description: "The strike in micro-USDC (6 decimals) per whole token."
+
+      argument :expiry, :integer,
+        allow_nil?: false,
+        constraints: @expiry,
+        description: "A Friday at 21:00 UTC, as Unix seconds; listings take no other expiry."
 
       run fn input, _context ->
         input.arguments.symbol
@@ -90,7 +104,7 @@ defmodule Autolaunch.CoveredCalls.Market do
 
     action :book_answer, :map do
       description "A market's listings, as its contract holds them at the latest block."
-      argument :symbol, :string, allow_nil?: false
+      argument :symbol, :string, allow_nil?: false, description: @symbol
 
       run fn input, context ->
         input.arguments.symbol
@@ -101,7 +115,7 @@ defmodule Autolaunch.CoveredCalls.Market do
 
     action :positions_answer, :map do
       description "What the acting account's wallet sold and holds on a market."
-      argument :symbol, :string, allow_nil?: false
+      argument :symbol, :string, allow_nil?: false, description: @symbol
 
       run fn input, context ->
         input.arguments.symbol
@@ -112,14 +126,36 @@ defmodule Autolaunch.CoveredCalls.Market do
 
     action :prepare_answer, :map do
       description "The wallet steps for one covered-call action, for a wallet of the acting account."
-      argument :symbol, :string, allow_nil?: false
-      argument :kind, :atom, allow_nil?: false, constraints: [one_of: Steps.kinds()]
-      argument :signer, :string
-      argument :listing_id, :integer, constraints: @amount
-      argument :amount, :integer, constraints: @amount
-      argument :strike_per_token, :integer, constraints: @amount
-      argument :premium_per_token, :integer, constraints: @amount
-      argument :expiry, :integer, constraints: @expiry
+      argument :symbol, :string, allow_nil?: false, description: @symbol
+
+      argument :kind, :atom,
+        allow_nil?: false,
+        constraints: [one_of: Steps.kinds()],
+        description: "The action: list, fill, cancel, exercise, claim or collect_strike."
+
+      argument :signer, :string,
+        description:
+          "One of my person's own wallet addresses, 0x and 40 hex digits. Omit it to use the wallet they signed in with."
+
+      argument :listing_id, :integer,
+        constraints: @amount,
+        description: "The listing's number on this market, for every kind but list."
+
+      argument :amount, :integer,
+        constraints: @amount,
+        description: "Raw stock token units: to list, to buy (fill) or to exercise."
+
+      argument :strike_per_token, :integer,
+        constraints: @amount,
+        description: "For list: the strike in micro-USDC per whole token."
+
+      argument :premium_per_token, :integer,
+        constraints: @amount,
+        description: "For list: the minimum premium in micro-USDC per whole token."
+
+      argument :expiry, :integer,
+        constraints: @expiry,
+        description: "For list: a Friday at 21:00 UTC, as Unix seconds."
 
       run fn %{arguments: %{symbol: symbol, kind: kind} = arguments}, context ->
         symbol
@@ -158,6 +194,12 @@ defmodule Autolaunch.CoveredCalls.Market do
       forbid_unless Autolaunch.CoveredCalls.Checks.Offered
       forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
+    end
+
+    # Wallet steps wait for the site to leave prelaunch read-only mode, as the
+    # HTTP steps route does (`AutolaunchWeb.Prelaunch`).
+    policy action(:prepare_answer) do
+      authorize_if Autolaunch.CoveredCalls.Checks.LaunchesOpen
     end
   end
 end
