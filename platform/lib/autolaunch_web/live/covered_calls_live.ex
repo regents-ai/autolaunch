@@ -317,7 +317,11 @@ defmodule AutolaunchWeb.CoveredCallsLive do
             current_human_id={@human_id}
           />
         </div>
-        <div :if={!@reading && !@book.failed} class="market-list__scroll" aria-busy="true">
+        <div
+          :if={!@reading && !@book.failed}
+          class="market-list__scroll covered-calls__waiting"
+          aria-busy="true"
+        >
           <span class="loading-block"></span>
         </div>
         <aside :if={@reading} class="covered-calls__guide" aria-labelledby="covered-calls-guide-title">
@@ -451,7 +455,12 @@ defmodule AutolaunchWeb.CoveredCallsLive do
       <div>
         <dt>Price</dt>
         <dd>
-          {if @spot, do: F.usd(@spot), else: "—"} <small :if={@spot && @age != ""}>{@age}</small>
+          {if @spot, do: F.usd(@spot), else: "—"}
+          <small :if={@spot && @age != ""}>{@age}</small>
+          <small :if={@reading && !@spot}>not available</small>
+          <P.tip :if={@spot} id="covered-calls-price-tip" label="Source">
+            Chainlink's feed for the stock on Base. A reference, not a price you can trade at.
+          </P.tip>
         </dd>
       </div>
       <div>
@@ -558,9 +567,10 @@ defmodule AutolaunchWeb.CoveredCallsLive do
         A model estimate, not a market quote: a standard option price with an assumed {round(
           Quote.volatility() * 100
         )}% yearly volatility and no interest, counted to the
-        window's close (Saturday 21:00 UTC). It starts from the reference price, Chainlink's feed
-        for the stock on Base, {reference(@reading)}, which updates less often while the market is
-        closed and is not a price you can trade at. You choose the premium.
+        window's close (Saturday 21:00 UTC). It starts from the reference price (Chainlink's feed for the stock on Base: {reference(
+          @reading
+        )}), which updates less often while the market is closed and is not a
+        price you can trade at. You choose the premium.
       </p>
     </P.disclosure>
 

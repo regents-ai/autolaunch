@@ -22,8 +22,8 @@
 .covered-calls__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; counter-reset: step; }
 .covered-calls__steps li { display: grid; align-content: start; gap: .25rem; padding-block-start: var(--space-2); border-block-start: 2px solid var(--color-fg); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.45; counter-increment: step; }
 .covered-calls__steps strong { color: var(--color-fg); font-size: 1rem; }
-/* Two lines kept for every step's words, so switching tab never moves the tabs below. */
-.covered-calls__steps span { min-block-size: calc(2 * 1.45em); }
+/* Three side by side keep two lines for every step's words, so switching tab never moves the tabs. */
+@media (min-width: 48rem) { .covered-calls__steps span { min-block-size: calc(2 * 1.45em); } }
 .covered-calls__steps strong::before { content: "0" counter(step) "  "; color: var(--color-fg-muted); font-size: .6875rem; letter-spacing: var(--tracking-microlabel, .08em); font-variant-numeric: tabular-nums; }
 .covered-calls__panel-head { display: flex; align-items: center; gap: var(--space-1); }
 .covered-calls__panel-head > :is(h2, h3) { margin: 0; }
@@ -48,12 +48,14 @@
 .covered-calls__table .portfolio__actions > td > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--space-2) var(--space-3); align-items: start; }
 .covered-calls__table .portfolio__actions .covered-call-panel { gap: var(--space-1); }
 .covered-calls__table .portfolio__actions .covered-call-panel__body, .covered-calls__table .portfolio__actions .covered-call-panel__form { gap: var(--space-1); }
-.covered-calls__table .portfolio__actions .token-swap__submit { min-block-size: 2.5rem; font-size: .9375rem; inline-size: 100%; justify-content: center; }
+.covered-calls__table .portfolio__actions .token-swap__submit { min-block-size: 2.5rem; font-size: .9375rem; }
 .covered-calls__table .portfolio__actions .covered-call-panel__reason { font-size: .8125rem; }
 .covered-calls__panel { display: grid; gap: var(--space-2); padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .covered-calls__panel h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 .covered-calls__panel > .covered-call-panel { max-width: 30rem; }
 .covered-calls__sell { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-5, 2rem); }
+/* While the market is read, the Sell tab keeps the form's height, so the Contract below stays put. */
+.covered-calls__waiting { min-block-size: 34rem; }
 .covered-calls__form, .covered-calls__guide { display: grid; gap: var(--space-3); min-width: 0; }
 .covered-calls__guide { padding: var(--space-4); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .covered-calls__facts { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
@@ -101,6 +103,7 @@
   .covered-calls__sell, .covered-calls__steps { grid-template-columns: minmax(0, 1fr); }
   .covered-calls__steps { gap: var(--space-2); }
   .covered-calls__strip, .covered-calls__strip--panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .covered-calls__strip--panel > div:last-child { grid-column: 1 / -1; }
   .covered-calls__tabs a { padding-inline: var(--space-2); }
   .covered-calls__table tr.covered-calls__chosen { background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--color-fg); }
   .covered-calls__table tr.covered-calls__chosen > td:first-child { box-shadow: none; }

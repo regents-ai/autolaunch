@@ -185,7 +185,7 @@ defmodule Autolaunch.CoveredCalls.Steps do
              ],
          blocked: blocked,
          approved: usdc.allowance >= strike,
-         facts: %{listing_id: listing.id, amount: amount, strike: strike}
+         facts: %{listing_id: listing.id, amount: amount, strike: strike, expiry: listing.expiry}
        }}
     end
   end

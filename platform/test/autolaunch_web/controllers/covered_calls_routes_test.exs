@@ -396,6 +396,16 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
     chain(%{held: @token, balance: 250_000_000}, listing(), expiry() + 60)
     assert steps.(%{exercise | "amount" => 2 * @token})["blocked"]["code"] == "more_than_held"
 
+    # The window's edges, as the contract keeps them: open at expiry, closed a day later.
+    for {at, code} <- [
+          {expiry() - 1, "exercise_not_open"},
+          {expiry(), nil},
+          {expiry() + 86_399, nil}
+        ] do
+      chain(%{held: 2 * @token, balance: 250_000_000, allowance: 250_000_000}, listing(), at)
+      assert get_in(steps.(exercise), ["blocked", "code"]) == code
+    end
+
     chain(%{held: 2 * @token, balance: 0}, listing(), expiry() + 86_400)
     assert steps.(exercise)["blocked"]["code"] == "exercise_closed"
 

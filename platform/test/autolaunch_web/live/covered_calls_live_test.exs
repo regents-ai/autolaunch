@@ -314,7 +314,12 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
        %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
     {:ok, view, html} = live(conn, "/covered-calls")
-    assert html =~ ~s(id="covered-calls-summary")
+
+    assert html
+           |> LazyHTML.from_document()
+           |> LazyHTML.query("#covered-calls-summary dd")
+           |> LazyHTML.text() =~ "—"
+
     render_async(view, @async_ms)
 
     assert has_element?(view, "#covered-calls-summary", "0 AMZNc")

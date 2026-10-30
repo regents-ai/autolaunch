@@ -291,7 +291,7 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
       listing: listing,
       holding: holding,
       what: what(side, listing, holding),
-      status: status(side, stage, listing, holding),
+      status: status(side, stage),
       actions: actions(side, stage, listing, holding, claimable)
     }
   end
@@ -305,10 +305,12 @@ defmodule AutolaunchWeb.CoveredCallsPortfolioComponent do
   defp describe({:held, held}, unit, symbol), do: "Holding #{F.tokens(held, unit)} #{symbol}"
 
   # Each stage as a short status and its tone: the exercise window is the one that asks for action.
-  defp status(_side, :open, _listing, _holding), do: %{label: "Open", tone: "info"}
-  defp status(_side, :sold, _listing, _holding), do: %{label: "Sold out", tone: "neutral"}
-  defp status(_side, :exercise, _listing, _holding), do: %{label: "Exercise", tone: "warning"}
-  defp status(_side, :closed, _listing, _holding), do: %{label: "Closed", tone: "neutral"}
+  defp status(_side, :open), do: %{label: "Open", tone: "info"}
+  defp status(_side, :sold), do: %{label: "Sold out", tone: "neutral"}
+  # Only a holder has something to do in the window.
+  defp status(:held, :exercise), do: %{label: "Exercise", tone: "warning"}
+  defp status(:sold, :exercise), do: %{label: "Exercising", tone: "neutral"}
+  defp status(_side, :closed), do: %{label: "Closed", tone: "neutral"}
 
   # Every action of the wallet's side of a listing that the chain may still
   # allow, each disabled with its reason while it is certain to fail now:

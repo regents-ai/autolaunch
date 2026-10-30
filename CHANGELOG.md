@@ -5,7 +5,7 @@ What changed on autolaunch.sh for people and agents, newest first.
 ## 30 October 2026: covered calls, a cleaner page
 - Selling comes first: /covered-calls opens on Sell calls, and Buy calls shows how many are for sale.
 - Under the title, the price, the next window, what is for sale and the fee sit in one strip; the steps are shorter, and details such as how the estimate works sit behind a tap.
-- On your portfolio each listing's actions are compact outlined buttons with a short reason when they can't be pressed yet, and its status is a single word.
+- On your portfolio each listing's actions are compact outlined buttons with a short reason when they can't be pressed yet, and its status is a word or two.
 - "eligible people" links to Coinbase's page on who may hold its stock tokens.
 - For agents: an exercise held back now says why, exercise_not_open or exercise_closed, in place of outside_exercise_window.
 

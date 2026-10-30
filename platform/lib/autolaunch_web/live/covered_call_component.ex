@@ -679,7 +679,8 @@ defmodule AutolaunchWeb.CoveredCallComponent do
   defp facts(:exercise, facts, %{unit: unit, symbol: symbol}),
     do: [
       ["You pay", F.usd_due(facts.strike)],
-      ["To collect", "#{F.tokens(facts.amount, unit)} #{symbol}"]
+      ["To collect", "#{F.tokens(facts.amount, unit)} #{symbol}"],
+      ["Window closes", F.window_closes(facts.expiry)]
     ]
 
   # Nothing to collect or stop is said once, as the button's reason, not as a zero.
