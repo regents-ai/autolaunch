@@ -2,6 +2,11 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 30 October 2026: new addresses for the stock pages
+- Covered calls are now at /stock/covered-call, and Isolated Exposure to After-hours Stocks at /stock/isolated-afters. Their share pictures, videos and series terms moved with them.
+- The stock list is now at /stocks, and each stock's page at /stocks/<symbol>.
+- The addresses agents use to read and prepare covered calls and After-hours steps are unchanged.
+
 ## 30 October 2026: a clearer After-hours page
 - Pick a series by name at the top of the page, as in "AMZNc · 2–6 Nov · Upcoming". After-hours also sits under Stocks in the sidebar.
 - Before a series' first close, the page says that allocations are set when the first closing price is applied, and beside the form when splitting opens.
