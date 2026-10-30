@@ -117,6 +117,9 @@ defmodule Autolaunch.Exposure.StepsTest do
 
     assert {:ok, %{blocked: :no_liquidity}} =
              prepare(context, :buy, %{leg: :overnight, amount: 1})
+
+    assert {:error, error} = prepare(context, :buy, %{amount: 1})
+    assert Exposure.reason(error) == :leg_required
   end
 
   test "minting is an exact stock approval then mint, blocked until the approval is on the chain",

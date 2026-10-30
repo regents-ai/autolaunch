@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.ExposureLive do
        |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
        |> assign(share: share, catalog: %{}, next_read: nil, done: nil)
        |> assign(all: config.series, address: nil, reading: AsyncResult.loading())
-       |> assign(tab: nil, leg: :overnight)}
+       |> assign(tab: nil, leg: nil)}
     else
       _off -> raise NotFoundError
     end
@@ -53,7 +53,7 @@ defmodule AutolaunchWeb.ExposureLive do
     socket =
       assign(socket,
         tab: Map.get(@tabs, params["tab"]),
-        leg: if(params["leg"] == "market-hours", do: :session, else: :overnight)
+        leg: Map.get(%{"after-hours" => :overnight, "market-hours" => :session}, params["leg"])
       )
 
     if address == socket.assigns.address,
@@ -187,7 +187,8 @@ defmodule AutolaunchWeb.ExposureLive do
       assign(assigns,
         series: series,
         human_id: current_human_id(assigns.access_context),
-        active: assigns.tab || default_tab(series)
+        active: assigns.tab || default_tab(series),
+        leg: assigns.leg || default_leg(series)
       )
 
     ~H"""
@@ -752,6 +753,15 @@ defmodule AutolaunchWeb.ExposureLive do
     if series && (liquid?(series, :overnight) or liquid?(series, :session)),
       do: :buy,
       else: :mint
+  end
+
+  # After-hours, unless only Market-hours can be bought now.
+  defp default_leg(nil), do: :overnight
+
+  defp default_leg(series) do
+    if not liquid?(series, :overnight) and liquid?(series, :session),
+      do: :session,
+      else: :overnight
   end
 
   defp liquid?(%{pools: pools}, leg),

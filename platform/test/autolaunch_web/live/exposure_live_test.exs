@@ -348,6 +348,37 @@ defmodule AutolaunchWeb.ExposureLiveTest do
     assert has_element?(view, "#exposure-buy-overnight-#{@series}", "at least 0.025872")
   end
 
+  # Found by the Buy and Sell review: an empty pool quotes zero, which counted as liquid.
+  test "an empty pool is not liquid; with only Market-hours liquid, Buy opens on it", %{
+    conn: conn
+  } do
+    ExposureChain.install(%{
+      pools: %{
+        ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", nil},
+        ExposureChain.session() => {"0x4444444444444444444444444444444444444444", nil}
+      }
+    })
+
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-act-tab-mint[aria-selected=true]")
+
+    assert view |> element("#exposure-overnight") |> render() =~
+             "Trading opens when liquidity is added."
+
+    ExposureChain.put(%{
+      pools: %{
+        ExposureChain.overnight() => {"0x3333333333333333333333333333333333333333", nil},
+        ExposureChain.session() => {"0x4444444444444444444444444444444444444444", 2_510_000}
+      }
+    })
+
+    {:ok, view, _html} = live(conn, "/after-hour-stocks")
+    render_async(view, @async)
+    assert has_element?(view, "#exposure-act-tab-buy[aria-selected=true]")
+    assert has_element?(view, "#exposure-leg-market-hours[aria-pressed=true]")
+  end
+
   # A new signed-in person on the page, their wallet open.
   defp signed_in_panel(conn, selector) do
     path =

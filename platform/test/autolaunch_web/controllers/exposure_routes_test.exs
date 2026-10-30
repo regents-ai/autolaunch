@@ -218,6 +218,9 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     assert buy["data"]["blocked"]["code"] == "not_enough_usdc"
     assert buy["data"]["facts"]["minimum"] == 2_587_200
 
+    assert steps.(%{"kind" => "buy", "amount" => 1}) |> json_response(422) |> code() ==
+             "leg_required"
+
     assert steps.(%{"kind" => "buy", "leg" => "afternoon", "amount" => 1})
            |> json_response(422)
            |> code() ==

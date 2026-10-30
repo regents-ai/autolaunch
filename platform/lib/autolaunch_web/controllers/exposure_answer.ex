@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
   @integer_fields ~w(amount overnight session)
 
   @blocked %{
+    too_small: "This amount is too small for the pool to pay anything back.",
     no_liquidity:
       "This token's pool has no liquidity yet, so it can't be bought or sold until liquidity is added.",
     not_enough_usdc: "This wallet holds less USDC than the amount to spend.",
@@ -48,6 +49,7 @@ defmodule AutolaunchWeb.ExposureAnswer do
     unknown_terms:
       {:not_found,
        "There are no Isolated Exposure to After-hours Stocks terms with that fingerprint on this site."},
+    leg_required: {:unprocessable_entity, "Name the token to buy or sell: overnight or session."},
     invalid_amount:
       {:unprocessable_entity,
        "Send each amount as a whole number of raw units, above zero in total."},

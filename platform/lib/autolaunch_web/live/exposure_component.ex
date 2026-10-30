@@ -682,6 +682,7 @@ defmodule AutolaunchWeb.ExposureComponent do
   defp blocked_words(nil, _assigns), do: nil
   defp blocked_words(:approve_first, _assigns), do: "Approve first"
   defp blocked_words(:no_liquidity, _assigns), do: "Trading opens when liquidity is added"
+  defp blocked_words(:too_small, _assigns), do: "Too small for the pool to pay anything back"
   defp blocked_words(:not_enough_usdc, _assigns), do: "Not enough USDC in this wallet"
 
   defp blocked_words(:not_open, %{series: %{next: %{recordable_at: at}}}),

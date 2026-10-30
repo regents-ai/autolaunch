@@ -236,6 +236,7 @@ defmodule Autolaunch.Exposure.Chain do
       ])
 
     case Rpc.call_uint(pool, data, block, opts) do
+      {:ok, 0} -> %{address: pool, usdc_per_token: nil}
       {:ok, usdc} -> %{address: pool, usdc_per_token: usdc}
       {:error, _no_quote} -> %{address: pool, usdc_per_token: nil}
     end

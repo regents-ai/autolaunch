@@ -192,7 +192,8 @@ defmodule Autolaunch.Exposure.Steps do
 
         blocked =
           cond do
-            is_nil(out) or out == 0 -> :no_liquidity
+            is_nil(out) -> :no_liquidity
+            out == 0 -> :too_small
             held < amount -> if kind == :buy, do: :not_enough_usdc, else: :more_than_held
             allowance < amount -> :approve_first
             true -> nil
@@ -239,7 +240,7 @@ defmodule Autolaunch.Exposure.Steps do
     do: Chain.amount_out(pool, amount, token_in, block, opts)
 
   defp leg(leg) when leg in [:overnight, :session], do: {:ok, leg}
-  defp leg(_leg), do: {:error, :invalid_amount}
+  defp leg(_leg), do: {:error, :leg_required}
 
   # Before the end only whole pairs have a price; unequal amounts owe nothing yet.
   defp owed(%{status: :ended} = series, overnight, session),

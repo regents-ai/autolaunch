@@ -270,7 +270,8 @@ defmodule Autolaunch.ExposureChain do
 
   defp words("getAmountOut(uint256,address)", pool, state, _args) do
     case Enum.find(state.pools, fn {_leg, {address, _quote}} -> address == pool end) do
-      {_leg, {_pool, nil}} -> :revert
+      # An empty Aerodrome pool quotes zero rather than reverting.
+      {_leg, {_pool, nil}} -> [0]
       {_leg, {_pool, quote}} -> [quote]
     end
   end

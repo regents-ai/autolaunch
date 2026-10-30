@@ -636,6 +636,7 @@ components:
                     type: string
                     enum:
                     - no_liquidity
+                    - too_small
                     - not_enough_usdc
                     - not_open
                     - ended
@@ -672,6 +673,7 @@ components:
               - unknown_series
               - unknown_terms
               - invalid_amount
+              - leg_required
               - invalid_request
               - wrong_signer
               - wallet_required
