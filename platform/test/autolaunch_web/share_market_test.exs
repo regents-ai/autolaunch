@@ -70,11 +70,11 @@ defmodule AutolaunchWeb.ShareMarketTest do
     end
 
     test "the picture is drawn for a market the site offers, and nowhere else", %{conn: conn} do
-      conn = get(conn, "/covered-calls/AMZNc/share.png")
+      conn = get(conn, "/stock/covered-call/AMZNc/share.png")
       assert <<@png, _rest::binary>> = response(conn, 200)
       assert get_resp_header(conn, "content-type") == ["image/png"]
 
-      assert_error_sent(404, fn -> get(build_conn(), "/covered-calls/TSLAc/share.png") end)
+      assert_error_sent(404, fn -> get(build_conn(), "/stock/covered-call/TSLAc/share.png") end)
     end
 
     test "everyone's video is made from the chain and served once made", %{conn: conn} do
@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
     test "a wallet's video is there only for the signed-in account that links it",
          %{conn: conn} do
       account = TestSupport.register_creator!()
-      path = "/covered-calls/AMZNc/wallets/#{account.wallet_address}/share.mp4"
+      path = "/stock/covered-call/AMZNc/wallets/#{account.wallet_address}/share.mp4"
 
       assert_error_sent(404, fn -> get(conn, path) end)
 
@@ -150,10 +150,10 @@ defmodule AutolaunchWeb.ShareMarketTest do
           account_control: %{kind: :signed_in, wallet_address: account.wallet_address}
         )
 
-      assert signed_in =~ ~r{data-share-video="[^"]*/covered-calls/AMZNc/share\.mp4}
+      assert signed_in =~ ~r{data-share-video="[^"]*/stock/covered-call/AMZNc/share\.mp4}
 
       assert signed_in =~
-               "/covered-calls/AMZNc/wallets/#{String.downcase(account.wallet_address)}/share.mp4"
+               "/stock/covered-call/AMZNc/wallets/#{String.downcase(account.wallet_address)}/share.mp4"
 
       assert signed_in =~ ~s(<input type="checkbox" data-share-mine)
       refute signed_in =~ "checked"
@@ -173,14 +173,14 @@ defmodule AutolaunchWeb.ShareMarketTest do
   end
 
   test "switched off, covered calls' picture and videos are not there", %{conn: conn} do
-    assert conn |> get("/covered-calls/AMZNc/share.png") |> response(404)
-    assert build_conn() |> get("/covered-calls/AMZNc/share.mp4") |> response(404)
+    assert conn |> get("/stock/covered-call/AMZNc/share.png") |> response(404)
+    assert build_conn() |> get("/stock/covered-call/AMZNc/share.mp4") |> response(404)
   end
 
   test "switched off, a series' picture and videos are not there", %{conn: conn} do
     series = ExposureChain.series()
-    assert conn |> get("/after-hour-stocks/#{series}/share.png") |> response(404)
-    assert build_conn() |> get("/after-hour-stocks/#{series}/share.mp4") |> response(404)
+    assert conn |> get("/stock/isolated-afters/#{series}/share.png") |> response(404)
+    assert build_conn() |> get("/stock/isolated-afters/#{series}/share.mp4") |> response(404)
   end
 
   describe "Isolated Exposure to After-hours Stocks" do
@@ -221,7 +221,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
       account = TestSupport.register_creator!()
 
       path =
-        "/after-hour-stocks/#{ExposureChain.series()}/wallets/#{account.wallet_address}/share.mp4"
+        "/stock/isolated-afters/#{ExposureChain.series()}/wallets/#{account.wallet_address}/share.mp4"
 
       assert_error_sent(404, fn -> get(conn, path) end)
 
@@ -254,7 +254,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
          %{conn: conn} do
       series = ExposureChain.series()
       "0x" <> hex = series
-      conn = get(conn, "/after-hour-stocks/0x#{String.upcase(hex)}/share.png")
+      conn = get(conn, "/stock/isolated-afters/0x#{String.upcase(hex)}/share.png")
       assert <<@png, _rest::binary>> = response(conn, 200)
 
       now = DateTime.utc_now()
@@ -265,7 +265,7 @@ defmodule AutolaunchWeb.ShareMarketTest do
                ShareVideo.fetch_market(:exposure, series, nil, nil, now)
 
       assert_error_sent(404, fn ->
-        get(build_conn(), "/after-hour-stocks/0x#{String.duplicate("1", 40)}/share.png")
+        get(build_conn(), "/stock/isolated-afters/0x#{String.duplicate("1", 40)}/share.png")
       end)
     end
   end

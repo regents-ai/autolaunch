@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.CoveredCallsLiveTest do
   @moduledoc """
-  `/covered-calls` shows what the contract holds: the Buy tab lists only the
+  `/stock/covered-call` shows what the contract holds: the Buy tab lists only the
   calls still for sale with the amount left, a listing's panel opens from its
   own address, the Sell tab carries the terms and the guide, and with covered
   calls switched off the address is not found and the stock page offers nothing.
@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "switched off, the page is not found and the stock page offers no covered calls",
        %{conn: conn} do
-    {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/covered-calls") end)
+    {404, _headers, _body} = assert_error_sent(404, fn -> get(conn, "/stock/covered-call") end)
     refute conn |> get("/stock-listing/AMZNc") |> html_response(200) =~ "Covered calls on"
   end
 
@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       ]
     })
 
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     html = render_async(view, @async_ms)
 
     assert has_element?(view, "#covered-call-1")
@@ -49,11 +49,21 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     assert conn |> get("/stock-listing/AMZNc") |> html_response(200) =~ "Covered calls on AMZNc"
   end
 
+  test "the stock page's link loads the page fresh at its own address", %{conn: conn} do
+    CoveredCallsChain.install()
+    {:ok, view, _html} = live(conn, "/stock-listing/AMZNc")
+    assert has_element?(view, "a[href='/stock/covered-call']", "Covered calls on AMZNc")
+
+    # A page in another live session is loaded fresh, not swapped in over the socket.
+    assert {:error, {:redirect, %{to: "http://www.example.com/stock/covered-call"}}} =
+             live_redirect(view, to: "/stock/covered-call")
+  end
+
   test "who may use covered calls is said once, under the page title, and nowhere else",
        %{conn: conn} do
     CoveredCallsChain.install()
     line = "Available to eligible people outside the US."
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     html = render_async(view, @async_ms)
     said = view |> element("h1 + #covered-calls-eligibility") |> render() |> words()
 
@@ -72,7 +82,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a listing's panel opens from its address with its amount left to buy", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?listing=1")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?listing=1")
     render_async(view, @async_ms)
 
     assert has_element?(view, "#covered-call-fill-1 input[name=amount][value='6']")
@@ -81,13 +91,13 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "with nothing for sale the Buy tab says so", %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     assert render_async(view, @async_ms) =~ "No calls for sale right now"
   end
 
   test "the Sell tab offers the next four Fridays and states the terms", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
     html = render_async(view, @async_ms)
 
     expiries = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
@@ -102,7 +112,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a stale reference price hides the suggestion and keeps the form", %{conn: conn} do
     CoveredCallsChain.install(%{price: 0})
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
     html = render_async(view, @async_ms)
 
     refute html =~ "Suggested premiums"
@@ -244,7 +254,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
     conn: conn
   } do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
     render_async(view, @async_ms)
     [first, second | _later] = Autolaunch.CoveredCalls.Terms.expiries(CoveredCallsChain.now())
 
@@ -274,7 +284,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a suggested strike and premium fill the List form when chosen", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
     render_async(view, @async_ms)
 
     button = element(view, "#covered-calls-suggestions tbody tr:first-child button")
@@ -292,7 +302,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "selling comes first and opens by default; Buy says how many calls are for sale",
        %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls")
+    {:ok, view, _html} = live(conn, "/stock/covered-call")
     render_async(view, @async_ms)
 
     assert has_element?(
@@ -305,7 +315,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
     assert has_element?(
              view,
-             ".covered-calls__tabs a[href='/covered-calls?tab=buy']",
+             ".covered-calls__tabs a[href='/stock/covered-call?tab=buy']",
              "Buy calls (1)"
            )
   end
@@ -313,7 +323,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "the market's figures are drawn from the first render, dashes until the market is read",
        %{conn: conn} do
     CoveredCallsChain.install(%{listings: []})
-    {:ok, view, html} = live(conn, "/covered-calls")
+    {:ok, view, html} = live(conn, "/stock/covered-call")
 
     assert html
            |> LazyHTML.from_document()
@@ -328,7 +338,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a success toast offers View Portfolio", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     send(view.pid, {:covered_call_done, %{kind: :fill, lines: ["1 AMZNc of calls for $5.00"]}})
 
     assert has_element?(view, "#covered-call-done a[href='/portfolio']", "View Portfolio")
@@ -356,7 +366,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "the steps follow the tab: a buyer's on Buy, a seller's on Sell", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     render_async(view, @async_ms)
     assert has_element?(view, ".covered-calls__steps", "Exercise")
     refute has_element?(view, ".covered-calls__steps", "Settle")
@@ -368,7 +378,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
   test "the contract is named at the foot of the page with its verified code on Basescan",
        %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?tab=buy")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?tab=buy")
     contract = CoveredCallsChain.contract()
 
     assert has_element?(
@@ -382,7 +392,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
 
   test "a listing's address that isn't for sale says so", %{conn: conn} do
     CoveredCallsChain.install()
-    {:ok, view, _html} = live(conn, "/covered-calls?listing=7")
+    {:ok, view, _html} = live(conn, "/stock/covered-call?listing=7")
     render_async(view, @async_ms)
     assert has_element?(view, ".covered-calls__note[role=status]", "Listing 7 isn't for sale now")
   end
@@ -396,7 +406,7 @@ defmodule AutolaunchWeb.CoveredCallsLiveTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/covered-calls?listing=1")
+      |> live("/stock/covered-call?listing=1")
 
     render_async(view, @async_ms)
     panel = with_target(view, "#covered-call-fill-1")

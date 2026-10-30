@@ -1,6 +1,6 @@
 defmodule AutolaunchWeb.ExposureLive do
   @moduledoc """
-  `/after-hour-stocks`: Isolated Exposure to After-hours Stocks on a Base stock.
+  `/stock/isolated-afters`: Isolated Exposure to After-hours Stocks on a Base stock.
   One series at a time, the newest unless `?series=<address>` names another the
   site offers, picked by name at the top: its two tokens with their recorded
   ledger, stock claim and leverage, panels to split the stock and redeem tokens,
@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.ExposureLive do
 
       {:ok,
        socket
-       |> assign(AutolaunchWeb.PublicDocuments.page("/after-hour-stocks"))
+       |> assign(AutolaunchWeb.PublicDocuments.page("/stock/isolated-afters"))
        |> assign(share: share, catalog: %{}, next_read: nil, done: nil)
        |> assign(all: config.series, address: nil, reading: AsyncResult.loading(), tab: :mint)}
     else
@@ -217,7 +217,7 @@ defmodule AutolaunchWeb.ExposureLive do
         <.link
           :for={address <- Enum.reverse(@all)}
           id={"exposure-series-#{address}"}
-          patch={~p"/after-hour-stocks?#{[series: address]}"}
+          patch={~p"/stock/isolated-afters?#{[series: address]}"}
           class="exposure__pick"
           aria-current={address == @address && "page"}
         >
@@ -455,7 +455,7 @@ defmodule AutolaunchWeb.ExposureLive do
             </li>
           </ul>
           <p class="exposure__muted">
-            <.link href={~p"/after-hour-stocks/terms/#{@series.terms_hash}"}>Full terms</.link>
+            <.link href={~p"/stock/isolated-afters/terms/#{@series.terms_hash}"}>Full terms</.link>
             · fingerprint on Base <code class="exposure__hash">{short_hash(@series.terms_hash)}</code>
           </p>
         </section>
@@ -698,7 +698,7 @@ defmodule AutolaunchWeb.ExposureLive do
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
-    if query == [], do: ~p"/after-hour-stocks", else: ~p"/after-hour-stocks?#{query}"
+    if query == [], do: ~p"/stock/isolated-afters", else: ~p"/stock/isolated-afters?#{query}"
   end
 
   defp ticker(series), do: String.replace_suffix(series.stock.symbol, "c", "")

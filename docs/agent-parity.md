@@ -21,11 +21,11 @@ the switch goes on, so the CLI never offers them while the site does not.
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| Read a stock's listings | `covered_call_book` | `/covered-calls`, Buy | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Suggested premium | `covered_call_quote` | `/covered-calls`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read a stock's listings | `covered_call_book` | `/stock/covered-call`, Buy | `autolaunch_covered_call_listings` (`GET /api/v1/covered-calls/{symbol}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Suggested premium | `covered_call_quote` | `/stock/covered-call`, Sell | `autolaunch_covered_call_quote` (`POST /api/v1/covered-calls/{symbol}/quote`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Read my listings and holdings | `covered_call_positions` | `/portfolio`, Covered calls | `autolaunch_my_covered_calls` (`GET /api/agent/v1/covered-calls/{symbol}/positions`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| List calls (sell) | `prepare_covered_call`, kind `list` | `/covered-calls`, Sell: List calls, then Approve, Confirm listing | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/covered-calls`, Buy: Buy calls, then Approve, Confirm purchase | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| List calls (sell) | `prepare_covered_call`, kind `list` | `/stock/covered-call`, Sell: List calls, then Approve, Confirm listing | `autolaunch_covered_call_prepare` (`POST /api/agent/v1/covered-calls/{symbol}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Buy calls (fill) | `prepare_covered_call`, kind `fill` | `/stock/covered-call`, Buy: Buy calls, then Approve, Confirm purchase | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Cancel the unsold remainder | `prepare_covered_call`, kind `cancel` | `/portfolio`, Covered calls: Stop selling, then Confirm stop | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Exercise | `prepare_covered_call`, kind `exercise` | `/portfolio`, Covered calls: Exercise, then Approve, Confirm exercise | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 | Claim stock | `prepare_covered_call`, kind `claim` | `/portfolio`, Covered calls: Collect AMZNc, then Confirm collection | `autolaunch_covered_call_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
@@ -40,13 +40,13 @@ the **regents-cli lane**, to be added to `cli/commands.json` when the switch goe
 
 | Action | Operation | Browser | WebMCP | Hosted MCP | Claude connector | CLI |
 | --- | --- | --- | --- | --- | --- | --- |
-| List every series | `exposure_series_list` | `/after-hour-stocks` (series list) | `autolaunch_after_hour_stocks_list` (`GET /api/v1/after-hour-stocks`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Read a series | `exposure_series` | `/after-hour-stocks` | `autolaunch_after_hour_stocks_series` (`GET /api/v1/after-hour-stocks/{series}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Read my holding | `exposure_holdings` | `/after-hour-stocks`, Split and Redeem panels | `autolaunch_my_after_hour_stocks` (`GET /api/agent/v1/after-hour-stocks/{series}/holdings`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Split the stock into a pair | `prepare_exposure`, kind `mint` | `/after-hour-stocks`, Split: Approve, Split | `autolaunch_after_hour_stocks_prepare` (`POST /api/agent/v1/after-hour-stocks/{series}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Redeem tokens for the stock | `prepare_exposure`, kind `redeem` | `/after-hour-stocks?tab=redeem`: Redeem | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| Record and apply the next price | `prepare_exposure`, kind `update` | `/after-hour-stocks`, Series details: Record price, Apply price | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
-| End a series whose price was missed | `prepare_exposure`, kind `end` | `/after-hour-stocks`, Series details: End after missing price (disabled with its reason until the price is overdue) | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| List every series | `exposure_series_list` | `/stock/isolated-afters` (series list) | `autolaunch_after_hour_stocks_list` (`GET /api/v1/after-hour-stocks`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read a series | `exposure_series` | `/stock/isolated-afters` | `autolaunch_after_hour_stocks_series` (`GET /api/v1/after-hour-stocks/{series}`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Read my holding | `exposure_holdings` | `/stock/isolated-afters`, Split and Redeem panels | `autolaunch_my_after_hour_stocks` (`GET /api/agent/v1/after-hour-stocks/{series}/holdings`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Split the stock into a pair | `prepare_exposure`, kind `mint` | `/stock/isolated-afters`, Split: Approve, Split | `autolaunch_after_hour_stocks_prepare` (`POST /api/agent/v1/after-hour-stocks/{series}/steps`) | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Redeem tokens for the stock | `prepare_exposure`, kind `redeem` | `/stock/isolated-afters?tab=redeem`: Redeem | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| Record and apply the next price | `prepare_exposure`, kind `update` | `/stock/isolated-afters`, Series details: Record price, Apply price | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
+| End a series whose price was missed | `prepare_exposure`, kind `end` | `/stock/isolated-afters`, Series details: End after missing price (disabled with its reason until the price is overdue) | `autolaunch_after_hour_stocks_prepare` | Gap: Autolaunch MCP lane | Gap: Autolaunch MCP lane | Gap: regents-cli lane |
 
 The browser cells name the pages the covered-call pages lane is building; a headless walk with
 an agent's own wallet through each one is still to be added to `operations/FEATURES.md`.

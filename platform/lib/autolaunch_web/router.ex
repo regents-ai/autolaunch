@@ -221,7 +221,7 @@ defmodule AutolaunchWeb.Router do
 
   # A series' terms, the exact bytes its `termsHash` fingerprints, and the
   # picture and video a shared series link shows.
-  scope "/after-hour-stocks", AutolaunchWeb do
+  scope "/stock/isolated-afters", AutolaunchWeb do
     pipe_through :exposure
 
     get "/terms/:hash", ExposureController, :terms
@@ -230,7 +230,7 @@ defmodule AutolaunchWeb.Router do
   end
 
   # The picture and video a shared covered-calls link shows.
-  scope "/covered-calls", AutolaunchWeb do
+  scope "/stock/covered-call", AutolaunchWeb do
     pipe_through :covered_calls
 
     get "/:symbol/share.png", ShareCardController, :covered_calls
@@ -285,13 +285,13 @@ defmodule AutolaunchWeb.Router do
         :auction_wallet_video
   end
 
-  scope "/covered-calls", AutolaunchWeb do
+  scope "/stock/covered-call", AutolaunchWeb do
     pipe_through [:session_video, :covered_calls]
 
     get "/:symbol/wallets/:wallet/share.mp4", ShareCardController, :covered_calls_wallet_video
   end
 
-  scope "/after-hour-stocks", AutolaunchWeb do
+  scope "/stock/isolated-afters", AutolaunchWeb do
     pipe_through [:session_video, :exposure]
 
     get "/:series/wallets/:wallet/share.mp4", ShareCardController, :exposure_wallet_video
@@ -349,8 +349,6 @@ defmodule AutolaunchWeb.Router do
       live "/tokens/:symbol/:tail", MarketPageLive, :token
       live "/stock-listing", UpcomingLive, :show
       live "/stock-listing/:symbol", StockLive, :show
-      live "/covered-calls", CoveredCallsLive, :index
-      live "/after-hour-stocks", ExposureLive, :show
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid
@@ -358,6 +356,19 @@ defmodule AutolaunchWeb.Router do
       live "/account/points", PointsLive, :points
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
+    end
+
+    # The stock products, in a session of their own so that reaching one from
+    # any other page loads it fresh at its own address.
+    live_session :stock,
+      session: {AutolaunchWeb.Live.Session, :render_context, []},
+      on_mount: [
+        {AutolaunchWeb.Live.Session, :load_human},
+        {AutolaunchWeb.Live.Credits, :credits},
+        {AutolaunchWeb.Live.Agents, :agents}
+      ] do
+      live "/stock/covered-call", CoveredCallsLive, :index
+      live "/stock/isolated-afters", ExposureLive, :show
     end
   end
 

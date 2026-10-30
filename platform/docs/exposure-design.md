@@ -128,8 +128,8 @@ chain at the latest block.
 
 | Place | Purpose |
 | --- | --- |
-| `/after-hour-stocks` | The newest series (`?series=<address>` for another listed one): stock, term, status, deposits against the cap, last price; each token's value, share of the stock, how much it moves in its window and its pool price; Mint and Return tabs; every applied price and the next, with Record price and Apply price; the terms and their fingerprint. |
-| `/after-hour-stocks/terms/{hash}` | A series' terms, the exact bytes whose keccak256 it holds (`platform/priv/exposure_terms`). |
+| `/stock/isolated-afters` | The newest series (`?series=<address>` for another listed one): stock, term, status, deposits against the cap, last price; each token's value, share of the stock, how much it moves in its window and its pool price; Mint and Return tabs; every applied price and the next, with Record price and Apply price; the terms and their fingerprint. |
+| `/stock/isolated-afters/terms/{hash}` | A series' terms, the exact bytes whose keccak256 it holds (`platform/priv/exposure_terms`). |
 
 Ash domain `Autolaunch.Exposure`, resource `Series` with four generic actions every surface calls:
 `list`, `series`, `holdings` (the acting account's own wallet) and `prepare` (steps for `mint`,

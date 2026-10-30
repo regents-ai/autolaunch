@@ -140,9 +140,9 @@ defmodule AutolaunchWeb.Components.Rail do
   defp views(%{path: "/stock-listing"}) do
     [
       Autolaunch.CoveredCalls.Deployment.enabled?() &&
-        %{label: "Covered calls", path: ~p"/covered-calls", covers: []},
+        %{label: "Covered calls", path: ~p"/stock/covered-call", covers: []},
       Autolaunch.Exposure.Deployment.enabled?() &&
-        %{label: "After-hours", path: ~p"/after-hour-stocks", covers: []}
+        %{label: "After-hours", path: ~p"/stock/isolated-afters", covers: []}
     ]
     |> Enum.filter(& &1)
   end

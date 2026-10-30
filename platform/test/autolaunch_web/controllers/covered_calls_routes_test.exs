@@ -191,10 +191,10 @@ defmodule AutolaunchWeb.CoveredCallsRoutesTest do
       assert guide =~ "autolaunch_covered_call_prepare" == offered?
       assert home =~ ~s(id="agent-feature-tools") == offered?
       assert home =~ "#{length(capabilities["tools"])} Agent Tools"
-      assert sitemap =~ "/covered-calls</loc>" == offered?
+      assert sitemap =~ "/stock/covered-call</loc>" == offered?
       assert sitemap_md =~ "[Covered calls](" == offered?
       assert home =~ ~s(aria-label="Stocks views") == offered?
-      assert stocks =~ ~s(href="/covered-calls") == offered?
+      assert stocks =~ ~s(href="/stock/covered-call") == offered?
       assert stocks =~ "Covered Call Options coming soon." == not offered?
     end
   end

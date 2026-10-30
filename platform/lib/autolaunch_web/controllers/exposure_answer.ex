@@ -121,7 +121,8 @@ defmodule AutolaunchWeb.ExposureAnswer do
       feed: series.feed,
       feed_phase: series.phase,
       terms_hash: series.terms_hash,
-      terms_url: AutolaunchWeb.Endpoint.url() <> "/after-hour-stocks/terms/" <> series.terms_hash,
+      terms_url:
+        AutolaunchWeb.Endpoint.url() <> "/stock/isolated-afters/terms/" <> series.terms_hash,
       status: series.status,
       end_reason: series.end_reason,
       price: series.price,

@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.UpcomingLive do
         </p>
         <p :if={@covered_calls != []}>
           Launch a pair with a meme ticker and earn from trading fees, or sell
-          <.link navigate={~p"/covered-calls"}>covered calls</.link>
+          <.link navigate={~p"/stock/covered-call"}>covered calls</.link>
           on {Enum.join(@covered_calls, ", ")} and keep the premium.
         </p>
         <p class="upcoming__hint">

@@ -42,7 +42,7 @@ defmodule AutolaunchWeb.StockLive do
       <p :if={@stock["status"]} class="upcoming-details__status">{@stock["status"]}</p>
       <p :if={@stock["blocker"]} class="upcoming-details__note">{@stock["blocker"]}</p>
       <p :if={@covered_calls?} class="upcoming-details__action">
-        <.link navigate={~p"/covered-calls"} class="rg-button">Covered calls on {@stock["symbol"]}</.link>
+        <.link navigate={~p"/stock/covered-call"} class="rg-button">Covered calls on {@stock["symbol"]}</.link>
         <span>Sell calls on your {@stock["symbol"]} for a premium, or buy them.</span>
       </p>
       <dl class="upcoming-details__facts">

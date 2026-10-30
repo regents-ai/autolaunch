@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   @series ExposureChain.series()
   # The page itself is checked in AutolaunchWeb.ExposureLiveTest.
   @routes [
-    {:get, "/after-hour-stocks/terms/#{ExposureChain.terms_hash()}"},
+    {:get, "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"},
     {:get, "/assets/js/exposure.css"},
     {:get, "/api/v1/after-hour-stocks"},
     {:get, "/api/v1/after-hour-stocks/#{ExposureChain.series()}"},
@@ -149,7 +149,7 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
     assert length(series["schedule"]) == 11
     assert [%{"kind" => "close", "price" => _}, %{"kind" => "open"}] = series["prints"]
     assert series["next"]["kind"] == "close"
-    assert series["terms_url"] =~ "/after-hour-stocks/terms/#{ExposureChain.terms_hash()}"
+    assert series["terms_url"] =~ "/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}"
 
     unknown =
       build_conn() |> get("/api/v1/after-hour-stocks/0x1234567890123456789012345678901234567890")
@@ -160,13 +160,13 @@ defmodule AutolaunchWeb.ExposureRoutesTest do
   test "a series' terms are served as the exact bytes its fingerprint names" do
     ExposureChain.install()
 
-    terms = build_conn() |> get("/after-hour-stocks/terms/#{ExposureChain.terms_hash()}")
+    terms = build_conn() |> get("/stock/isolated-afters/terms/#{ExposureChain.terms_hash()}")
     assert terms.status == 200
 
     assert "0x" <> Base.encode16(ExKeccak.hash_256(terms.resp_body), case: :lower) ==
              ExposureChain.terms_hash()
 
-    missing = build_conn() |> get("/after-hour-stocks/terms/0x" <> String.duplicate("ab", 32))
+    missing = build_conn() |> get("/stock/isolated-afters/terms/0x" <> String.duplicate("ab", 32))
     assert missing |> json_response(404) |> code() == "unknown_terms"
   end
 

@@ -86,7 +86,7 @@ async function press(page: Page, sent: Sent[], name: string) {
 }
 
 /** Opens the page fresh and waits for the series to be read. */
-async function open(page: Page, path = "/after-hour-stocks") {
+async function open(page: Page, path = "/stock/isolated-afters") {
   await page.goto(path)
   await ready(page)
   await expect(page.locator("#exposure-overnight")).toBeVisible({timeout: 30_000})
@@ -137,7 +137,7 @@ test("after-hours exposure: record the first close, split, redeem pairs, run to 
   expect(await balanceOf(AMZNC, people.a.wallet)).toBe(start - 5_000_000n)
 
   // Redeem 0.02 pairs for 0.02 AMZNc.
-  await open(page, "/after-hour-stocks?tab=redeem")
+  await open(page, "/stock/isolated-afters?tab=redeem")
   await page.getByRole("textbox", {name: "Pairs"}).fill("0.02")
   await buttonsOnScreen(page)
   expect((await press(page, sent, "Redeem")).status).toBe("0x1")
@@ -160,7 +160,7 @@ test("after-hours exposure: record the first close, split, redeem pairs, run to 
 
   // After the end each token returns its own share; the copy's feed did not move, so
   // the two halves come back as the 0.03 AMZNc behind them.
-  await open(page, "/after-hour-stocks?tab=redeem")
+  await open(page, "/stock/isolated-afters?tab=redeem")
   await page.getByRole("button", {name: "Max", exact: true}).click()
   await expect(page.getByRole("textbox", {name: "After-hours"})).toHaveValue("0.03")
   await expect(page.getByRole("textbox", {name: "Market-hours"})).toHaveValue("0.03")

@@ -97,7 +97,9 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
               <td data-label="Value">{value(holding)}</td>
               <td class="exposure__row-action">
                 <.link
-                  navigate={~p"/after-hour-stocks?#{[series: holding.series.address, tab: "redeem"]}"}
+                  navigate={
+                    ~p"/stock/isolated-afters?#{[series: holding.series.address, tab: "redeem"]}"
+                  }
                   class="rg-button rg-button--secondary"
                 >
                   Redeem
@@ -110,7 +112,7 @@ defmodule AutolaunchWeb.ExposurePortfolioComponent do
       <div :if={@holdings.result == {:ok, []}} class="market-list__scroll market-list__empty">
         <h2>No tokens yet</h2>
         <p>After-hours and Market-hours tokens you mint or buy appear here.</p>
-        <.link navigate={~p"/after-hour-stocks"} class="rg-button rg-button--secondary">
+        <.link navigate={~p"/stock/isolated-afters"} class="rg-button rg-button--secondary">
           Mint tokens
         </.link>
       </div>

@@ -47,7 +47,7 @@ These are payoff examples, not premium or return promises. Actual exercise follo
 
 ## Fit with Autolaunch
 
-Add a `/covered-calls` entry and qualified actions from existing `/stock-listing/:symbol` pages. Extend existing `/portfolio` with underlying stock balances and option positions, including external holders.
+Add a `/stock/covered-call` entry and qualified actions from existing `/stock-listing/:symbol` pages. Extend existing `/portfolio` with underlying stock balances and option positions, including external holders.
 
 Implement a product-owned CoveredCalls domain, option quote/execution adapter and position/settlement tracking in the Phoenix/Ash platform. Reuse stock identity records, shared UI, `AutolaunchWeb.OnchainSteps`, chain reads and receipt tracking. Auction admission and the existing stock-to-CCA purchase adapter do not establish options eligibility or buy-and-write support.
 
