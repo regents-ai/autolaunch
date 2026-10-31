@@ -43,8 +43,9 @@ defmodule Autolaunch.Indexer.ReadChain do
   alias Autolaunch.Indexer.{Chain, Chains, Ledger}
 
   # One bound serves the ingest range, the reorg walk and the finality batch, so
-  # no pass can issue an unbounded number of provider calls or updates.
-  @bound 8
+  # no pass can issue an unbounded number of provider calls or updates. Base
+  # makes five blocks a second from 5 November 2026, so 80 blocks is 16 seconds.
+  @bound 80
 
   # No work is admitted. That is how a deployment with nothing to watch idles,
   # so it is not a diagnostic.
@@ -54,7 +55,7 @@ defmodule Autolaunch.Indexer.ReadChain do
   # outgoing machine) moved the cursor or the sources first.
   @waits [:chain_unavailable, :cursor_moved, :sources_changed]
 
-  # The most passes one run makes: 240 blocks, about eight minutes of Base.
+  # The most passes one run makes: 2,400 blocks, about eight minutes of Base.
   @passes 30
 
   @spec bound() :: pos_integer()

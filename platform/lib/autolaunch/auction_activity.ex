@@ -36,6 +36,7 @@ defmodule Autolaunch.AuctionActivity do
     BidSettlement,
     ChainWatch,
     LabAbi,
+    LaunchChain,
     Repo
   }
 
@@ -225,8 +226,7 @@ defmodule Autolaunch.AuctionActivity do
 
   # When the contract clock reaches the block, estimated from the head's time.
   defp at(timestamp, clock, block, venue),
-    do:
-      DateTime.add(timestamp, round((block - clock) * if(venue.chain == :base, do: 2, else: 0.1)))
+    do: DateTime.add(timestamp, round(LaunchChain.seconds(venue.chain, block - clock)))
 
   defp clock(%{chain: :base}, head), do: {:ok, head.number}
   defp clock(venue, head), do: Autolaunch.Robinhood.BlockClock.read(head, venue.opts)

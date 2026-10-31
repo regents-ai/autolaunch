@@ -22,9 +22,13 @@ defmodule Autolaunch.TokenTrade do
     end
   end
 
+  # Base makes several blocks in one second, so rows that share a second
+  # follow the chain's own order.
+  @newest_first [occurred_at: :desc, block_number: :desc, log_index: :desc, id: :asc]
+
   actions do
     read :recent do
-      prepare build(sort: [occurred_at: :desc, id: :asc], limit: 20, load: [token: :auction])
+      prepare build(sort: @newest_first, limit: 20, load: [token: :auction])
       filter expr(occurred_at > ago(1, :hour))
     end
 
