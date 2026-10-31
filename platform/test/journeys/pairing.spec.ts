@@ -11,7 +11,7 @@ import {expect, fitsAndPresses, people, ready, signIn, test} from "./support/per
 
 test.use({wallet: people.a.wallet})
 
-test("P1-P10: an agent signs in, its person pairs it from their Account page, it checks in and works, and is unpaired", async ({page, context}, info) => {
+test("P1-P10: an agent signs in, its person pairs it from their Agents page, it checks in and works, and is unpaired", async ({page, context}, info) => {
   const touch = info.project.name === "phone"
   const agent = new Agent(`pair-${info.project.name}`)
   const name = `Journey ${info.project.name} ${agent.address.slice(2, 6)}`
@@ -29,18 +29,18 @@ test("P1-P10: an agent signs in, its person pairs it from their Account page, it
   answer = agent.autolaunch(["agents", "whoami"])
   expect(answer.status, answer.stderr).toBe(0)
   expect(answer.json.data).toMatchObject({status: "not_paired", pairing: null})
-  expect(answer.json.data.next_step).toContain("Pair New Agent on their Account page")
+  expect(answer.json.data.next_step).toContain("Pair New Agent on their Agents page")
   expect(agent.autolaunch(["account", "points"]).json.error.code).toBe("agent_not_paired")
 
   // P3: the person opens Pair New Agent from the account menu on every page they
-  // might be on, and it takes them to the one pairing box, on their Account page.
+  // might be on, and it takes them to the one pairing box, on their Agents page.
   await signIn(page, people.a)
   for (const path of ["/", "/auctions", "/create"]) {
     await page.goto(path)
     await ready(page)
     await page.locator("#account-chip").click()
     await page.locator("#account-menu").getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(page).toHaveURL(/\/account#account-pairing$/)
+    await expect(page).toHaveURL(/\/account\/agents#account-pairing$/)
     const choices = await page.locator("#account-pairing input[name='harness']").evaluateAll(inputs =>
       inputs.map(input => (input as HTMLInputElement).value))
     expect(choices, `the agents offered after opening it from ${path}`).toEqual(offered)
@@ -82,11 +82,11 @@ test("P1-P10: an agent signs in, its person pairs it from their Account page, it
   await expect(page.locator("#account-pairing")).toContainText(name)
   await expect(page.locator("#account-pairing")).not.toContainText(code)
 
-  // P8: the agent checks in for Person A's account, and the account page shows it.
+  // P8: the agent checks in for Person A's account, and the Agents page shows it.
   answer = agent.autolaunch(["agents", "status"])
   expect(answer.status, answer.stderr).toBe(0)
   expect(answer.json.data.account).toMatchObject({wallet_address: people.a.wallet, wallet_addresses: [people.a.wallet]})
-  await page.goto("/account")
+  await page.goto("/account/agents")
   await ready(page)
   const row = page.locator("#account-agents").getByText(name).locator("xpath=ancestor::li[1]")
   await expect(row).toBeVisible()
@@ -99,7 +99,7 @@ test("P1-P10: an agent signs in, its person pairs it from their Account page, it
     expect(answer.status, `${command.join(" ")}: ${answer.stdout}`).toBe(0)
   }
 
-  // P10: the person unpairs it, which they do on regents.sh (the account page links
+  // P10: the person unpairs it, which they do on regents.sh (the Agents page links
   // there); the open page drops it, and its next signed call is refused.
   unpair("did:privy:journey-a", agent.address)
   await expect(page.locator("#account-agents")).not.toContainText(name)

@@ -355,6 +355,7 @@ defmodule AutolaunchWeb.Router do
       live "/portfolio", PortfolioLive, :portfolio
       live "/portfolio/bids/:id", BidLive, :bid
       live "/account", AccountLive, :account
+      live "/account/agents", AccountAgentsLive, :agents
       live "/account/points", PointsLive, :points
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index

@@ -118,19 +118,19 @@ Use the checks appropriate to the changed component. The full platform gate is:
 
 ```bash
 mix precommit
-npm run typecheck
-npm test
 ```
 
-`mix precommit` compiles with warnings as errors, checks unused dependency locks and
-formatting, runs Credo in strict mode and Sobelow, holds the compile-connected `xref` graph
-under its limit, runs the test suite with warnings as errors, and verifies the Ash codegen is
-up to date.
+`mix precommit` (also `make check-platform` from the repository root) compiles with warnings
+as errors, checks unused dependency locks and formatting, runs Credo in strict mode and
+Sobelow, holds the compile-connected `xref` graph under its limit, runs the test suite with
+warnings as errors, verifies the Ash codegen is up to date, refreshes the shared libraries'
+assets, then runs the TypeScript check, the Vitest suite and the browser walk.
 
 | Command | What it does |
 | --- | --- |
 | `npm run typecheck` | Type-checks the TypeScript assets. |
 | `npm test` | Runs the Vitest unit suite. |
+| `npm run test:browser` | Runs the browser walk on its own server and database. |
 
 The test database name carries whatever `MIX_TEST_PARTITION` holds, just before its `_test`
 ending. Setting it is required, not advisory, whenever more than one test run can happen on a

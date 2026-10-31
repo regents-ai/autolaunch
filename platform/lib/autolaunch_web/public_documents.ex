@@ -122,6 +122,7 @@ defmodule AutolaunchWeb.PublicDocuments do
       {"Your bid",
        "One of your Autolaunch bids: what is yours, what comes next and what it cost."},
     "/account" => {"Account", "Your Autolaunch sign-in, wallet and connected accounts."},
+    "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points, your NFT bonus and what earns points."},
     "/regent" =>
       {"REGENT",

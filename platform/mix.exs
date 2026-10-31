@@ -6,7 +6,7 @@ defmodule Autolaunch.MixProject do
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "644753647a6e3ab6bf945053e08d084bc665eb4f"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "3134bab0a23452fb82d3248072327e1d0199cc9a"
+  @design_system_ref "7a853f854168f208975815286eace8a502ec9aea"
 
   def project do
     [
@@ -223,7 +223,16 @@ defmodule Autolaunch.MixProject do
         "xref graph --label compile-connected --fail-above 85",
         "test --warnings-as-errors",
         "ash.codegen --check",
-        "usage_rules.sync --check"
+        "usage_rules.sync --check",
+        "regent_ui.assets",
+        "regent_blog.assets",
+        "regent_identity.assets",
+        "regent_agent_access.assets",
+        "cmd npm run typecheck",
+        "cmd npm test",
+        # The browser walk (test/browser): every page at phone and desktop width,
+        # and the paths a person takes, on its own server and database.
+        "cmd npm run test:browser"
       ]
     ]
   end

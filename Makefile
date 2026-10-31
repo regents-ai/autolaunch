@@ -3,9 +3,10 @@ help:
 	@echo "Run make check for every gate, or check-platform, check-browser, check-required-fixes, check-cli or check-siwa-latest for one."
 	@echo "Run make readiness to start the local server and check what the agent-readiness scorer looks for."
 check: check-platform check-required-fixes check-cli check-siwa-latest
-# The platform check ends with the browser walk.
+# The platform check (mix precommit) ends with the TypeScript check, the
+# TypeScript tests and the browser walk.
 check-platform:
-	cd platform && mix precommit && npm run typecheck && npm test && npm run test:browser
+	cd platform && mix precommit
 # The browser walk alone (platform/test/browser): the layout checks at phone and
 # desktop width. It starts its own server on its own database.
 check-browser:

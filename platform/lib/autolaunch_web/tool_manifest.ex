@@ -4,9 +4,7 @@ defmodule AutolaunchWeb.ToolManifest do
   site's own set, the one the pages' script is built with
   (`assets/js/public_tools.ts`). While covered calls or Exposure are on, the
   tools in `priv/covered_calls_tools.json` or `priv/exposure_tools.json` join
-  it, their signed tools join
-  `prepare_agent_request`'s operations, and the root layout hands the page
-  those tools (`page_tools/0`), so the page registers exactly the tools
+  it, and the root layout hands the page those tools (`page_tools/0`), so the page registers exactly the tools
   `/capabilities`, the agent guides and the tools dialog list. Off, nothing
   about them reaches a page, the script or any document.
   """
@@ -40,7 +38,7 @@ defmodule AutolaunchWeb.ToolManifest do
         @manifest
 
       added ->
-        %{@manifest | "tools" => Enum.map(@manifest["tools"], &operations(&1, added)) ++ added}
+        %{@manifest | "tools" => @manifest["tools"] ++ added}
     end
   end
 
@@ -54,11 +52,4 @@ defmodule AutolaunchWeb.ToolManifest do
     if("covered_calls" in on, do: @covered_calls, else: []) ++
       if("exposure" in on, do: @exposure, else: [])
   end
-
-  defp operations(%{"name" => "prepare_agent_request"} = tool, added) do
-    signed = for %{"operation_input_schema" => _, "name" => name} <- added, do: name
-    update_in(tool, ["input_schema", "properties", "operation", "enum"], &(&1 ++ signed))
-  end
-
-  defp operations(tool, _added), do: tool
 end

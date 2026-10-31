@@ -6,9 +6,9 @@ defmodule AutolaunchWeb.AccountLiveTest do
   @moduletag :capture_log
 
   # ACCOUNT_SHOWS_A_PAIRED_AGENT: the shared agents list needs every field of a
-  # row this page builds; a missing `kind` crashed /account for everyone with a
-  # paired agent (v140), and no case had a paired agent. The row's `wallet` is
-  # what puts the agent's address beside its name.
+  # row the Agents page builds; a missing `kind` crashed the page for everyone
+  # with a paired agent (v140), and no case had a paired agent. The row's `wallet`
+  # is what puts the agent's address beside its name.
   test "ACCOUNT_SHOWS_A_PAIRED_AGENT", %{conn: conn} do
     account = TestSupport.register_creator!()
 
@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/account")
+      |> live("/account/agents")
 
     render_async(view, 1_000)
     agents = view |> element("#account-agents") |> render()
@@ -93,7 +93,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/account")
+      |> live("/account/agents")
 
     render_async(view, 1_000)
     box = form(view, "#account-pairing-box")
@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.AccountLiveTest do
   # ACCOUNT_MENU_ON_EVERY_PAGE: the account's button opens one menu on every page,
   # a LiveView page and one served without LiveView alike, listing at most three of
   # the person's agents, newest paired first, and leading to the one pairing box on
-  # the Account page. A page without the menu leaves people no way to pair.
+  # the Agents page. A page without the menu leaves people no way to pair.
   test "ACCOUNT_MENU_ON_EVERY_PAGE", %{conn: conn} do
     account = TestSupport.register_creator!()
     person = %RegentAgents.Person{privy_user_id: account.privy_user_id}
@@ -145,31 +145,38 @@ defmodule AutolaunchWeb.AccountLiveTest do
     # A page served without LiveView lists the newest three, without activity lines.
     html = signed_in |> get("/about") |> html_response(200)
     assert html =~ ~s(id="account-menu")
-    assert html =~ ~s(href="/account#account-pairing")
+    assert html =~ ~s(href="/account/agents#account-pairing")
     refute html =~ "Menu One"
     for name <- ["Menu Two", "Menu Three", "Menu Four"], do: assert(html =~ name)
 
     # A LiveView page reads them in the menu's own component, the same three.
     {:ok, view, _html} = signed_in |> connects_with(session) |> live("/auctions")
     menu = view |> element("#account-menu") |> render()
-    assert menu =~ ~s(href="/account#account-pairing")
+    assert menu =~ ~s(href="/account/agents#account-pairing")
     assert menu =~ "Manage Account"
     assert menu =~ "Sign out"
     refute menu =~ "Menu One"
     for name <- ["Menu Two", "Menu Three", "Menu Four"], do: assert(menu =~ name)
 
-    # The Account page has the pairing box once, as the section the menu leads to,
-    # after this site's own sections and the account card.
-    {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account")
+    # The Agents page has the pairing box once, as the section the menu leads to,
+    # after the agents list.
+    {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account/agents")
     render_async(page, 1_000)
     html = render(page)
     assert length(Regex.scan(~r/id="account-pairing"/, html)) == 1
     assert has_element?(page, "#account-pairing #account-pairing-box")
 
+    {agents, _} = :binary.match(html, ~s(id="account-agents"))
+    {pairing, _} = :binary.match(html, ~s(id="account-pairing"))
+    assert agents < pairing
+
+    # The Account page puts this site's own sections before the account card.
+    {:ok, page, _html} = signed_in |> connects_with(session) |> live("/account")
+    render_async(page, 1_000)
+    html = render(page)
     {history, _} = :binary.match(html, ~s(id="account-credits-history"))
     {identity, _} = :binary.match(html, ~s(id="account-identity"))
-    {pairing, _} = :binary.match(html, ~s(id="account-pairing"))
-    assert history < identity and identity < pairing
+    assert history < identity
   end
 
   # The code in the message the box shows for the chosen agent.
