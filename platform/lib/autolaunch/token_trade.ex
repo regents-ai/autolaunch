@@ -24,7 +24,7 @@ defmodule Autolaunch.TokenTrade do
 
   actions do
     read :recent do
-      prepare build(sort: [occurred_at: :desc, id: :asc], limit: 20, load: [token: :auction])
+      prepare build(sort: [occurred_at: :desc, block_number: :desc, log_index: :desc, id: :asc], limit: 20, load: [token: :auction])
       filter expr(occurred_at > ago(1, :hour))
     end
 
