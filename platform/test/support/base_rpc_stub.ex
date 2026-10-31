@@ -4,7 +4,8 @@ defmodule Autolaunch.BaseRpcStub do
 
   Chain identity, the `safe` header, headers by number, receipts and transactions
   have exactly one shape for every surface. Only the block-pinned `eth_call`
-  answers differ, so a test supplies those as the `:calls` function it installs.
+  answers differ, so a test supplies those as the `:calls` function it installs,
+  which is given the call (`to` and `data`) and the stub's state.
   """
 
   @safe_hash "0x" <> String.duplicate("5a", 32)
@@ -129,7 +130,7 @@ defmodule Autolaunch.BaseRpcStub do
   defp result("eth_getTransactionByHash", [hash], state),
     do: state |> Map.get(:transactions, %{}) |> Map.get(hash)
 
-  defp result("eth_call", [%{data: data}, _block], state), do: state.calls.(data, state)
+  defp result("eth_call", [call, _block], state), do: state.calls.(call, state)
 
   defp result("eth_getLogs", [_filter], state), do: Map.get(state, :logs, [])
 

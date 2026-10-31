@@ -536,18 +536,16 @@ def mode_site_config(args: argparse.Namespace) -> int:
     created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
     frozen = bindings()
     addresses = {**created, **{key: frozen[constant] for key, constant in SITE_BINDINGS.items()}, "permit2": permit2()}
-    factory_block = next(entry["block_number"] for entry in manifest["transactions"] if entry["contract_key"] == "factory")
     document = {
         "chain_id": CHAIN_ID,
         "rpc_url": endpoint_argument(args.rpc_url, "--rpc-url"),
         "public_rpc_url": endpoint_argument(args.public_rpc_url, "--public-rpc-url"),
         "addresses": {key: addresses[key].lower() for key in sorted(addresses)},
         "abis": abis,
-        "start_blocks": {"factory": factory_block},
     }
     candidate = write_candidate(SITE_CONFIG_NAME, document)
-    print(f"site-config written to {candidate}: {len(document['addresses'])} addresses, {len(abis)} ABIs, "
-          f"factory start block {factory_block}; it carries the endpoints you passed and is never committed")
+    print(f"site-config written to {candidate}: {len(document['addresses'])} addresses, {len(abis)} ABIs; "
+          f"it carries the endpoints you passed and is never committed")
     return 0
 
 

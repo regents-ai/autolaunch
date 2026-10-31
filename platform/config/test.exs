@@ -107,17 +107,6 @@ config :autolaunch,
 
 config :autolaunch, :database_startup_enabled, true
 
-# The log ledger never runs under ExUnit: the tests drive its handler directly
-# against a fake endpoint. A browser or lab server reads its chain for real
-# (runtime.exs starts the ledger when its Base description names start blocks).
-unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
-  config :autolaunch, :autolaunch_indexer_chains, []
-
-  config :autolaunch,
-         :autolaunch_indexer_http_client,
-         Autolaunch.TestAutolaunchIndexerChainClient
-end
-
 # ExUnit reads no chain for the shared libraries; a browser or lab server reads
 # Base and Ethereum for real (Autolaunch.Chain.NodeClient).
 unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
@@ -175,7 +164,7 @@ end
 config :autolaunch, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
 
 # The browser walk's server (playwright.config.ts) never leaves the machine. It runs
-# no background work, so no feed or ledger reaches a chain or a market on its own;
+# no background work, so no feed or reader reaches a chain or a market on its own;
 # its chain nodes are a closed port on this machine, so their reads fail at once;
 # market prices and listings are unavailable, as under ExUnit; and any other
 # request outside it is refused and fails the walk (Autolaunch.WalkOffline).

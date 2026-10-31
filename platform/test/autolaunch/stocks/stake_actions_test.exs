@@ -33,7 +33,9 @@ defmodule Autolaunch.Stocks.StakeActionsTest do
     lp_locker = Lab.address!(config, :lp_locker)
     auction = Autolaunch.TestSupport.project_auction(state: :graduated, symbol: "LRVS")
 
-    BaseRpcStub.install(:autolaunch_lab_http_client, fn data, _state -> answer(data, config) end)
+    BaseRpcStub.install(:autolaunch_lab_http_client, fn %{data: data}, _state ->
+      answer(data, config)
+    end)
 
     BaseRpcStub.put(%{
       blocks: %{

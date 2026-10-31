@@ -12,7 +12,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   require Ash.Query
   import Ecto.Query, only: [from: 2]
 
-  alias Autolaunch.{Accounts, Auction, BaseRpcStub, LabAbi, LaunchDiscovery, LaunchReviews}
+  alias Autolaunch.{Accounts, Auction, BaseRpcStub, Lab, LabAbi, LaunchDiscovery, LaunchReviews}
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Abi, Client}
   alias Autolaunch.Stocks.Lab, as: StocksLab
@@ -42,6 +42,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
     launchpad = StocksLab.address!(config, :launchpad)
 
     BaseRpcStub.install(:autolaunch_lab_http_client, &answer(&1, &2))
+    BaseRpcStub.put(%{revstake: Lab.address!(Lab.current!(), :factory)})
 
     BaseRpcStub.put(%{
       blocks: %{
@@ -543,11 +544,15 @@ defmodule Autolaunch.MemestockDiscoveryTest do
   end
 
   # The launchpad's reads: one launch so far, its record, and its auction index.
-  defp answer(data, state) do
+  # The Revstake factory on the same chain has made none.
+  defp answer(%{to: to, data: data}, state) do
     selector = String.slice(data, 0, 10)
 
     words =
       cond do
+        to == state.revstake and selector == LabAbi.selector("nextLaunchId()") ->
+          [BaseRpcStub.hex_word(1)]
+
         selector == LabAbi.selector("nextLaunchId()") ->
           [BaseRpcStub.hex_word(@launch_id + 1)]
 
@@ -612,7 +617,7 @@ defmodule Autolaunch.MemestockDiscoveryTest do
 
   defp discover do
     LaunchDiscovery
-    |> Ash.ActionInput.for_action(:discover_memestock, %{}, actor: @actor)
+    |> Ash.ActionInput.for_action(:discover, %{}, actor: @actor)
     |> Ash.run_action!()
   end
 

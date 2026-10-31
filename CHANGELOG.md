@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 31 October 2026: Revstake launches found by count
+- A Revstake launch made outside this page is now found the way Memestock launches are: every five minutes, and within seconds of a launch press, the site asks Base how many launches have been made and reads each new one. It no longer keeps its own copy of every Base block.
+
 ## 31 October 2026: Price history for faster blocks
 - Price charts, reward history, wallet history and pool history keep loading after Base moves to five blocks a second, however many blocks a token's history covers.
 

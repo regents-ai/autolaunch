@@ -189,8 +189,8 @@ Ash domain `Autolaunch.CoveredCalls`:
 
 - **No tables.** The contract is the record: `Chain` reads listings, holdings, balances and
   allowances at the latest block, so every figure matches the chain after a reload, and no
-  migration is needed. (The event ledger only runs where the deployment names start blocks, and a
-  new table needs Sean's go before production; reading the contract avoids both.)
+  migration is needed. (A new table needs Sean's go before production; reading the contract
+  avoids it.)
 - `Book` — each market's listings, read once and shared by every visitor for five minutes and
   read again soon after a confirmed press (`ChainRefresh`) and after the page's Refresh press
   (unless taken in the last ten seconds), as `RegentFacts` does. Listings, and a wallet's position

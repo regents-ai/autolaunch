@@ -45,7 +45,7 @@ defmodule Autolaunch.ReviewedStepTest do
   end
 
   test "a sent launch is the review's with the suffix kept, dropped or rewritten" do
-    BaseRpcStub.install(:wallet_http_client, fn _data, _state -> "0x" end)
+    BaseRpcStub.install(:wallet_http_client, fn _call, _state -> "0x" end)
 
     for input <- [BuilderCode.append(@call), @call, @call <> @other_suffix] do
       BaseRpcStub.put(%{

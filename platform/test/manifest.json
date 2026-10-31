@@ -1,5 +1,5 @@
 {
-  "total": 159,
+  "total": 157,
   "status": "active",
   "archive": "/Users/sean/Documents/regent/artifacts/autolaunch-core-tests/original-tests-20260908-002826.tar.gz",
   "tests": [
@@ -1265,56 +1265,30 @@
       "source_sha256": "7f9e1d722a0ed8a5dae2264132e167c33ecc8681cfbba8939bb0315504b8fc54"
     },
     {
-      "id": 136,
-      "group": "Chain reads",
-      "framework": "exunit",
-      "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 27,
-      "test_name": "one wake reads the ledger up to the safe head, however far behind it is",
-      "keep_because": "The Base ledger wakes every five minutes and reads a few blocks a pass; a wake that stopped after one pass would fall further behind Base with every wake (chain reads moved to a five-minute clock, 23 Oct 2026). The case fails if one wake stops before the safe head.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
-    },
-    {
-      "id": 137,
-      "group": "Chain reads",
-      "framework": "exunit",
-      "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 37,
-      "test_name": "a refresh brings the ledger's five-minute read forward",
-      "keep_because": "A person's confirmed on-chain press must bring the ledger's next read forward from five minutes to the ten-second gap, and a press on another chain must not. The case fails if the chain's reading job keeps its five-minute time after its chain's refresh, or moves for another chain's.",
-      "generated_case": null,
-      "original_file": null,
-      "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
-    },
-    {
       "id": 138,
       "group": "Chain reads",
       "framework": "exunit",
       "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 52,
+      "line": 27,
       "test_name": "a refresh brings an auction's next activity read forward, never back",
       "keep_because": "A confirmed press must bring each listed auction's next activity read on that chain forward from five minutes to the ten-second gap, so a bid shows within seconds, and must never push back a read already due sooner, so presses that keep coming cannot starve it. The case fails if the waiting read stays put, moves for another chain's press, or a sooner read is moved later.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
+      "source_sha256": "71eb98b4d3b45f9c22553e25fa4de03a0bea4ae8b01595beff81663ddea73bd9"
     },
     {
       "id": 139,
       "group": "Chain reads",
       "framework": "exunit",
       "file": "test/autolaunch/chain_refresh_test.exs",
-      "line": 69,
-      "test_name": "a refresh on a chain with a Memestock launchpad runs its discovery at once",
-      "keep_because": "Once launches are open, a creator's Memestock launch press must queue discovery at once instead of waiting for the five-minute schedule, and nothing is queued while the site is read-only or for another chain. The case fails if discovery is not queued, or is queued when it must not be.",
+      "line": 45,
+      "test_name": "a refresh on a chain with a Base launchpad runs its discovery at once",
+      "keep_because": "Once launches are open, a creator's Revstake or Memestock launch press must queue discovery at once instead of waiting for the five-minute schedule, and nothing is queued while the site is read-only or for another chain. The case fails if discovery is not queued, or is queued when it must not be.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "f55ddf01c95968a3c32ec8a80b870e5a7a70e3f76d5ce66c85b92c9f11b4e750"
+      "source_sha256": "71eb98b4d3b45f9c22553e25fa4de03a0bea4ae8b01595beff81663ddea73bd9"
     },
     {
       "id": 140,
@@ -1958,39 +1932,39 @@
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 139,
+      "line": 140,
       "test_name": "a launch made outside the site is listed under the wallet that sent it, with only what passes the site's checks",
       "keep_because": "Sean's choice (28 Oct 2026, list everything): a launch sent straight to the launchpad, as an agent sends one from its own wallet, is listed under that wallet with no account, on the public lists and its own page, with invalid bytes, hidden characters, an unsafe link and an outside picture removed, and an operator can still hide it.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+      "source_sha256": "09a92e47955d76d7655de7d18cedd69ba846dceee9b36619cd07c89a35a3e708"
     },
     {
       "id": 192,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 282,
+      "line": 283,
       "test_name": "a launch taken again that the site cannot list yet waits, and is listed once it can",
       "keep_because": "Found by the second review: a launch an earlier pass left unlisted that the chain or the stock list could not answer for yet stayed unlisted and was never taken again. It now waits as pending and is listed once it can be.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+      "source_sha256": "09a92e47955d76d7655de7d18cedd69ba846dceee9b36619cd07c89a35a3e708"
     },
     {
       "id": 193,
       "group": "Agents",
       "framework": "exunit",
       "file": "test/autolaunch/memestock_discovery_test.exs",
-      "line": 345,
+      "line": 346,
       "test_name": "the two test launches the operator hid are never listed",
       "keep_because": "Sean, 29 Oct 2026, \"Hide both\": the release's data change marks Base Memestock launches 1 and 2 (V2 AUTOLAUNCH TEST) hidden, and no resolve pass lists them afterwards, while launch 3 is untouched.",
       "generated_case": null,
       "original_file": null,
       "original_source_sha256": null,
-      "source_sha256": "005a2e35bdb8e3b9eeed65feae403f909291222942aa96a8ddc79626d5dd63e0"
+      "source_sha256": "09a92e47955d76d7655de7d18cedd69ba846dceee9b36619cd07c89a35a3e708"
     },
     {
       "id": 194,
