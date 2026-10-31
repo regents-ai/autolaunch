@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 31 October 2026: the agent guides name Regents CLI 1.10.21
+- The agent guides and agents.md now name Regents CLI 1.10.21, the newest release, with its source commit and the fingerprint of its published package.
+
 ## 31 October 2026: Ready for faster blocks
 - Base makes five blocks a second from 5 November 2026. Bids and trades that land in the same second now show in the order they happened on the chain.
 - Two libraries the site uses were updated for security fixes.
