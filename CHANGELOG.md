@@ -2,6 +2,10 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 31 October 2026: Ready for faster blocks
+- Base makes five blocks a second from 5 November 2026. Bids and trades that land in the same second now show in the order they happened on the chain.
+- Two libraries the site uses were updated for security fixes.
+
 ## 30 October 2026: Launches paused
 - Base gets faster blocks on 5 November 2026. Until the new version opens, the Memestock launchpad and the Revstake launcher on Base take no new launches.
 - While Base says launches are paused, /create and /create/revstake say "New launches are paused until the new version opens." beside the launch button, and the button is greyed out. Existing auctions, claims, refunds and staking work as before.
