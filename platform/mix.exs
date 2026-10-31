@@ -77,7 +77,7 @@ defmodule Autolaunch.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.37"},
-      {:assent, "== 0.3.1"},
+      {:assent, "== 0.3.2"},
       {:ash_phoenix, "~> 2.3.25"},
       # ash_postgres main with #910 until a Hex release carries it: upserts use the
       # repo's prefix, which picks each site's schema on the shared database. It
