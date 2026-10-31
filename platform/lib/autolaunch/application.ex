@@ -75,6 +75,7 @@ defmodule Autolaunch.Application do
       autolaunch_jobs_child(),
       stock_admissions_child(),
       chain_head_children(),
+      Autolaunch.LaunchDiscovery.Count.children(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry

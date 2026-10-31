@@ -21,7 +21,9 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
   listed straight away. A run that recorded every launch up to the head sends
   the chain readers' `[:autolaunch, :indexer, :lag]` event for each launchpad,
   so launches the counter shows and the site has not recorded show as passes
-  that stop.
+  that stop. A run that recorded a new launch has the count the pages read
+  taken again (`Autolaunch.LaunchDiscovery.Count`), so their catching-up
+  notice clears.
   """
 
   @behaviour Autolaunch.ChainRefresh
@@ -30,6 +32,7 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
   alias Autolaunch.AuctionFinish.Launchpads
   alias Autolaunch.Chain.{Abi, LaunchAbi, Rpc}
   alias Autolaunch.LabAbi
+  alias Autolaunch.LaunchDiscovery.Count
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @launchpads [:base_revstake, :base_memestock]
@@ -54,14 +57,29 @@ defmodule Autolaunch.LaunchDiscovery.Discover do
     end)
   end
 
-  defp launchpads, do: Enum.filter(Launchpads.configured(), &(&1.launchpad in @launchpads))
+  @doc "The Base launchpads this site discovers launches on."
+  def launchpads, do: Enum.filter(Launchpads.configured(), &(&1.launchpad in @launchpads))
+
+  @doc """
+  The latest block, the highest launch id `pad` has made at it, and the highest
+  one the site has recorded.
+  """
+  @spec standing(map()) ::
+          {:ok, %{block: map(), made: non_neg_integer(), recorded: non_neg_integer()}}
+          | {:error, term()}
+  def standing(pad) do
+    with {:ok, block} <- Rpc.latest_block(pad.opts),
+         {:ok, made} <- Launchpads.last_launch_id(pad, block),
+         {:ok, recorded} <- known(pad),
+         do: {:ok, %{block: block, made: made, recorded: recorded}}
+  end
 
   defp discover(pad) do
-    with {:ok, block} <- Rpc.latest_block(pad.opts),
-         {:ok, last} <- Launchpads.last_launch_id(pad, block),
-         {:ok, known} <- known(pad),
-         :ok <- record_new(pad, (known + 1)..last//1, block),
-         do: followed(pad)
+    with {:ok, %{block: block, made: made, recorded: recorded}} <- standing(pad),
+         :ok <- record_new(pad, (recorded + 1)..made//1, block) do
+      if made > recorded, do: Count.read_again()
+      followed(pad)
+    end
   end
 
   defp record_new(pad, launch_ids, block) do

@@ -85,6 +85,7 @@ defmodule AutolaunchWeb.HomeLive do
      |> hear_isolated()
      |> LiveSettle.watch()
      |> LabMarket.assign_robinhood_stale()
+     |> LabMarket.assign_launches_catching_up()
      |> assign_figure_rates()}
   end
 
@@ -251,6 +252,10 @@ defmodule AutolaunchWeb.HomeLive do
   # The Robinhood notice follows whether the site could read Robinhood.
   def handle_info({:shared_reading, {:chain_head, "robinhood"}}, socket),
     do: {:noreply, LabMarket.robinhood_stale(socket)}
+
+  # The catching-up notice follows whether the lists hold every Base launch.
+  def handle_info({:shared_reading, {:launch_count, _launchpad}}, socket),
+    do: {:noreply, LabMarket.launches_catching_up(socket)}
 
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
@@ -783,6 +788,13 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
         <p :if={@market_loading} class="visually-hidden" role="status">Loading launches</p>
 
+        <Regent.Primitives.notice
+          :if={@launches_catching_up?}
+          role="status"
+          class="home-market__error"
+        >
+          <p>Catching up with the chain. Recent activity may take a moment to appear.</p>
+        </Regent.Primitives.notice>
         <Regent.Primitives.notice
           :if={@robinhood_stale?}
           role="status"

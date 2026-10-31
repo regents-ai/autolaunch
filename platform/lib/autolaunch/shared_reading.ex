@@ -86,6 +86,16 @@ defmodule Autolaunch.SharedReading do
       keys: 1,
       bytes: 262_144,
       within: 330
+    },
+    # How many launches each Base launchpad has made, and the highest the site
+    # has recorded (`Autolaunch.LaunchDiscovery.Count`): "base_revstake" and
+    # "base_memestock". Read every five minutes.
+    launch_count: %{
+      open:
+        "a launchpad's launch count is public on Base, and the site's count says only how far its lists have got",
+      keys: 2,
+      bytes: 128,
+      within: 330
     }
   }
 
