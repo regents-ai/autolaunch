@@ -75,24 +75,12 @@ defmodule Autolaunch.WalletHistory do
     do: MapSet.new(logs, &String.downcase(&1["transactionHash"]))
 
   defp logs(address, from_block, block, topics, opts) do
-    filter = %{
-      address: address,
-      fromBlock: hex(from_block),
-      toBlock: hex(block.number),
-      topics: topics
-    }
-
-    case Rpc.request("eth_getLogs", [filter], opts) do
-      {:ok, logs} when is_list(logs) -> {:ok, Enum.reject(logs, & &1["removed"])}
-      {:ok, _other} -> {:error, :invalid_chain_response}
-      error -> error
-    end
+    with {:ok, logs} <- Rpc.logs(address, topics, from_block, block.number, opts),
+         do: {:ok, Enum.reject(logs, & &1["removed"])}
   end
 
   defp address_topic(address),
     do:
       "0x" <>
         (address |> String.trim_leading("0x") |> String.downcase() |> String.pad_leading(64, "0"))
-
-  defp hex(value), do: "0x" <> Integer.to_string(value, 16)
 end

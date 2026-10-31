@@ -39,7 +39,7 @@ defmodule Autolaunch.PriceHistory do
   def pool(pool, from_block, block, opts) do
     topics = [[LabAbi.topic(@initialize), LabAbi.topic(@swap)], pool.pool_id]
 
-    with {:ok, logs} <- logs(pool.pool_manager, from_block, block, topics, opts),
+    with {:ok, logs} <- Rpc.logs(pool.pool_manager, topics, from_block, block.number, opts),
          {:ok, points} <-
            points(logs, block, fn log, words ->
              pool_price(sqrt_price(log, words), pool.token_is_currency0?, pool.currency_decimals)
@@ -66,21 +66,6 @@ defmodule Autolaunch.PriceHistory do
     ratio = :math.pow(sqrt_price / @q96, 2)
     per_base_unit = if token_is_currency0?, do: ratio, else: 1 / ratio
     per_base_unit * :math.pow(10, @token_decimals - currency_decimals)
-  end
-
-  defp logs(address, from_block, block, topics, opts) do
-    filter = %{
-      address: address,
-      fromBlock: hex(from_block),
-      toBlock: hex(block.number),
-      topics: topics
-    }
-
-    case Rpc.request("eth_getLogs", [filter], opts) do
-      {:ok, logs} when is_list(logs) -> {:ok, logs}
-      {:ok, _other} -> {:error, :invalid_chain_response}
-      error -> error
-    end
   end
 
   # Each log's block and price, in chain order, then the last price carried to
@@ -119,6 +104,4 @@ defmodule Autolaunch.PriceHistory do
   defp topic0(%{"topics" => [topic | _rest]}), do: String.downcase(topic)
 
   defp words(hex), do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
-
-  defp hex(value), do: "0x" <> Integer.to_string(value, 16)
 end
