@@ -102,13 +102,15 @@ defmodule Autolaunch.AuctionFinish.Sender do
     end
   end
 
-  # The wallet's mined count is read before the receipt, so a count past this
-  # nonce with no receipt after it means another transaction used the nonce.
+  # The wallet's mined count is read at the safe block, before the receipt.
+  # Every node answering the receipt has passed that block, so a count past
+  # this nonce with no receipt means another transaction used the nonce, never
+  # that a node behind the head has not yet seen this one mined.
   defp reconcile(pad, transaction) do
     opts = pad.opts
 
     with {:ok, mined} <-
-           quantity("eth_getTransactionCount", [transaction.signer, "latest"], opts),
+           quantity("eth_getTransactionCount", [transaction.signer, "safe"], opts),
          {:ok, receipt} <-
            Rpc.request("eth_getTransactionReceipt", [transaction.transaction_hash], opts),
          {:ok, seen} <-

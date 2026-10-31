@@ -94,7 +94,7 @@ defmodule Autolaunch.AuctionFinishTest do
     defp answer("eth_estimateGas", [_call]), do: quantity(200_000)
     defp answer("eth_maxPriorityFeePerGas", []), do: quantity(1_000_000)
 
-    defp answer("eth_getTransactionCount", [_signer, "latest"]), do: quantity(get(:mined))
+    defp answer("eth_getTransactionCount", [_signer, "safe"]), do: quantity(get(:mined))
 
     defp answer("eth_getTransactionCount", [_signer, "pending"]),
       do: quantity(get(:mined) + length(get(:mempool)))
