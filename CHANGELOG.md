@@ -2,6 +2,9 @@
 
 What changed on autolaunch.sh for people and agents, newest first.
 
+## 31 October 2026: Price history for faster blocks
+- Price charts, reward history, wallet history and pool history keep loading after Base moves to five blocks a second, however many blocks a token's history covers.
+
 ## 31 October 2026: the agent guides name Regents CLI 1.10.21
 - The agent guides and agents.md now name Regents CLI 1.10.21, the newest release, with its source commit and the fingerprint of its published package.
 
