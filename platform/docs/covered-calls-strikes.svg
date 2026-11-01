@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="960" height="540" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <title id="t">AMZNc strike set</title>
+  <desc id="d">The reference price of 240.27 dollars, the targets 1, 3 and 5 percent above it rounded up to a 1 dollar step to give strikes of 243, 248 and 253 dollars, and the suggested premium at each strike for the next four Fridays.</desc>
+  <style>
+    .bg { fill: #ffffff; }
+    .ink { fill: #1d2430; }
+    .soft { fill: #5b6474; }
+    .line { stroke: #c9ced8; }
+    .axis { stroke: #1d2430; }
+    .price { stroke: #5b6474; }
+    .strike { stroke: #2357c6; }
+    .accent { fill: #2357c6; }
+    .cell { fill: #eef3fd; stroke: #c4d3f3; }
+    .target { fill: #ffffff; stroke: #5b6474; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #141922; }
+      .ink { fill: #e7eaf0; }
+      .soft { fill: #a3abb9; }
+      .line { stroke: #39414f; }
+      .axis { stroke: #e7eaf0; }
+      .price { stroke: #a3abb9; }
+      .strike { stroke: #7da2f0; }
+      .accent { fill: #7da2f0; }
+      .cell { fill: #1c2740; stroke: #34466d; }
+      .target { fill: #141922; stroke: #a3abb9; }
+    }
+  </style>
+  <rect class="bg" width="960" height="540"/>
+
+  <text class="ink" x="32" y="46" font-size="24" font-weight="650">AMZNc strike set</text>
+  <text class="soft" x="32" y="72" font-size="14">Reference price $240.27 · strike step $1 · read 1 Nov 2026, 00:06 UTC</text>
+
+  <!-- Left: price ladder. y = 470 - (price - 239) * 24 -->
+  <text class="ink" x="32" y="112" font-size="15" font-weight="600">How the strikes are set</text>
+  <line class="axis" x1="120" y1="122" x2="120" y2="470" stroke-width="1.5"/>
+  <g class="line" stroke-width="1">
+    <line x1="114" y1="446" x2="126" y2="446"/>
+    <line x1="114" y1="422" x2="126" y2="422"/>
+    <line x1="114" y1="398" x2="126" y2="398"/>
+    <line x1="114" y1="374" x2="126" y2="374"/>
+    <line x1="114" y1="350" x2="126" y2="350"/>
+    <line x1="114" y1="326" x2="126" y2="326"/>
+    <line x1="114" y1="302" x2="126" y2="302"/>
+    <line x1="114" y1="278" x2="126" y2="278"/>
+    <line x1="114" y1="254" x2="126" y2="254"/>
+    <line x1="114" y1="230" x2="126" y2="230"/>
+    <line x1="114" y1="206" x2="126" y2="206"/>
+    <line x1="114" y1="182" x2="126" y2="182"/>
+    <line x1="114" y1="158" x2="126" y2="158"/>
+    <line x1="114" y1="134" x2="126" y2="134"/>
+  </g>
+  <g class="soft" font-size="12" text-anchor="end">
+    <text x="106" y="450">$240</text>
+    <text x="106" y="330">$245</text>
+    <text x="106" y="210">$250</text>
+  </g>
+
+  <!-- Reference price -->
+  <line class="price" x1="120" y1="439.5" x2="390" y2="439.5" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text class="soft" x="390" y="460" font-size="12" text-anchor="end">Price $240.27</text>
+
+  <!-- Targets (hollow) rounded up to strikes (solid lines) -->
+  <g stroke-width="2.5">
+    <line class="strike" x1="120" y1="374" x2="390" y2="374"/>
+    <line class="strike" x1="120" y1="254" x2="390" y2="254"/>
+    <line class="strike" x1="120" y1="134" x2="390" y2="134"/>
+  </g>
+  <g class="price" stroke-width="1.5" fill="none">
+    <path d="M184 382 V376"/>
+    <path d="M184 266.5 V256"/>
+    <path d="M184 151.3 V136"/>
+  </g>
+  <g>
+    <circle class="target" cx="184" cy="382" r="4.5" stroke-width="1.5"/>
+    <circle class="target" cx="184" cy="266.5" r="4.5" stroke-width="1.5"/>
+    <circle class="target" cx="184" cy="151.3" r="4.5" stroke-width="1.5"/>
+  </g>
+  <g class="soft" font-size="12">
+    <text x="138" y="398">+1% $242.67</text>
+    <text x="138" y="283">+3% $247.48</text>
+    <text x="138" y="168">+5% $252.28</text>
+  </g>
+  <g class="accent" font-size="14" font-weight="650" text-anchor="end">
+    <text x="390" y="366">$243</text>
+    <text x="390" y="246">$248</text>
+    <text x="390" y="126">$253</text>
+  </g>
+  <text class="soft" x="32" y="500" font-size="12">Each target rounds up to the next $1.</text>
+  <text class="soft" x="32" y="518" font-size="12">The step is the largest round amount not above 1% of the price.</text>
+
+  <!-- Right: suggested premium per window and strike -->
+  <text class="ink" x="450" y="112" font-size="15" font-weight="600">Suggested premium per AMZNc</text>
+  <g class="accent" font-size="14" font-weight="650" text-anchor="middle">
+    <text x="640" y="152">$243</text>
+    <text x="760" y="152">$248</text>
+    <text x="880" y="152">$253</text>
+  </g>
+  <g class="soft" font-size="12" text-anchor="middle">
+    <text x="640" y="170">+1.1%</text>
+    <text x="760" y="170">+3.2%</text>
+    <text x="880" y="170">+5.3%</text>
+  </g>
+  <g class="ink" font-size="14">
+    <text x="450" y="214">Fri 6 Nov</text>
+    <text x="450" y="270">Fri 13 Nov</text>
+    <text x="450" y="326">Fri 20 Nov</text>
+    <text x="450" y="382">Fri 27 Nov</text>
+  </g>
+  <g class="cell" stroke-width="1">
+    <rect x="590" y="188" width="100" height="40" rx="6"/>
+    <rect x="710" y="188" width="100" height="40" rx="6"/>
+    <rect x="830" y="188" width="100" height="40" rx="6"/>
+    <rect x="590" y="244" width="100" height="40" rx="6"/>
+    <rect x="710" y="244" width="100" height="40" rx="6"/>
+    <rect x="830" y="244" width="100" height="40" rx="6"/>
+    <rect x="590" y="300" width="100" height="40" rx="6"/>
+    <rect x="710" y="300" width="100" height="40" rx="6"/>
+    <rect x="830" y="300" width="100" height="40" rx="6"/>
+    <rect x="590" y="356" width="100" height="40" rx="6"/>
+    <rect x="710" y="356" width="100" height="40" rx="6"/>
+    <rect x="830" y="356" width="100" height="40" rx="6"/>
+  </g>
+  <g class="ink" font-size="15" text-anchor="middle" font-variant-numeric="tabular-nums">
+    <text x="640" y="213">$2.75</text>
+    <text x="760" y="213">$1.27</text>
+    <text x="880" y="213">$0.51</text>
+    <text x="640" y="269">$4.38</text>
+    <text x="760" y="269">$2.65</text>
+    <text x="880" y="269">$1.49</text>
+    <text x="640" y="325">$5.63</text>
+    <text x="760" y="325">$3.79</text>
+    <text x="880" y="325">$2.44</text>
+    <text x="640" y="381">$6.70</text>
+    <text x="760" y="381">$4.79</text>
+    <text x="880" y="381">$3.32</text>
+  </g>
+  <text class="soft" x="450" y="428" font-size="12">Before the 1% fee. Fixed 30% yearly volatility,</text>
+  <text class="soft" x="450" y="446" font-size="12">counted to the close of each Fri–Sat window.</text>
+  <text class="soft" x="450" y="500" font-size="12">The seller picks one strike. The premium starts at the suggestion</text>
+  <text class="soft" x="450" y="518" font-size="12">and stays theirs to change; it is earned only when a buyer fills.</text>
+</svg>
