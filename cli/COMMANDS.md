@@ -82,9 +82,10 @@ strikes are the reference price plus 1%, 3% and 5%, rounded up to `strike_step`.
 a whole number: prices in micro-USDC per whole token, `above_bps` and `volatility_bps` in basis
 points, times in Unix seconds. A suggested premium is a guide from a fixed volatility, not a
 buyer's offer; it and its fee are null while `price_fresh` is false (the reference price is more
-than four days old). The contract takes any strike. While covered calls are switched off, or for
-a stock with no market, it answers 404 `unknown_market`; a query parameter answers 422
-`invalid_request`; a chain or price that can't be read answers 503.
+than four days old). The contract takes any strike. A stock with no market answers 404
+`unknown_market`; while covered calls are switched off the route is not there and answers the
+site's JSON 404 `not_found`. A query parameter answers 422 `invalid_request`; a chain or price
+that can't be read answers 503 `chain_unavailable` or `price_unavailable`.
 
 ## `agents whoami`
 
